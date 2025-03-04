@@ -7,6 +7,7 @@ import { Office } from "@/components/Office";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Messages from "./pages/Messages";
+import { TestPage } from "./pages/TestPage";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/office" element={<Office />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/test" element={<TestPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

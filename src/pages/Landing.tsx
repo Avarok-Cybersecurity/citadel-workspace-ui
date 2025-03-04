@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, TestTube2 } from "lucide-react";
 import { useState } from "react";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
@@ -16,6 +16,7 @@ export const Landing = () => {
   const handleJoinNext = () => navigate('/office');
   const handleJoinBack = () => setCurrentStep('security');
   const startRegistration = () => setCurrentStep('server');
+  const goToTestPage = () => navigate('/test');
 
   return (
     <div className="min-h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
@@ -66,6 +67,16 @@ export const Landing = () => {
             >
               <PlusCircle className="w-5 h-5" />
               Create Workspace
+            </Button>
+            
+            <Button
+              onClick={goToTestPage}
+              variant="outline"
+              className="border-white/30 bg-transparent text-white hover:bg-white/10 text-lg px-8 h-[60px] flex items-center gap-2 transition-colors duration-300 w-full sm:w-auto"
+              size="lg"
+            >
+              <TestTube2 className="w-5 h-5" />
+              Test Integration
             </Button>
           </div>
         </div>
