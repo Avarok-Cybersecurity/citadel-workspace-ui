@@ -14,6 +14,17 @@ export default defineConfig(({ mode }) => {
     // Prevent vite from obscuring rust errors
     clearScreen: false,
 
+    // Handle Node.js modules
+    optimizeDeps: {
+      exclude: ['events', 'fs', 'path', 'crypto', 'os', 'util'],
+    },
+    
+    build: {
+      rollupOptions: {
+        external: ['events', 'fs', 'path', 'crypto', 'os', 'util'],
+      },
+    },
+
     server: {
       // Tauri requires a fixed port
       port: 1420,

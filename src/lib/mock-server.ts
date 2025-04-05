@@ -5,10 +5,10 @@
  * that can be used for testing the communication between Rust and TypeScript.
  */
 
-import { EventEmitter } from 'events';
+import { BrowserEventEmitter } from './browser-event-emitter';
 
 // Event emitter for simulating events from Rust to TypeScript
-export const tauriEventEmitter = new EventEmitter();
+export const tauriEventEmitter = new BrowserEventEmitter();
 
 // Mock response data
 const mockResponses = {

@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Shield, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { WorkspaceConfig } from "@/types/workspace";
+import { invoke } from "@tauri-apps/api/core";
 
 interface JoinProps {
   onNext: () => void;
@@ -16,6 +17,8 @@ interface JoinProps {
 export const Join = ({ onNext, onBack }: JoinProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isRegistering, setIsRegistering] = useState(false);
+  const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -25,23 +28,28 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
   });
 
   // Get connection and security settings from React Query cache
-  const { data: serverData } = useQuery({
-    queryKey: ['serverConnectForm'],
-    queryFn: () => ({ serverAddress: '', password: '' }),
-  });
+  const serverData = queryClient.getQueryData(['serverConnectForm']) as { 
+    serverAddress: string; 
+    password: string 
+  } || { serverAddress: '', password: '' };
 
-  const { data: securitySettings } = useQuery({
-    queryKey: ['securitySettings'],
-    queryFn: () => ({
-      securityLevel: 'standard',
-      securityMode: 'enhanced',
-      encryptionAlgorithm: 'aes',
-      kemAlgorithm: 'kyber',
-      signingAlgorithm: 'falcon',
-      headerObfuscatorMode: 'off',
-      psk: '',
-    }),
-  });
+  const securitySettings = queryClient.getQueryData(['securitySettings']) as {
+    securityLevel: string;
+    securityMode: string;
+    encryptionAlgorithm: string;
+    kemAlgorithm: string;
+    signingAlgorithm: string;
+    headerObfuscatorMode: string;
+    psk: string;
+  } || {
+    securityLevel: 'standard',
+    securityMode: 'enhanced',
+    encryptionAlgorithm: 'aes',
+    kemAlgorithm: 'kyber',
+    signingAlgorithm: 'falcon',
+    headerObfuscatorMode: 'off',
+    psk: '',
+  };
 
   console.log('Retrieved server data:', serverData);
   console.log('Retrieved security settings:', securitySettings);
@@ -51,7 +59,7 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.fullName || !formData.username || !formData.password || !formData.confirmPassword) {
@@ -75,19 +83,19 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
     // Create workspace configuration
     const workspaceConfig: WorkspaceConfig = {
       // Connection details
-      serverAddress: serverData?.serverAddress || '',
-      password: serverData?.password,
+      serverAddress: serverData.serverAddress,
+      password: serverData.password,
       
       // Security settings
-      securityLevel: securitySettings?.securityLevel || 'standard',
-      securityMode: securitySettings?.securityMode || 'enhanced',
+      securityLevel: securitySettings.securityLevel,
+      securityMode: securitySettings.securityMode,
       
       // Advanced settings
-      encryptionAlgorithm: securitySettings?.encryptionAlgorithm || 'aes',
-      kemAlgorithm: securitySettings?.kemAlgorithm || 'kyber',
-      signingAlgorithm: securitySettings?.signingAlgorithm || 'falcon',
-      headerObfuscatorMode: securitySettings?.headerObfuscatorMode || 'off',
-      psk: securitySettings?.psk,
+      encryptionAlgorithm: securitySettings.encryptionAlgorithm,
+      kemAlgorithm: securitySettings.kemAlgorithm,
+      signingAlgorithm: securitySettings.signingAlgorithm,
+      headerObfuscatorMode: securitySettings.headerObfuscatorMode,
+      psk: securitySettings.psk,
       
       // Profile details
       fullName: formData.fullName,
@@ -97,7 +105,86 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
 
     console.log('Final workspace configuration:', workspaceConfig);
     
-    onNext();
+    // Map security levels and modes to numeric values for the Rust backend
+    const securityLevelMap: Record<string, number> = {
+      'standard': 0,
+      'enhanced': 1,
+      'maximum': 2
+    };
+    
+    const securityModeMap: Record<string, number> = {
+      'standard': 0,
+      'enhanced': 1,
+      'maximum': 2
+    };
+    
+    const encryptionAlgorithmMap: Record<string, number> = {
+      'aes': 0,
+      'chacha20': 1
+    };
+    
+    const kemAlgorithmMap: Record<string, number> = {
+      'kyber': 0,
+      'classic': 1
+    };
+    
+    const sigAlgorithmMap: Record<string, number> = {
+      'falcon': 0,
+      'classic': 1
+    };
+    
+    try {
+      setIsRegistering(true);
+      
+      // Prepare the registration request for the Rust backend
+      const registrationRequest = {
+        workspaceIdentifier: workspaceConfig.serverAddress,
+        workspacePassword: workspaceConfig.password || "",
+        securityLevel: securityLevelMap[workspaceConfig.securityLevel] || 0,
+        securityMode: securityModeMap[workspaceConfig.securityMode] || 0,
+        encryptionAlgorithm: encryptionAlgorithmMap[workspaceConfig.encryptionAlgorithm] || 0,
+        kemAlgorithm: kemAlgorithmMap[workspaceConfig.kemAlgorithm] || 0,
+        sigAlgorithm: sigAlgorithmMap[workspaceConfig.signingAlgorithm] || 0,
+        fullName: workspaceConfig.fullName,
+        username: workspaceConfig.username,
+        profilePassword: workspaceConfig.profilePassword
+      };
+      
+      console.log("Sending registration request:", JSON.stringify(registrationRequest, null, 2));
+      console.log("Registration request data:", registrationRequest);
+      
+      // Call the Rust backend to register
+      const response = await invoke<{ message: string, success: boolean }>("register", {
+        request: registrationRequest
+      });
+      
+      if (response.success) {
+        toast({
+          title: "Registration Successful",
+          description: response.message,
+        });
+        onNext();
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: response.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      
+      // Extract error message from Tauri error object
+      const errorMessage = error.message || error.toString() || "Unknown error occurred";
+      
+      toast({
+        title: "Registration Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
   return (
@@ -222,14 +309,21 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
                 variant="ghost"
                 onClick={onBack}
                 className="text-white hover:bg-purple-500/20"
+                disabled={isRegistering}
               >
                 BACK
               </Button>
               <Button
                 type="submit"
                 className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                disabled={isRegistering}
               >
-                JOIN
+                {isRegistering ? (
+                  <>
+                    <span className="mr-2">REGISTERING...</span>
+                    <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                  </>
+                ) : "JOIN"}
               </Button>
             </div>
           </form>

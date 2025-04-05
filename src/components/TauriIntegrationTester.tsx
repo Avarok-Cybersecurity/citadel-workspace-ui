@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { runTauriIntegrationTests } from '@/lib/tauri-integration.test';
+import { runTauriIntegrationTests } from '@/lib/tauri-integration-browser';
 import { runTypeInteropTests } from '@/lib/test-interop';
 
 export function TauriIntegrationTester() {

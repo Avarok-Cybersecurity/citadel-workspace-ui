@@ -5,35 +5,30 @@ import { Shield, HelpCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ServerConnectProps {
   onNext: () => void;
+  onCancel?: () => void;
 }
 
-export const ServerConnect = ({ onNext }: ServerConnectProps) => {
+export const ServerConnect = ({ onNext, onCancel }: ServerConnectProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: formData } = useQuery({
-    queryKey: ['serverConnectForm'],
-    queryFn: () => ({ serverAddress: '', password: '' }),
-    initialData: { serverAddress: '', password: '' }
-  });
+  // Get existing data from cache
+  const cachedData = queryClient.getQueryData(['serverConnectForm']) as { serverAddress: string; password: string } | undefined;
 
-  const [serverAddress, setServerAddress] = useState(formData.serverAddress);
-  const [password, setPassword] = useState(formData.password);
+  const [serverAddress, setServerAddress] = useState(cachedData?.serverAddress || '');
+  const [password, setPassword] = useState(cachedData?.password || '');
 
-  const { mutate: updateFormCache } = useMutation({
-    mutationFn: (newData: { serverAddress: string; password: string }) => {
-      console.log('Updating form cache:', newData);
-      return Promise.resolve(newData);
-    },
-    onSuccess: (newData) => {
-      queryClient.setQueryData(['serverConnectForm'], newData);
-    },
-  });
+  // Update cache when component mounts to ensure it's initialized
+  useEffect(() => {
+    if (!cachedData) {
+      queryClient.setQueryData(['serverConnectForm'], { serverAddress, password });
+    }
+  }, [queryClient, cachedData, serverAddress, password]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +41,10 @@ export const ServerConnect = ({ onNext }: ServerConnectProps) => {
       return;
     }
     
-    updateFormCache({ serverAddress, password });
+    // Save form data to React Query cache
+    queryClient.setQueryData(['serverConnectForm'], { serverAddress, password });
+    console.log('Saved server data to cache:', { serverAddress, password });
+    
     onNext();
   };
 
@@ -112,7 +110,7 @@ export const ServerConnect = ({ onNext }: ServerConnectProps) => {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => navigate("/")}
+            onClick={onCancel || (() => navigate("/"))}
             className="text-white hover:bg-purple-500/20"
           >
             CANCEL

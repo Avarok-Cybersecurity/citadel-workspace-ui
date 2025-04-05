@@ -1,14 +1,34 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, TestTube2 } from "lucide-react";
-import { useState } from "react";
+import { PlusCircle, TestTube2, Link } from "lucide-react";
+import { useState, useEffect } from "react";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
+import { invoke } from "@tauri-apps/api/core";
 
 export const Landing = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join'>('none');
+  const [hasExistingServers, setHasExistingServers] = useState(false);
+
+  useEffect(() => {
+    // Check if there are any registered servers
+    const checkForServers = async () => {
+      try {
+        const response = await invoke<{ servers: any[] }>("list_known_servers", {
+          request: { cid: "landing-page" }
+        });
+        setHasExistingServers(response.servers.length > 0);
+      } catch (error: any) {
+        console.error("Error checking for known servers:", error);
+        const errorMessage = error.message || error.toString() || "Unknown error";
+        console.error("Error details:", errorMessage);
+      }
+    };
+
+    checkForServers();
+  }, []);
 
   const handleServerNext = () => setCurrentStep('security');
   const handleSecurityNext = () => setCurrentStep('join');
@@ -17,6 +37,7 @@ export const Landing = () => {
   const handleJoinBack = () => setCurrentStep('security');
   const startRegistration = () => setCurrentStep('server');
   const goToTestPage = () => navigate('/test');
+  const goToConnectPage = () => navigate('/connect');
 
   return (
     <div className="min-h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
@@ -52,6 +73,17 @@ export const Landing = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">
+            {hasExistingServers && (
+              <Button
+                onClick={goToConnectPage}
+                className="bg-purple-600 text-white hover:bg-purple-700 text-lg px-8 h-[60px] transition-colors duration-300 w-full sm:w-auto flex items-center gap-2"
+                size="lg"
+              >
+                <Link className="w-5 h-5" />
+                Connect Workspace
+              </Button>
+            )}
+            
             <Button
               onClick={startRegistration}
               className="bg-white text-black hover:bg-gray-100 text-lg px-8 h-[60px] transition-colors duration-300 w-full sm:w-auto"
@@ -84,7 +116,7 @@ export const Landing = () => {
 
       {/* Registration Flow Overlays */}
       {currentStep === 'server' && (
-        <ServerConnect onNext={handleServerNext} />
+        <ServerConnect onNext={handleServerNext} onCancel={() => setCurrentStep('none')} />
       )}
       {currentStep === 'security' && (
         <SecuritySettings onNext={handleSecurityNext} onBack={handleSecurityBack} />
