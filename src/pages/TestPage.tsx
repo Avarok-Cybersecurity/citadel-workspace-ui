@@ -51,9 +51,8 @@ export function TestPage() {
           All test results are logged to the browser console for detailed inspection.
         </p>
         <p className="mt-2 text-sm text-gray-600">
-          Note: For the Tauri API Demo to work properly, the internal service must be running. 
-          Make sure to set the environment variable INTERNAL_SERVICE_PATH="../citadel-internal-service" 
-          and run "just start-servers" before testing.
+          Note: For the Tauri API Demo to work properly, the internal service and server must be running. 
+          Run "just start-servers" before testing.
         </p>
       </div>
     </div>

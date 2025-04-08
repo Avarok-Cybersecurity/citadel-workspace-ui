@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { WorkspaceConfig } from "@/types/workspace";
 import { invoke } from "@tauri-apps/api/core";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 interface JoinProps {
   onNext: () => void;
@@ -51,9 +53,6 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
     psk: '',
   };
 
-  console.log('Retrieved server data:', serverData);
-  console.log('Retrieved security settings:', securitySettings);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -80,6 +79,8 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
       return;
     }
 
+    setIsRegistering(true);
+
     // Create workspace configuration
     const workspaceConfig: WorkspaceConfig = {
       // Connection details
@@ -102,8 +103,6 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
       username: formData.username,
       profilePassword: formData.password,
     };
-
-    console.log('Final workspace configuration:', workspaceConfig);
     
     // Map security levels and modes to numeric values for the Rust backend
     const securityLevelMap: Record<string, number> = {
@@ -133,44 +132,36 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
       'classic': 1
     };
     
+    // Create registration request from configuration
+    const registrationRequest = {
+      workspaceIdentifier: workspaceConfig.serverAddress,
+      workspacePassword: workspaceConfig.password || "",
+      securityLevel: securityLevelMap[workspaceConfig.securityLevel] || 0,
+      securityMode: securityModeMap[workspaceConfig.securityMode] || 0,
+      encryptionAlgorithm: encryptionAlgorithmMap[workspaceConfig.encryptionAlgorithm] || 0,
+      kemAlgorithm: kemAlgorithmMap[workspaceConfig.kemAlgorithm] || 0,
+      sigAlgorithm: sigAlgorithmMap[workspaceConfig.signingAlgorithm] || 0,
+      fullName: workspaceConfig.fullName,
+      username: workspaceConfig.username,
+      profilePassword: workspaceConfig.profilePassword
+    };
+    
+    console.log("Sending registration request:", JSON.stringify(registrationRequest, null, 2));
+    
     try {
-      setIsRegistering(true);
-      
-      // Prepare the registration request for the Rust backend
-      const registrationRequest = {
-        workspaceIdentifier: workspaceConfig.serverAddress,
-        workspacePassword: workspaceConfig.password || "",
-        securityLevel: securityLevelMap[workspaceConfig.securityLevel] || 0,
-        securityMode: securityModeMap[workspaceConfig.securityMode] || 0,
-        encryptionAlgorithm: encryptionAlgorithmMap[workspaceConfig.encryptionAlgorithm] || 0,
-        kemAlgorithm: kemAlgorithmMap[workspaceConfig.kemAlgorithm] || 0,
-        sigAlgorithm: sigAlgorithmMap[workspaceConfig.signingAlgorithm] || 0,
-        fullName: workspaceConfig.fullName,
-        username: workspaceConfig.username,
-        profilePassword: workspaceConfig.profilePassword
-      };
-      
-      console.log("Sending registration request:", JSON.stringify(registrationRequest, null, 2));
-      console.log("Registration request data:", registrationRequest);
-      
-      // Call the Rust backend to register
-      const response = await invoke<{ message: string, success: boolean }>("register", {
+      // The Rust handler returns a RegisterSuccessTS on success
+      const response = await invoke<{ cid: string, request_id?: string }>("register", {
         request: registrationRequest
       });
       
-      if (response.success) {
-        toast({
-          title: "Registration Successful",
-          description: response.message,
-        });
-        onNext();
-      } else {
-        toast({
-          title: "Registration Failed",
-          description: response.message,
-          variant: "destructive",
-        });
-      }
+      console.log("Registration response:", response);
+      
+      // If we get here, the registration was successful
+      toast({
+        title: "Registration Successful",
+        description: "Your account has been registered successfully.",
+      });
+      onNext();
     } catch (error: any) {
       console.error("Registration error:", error);
       
@@ -188,122 +179,124 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="w-full max-w-xl p-8 space-y-6 bg-[#4F5889]/95 backdrop-blur-sm border border-purple-500/20 shadow-lg rounded-lg">
-        <div className="flex items-center gap-3 mb-8">
-          <Shield className="w-8 h-8 text-white" />
-          <h1 className="text-2xl font-bold text-white">ADD A NEW WORKSPACE</h1>
-        </div>
-
-        <div className="space-y-8">
-          <h2 className="text-xl font-semibold text-white">SERVER PROFILE</h2>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200 uppercase">
-                Full Name
-              </label>
-              <div className="relative">
-                <Input
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  className="bg-[#221F26]/70 border-purple-400/20 text-white pr-12"
-                  placeholder="John Doe"
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                      <p>Enter your full name as it will appear in the workspace</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-md">
+        <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-white text-xl">Create Your Profile</CardTitle>
+            <CardDescription className="text-gray-300">
+              Create your profile for this workspace
+            </CardDescription>
+          </CardHeader>
+          
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-gray-300">
+                  Full Name
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleInputChange}
+                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
+                    placeholder="John Doe"
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+                        <p>Enter your full name for this workspace profile</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
-            </div>
 
-            {/* Username Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200 uppercase">
-                Username
-              </label>
-              <div className="relative">
-                <Input
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  className="bg-[#221F26]/70 border-purple-400/20 text-white pr-12"
-                  placeholder="john.doe.33"
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                      <p>Choose a unique username for your workspace profile</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <div className="space-y-2">
+                <Label htmlFor="username" className="text-gray-300">
+                  Username
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="username"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
+                    placeholder="john.doe.33"
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+                        <p>Choose a unique username for your workspace profile</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
-            </div>
 
-            {/* Password Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200 uppercase">
-                Profile Password
-              </label>
-              <div className="relative">
-                <Input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="bg-[#221F26]/70 border-purple-400/20 text-white pr-12"
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                      <p>Create a strong password for your profile</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-gray-300">
+                  Profile Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+                        <p>Create a strong password for your profile</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
-            </div>
 
-            {/* Confirm Password Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200 uppercase">
-                Confirm Profile Password
-              </label>
-              <div className="relative">
-                <Input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  className="bg-[#221F26]/70 border-purple-400/20 text-white pr-12"
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                      <p>Re-enter your password to confirm</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-gray-300">
+                  Confirm Profile Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+                        <p>Re-enter your password to confirm</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-4 mt-8">
+            </CardContent>
+            
+            <CardFooter className="flex justify-between">
               <Button
                 type="button"
                 variant="ghost"
@@ -325,9 +318,9 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
                   </>
                 ) : "JOIN"}
               </Button>
-            </div>
+            </CardFooter>
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   );

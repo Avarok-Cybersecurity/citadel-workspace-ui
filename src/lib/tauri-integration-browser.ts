@@ -15,7 +15,7 @@ import {
 import { WorkspaceConfig } from '@/types/workspace';
 
 // Export a browser-compatible function to run the tests from the UI
-export function runTauriIntegrationTests(): boolean {
+export async function runTauriIntegrationTests(): Promise<boolean> {
   try {
     // Sample workspace config
     const testConfig: WorkspaceConfig = {
@@ -42,6 +42,7 @@ export function runTauriIntegrationTests(): boolean {
       encryptionAlgorithm: 0,
       kemAlgorithm: 0,
       sigAlgorithm: 0,
+      headerObfuscatorMode: 0,
       fullName: 'Test User',
       username: 'testuser',
       profilePassword: 'test-profile-password'
@@ -61,6 +62,7 @@ export function runTauriIntegrationTests(): boolean {
         encryption_algorithm: 0,
         kem_algorithm: 0,
         sig_algorithm: 0,
+        header_obfuscator_mode: 0,
         full_name: 'Test User',
         username: 'testuser',
         profile_password: 'test-profile-password'

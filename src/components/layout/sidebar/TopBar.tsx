@@ -1,5 +1,4 @@
-
-import { Menu, Settings } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,15 +13,37 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import PreferencesDialog from "@/components/connection/PreferencesDialog";
+import NotificationCenter from "@/components/notification/NotificationCenter";
+import { useWorkspace } from "@/lib/workspace-context";
 
 interface TopBarProps {
-  currentWorkspace: string;
+  // Optional prop for backward compatibility
+  currentWorkspace?: string;
 }
+
+// Helper function to get user initials
+const getUserInitials = (name: string): string => {
+  if (!name) return "?";
+  
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
 
 export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const { state } = useWorkspace();
+
+  // Get workspace name from context or fallback to prop
+  const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
+  
+  // Get the username from the state or use a default
+  const username = "User"; // This would ideally come from a user context or state
+  const userInitials = getUserInitials(username);
 
   const handleSettingsClick = () => {
     toast({
@@ -45,40 +66,19 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        <WorkspaceSwitcher />
+        <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
       <div className="flex items-center space-x-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-[#343A5C] text-white border-purple-800">
-            <DropdownMenuLabel>Settings</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-purple-800" />
-            <DropdownMenuItem className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer" onClick={handleSettingsClick}>
-              General Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer" onClick={handleSettingsClick}>
-              Appearance
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer" onClick={handleSettingsClick}>
-              Notifications
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
+        <NotificationCenter />
+        
+        <PreferencesDialog />
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="/lovable-uploads/e7bc98f6-ccc4-4d78-a3bf-50c023c6d54a.png" />
-                <AvatarFallback className="bg-[#444A6C] text-white">JD</AvatarFallback>
+                <AvatarImage src="" />
+                <AvatarFallback className="bg-[#444A6C] text-white">{userInitials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

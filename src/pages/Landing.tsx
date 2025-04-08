@@ -1,34 +1,35 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, TestTube2, Link } from "lucide-react";
-import { useState, useEffect } from "react";
+import { PlusCircle, TestTube2, Link, LogIn } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
-import { invoke } from "@tauri-apps/api/core";
+import { Login } from "@/components/Login";
+import { listKnownServers } from "@/lib/tauri";
 
 export const Landing = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join'>('none');
+  const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const [hasExistingServers, setHasExistingServers] = useState(false);
 
-  useEffect(() => {
-    // Check if there are any registered servers
-    const checkForServers = async () => {
-      try {
-        const response = await invoke<{ servers: any[] }>("list_known_servers", {
-          request: { cid: "landing-page" }
-        });
-        setHasExistingServers(response.servers.length > 0);
-      } catch (error: any) {
-        console.error("Error checking for known servers:", error);
-        const errorMessage = error.message || error.toString() || "Unknown error";
-        console.error("Error details:", errorMessage);
-      }
-    };
-
-    checkForServers();
+  // Memoize the checkForServers function to prevent it from being recreated on each render
+  const checkForServers = useCallback(async () => {
+    try {
+      // Using "0" as a valid u64 string representation for the landing page
+      const response = await listKnownServers({ cid: "0" });
+      setHasExistingServers(response.servers.length > 0);
+    } catch (error: any) {
+      console.error("Error checking for known servers:", error);
+      const errorMessage = error.message || error.toString() || "Unknown error";
+      console.error("Error details:", errorMessage);
+    }
   }, []);
+
+  // Run the effect only once when the component mounts
+  useEffect(() => {
+    checkForServers();
+  }, [checkForServers]);
 
   const handleServerNext = () => setCurrentStep('security');
   const handleSecurityNext = () => setCurrentStep('join');
@@ -36,79 +37,81 @@ export const Landing = () => {
   const handleJoinNext = () => navigate('/office');
   const handleJoinBack = () => setCurrentStep('security');
   const startRegistration = () => setCurrentStep('server');
+  const startLogin = () => setCurrentStep('login');
+  const handleLoginNext = (connectionId: string) => {
+    console.log('Connected with ID:', connectionId);
+    navigate('/office');
+  };
   const goToTestPage = () => navigate('/test');
   const goToConnectPage = () => navigate('/connect');
 
   return (
     <div className="min-h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
-      {/* Background Image */}
+      {/* Solid background base */}
+      <div className="absolute inset-0 z-0 bg-[#1C1D28] fixed" />
+      
+      {/* Background Image with proper positioning */}
       <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-70"
+        className="absolute inset-0 z-[1] bg-center bg-no-repeat bg-contain w-full h-full fixed md:bg-right"
         style={{
           backgroundImage: "url('/lovable-uploads/fcd25400-92a0-41ed-95ae-573a0298bd55.png')",
-          backgroundSize: 'cover',
-          width: '100%',
-          height: '100%',
-          position: 'fixed'
         }}
       />
-
-      {/* Gradient Overlay */}
-      <div
-        className="absolute inset-0 z-0 bg-gradient-to-r from-[#1C1D28] via-[rgba(28,29,40,0.8)] to-[rgba(28,29,40,0.4)]"
+      
+      {/* Strong gradient overlay for smooth transition */}
+      <div 
+        className="absolute inset-0 z-[2] fixed pointer-events-none"
         style={{
-          position: 'fixed'
+          background: 'linear-gradient(to right, #1C1D28 0%, #1C1D28 30%, rgba(28, 29, 40, 0.7) 60%, rgba(28, 29, 40, 0.2) 80%, rgba(28, 29, 40, 0) 100%)',
         }}
       />
       
       {/* Content */}
-      <div className="container mx-auto px-4 sm:px-6 relative z-10">
-        <div className="max-w-3xl animate-fade-in">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
+      <div className="container mx-auto px-4 sm:px-6 py-10 md:py-0 relative z-10">
+        <div className="max-w-xl lg:max-w-3xl animate-fade-in">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight">
             The World's First Post-Quantum Virtual Workspace
           </h1>
           
-          <p className="text-lg sm:text-xl text-gray-300 mb-8 sm:mb-12">
+          <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-6 md:mb-8 lg:mb-12">
             Hyper-security and control over defense and privacy at your fingertips
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4">
-            {hasExistingServers && (
-              <Button
-                onClick={goToConnectPage}
-                className="bg-purple-600 text-white hover:bg-purple-700 text-lg px-8 h-[60px] transition-colors duration-300 w-full sm:w-auto flex items-center gap-2"
-                size="lg"
-              >
-                <Link className="w-5 h-5" />
-                Connect Workspace
-              </Button>
-            )}
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4">
+            <Button
+              onClick={startLogin}
+              className="bg-purple-600 text-white hover:bg-purple-700 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] transition-colors duration-300 w-full sm:w-auto flex items-center gap-2"
+              size="lg"
+            >
+              <LogIn className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="whitespace-nowrap">Login Workspace</span>
+            </Button>
             
             <Button
               onClick={startRegistration}
-              className="bg-white text-black hover:bg-gray-100 text-lg px-8 h-[60px] transition-colors duration-300 w-full sm:w-auto"
+              className="bg-white text-black hover:bg-gray-100 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] transition-colors duration-300 w-full sm:w-auto"
               size="lg"
             >
-              Join Workspace
+              <span className="whitespace-nowrap">Join Workspace</span>
             </Button>
             
             <Button
               variant="outline"
-              className="border-white bg-white text-black hover:bg-gray-100 text-lg px-8 h-[60px] flex items-center gap-2 transition-colors duration-300 w-full sm:w-auto"
+              className="border-white bg-white text-black hover:bg-gray-100 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] flex items-center gap-2 transition-colors duration-300 w-full sm:w-auto"
               size="lg"
             >
-              <PlusCircle className="w-5 h-5" />
-              Create Workspace
+              <PlusCircle className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="whitespace-nowrap">Create Workspace</span>
             </Button>
             
             <Button
               onClick={goToTestPage}
               variant="outline"
-              className="border-white/30 bg-transparent text-white hover:bg-white/10 text-lg px-8 h-[60px] flex items-center gap-2 transition-colors duration-300 w-full sm:w-auto"
+              className="border-white/30 bg-transparent text-white hover:bg-white/10 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] flex items-center gap-2 transition-colors duration-300 w-full sm:w-auto"
               size="lg"
             >
-              <TestTube2 className="w-5 h-5" />
-              Test Integration
+              <TestTube2 className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="whitespace-nowrap">Test Integration</span>
             </Button>
           </div>
         </div>
@@ -123,6 +126,9 @@ export const Landing = () => {
       )}
       {currentStep === 'join' && (
         <Join onNext={handleJoinNext} onBack={handleJoinBack} />
+      )}
+      {currentStep === 'login' && (
+        <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} />
       )}
     </div>
   );

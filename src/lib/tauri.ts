@@ -1,5 +1,6 @@
 // Tauri API wrapper for invoking Rust commands
 import { WorkspaceConfig } from '@/types/workspace';
+import { invoke } from '@tauri-apps/api/core';
 
 // Define the types that mirror the Rust types
 export interface ConnectRequestTS {
@@ -111,19 +112,10 @@ export function workspaceConfigToConnectRequest(config: WorkspaceConfig): Connec
   };
 }
 
-// Declare the Tauri API
-declare global {
-  interface Window {
-    __TAURI__: {
-      invoke<T>(cmd: string, args?: unknown): Promise<T>;
-    };
-  }
-}
-
 // Tauri API wrapper functions
 export async function connect(request: ConnectRequestTS): Promise<ConnectResponseTS> {
   try {
-    return await window.__TAURI__.invoke<ConnectResponseTS>('connect', { request });
+    return await invoke<ConnectResponseTS>('connect', { request });
   } catch (error) {
     console.error('Error connecting:', error);
     return {
@@ -135,7 +127,17 @@ export async function connect(request: ConnectRequestTS): Promise<ConnectRespons
 
 export async function register(request: RegistrationRequestTS): Promise<RegistrationResponseTS> {
   try {
-    return await window.__TAURI__.invoke<RegistrationResponseTS>('register', { request });
+    // Make sure all numeric values are actually numbers, not strings
+    const sanitizedRequest = {
+      ...request,
+      securityLevel: Number(request.securityLevel),
+      securityMode: Number(request.securityMode),
+      encryptionAlgorithm: Number(request.encryptionAlgorithm),
+      kemAlgorithm: Number(request.kemAlgorithm),
+      sigAlgorithm: Number(request.sigAlgorithm)
+    };
+    
+    return await invoke<RegistrationResponseTS>('register', { request: sanitizedRequest });
   } catch (error) {
     console.error('Error registering:', error);
     return {
@@ -147,7 +149,13 @@ export async function register(request: RegistrationRequestTS): Promise<Registra
 
 export async function listKnownServers(request: ListKnownServersRequestTS): Promise<ListKnownServersResponseTS> {
   try {
-    return await window.__TAURI__.invoke<ListKnownServersResponseTS>('list_known_servers', { request });
+    // Ensure cid is a string
+    const sanitizedRequest = {
+      ...request,
+      cid: String(request.cid)
+    };
+    
+    return await invoke<ListKnownServersResponseTS>('list_known_servers', { request: sanitizedRequest });
   } catch (error) {
     console.error('Error listing known servers:', error);
     return {
@@ -158,7 +166,13 @@ export async function listKnownServers(request: ListKnownServersRequestTS): Prom
 
 export async function listAllPeers(request: ListAllPeersRequestTS): Promise<ListAllPeersResponseTS> {
   try {
-    return await window.__TAURI__.invoke<ListAllPeersResponseTS>('list_all_peers', { request });
+    // Ensure cid is a string
+    const sanitizedRequest = {
+      ...request,
+      cid: String(request.cid)
+    };
+    
+    return await invoke<ListAllPeersResponseTS>('list_all_peers', { request: sanitizedRequest });
   } catch (error) {
     console.error('Error listing peers:', error);
     return {
@@ -170,7 +184,14 @@ export async function listAllPeers(request: ListAllPeersRequestTS): Promise<List
 
 export async function peerConnect(request: PeerConnectRequestTS): Promise<PeerConnectResponseTS> {
   try {
-    return await window.__TAURI__.invoke<PeerConnectResponseTS>('peer_connect', { request });
+    // Ensure cid and peerCid are strings
+    const sanitizedRequest = {
+      ...request,
+      cid: String(request.cid),
+      peerCid: String(request.peerCid)
+    };
+    
+    return await invoke<PeerConnectResponseTS>('peer_connect', { request: sanitizedRequest });
   } catch (error) {
     console.error('Error connecting to peer:', error);
     return {

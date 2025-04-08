@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mockTauriEvent } from './mock-server';
 import * as tauriModule from './tauri';
 import { WorkspaceConfig } from '@/types/workspace';
+import { invoke } from '@tauri-apps/api/core';
 
 // Sample workspace config for testing
 const testConfig: WorkspaceConfig = {
@@ -24,11 +25,10 @@ const testConfig: WorkspaceConfig = {
   profilePassword: 'test-profile-password'
 };
 
-// Mock the window.__TAURI__ object
-global.window = global.window || {};
-global.window.__TAURI__ = {
-  invoke: vi.fn()
-};
+// Mock the invoke function
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}));
 
 // Helper to wait for a specified time
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -37,10 +37,7 @@ describe('Rust to TypeScript Communication', () => {
   beforeEach(() => {
     // Reset mocks before each test
     vi.clearAllMocks();
-    global.window.__TAURI__.invoke.mockClear();
-    
-    // Set up the environment variable required for the internal service
-    process.env.INTERNAL_SERVICE_PATH = '../citadel-internal-service';
+    (invoke as any).mockClear();
   });
   
   afterEach(() => {
@@ -49,7 +46,7 @@ describe('Rust to TypeScript Communication', () => {
   
   it('should handle connection requests from Rust', async () => {
     // Mock successful connection response
-    global.window.__TAURI__.invoke.mockResolvedValueOnce({
+    (invoke as any).mockResolvedValueOnce({
       success: true,
       message: "Successfully connected to server"
     });
@@ -91,7 +88,7 @@ describe('Rust to TypeScript Communication', () => {
     expect(connectSpy).toHaveBeenCalled();
     
     // Verify that the Tauri invoke function was called with the correct command
-    expect(global.window.__TAURI__.invoke).toHaveBeenCalledWith('connect', expect.any(Object));
+    expect(invoke).toHaveBeenCalledWith('connect', expect.any(Object));
     
     // Restore the spy
     connectSpy.mockRestore();
@@ -99,7 +96,7 @@ describe('Rust to TypeScript Communication', () => {
   
   it('should handle registration requests from Rust', async () => {
     // Mock successful registration response
-    global.window.__TAURI__.invoke.mockResolvedValueOnce({
+    (invoke as any).mockResolvedValueOnce({
       success: true,
       message: "Successfully registered with server"
     });
@@ -141,7 +138,7 @@ describe('Rust to TypeScript Communication', () => {
     expect(registerSpy).toHaveBeenCalled();
     
     // Verify that the Tauri invoke function was called with the correct command
-    expect(global.window.__TAURI__.invoke).toHaveBeenCalledWith('register', expect.any(Object));
+    expect(invoke).toHaveBeenCalledWith('register', expect.any(Object));
     
     // Restore the spy
     registerSpy.mockRestore();
@@ -149,7 +146,7 @@ describe('Rust to TypeScript Communication', () => {
   
   it('should handle server list updates from Rust', async () => {
     // Mock successful server list response
-    global.window.__TAURI__.invoke.mockResolvedValueOnce({
+    (invoke as any).mockResolvedValueOnce({
       servers: [
         {
           server_address: '127.0.0.1:12345',
@@ -181,8 +178,9 @@ describe('Rust to TypeScript Communication', () => {
         expect(data).toHaveProperty('servers');
         expect(Array.isArray(data.servers)).toBe(true);
         
-        // Call the listKnownServers function to verify it works
-        await tauriModule.listKnownServers({ cid: 'test-cid' });
+        // Call the listKnownServers function to verify it works with a proper numeric cid
+        // Using a numeric CID as per project requirements
+        await tauriModule.listKnownServers({ cid: "9999" });
         
         serverListHandled = true;
       } catch (error) {
@@ -209,7 +207,7 @@ describe('Rust to TypeScript Communication', () => {
     expect(listServersSpy).toHaveBeenCalled();
     
     // Verify that the Tauri invoke function was called with the correct command
-    expect(global.window.__TAURI__.invoke).toHaveBeenCalledWith('list_known_servers', expect.any(Object));
+    expect(invoke).toHaveBeenCalledWith('list_known_servers', expect.any(Object));
     
     // Restore the spy
     listServersSpy.mockRestore();

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,6 +17,11 @@ interface Workspace {
   id: string;
   name: string;
   logoUrl: string;
+}
+
+// Props interface for the WorkspaceSwitcher component
+interface WorkspaceSwitcherProps {
+  workspaceName?: string;
 }
 
 const workspaces: Workspace[] = [
@@ -40,7 +44,7 @@ const workspaces: Workspace[] = [
 
 type WorkflowStep = "connect" | "security" | "join";
 
-export const WorkspaceSwitcher = () => {
+export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => {
   const [currentWorkspace, setCurrentWorkspace] = useState(workspaces[0]);
   const [isOpen, setIsOpen] = useState(false);
   const [workspaceRoutes, setWorkspaceRoutes] = useState<Record<string, string>>({});
@@ -121,7 +125,9 @@ export const WorkspaceSwitcher = () => {
               alt={currentWorkspace.name}
               className="w-8 h-8 rounded ml-2"
             />
-            <span className="font-semibold text-white flex-1 text-left group-hover:text-[#1C1D28]">{currentWorkspace.name}</span>
+            <span className="font-semibold text-white flex-1 text-left group-hover:text-[#1C1D28]">
+              {workspaceName || currentWorkspace.name}
+            </span>
             <ChevronRight 
               className={cn(
                 "w-5 h-5 text-white group-hover:text-[#1C1D28] transition-transform duration-300 mr-2",

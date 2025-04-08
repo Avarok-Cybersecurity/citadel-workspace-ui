@@ -5,24 +5,26 @@ export function TypeInteropTester() {
   const [testResults, setTestResults] = useState<{
     passed: boolean;
     message: string;
-    details?: string;
+    details?: any[];
   } | null>(null);
 
-  const runTests = () => {
+  const runTests = async () => {
     try {
-      const passed = runTypeInteropTests();
+      const results = await runTypeInteropTests();
+      const allPassed = results.every(result => result.passed);
       
       setTestResults({
-        passed,
-        message: passed 
+        passed: allPassed,
+        message: allPassed 
           ? 'All TypeScript-Rust type interoperability tests passed!' 
-          : 'Some TypeScript-Rust type interoperability tests failed. Check the console for details.'
+          : 'Some TypeScript-Rust type interoperability tests failed. Check the details below.',
+        details: results
       });
     } catch (error) {
       setTestResults({
         passed: false,
         message: 'Error running tests',
-        details: error instanceof Error ? error.message : String(error)
+        details: [{ testName: 'Test execution', passed: false, message: error instanceof Error ? error.message : String(error) }]
       });
     }
   };
@@ -41,7 +43,25 @@ export function TypeInteropTester() {
       {testResults && (
         <div className={`mt-4 p-3 rounded-md ${testResults.passed ? 'bg-green-100' : 'bg-red-100'}`}>
           <p className="font-semibold">{testResults.message}</p>
-          {testResults.details && <p className="mt-2 text-sm">{testResults.details}</p>}
+          
+          {testResults.details && testResults.details.length > 0 && (
+            <div className="mt-3">
+              <h4 className="font-medium mb-2">Test Details:</h4>
+              <ul className="space-y-2">
+                {testResults.details.map((result, index) => (
+                  <li key={index} className={`p-2 rounded ${result.passed ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <div className="flex justify-between">
+                      <span className="font-medium">{result.testName}</span>
+                      <span className={result.passed ? 'text-green-600' : 'text-red-600'}>
+                        {result.passed ? 'PASS' : 'FAIL'}
+                      </span>
+                    </div>
+                    {result.message && <p className="text-sm mt-1">{result.message}</p>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
       

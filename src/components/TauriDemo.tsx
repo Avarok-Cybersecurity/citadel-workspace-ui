@@ -9,7 +9,7 @@ import {
 import { WorkspaceConfig } from '@/types/workspace';
 
 const defaultWorkspaceConfig: WorkspaceConfig = {
-  serverAddress: '127.0.0.1:12345',
+  serverAddress: '127.0.0.1:12349',
   password: '',
   securityLevel: '2',
   securityMode: '1',
@@ -82,7 +82,9 @@ export function TauriDemo() {
     setMessage('Listing known servers...');
     
     try {
-      const response = await listKnownServers({ cid: connectionId || '0' });
+      // Make sure connectionId is a string or use "0" as fallback
+      const cid = connectionId || "0";
+      const response = await listKnownServers({ cid });
       
       if (response.servers.length > 0) {
         setMessage(`Found ${response.servers.length} server(s): ${response.servers.map(s => s.server_address).join(', ')}`);
@@ -90,7 +92,7 @@ export function TauriDemo() {
         setMessage('No known servers found');
       }
     } catch (error) {
-      setMessage(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      setMessage(`Error listing servers: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
     }

@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Shield, Server, ArrowRight } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "@/hooks/use-toast";
+import { listKnownServers } from "@/lib/tauri";
 
 interface ServerInfo {
   server_address: string;
@@ -21,32 +21,33 @@ export const Connect = () => {
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
   const [password, setPassword] = useState("");
 
-  useEffect(() => {
-    const fetchServers = async () => {
-      try {
-        const response = await invoke<{ servers: ServerInfo[] }>("list_known_servers", {
-          request: { cid: "connect-page" }
-        });
-        setServers(response.servers);
-        if (response.servers.length > 0) {
-          setSelectedServer(response.servers[0].server_address);
-        }
-      } catch (error: any) {
-        console.error("Error fetching known servers:", error);
-        const errorMessage = error.message || error.toString() || "Unknown error";
-        console.error("Error details:", errorMessage);
-        toast({
-          title: "Error",
-          description: "Failed to load saved workspaces",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+  // Memoize the fetchServers function to prevent it from being recreated on each render
+  const fetchServers = useCallback(async () => {
+    try {
+      // Using "1" as a valid u64 string representation for the connect page
+      const response = await listKnownServers({ cid: "1" });
+      setServers(response.servers);
+      if (response.servers.length > 0) {
+        setSelectedServer(response.servers[0].server_address);
       }
-    };
-
-    fetchServers();
+    } catch (error: any) {
+      console.error("Error fetching known servers:", error);
+      const errorMessage = error.message || error.toString() || "Unknown error";
+      console.error("Error details:", errorMessage);
+      toast({
+        title: "Error",
+        description: "Failed to load saved workspaces",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [toast]);
+
+  // Run the effect only once when the component mounts
+  useEffect(() => {
+    fetchServers();
+  }, [fetchServers]);
 
   const handleConnect = async () => {
     if (!selectedServer) {

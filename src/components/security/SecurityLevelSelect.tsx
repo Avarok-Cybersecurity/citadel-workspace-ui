@@ -1,16 +1,32 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
 
-export const SecurityLevelSelect = () => {
+interface SecurityLevelSelectProps {
+  value?: string;
+  onChange?: (value: string) => void;
+}
+
+export const SecurityLevelSelect = ({ value = "standard", onChange }: SecurityLevelSelectProps) => {
+  const handleValueChange = (newValue: string) => {
+    if (onChange) {
+      onChange(newValue);
+    }
+  };
+
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-200 uppercase">
+      <Label htmlFor="security-level" className="text-gray-300">
         Security Level
-      </label>
+      </Label>
       <div className="relative">
-        <Select defaultValue="standard">
-          <SelectTrigger className="w-full bg-[#221F26]/70 border-purple-400/20 text-white pr-12">
+        <Select 
+          value={value} 
+          onValueChange={handleValueChange}
+          defaultValue="standard"
+        >
+          <SelectTrigger id="security-level" className="w-full bg-[#3B3D57] border-[#4D4F6C] text-white pr-12">
             <SelectValue placeholder="Select security level" />
           </SelectTrigger>
           <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-1">

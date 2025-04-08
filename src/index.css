@@ -4,48 +4,49 @@
  
 @layer base {
   :root {
-    --background: 255 255 255;
-    --foreground: 26 31 44;
-    --card: 255 255 255;
-    --card-foreground: 26 31 44;
-    --popover: 255 255 255;
-    --popover-foreground: 26 31 44;
-    --primary: 139 92 246;
-    --primary-foreground: 255 255 255;
-    --secondary: 229 224 255;
-    --secondary-foreground: 26 31 44;
-    --muted: 229 224 255;
-    --muted-foreground: 126 105 171;
-    --accent: 214 188 250;
-    --accent-foreground: 26 31 44;
-    --destructive: 239 68 68;
-    --destructive-foreground: 255 255 255;
-    --border: 229 224 255;
-    --input: 229 224 255;
-    --ring: 139 92 246;
+    /* Use actual HSL values (hue, saturation, lightness) */
+    --background: 240 17% 14%; /* Dark blue-gray background */
+    --foreground: 0 0% 100%; /* White text */
+    --card: 232 23% 18%; /* Slightly lighter background for cards */
+    --card-foreground: 0 0% 100%; /* White text in cards */
+    --popover: 232 23% 18%; /* Match card background for popovers */
+    --popover-foreground: 0 0% 100%; /* White text in popovers */
+    --primary: 265 84% 66%; /* Purple primary color */
+    --primary-foreground: 0 0% 100%; /* White text on primary color */
+    --secondary: 265 100% 94%; /* Light purple for secondary elements */
+    --secondary-foreground: 240 17% 14%; /* Dark text on secondary color */
+    --muted: 265 100% 94%; /* Light purple for muted areas */
+    --muted-foreground: 265 31% 54%; /* Medium purple for muted text */
+    --accent: 267 90% 86%; /* Light purple accent */
+    --accent-foreground: 240 17% 14%; /* Dark text on accent */
+    --destructive: 0 84% 60%; /* Red for destructive actions */
+    --destructive-foreground: 0 0% 100%; /* White text on destructive */
+    --border: 265 31% 54%; /* Purple border color */
+    --input: 265 31% 54%; /* Purple input border */
+    --ring: 265 84% 66%; /* Purple focus ring */
     --radius: 0.75rem;
   }
  
   .dark {
-    --background: 26 31 44;
-    --foreground: 255 255 255;
-    --card: 30 36 51;
-    --card-foreground: 255 255 255;
-    --popover: 30 36 51;
-    --popover-foreground: 255 255 255;
-    --primary: 139 92 246;
-    --primary-foreground: 255 255 255;
-    --secondary: 30 36 51;
-    --secondary-foreground: 255 255 255;
-    --muted: 30 36 51;
-    --muted-foreground: 150 150 150;
-    --accent: 30 36 51;
-    --accent-foreground: 255 255 255;
-    --destructive: 239 68 68;
-    --destructive-foreground: 255 255 255;
-    --border: 48 54 69;
-    --input: 48 54 69;
-    --ring: 139 92 246;
+    --background: 240 17% 14%; /* Dark blue-gray background */
+    --foreground: 0 0% 100%; /* White text */
+    --card: 232 23% 18%; /* Slightly lighter background for cards */
+    --card-foreground: 0 0% 100%; /* White text in cards */
+    --popover: 232 23% 18%; /* Match card background for popovers */
+    --popover-foreground: 0 0% 100%; /* White text in popovers */
+    --primary: 265 84% 66%; /* Purple primary color */
+    --primary-foreground: 0 0% 100%; /* White text on primary color */
+    --secondary: 232 23% 16%; /* Darker secondary elements */
+    --secondary-foreground: 0 0% 100%; /* White text on secondary color */
+    --muted: 232 23% 16%; /* Dark muted areas */
+    --muted-foreground: 0 0% 59%; /* Light gray for muted text */
+    --accent: 232 23% 16%; /* Dark accent background */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    --destructive: 0 84% 60%; /* Red for destructive actions */
+    --destructive-foreground: 0 0% 100%; /* White text on destructive */
+    --border: 229 21% 23%; /* Dark border color */
+    --input: 229 21% 23%; /* Dark input border */
+    --ring: 265 84% 66%; /* Purple focus ring */
   }
 }
 
@@ -68,6 +69,39 @@ body {
   position: relative;
 }
 
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.7);
+}
+
+/* Always visible scrollbar utility class */
+.scrollbar-visible {
+  overflow-y: scroll !important;
+  scrollbar-width: thin !important; /* For Firefox */
+  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(0, 0, 0, 0.2) !important; /* For Firefox */
+}
+
+.overflow-y-scroll {
+  overflow-y: scroll !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(0, 0, 0, 0.2) !important;
+}
+
 /* Override any potential WebKit default colors */
 *::selection {
   background-color: rgba(139, 92, 246, 0.3);
@@ -87,7 +121,7 @@ body {
   @apply bg-background text-foreground font-body antialiased;
   pointer-events: auto !important;
   background-image: url('/lovable-uploads/2dbbf620-36d8-4f65-a2ad-f8d7ee3c3c0e.png');
-  background-size: cover;
+  background-size: contain !important;
   background-position: center;
   background-repeat: no-repeat;
   min-height: 100vh;

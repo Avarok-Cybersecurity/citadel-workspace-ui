@@ -1,10 +1,7 @@
 #!/bin/bash
 
-# Set the required environment variable
-export INTERNAL_SERVICE_PATH="../citadel-internal-service"
-
 # Check if the internal service is running
-if [ ! -f "${INTERNAL_SERVICE_PATH}/.service-pid" ] || [ ! -f "${INTERNAL_SERVICE_PATH}/.server-pid" ]; then
+if [ ! -f "./.service-pid" ] || [ ! -f "./.server-pid" ]; then
   echo "Starting internal services..."
   cd ..
   just start-servers

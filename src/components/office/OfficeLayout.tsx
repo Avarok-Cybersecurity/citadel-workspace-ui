@@ -9,6 +9,7 @@ interface OfficeLayoutProps {
   onEditToggle: () => void;
   onSave?: () => void;
   children: React.ReactNode;
+  canEdit?: boolean;
 }
 
 const officeNames = {
@@ -22,7 +23,8 @@ export const OfficeLayout = ({
   isEditing, 
   onEditToggle, 
   onSave, 
-  children 
+  children,
+  canEdit = true // Default to true for backward compatibility
 }: OfficeLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -84,20 +86,24 @@ export const OfficeLayout = ({
             >
               <Settings className="h-4 w-4" />
             </Button>
-            <Button
-              variant="secondary"
-              className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
-              onClick={onEditToggle}
-            >
-              {isEditing ? "Cancel" : "Edit"}
-            </Button>
-            {isEditing && (
-              <Button 
-                onClick={onSave}
-                className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
-              >
-                Save Changes
-              </Button>
+            {canEdit && (
+              <>
+                <Button
+                  variant="secondary"
+                  className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                  onClick={onEditToggle}
+                >
+                  {isEditing ? "Cancel" : "Edit"}
+                </Button>
+                {isEditing && (
+                  <Button 
+                    onClick={onSave}
+                    className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                  >
+                    Save Changes
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>

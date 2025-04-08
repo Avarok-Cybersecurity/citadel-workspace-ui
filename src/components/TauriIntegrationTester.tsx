@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { runTauriIntegrationTests } from '@/lib/tauri-integration-browser';
-import { runTypeInteropTests } from '@/lib/test-interop';
+import { runTypeInteropTests, TestResult } from '@/lib/test-interop';
 
 export function TauriIntegrationTester() {
   const [testResults, setTestResults] = useState<{
-    typeInterop: boolean | null;
+    typeInterop: TestResult[] | null;
     integration: boolean | null;
     message: string;
   }>({
@@ -13,25 +13,26 @@ export function TauriIntegrationTester() {
     message: 'Run tests to see results'
   });
 
-  const runAllTests = () => {
+  const runAllTests = async () => {
     try {
       // Run type interoperability tests
-      const typeInteropPassed = runTypeInteropTests();
+      const typeInteropResults = await runTypeInteropTests();
+      const typeInteropPassed = typeInteropResults.every(result => result.passed);
       
       // Run integration tests
-      const integrationPassed = runTauriIntegrationTests();
+      const integrationPassed = await runTauriIntegrationTests();
       
       // Update results
       setTestResults({
-        typeInterop: typeInteropPassed,
+        typeInterop: typeInteropResults,
         integration: integrationPassed,
         message: typeInteropPassed && integrationPassed
           ? 'All tests passed successfully!'
-          : 'Some tests failed. Check the console for details.'
+          : 'Some tests failed. Check details below for more information.'
       });
     } catch (error) {
       setTestResults({
-        typeInterop: false,
+        typeInterop: null,
         integration: false,
         message: `Error running tests: ${error instanceof Error ? error.message : String(error)}`
       });
@@ -58,7 +59,7 @@ export function TauriIntegrationTester() {
             <span className="w-48">Type Interoperability:</span>
             {testResults.typeInterop === null ? (
               <span className="text-gray-500">Not run</span>
-            ) : testResults.typeInterop ? (
+            ) : testResults.typeInterop.every(result => result.passed) ? (
               <span className="text-green-500">PASSED</span>
             ) : (
               <span className="text-red-500">FAILED</span>
@@ -77,10 +78,30 @@ export function TauriIntegrationTester() {
           </div>
         </div>
         
+        {/* Test result details */}
+        {testResults.typeInterop && (
+          <div className="mt-4">
+            <h4 className="font-medium mb-2">Type Interop Test Details:</h4>
+            <ul className="space-y-2">
+              {testResults.typeInterop.map((result, index) => (
+                <li key={index} className={`p-2 rounded ${result.passed ? 'bg-green-50' : 'bg-red-50'}`}>
+                  <div className="flex justify-between">
+                    <span className="font-medium">{result.testName}</span>
+                    <span className={result.passed ? 'text-green-600' : 'text-red-600'}>
+                      {result.passed ? 'PASS' : 'FAIL'}
+                    </span>
+                  </div>
+                  {result.message && <p className="text-sm mt-1">{result.message}</p>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
         <div className={`mt-4 p-3 rounded-md ${
           testResults.typeInterop === null
             ? 'bg-gray-100'
-            : testResults.typeInterop && testResults.integration
+            : testResults.typeInterop.every(t => t.passed) && testResults.integration
               ? 'bg-green-100'
               : 'bg-red-100'
         }`}>
