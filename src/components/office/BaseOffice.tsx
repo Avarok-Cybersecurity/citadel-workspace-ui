@@ -25,10 +25,10 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
   const location = useLocation();
   const currentRoom = new URLSearchParams(location.search).get("room");
   const { state } = useWorkspace();
-  
+
   // Get the office data from workspace state if officeId is provided
   const officeData = officeId ? state.offices[officeId] : null;
-  
+
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(
     officeData?.mdx_content || getInitialContent(currentRoom)
@@ -37,7 +37,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
   const [isEditing, setIsEditing] = useState(false);
   const [isNewContent, setIsNewContent] = useState(!officeData?.mdx_content);
   const { toast } = useToast();
-  
+
   // Determine if we're in a loading state
   const isLoading = officeId ? state.loading.offices && !officeData : false;
 
@@ -47,7 +47,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
   const canEditMdxContent = (): boolean => {
     // If no officeId or officeData, we're in demo mode - allow editing
     if (!officeId || !officeData) return true;
-    
+
     // For now, just return true to allow editing
     // In a production version, you would:
     // 1. Get current user ID from auth context/state
@@ -60,11 +60,11 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
     if (officeId) {
       try {
         // Call Tauri command to update the office with new mdx_content
-        await invoke('update_office', { 
-          officeId, 
-          mdx_content: content 
+        await invoke('update_office', {
+          officeId,
+          mdx_content: content
         });
-        
+
         toast({
           title: "Changes saved",
           description: `The ${officeData?.name || title} office page has been updated`,
@@ -85,7 +85,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
         className: "bg-[#343A5C] border-purple-800 text-purple-200",
       });
     }
-    
+
     setIsEditing(false);
   };
 
@@ -103,13 +103,13 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
   useEffect(() => {
     const compileContent = async () => {
       try {
-        console.log('Compiling MDX content...');
+        console.info('Compiling MDX content...');
         const result = await evaluate(content, {
           ...runtime,
           useMDXComponents: () => components,
           baseUrl: window.location.origin
         });
-        console.log('MDX compilation successful');
+        console.info('MDX compilation successful');
         setCompiledContent(result.default({ components }));
       } catch (error) {
         console.error('Error compiling MDX:', error);
@@ -123,14 +123,14 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
   const handleTemplateSelect = (template: MdxTemplate) => {
     // Replace content with template content
     setContent(template.content);
-    
+
     // Show success toast
     toast({
       title: "Template applied",
       description: `Applied "${template.name}" template. You can now customize it.`,
       className: "bg-[#343A5C] border-purple-800 text-purple-200",
     });
-    
+
     // Content is no longer new once a template is applied
     setIsNewContent(false);
   };
@@ -156,7 +156,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
             <h2 className="text-lg font-semibold text-white">Edit Content</h2>
             <div className="flex gap-2">
               {(isNewContent || content.trim() === '') && (
-                <TemplateSelector 
+                <TemplateSelector
                   category={TemplateCategory.OFFICE}
                   onSelectTemplate={handleTemplateSelect}
                   buttonVariant="outline"

@@ -4,7 +4,9 @@ import { Office, Room, User } from '../types/workspace-entities';
 import { invoke } from '@tauri-apps/api/core';
 import { WorkspaceProvider, WorkspaceState } from '../lib/workspace-context';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
-import WorkspaceService from '../lib/workspace-service'; // Import WorkspaceService instance
+import WorkspaceService from '../lib/workspace-service';
+import UserService from '../lib/user-service';
+import { getWorkspaceLogo } from '../lib/workspace-metadata-service';
 
 interface WorkspaceEventState {
   workspace?: {
@@ -38,6 +40,11 @@ interface WorkspaceEventState {
   typing: {
     peerIds: number[];
     lastUpdated: number;
+  };
+  currentUser?: {
+    id: string;
+    username: string;
+    fullName: string;
   };
   lastRequestId?: string; // Track the last request ID for correlation
 }
@@ -92,12 +99,33 @@ export const WorkspaceEventHandler: React.FC<{
 
       // Workspace loaded event
       await workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
+        const workspaceMetadata = payload.workspace.metadata || {};
+
         setState(prev => ({
           ...prev,
-          workspace: payload.workspace,
+          workspace: {
+            ...payload.workspace,
+            // Process metadata for workspace logo if needed
+            metadata: workspaceMetadata
+          },
           loading: { ...prev.loading, workspace: false },
           lastRequestId: payload.connection.request_id
         }));
+
+        // Try to load user information if not already loaded
+        const userService = UserService;
+        const currentUser = userService.getCurrentUser();
+
+        if (currentUser) {
+          setState(prev => ({
+            ...prev,
+            currentUser: {
+              id: currentUser.username,
+              username: currentUser.username,
+              fullName: currentUser.fullName
+            }
+          }));
+        }
       });
     };
 
@@ -113,7 +141,7 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onOfficeEvent('office:loading', (payload) => {
-        console.log(`Loading office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
+        console.info(`Loading office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
         setState(prev => ({
           ...prev,
           lastRequestId: payload.connection.request_id
@@ -136,11 +164,11 @@ export const WorkspaceEventHandler: React.FC<{
 
         // After offices are loaded, load rooms for each office
         if (payload.offices.length > 0) {
-          console.log(`Loading rooms for ${payload.offices.length} offices`);
+          console.info(`Loading rooms for ${payload.offices.length} offices`);
           payload.offices.forEach(office => {
             WorkspaceService.listRooms(office.id)
               .then(() => {
-                console.log(`Rooms loading initiated for office: ${office.id}`);
+                console.info(`Rooms loading initiated for office: ${office.id}`);
               })
               .catch(error => {
                 console.error(`Error loading rooms for office ${office.id}:`, error);
@@ -162,7 +190,7 @@ export const WorkspaceEventHandler: React.FC<{
 
       // Creation and update events
       await workspaceEvents.onOfficeEvent('office:creating', (connectionInfo: ConnectionInfo) => {
-        console.log('Creating new office...', connectionInfo.request_id);
+        console.info('Creating new office...', connectionInfo.request_id);
         setState(prev => ({
           ...prev,
           lastRequestId: connectionInfo.request_id
@@ -170,7 +198,7 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onOfficeEvent('office:updating', (payload) => {
-        console.log(`Updating office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
+        console.info(`Updating office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
         setState(prev => ({
           ...prev,
           lastRequestId: payload.connection.request_id
@@ -178,7 +206,7 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onOfficeEvent('office:deleting', (payload) => {
-        console.log(`Deleting office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
+        console.info(`Deleting office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
         setState(prev => ({
           ...prev,
           lastRequestId: payload.connection.request_id
@@ -195,11 +223,11 @@ export const WorkspaceEventHandler: React.FC<{
           loading: { ...prev.loading, rooms: true },
           lastRequestId: payload.connection.request_id
         }));
-        console.log(`Loading rooms for office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
+        console.info(`Loading rooms for office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
       });
 
       await workspaceEvents.onRoomEvent('room:loading', (payload) => {
-        console.log(`Loading room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
+        console.info(`Loading room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
         setState(prev => ({
           ...prev,
           lastRequestId: payload.connection.request_id
@@ -237,7 +265,7 @@ export const WorkspaceEventHandler: React.FC<{
 
       // Creation and update events
       await workspaceEvents.onRoomEvent('room:creating', (payload) => {
-        console.log(`Creating new room in office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
+        console.info(`Creating new room in office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
         setState(prev => ({
           ...prev,
           lastRequestId: payload.connection.request_id
@@ -245,7 +273,7 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onRoomEvent('room:updating', (payload) => {
-        console.log(`Updating room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
+        console.info(`Updating room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
         setState(prev => ({
           ...prev,
           lastRequestId: payload.connection.request_id
@@ -253,8 +281,8 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onRoomEvent('room:deleting', (payload) => {
-        console.log(`Deleting room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
-        
+        console.info(`Deleting room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
+
         // Remove room from state
         setState(prev => {
           const newRooms = { ...prev.rooms };
@@ -277,11 +305,11 @@ export const WorkspaceEventHandler: React.FC<{
           loading: { ...prev.loading, members: true },
           lastRequestId: payload.connection.request_id
         }));
-        
+
         if (payload.officeId) {
-          console.log(`Loading members for office: ${payload.officeId}, request ID: ${payload.connection.request_id}`);
+          console.info(`Loading members for office: ${payload.officeId}, request ID: ${payload.connection.request_id}`);
         } else if (payload.roomId) {
-          console.log(`Loading members for room: ${payload.roomId}, request ID: ${payload.connection.request_id}`);
+          console.info(`Loading members for room: ${payload.roomId}, request ID: ${payload.connection.request_id}`);
         }
       });
 
@@ -291,7 +319,7 @@ export const WorkspaceEventHandler: React.FC<{
           loading: { ...prev.loading, members: false },
           lastRequestId: payload.connection.request_id
         }));
-        
+
         // Update the relevant office or room with the member information
         // This might require more complex state handling depending on your app structure
       });
@@ -300,24 +328,24 @@ export const WorkspaceEventHandler: React.FC<{
     // Set up event listeners for messages
     const setupMessageListeners = async () => {
       await workspaceEvents.onMessageEvent('message:received', (payload: MessagePayload) => {
-        console.log(`Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
-        
+        console.info(`Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
+
         if (!payload.contents) {
           console.warn('Received message event without contents');
           return;
         }
-        
+
         // Get peer CID with fallback
         const peerCid = payload.peerCid || 0;
-        
+
         // Update state with new message
         setState(prev => {
           // Get existing messages for this peer or create new array
           const peerMessages = prev.messages.byPeer[peerCid] || [];
-          
+
           // Remove peer from typing list when a message is received
           const updatedTypingPeerIds = prev.typing.peerIds.filter(id => id !== peerCid);
-          
+
           return {
             ...prev,
             messages: {
@@ -344,7 +372,7 @@ export const WorkspaceEventHandler: React.FC<{
           };
         });
       });
-      
+
       // Handle typing indicators
       await workspaceEvents.onMessageEvent('typing:started', (payload: { peerCid: number, connection: ConnectionInfo }) => {
         setState(prev => {
@@ -362,7 +390,7 @@ export const WorkspaceEventHandler: React.FC<{
           return prev;
         });
       });
-      
+
       await workspaceEvents.onMessageEvent('typing:stopped', (payload: { peerCid: number, connection: ConnectionInfo }) => {
         setState(prev => {
           // Remove peer from typing list
@@ -386,9 +414,9 @@ export const WorkspaceEventHandler: React.FC<{
           error: payload.message,
           lastRequestId: payload.connection.request_id
         }));
-        
+
         console.error(`Operation error:`, payload.message);
-        
+
         // Reset error after 5 seconds
         setTimeout(() => {
           setState(prev => ({ ...prev, error: undefined }));
@@ -396,7 +424,7 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onOperationEvent('operation:success', (connectionInfo: ConnectionInfo) => {
-        console.log(`Operation successful (CID: ${connectionInfo.cid}, request ID: ${connectionInfo.request_id})`);
+        console.info(`Operation successful (CID: ${connectionInfo.cid}, request ID: ${connectionInfo.request_id})`);
         setState(prev => ({
           ...prev,
           lastRequestId: connectionInfo.request_id
@@ -411,7 +439,7 @@ export const WorkspaceEventHandler: React.FC<{
           requestType: payload.requestType,
           connectionInfo: payload.connection
         });
-        
+
         setState(prev => ({
           ...prev,
           protocolWarning: {
@@ -421,7 +449,7 @@ export const WorkspaceEventHandler: React.FC<{
           },
           lastRequestId: payload.connection.request_id
         }));
-        
+
         // Reset warning after 10 seconds
         setTimeout(() => {
           setState(prev => ({ ...prev, protocolWarning: undefined }));
@@ -438,8 +466,8 @@ export const WorkspaceEventHandler: React.FC<{
       await setupErrorHandling();
       await setupProtocolWarningHandling();
       await setupMessageListeners();
-      
-      console.log('Workspace event listeners initialized');
+
+      console.info('Workspace event listeners initialized');
     };
 
     initializeEvents();
@@ -456,18 +484,20 @@ export const WorkspaceEventHandler: React.FC<{
   }, [state.messages.byPeer]);
 
   // Function to send a message to a peer
+  // TODO: This is outdated and needs to be wrapped properly with the worspace-level subprotocol commands
+  // via sendWorkspaceRequest from workspace-service.ts
   const sendMessage = async (content: string, recipientId: number) => {
     try {
       // Call the Tauri command to send a message
-      await invoke('message', { 
-        receiverId: recipientId.toString(), 
-        content 
+      await invoke('send_workspace_request', {
+        receiverId: recipientId.toString(),
+        content
       });
-      
+
       // Optimistically add the message to our state (will be official when we get the event back)
       setState(prev => {
         const peerMessages = prev.messages.byPeer[recipientId] || [];
-        
+
         return {
           ...prev,
           messages: {
@@ -488,7 +518,7 @@ export const WorkspaceEventHandler: React.FC<{
           lastRequestId: prev.lastRequestId
         };
       });
-      
+
       return true;
     } catch (error) {
       console.error('Error sending message:', error);

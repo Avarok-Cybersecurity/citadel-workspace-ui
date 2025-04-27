@@ -2,10 +2,10 @@
  * Test file for workspace protocol serialization
  */
 import { describe, it, expect } from 'vitest';
-import { 
-  createMessagePayload, 
-  serializeWorkspacePayload, 
-  deserializeWorkspacePayload 
+import {
+  createMessagePayload,
+  serializeWorkspacePayload,
+  deserializeWorkspacePayload
 } from '../types/workspace-protocol';
 
 describe('Workspace Protocol', () => {
@@ -13,95 +13,95 @@ describe('Workspace Protocol', () => {
     // Test with a simple binary message
     const testData = new Uint8Array([1, 2, 3, 4, 5]);
     const payload = createMessagePayload(testData);
-    
+
     // Verify the structure
     expect(payload).toHaveProperty('request');
     expect(payload.request).toHaveProperty('message');
     expect(payload.request?.message).toHaveProperty('contents');
-    
+
     // Verify the contents are preserved
     const contents = payload.request?.message?.contents;
     expect(contents instanceof Uint8Array).toBe(true);
     expect(Array.from(contents as Uint8Array)).toEqual([1, 2, 3, 4, 5]);
   });
-  
+
   it('should serialize and deserialize payloads correctly', () => {
     // Create a test message
     const testData = new Uint8Array([1, 2, 3, 4, 5]);
     const payload = createMessagePayload(testData);
-    
+
     // Check payload type before serialization
-    console.log('Original payload:', payload);
-    console.log('Original contents type:', payload.request?.message?.contents?.constructor.name);
-    
+    console.info('Original payload:', payload);
+    console.info('Original contents type:', payload.request?.message?.contents?.constructor.name);
+
     // Serialize
     const serialized = serializeWorkspacePayload(payload);
-    console.log('Serialized type:', serialized?.constructor.name);
-    
+    console.info('Serialized type:', serialized?.constructor.name);
+
     // Deserialize
     const deserialized = deserializeWorkspacePayload(serialized);
-    console.log('Deserialized payload:', deserialized);
-    console.log('Deserialized contents type:', deserialized.request?.message?.contents?.constructor.name);
-    
+    console.info('Deserialized payload:', deserialized);
+    console.info('Deserialized contents type:', deserialized.request?.message?.contents?.constructor.name);
+
     // Verify the structure is preserved
     expect(deserialized).toHaveProperty('request');
     expect(deserialized.request).toHaveProperty('message');
     expect(deserialized.request?.message).toHaveProperty('contents');
-    
+
     // Verify the binary data is correctly preserved through serialization/deserialization
     const deserializedContents = deserialized.request?.message?.contents;
     expect(deserializedContents instanceof Uint8Array).toBe(true);
     expect(Array.from(deserializedContents as Uint8Array)).toEqual([1, 2, 3, 4, 5]);
   });
-  
+
   it('should handle empty messages', () => {
     // Create an empty message
     const emptyData = new Uint8Array(0);
     const payload = createMessagePayload(emptyData);
-    
-    console.log('Empty payload:', payload);
-    console.log('Empty contents type:', payload.request?.message?.contents?.constructor.name);
-    
+
+    console.info('Empty payload:', payload);
+    console.info('Empty contents type:', payload.request?.message?.contents?.constructor.name);
+
     // Serialize and then deserialize
     const serialized = serializeWorkspacePayload(payload);
     const deserialized = deserializeWorkspacePayload(serialized);
-    
-    console.log('Deserialized empty payload:', deserialized);
-    console.log('Deserialized empty contents:', deserialized.request?.message?.contents);
-    console.log('Deserialized empty contents type:', 
-                deserialized.request?.message?.contents ? 
-                deserialized.request?.message?.contents.constructor.name : 'undefined');
-    
+
+    console.info('Deserialized empty payload:', deserialized);
+    console.info('Deserialized empty contents:', deserialized.request?.message?.contents);
+    console.info('Deserialized empty contents type:',
+      deserialized.request?.message?.contents ?
+        deserialized.request?.message?.contents.constructor.name : 'undefined');
+
     // Verify structure and content
     expect(deserialized.request?.message?.contents).toBeDefined();
     const contents = deserialized.request?.message?.contents;
-    
+
     // Instead of checking instanceof, check if it's array-like and has expected properties
     if (contents) {
-      expect(Array.isArray(contents) || 
-             (typeof contents === 'object' && 'length' in contents)).toBe(true);
+      expect(Array.isArray(contents) ||
+        (typeof contents === 'object' && 'length' in contents)).toBe(true);
       expect(contents.length).toBe(0);
     }
   });
-  
+
   it('should handle large binary messages', () => {
     // Create a large binary message (1KB)
-    const largeData = new Uint8Array(1024); 
+    const largeData = new Uint8Array(1024);
     for (let i = 0; i < largeData.length; i++) {
       largeData[i] = i % 256;
     }
-    
+
     const payload = createMessagePayload(largeData);
-    
+
     // Serialize and then deserialize
     const serialized = serializeWorkspacePayload(payload);
     const deserialized = deserializeWorkspacePayload(serialized);
-    
+
     // Verify the contents length
     const deserializedContents = deserialized.request?.message?.contents as Uint8Array;
     expect(deserializedContents instanceof Uint8Array).toBe(true);
     expect(deserializedContents.length).toEqual(1024);
-    
+
     // Check a few sample values (first, middle, last)
     expect(deserializedContents[0]).toEqual(0);
     expect(deserializedContents[255]).toEqual(255);

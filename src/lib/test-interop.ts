@@ -3,12 +3,12 @@
  * This file tests the interoperability between TypeScript and Rust types
  */
 
-import { 
-  workspaceConfigToRegistrationRequest, 
+import {
+  workspaceConfigToRegistrationRequest,
   workspaceConfigToConnectRequest,
   ConnectRequestTS,
   RegistrationRequestTS,
-  RegistrationInfo 
+  RegistrationInfo
 } from './tauri';
 import { WorkspaceConfig } from '@/types/workspace';
 
@@ -25,7 +25,7 @@ export interface TestResult {
  */
 export async function runTypeInteropTests(): Promise<TestResult[]> {
   const results: TestResult[] = [];
-  
+
   try {
     // Sample workspace config for testing
     const testConfig: WorkspaceConfig = {
@@ -58,14 +58,14 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
         username: 'testuser',
         profilePassword: 'test-profile-password'
       };
-      
+
       // Check if all fields match
       const regMatches = JSON.stringify(registrationRequest) === JSON.stringify(expectedRegistration);
       results.push({
         testName: 'WorkspaceConfig → RegistrationRequestTS',
         passed: regMatches,
-        message: regMatches 
-          ? 'All fields correctly converted' 
+        message: regMatches
+          ? 'All fields correctly converted'
           : 'Field mismatch between WorkspaceConfig and RegistrationRequestTS',
         details: regMatches ? undefined : {
           actual: registrationRequest,
@@ -79,7 +79,7 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
         message: `Error during conversion: ${error instanceof Error ? error.message : String(error)}`
       });
     }
-    
+
     // Test 2: WorkspaceConfig → ConnectRequestTS conversion
     try {
       const connectRequest = workspaceConfigToConnectRequest(testConfig);
@@ -98,14 +98,14 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
           profile_password: 'test-profile-password'
         }
       };
-      
+
       // Check if all fields match
       const connectMatches = JSON.stringify(connectRequest) === JSON.stringify(expectedConnect);
       results.push({
         testName: 'WorkspaceConfig → ConnectRequestTS',
         passed: connectMatches,
-        message: connectMatches 
-          ? 'All fields correctly converted' 
+        message: connectMatches
+          ? 'All fields correctly converted'
           : 'Field mismatch between WorkspaceConfig and ConnectRequestTS',
         details: connectMatches ? undefined : {
           actual: connectRequest,
@@ -119,21 +119,21 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
         message: `Error during conversion: ${error instanceof Error ? error.message : String(error)}`
       });
     }
-    
+
     // Test 3: Field name mapping (camelCase to snake_case)
     try {
       const connectRequest = workspaceConfigToConnectRequest(testConfig);
       const hasServerAddress = 'server_address' in connectRequest.registrationInfo;
       const hasServerPassword = 'server_password' in connectRequest.registrationInfo;
       const hasFullName = 'full_name' in connectRequest.registrationInfo;
-      
+
       const fieldNameMappingCorrect = hasServerAddress && hasServerPassword && hasFullName;
-      
+
       results.push({
         testName: 'Field name mapping (camelCase to snake_case)',
         passed: fieldNameMappingCorrect,
-        message: fieldNameMappingCorrect 
-          ? 'Field names correctly mapped from camelCase to snake_case' 
+        message: fieldNameMappingCorrect
+          ? 'Field names correctly mapped from camelCase to snake_case'
           : 'Field name mapping issues detected',
         details: fieldNameMappingCorrect ? undefined : {
           missingFields: [
@@ -150,18 +150,18 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
         message: `Error testing field name mapping: ${error instanceof Error ? error.message : String(error)}`
       });
     }
-    
+
     // Test 4: String to number conversion
     try {
       const registrationRequest = workspaceConfigToRegistrationRequest(testConfig);
-      const securityLevelCorrect = typeof registrationRequest.securityLevel === 'number' && 
-                                   registrationRequest.securityLevel === 2;
-      
+      const securityLevelCorrect = typeof registrationRequest.securityLevel === 'number' &&
+        registrationRequest.securityLevel === 2;
+
       results.push({
         testName: 'String to number conversion',
         passed: securityLevelCorrect,
-        message: securityLevelCorrect 
-          ? 'String values correctly converted to numbers' 
+        message: securityLevelCorrect
+          ? 'String values correctly converted to numbers'
           : 'String to number conversion failed',
         details: securityLevelCorrect ? undefined : {
           securityLevel: {
@@ -181,7 +181,7 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
         message: `Error testing string to number conversion: ${error instanceof Error ? error.message : String(error)}`
       });
     }
-    
+
     // Test 5: Special characters handling
     try {
       const configWithSpecialChars: WorkspaceConfig = {
@@ -189,21 +189,21 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
         fullName: 'Test "User" with & special < > characters',
         password: 'p@$$w0rd!#%^&*()'
       };
-      
+
       const registrationRequest = workspaceConfigToRegistrationRequest(configWithSpecialChars);
       const connectRequest = workspaceConfigToConnectRequest(configWithSpecialChars);
-      
+
       const specialCharsPreservedReg = registrationRequest.fullName === configWithSpecialChars.fullName &&
-                                      registrationRequest.workspacePassword === configWithSpecialChars.password;
-      
+        registrationRequest.workspacePassword === configWithSpecialChars.password;
+
       const specialCharsPreservedConn = connectRequest.registrationInfo.full_name === configWithSpecialChars.fullName &&
-                                        connectRequest.registrationInfo.server_password === configWithSpecialChars.password;
-      
+        connectRequest.registrationInfo.server_password === configWithSpecialChars.password;
+
       results.push({
         testName: 'Special characters handling',
         passed: specialCharsPreservedReg && specialCharsPreservedConn,
         message: specialCharsPreservedReg && specialCharsPreservedConn
-          ? 'Special characters correctly preserved' 
+          ? 'Special characters correctly preserved'
           : 'Special character handling issues detected',
         details: (specialCharsPreservedReg && specialCharsPreservedConn) ? undefined : {
           registrationRequestIssues: !specialCharsPreservedReg,
@@ -217,7 +217,7 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
         message: `Error testing special character handling: ${error instanceof Error ? error.message : String(error)}`
       });
     }
-    
+
   } catch (error) {
     // Add a general error test result if something unexpected happens
     results.push({
@@ -226,9 +226,9 @@ export async function runTypeInteropTests(): Promise<TestResult[]> {
       message: `Unexpected error during type interoperability tests: ${error instanceof Error ? error.message : String(error)}`
     });
   }
-  
+
   // Log results to console for debugging
-  console.log('Type Interoperability Test Results:', results);
-  
+  console.info('Type Interoperability Test Results:', results);
+
   return results;
 }

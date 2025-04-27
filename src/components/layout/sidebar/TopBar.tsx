@@ -16,21 +16,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import PreferencesDialog from "@/components/connection/PreferencesDialog";
 import NotificationCenter from "@/components/notification/NotificationCenter";
 import { useWorkspace } from "@/lib/workspace-context";
+import { getUserInitials } from "@/lib/workspace-metadata-service";
 
 interface TopBarProps {
   // Optional prop for backward compatibility
   currentWorkspace?: string;
 }
-
-// Helper function to get user initials
-const getUserInitials = (name: string): string => {
-  if (!name) return "?";
-  
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-};
 
 export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const { toggleSidebar } = useSidebar();
@@ -41,9 +32,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   // Get workspace name from context or fallback to prop
   const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
   
-  // Get the username from the state or use a default
-  const username = "User"; // This would ideally come from a user context or state
-  const userInitials = getUserInitials(username);
+  // Get the username and full name from the state
+  const username = state.currentUser?.username || "User";
+  const fullName = state.currentUser?.fullName || username;
+  const userInitials = getUserInitials(fullName);
 
   const handleSettingsClick = () => {
     toast({
@@ -83,7 +75,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 bg-[#343A5C] text-white border-purple-800">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>{fullName}</DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-purple-800" />
             <DropdownMenuItem className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer">
               Profile

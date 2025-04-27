@@ -113,7 +113,7 @@ export const useAppStore = create<AppState>((set) => ({
     currentOffice: null,
     currentRoom: null,
   },
-  
+
   // Connection actions
   setConnected: (connected, cid) => set((state) => ({
     connection: {
@@ -123,21 +123,21 @@ export const useAppStore = create<AppState>((set) => ({
       error: connected ? null : state.connection.error,
     }
   })),
-  
+
   setConnectionError: (error) => set((state) => ({
     connection: {
       ...state.connection,
       error,
     }
   })),
-  
+
   // Peer actions
   updatePeers: (peers) => set((state) => {
     const peersMap = { ...state.peers.peers };
     peers.forEach(peer => {
       peersMap[peer.id] = peer;
     });
-    
+
     return {
       peers: {
         ...state.peers,
@@ -145,18 +145,18 @@ export const useAppStore = create<AppState>((set) => ({
       }
     };
   }),
-  
+
   setActivePeer: (peerCid) => set((state) => ({
     peers: {
       ...state.peers,
       activePeer: peerCid,
     }
   })),
-  
+
   // Message actions
   addMessage: (message) => set((state) => {
     const existingMessages = state.messages.messages[message.peerCid] || [];
-    
+
     return {
       messages: {
         ...state.messages,
@@ -167,7 +167,7 @@ export const useAppStore = create<AppState>((set) => ({
       }
     };
   }),
-  
+
   // Workspace actions
   updateOffices: (offices) => set((state) => ({
     workspace: {
@@ -175,7 +175,7 @@ export const useAppStore = create<AppState>((set) => ({
       offices,
     }
   })),
-  
+
   updateRooms: (officeId, rooms) => set((state) => ({
     workspace: {
       ...state.workspace,
@@ -185,7 +185,7 @@ export const useAppStore = create<AppState>((set) => ({
       }
     }
   })),
-  
+
   updateMembers: (domainId, members) => set((state) => ({
     workspace: {
       ...state.workspace,
@@ -195,14 +195,14 @@ export const useAppStore = create<AppState>((set) => ({
       }
     }
   })),
-  
+
   setCurrentOffice: (officeId) => set((state) => ({
     workspace: {
       ...state.workspace,
       currentOffice: officeId,
     }
   })),
-  
+
   setCurrentRoom: (roomId) => set((state) => ({
     workspace: {
       ...state.workspace,
@@ -225,11 +225,11 @@ export class EventProcessor {
   private static instance: EventProcessor;
   private unlisteners: UnlistenFn[] = [];
   private initialized = false;
-  
+
   private constructor() {
     // Private constructor for singleton pattern
   }
-  
+
   /**
    * Get the EventProcessor singleton instance
    */
@@ -239,20 +239,20 @@ export class EventProcessor {
     }
     return EventProcessor.instance;
   }
-  
+
   /**
    * Initialize event listeners
    * @returns Promise that resolves when all listeners are set up
    */
   public async initialize(): Promise<void> {
     if (this.initialized) {
-      console.log('Event processor already initialized');
+      console.info('Event processor already initialized');
       return;
     }
 
     // Clean up any existing listeners
     await this.cleanup();
-    
+
     // Set up listeners for all event types
     const unlisten = await Promise.all([
       this.setupConnectionListeners(),
@@ -261,13 +261,13 @@ export class EventProcessor {
       this.setupWorkspaceListeners(),
       this.setupErrorListeners(),
     ]);
-    
+
     this.unlisteners = unlisten.flat();
     this.initialized = true;
-    
-    console.log('Event processor initialized with all listeners');
+
+    console.info('Event processor initialized with all listeners');
   }
-  
+
   /**
    * Clean up all event listeners
    */
@@ -277,9 +277,9 @@ export class EventProcessor {
     }
     this.unlisteners = [];
     this.initialized = false;
-    console.log('Event processor cleaned up all listeners');
+    console.info('Event processor cleaned up all listeners');
   }
-  
+
   /**
    * Set up connection event listeners
    */
@@ -287,12 +287,12 @@ export class EventProcessor {
     const connectionStatusUnlisten = await listen('connection-status-changed', (event) => {
       const { connected, cid } = event.payload as { connected: boolean, cid?: string };
       useAppStore.getState().setConnected(connected, cid);
-      console.log(`Connection status changed: connected=${connected}, cid=${cid}`);
+      console.info(`Connection status changed: connected=${connected}, cid=${cid}`);
     });
-    
+
     return [connectionStatusUnlisten];
   }
-  
+
   /**
    * Set up peer event listeners
    */
@@ -300,37 +300,37 @@ export class EventProcessor {
     const peerStatusUnlisten = await listen('peer-online', (event) => {
       const { peer } = event.payload as { peer: UserTS };
       useAppStore.getState().updatePeers([peer]);
-      console.log(`Peer online: ${peer.id}`);
+      console.info(`Peer online: ${peer.id}`);
     });
-    
+
     const peerOfflineUnlisten = await listen('peer-offline', (event) => {
       const { peer_cid } = event.payload as { peer_cid: string };
       const peerState = useAppStore.getState().peers;
-      
+
       if (peerState.peers[peer_cid]) {
         const updatedPeer = {
           ...peerState.peers[peer_cid],
           online: false
         };
-        
+
         useAppStore.getState().updatePeers([updatedPeer]);
-        console.log(`Peer offline: ${peer_cid}`);
+        console.info(`Peer offline: ${peer_cid}`);
       }
     });
-    
+
     return [peerStatusUnlisten, peerOfflineUnlisten];
   }
-  
+
   /**
    * Set up message event listeners
    */
   private async setupMessageListeners(): Promise<UnlistenFn[]> {
     const messageReceivedUnlisten = await listen('message:received', (event) => {
-      const { connection, contents } = event.payload as { 
+      const { connection, contents } = event.payload as {
         connection: { cid: string, peer_cid: string, request_id?: string },
         contents: string
       };
-      
+
       // Decode contents from base64 if necessary or parse as needed
       let contentBytes: Uint8Array;
       try {
@@ -340,7 +340,7 @@ export class EventProcessor {
         console.error('Failed to process message contents:', error);
         return;
       }
-      
+
       const message: Message = {
         id: connection.request_id || generateRequestId(),
         peerCid: connection.peer_cid,
@@ -348,69 +348,69 @@ export class EventProcessor {
         timestamp: Date.now(),
         fromSelf: false
       };
-      
+
       useAppStore.getState().addMessage(message);
-      console.log(`Message received from peer ${connection.peer_cid}`);
+      console.info(`Message received from peer ${connection.peer_cid}`);
     });
-    
+
     return [messageReceivedUnlisten];
   }
-  
+
   /**
    * Set up workspace event listeners
    */
   private async setupWorkspaceListeners(): Promise<UnlistenFn[]> {
     const officeLoadedUnlisten = await listen('office:loaded', (event) => {
-      const { office, connection } = event.payload as { 
+      const { office, connection } = event.payload as {
         office: OfficeTS,
         connection: { cid: string, peer_cid?: string, request_id?: string }
       };
-      
+
       useAppStore.getState().updateOffices([office]);
-      console.log(`Office loaded: ${office.id}`);
+      console.info(`Office loaded: ${office.id}`);
     });
-    
+
     const officesLoadedUnlisten = await listen('offices:loaded', (event) => {
-      const { offices, connection } = event.payload as { 
+      const { offices, connection } = event.payload as {
         offices: OfficeTS[],
         connection: { cid: string, peer_cid?: string, request_id?: string }
       };
-      
+
       useAppStore.getState().updateOffices(offices);
-      console.log(`${offices.length} offices loaded`);
+      console.info(`${offices.length} offices loaded`);
     });
-    
+
     const roomLoadedUnlisten = await listen('room:loaded', (event) => {
-      const { room, connection } = event.payload as { 
+      const { room, connection } = event.payload as {
         room: RoomTS,
         connection: { cid: string, peer_cid?: string, request_id?: string }
       };
-      
+
       const officeId = room.office_id;
       const existingRooms = useAppStore.getState().workspace.rooms[officeId] || [];
-      
+
       // Replace room if it exists, otherwise add it
-      const updatedRooms = existingRooms.map(r => 
+      const updatedRooms = existingRooms.map(r =>
         r.id === room.id ? room : r
       );
-      
+
       if (!updatedRooms.some(r => r.id === room.id)) {
         updatedRooms.push(room);
       }
-      
+
       useAppStore.getState().updateRooms(officeId, updatedRooms);
-      console.log(`Room loaded: ${room.id} in office ${officeId}`);
+      console.info(`Room loaded: ${room.id} in office ${officeId}`);
     });
-    
+
     const roomsLoadedUnlisten = await listen('rooms:loaded', (event) => {
-      const { rooms, connection } = event.payload as { 
+      const { rooms, connection } = event.payload as {
         rooms: RoomTS[],
         connection: { cid: string, peer_cid?: string, request_id?: string }
       };
-      
+
       // Group rooms by office ID
       const roomsByOffice: Record<string, RoomTS[]> = {};
-      
+
       rooms.forEach(room => {
         const officeId = room.office_id;
         if (!roomsByOffice[officeId]) {
@@ -418,26 +418,26 @@ export class EventProcessor {
         }
         roomsByOffice[officeId].push(room);
       });
-      
+
       // Update rooms for each office
       Object.entries(roomsByOffice).forEach(([officeId, officeRooms]) => {
         useAppStore.getState().updateRooms(officeId, officeRooms);
       });
-      
-      console.log(`${rooms.length} rooms loaded across ${Object.keys(roomsByOffice).length} offices`);
+
+      console.info(`${rooms.length} rooms loaded across ${Object.keys(roomsByOffice).length} offices`);
     });
-    
+
     const membersLoadedUnlisten = await listen('members:loaded', (event) => {
-      const { members, domain_id, connection } = event.payload as { 
+      const { members, domain_id, connection } = event.payload as {
         members: UserTS[],
         domain_id: string, // office_id or room_id
         connection: { cid: string, peer_cid?: string, request_id?: string }
       };
-      
+
       useAppStore.getState().updateMembers(domain_id, members);
-      console.log(`${members.length} members loaded for domain ${domain_id}`);
+      console.info(`${members.length} members loaded for domain ${domain_id}`);
     });
-    
+
     return [
       officeLoadedUnlisten,
       officesLoadedUnlisten,
@@ -446,32 +446,32 @@ export class EventProcessor {
       membersLoadedUnlisten
     ];
   }
-  
+
   /**
    * Set up error event listeners
    */
   private async setupErrorListeners(): Promise<UnlistenFn[]> {
     const operationErrorUnlisten = await listen('operation:error', (event) => {
-      const { message, connection } = event.payload as { 
+      const { message, connection } = event.payload as {
         message: string,
         connection: { cid: string, peer_cid?: string, request_id?: string }
       };
-      
+
       useAppStore.getState().setConnectionError(message);
-      
+
       console.error(`Operation error: ${message}`);
     });
-    
+
     const protocolWarningUnlisten = await listen('protocol:warning', (event) => {
-      const { message, connection } = event.payload as { 
+      const { message, connection } = event.payload as {
         message: string,
         connection: { cid: string, peer_cid?: string, request_id?: string }
       };
-      
+
       // Log warning but don't update error state
       console.warn(`Protocol warning: ${message}`);
     });
-    
+
     return [operationErrorUnlisten, protocolWarningUnlisten];
   }
 }

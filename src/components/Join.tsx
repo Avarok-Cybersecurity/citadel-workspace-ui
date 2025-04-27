@@ -10,9 +10,11 @@ import type { WorkspaceConfig } from "@/types/workspace";
 import { invoke } from "@tauri-apps/api/core";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { SecuritySettingsValues } from "./SecuritySettings";
+import { SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm } from "@/types";
 
 interface JoinProps {
-  onNext: () => void;
+  onNext: (cid: string) => void;
   onBack: () => void;
 }
 
@@ -21,7 +23,7 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
   const queryClient = useQueryClient();
-  
+
   const [formData, setFormData] = useState({
     fullName: "",
     username: "",
@@ -30,27 +32,19 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
   });
 
   // Get connection and security settings from React Query cache
-  const serverData = queryClient.getQueryData(['serverConnectForm']) as { 
-    serverAddress: string; 
-    password: string 
+  const serverData = queryClient.getQueryData(['serverConnectForm']) as {
+    serverAddress: string;
+    password: string
   } || { serverAddress: '', password: '' };
 
-  const securitySettings = queryClient.getQueryData(['securitySettings']) as {
-    securityLevel: string;
-    securityMode: string;
-    encryptionAlgorithm: string;
-    kemAlgorithm: string;
-    signingAlgorithm: string;
-    headerObfuscatorMode: string;
-    psk: string;
-  } || {
-    securityLevel: 'standard',
-    securityMode: 'enhanced',
-    encryptionAlgorithm: 'aes',
-    kemAlgorithm: 'kyber',
-    signingAlgorithm: 'falcon',
-    headerObfuscatorMode: 'off',
-    psk: '',
+  const securitySettings = queryClient.getQueryData<SecuritySettingsValues>(['securitySettings']) || {
+    securityLevel: SecurityLevel.Standard,
+    secrecyMode: SecrecyMode.BestEffort,
+    encryptionAlgorithm: EncryptionAlgorithm.AES_GCM_256,
+    kemAlgorithm: KemAlgorithm.Kyber,
+    sigAlgorithm: SigAlgorithm.None,
+    headerObfuscatorSettings: {},
+    // storeCredentials: false, 
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,7 +54,7 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.fullName || !formData.username || !formData.password || !formData.confirmPassword) {
       toast({
         title: "Missing Fields",
@@ -81,99 +75,66 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
 
     setIsRegistering(true);
 
-    // Create workspace configuration
-    const workspaceConfig: WorkspaceConfig = {
-      // Connection details
-      serverAddress: serverData.serverAddress,
-      password: serverData.password,
-      
-      // Security settings
-      securityLevel: securitySettings.securityLevel,
-      securityMode: securitySettings.securityMode,
-      
-      // Advanced settings
-      encryptionAlgorithm: securitySettings.encryptionAlgorithm,
-      kemAlgorithm: securitySettings.kemAlgorithm,
-      signingAlgorithm: securitySettings.signingAlgorithm,
-      headerObfuscatorMode: securitySettings.headerObfuscatorMode,
-      psk: securitySettings.psk,
-      
-      // Profile details
-      fullName: formData.fullName,
-      username: formData.username,
-      profilePassword: formData.password,
-    };
-    
-    // Map security levels and modes to numeric values for the Rust backend
-    const securityLevelMap: Record<string, number> = {
-      'standard': 0,
-      'enhanced': 1,
-      'maximum': 2
-    };
-    
-    const securityModeMap: Record<string, number> = {
-      'standard': 0,
-      'enhanced': 1,
-      'maximum': 2
-    };
-    
-    const encryptionAlgorithmMap: Record<string, number> = {
-      'aes': 0,
-      'chacha20': 1
-    };
-    
-    const kemAlgorithmMap: Record<string, number> = {
-      'kyber': 0,
-      'classic': 1
-    };
-    
-    const sigAlgorithmMap: Record<string, number> = {
-      'falcon': 0,
-      'classic': 1
-    };
-    
-    // Create registration request from configuration
-    const registrationRequest = {
-      workspaceIdentifier: workspaceConfig.serverAddress,
-      workspacePassword: workspaceConfig.password || "",
-      securityLevel: securityLevelMap[workspaceConfig.securityLevel] || 0,
-      securityMode: securityModeMap[workspaceConfig.securityMode] || 0,
-      encryptionAlgorithm: encryptionAlgorithmMap[workspaceConfig.encryptionAlgorithm] || 0,
-      kemAlgorithm: kemAlgorithmMap[workspaceConfig.kemAlgorithm] || 0,
-      sigAlgorithm: sigAlgorithmMap[workspaceConfig.signingAlgorithm] || 0,
-      fullName: workspaceConfig.fullName,
-      username: workspaceConfig.username,
-      profilePassword: workspaceConfig.profilePassword
-    };
-    
-    console.log("Sending registration request:", JSON.stringify(registrationRequest, null, 2));
-    
     try {
+      // Construct the request payload matching Rust structure
+      const registerPayload = {
+        request: {
+          workspaceIdentifier: serverData.serverAddress,
+          workspacePassword: serverData.password || "",
+          fullName: formData.fullName,
+          username: formData.username,
+          profilePassword: formData.password,
+          sessionSecuritySettings: {
+            securityLevel: securitySettings.securityLevel,
+            secrecyMode: securitySettings.secrecyMode,
+            encryptionAlgorithm: securitySettings.encryptionAlgorithm,
+            kemAlgorithm: securitySettings.kemAlgorithm,
+            sigAlgorithm: securitySettings.sigAlgorithm,
+            headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
+          }
+        }
+      };
+
+      console.info("Register Payload:", JSON.stringify(registerPayload, null, 2));
+
       // The Rust handler returns a RegisterSuccessTS on success
-      const response = await invoke<{ cid: string, request_id?: string }>("register", {
-        request: registrationRequest
-      });
-      
-      console.log("Registration response:", response);
-      
-      // If we get here, the registration was successful
+      const response = await invoke<{ cid: string, request_id?: string }>("register", registerPayload);
+
+      console.info("Register Response:", response);
+
       toast({
         title: "Registration Successful",
         description: "Your account has been registered successfully.",
+        variant: "default",
       });
-      onNext();
+
+      // Optionally store the received CID or other data if needed
+      // queryClient.setQueryData(['connectionInfo'], { cid: response.cid });
+
+      // Pass the connection ID to the next step
+      if (response && response.cid) {
+        console.info(`Calling onNext() with cid: ${response.cid}...`);
+        onNext(response.cid);
+        console.info("onNext() finished.");
+      } else {
+        // Handle cases where response or cid might be missing (shouldn't happen on success)
+        console.error("Registration successful but cid missing in response:", response);
+        toast({
+          title: "Registration Issue",
+          description: "Registration succeeded but failed to get connection ID. Please try logging in.",
+        });
+        // Potentially navigate to login or show an error state
+      }
     } catch (error: any) {
-      console.error("Registration error:", error);
-      
-      // Extract error message from Tauri error object
-      const errorMessage = error.message || error.toString() || "Unknown error occurred";
-      
+      console.error("Registration Error:", error); // Add logging
+
       toast({
-        title: "Registration Error",
-        description: errorMessage,
+        title: "Registration Failed",
+        description: error.message || "An unknown error occurred during registration.",
         variant: "destructive",
       });
     } finally {
+      console.info("Setting isRegistering to false in finally block."); // Log in finally
       setIsRegistering(false);
     }
   };
@@ -188,7 +149,7 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
               Create your profile for this workspace
             </CardDescription>
           </CardHeader>
-          
+
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
               <div className="space-y-2">
@@ -295,7 +256,7 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
                 </div>
               </div>
             </CardContent>
-            
+
             <CardFooter className="flex justify-between">
               <Button
                 type="button"

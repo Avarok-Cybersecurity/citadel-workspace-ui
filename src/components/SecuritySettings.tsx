@@ -8,17 +8,21 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { AdvancedSettings } from "./security/AdvancedSettings";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  SecurityLevel,
+  SecrecyMode,
+  EncryptionAlgorithm,
+  KemAlgorithm,
+  SigAlgorithm
+} from "@/types";
 
 export interface SecuritySettingsValues {
-  securityLevel?: string;
-  securityMode?: string;
-  encryptionAlgorithm?: string;
-  kemAlgorithm?: string;
-  signingAlgorithm?: string;
-  headerObfuscatorMode?: string;
-  psk?: string;
-  useHighSecurity?: boolean;
-  encryptTraffic?: boolean;
+  securityLevel: SecurityLevel | string;
+  secrecyMode: SecrecyMode;
+  encryptionAlgorithm: EncryptionAlgorithm;
+  kemAlgorithm: KemAlgorithm;
+  sigAlgorithm: SigAlgorithm;
+  headerObfuscatorSettings: Record<string, string>;
   storeCredentials?: boolean;
 }
 
@@ -30,10 +34,10 @@ interface SecuritySettingsProps {
   isFromLogin?: boolean; // Flag to indicate if this is accessed from login flow
 }
 
-export const SecuritySettings = ({ 
-  onNext, 
-  onBack, 
-  onComplete, 
+export const SecuritySettings = ({
+  onNext,
+  onBack,
+  onComplete,
   initialValues,
   isFromLogin = false
 }: SecuritySettingsProps) => {
@@ -41,15 +45,12 @@ export const SecuritySettings = ({
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<SecuritySettingsValues>({
-    securityLevel: 'standard',
-    securityMode: 'enhanced',
-    encryptionAlgorithm: 'aes',
-    kemAlgorithm: 'kyber',
-    signingAlgorithm: 'falcon',
-    headerObfuscatorMode: 'off',
-    psk: '',
-    useHighSecurity: true,
-    encryptTraffic: true,
+    securityLevel: SecurityLevel.Standard,
+    secrecyMode: SecrecyMode.BestEffort,
+    encryptionAlgorithm: EncryptionAlgorithm.AES_GCM_256,
+    kemAlgorithm: KemAlgorithm.Kyber,
+    sigAlgorithm: SigAlgorithm.None,
+    headerObfuscatorSettings: {},
     storeCredentials: false,
   });
 
@@ -65,13 +66,13 @@ export const SecuritySettings = ({
 
   const { mutate: updateSecuritySettings } = useMutation({
     mutationFn: (newSettings: SecuritySettingsValues) => {
-      console.log('Updating security settings:', newSettings);
+      console.info('Updating security settings:', JSON.stringify(newSettings));
       return Promise.resolve(newSettings);
     },
     onSuccess: (updatedSettings) => {
       // Save the security settings to query cache
       queryClient.setQueryData(['securitySettings'], updatedSettings);
-      
+
       // If onComplete is provided, call it with the current settings
       if (onComplete) {
         onComplete(updatedSettings);
@@ -103,35 +104,35 @@ export const SecuritySettings = ({
               Configure security settings for your workspace connection
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-visible">
-            <SecurityLevelSelect 
-              value={settings.securityLevel} 
-              onChange={(value) => handleSettingChange('securityLevel', value)} 
+            <SecurityLevelSelect
+              value={settings.securityLevel}
+              onChange={(value) => handleSettingChange('securityLevel', value)}
             />
-            
-            <SecurityModeSelect 
-              value={settings.securityMode}
-              onChange={(value) => handleSettingChange('securityMode', value)}
+
+            <SecurityModeSelect
+              value={settings.secrecyMode}
+              onChange={(value) => handleSettingChange('secrecyMode', value)}
             />
 
             <div className="space-y-2">
-              <button 
+              <button
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
                 className="flex items-center text-white space-x-2 w-full transition-colors duration-200 hover:text-purple-300"
               >
                 <span className="text-lg font-semibold">ADVANCED SETTINGS</span>
-                <ChevronDown 
+                <ChevronDown
                   className={cn(
                     "w-5 h-5 transition-transform duration-300",
                     isAdvancedOpen && "rotate-180"
-                  )} 
+                  )}
                 />
               </button>
-              
+
               {isAdvancedOpen && (
                 <div className="pt-4 space-y-4">
-                  <AdvancedSettings 
+                  <AdvancedSettings
                     values={settings}
                     onChange={handleSettingChange}
                   />
@@ -139,7 +140,7 @@ export const SecuritySettings = ({
               )}
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex justify-between">
             <Button
               type="button"

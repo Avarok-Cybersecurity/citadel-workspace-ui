@@ -5,9 +5,9 @@ import { WorkspaceConfig } from '@/types/workspace';
 
 // Component that listens for events from Rust and responds to them
 export function RustToTSListener() {
-  const [events, setEvents] = useState<Array<{type: string, payload: any, timestamp: Date}>>([]);
-  const [responses, setResponses] = useState<Array<{type: string, payload: any, timestamp: Date}>>([]);
-  
+  const [events, setEvents] = useState<Array<{ type: string, payload: any, timestamp: Date }>>([]);
+  const [responses, setResponses] = useState<Array<{ type: string, payload: any, timestamp: Date }>>([]);
+
   // Create a sample workspace config for testing
   const createTestConfig = (serverAddress: string): WorkspaceConfig => ({
     serverAddress,
@@ -22,19 +22,19 @@ export function RustToTSListener() {
     username: 'testuser',
     profilePassword: 'test-profile-password'
   });
-  
+
   // Handle connection requests from Rust
   const handleConnectionRequest = async (data: { serverAddress: string }) => {
     // Log the event
     addEvent('connection-request', data);
-    
+
     try {
       // Create a workspace config from the server address
       const config = createTestConfig(data.serverAddress);
-      
+
       // Call the connect function
       const result = await connect(config);
-      
+
       // Log the response
       addResponse('connection-response', result);
     } catch (error) {
@@ -42,19 +42,19 @@ export function RustToTSListener() {
       addResponse('connection-error', error);
     }
   };
-  
+
   // Handle registration requests from Rust
   const handleRegistrationRequest = async (data: { serverAddress: string }) => {
     // Log the event
     addEvent('registration-request', data);
-    
+
     try {
       // Create a workspace config from the server address
       const config = createTestConfig(data.serverAddress);
-      
+
       // Call the register function
       const result = await register(config);
-      
+
       // Log the response
       addResponse('registration-response', result);
     } catch (error) {
@@ -62,34 +62,34 @@ export function RustToTSListener() {
       addResponse('registration-error', error);
     }
   };
-  
+
   // Handle notification events from Rust
   const handleNotification = (data: { title: string, body: string }) => {
     // Log the event
     addEvent('notification', data);
-    
+
     // Display a notification (in a real app, this would show a toast or notification)
-    console.log(`Notification: ${data.title} - ${data.body}`);
+    console.info(`Notification: ${data.title} - ${data.body}`);
   };
-  
+
   // Handle error events from Rust
   const handleError = (data: { errorCode: string, message: string }) => {
     // Log the event
     addEvent('error', data);
-    
+
     // Display an error (in a real app, this would show an error message)
     console.error(`Error ${data.errorCode}: ${data.message}`);
   };
-  
+
   // Handle server list updates from Rust
   const handleServerListUpdate = async (data: { servers: any[] }) => {
     // Log the event
     addEvent('server-list-update', data);
-    
+
     try {
       // Call the listKnownServers function to verify it works
       const result = await listKnownServers();
-      
+
       // Log the response
       addResponse('server-list-response', result);
     } catch (error) {
@@ -97,17 +97,17 @@ export function RustToTSListener() {
       addResponse('server-list-error', error);
     }
   };
-  
+
   // Helper function to add an event to the events list
   const addEvent = (type: string, payload: any) => {
     setEvents(prev => [...prev, { type, payload, timestamp: new Date() }]);
   };
-  
+
   // Helper function to add a response to the responses list
   const addResponse = (type: string, payload: any) => {
     setResponses(prev => [...prev, { type, payload, timestamp: new Date() }]);
   };
-  
+
   // Set up event listeners when the component mounts
   useEffect(() => {
     // Set up listeners for events from Rust
@@ -116,7 +116,7 @@ export function RustToTSListener() {
     const unlistenNotification = mockTauriEvent.listen('notification', handleNotification);
     const unlistenError = mockTauriEvent.listen('error', handleError);
     const unlistenServerList = mockTauriEvent.listen('server-list-update', handleServerListUpdate);
-    
+
     // Clean up listeners when the component unmounts
     return () => {
       unlistenConnection();
@@ -126,27 +126,27 @@ export function RustToTSListener() {
       unlistenServerList();
     };
   }, []);
-  
+
   // Function to simulate events from Rust for testing
   const simulateEvents = () => {
     // Simulate a connection request
     simulateRustCall.requestConnection('127.0.0.1:12345');
-    
+
     // Simulate a registration request after a short delay
     setTimeout(() => {
       simulateRustCall.requestRegistration('127.0.0.1:12345');
     }, 500);
-    
+
     // Simulate a notification after a delay
     setTimeout(() => {
       simulateRustCall.sendNotification('Test Notification', 'This is a test notification from Rust');
     }, 1000);
-    
+
     // Simulate an error after a delay
     setTimeout(() => {
       simulateRustCall.sendError('TEST_ERROR', 'This is a test error from Rust');
     }, 1500);
-    
+
     // Simulate a server list update after a delay
     setTimeout(() => {
       simulateRustCall.updateServerList([
@@ -155,16 +155,16 @@ export function RustToTSListener() {
       ]);
     }, 2000);
   };
-  
+
   // Format a timestamp for display
   const formatTimestamp = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   };
-  
+
   return (
     <div className="p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-md">
       <h2 className="text-xl font-bold mb-4">Rust-to-TypeScript Communication Tester</h2>
-      
+
       <div className="mb-4">
         <button
           onClick={simulateEvents}
@@ -173,7 +173,7 @@ export function RustToTSListener() {
           Simulate Rust Events
         </button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <h3 className="font-semibold mb-2">Events from Rust</h3>
@@ -195,7 +195,7 @@ export function RustToTSListener() {
             )}
           </div>
         </div>
-        
+
         <div>
           <h3 className="font-semibold mb-2">Responses to Rust</h3>
           <div className="bg-gray-100 p-3 rounded-md h-96 overflow-y-auto">
@@ -217,7 +217,7 @@ export function RustToTSListener() {
           </div>
         </div>
       </div>
-      
+
       <div className="mt-6">
         <h3 className="font-semibold mb-2">Test Information</h3>
         <p className="text-sm">

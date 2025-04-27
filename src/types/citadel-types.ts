@@ -140,40 +140,139 @@ export interface PeerInformationTS {
   username?: string;
 }
 
+export interface PeerSessionInformationTS {
+  cid: string;
+  peerCid: string;
+  peerUsername: string;
+}
+
+export interface SessionInformationTS {
+  cid: string;
+  peerConnections: Record<string, PeerSessionInformationTS>; // HashMap<String, PeerSessionInformationTS> in Rust
+}
+
+export interface GetSessionSuccessTS {
+  requestId?: string;
+  sessions: SessionInformationTS[];
+}
+
+export interface GetSessionFailureTS {
+  requestId?: string;
+  message: string;
+}
+
 //
 // Request Types
 //
 
+/**
+ * ConnectMode enum - String values to match Rust enum variants (or desired representation)
+ */
+export enum ConnectMode {
+  Standard = "Standard", // Assuming Rust uses these exact names via strum
+  Fetch = "Fetch",
+  // Add other modes if they exist, ensure names match Rust TryFrom/Parse logic
+  // Example: StandardWithForcedLogin = "Standard { force_login: true }" - though this might be better handled by flags
+}
+
+/**
+ * UdpMode enum - String values
+ */
+export enum UdpMode {
+  Disabled = "Disabled", // Assuming Rust uses these exact names
+  Enabled = "Enabled",
+}
+
+/**
+ * SecurityLevel enum - String values
+ */
+export enum SecurityLevel {
+  Standard = "Standard",
+  Reinforced = "Reinforced",
+  High = "High",
+  Ultra = "Ultra",
+  Extreme = "Extreme",
+  // Custom levels might need special handling, maybe a separate field or specific string format
+}
+
+/**
+ * SecrecyMode enum - String values
+ */
+export enum SecrecyMode {
+  BestEffort = "BestEffort",
+  Perfect = "Perfect",
+}
+
+/**
+ * EncryptionAlgorithm enum - String values
+ */
+export enum EncryptionAlgorithm {
+  AES_GCM_256 = "AES_GCM_256",
+  ChaCha20Poly_1305 = "ChaCha20Poly_1305",
+  KyberHybrid = "KyberHybrid",
+  Ascon80pq = "Ascon80pq",
+}
+
+/**
+ * KemAlgorithm enum - String values
+ */
+export enum KemAlgorithm {
+  Kyber = "Kyber",
+}
+
+/**
+ * SigAlgorithm enum - String values
+ */
+export enum SigAlgorithm {
+  None = "None",
+  Falcon1024 = "Falcon1024",
+}
+
+/**
+ * SessionSecuritySettings structure for TypeScript
+ */
+export interface SessionSecuritySettingsTS {
+  securityLevel: SecurityLevel | string; // Allow string for potential custom levels
+  secrecyMode: SecrecyMode;
+  encryptionAlgorithm: EncryptionAlgorithm;
+  kemAlgorithm: KemAlgorithm;
+  sigAlgorithm: SigAlgorithm;
+  headerObfuscatorSettings: Record<string, string>; // Keep as Record<string, string>
+}
+
+/**
+ * ConnectRequest structure for TypeScript
+ */
 export interface ConnectRequestTS {
   username: string;
-  password: Uint8Array;  // SecBuffer in Rust
-  connect_mode: number;  // ConnectMode enum in Rust
-  udp_mode: number;      // UdpMode enum in Rust
-  keep_alive_timeout?: number;  // Option<Duration> in Rust (milliseconds)
-  session_security_settings: SessionSecuritySettingsTS;
-  server_password?: Uint8Array;  // Option<PreSharedKey> in Rust
+  password: Uint8Array; // Password as Uint8Array
+  connectMode: ConnectMode; // Use string enum
+  udpMode: UdpMode; // Use string enum
+  keepAliveTimeoutMs?: number; // Optional duration in milliseconds (number remains suitable)
+  sessionSecuritySettings: SessionSecuritySettingsTS; // Use updated interface
+  serverPassword?: Uint8Array; // Optional password as Uint8Array
 }
 
+/**
+ * MessageRequest structure for TypeScript
+ */
+export interface MessageRequestTS {
+  message: Uint8Array; // Message content as Uint8Array
+  cid: string; // Connection ID (u64 as string)
+  peerCid?: string; // Optional peer connection ID (u64 as string)
+  securityLevel: SecurityLevel | string; // Use string enum/string
+}
+
+/**
+ * RegistrationRequest structure for TypeScript
+ */
 export interface RegistrationRequestTS {
-  workspaceIdentifier: string;   // SocketAddr as string
+  workspaceIdentifier: string; // SocketAddr as string
   workspacePassword: string;
-  securityLevel: number;
-  securityMode: number;
-  encryptionAlgorithm: number;
-  kemAlgorithm: number;
-  sigAlgorithm: number;
+  sessionSecuritySettings: SessionSecuritySettingsTS; // Use updated interface
   fullName: string;
   username: string;
-  profilePassword: string;
-}
-
-export interface SessionSecuritySettingsTS {
-  security_level: number;
-  secrecy_mode: number;
-  encryption_algorithm: number;
-  kem_algorithm: number;
-  sig_algorithm: number;
-  header_obfuscator_settings: Record<string, string>;
+  profilePassword: string; // Note: Consider using Uint8Array if sensitive
 }
 
 export interface ListKnownServersRequestTS {
@@ -211,31 +310,8 @@ export interface ListAllPeersRequestTS {
   cid: string;
 }
 
-// Enum definitions to match Rust enums
-
-/**
- * ConnectMode enum - must match the Rust enum
- */
-export enum ConnectMode {
-  Standard = 0,
-  Lite = 1,
-}
-
-/**
- * UdpMode enum - must match the Rust enum
- */
-export enum UdpMode {
-  Disabled = 0,
-  Enabled = 1,
-}
-
-/**
- * SecurityLevel enum - must match the Rust enum
- */
-export enum SecurityLevel {
-  Low = 0,
-  Medium = 1,
-  High = 2,
+export interface GetSessionRequestTS {
+  // Currently no parameters needed for get_session
 }
 
 /**
@@ -251,21 +327,9 @@ export function stringToUint8Array(str: string): Uint8Array {
 }
 
 /**
- * Converts Uint8Array to string for displaying binary data
+ * Converts Uint8Array to string for displaying binary data (if needed)
  */
-export function uint8ArrayToString(array: Uint8Array): string {
+export function uint8ArrayToString(arr: Uint8Array): string {
   const decoder = new TextDecoder();
-  return decoder.decode(array);
-}
-
-/**
- * Generates a UUID string
- */
-export function generateUUID(): string {
-  // This is a simple UUID v4 implementation. In production, use a proper UUID library
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return decoder.decode(arr);
 }

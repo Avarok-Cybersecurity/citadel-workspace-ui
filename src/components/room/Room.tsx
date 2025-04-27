@@ -30,17 +30,17 @@ interface Topic {
 export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   const { state } = useWorkspace();
   const { toast } = useToast();
-  
+
   // Get room data from workspace state
   const room = state.rooms[roomId];
   const isLoading = state.loading.rooms;
-  
+
   // State for MDX content
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState<string>(room?.mdx_content || '');
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isNewContent, setIsNewContent] = useState(!room?.mdx_content);
-  
+
   // Fetch room data if not available
   useEffect(() => {
     const fetchRoomData = async () => {
@@ -53,10 +53,10 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         }
       }
     };
-    
+
     fetchRoomData();
   }, [roomId, room, isLoading]);
-  
+
   // Update content when room data changes
   useEffect(() => {
     if (room?.mdx_content) {
@@ -66,20 +66,20 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       setIsNewContent(true);
     }
   }, [room]);
-  
+
   // Compile MDX content
   useEffect(() => {
     const compileContent = async () => {
       if (!content) return;
-      
+
       try {
-        console.log('Compiling Room MDX content...');
+        console.info('Compiling Room MDX content...');
         const result = await evaluate(content, {
           ...runtime,
           useMDXComponents: () => components,
           baseUrl: window.location.origin
         });
-        console.log('Room MDX compilation successful');
+        console.info('Room MDX compilation successful');
         setCompiledContent(result.default({ components }));
       } catch (error) {
         console.error('Error compiling Room MDX:', error);
@@ -88,12 +88,12 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
     compileContent();
   }, [content]);
-  
+
   // Check if user can edit the MDX content
   const canEditMdxContent = (): boolean => {
     // If no room data, we're in demo mode - allow editing
     if (!room) return true;
-    
+
     // For now, just return true to allow editing
     // In a production version, you would:
     // 1. Get current user ID from auth context/state
@@ -101,22 +101,22 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
     // 3. Check specific permission to edit MDX content
     return true;
   };
-  
+
   // Handle saving MDX content
   const handleSave = async () => {
     try {
       // Call Tauri command to update the room with new mdx_content
-      await invoke('update_room', { 
-        roomId, 
-        mdx_content: content 
+      await invoke('update_room', {
+        roomId,
+        mdx_content: content
       });
-      
+
       toast({
         title: "Changes saved",
         description: `The ${room?.name || 'room'} content has been updated`,
         className: "bg-[#343A5C] border-purple-800 text-purple-200",
       });
-      
+
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to save Room MDX content:', error);
@@ -127,30 +127,30 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       });
     }
   };
-  
+
   // Handle template selection
   const handleTemplateSelect = (template: MdxTemplate) => {
     // Replace content with template content
     setContent(template.content);
-    
+
     // Show success toast
     toast({
       title: "Template applied",
       description: `Applied "${template.name}" template. You can now customize it.`,
       className: "bg-[#343A5C] border-purple-800 text-purple-200",
     });
-    
+
     // Content is no longer new once a template is applied
     setIsNewContent(false);
   };
-  
+
   // Show skeleton loader while loading
   if (isLoading || !room) {
     return <RoomSkeletonLoader />;
   }
-  
+
   const hasEditPermission = canEditMdxContent();
-  
+
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-6">
@@ -167,43 +167,43 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
           {hasEditPermission && (
             isEditing ? (
               <>
-                <button 
-                  onClick={handleSave} 
+                <button
+                  onClick={handleSave}
                   className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                 >
                   Save
                 </button>
-                <button 
-                  onClick={() => setIsEditing(false)} 
+                <button
+                  onClick={() => setIsEditing(false)}
                   className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
                 >
                   Cancel
                 </button>
               </>
             ) : (
-              <button 
-                onClick={() => setIsEditing(true)} 
+              <button
+                onClick={() => setIsEditing(true)}
                 className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
               >
                 Edit
               </button>
             )
           )}
-          <button 
+          <button
             className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
           >
             Join Room
           </button>
         </div>
       </div>
-      
+
       {isEditing ? (
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-white">Edit Room Content</h2>
             <div className="flex gap-2">
               {(isNewContent || content.trim() === '') && (
-                <TemplateSelector 
+                <TemplateSelector
                   category={TemplateCategory.ROOM}
                   onSelectTemplate={handleTemplateSelect}
                   buttonVariant="outline"
@@ -227,7 +227,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
           </MDXProvider>
         </div>
       ) : null}
-      
+
       <div className="grid grid-cols-1 gap-4">
         {/* Topics section */}
         <h3 className="text-lg font-semibold text-white mt-4 mb-2">Topics</h3>
@@ -246,7 +246,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
           </div>
         ))}
       </div>
-      
+
       {room.members && Object.keys(room.members).length > 0 && (
         <div className="mt-8">
           <div className="flex items-center space-x-2 mb-4">
@@ -255,7 +255,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
               {Object.keys(room.members).length}
             </span>
           </div>
-          
+
           <div className="space-y-3">
             {Object.values(room.members).map((member: User, index) => (
               <div key={member.id || index} className="flex items-center space-x-3">

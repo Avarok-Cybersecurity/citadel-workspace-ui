@@ -5,8 +5,8 @@
  * and that the Tauri commands can be invoked from the frontend.
  */
 
-import { 
-  workspaceConfigToRegistrationRequest, 
+import {
+  workspaceConfigToRegistrationRequest,
   workspaceConfigToConnectRequest,
   ConnectRequestTS,
   RegistrationRequestTS,
@@ -47,10 +47,10 @@ export async function runTauriIntegrationTests(): Promise<boolean> {
       username: 'testuser',
       profilePassword: 'test-profile-password'
     };
-    
+
     // Check if registration request matches expected structure
     const registrationMatches = JSON.stringify(registrationRequest) === JSON.stringify(expectedRegistration);
-    
+
     // Test connect request structure
     const connectRequest = workspaceConfigToConnectRequest(testConfig);
     const expectedConnect = {
@@ -68,10 +68,10 @@ export async function runTauriIntegrationTests(): Promise<boolean> {
         profile_password: 'test-profile-password'
       }
     };
-    
+
     // Check if connect request matches expected structure
     const connectMatches = JSON.stringify(connectRequest) === JSON.stringify(expectedConnect);
-    
+
     // Test 2: Round-trip conversion
     // Create a RegistrationInfo object (Rust-style)
     const registrationInfo: RegistrationInfo = {
@@ -86,19 +86,19 @@ export async function runTauriIntegrationTests(): Promise<boolean> {
       username: 'testuser',
       profile_password: 'test-profile-password'
     };
-    
+
     // Create a ConnectRequestTS using the RegistrationInfo
     const connectRequestForRoundTrip: ConnectRequestTS = {
       registrationInfo
     };
-    
+
     // Convert to JSON and back to simulate the round-trip to Rust
     const jsonString = JSON.stringify(connectRequestForRoundTrip);
     const roundTrippedConnectRequest = JSON.parse(jsonString) as ConnectRequestTS;
-    
+
     // Check if the round-tripped object matches the original
     const roundTripMatches = JSON.stringify(roundTrippedConnectRequest) === JSON.stringify(connectRequestForRoundTrip);
-    
+
     // Test 3: Special characters handling
     // Test with special characters
     const configWithSpecialChars: WorkspaceConfig = {
@@ -106,30 +106,30 @@ export async function runTauriIntegrationTests(): Promise<boolean> {
       fullName: 'Test "User" with & special < > characters',
       password: 'p@$$w0rd!#%^&*()'
     };
-    
+
     // Convert to RegistrationRequestTS
     const specialCharsRequest = workspaceConfigToRegistrationRequest(configWithSpecialChars);
-    
+
     // Convert to JSON and back
     const specialCharsJson = JSON.stringify(specialCharsRequest);
     const roundTrippedSpecialChars = JSON.parse(specialCharsJson) as RegistrationRequestTS;
-    
+
     // Check if special characters are preserved
-    const specialCharsMatch = 
+    const specialCharsMatch =
       roundTrippedSpecialChars.fullName === configWithSpecialChars.fullName &&
       roundTrippedSpecialChars.workspacePassword === configWithSpecialChars.password;
-    
+
     // Log test results
-    console.log('Tauri Integration Tests:');
-    console.log('- Registration Request Structure:', registrationMatches ? 'PASSED' : 'FAILED');
-    console.log('- Connect Request Structure:', connectMatches ? 'PASSED' : 'FAILED');
-    console.log('- Round-trip Conversion:', roundTripMatches ? 'PASSED' : 'FAILED');
-    console.log('- Special Characters Handling:', specialCharsMatch ? 'PASSED' : 'FAILED');
-    
+    console.info('Tauri Integration Tests:');
+    console.info('- Registration Request Structure:', registrationMatches ? 'PASSED' : 'FAILED');
+    console.info('- Connect Request Structure:', connectMatches ? 'PASSED' : 'FAILED');
+    console.info('- Round-trip Conversion:', roundTripMatches ? 'PASSED' : 'FAILED');
+    console.info('- Special Characters Handling:', specialCharsMatch ? 'PASSED' : 'FAILED');
+
     // Return true if all tests pass
     const allTestsPassed = registrationMatches && connectMatches && roundTripMatches && specialCharsMatch;
-    console.log('All Tauri Integration Tests:', allTestsPassed ? 'PASSED' : 'FAILED');
-    
+    console.info('All Tauri Integration Tests:', allTestsPassed ? 'PASSED' : 'FAILED');
+
     return allTestsPassed;
   } catch (error) {
     console.error('Error running Tauri integration tests:', error);

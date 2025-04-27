@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Office } from "@/components/Office";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
@@ -12,6 +12,7 @@ import { Connect } from "./pages/Connect";
 import UserDirectory from "./pages/UserDirectory";
 import NotificationTest from "./pages/NotificationTest";
 import WorkspaceApp from "./components/WorkspaceApp";
+import { WorkspaceLoader } from "./components/ui/workspace-loader";
 
 const queryClient = new QueryClient();
 
@@ -23,13 +24,36 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public routes that don't require workspace data */}
             <Route path="/" element={<Landing />} />
             <Route path="/connect" element={<Connect />} />
-            <Route path="/office" element={<Office />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/directory" element={<UserDirectory />} />
-            <Route path="/notifications" element={<NotificationTest />} />
-            <Route path="/test" element={<TestPage />} />
+            
+            {/* Protected routes that require workspace data to be loaded */}
+            <Route path="/office" element={
+              <WorkspaceLoader>
+                <Office />
+              </WorkspaceLoader>
+            } />
+            <Route path="/messages" element={
+              <WorkspaceLoader>
+                <Messages />
+              </WorkspaceLoader>
+            } />
+            <Route path="/directory" element={
+              <WorkspaceLoader>
+                <UserDirectory />
+              </WorkspaceLoader>
+            } />
+            <Route path="/notifications" element={
+              <WorkspaceLoader>
+                <NotificationTest />
+              </WorkspaceLoader>
+            } />
+            <Route path="/test" element={
+              <WorkspaceLoader>
+                <TestPage />
+              </WorkspaceLoader>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

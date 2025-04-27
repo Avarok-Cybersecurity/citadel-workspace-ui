@@ -45,18 +45,18 @@ export class NotificationService {
   private notifications: Map<string, Notification> = new Map();
   private notificationHandlers: Set<NotificationHandler> = new Set();
   private unlisten: (() => void) | null = null;
-  
+
   private constructor() {
     this.setupEventListeners();
   }
-  
+
   public static getInstance(): NotificationService {
     if (!NotificationService.instance) {
       NotificationService.instance = new NotificationService();
     }
     return NotificationService.instance;
   }
-  
+
   private async setupEventListeners() {
     try {
       // Listen for notifications from the Rust backend
@@ -64,35 +64,35 @@ export class NotificationService {
         const notification = event.payload as Notification;
         this.addNotification(notification);
       });
-      
-      console.log('NotificationService event listeners set up');
+
+      console.info('NotificationService event listeners set up');
     } catch (error) {
       console.error('Failed to set up notification listeners:', error);
     }
   }
-  
+
   /**
    * Add a new notification to the system
    */
   public addNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'read'>): Notification {
     const id = uuidv4();
     const timestamp = Date.now();
-    
+
     const fullNotification: Notification = {
       ...notification,
       id,
       timestamp,
       read: false
     };
-    
+
     this.notifications.set(id, fullNotification);
-    
+
     // Notify all handlers
     this.notifyHandlers(fullNotification);
-    
+
     return fullNotification;
   }
-  
+
   /**
    * Add a message notification
    */
@@ -107,7 +107,7 @@ export class NotificationService {
       data
     });
   }
-  
+
   /**
    * Add a connection request notification
    */
@@ -123,7 +123,7 @@ export class NotificationService {
       data: { requestId }
     });
   }
-  
+
   /**
    * Add a system notification
    */
@@ -135,7 +135,7 @@ export class NotificationService {
       priority
     });
   }
-  
+
   /**
    * Mark a notification as read
    */
@@ -147,7 +147,7 @@ export class NotificationService {
       this.notifyHandlers(notification);
     }
   }
-  
+
   /**
    * Mark all notifications as read
    */
@@ -158,11 +158,11 @@ export class NotificationService {
         this.notifications.set(id, notification);
       }
     }
-    
+
     // Notify handlers that all notifications have been updated
     this.notifyAllHandlers();
   }
-  
+
   /**
    * Remove a notification
    */
@@ -173,7 +173,7 @@ export class NotificationService {
       this.notifyRemovedHandler(notification);
     }
   }
-  
+
   /**
    * Get all notifications
    */
@@ -181,7 +181,7 @@ export class NotificationService {
     return Array.from(this.notifications.values())
       .sort((a, b) => b.timestamp - a.timestamp); // Most recent first
   }
-  
+
   /**
    * Get unread notifications
    */
@@ -189,7 +189,7 @@ export class NotificationService {
     return this.getNotifications()
       .filter(notification => !notification.read);
   }
-  
+
   /**
    * Get notifications by type
    */
@@ -197,19 +197,19 @@ export class NotificationService {
     return this.getNotifications()
       .filter(notification => notification.type === type);
   }
-  
+
   /**
    * Register a notification handler to be notified of new notifications
    */
   public registerNotificationHandler(handler: NotificationHandler): () => void {
     this.notificationHandlers.add(handler);
-    
+
     // Return a function to unregister the handler
     return () => {
       this.notificationHandlers.delete(handler);
     };
   }
-  
+
   /**
    * Notify all handlers of a new or updated notification
    */
@@ -218,7 +218,7 @@ export class NotificationService {
       handler(notification);
     }
   }
-  
+
   /**
    * Notify all handlers of all notifications (used for bulk updates)
    */
@@ -228,16 +228,16 @@ export class NotificationService {
       this.notifyHandlers(notification);
     }
   }
-  
+
   /**
    * Notify handlers of a removed notification
    */
   private notifyRemovedHandler(notification: Notification): void {
     for (const handler of this.notificationHandlers) {
-      handler({...notification, id: `removed:${notification.id}`});
+      handler({ ...notification, id: `removed:${notification.id}` });
     }
   }
-  
+
   /**
    * Clean up resources used by the notification service
    */
@@ -246,7 +246,7 @@ export class NotificationService {
       this.unlisten();
       this.unlisten = null;
     }
-    
+
     this.notificationHandlers.clear();
   }
 }

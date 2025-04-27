@@ -17,6 +17,10 @@ import {
   ConnectMode, 
   UdpMode, 
   SecurityLevel, 
+  SecrecyMode, 
+  EncryptionAlgorithm, 
+  KemAlgorithm, 
+  SigAlgorithm, 
   stringToUint8Array 
 } from "@/types";
 
@@ -26,11 +30,11 @@ interface LoginProps {
 }
 
 interface SecuritySettingsState {
-  securityLevel: number;
-  securityMode: number;
-  encryptionAlgorithm: number;
-  kemAlgorithm: number;
-  sigAlgorithm: number;
+  securityLevel: SecurityLevel | string;
+  secrecyMode: SecrecyMode;
+  encryptionAlgorithm: EncryptionAlgorithm;
+  kemAlgorithm: KemAlgorithm;
+  sigAlgorithm: SigAlgorithm;
   headerObfuscatorSettings: Record<string, string>;
   storeCredentials: boolean;
 }
@@ -46,11 +50,11 @@ export function Login({ onNext, onCancel }: LoginProps) {
   
   // Default security settings that can be overridden by SecuritySettings component
   const [securitySettings, setSecuritySettings] = useState<SecuritySettingsState>({
-    securityLevel: 2, // Medium security
-    securityMode: 1, // Standard mode
-    encryptionAlgorithm: 0, // Default encryption
-    kemAlgorithm: 0, // Default KEM algorithm
-    sigAlgorithm: 0, // Default signing algorithm
+    securityLevel: SecurityLevel.Standard, 
+    secrecyMode: SecrecyMode.BestEffort,   
+    encryptionAlgorithm: EncryptionAlgorithm.AES_GCM_256, 
+    kemAlgorithm: KemAlgorithm.Kyber,       
+    sigAlgorithm: SigAlgorithm.None,        
     headerObfuscatorSettings: {},
     storeCredentials: false
   });
@@ -69,28 +73,46 @@ export function Login({ onNext, onCancel }: LoginProps) {
     setError(null);
     
     try {
-      // Create a ConnectRequestTS object using our centralized types
+      // Create sessionSettings directly from state (now uses string enums)
       const sessionSettings: SessionSecuritySettingsTS = {
-        security_level: securitySettings.securityLevel,
-        secrecy_mode: securitySettings.securityMode,
-        encryption_algorithm: securitySettings.encryptionAlgorithm,
-        kem_algorithm: securitySettings.kemAlgorithm,
-        sig_algorithm: securitySettings.sigAlgorithm,
-        header_obfuscator_settings: securitySettings.headerObfuscatorSettings
+        securityLevel: securitySettings.securityLevel,
+        secrecyMode: securitySettings.secrecyMode,
+        encryptionAlgorithm: securitySettings.encryptionAlgorithm,
+        kemAlgorithm: securitySettings.kemAlgorithm,
+        sigAlgorithm: securitySettings.sigAlgorithm,
+        headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
       };
       
+      // Prepare the request object with camelCase keys (matching TS interface)
       const connectRequest: ConnectRequestTS = {
         username: username,
-        password: stringToUint8Array(password), // Convert string to Uint8Array
-        connect_mode: ConnectMode.Standard,
-        udp_mode: UdpMode.Enabled,
-        keep_alive_timeout: 60000, // 60 seconds in milliseconds
-        session_security_settings: sessionSettings,
-        server_password: undefined // No server password for now
+        password: stringToUint8Array(password), 
+        connectMode: ConnectMode.Standard,
+        udpMode: UdpMode.Enabled,
+        keepAliveTimeoutMs: 60000,
+        sessionSecuritySettings: sessionSettings,
+        serverPassword: undefined
       };
       
-      // Call the connect command directly with the new type
-      const result = await invoke<ConnectSuccessTS>('connect', { request: connectRequest });
+      // Call the connect command, mapping keys to snake_case for Rust backend
+      const result = await invoke<ConnectSuccessTS>('connect', {
+          request: {
+              username: connectRequest.username,
+              password: connectRequest.password,
+              connect_mode: connectRequest.connectMode,         
+              udp_mode: connectRequest.udpMode,             
+              keep_alive_timeout_ms: connectRequest.keepAliveTimeoutMs, 
+              session_security_settings: {                  
+                security_level: sessionSettings.securityLevel,
+                secrecy_mode: sessionSettings.secrecyMode,
+                encryption_algorithm: sessionSettings.encryptionAlgorithm,
+                kem_algorithm: sessionSettings.kemAlgorithm,
+                sig_algorithm: sessionSettings.sigAlgorithm,
+                header_obfuscator_settings: sessionSettings.headerObfuscatorSettings
+              },
+              server_password: connectRequest.serverPassword      
+          }
+      });
       
       // If we get here, the connection was successful (or we would have caught an error)
       onNext(result.cid);
@@ -130,15 +152,14 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
   // Handle completed security settings
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues) => {
-    // Convert the string values from SecuritySettingsValues to numbers for our internal state
     setSecuritySettings({
-      securityLevel: parseInt(values.securityLevel || "2", 10),
-      securityMode: parseInt(values.securityMode || "1", 10),
-      encryptionAlgorithm: parseInt(values.encryptionAlgorithm || "0", 10),
-      kemAlgorithm: parseInt(values.kemAlgorithm || "0", 10),
-      sigAlgorithm: parseInt(values.signingAlgorithm || "0", 10),
-      headerObfuscatorSettings: {},
-      storeCredentials: values.storeCredentials || false
+      securityLevel: values.securityLevel, 
+      secrecyMode: values.secrecyMode as SecrecyMode, 
+      encryptionAlgorithm: values.encryptionAlgorithm as EncryptionAlgorithm,
+      kemAlgorithm: values.kemAlgorithm as KemAlgorithm,
+      sigAlgorithm: values.sigAlgorithm as SigAlgorithm,
+      headerObfuscatorSettings: values.headerObfuscatorSettings,
+      storeCredentials: values.storeCredentials,
     });
   };
 
@@ -150,14 +171,13 @@ export function Login({ onNext, onCancel }: LoginProps) {
           onBack={handleSecuritySettingsBack}
           onComplete={handleSecuritySettingsComplete}
           initialValues={{
-            securityLevel: securitySettings.securityLevel === 0 ? "standard" : securitySettings.securityLevel === 1 ? "reinforced" : "high",
-            securityMode: securitySettings.securityMode === 0 ? "enhanced" : "true",
-            encryptionAlgorithm: securitySettings.encryptionAlgorithm === 0 ? "aes" : "chacha",
-            kemAlgorithm: securitySettings.kemAlgorithm === 0 ? "kyber" : "classic",
-            signingAlgorithm: securitySettings.sigAlgorithm === 0 ? "falcon" : "classic",
-            headerObfuscatorMode: Object.keys(securitySettings.headerObfuscatorSettings).length > 0 ? "psk" : "off",
-            psk: securitySettings.headerObfuscatorSettings.psk || "",
-            storeCredentials: securitySettings.storeCredentials
+            securityLevel: securitySettings.securityLevel, 
+            secrecyMode: securitySettings.secrecyMode, 
+            encryptionAlgorithm: securitySettings.encryptionAlgorithm, 
+            kemAlgorithm: securitySettings.kemAlgorithm, 
+            sigAlgorithm: securitySettings.sigAlgorithm, 
+            headerObfuscatorSettings: securitySettings.headerObfuscatorSettings,
+            storeCredentials: securitySettings.storeCredentials,
           }}
           isFromLogin={true}
         />

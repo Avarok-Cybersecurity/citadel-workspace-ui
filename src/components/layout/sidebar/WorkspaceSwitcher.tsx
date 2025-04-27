@@ -12,11 +12,14 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
+import { getWorkspaceLogo, getWorkspaceInitials } from "@/lib/workspace-metadata-service";
+import { useWorkspace } from "@/lib/workspace-context";
 
 interface Workspace {
   id: string;
   name: string;
   logoUrl: string;
+  metadata?: Record<string, any>;
 }
 
 // Props interface for the WorkspaceSwitcher component
@@ -50,8 +53,29 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
   const [workspaceRoutes, setWorkspaceRoutes] = useState<Record<string, string>>({});
   const [isAddingWorkspace, setIsAddingWorkspace] = useState(false);
   const [currentStep, setCurrentStep] = useState<WorkflowStep>("connect");
+  const [workspaceLogo, setWorkspaceLogo] = useState<string | null>(null);
+  const [isInitials, setIsInitials] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { state } = useWorkspace();
+
+  // Process workspace logo from metadata when workspace changes
+  useEffect(() => {
+    if (state.workspace?.metadata) {
+      const logo = getWorkspaceLogo(state.workspace.name, state.workspace.metadata);
+      if (logo.type === 'image') {
+        setWorkspaceLogo(logo.data);
+        setIsInitials(false);
+      } else {
+        setWorkspaceLogo(logo.data);
+        setIsInitials(true);
+      }
+    } else if (workspaceName) {
+      // If no metadata but we have a workspace name, use initials
+      setWorkspaceLogo(getWorkspaceInitials(workspaceName));
+      setIsInitials(true);
+    }
+  }, [state.workspace, workspaceName]);
 
   useEffect(() => {
     setWorkspaceRoutes(prev => ({
@@ -61,22 +85,22 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
   }, [location.pathname, location.search, currentWorkspace.id]);
 
   const handleWorkspaceChange = (workspace: Workspace) => {
-    console.log('Switching to workspace:', workspace.name);
+    console.info('Switching to workspace:', workspace.name);
     const savedRoute = workspaceRoutes[workspace.id];
-    console.log('Saved route for workspace:', savedRoute);
-    
+    console.info('Saved route for workspace:', savedRoute);
+
     document.querySelector('.office-content')?.classList.add('animate-fade-out');
 
     setTimeout(() => {
       setCurrentWorkspace(workspace);
       setIsOpen(false);
-      
+
       if (savedRoute) {
         navigate(savedRoute);
       } else {
         navigate('/office');
       }
-      
+
       document.querySelector('.office-content')?.classList.remove('animate-fade-out');
       document.querySelector('.office-content')?.classList.add('animate-fade-in');
     }, 300);
@@ -117,26 +141,32 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
     <>
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild className="-ml-2">
-          <button 
+          <button
             className="flex items-center gap-3 py-2 hover:bg-[#E5DEFE] transition-colors rounded-r-md w-[calc(100%+0.5rem)] group bg-transparent"
           >
-            <img
-              src={currentWorkspace.logoUrl}
-              alt={currentWorkspace.name}
-              className="w-8 h-8 rounded ml-2"
-            />
+            {isInitials ? (
+              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white ml-2">
+                {workspaceLogo || getWorkspaceInitials(workspaceName || "Workspace")}
+              </div>
+            ) : (
+              <img
+                src={workspaceLogo || currentWorkspace.logoUrl}
+                alt={workspaceName || currentWorkspace.name}
+                className="w-8 h-8 rounded ml-2"
+              />
+            )}
             <span className="font-semibold text-white flex-1 text-left group-hover:text-[#1C1D28]">
               {workspaceName || currentWorkspace.name}
             </span>
-            <ChevronRight 
+            <ChevronRight
               className={cn(
                 "w-5 h-5 text-white group-hover:text-[#1C1D28] transition-transform duration-300 mr-2",
                 isOpen && "rotate-90"
-              )} 
+              )}
             />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent 
+        <DropdownMenuContent
           align="start"
           sideOffset={0}
           className="w-[calc(var(--radix-dropdown-menu-trigger-width)+0.5rem)] -ml-2 bg-[#252424] border border-gray-800"

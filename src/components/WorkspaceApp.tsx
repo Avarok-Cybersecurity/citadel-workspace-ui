@@ -6,6 +6,7 @@ import NotificationService, { NotificationPriority } from '@/lib/notification-se
 import { MessagingService } from '@/lib/messaging-service';
 import { ConnectionService } from '@/lib/connection-service';
 import WorkspaceService from '@/lib/workspace-service';
+import UserService from '@/lib/user-service';
 
 /**
  * WorkspaceApp is the main container component that provides:
@@ -22,24 +23,35 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
     const notificationService = NotificationService.getInstance();
     const messagingService = MessagingService.getInstance();
     const connectionService = ConnectionService.getInstance();
-    
+    const userService = UserService;
+
     // Connection change listener - load workspace data when user connects
     connectionService.onConnectionChange((connection) => {
       if (connection && connection.cid) {
         // Set the connection ID in the workspace service
         WorkspaceService.setConnectionId(connection.cid);
-        
+
+        // Load user registration info based on connection
+        // Always use CID for identification when retrieving user data
+        userService.loadUserRegistration(connection.serverAddress, connection.cid)
+          .then(userInfo => {
+            console.info('User registration info loaded:', userInfo);
+          })
+          .catch(error => {
+            console.error('Error loading user registration info:', error);
+          });
+
         // Load workspace data
         WorkspaceService.loadWorkspace()
           .then(() => {
-            console.log('Workspace loading initiated');
-            
+            console.info('Workspace loading initiated');
+
             // After workspace is loaded, load all offices
             return WorkspaceService.listOffices();
           })
           .then(() => {
-            console.log('Offices loading initiated');
-            
+            console.info('Offices loading initiated');
+
             // After initiating office loading, we'll handle loading rooms via event listeners
             // in WorkspaceEventHandler when the offices are loaded
           })
@@ -53,7 +65,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
           });
       }
     });
-    
+
     // Test notification (can be removed in production)
     setTimeout(() => {
       notificationService.addSystemNotification(
@@ -62,20 +74,21 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         NotificationPriority.NORMAL
       );
     }, 2000);
-    
+
     // Clean up event listeners when component unmounts
     return () => {
       messagingService.cleanup();
       connectionService.cleanup();
       WorkspaceService.cleanup();
+      userService.cleanup();
     };
   }, []);
-  
+
   return (
     <WorkspaceEventHandler>
       {/* Application content */}
       {children}
-      
+
       {/* Notifications */}
       <ErrorDisplay />
       <ProtocolWarning />

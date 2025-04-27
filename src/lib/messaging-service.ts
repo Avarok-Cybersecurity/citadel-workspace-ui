@@ -4,7 +4,7 @@ import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 
 export interface MessageRequest {
-  cid: string; 
+  cid: string;
   peer_cid?: string;
   message: string;
   security_level: number;
@@ -26,7 +26,7 @@ export interface Message {
   id: string;
   content: string;
   timestamp: number;
-  senderId: string; 
+  senderId: string;
   recipientId: string;
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
   error?: string;
@@ -53,11 +53,11 @@ export class MessagingService {
   private onTypingStatusChange: ((peerId: string, isTyping: boolean) => void) | null = null;
   private connectionService: ConnectionService | null = null;
   private notificationService: NotificationService;
-  
+
   private constructor() {
     // Don't initialize connection service to break the circular dependency
     this.notificationService = NotificationService.getInstance();
-    
+
     // Initialize event listeners for message notifications
     this.setupEventListeners();
   }
@@ -80,8 +80,8 @@ export class MessagingService {
   private setupEventListeners() {
     // In a real implementation, this would listen to Tauri events for incoming messages
     // For now, we're simulating this functionality
-    console.log('Setting up messaging event listeners');
-    
+    console.info('Setting up messaging event listeners');
+
     // Set up listeners for Tauri events
     // Example: window.__TAURI__.event.listen('message-received', this.handleMessageNotification);
   }
@@ -99,11 +99,11 @@ export class MessagingService {
     if (!this.getConnectionService().canMessageUser(recipientId)) {
       throw new Error('Cannot send message to this user. Connection not established.');
     }
-    
+
     // Create a pending message
     const messageId = uuidv4();
     const timestamp = Date.now();
-    
+
     const pendingMessage: Message = {
       id: messageId,
       content,
@@ -112,7 +112,7 @@ export class MessagingService {
       recipientId,
       status: 'pending'
     };
-    
+
     try {
       // Call Tauri command to send message
       const request: MessageRequest = {
@@ -121,34 +121,34 @@ export class MessagingService {
         message: content,
         security_level: securityLevel
       };
-      
+
       const response = await invoke<MessageResponse>('message', { request });
-      
+
       // Update message status
       const sentMessage: Message = {
         ...pendingMessage,
         status: 'sent',
         id: response.request_id || messageId
       };
-      
+
       return sentMessage;
     } catch (error: any) {
       console.error('Error sending message:', error);
-      
+
       // Show error notification
       this.notificationService.addSystemNotification(
         'Message Failed',
         `Failed to send message to recipient: ${error.message || 'Unknown error'}`,
         NotificationPriority.HIGH
       );
-      
+
       // Update message with error status
       const failedMessage: Message = {
         ...pendingMessage,
         status: 'failed',
         error: error.message || 'Failed to send message'
       };
-      
+
       return failedMessage;
     }
   }
@@ -158,7 +158,7 @@ export class MessagingService {
     if (message.status !== 'failed') {
       return message;
     }
-    
+
     try {
       // Reset message status to pending
       const pendingMessage: Message = {
@@ -166,7 +166,7 @@ export class MessagingService {
         status: 'pending',
         timestamp: Date.now() // Update timestamp for resent message
       };
-      
+
       // Attempt to send the message again
       return await this.sendMessage(message.recipientId, message.content);
     } catch (error) {
@@ -183,9 +183,9 @@ export class MessagingService {
       // Call Tauri command to send typing indicator
       // This would be implemented in the backend
       // await invoke('send_typing_indicator', { recipientId, isTyping });
-      
+
       // For now, just log this action
-      console.log(`Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
+      console.info(`Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
     } catch (error) {
       console.error('Error sending typing indicator:', error);
     }
@@ -202,7 +202,7 @@ export class MessagingService {
         recipientId: 'current-user', // This should be the actual user ID
         status: 'delivered'
       };
-      
+
       // Create a notification for the received message
       this.notificationService.addMessageNotification(
         `New message from ${senderId}`,
@@ -211,7 +211,7 @@ export class MessagingService {
         message.id,
         { message }
       );
-      
+
       this.onMessageReceived(message);
     }
   }
@@ -227,7 +227,7 @@ export class MessagingService {
   public cleanup(): void {
     // Remove any event listeners
     // Example: window.__TAURI__.event.unlisten('message-received', this.handleMessageNotification);
-    
+
     this.onMessageReceived = null;
     this.onTypingStatusChange = null;
   }

@@ -50,20 +50,20 @@ export class ConnectionService {
   private onNewConnectionRequest: ((request: ConnectionRequest) => void) | null = null;
   private connectionChangeHandlers: Array<(connection: any) => void> = [];
   private currentConnection: any = null;
-  
+
   private constructor() {
     // Don't initialize MessagingService here to break the circular dependency
     this.notificationService = NotificationService.getInstance();
-    
+
     // Set default preferences for current user (auto-accept registrations off)
     this.userPreferences.set('current-user', {
       autoAcceptRegistrations: false
     });
-    
+
     // Setup event listeners for connection events
     this.setupEventListeners();
   }
-  
+
   public static getInstance(): ConnectionService {
     if (!ConnectionService.instance) {
       ConnectionService.instance = new ConnectionService();
@@ -78,25 +78,25 @@ export class ConnectionService {
     }
     return this.messagingService;
   }
-  
+
   private setupEventListeners() {
     // In a real implementation, this would set up listeners for Tauri events
-    console.log('Setting up connection service event listeners');
-    
+    console.info('Setting up connection service event listeners');
+
     // Listen for p2p registration responses
     // Listen for p2p connection responses
   }
-  
+
   /**
    * Send a P2P registration request to another user
    */
   public async sendRegistrationRequest(
-    recipientId: string, 
+    recipientId: string,
     message: string = "I'd like to connect with you"
   ): Promise<ConnectionRequest> {
     const requestId = uuidv4();
     const timestamp = Date.now();
-    
+
     // Create a new request
     const request: ConnectionRequest = {
       id: requestId,
@@ -108,29 +108,29 @@ export class ConnectionService {
       createdAt: timestamp,
       updatedAt: timestamp
     };
-    
+
     try {
       // Call Tauri command to send the request
       // In a real implementation, we would use invoke() to call the backend
       // await invoke('send_p2p_registration_request', { request });
-      
-      console.log(`Sending P2P registration request to ${recipientId}`);
-      
+
+      console.info(`Sending P2P registration request to ${recipientId}`);
+
       // Store the request locally
       this.connectionRequests.push(request);
-      
+
       // Simulate a response for demo purposes
       setTimeout(() => {
         this.simulateRequestReceived(request);
       }, 1500);
-      
+
       return request;
     } catch (error) {
       console.error('Failed to send registration request:', error);
       throw error;
     }
   }
-  
+
   /**
    * Automatically called when a P2P registration is accepted
    * This initiates a P2P connection for messaging
@@ -138,7 +138,7 @@ export class ConnectionService {
   private async initiateP2PConnection(recipientId: string): Promise<void> {
     const requestId = uuidv4();
     const timestamp = Date.now();
-    
+
     // Create a new request for P2P connection
     const request: ConnectionRequest = {
       id: requestId,
@@ -149,27 +149,27 @@ export class ConnectionService {
       createdAt: timestamp,
       updatedAt: timestamp
     };
-    
+
     try {
       // Call Tauri command to send the connection request
       // await invoke('send_p2p_connection_request', { request });
-      
-      console.log(`Initiating P2P connection with ${recipientId}`);
-      
+
+      console.info(`Initiating P2P connection with ${recipientId}`);
+
       // Store the request locally
       this.connectionRequests.push(request);
-      
+
       // For demo purposes, we'll auto-accept P2P connections
       setTimeout(() => {
         this.autoAcceptConnection(request);
       }, 1000);
-      
+
     } catch (error) {
       console.error('Failed to initiate P2P connection:', error);
       throw error;
     }
   }
-  
+
   /**
    * Handle a connection request being accepted
    */
@@ -178,43 +178,43 @@ export class ConnectionService {
     if (!request) {
       throw new Error(`Connection request ${requestId} not found`);
     }
-    
+
     if (request.status !== ConnectionRequestStatus.PENDING) {
       throw new Error(`Connection request ${requestId} is not pending`);
     }
-    
+
     try {
       // Call Tauri command to accept the request
       // await invoke('accept_p2p_request', { requestId });
-      
-      console.log(`Accepting connection request ${requestId}`);
-      
+
+      console.info(`Accepting connection request ${requestId}`);
+
       // Update the request status
       request.status = ConnectionRequestStatus.ACCEPTED;
       request.updatedAt = Date.now();
-      
+
       // If this is a registration request, create a connection
       if (request.type === ConnectionType.P2P_REGISTRATION) {
         this.createConnection(request.requesterId, true, false);
-        
+
         // After registration is accepted, initiate a P2P connection
         await this.initiateP2PConnection(request.requesterId);
       } else if (request.type === ConnectionType.P2P_CONNECTION) {
         // If this is a connection request, update the connection
         this.updateConnection(request.requesterId, true, true);
       }
-      
+
       // Notify listeners
       if (this.onConnectionRequestStatusChange) {
         this.onConnectionRequestStatusChange(request);
       }
-      
+
     } catch (error) {
       console.error('Failed to accept connection request:', error);
       throw error;
     }
   }
-  
+
   /**
    * Handle a connection request being rejected
    */
@@ -223,32 +223,32 @@ export class ConnectionService {
     if (!request) {
       throw new Error(`Connection request ${requestId} not found`);
     }
-    
+
     if (request.status !== ConnectionRequestStatus.PENDING) {
       throw new Error(`Connection request ${requestId} is not pending`);
     }
-    
+
     try {
       // Call Tauri command to reject the request
       // await invoke('reject_p2p_request', { requestId });
-      
-      console.log(`Rejecting connection request ${requestId}`);
-      
+
+      console.info(`Rejecting connection request ${requestId}`);
+
       // Update the request status
       request.status = ConnectionRequestStatus.REJECTED;
       request.updatedAt = Date.now();
-      
+
       // Notify listeners
       if (this.onConnectionRequestStatusChange) {
         this.onConnectionRequestStatusChange(request);
       }
-      
+
     } catch (error) {
       console.error('Failed to reject connection request:', error);
       throw error;
     }
   }
-  
+
   /**
    * Handle a connection request being canceled by the requester
    */
@@ -257,42 +257,42 @@ export class ConnectionService {
     if (!request) {
       throw new Error(`Connection request ${requestId} not found`);
     }
-    
+
     if (request.status !== ConnectionRequestStatus.PENDING) {
       throw new Error(`Connection request ${requestId} is not pending`);
     }
-    
+
     try {
       // Call Tauri command to cancel the request
       // await invoke('cancel_p2p_request', { requestId });
-      
-      console.log(`Canceling connection request ${requestId}`);
-      
+
+      console.info(`Canceling connection request ${requestId}`);
+
       // Update the request status
       request.status = ConnectionRequestStatus.CANCELED;
       request.updatedAt = Date.now();
-      
+
       // Notify listeners
       if (this.onConnectionRequestStatusChange) {
         this.onConnectionRequestStatusChange(request);
       }
-      
+
     } catch (error) {
       console.error('Failed to cancel connection request:', error);
       throw error;
     }
   }
-  
+
   /**
    * Create a new connection between users
    */
   private createConnection(
-    userId: string, 
-    isRegistered: boolean, 
+    userId: string,
+    isRegistered: boolean,
     isConnected: boolean
   ): UserConnection {
     const timestamp = Date.now();
-    
+
     const connection: UserConnection = {
       userId: 'current-user', // This would be the actual user ID in production
       connectedUserId: userId,
@@ -301,36 +301,36 @@ export class ConnectionService {
       createdAt: timestamp,
       updatedAt: timestamp
     };
-    
+
     // Get existing connections for the user
     const userConnectionList = this.userConnections.get('current-user') || [];
-    
+
     // Add the new connection
     userConnectionList.push(connection);
-    
+
     // Update the map
     this.userConnections.set('current-user', userConnectionList);
-    
+
     return connection;
   }
-  
+
   /**
    * Update an existing connection between users
    */
   private updateConnection(
-    userId: string, 
-    isRegistered?: boolean, 
+    userId: string,
+    isRegistered?: boolean,
     isConnected?: boolean
   ): UserConnection | null {
     // Get existing connections for the user
     const userConnectionList = this.userConnections.get('current-user') || [];
-    
+
     // Find the connection
     const connectionIndex = userConnectionList.findIndex(conn => conn.connectedUserId === userId);
     if (connectionIndex === -1) {
       return null;
     }
-    
+
     // Update the connection
     const connection = userConnectionList[connectionIndex];
     if (isRegistered !== undefined) {
@@ -340,16 +340,16 @@ export class ConnectionService {
       connection.isConnected = isConnected;
     }
     connection.updatedAt = Date.now();
-    
+
     // Update the list
     userConnectionList[connectionIndex] = connection;
-    
+
     // Update the map
     this.userConnections.set('current-user', userConnectionList);
-    
+
     return connection;
   }
-  
+
   /**
    * Check if a user can message another user
    * Requires both P2P registration and P2P connection to be completed
@@ -357,37 +357,37 @@ export class ConnectionService {
   public canMessageUser(userId: string): boolean {
     const userConnectionList = this.userConnections.get('current-user') || [];
     const connection = userConnectionList.find(conn => conn.connectedUserId === userId);
-    
+
     // To message a user, registration and connection must be complete
     return connection?.isRegistered === true && connection?.isConnected === true;
   }
-  
+
   /**
    * Get all pending connection requests for the current user
    */
   public getPendingRequests(): ConnectionRequest[] {
-    return this.connectionRequests.filter(req => 
-      req.recipientId === 'current-user' && 
+    return this.connectionRequests.filter(req =>
+      req.recipientId === 'current-user' &&
       req.status === ConnectionRequestStatus.PENDING
     );
   }
-  
+
   /**
    * Get all connection requests involving the current user
    */
   public getAllRequests(): ConnectionRequest[] {
-    return this.connectionRequests.filter(req => 
+    return this.connectionRequests.filter(req =>
       req.recipientId === 'current-user' || req.requesterId === 'current-user'
     );
   }
-  
+
   /**
    * Get all connections for the current user
    */
   public getUserConnections(): UserConnection[] {
     return this.userConnections.get('current-user') || [];
   }
-  
+
   /**
    * Set user preferences for connection requests
    */
@@ -395,16 +395,16 @@ export class ConnectionService {
     const currentPrefs = this.userPreferences.get('current-user') || {
       autoAcceptRegistrations: false
     };
-    
+
     // Update preferences
     this.userPreferences.set('current-user', {
       ...currentPrefs,
       ...preferences
     });
-    
-    console.log('User preferences updated:', this.userPreferences.get('current-user'));
+
+    console.info('User preferences updated:', this.userPreferences.get('current-user'));
   }
-  
+
   /**
    * Get user preferences for connection requests
    */
@@ -413,7 +413,7 @@ export class ConnectionService {
       autoAcceptRegistrations: false
     };
   }
-  
+
   /**
    * Get the auto-accept setting for registration requests
    */
@@ -428,21 +428,21 @@ export class ConnectionService {
   public setAutoAcceptRegistrations(autoAccept: boolean): void {
     this.setUserPreferences({ autoAcceptRegistrations: autoAccept });
   }
-  
+
   /**
    * Register a callback for connection request status changes
    */
   public setConnectionStatusChangeHandler(handler: (request: ConnectionRequest) => void): void {
     this.onConnectionRequestStatusChange = handler;
   }
-  
+
   /**
    * Register a callback for new connection requests
    */
   public setNewConnectionRequestHandler(handler: (request: ConnectionRequest) => void): void {
     this.onNewConnectionRequest = handler;
   }
-  
+
   /**
    * Register a callback to be notified when the connection status changes
    * @param handler Callback function that receives the new connection information
@@ -450,20 +450,20 @@ export class ConnectionService {
   public onConnectionChange(handler: (connection: any) => void): void {
     // Add handler to the list
     this.connectionChangeHandlers.push(handler);
-    
+
     // If there's already an active connection, notify the handler immediately
     if (this.currentConnection) {
       handler(this.currentConnection);
     }
   }
-  
+
   /**
    * Update the current connection status and notify all handlers
    * @param connection The new connection information
    */
   public updateConnectionStatus(connection: any): void {
     this.currentConnection = connection;
-    
+
     // Notify all registered handlers
     this.connectionChangeHandlers.forEach(handler => {
       try {
@@ -473,7 +473,7 @@ export class ConnectionService {
       }
     });
   }
-  
+
   /** 
    * Clean up event listeners
    */
@@ -482,17 +482,17 @@ export class ConnectionService {
     this.onNewConnectionRequest = null;
     this.connectionChangeHandlers = [];
   }
-  
+
   // DEMO METHODS - These simulate the backend functionality for demonstration purposes
-  
+
   /**
    * Simulate receiving a connection request
    */
   public simulateRequestReceived(request: ConnectionRequest): void {
     // Check if this is a P2P registration request to us
-    if (request.type === ConnectionType.P2P_REGISTRATION && 
-        request.recipientId === 'current-user') {
-      
+    if (request.type === ConnectionType.P2P_REGISTRATION &&
+      request.recipientId === 'current-user') {
+
       // Create a notification for the connection request
       this.notificationService.addConnectionRequestNotification(
         'New Connection Request',
@@ -514,7 +514,7 @@ export class ConnectionService {
           }
         ]
       );
-      
+
       // Check if auto-accept is enabled for registrations
       const preferences = this.getUserPreferences();
       if (preferences.autoAcceptRegistrations) {
@@ -523,14 +523,14 @@ export class ConnectionService {
           this.acceptConnectionRequest(request.id);
         }, 1000);
       }
-      
+
       // Notify listeners of the new request
       if (this.onNewConnectionRequest) {
         this.onNewConnectionRequest(request);
       }
     }
   }
-  
+
   /**
    * Auto-accept P2P connection requests (these are always auto-accepted)
    */
@@ -542,7 +542,7 @@ export class ConnectionService {
         `Your connection with user ${request.requesterId} has been automatically established.`,
         NotificationPriority.NORMAL
       );
-      
+
       this.acceptConnectionRequest(request.id);
     }
   }

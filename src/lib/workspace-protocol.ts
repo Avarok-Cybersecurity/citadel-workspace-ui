@@ -32,30 +32,7 @@ export async function sendMessage(cid: string, peerCid: string, message: string)
   const serializedPayload = serializeWorkspacePayload(payload);
   
   // Invoke Tauri command to send message
-  await invoke('send_message', {
-    cid,
-    peerCid,
-    message: serializedPayload
-  });
-}
-
-/**
- * Sends a binary message to a peer through the workspace protocol
- * 
- * @param cid The connection ID of the sender
- * @param peerCid The connection ID of the recipient
- * @param data The binary data to send
- * @returns A promise that resolves when the message is sent
- */
-export async function sendBinaryMessage(cid: string, peerCid: string, data: Uint8Array): Promise<void> {
-  // Create workspace protocol payload with message request
-  const payload = createMessagePayload(data);
-  
-  // Serialize payload to Uint8Array
-  const serializedPayload = serializeWorkspacePayload(payload);
-  
-  // Invoke Tauri command to send message
-  await invoke('send_message', {
+  await invoke('send_workspace_request', {
     cid,
     peerCid,
     message: serializedPayload

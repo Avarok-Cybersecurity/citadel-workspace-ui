@@ -8,6 +8,11 @@ export interface WorkspaceState {
     name: string;
     metadata?: Record<string, any>;
   };
+  currentUser?: {
+    id: string;
+    username: string;
+    fullName: string;
+  };
   offices: Record<string, Office>;
   rooms: Record<string, Room>;
   members: Record<string, User>;
@@ -42,6 +47,7 @@ export interface WorkspaceState {
 // Default initial state
 const initialState: WorkspaceState = {
   workspace: undefined,
+  currentUser: undefined,
   offices: {},
   rooms: {},
   members: {},

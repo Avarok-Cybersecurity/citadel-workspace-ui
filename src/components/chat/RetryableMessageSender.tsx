@@ -28,7 +28,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagingService = MessagingService.getInstance();
-  
+
   // Use the retry hook for sending messages with retry capability
   const {
     isLoading,
@@ -48,7 +48,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
         inputRef.current?.focus();
       },
       onRetry: (attempt) => {
-        console.log(`Retrying message send (attempt ${attempt})...`);
+        console.info(`Retrying message send (attempt ${attempt})...`);
       }
     }
   );
@@ -66,12 +66,12 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
           console.error('Failed to send typing indicator:', error);
         }
       }
-      
+
       // Reset the typing timer
       if (typingTimerRef.current) {
         clearTimeout(typingTimerRef.current);
       }
-      
+
       // Set a timer to stop typing indicator after inactivity
       typingTimerRef.current = setTimeout(async () => {
         setIsTyping(false);
@@ -83,7 +83,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
         }
       }, 3000); // 3 seconds of inactivity to consider stopped typing
     };
-    
+
     // If there's text and the user is typing
     if (inputValue.length > 0) {
       handleTypingStarted();
@@ -93,14 +93,14 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
       if (typingTimerRef.current) {
         clearTimeout(typingTimerRef.current);
       }
-      
+
       // Send typing:stopped event via messaging service
       messagingService.sendTypingIndicator(recipientId, false)
         .catch(error => {
           console.error('Failed to clear typing indicator:', error);
         });
     }
-    
+
     // Clean up timer on unmount
     return () => {
       if (typingTimerRef.current) {
@@ -112,23 +112,23 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isLoading) return;
-    
+
     // Store the message content before clearing
     const content = inputValue;
-    
+
     // Clear typing indicator immediately when sending
     setIsTyping(false);
     if (typingTimerRef.current) {
       clearTimeout(typingTimerRef.current);
     }
-    
+
     try {
       // Stop typing indicator via messaging service
       await messagingService.sendTypingIndicator(recipientId, false);
     } catch (error) {
       console.error('Failed to clear typing indicator:', error);
     }
-    
+
     // Execute the send operation
     await execute({ content, recipient: recipientId });
   };
@@ -139,9 +139,9 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
         <Alert variant="destructive" className="mb-2">
           <AlertDescription className="flex items-center justify-between">
             <span>Failed to send message: {error.message}</span>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => retry()}
               disabled={isLoading}
               className="ml-2"
@@ -152,9 +152,9 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
           </AlertDescription>
         </Alert>
       )}
-      
+
       <form onSubmit={handleSubmit} className="flex space-x-2">
-        <Input 
+        <Input
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={placeholder}
@@ -162,8 +162,8 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
           ref={inputRef}
           className="flex-1 bg-[#444A6C] border-gray-700 text-white placeholder:text-gray-400"
         />
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isLoading || !inputValue.trim()}
           size="icon"
           className="bg-purple-500 hover:bg-purple-600 disabled:bg-purple-800 disabled:opacity-50"
