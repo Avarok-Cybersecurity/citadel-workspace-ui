@@ -1,3 +1,5 @@
+console.log("App.tsx loading...");
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,16 +15,29 @@ import UserDirectory from "./pages/UserDirectory";
 import NotificationTest from "./pages/NotificationTest";
 import WorkspaceApp from "./components/WorkspaceApp";
 import { WorkspaceLoader } from "./components/ui/workspace-loader";
+import PeerTest from "./pages/PeerTest";
+import TestRoomMDX from "./pages/TestRoomMDX";
+import TestOfficeMDX from "./pages/TestOfficeMDX";
+import { IntegratedWorkspaceDemo } from "./pages/IntegratedWorkspaceDemo";
+import { FileUploadProgress } from "./components/files/FileUploadProgress";
+import { ToastTest } from "./pages/ToastTest";
+
+console.log("App.tsx loaded, imports completed");
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <WorkspaceApp>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+const App = () => {
+  console.log("App component rendering");
+  
+  // Let's restore the full app now
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WorkspaceApp>
+          <Toaster />
+          <Sonner />
+          {/* Test comment to verify Docker doesn't rebuild */}
+          <BrowserRouter>
           <Routes>
             {/* Public routes that don't require workspace data */}
             <Route path="/" element={<Landing />} />
@@ -54,12 +69,29 @@ const App = () => (
                 <TestPage />
               </WorkspaceLoader>
             } />
+            <Route path="/peers" element={
+              <WorkspaceLoader>
+                <PeerTest />
+              </WorkspaceLoader>
+            } />
+            <Route path="/test-room-mdx" element={
+              <TestRoomMDX />
+            } />
+            <Route path="/test-office-mdx" element={
+              <TestOfficeMDX />
+            } />
+            <Route path="/workspace-demo" element={
+              <IntegratedWorkspaceDemo />
+            } />
+            <Route path="/toast-test" element={<ToastTest />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        <FileUploadProgress />
       </WorkspaceApp>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

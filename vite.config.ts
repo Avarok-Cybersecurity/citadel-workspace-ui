@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
 
     // Handle Node.js modules
     optimizeDeps: {
-      exclude: ['events', 'fs', 'path', 'crypto', 'os', 'util'],
+      exclude: ['events', 'fs', 'path', 'crypto', 'os', 'util', 'citadel-workspace-client-ts'],
+      // include: ['citadel-workspace-client-ts'],
     },
     
     build: {
@@ -24,22 +25,38 @@ export default defineConfig(({ mode }) => {
     },
 
     server: {
-      // Tauri requires a fixed port
-      port: 1420,
+      port: 5173,
       strictPort: true,
       host: 'localhost',
+      hmr: {
+        overlay: true,
+      },
       
-      // Only use Tauri-specific HMR if we're in Tauri dev mode
-      hmr: false,
+      // Allow serving files from citadel-internal-service directory
+      fs: {
+        allow: [
+          // Search up for workspace root
+          '..',
+        ]
+      },
 
       // Custom headers for your web app
       headers: {
-        'Content-Security-Policy': "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co 'self' '*' ipc: tauri:; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
+        'Content-Security-Policy': "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co ws://localhost:* http://localhost:*; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
       },
-
-      watch: {
-        // Tell vite to ignore watching `src-tauri` and the gitsubmodule
-        ignored: ["**/src-tauri/**"],
+      
+      // Configure middleware for WASM files
+      configure: (server) => {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.endsWith('.wasm') || req.url?.includes('citadel_internal_service_wasm_client')) {
+            res.setHeader('Content-Type', 'application/wasm');
+            // Prevent caching of WASM files during development
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+          }
+          next();
+        });
       },
     },
 
@@ -50,9 +67,11 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    // Ensure proper target for Tauri
     esbuild: {
       target: "esnext",
     },
+    
+    // Configure WASM mime type
+    assetsInclude: ['**/*.wasm'],
   };
 });

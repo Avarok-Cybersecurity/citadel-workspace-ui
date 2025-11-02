@@ -1,7 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
 import { v4 as uuidv4 } from 'uuid';
 import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
+import { websocketService } from './websocket-service';
 
 export interface MessageRequest {
   cid: string;
@@ -78,12 +78,6 @@ export class MessagingService {
   }
 
   private setupEventListeners() {
-    // In a real implementation, this would listen to Tauri events for incoming messages
-    // For now, we're simulating this functionality
-    console.info('Setting up messaging event listeners');
-
-    // Set up listeners for Tauri events
-    // Example: window.__TAURI__.event.listen('message-received', this.handleMessageNotification);
   }
 
   public setMessageReceivedHandler(handler: (message: Message) => void) {
@@ -114,21 +108,25 @@ export class MessagingService {
     };
 
     try {
-      // Call Tauri command to send message
-      const request: MessageRequest = {
-        cid: 'client-id', // This should be the actual client ID in a real implementation
-        peer_cid: recipientId,
-        message: content,
-        security_level: securityLevel
-      };
+      const client = websocketService.getClient();
+      const cid = websocketService.getCid();
+      
+      if (!client || !cid) {
+        throw new Error('Not connected to workspace');
+      }
 
-      const response = await invoke<MessageResponse>('message', { request });
+      // Send P2P message using the WebSocket client
+      await client.sendP2PMessage(recipientId, content, {
+        cid: cid,
+        peerCid: recipientId,
+        securityLevel: securityLevel === 0 ? 'Standard' : 'High'
+      });
 
       // Update message status
       const sentMessage: Message = {
         ...pendingMessage,
         status: 'sent',
-        id: response.request_id || messageId
+        id: messageId
       };
 
       return sentMessage;
@@ -180,10 +178,6 @@ export class MessagingService {
 
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
     try {
-      // Call Tauri command to send typing indicator
-      // This would be implemented in the backend
-      // await invoke('send_typing_indicator', { recipientId, isTyping });
-
       // For now, just log this action
       console.info(`Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
     } catch (error) {
@@ -226,8 +220,6 @@ export class MessagingService {
   // Clean up event listeners
   public cleanup(): void {
     // Remove any event listeners
-    // Example: window.__TAURI__.event.unlisten('message-received', this.handleMessageNotification);
-
     this.onMessageReceived = null;
     this.onTypingStatusChange = null;
   }

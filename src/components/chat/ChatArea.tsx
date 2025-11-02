@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Bell, Search, Shield, Send, MoreVertical, Upload, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { messageChannels } from "../layout/sidebar/MessagesSection";
+// Removed messageChannels import - now handled internally
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../../lib/workspace-context";
 import { formatRelativeTime } from "../../lib/date-utils";
@@ -100,13 +100,15 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
 
   // Helper functions to get peer info
   const getPeerName = (peerId: string): string => {
-    const currentChannel = messageChannels.find(channel => channel.id === peerId);
-    return currentChannel?.name || `User ${peerId}`;
+    // In a real implementation, this would come from a user service or workspace state
+    if (peerId === "demo-peer-kathy") return "Kathy McCooper";
+    return `User ${peerId.slice(0, 8)}...`;
   };
   
   const getPeerAvatar = (peerId: string): string => {
-    const currentChannel = messageChannels.find(channel => channel.id === peerId);
-    return currentChannel?.avatar || "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61";
+    // In a real implementation, this would come from a user service or workspace state
+    if (peerId === "demo-peer-kathy") return "https://images.unsplash.com/photo-1649972904349-6e44c42644a7";
+    return "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61";
   };
   
   // Scroll to bottom when new messages arrive
@@ -116,15 +118,9 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
     }
   }, [messages.length]);
   
-  const currentChannel = messageChannels.find(channel => channel.id === recipientId);
-
-  if (!currentChannel) {
-    return (
-      <div className="h-full flex items-center justify-center text-muted-foreground">
-        Channel not found
-      </div>
-    );
-  }
+  // Get channel info
+  const channelName = getPeerName(recipientId);
+  const channelAvatar = getPeerAvatar(recipientId);
 
   return (
     <div className="flex flex-col h-full bg-[#444A6C]">
@@ -132,12 +128,12 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-[#343A5C]">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={currentChannel.avatar} />
-            <AvatarFallback>{currentChannel.name[0]}</AvatarFallback>
+            <AvatarImage src={channelAvatar} />
+            <AvatarFallback>{channelName[0]}</AvatarFallback>
           </Avatar>
           <div className="flex items-center space-x-2">
             <h1 className="text-xl font-semibold text-white">
-              {currentChannel.name}
+              {channelName}
             </h1>
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </div>
@@ -191,7 +187,7 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
             {isTyping && (
               <TypingIndicator 
                 isTyping={true} 
-                peerName={currentChannel.name} 
+                peerName={channelName} 
                 className="bg-gray-800 bg-opacity-40 rounded-lg" 
               />
             )}
@@ -212,7 +208,7 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
           
           <RetryableMessageSender 
             recipientId={recipientId}
-            placeholder={`Message ${currentChannel.name}`}
+            placeholder={`Message ${channelName}`}
             className="flex-1"
           />
           

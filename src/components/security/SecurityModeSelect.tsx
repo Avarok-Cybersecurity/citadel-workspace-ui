@@ -9,7 +9,7 @@ interface SecurityModeSelectProps {
   onChange?: (value: SecrecyMode) => void;
 }
 
-export const SecurityModeSelect = ({ value = SecrecyMode.BestEffort, onChange }: SecurityModeSelectProps) => {
+export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityModeSelectProps) => {
   const handleValueChange = (newValue: SecrecyMode) => {
     if (onChange) {
       onChange(newValue);
@@ -25,14 +25,14 @@ export const SecurityModeSelect = ({ value = SecrecyMode.BestEffort, onChange }:
         <Select 
           value={value} 
           onValueChange={handleValueChange}
-          defaultValue={SecrecyMode.BestEffort}
+          defaultValue={'BestEffort'}
         >
           <SelectTrigger id="security-mode" className="w-full bg-[#3B3D57] border-[#4D4F6C] text-white pr-12">
             <SelectValue placeholder="Select security mode" />
           </SelectTrigger>
           <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-1">
-            <SelectItem value={SecrecyMode.BestEffort} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Best Effort Secrecy</SelectItem>
-            <SelectItem value={SecrecyMode.Perfect} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Perfect Forward Secrecy</SelectItem>
+            <SelectItem value={'BestEffort'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Best Effort Secrecy</SelectItem>
+            <SelectItem value={'Perfect'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Perfect Forward Secrecy</SelectItem>
           </SelectContent>
         </Select>
         <TooltipProvider>

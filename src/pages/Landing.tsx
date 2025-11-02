@@ -1,18 +1,76 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, TestTube2, Link, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
 import { Login } from "@/components/Login";
-import { listKnownServers } from "@/lib/tauri";
-import { WorkspaceService } from "@/lib/workspace-service";
+import WorkspaceService from "@/lib/workspace-service";
+import type { SecuritySettingsValues } from "@/components/SecuritySettings";
+import { listKnownServers } from "@/lib/server-utils";
+import { ManageAccountsButton } from "@/components/ManageAccountsButton";
+import { ConnectionManager } from "@/lib/connection-manager";
+import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
+import { LoginConflictModal } from "@/components/LoginConflictModal";
+import { cn } from "@/lib/utils";
 
 export const Landing = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
+  const [serverData, setServerData] = useState({ serverAddress: '127.0.0.1:12349', password: '' });
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsValues>({
+    securityLevel: 'Standard',
+    secrecyMode: 'BestEffort',
+    encryptionAlgorithm: 'AES_GCM_256',
+    kemAlgorithm: 'Kyber',
+    sigAlgorithm: 'None',
+    headerObfuscatorSettings: {},
+    storeCredentials: false
+  });
   const [hasExistingServers, setHasExistingServers] = useState(false);
+  const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
+  const [orphanSessionCount, setOrphanSessionCount] = useState(0);
+  const [showLoginConflict, setShowLoginConflict] = useState(false);
+  
+  // Check for orphan sessions (don't auto-navigate, just detect)
+  useEffect(() => {
+    const checkOrphanSessions = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // Development mode: Check for dev flag in URL
+      if (urlParams.get('dev') === 'true') {
+        console.log('Development mode: Bypassing auth and navigating to office');
+        navigate('/office');
+        return;
+      }
+
+      try {
+        // Get the connection manager instance
+        const connectionManager = ConnectionManager.getInstance();
+
+        // Get active sessions from internal service
+        const activeSessions = await (connectionManager as any).getActiveSessions();
+
+        if (activeSessions && activeSessions.length > 0) {
+          console.log('Landing: Found orphan sessions:', activeSessions.length);
+          setHasOrphanSessions(true);
+          setOrphanSessionCount(activeSessions.length);
+          // Note: Don't auto-navigate - let user choose from the navbar
+        } else {
+          console.log('Landing: No orphan sessions found');
+          setHasOrphanSessions(false);
+          setOrphanSessionCount(0);
+        }
+      } catch (error) {
+        console.log('Landing: Error checking orphan sessions:', error);
+        setHasOrphanSessions(false);
+        setOrphanSessionCount(0);
+      }
+    };
+
+    checkOrphanSessions();
+  }, [navigate]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
   const checkForServers = useCallback(async () => {
@@ -21,9 +79,15 @@ export const Landing = () => {
       const response = await listKnownServers({ cid: "0" });
       setHasExistingServers(response.servers.length > 0);
     } catch (error: any) {
-      console.error("Error checking for known servers:", error);
-      const errorMessage = error.message || error.toString() || "Unknown error";
-      console.error("Error details:", errorMessage);
+      // Silently ignore initialization errors on the landing page
+      // The WebSocket service will be initialized when needed
+      if (error.message?.includes('WASM client not initialized')) {
+        console.log('WebSocket not yet initialized, skipping known servers check');
+      } else {
+        console.error("Error checking for known servers:", error);
+        const errorMessage = error.message || error.toString() || "Unknown error";
+        console.error("Error details:", errorMessage);
+      }
     }
   }, []);
 
@@ -33,17 +97,21 @@ export const Landing = () => {
   }, [checkForServers]);
 
   const handleServerNext = () => setCurrentStep('security');
-  const handleSecurityNext = () => setCurrentStep('join');
+  const handleSecurityNext = () => {
+    if (currentStep === 'security' && serverData) {
+      // Store the security settings for use in create flow
+      setCurrentStep('join');
+    }
+  };
   const handleSecurityBack = () => setCurrentStep('server');
   const handleJoinNext = (cid: string) => {
     console.info(`[Landing] handleJoinNext called with cid: ${cid}`);
     try {
-      const workspaceService = WorkspaceService.getInstance();
-      workspaceService.setConnectionId(cid);
+      WorkspaceService.setConnectionId(cid);
       // Trigger loading - no need to await, WorkspaceEventHandler will handle events
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      workspaceService.loadWorkspace();
-      workspaceService.listOffices(); // Also trigger office loading
+      WorkspaceService.loadWorkspace();
+      WorkspaceService.listOffices(); // Also trigger office loading
       console.info('[Landing] Navigating to /office...');
       navigate('/office');
     } catch (error) {
@@ -52,17 +120,22 @@ export const Landing = () => {
     }
   };
   const handleJoinBack = () => setCurrentStep('security');
-  const startRegistration = () => setCurrentStep('server');
-  const startLogin = () => setCurrentStep('login');
+  const startRegistration = () => {
+    // Allow joining new workspaces regardless of existing sessions (Slack-like multi-workspace)
+    setCurrentStep('server');
+  };
+  const startLogin = () => {
+    // Allow login flow - username-specific conflict check happens in Login.tsx
+    setCurrentStep('login');
+  };
   const handleLoginNext = (cid: string) => {
     console.info(`[Landing] handleLoginNext called with cid: ${cid}`);
     try {
-      const workspaceService = WorkspaceService.getInstance();
-      workspaceService.setConnectionId(cid);
+      WorkspaceService.setConnectionId(cid);
       // Trigger loading
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      workspaceService.loadWorkspace();
-      workspaceService.listOffices();
+      WorkspaceService.loadWorkspace();
+      WorkspaceService.listOffices();
       console.info('[Landing] Navigating to /office...');
       navigate('/office');
     } catch (error) {
@@ -75,6 +148,9 @@ export const Landing = () => {
 
   return (
     <div className="min-h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
+      {/* Orphan sessions navbar */}
+      <OrphanSessionsNavbar />
+
       {/* Solid background base */}
       <div className="absolute inset-0 z-0 bg-[#1C1D28] fixed" />
 
@@ -95,7 +171,10 @@ export const Landing = () => {
       />
 
       {/* Content */}
-      <div className="container mx-auto px-4 sm:px-6 py-10 md:py-0 relative z-10">
+      <div className={cn(
+        "container mx-auto px-4 sm:px-6 py-10 md:py-0 relative z-10",
+        hasOrphanSessions && "pt-24"
+      )}>
         <div className="max-w-xl lg:max-w-3xl animate-fade-in">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight">
             The World's First Post-Quantum Virtual Workspace
@@ -122,25 +201,11 @@ export const Landing = () => {
             >
               <span className="whitespace-nowrap">Join Workspace</span>
             </Button>
+          </div>
 
-            <Button
-              variant="outline"
-              className="border-white bg-white text-black hover:bg-gray-100 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] flex items-center gap-2 transition-colors duration-300 w-full sm:w-auto"
-              size="lg"
-            >
-              <PlusCircle className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="whitespace-nowrap">Create Workspace</span>
-            </Button>
-
-            <Button
-              onClick={goToTestPage}
-              variant="outline"
-              className="border-white/30 bg-transparent text-white hover:bg-white/10 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] flex items-center gap-2 transition-colors duration-300 w-full sm:w-auto"
-              size="lg"
-            >
-              <TestTube2 className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="whitespace-nowrap">Test Integration</span>
-            </Button>
+          {/* Account management button */}
+          <div className="mt-8">
+            <ManageAccountsButton />
           </div>
         </div>
       </div>
@@ -158,6 +223,17 @@ export const Landing = () => {
       {currentStep === 'login' && (
         <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} />
       )}
+
+      {/* Login conflict modal */}
+      <LoginConflictModal
+        open={showLoginConflict}
+        onOpenChange={setShowLoginConflict}
+        workspaceCount={orphanSessionCount}
+        onDismiss={() => {
+          // Just close the modal - user can use the navbar icons
+          setShowLoginConflict(false);
+        }}
+      />
     </div>
   );
 };

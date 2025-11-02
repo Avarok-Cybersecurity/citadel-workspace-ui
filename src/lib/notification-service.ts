@@ -1,5 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from './event-emitter';
 import { v4 as uuidv4 } from 'uuid';
 
 export enum NotificationType {

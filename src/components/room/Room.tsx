@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../lib/workspace-context';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
-import { invoke } from '@tauri-apps/api/core';
 import { User, UserRole } from '../../types/workspace-entities';
 import { MDXProvider } from '@mdx-js/react';
 import { evaluate } from '@mdx-js/mdx';
@@ -10,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { MDXEditor } from '@/components/mdx/MDXEditor';
 import TemplateSelector from '@/components/mdx/TemplateSelector';
 import { TemplateCategory, MdxTemplate } from '@/lib/mdx-templates';
+import WorkspaceService from '@/lib/workspace-service';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';
@@ -44,10 +44,10 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   // Fetch room data if not available
   useEffect(() => {
     const fetchRoomData = async () => {
-      if (!room && !isLoading) {
+      if (!room && !isLoading && officeId) {
         try {
-          // Call Tauri command to load room
-          await invoke('get_room', { roomId });
+          // Load rooms for the office - this will populate the room in state
+          await WorkspaceService.listRooms(officeId);
         } catch (error) {
           console.error('Failed to load room:', error);
         }
@@ -55,7 +55,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
     };
 
     fetchRoomData();
-  }, [roomId, room, isLoading]);
+  }, [roomId, room, isLoading, officeId]);
 
   // Update content when room data changes
   useEffect(() => {
@@ -105,10 +105,8 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   // Handle saving MDX content
   const handleSave = async () => {
     try {
-      // Call Tauri command to update the room with new mdx_content
-      await invoke('update_room', {
-        roomId,
-        mdx_content: content
+      await WorkspaceService.updateRoom(roomId, {
+        mdxContent: content
       });
 
       toast({

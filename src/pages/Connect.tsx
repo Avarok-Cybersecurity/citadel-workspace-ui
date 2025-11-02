@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { listKnownServers } from "@/lib/tauri";
+import { listKnownServers } from "@/lib/server-utils";
 
 interface ServerInfo {
   server_address: string;
@@ -63,23 +63,11 @@ export const Connect = () => {
     if (!selectedServerInfo) return;
 
     try {
-      // TODO: Call the appropriate Tauri command to connect to the server
-      // This will be implemented once we have the connect command in the backend
       toast({
         title: "Connecting",
         description: `Connecting to ${selectedServer}...`,
       });
       
-      // Placeholder for actual connection logic
-      // In the future, we'll call a Tauri command like:
-      // await invoke("connect_to_server", { 
-      //   request: { 
-      //     serverAddress: selectedServer,
-      //     password: password 
-      //   }
-      // });
-      
-      // For now, just navigate to the office page
       navigate("/office");
     } catch (error: any) {
       console.error("Error connecting to server:", error);

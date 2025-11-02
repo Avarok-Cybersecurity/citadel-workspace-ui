@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { workspaceEvents, type OfficePayload, type RoomPayload, type ErrorPayload, type ConnectionInfo, type ProtocolWarningPayload, type MessagePayload } from '../lib/workspace-events';
 import { Office, Room, User } from '../types/workspace-entities';
-import { invoke } from '@tauri-apps/api/core';
 import { WorkspaceProvider, WorkspaceState } from '../lib/workspace-context';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
 import UserService from '../lib/user-service';
 import { getWorkspaceLogo } from '../lib/workspace-metadata-service';
+import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
+import { eventEmitter } from '../lib/event-emitter';
+import { broadcastChannelService } from '../lib/broadcast-channel-service';
+import { p2pRegistrationService } from '../lib/p2p-registration-service';
+import { connectionManager } from '../lib/connection-manager';
 
 interface WorkspaceEventState {
   workspace?: {
@@ -23,6 +27,7 @@ interface WorkspaceEventState {
     members: boolean;
   };
   error?: string;
+  needsWorkspaceInitialization?: boolean;
   protocolWarning?: {
     message: string;
     requestType: string;
@@ -70,6 +75,7 @@ export const WorkspaceEventHandler: React.FC<{
       rooms: false,
       members: false,
     },
+    needsWorkspaceInitialization: false,
     messages: {
       byPeer: loadFromStorage<Record<number, Array<{
         content: string;
@@ -85,6 +91,16 @@ export const WorkspaceEventHandler: React.FC<{
     }
   });
 
+  const [showInitModal, setShowInitModal] = useState(false);
+
+  // Watch for initialization requirement and show modal
+  useEffect(() => {
+    if (state.needsWorkspaceInitialization && !showInitModal) {
+      console.info('Workspace needs initialization - showing modal');
+      setShowInitModal(true);
+    }
+  }, [state.needsWorkspaceInitialization, showInitModal]);
+
   useEffect(() => {
     // Set up event listeners for workspace
     const setupWorkspaceListeners = async () => {
@@ -99,18 +115,54 @@ export const WorkspaceEventHandler: React.FC<{
 
       // Workspace loaded event
       await workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
-        const workspaceMetadata = payload.workspace.metadata || {};
+        const workspaceMetadata = payload.workspace.metadata || [];
 
-        setState(prev => ({
-          ...prev,
+        // Parse metadata as JSON to check initialization status
+        let isInitialized = false;
+        try {
+          if (workspaceMetadata.length > 0) {
+            const metadataString = new TextDecoder().decode(new Uint8Array(workspaceMetadata));
+            const metadataJson = JSON.parse(metadataString);
+            isInitialized = metadataJson.initialized === true;
+          }
+        } catch (error) {
+          console.warn('Failed to parse workspace metadata as JSON:', error);
+          // If metadata can't be parsed, assume not initialized
+          isInitialized = false;
+        }
+
+        const newState = {
           workspace: {
             ...payload.workspace,
             // Process metadata for workspace logo if needed
             metadata: workspaceMetadata
           },
-          loading: { ...prev.loading, workspace: false },
+          loading: { workspace: false },
+          needsWorkspaceInitialization: !isInitialized,
           lastRequestId: payload.connection.request_id
+        };
+
+        setState(prev => ({
+          ...prev,
+          ...newState
         }));
+
+        // Start P2P registration service if workspace is initialized
+        if (isInitialized) {
+          p2pRegistrationService.start({
+            autoRegisterAll: true,
+            connectAfterRegister: false
+          }).catch(error => {
+            console.error('Failed to start P2P registration service:', error);
+          });
+        }
+
+        // Broadcast workspace state to other tabs (excluding currentUser which is tab-specific)
+        const { currentUser: excludedUser, ...stateWithoutUser } = newState;
+        broadcastChannelService.broadcastStateSync({
+          type: 'workspace',
+          data: stateWithoutUser
+        });
 
         // Try to load user information if not already loaded
         const userService = UserService;
@@ -122,10 +174,19 @@ export const WorkspaceEventHandler: React.FC<{
             currentUser: {
               id: currentUser.username,
               username: currentUser.username,
-              fullName: currentUser.fullName
+              name: currentUser.fullName || currentUser.username
             }
           }));
         }
+      });
+
+      // Workspace not initialized event
+      await workspaceEvents.onWorkspaceEvent('workspace:not-initialized', () => {
+        setState(prev => ({
+          ...prev,
+          needsWorkspaceInitialization: true,
+          loading: { ...prev.loading, workspace: false }
+        }));
       });
     };
 
@@ -161,6 +222,12 @@ export const WorkspaceEventHandler: React.FC<{
           loading: { ...prev.loading, offices: false },
           lastRequestId: payload.connection.request_id
         }));
+
+        // Broadcast offices state to other tabs
+        broadcastChannelService.broadcastStateSync({
+          type: 'offices',
+          data: officesMap
+        });
 
         // After offices are loaded, load rooms for each office
         if (payload.offices.length > 0) {
@@ -212,6 +279,63 @@ export const WorkspaceEventHandler: React.FC<{
           lastRequestId: payload.connection.request_id
         }));
       });
+
+      // Office created event
+      await workspaceEvents.onOfficeEvent('office:created', (payload: any) => {
+        console.info('Office created:', payload.office);
+        setState(prev => ({
+          ...prev,
+          offices: {
+            ...prev.offices,
+            [payload.office.id]: payload.office
+          },
+          lastRequestId: payload.connection.request_id
+        }));
+      });
+
+      // Office updated event
+      await workspaceEvents.onOfficeEvent('office:updated', (payload: any) => {
+        console.info('Office updated:', payload.office);
+        setState(prev => ({
+          ...prev,
+          offices: {
+            ...prev.offices,
+            [payload.office.id]: payload.office
+          },
+          lastRequestId: payload.connection.request_id
+        }));
+      });
+
+      // Office deleted event
+      await workspaceEvents.onOfficeEvent('office:deleted', (payload: any) => {
+        console.info('Office deleted:', payload.officeId);
+        setState(prev => {
+          const newOffices = { ...prev.offices };
+          delete newOffices[payload.officeId];
+          
+          // Also remove all rooms belonging to this office
+          const newRooms = { ...prev.rooms };
+          Object.keys(newRooms).forEach(roomId => {
+            if (newRooms[roomId].office_id === payload.officeId) {
+              delete newRooms[roomId];
+            }
+          });
+          
+          return {
+            ...prev,
+            offices: newOffices,
+            rooms: newRooms,
+            lastRequestId: payload.connection.request_id
+          };
+        });
+      });
+
+      // Offices reload event
+      await workspaceEvents.onWorkspaceEvent('offices:reload', async (connectionInfo: ConnectionInfo) => {
+        console.info('Reloading offices list...');
+        // Trigger a fresh load of offices
+        await WorkspaceService.listOffices();
+      });
     };
 
     // Set up event listeners for rooms
@@ -241,15 +365,25 @@ export const WorkspaceEventHandler: React.FC<{
           roomsMap[room.id] = room;
         });
 
-        setState(prev => ({
-          ...prev,
-          rooms: {
+        setState(prev => {
+          const newRooms = {
             ...prev.rooms,
             ...roomsMap
-          },
-          loading: { ...prev.loading, rooms: false },
-          lastRequestId: payload.connection.request_id
-        }));
+          };
+          
+          // Broadcast rooms state to other tabs
+          broadcastChannelService.broadcastStateSync({
+            type: 'rooms',
+            data: newRooms
+          });
+          
+          return {
+            ...prev,
+            rooms: newRooms,
+            loading: { ...prev.loading, rooms: false },
+            lastRequestId: payload.connection.request_id
+          };
+        });
       });
 
       await workspaceEvents.onRoomEvent('room:loaded', (payload: RoomPayload) => {
@@ -294,6 +428,55 @@ export const WorkspaceEventHandler: React.FC<{
           };
         });
       });
+
+      // Room created event
+      await workspaceEvents.onRoomEvent('room:created', (payload: any) => {
+        console.info('Room created:', payload.room);
+        setState(prev => ({
+          ...prev,
+          rooms: {
+            ...prev.rooms,
+            [payload.room.id]: payload.room
+          },
+          lastRequestId: payload.connection.request_id
+        }));
+      });
+
+      // Room updated event
+      await workspaceEvents.onRoomEvent('room:updated', (payload: any) => {
+        console.info('Room updated:', payload.room);
+        setState(prev => ({
+          ...prev,
+          rooms: {
+            ...prev.rooms,
+            [payload.room.id]: payload.room
+          },
+          lastRequestId: payload.connection.request_id
+        }));
+      });
+
+      // Room deleted event
+      await workspaceEvents.onRoomEvent('room:deleted', (payload: any) => {
+        console.info('Room deleted:', payload.roomId);
+        setState(prev => {
+          const newRooms = { ...prev.rooms };
+          delete newRooms[payload.roomId];
+          return {
+            ...prev,
+            rooms: newRooms,
+            lastRequestId: payload.connection.request_id
+          };
+        });
+      });
+
+      // Rooms reload event
+      await workspaceEvents.onWorkspaceEvent('rooms:reload', async (payload: any) => {
+        console.info('Reloading rooms list...');
+        // Trigger a fresh load of rooms for the office
+        if (payload && payload.office_id) {
+          await WorkspaceService.listRooms(payload.office_id);
+        }
+      });
     };
 
     // Set up event listeners for members
@@ -313,15 +496,52 @@ export const WorkspaceEventHandler: React.FC<{
         }
       });
 
-      await workspaceEvents.onMemberEvent('members:loaded', (payload) => {
+      await workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
         setState(prev => ({
           ...prev,
           loading: { ...prev.loading, members: false },
           lastRequestId: payload.connection.request_id
         }));
 
-        // Update the relevant office or room with the member information
-        // This might require more complex state handling depending on your app structure
+        // Don't re-emit the same event - it causes an infinite loop
+        // The MembersSection will receive the event directly from workspace-events
+      });
+
+      // Member added event
+      await workspaceEvents.onMemberEvent('member:added', (payload: any) => {
+        console.info('Member added:', payload.member);
+        setState(prev => ({
+          ...prev,
+          lastRequestId: payload.connection.request_id
+        }));
+      });
+
+      // Member role updated event
+      await workspaceEvents.onMemberEvent('member:role-updated', (payload: any) => {
+        console.info('Member role updated:', payload.userId, payload.role);
+        setState(prev => ({
+          ...prev,
+          lastRequestId: payload.connection.request_id
+        }));
+      });
+
+      // Member removed event
+      await workspaceEvents.onMemberEvent('member:removed', (payload: any) => {
+        console.info('Member removed:', payload.userId);
+        setState(prev => ({
+          ...prev,
+          lastRequestId: payload.connection.request_id
+        }));
+      });
+
+      // Members reload event
+      await workspaceEvents.onWorkspaceEvent('members:reload', async (connectionInfo: ConnectionInfo) => {
+        console.info('Reloading members list...');
+        // Trigger a fresh load of members
+        const params = new URLSearchParams(window.location.search);
+        const officeId = params.get("officeId");
+        const roomId = params.get("roomId");
+        await WorkspaceService.listMembers(officeId || undefined, roomId || undefined);
       });
     };
 
@@ -412,15 +632,20 @@ export const WorkspaceEventHandler: React.FC<{
         setState(prev => ({
           ...prev,
           error: payload.message,
-          lastRequestId: payload.connection.request_id
+          lastRequestId: payload.connection.request_id,
+          needsWorkspaceInitialization: payload.message.includes('No workspace found')
         }));
 
         console.error(`Operation error:`, payload.message);
 
-        // Reset error after 5 seconds
-        setTimeout(() => {
-          setState(prev => ({ ...prev, error: undefined }));
-        }, 5000);
+        if (payload.message.includes('No workspace found')) {
+          console.info('Workspace initialization needed - showing modal');
+          setShowInitModal(true);
+        } else {
+          setTimeout(() => {
+            setState(prev => ({ ...prev, error: undefined }));
+          }, 5000);
+        }
       });
 
       await workspaceEvents.onOperationEvent('operation:success', (connectionInfo: ConnectionInfo) => {
@@ -457,6 +682,39 @@ export const WorkspaceEventHandler: React.FC<{
       });
     };
 
+    // Setup broadcast state sync listener
+    const setupBroadcastSync = () => {
+      eventEmitter.on('broadcast-state-sync', (data: any) => {
+        console.log('WorkspaceEventHandler: Received broadcast state sync', data);
+        
+        if (data.type === 'workspace') {
+          // When receiving workspace state, preserve our tab's currentUser
+          const { currentUser: receivedUser, ...receivedData } = data.data;
+          setState(prev => ({
+            ...prev,
+            ...receivedData,
+            // Keep our tab's currentUser
+            currentUser: prev.currentUser
+          }));
+        } else if (data.type === 'offices') {
+          setState(prev => ({
+            ...prev,
+            offices: data.data
+          }));
+        } else if (data.type === 'rooms') {
+          setState(prev => ({
+            ...prev,
+            rooms: data.data
+          }));
+        } else if (data.type === 'members') {
+          setState(prev => ({
+            ...prev,
+            members: data.data
+          }));
+        }
+      });
+    };
+
     // Initialize all event listeners
     const initializeEvents = async () => {
       await setupWorkspaceListeners();
@@ -466,6 +724,7 @@ export const WorkspaceEventHandler: React.FC<{
       await setupErrorHandling();
       await setupProtocolWarningHandling();
       await setupMessageListeners();
+      setupBroadcastSync();
 
       console.info('Workspace event listeners initialized');
     };
@@ -475,6 +734,7 @@ export const WorkspaceEventHandler: React.FC<{
     // Clean up all listeners when component unmounts
     return () => {
       workspaceEvents.cleanupAllListeners();
+      p2pRegistrationService.stop();
     };
   }, []);
 
@@ -488,7 +748,6 @@ export const WorkspaceEventHandler: React.FC<{
   // via sendWorkspaceRequest from workspace-service.ts
   const sendMessage = async (content: string, recipientId: number) => {
     try {
-      // Call the Tauri command to send a message
       await invoke('send_workspace_request', {
         receiverId: recipientId.toString(),
         content
@@ -538,10 +797,38 @@ export const WorkspaceEventHandler: React.FC<{
   }, [state, onStateChange]);
 
   // Wrap children with the WorkspaceProvider to make state available to all descendants
+  const handleWorkspaceInitialized = () => {
+    setShowInitModal(false);
+    setState(prev => ({
+      ...prev,
+      needsWorkspaceInitialization: false,
+      error: undefined
+    }));
+
+    // Reload workspace after initialization
+    WorkspaceService.loadWorkspace()
+      .then(() => {
+        console.info('Workspace reloaded after initialization');
+      })
+      .catch(error => {
+        console.error('Error reloading workspace after initialization:', error);
+      });
+  };
+
   return (
-    <WorkspaceProvider state={state as WorkspaceState} sendMessage={sendMessage}>
-      {children}
-    </WorkspaceProvider>
+    <>
+      <WorkspaceProvider state={state as WorkspaceState} sendMessage={sendMessage}>
+        {children}
+      </WorkspaceProvider>
+      <WorkspaceInitializationModal
+        isOpen={showInitModal}
+        onClose={() => setShowInitModal(false)}
+        onSuccess={handleWorkspaceInitialized}
+        workspaceName={state.workspace?.name}
+        serverAddress={connectionManager.getStoredSessions()[0]?.serverAddress}
+        username={state.currentUser?.username || connectionManager.getStoredSessions()[0]?.username}
+      />
+    </>
   );
 };
 

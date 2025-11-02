@@ -1,6 +1,10 @@
-// Workspace events for Tauri integration
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+// Workspace events for WebSocket integration
 import { Office, Room, User } from '../types/workspace-entities';
+import { websocketService, type InternalServiceResponse } from './websocket-service';
+import { listen } from './event-emitter';
+
+// Type for unlisten function
+export type UnlistenFn = () => void;
 
 // Connection information coming from the backend
 export interface ConnectionInfo {
@@ -79,6 +83,7 @@ export type WorkspaceEventType =
   // Workspace events
   | 'workspace:loading'
   | 'workspace:loaded'
+  | 'workspace:not-initialized'
   // Office events
   | 'office:creating'
   | 'office:loading'
@@ -128,6 +133,7 @@ export class WorkspaceEvents {
    */
   public async onWorkspaceEvent(event: 'workspace:loaded', callback: (payload: WorkspacePayload) => void): Promise<() => void>;
   public async onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
+  public async onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
   public async onWorkspaceEvent(event: WorkspaceEventType, callback: any): Promise<() => void> {
     const unlistenFn = await listen(event, ({ payload }) => {
       callback(payload);

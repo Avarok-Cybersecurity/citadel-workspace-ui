@@ -17,7 +17,7 @@ import {
 } from "@/types";
 
 export interface SecuritySettingsValues {
-  securityLevel: SecurityLevel | string;
+  securityLevel: SecurityLevel;
   secrecyMode: SecrecyMode;
   encryptionAlgorithm: EncryptionAlgorithm;
   kemAlgorithm: KemAlgorithm;
@@ -45,11 +45,11 @@ export const SecuritySettings = ({
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<SecuritySettingsValues>({
-    securityLevel: SecurityLevel.Standard,
-    secrecyMode: SecrecyMode.BestEffort,
-    encryptionAlgorithm: EncryptionAlgorithm.AES_GCM_256,
-    kemAlgorithm: KemAlgorithm.Kyber,
-    sigAlgorithm: SigAlgorithm.None,
+    securityLevel: 'Standard',
+    secrecyMode: 'BestEffort',
+    encryptionAlgorithm: 'AES_GCM_256',
+    kemAlgorithm: 'Kyber',
+    sigAlgorithm: 'None',
     headerObfuscatorSettings: {},
     storeCredentials: false,
   });

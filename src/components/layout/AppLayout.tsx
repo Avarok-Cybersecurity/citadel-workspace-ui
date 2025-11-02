@@ -7,6 +7,7 @@ import {
 import { TopBar } from "./sidebar/TopBar";
 import { OfficesSection } from "./sidebar/OfficesSection";
 import { RoomsSection } from "./sidebar/RoomsSection";
+import { MembersSection } from "./sidebar/MembersSection";
 import { MessagesSection } from "./sidebar/MessagesSection";
 import { FilesSection } from "./sidebar/FilesSection";
 
@@ -26,6 +27,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           <SidebarContent>
             <OfficesSection />
             <RoomsSection />
+            <MembersSection />
             <MessagesSection />
             <FilesSection />
           </SidebarContent>

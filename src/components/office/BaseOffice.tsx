@@ -8,38 +8,45 @@ import { OfficeLayout } from "./OfficeLayout";
 import { useLocation } from "react-router-dom";
 import { useWorkspace } from "../../lib/workspace-context";
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
-import { invoke } from '@tauri-apps/api/core';
 import { UserRole } from "@/types/workspace-entities";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
 import { FileText } from "lucide-react";
+import WorkspaceService from "@/lib/workspace-service";
 
 interface BaseOfficeProps {
   title: string;
   getInitialContent: (currentRoom: string | null) => string;
   officeId?: string;
+  roomId?: string;
 }
 
-export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficeProps) => {
+export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseOfficeProps) => {
   const location = useLocation();
   const currentRoom = new URLSearchParams(location.search).get("room");
   const { state } = useWorkspace();
 
-  // Get the office data from workspace state if officeId is provided
+  // Get the office or room data from workspace state
   const officeData = officeId ? state.offices[officeId] : null;
+  const roomData = roomId ? state.rooms[roomId] : null;
+  const entityData = roomData || officeData;
 
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(
-    officeData?.mdx_content || getInitialContent(currentRoom)
+    entityData?.mdx_content || getInitialContent(currentRoom)
   );
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isNewContent, setIsNewContent] = useState(!officeData?.mdx_content);
+  const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
   const { toast } = useToast();
 
   // Determine if we're in a loading state
-  const isLoading = officeId ? state.loading.offices && !officeData : false;
+  const isLoading = roomId 
+    ? state.loading.rooms && !roomData 
+    : officeId 
+    ? state.loading.offices && !officeData 
+    : false;
 
   // Check if user can edit the MDX content
   // For demo/showcase purposes, allow editing by default unless in a production environment
@@ -57,12 +64,22 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
   };
 
   const handleSave = async () => {
-    if (officeId) {
-      try {
-        // Call Tauri command to update the office with new mdx_content
-        await invoke('update_office', {
-          officeId,
-          mdx_content: content
+    try {
+      if (roomId) {
+        // Update the room with new mdx_content via workspace protocol
+        await WorkspaceService.updateRoom(roomId, {
+          mdxContent: content
+        });
+
+        toast({
+          title: "Changes saved",
+          description: `The ${roomData?.name || title} room page has been updated`,
+          className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        });
+      } else if (officeId) {
+        // Update the office with new mdx_content via workspace protocol
+        await WorkspaceService.updateOffice(officeId, {
+          mdxContent: content
         });
 
         toast({
@@ -70,35 +87,35 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
           description: `The ${officeData?.name || title} office page has been updated`,
           className: "bg-[#343A5C] border-purple-800 text-purple-200",
         });
-      } catch (error) {
-        console.error('Failed to save MDX content:', error);
+      } else {
         toast({
-          title: "Error saving changes",
-          description: "There was a problem saving your changes. Please try again.",
-          variant: "destructive",
+          title: "Changes saved",
+          description: `The ${title.toLowerCase()} page has been updated`,
+          className: "bg-[#343A5C] border-purple-800 text-purple-200",
         });
       }
-    } else {
+    } catch (error) {
+      console.error('Failed to save MDX content:', error);
       toast({
-        title: "Changes saved",
-        description: `The ${title.toLowerCase()} office page has been updated`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        title: "Error saving changes",
+        description: "There was a problem saving your changes. Please try again.",
+        variant: "destructive",
       });
     }
 
     setIsEditing(false);
   };
 
-  // Update content when office data changes or when room changes
+  // Update content when entity data changes or when room changes
   useEffect(() => {
-    if (officeData?.mdx_content) {
-      setContent(officeData.mdx_content);
+    if (entityData?.mdx_content) {
+      setContent(entityData.mdx_content);
       setIsNewContent(false);
     } else {
       setContent(getInitialContent(currentRoom));
       setIsNewContent(true);
     }
-  }, [officeData, currentRoom, getInitialContent]);
+  }, [entityData, currentRoom, getInitialContent]);
 
   useEffect(() => {
     const compileContent = async () => {
@@ -144,7 +161,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId }: BaseOfficePro
 
   return (
     <OfficeLayout
-      title={officeData?.name || title}
+      title={entityData?.name || title}
       isEditing={isEditing}
       onEditToggle={() => setIsEditing(!isEditing)}
       onSave={handleSave}

@@ -3,17 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, Settings } from "lucide-react";
+import { ChevronLeft, Settings, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useToast } from "@/components/ui/use-toast";
-import { invoke } from "@tauri-apps/api/core";
+import { websocketService } from "@/lib/websocket-service";
+import { connectionManager } from "@/lib/connection-manager";
+import { eventEmitter } from "@/lib/event-emitter";
+import { useEffect } from "react";
+import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
+import WorkspaceService from "@/lib/workspace-service";
+import { setSelectedUser } from "@/lib/tab-context";
 import { 
-  ConnectRequestTS, 
-  ConnectSuccessTS, 
-  ConnectFailureTS, 
-  SessionSecuritySettingsTS, 
   ConnectMode, 
   UdpMode, 
   SecurityLevel, 
@@ -30,7 +32,7 @@ interface LoginProps {
 }
 
 interface SecuritySettingsState {
-  securityLevel: SecurityLevel | string;
+  securityLevel: SecurityLevel;
   secrecyMode: SecrecyMode;
   encryptionAlgorithm: EncryptionAlgorithm;
   kemAlgorithm: KemAlgorithm;
@@ -50,85 +52,149 @@ export function Login({ onNext, onCancel }: LoginProps) {
   
   // Default security settings that can be overridden by SecuritySettings component
   const [securitySettings, setSecuritySettings] = useState<SecuritySettingsState>({
-    securityLevel: SecurityLevel.Standard, 
-    secrecyMode: SecrecyMode.BestEffort,   
-    encryptionAlgorithm: EncryptionAlgorithm.AES_GCM_256, 
-    kemAlgorithm: KemAlgorithm.Kyber,       
-    sigAlgorithm: SigAlgorithm.None,        
+    securityLevel: 'Standard', 
+    secrecyMode: 'BestEffort',   
+    encryptionAlgorithm: 'AES_GCM_256', 
+    kemAlgorithm: 'Kyber',       
+    sigAlgorithm: 'None',        
     headerObfuscatorSettings: {},
     storeCredentials: false
   });
   
   const { toast } = useToast();
 
+  // WebSocket service is initialized by ConnectionManager in WorkspaceApp
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username.trim() || !password.trim()) {
       setError("Username and password are required");
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Create sessionSettings directly from state (now uses string enums)
-      const sessionSettings: SessionSecuritySettingsTS = {
-        securityLevel: securitySettings.securityLevel,
-        secrecyMode: securitySettings.secrecyMode,
-        encryptionAlgorithm: securitySettings.encryptionAlgorithm,
-        kemAlgorithm: securitySettings.kemAlgorithm,
-        sigAlgorithm: securitySettings.sigAlgorithm,
-        headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
-      };
+      // Check if this specific username already has an active session (multi-workspace support)
+      const activeSessions = await connectionManager.getActiveSessions();
+      const existingSession = activeSessions.find(session => session.username === username.trim());
+
+      if (existingSession) {
+        console.log('Login: Username already has active session:', existingSession);
+        // Emit event for existing session - this allows the user to claim/disconnect it
+        eventEmitter.emit('session-already-connected', {
+          cid: existingSession.cid,
+          message: `Session already exists for ${username}`
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Generate request ID first to avoid race condition
+      const requestId = crypto.randomUUID();
       
-      // Prepare the request object with camelCase keys (matching TS interface)
-      const connectRequest: ConnectRequestTS = {
-        username: username,
-        password: stringToUint8Array(password), 
-        connectMode: ConnectMode.Standard,
-        udpMode: UdpMode.Enabled,
-        keepAliveTimeoutMs: 60000,
-        sessionSecuritySettings: sessionSettings,
-        serverPassword: undefined
-      };
-      
-      // Call the connect command, mapping keys to snake_case for Rust backend
-      const result = await invoke<ConnectSuccessTS>('connect', {
-          request: {
-              username: connectRequest.username,
-              password: connectRequest.password,
-              connect_mode: connectRequest.connectMode,         
-              udp_mode: connectRequest.udpMode,             
-              keep_alive_timeout_ms: connectRequest.keepAliveTimeoutMs, 
-              session_security_settings: {                  
-                security_level: sessionSettings.securityLevel,
-                secrecy_mode: sessionSettings.secrecyMode,
-                encryption_algorithm: sessionSettings.encryptionAlgorithm,
-                kem_algorithm: sessionSettings.kemAlgorithm,
-                sig_algorithm: sessionSettings.sigAlgorithm,
-                header_obfuscator_settings: sessionSettings.headerObfuscatorSettings
-              },
-              server_password: connectRequest.serverPassword      
+      // Set up event listener to capture connection response BEFORE sending request
+      let responseReceived = false;
+      const responsePromise = new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          if (!responseReceived) {
+            eventEmitter.off('websocket-message', handler);
+            reject(new Error('Connection timeout'));
           }
+        }, 30000);
+
+        const handler = (message: any) => {
+          console.log('Login response received:', message);
+          console.log('Expected requestId:', requestId);
+          
+          // Check if the message is wrapped in a Response object
+          const response = message.Response || message;
+          
+          // Check if this response matches our request ID
+          if ('ConnectSuccess' in response && response.ConnectSuccess.request_id === requestId) {
+            responseReceived = true;
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            resolve(response.ConnectSuccess.cid);
+          } else if ('ConnectFailure' in response && response.ConnectFailure.request_id === requestId) {
+            responseReceived = true;
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+
+            // Check if this is a "Session Already Connected" error (fallback - should be caught by preemptive check)
+            const errorMessage = response.ConnectFailure.message || 'Connection failed';
+            if (errorMessage.toLowerCase().includes('session already connected') ||
+                errorMessage.toLowerCase().includes('already connected')) {
+              // This should rarely happen since we check proactively above
+              // But keep as fallback in case session becomes active between our check and connect call
+              console.warn('Login: Session already connected error from backend (fallback path)');
+              eventEmitter.emit('session-already-connected', {
+                cid: response.ConnectFailure.cid,
+                message: errorMessage
+              });
+            }
+
+            reject(new Error(errorMessage));
+          }
+        };
+
+        // Listen for WebSocket messages
+        eventEmitter.on('websocket-message', handler);
       });
       
-      // If we get here, the connection was successful (or we would have caught an error)
-      onNext(result.cid);
+      // Connect to the service AFTER setting up the listener
+      // First disconnect any existing connection
+      try {
+        await websocketService.disconnect();
+      } catch (e) {
+        // Ignore disconnect errors
+      }
+      
+      await websocketService.connect(requestId, username, password, server);
+      
+      // Wait for the response
+      const cid = await responsePromise;
+      
+      // If we get here, the connection was successful
+      // Store the session for auto-reconnect
+      await connectionManager.handleAuthSuccess(
+        username,
+        password,
+        username, // Use username as display name for login
+        server,
+        cid.toString()
+      );
+
+      // Set up workspace context and loading
+      // Update tab context to track which workspace this tab is viewing
+      setSelectedUser({
+        selectedUsername: username.trim(),
+        selectedServerAddress: server,
+        selectedCid: cid.toString()
+      });
+
+      // Set the connection ID in WorkspaceService
+      WorkspaceService.setConnectionId(cid.toString());
+
+      // Trigger workspace loading
+      WorkspaceService.loadWorkspace();
+      WorkspaceService.listOffices();
+
+      onNext(cid);
       
       toast({
         title: "Login successful",
         description: "Connected to workspace successfully",
       });
     } catch (err: any) {
-      // The error is likely a ConnectFailureTS object
-      const errorMessage = err.message || "Failed to connect to workspace";
-      setError(errorMessage);
+      const userFriendlyMessage = getUserFriendlyErrorMessage(err);
+      setError(userFriendlyMessage);
       toast({
         variant: "destructive",
-        title: "Login failed",
-        description: errorMessage,
+        title: getErrorTitle(err),
+        description: userFriendlyMessage,
       });
     } finally {
       setLoading(false);
@@ -154,10 +220,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues) => {
     setSecuritySettings({
       securityLevel: values.securityLevel, 
-      secrecyMode: values.secrecyMode as SecrecyMode, 
-      encryptionAlgorithm: values.encryptionAlgorithm as EncryptionAlgorithm,
-      kemAlgorithm: values.kemAlgorithm as KemAlgorithm,
-      sigAlgorithm: values.sigAlgorithm as SigAlgorithm,
+      secrecyMode: values.secrecyMode, 
+      encryptionAlgorithm: values.encryptionAlgorithm,
+      kemAlgorithm: values.kemAlgorithm,
+      sigAlgorithm: values.sigAlgorithm,
       headerObfuscatorSettings: values.headerObfuscatorSettings,
       storeCredentials: values.storeCredentials,
     });
@@ -294,7 +360,14 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                 disabled={loading}
               >
-                {loading ? "Connecting..." : "Connect"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  "Connect"
+                )}
               </Button>
             </CardFooter>
           </form>

@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useWorkspace } from '../../lib/workspace-context';
 import { MemberSkeletonLoader } from '../ui/skeleton-member';
-import { invoke } from '@tauri-apps/api/core';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -53,7 +52,6 @@ export const MemberProfile: React.FC<MemberProfileProps> = ({
     const fetchMemberData = async () => {
       if (!member && !isLoading) {
         try {
-          // Call Tauri command to load member
           await invoke('get_member', { userId });
         } catch (error) {
           console.error('Failed to load member:', error);

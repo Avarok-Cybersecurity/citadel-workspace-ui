@@ -89,18 +89,18 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
         <div className="relative">
           <Select 
             // Use enum value from props
-            value={values.encryptionAlgorithm || EncryptionAlgorithm.AES_GCM_256}
+            value={values.encryptionAlgorithm || 'AES_GCM_256'}
             // Pass enum value back up
             onValueChange={(value: EncryptionAlgorithm) => handleValueChange('encryptionAlgorithm', value)}
-            defaultValue={EncryptionAlgorithm.AES_GCM_256}
+            defaultValue={'AES_GCM_256'}
           >
             <SelectTrigger id="encryption-algorithm" className="w-full bg-[#3B3D57] border-[#4D4F6C] text-white">
               <SelectValue placeholder="Select encryption algorithm" />
             </SelectTrigger>
             <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-2">
               {/* Use enum values for SelectItem */}
-              <SelectItem value={EncryptionAlgorithm.AES_GCM_256} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">AES 256 GCM</SelectItem>
-              <SelectItem value={EncryptionAlgorithm.ChaCha20Poly_1305} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ChaCha20Poly1305</SelectItem>
+              <SelectItem value={'AES_GCM_256'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">AES 256 GCM</SelectItem>
+              <SelectItem value={'ChaCha20Poly_1305'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ChaCha20Poly1305</SelectItem>
               {/* Assuming KyberHybrid and Ascon80pq are valid options - add them if needed */}
               {/* <SelectItem value={EncryptionAlgorithm.KyberHybrid} className="...">Hybrid Kyber/AES 256 GCM</SelectItem> */}
               {/* <SelectItem value={EncryptionAlgorithm.Ascon80pq} className="...">Ascon80pq</SelectItem> */}
@@ -127,17 +127,17 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
         <div className="relative">
           <Select 
             // Use enum value from props
-            value={values.kemAlgorithm || KemAlgorithm.Kyber}
+            value={values.kemAlgorithm || 'Kyber'}
             // Pass enum value back up
             onValueChange={(value: KemAlgorithm) => handleValueChange('kemAlgorithm', value)}
-            defaultValue={KemAlgorithm.Kyber}
+            defaultValue={'Kyber'}
           >
             <SelectTrigger id="kem-algorithm" className="w-full bg-[#3B3D57] border-[#4D4F6C] text-white">
               <SelectValue placeholder="Select KEM algorithm" />
             </SelectTrigger>
             <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-2">
               {/* Use enum values for SelectItem */}
-              <SelectItem value={KemAlgorithm.Kyber} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">Kyber</SelectItem>
+              <SelectItem value={'Kyber'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">Kyber</SelectItem>
               {/* Add other KEM algorithms if available */}
             </SelectContent>
           </Select>
@@ -162,18 +162,18 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
         <div className="relative">
           <Select 
             // Use CORRECT enum value from props
-            value={values.sigAlgorithm || SigAlgorithm.None}
+            value={values.sigAlgorithm || 'None'}
             // Pass CORRECT enum value back up with CORRECT key
             onValueChange={(value: SigAlgorithm) => handleValueChange('sigAlgorithm', value)}
-            defaultValue={SigAlgorithm.None}
+            defaultValue={'None'}
           >
             <SelectTrigger id="signing-algorithm" className="w-full bg-[#3B3D57] border-[#4D4F6C] text-white">
               <SelectValue placeholder="Select signing algorithm" />
             </SelectTrigger>
             <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-2">
               {/* Use enum values for SelectItem */}
-              <SelectItem value={SigAlgorithm.None} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">None</SelectItem>
-              <SelectItem value={SigAlgorithm.Falcon1024} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">Falcon1024</SelectItem>
+              <SelectItem value={'None'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">None</SelectItem>
+              <SelectItem value={'Falcon1024'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">Falcon1024</SelectItem>
             </SelectContent>
           </Select>
           <TooltipProvider>

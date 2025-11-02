@@ -1,0 +1,20 @@
+/* Styles for react-resizable-panels */
+[data-panel-group-direction="horizontal"] > [data-panel-resize-handle-id] {
+  width: 4px;
+  background-color: rgba(38, 44, 74, 0.5);
+  transition: background-color 0.2s;
+}
+
+[data-panel-group-direction="horizontal"] > [data-panel-resize-handle-id]:hover {
+  background-color: rgba(38, 44, 74, 1);
+}
+
+[data-panel-group-direction="vertical"] > [data-panel-resize-handle-id] {
+  height: 4px;
+  background-color: rgba(38, 44, 74, 0.5);
+  transition: background-color 0.2s;
+}
+
+[data-panel-group-direction="vertical"] > [data-panel-resize-handle-id]:hover {
+  background-color: rgba(38, 44, 74, 1);
+}

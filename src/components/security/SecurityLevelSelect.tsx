@@ -5,11 +5,11 @@ import { Label } from "@/components/ui/label";
 import { SecurityLevel } from "@/types";
 
 interface SecurityLevelSelectProps {
-  value?: SecurityLevel | string;
+  value?: SecurityLevel;
   onChange?: (value: SecurityLevel | string) => void;
 }
 
-export const SecurityLevelSelect = ({ value = SecurityLevel.Standard, onChange }: SecurityLevelSelectProps) => {
+export const SecurityLevelSelect = ({ value = 'Standard', onChange }: SecurityLevelSelectProps) => {
   const handleValueChange = (newValue: string) => {
     if (onChange) {
       onChange(newValue);
@@ -25,16 +25,16 @@ export const SecurityLevelSelect = ({ value = SecurityLevel.Standard, onChange }
         <Select 
           value={value} 
           onValueChange={handleValueChange}
-          defaultValue={SecurityLevel.Standard}
+          defaultValue={'Standard'}
         >
           <SelectTrigger id="security-level" className="w-full bg-[#3B3D57] border-[#4D4F6C] text-white pr-12">
             <SelectValue placeholder="Select security level" />
           </SelectTrigger>
           <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-1">
-            <SelectItem value={SecurityLevel.Standard} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Standard</SelectItem>
-            <SelectItem value={SecurityLevel.Reinforced} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Reinforced</SelectItem>
-            <SelectItem value={SecurityLevel.High} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">High</SelectItem>
-            <SelectItem value={SecurityLevel.Extreme} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Extreme</SelectItem>
+            <SelectItem value={'Standard'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Standard</SelectItem>
+            <SelectItem value={'Reinforced'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Reinforced</SelectItem>
+            <SelectItem value={'High'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">High</SelectItem>
+            <SelectItem value={'Extreme'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Extreme</SelectItem>
           </SelectContent>
         </Select>
         <TooltipProvider>

@@ -5,9 +5,9 @@
  * in the Citadel Workspace application.
  */
 
-import { invoke } from '@tauri-apps/api/core';
 import { 
   WorkspaceProtocolPayloadTS, 
+  WorkspaceProtocolRequestTS,
   serializeWorkspacePayload,
   createMessagePayload 
 } from '../types/workspace-protocol';
@@ -25,17 +25,28 @@ export async function sendMessage(cid: string, peerCid: string, message: string)
   // Convert string message to Uint8Array
   const messageBytes = stringToUint8Array(message);
   
-  // Create workspace protocol payload with message request
-  const payload = createMessagePayload(messageBytes);
+  // Create workspace protocol request payload
+  const requestPayload: WorkspaceProtocolRequestTS = {
+    // Note: Using 'Message' as the variant identifier (PascalCase)
+    Message: {
+      contents: messageBytes
+    }
+  };
+
+  // Wrap the request payload in the top-level payload structure
+  const payload: WorkspaceProtocolPayloadTS = {
+    // Note: Using 'Request' as the variant identifier (PascalCase)
+    Request: requestPayload
+  };
   
-  // Serialize payload to Uint8Array
-  const serializedPayload = serializeWorkspacePayload(payload);
+  // TODO: Determine correct security_level_str source
+  const securityLevel = "0"; // Placeholder
   
-  // Invoke Tauri command to send message
   await invoke('send_workspace_request', {
-    cid,
-    peerCid,
-    message: serializedPayload
+    cidStr: cid, 
+    securityLevelStr: securityLevel,
+    payload: payload // Pass the structured payload object directly
+    // Removed peerCid and message as they are inside the payload now
   });
 }
 

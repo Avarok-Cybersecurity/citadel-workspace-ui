@@ -1,7 +1,8 @@
-import { invoke } from '@tauri-apps/api/core';
 import { v4 as uuidv4 } from 'uuid';
 import { MessagingService } from './messaging-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
+import { websocketService } from './websocket-service';
+import { eventEmitter } from './event-emitter';
 
 export enum ConnectionRequestStatus {
   PENDING = 'pending',
@@ -80,11 +81,22 @@ export class ConnectionService {
   }
 
   private setupEventListeners() {
-    // In a real implementation, this would set up listeners for Tauri events
     console.info('Setting up connection service event listeners');
 
     // Listen for p2p registration responses
     // Listen for p2p connection responses
+    
+    // Listen for broadcast connection status updates from other tabs
+    eventEmitter.on('broadcast-connection-status', (status: { isConnected: boolean; cid?: string }) => {
+      console.log('ConnectionService: Received broadcast connection status', status);
+      
+      // Update our connection status based on the broadcast
+      this.updateConnectionStatus({
+        cid: status.cid || null,
+        serverAddress: '127.0.0.1:12349',
+        isConnected: status.isConnected
+      });
+    });
   }
 
   /**
@@ -110,8 +122,6 @@ export class ConnectionService {
     };
 
     try {
-      // Call Tauri command to send the request
-      // In a real implementation, we would use invoke() to call the backend
       // await invoke('send_p2p_registration_request', { request });
 
       console.info(`Sending P2P registration request to ${recipientId}`);
@@ -151,7 +161,6 @@ export class ConnectionService {
     };
 
     try {
-      // Call Tauri command to send the connection request
       // await invoke('send_p2p_connection_request', { request });
 
       console.info(`Initiating P2P connection with ${recipientId}`);
@@ -184,7 +193,6 @@ export class ConnectionService {
     }
 
     try {
-      // Call Tauri command to accept the request
       // await invoke('accept_p2p_request', { requestId });
 
       console.info(`Accepting connection request ${requestId}`);
@@ -229,7 +237,6 @@ export class ConnectionService {
     }
 
     try {
-      // Call Tauri command to reject the request
       // await invoke('reject_p2p_request', { requestId });
 
       console.info(`Rejecting connection request ${requestId}`);
@@ -263,7 +270,6 @@ export class ConnectionService {
     }
 
     try {
-      // Call Tauri command to cancel the request
       // await invoke('cancel_p2p_request', { requestId });
 
       console.info(`Canceling connection request ${requestId}`);

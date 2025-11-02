@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Search, Settings, Share2 } from "lucide-react";
+import { MessageSquare, Search, Settings, Share2, Files } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { officeRooms } from "../layout/sidebar/RoomsSection";
+import { FileUploadButton } from "@/components/files/FileUploadButton";
+import { useWorkspace } from "@/lib/workspace-context";
 
 interface OfficeLayoutProps {
   title: string;
@@ -28,6 +30,7 @@ export const OfficeLayout = ({
 }: OfficeLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { state } = useWorkspace();
   const currentSection = new URLSearchParams(location.search).get("section") || "company";
   const currentRoom = new URLSearchParams(location.search).get("room");
   const officeName = officeNames[currentSection as keyof typeof officeNames];
@@ -35,6 +38,10 @@ export const OfficeLayout = ({
   const rooms = officeRooms[currentSection as keyof typeof officeRooms] || [];
   const currentRoomData = rooms.find(room => room.id === currentRoom);
   const roomName = currentRoomData ? ` → ${currentRoomData.name}` : "";
+
+  // Determine entity type and ID for file uploads
+  const entityType = currentRoom ? 'room' : 'office';
+  const entityId = currentRoom || currentSection || 'workspace';
 
   const handleOfficeClick = () => {
     const params = new URLSearchParams(location.search);
@@ -86,6 +93,11 @@ export const OfficeLayout = ({
             >
               <Settings className="h-4 w-4" />
             </Button>
+            <FileUploadButton
+              entityType={entityType as 'office' | 'room' | 'workspace'}
+              entityId={entityId}
+              className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
+            />
             {canEdit && (
               <>
                 <Button

@@ -1,7 +1,9 @@
-import { invoke } from '@tauri-apps/api/core';
-import { SecurityLevel, MessageSendSuccessTS, MessageSendFailureTS } from '@/types';
+import { SecurityLevel } from '@/types';
 import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import { Office } from '@/types/workspace-entities';
+import { websocketService } from './websocket-service';
+import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import { workspaceResponseHandler } from './workspace-response-handler';
 
 /**
  * Workspace Service
@@ -41,39 +43,68 @@ export class WorkspaceService {
    * @param request The workspace protocol request object
    * @returns Promise resolving to success or error
    */
-  private async sendWorkspaceRequest(payload: WorkspaceProtocolPayloadTS): Promise<MessageSendSuccessTS | MessageSendFailureTS> {
+  public async sendWorkspaceRequest(payload: WorkspaceProtocolPayloadTS): Promise<void> {
     if (!this.currentCid) {
       throw new Error('No active connection available. Please connect first.');
     }
 
+    const client = websocketService.getClient();
+    if (!client) {
+      throw new Error('WebSocket client not initialized');
+    }
+
     try {
       console.info('[WorkspaceService] Sending payload:', payload);
-      // Invoke returns 'unknown', so we need to assert/check the type
-      const response = await invoke<MessageSendSuccessTS | MessageSendFailureTS>(
-        'send_workspace_request',
-        {
-          cidStr: this.currentCid,
-          securityLevelStr: SecurityLevel.Standard, // Pass security level string
-          payload: payload // Pass the structured payload object
+      
+      // Convert TypeScript payload to the format expected by the client
+      let request: WorkspaceProtocolRequest;
+      
+      if ('Request' in payload && payload.Request) {
+        // Map the TypeScript request format to the Rust format
+        const tsRequest = payload.Request;
+        
+        // Convert based on the request type
+        if ('GetWorkspace' in tsRequest) {
+          request = 'GetWorkspace';
+        } else if ('CreateWorkspace' in tsRequest) {
+          const req = tsRequest.CreateWorkspace;
+          request = {
+            CreateWorkspace: {
+              name: req.name,
+              description: req.description,
+              workspace_master_password: req.workspace_master_password,
+              metadata: req.metadata
+            }
+          };
+        } else if ('UpdateWorkspace' in tsRequest) {
+          const req = tsRequest.UpdateWorkspace;
+          request = {
+            UpdateWorkspace: {
+              name: req.name,
+              description: req.description,
+              workspace_master_password: req.workspace_master_password,
+              metadata: req.metadata
+            }
+          };
+        } else if ('ListOffices' in tsRequest) {
+          request = 'ListOffices';
+        } else {
+          // For other request types, pass through as-is for now
+          request = tsRequest as any;
         }
-      );
-
-      // Type guard to check if it's a failure response
-      if (typeof response === 'object' && response !== null && 'message' in response && typeof (response as any).message === 'string') {
-        const failureResponse = response as MessageSendFailureTS;
-        console.error("[WorkspaceService] Workspace request failed:", failureResponse);
-        throw new Error(failureResponse.message);
+      } else {
+        throw new Error('Invalid workspace protocol payload');
       }
 
-      // Assuming success if it's not explicitly a failure
-      console.info('[WorkspaceService] Request sent successfully:', response);
-      return response as MessageSendSuccessTS; // Cast to success type after check
+      // Convert string CID to BigInt for the WASM client
+      const cidBigInt = BigInt(this.currentCid);
+      await websocketService.sendWorkspaceRequest(this.currentCid, request);
+      console.info('[WorkspaceService] Request sent successfully');
 
     } catch (error) {
-      // Handle errors from invoke itself or re-throw errors identified by the type guard
       if (error instanceof Error) {
         console.error(`[WorkspaceService] Error sending request:`, error.message);
-        throw error; // Re-throw the original error
+        throw error;
       } else {
         console.error(`[WorkspaceService] Unknown error sending request:`, error);
         throw new Error('An unknown error occurred while sending the workspace request.');
@@ -86,14 +117,15 @@ export class WorkspaceService {
    * This will trigger a workspace:loaded event when complete
    */
   public async loadWorkspace(): Promise<any> {
-    // NOTE: WorkspaceProtocolRequestTS doesn't define 'LoadWorkspace'. 
-    // Using 'listOffices' as a placeholder to satisfy TS, but the type definition 
-    // might need alignment with the Rust enum's LoadWorkspace variant.
+    // Emit loading event
+    workspaceResponseHandler.emitLoadingEvent('workspace:loading');
+    
+    // Use GetWorkspace variant to load workspace with metadata
     const requestPart: WorkspaceProtocolRequestTS = {
-      listOffices: true
+      GetWorkspace: null
     };
-    // Construct the full payload expected by the Rust command (lowercase 'request')
-    const payload: WorkspaceProtocolPayloadTS = { request: requestPart };
+    // Construct the full payload expected by the Rust command (PascalCase 'Request')
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
 
@@ -101,35 +133,386 @@ export class WorkspaceService {
    * Get the current workspace
    * This will trigger a workspace:loaded event when complete
    */
-  public async getWorkspace(): Promise<MessageSendSuccessTS | MessageSendFailureTS> {
-    // Using listOffices as placeholder payload
-    const requestPart: WorkspaceProtocolRequestTS = { listOffices: true };
-    const payload: WorkspaceProtocolPayloadTS = { request: requestPart }; // lowercase 'request'
+  public async getWorkspace(): Promise<any> {
+    // NOTE: WorkspaceProtocolRequestTS doesn't define 'GetWorkspace'. 
+    // Assuming 'GetWorkspace: true' is the intended structure based on Rust enum.
+    // This requires adding 'GetWorkspace' to WorkspaceProtocolRequestTS type definition.
+    const requestPart: WorkspaceProtocolRequestTS = {
+      // Changed from true to null for unit variant
+      GetWorkspace: null
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
 
   /**
-   * List all offices in the workspace
-   * This will trigger an offices:loaded event when complete
+   * List available offices
    */
-  public async listOffices(): Promise<MessageSendSuccessTS | MessageSendFailureTS> {
+  public async listOffices(): Promise<any> {
+    // Emit loading event
+    workspaceResponseHandler.emitLoadingEvent('offices:loading');
+    
+    // NOTE: Using ListOffices variant to match Rust enum.
     const requestPart: WorkspaceProtocolRequestTS = {
-      listOffices: true
+      // Changed from true to null for unit variant
+      ListOffices: null
     };
-    const payload: WorkspaceProtocolPayloadTS = { request: requestPart }; // lowercase 'request'
+    // Construct the full payload expected by the Rust command (PascalCase 'Request')
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
 
   /**
-   * List all rooms in an office
-   * This will trigger a rooms:loaded event when complete
-   * @param officeId The ID of the office to get rooms for
+   * List rooms within an office
+   * @param officeId The ID of the office
    */
-  public async listRooms(officeId: string): Promise<MessageSendSuccessTS | MessageSendFailureTS> {
+  public async listRooms(officeId: string): Promise<any> {
+    // Emit loading event
+    workspaceResponseHandler.emitLoadingEvent('rooms:loading', { officeId });
+    
+    // NOTE: Using ListRooms variant to match Rust enum.
     const requestPart: WorkspaceProtocolRequestTS = {
-      listRooms: { office_id: officeId }
+      ListRooms: { office_id: officeId }
     };
-    const payload: WorkspaceProtocolPayloadTS = { request: requestPart }; // lowercase 'request'
+    // Construct the full payload expected by the Rust command (PascalCase 'Request')
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Create a new workspace
+   * @param name The workspace name
+   * @param description The workspace description
+   * @param masterPassword The master password for admin operations
+   * @param metadata Optional metadata
+   */
+  public async createWorkspace(name: string, description: string, masterPassword: string, metadata?: Uint8Array): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      CreateWorkspace: {
+        name,
+        description,
+        workspace_master_password: masterPassword,
+        metadata: metadata ? Array.from(metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Update an existing workspace
+   * @param name The workspace name (optional)
+   * @param description The workspace description (optional)
+   * @param masterPassword The master password for admin operations
+   * @param metadata Optional metadata
+   */
+  public async updateWorkspace(name?: string, description?: string, masterPassword?: string, metadata?: Uint8Array): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      UpdateWorkspace: {
+        name,
+        description,
+        workspace_master_password: masterPassword,
+        metadata: metadata ? Array.from(metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Create a new office
+   * @param workspaceId The workspace ID
+   * @param name The office name
+   * @param description The office description
+   * @param mdxContent Optional MDX content
+   * @param metadata Optional metadata
+   */
+  public async createOffice(
+    workspaceId: string,
+    name: string,
+    description: string,
+    mdxContent?: string,
+    metadata?: Uint8Array
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      CreateOffice: {
+        workspace_id: workspaceId,
+        name,
+        description,
+        mdx_content: mdxContent,
+        metadata: metadata ? Array.from(metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Get an office by ID
+   * @param officeId The office ID
+   */
+  public async getOffice(officeId: string): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetOffice: { office_id: officeId }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Update an office
+   * @param officeId The office ID
+   * @param updates The fields to update
+   */
+  public async updateOffice(
+    officeId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      mdxContent?: string;
+      metadata?: Uint8Array;
+    }
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      UpdateOffice: {
+        office_id: officeId,
+        name: updates.name,
+        description: updates.description,
+        mdx_content: updates.mdxContent,
+        metadata: updates.metadata ? Array.from(updates.metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Delete an office
+   * @param officeId The office ID
+   */
+  public async deleteOffice(officeId: string): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      DeleteOffice: { office_id: officeId }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Create a new room
+   * @param officeId The office ID
+   * @param name The room name
+   * @param description The room description
+   * @param mdxContent Optional MDX content
+   * @param metadata Optional metadata
+   */
+  public async createRoom(
+    officeId: string,
+    name: string,
+    description: string,
+    mdxContent?: string,
+    metadata?: Uint8Array
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      CreateRoom: {
+        office_id: officeId,
+        name,
+        description,
+        mdx_content: mdxContent,
+        metadata: metadata ? Array.from(metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Get a room by ID
+   * @param roomId The room ID
+   */
+  public async getRoom(roomId: string): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetRoom: { room_id: roomId }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Update a room
+   * @param roomId The room ID
+   * @param updates The fields to update
+   */
+  public async updateRoom(
+    roomId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      mdxContent?: string;
+      metadata?: Uint8Array;
+    }
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      UpdateRoom: {
+        room_id: roomId,
+        name: updates.name,
+        description: updates.description,
+        mdx_content: updates.mdxContent,
+        metadata: updates.metadata ? Array.from(updates.metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Delete a room
+   * @param roomId The room ID
+   */
+  public async deleteRoom(roomId: string): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      DeleteRoom: { room_id: roomId }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Add a member to an office or room
+   * @param userId The user ID
+   * @param role The user role
+   * @param officeId Optional office ID
+   * @param roomId Optional room ID
+   * @param metadata Optional metadata
+   */
+  public async addMember(
+    userId: string,
+    role: any, // UserRole type
+    officeId?: string,
+    roomId?: string,
+    metadata?: Uint8Array
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      AddMember: {
+        user_id: userId,
+        office_id: officeId,
+        room_id: roomId,
+        role,
+        metadata: metadata ? Array.from(metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Get a member by ID
+   * @param userId The user ID
+   */
+  public async getMember(userId: string): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetMember: { user_id: userId }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Update a member's role
+   * @param userId The user ID
+   * @param role The new role
+   * @param metadata Optional metadata
+   */
+  public async updateMemberRole(
+    userId: string,
+    role: any, // UserRole type
+    metadata?: Uint8Array
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      UpdateMemberRole: {
+        user_id: userId,
+        role,
+        metadata: metadata ? Array.from(metadata) : undefined
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Update a member's permissions
+   * @param userId The user ID
+   * @param domainId The domain ID
+   * @param permissions The permissions to update
+   * @param operation The update operation (Add, Set, Remove)
+   */
+  public async updateMemberPermissions(
+    userId: string,
+    domainId: string,
+    permissions: any[], // Permission[] type
+    operation: 'Add' | 'Set' | 'Remove'
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      UpdateMemberPermissions: {
+        user_id: userId,
+        domain_id: domainId,
+        permissions,
+        operation
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Remove a member from an office or room
+   * @param userId The user ID
+   * @param officeId Optional office ID
+   * @param roomId Optional room ID
+   */
+  public async removeMember(
+    userId: string,
+    officeId?: string,
+    roomId?: string
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      RemoveMember: {
+        user_id: userId,
+        office_id: officeId,
+        room_id: roomId
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * List members in a workspace, office, or room
+   * @param officeId Optional office ID
+   * @param roomId Optional room ID
+   */
+  public async listMembers(officeId?: string, roomId?: string): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      ListMembers: {
+        office_id: officeId,
+        room_id: roomId
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Send a message via workspace protocol
+   * @param contents The message contents (can be any subprotocol)
+   */
+  public async sendMessage(contents: Uint8Array): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      Message: {
+        contents: Array.from(contents)
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
 

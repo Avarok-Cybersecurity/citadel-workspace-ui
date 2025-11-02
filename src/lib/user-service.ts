@@ -1,5 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
 import NotificationService, { NotificationPriority } from './notification-service';
+import { websocketService } from './websocket-service';
+import { getTabData, setTabData, removeTabData } from './tab-context';
+import { connectionManager } from './connection-manager';
 
 // Interface for user registration information
 export interface UserRegistrationInfo {
@@ -11,12 +13,13 @@ export interface UserRegistrationInfo {
 
 /**
  * UserService - provides access to user profile information
+ * Now maintains per-tab user state for proper isolation
  */
 export class UserService {
   private static instance: UserService;
-  private currentUser: UserRegistrationInfo | null = null;
   private notificationService: NotificationService;
   private userChangeHandlers: Array<(user: UserRegistrationInfo | null) => void> = [];
+  private static readonly TAB_USER_KEY = 'current-user';
   
   private constructor() {
     this.notificationService = NotificationService.getInstance();
@@ -39,27 +42,56 @@ export class UserService {
    */
   public async loadUserRegistration(serverAddress: string, cid: string): Promise<UserRegistrationInfo | null> {
     try {
-      // Call the get_registration command from the backend using CID for identification
-      const result = await invoke('get_registration', { 
-        serverAddress,
-        cid // Use the connection ID to identify the user
-      });
+      // First check if we have a tab-selected session that matches
+      const selectedSession = connectionManager.getTabSelectedSession();
       
-      // Parse the result
-      if (result) {
-        const registrationInfo = result as any;
-        this.currentUser = {
-          username: registrationInfo.username,
-          fullName: registrationInfo.full_name,
-          serverAddress: registrationInfo.server_address,
-          serverPassword: registrationInfo.server_password
+      if (selectedSession && selectedSession.serverAddress === serverAddress) {
+        // Use the selected session's user info
+        const userInfo: UserRegistrationInfo = {
+          username: selectedSession.username,
+          fullName: selectedSession.fullName || selectedSession.username,
+          serverAddress: selectedSession.serverAddress,
+          serverPassword: undefined,
         };
+        
+        // Store in tab-specific storage
+        this.setCurrentUser(userInfo);
         
         // Notify all handlers of the user change
         this.notifyUserChange();
         
-        return this.currentUser;
+        return userInfo;
       }
+      
+      // If no matching selected session, try to get account info via request
+      const client = websocketService.getClient();
+      if (!client) {
+        throw new Error('WebSocket client not initialized');
+      }
+
+      // Send GetAccountInformation request
+      await client.sendDirectToInternalService({
+        GetAccountInformation: {
+          request_id: crypto.randomUUID(),
+          cid: cid,
+        },
+      });
+
+      // For now, return a placeholder until we get the response
+      // The actual user info will be updated when we receive the response
+      const placeholderUser = {
+        username: 'Loading...',
+        fullName: 'Loading...',
+        serverAddress,
+        serverPassword: undefined,
+      };
+      
+      this.setCurrentUser(placeholderUser);
+      
+      // Notify all handlers of the user change
+      this.notifyUserChange();
+      
+      return placeholderUser;
     } catch (error) {
       console.error('Error loading user registration:', error);
       this.notificationService.addSystemNotification(
@@ -73,10 +105,17 @@ export class UserService {
   }
   
   /**
-   * Get the current user's registration information
+   * Get the current user's registration information (tab-specific)
    */
   public getCurrentUser(): UserRegistrationInfo | null {
-    return this.currentUser;
+    return getTabData<UserRegistrationInfo>(UserService.TAB_USER_KEY);
+  }
+  
+  /**
+   * Set the current user for this tab
+   */
+  private setCurrentUser(user: UserRegistrationInfo): void {
+    setTabData(UserService.TAB_USER_KEY, user);
   }
   
   /**
@@ -87,8 +126,9 @@ export class UserService {
     this.userChangeHandlers.push(handler);
     
     // If there's already a user loaded, notify the handler immediately
-    if (this.currentUser) {
-      handler(this.currentUser);
+    const currentUser = this.getCurrentUser();
+    if (currentUser) {
+      handler(currentUser);
     }
   }
   
@@ -96,9 +136,10 @@ export class UserService {
    * Notify all registered handlers of user changes
    */
   private notifyUserChange(): void {
+    const currentUser = this.getCurrentUser();
     this.userChangeHandlers.forEach(handler => {
       try {
-        handler(this.currentUser);
+        handler(currentUser);
       } catch (error) {
         console.error('Error in user change handler:', error);
       }
@@ -110,6 +151,7 @@ export class UserService {
    */
   public cleanup(): void {
     this.userChangeHandlers = [];
+    removeTabData(UserService.TAB_USER_KEY);
   }
 }
 

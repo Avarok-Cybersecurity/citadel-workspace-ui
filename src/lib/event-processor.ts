@@ -5,7 +5,8 @@
  * Handles events from the Rust backend, processes them, and updates UI state.
  */
 
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { listen } from './event-emitter';
+import type { UnlistenFn } from './workspace-events';
 import { create } from 'zustand';
 import { generateRequestId } from './workspace-protocol';
 

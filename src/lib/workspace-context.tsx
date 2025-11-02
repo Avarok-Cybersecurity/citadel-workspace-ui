@@ -11,7 +11,7 @@ export interface WorkspaceState {
   currentUser?: {
     id: string;
     username: string;
-    fullName: string;
+    name: string;
   };
   offices: Record<string, Office>;
   rooms: Record<string, Room>;

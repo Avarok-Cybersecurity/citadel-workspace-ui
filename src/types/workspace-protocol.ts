@@ -18,8 +18,8 @@ export enum WorkspaceProtocolPayloadTypeTS {
 }
 
 export interface WorkspaceProtocolPayloadTS {
-  request?: WorkspaceProtocolRequestTS;
-  response?: WorkspaceProtocolResponseTS;
+  Request?: WorkspaceProtocolRequestTS;
+  Response?: WorkspaceProtocolResponseTS;
 }
 
 /**
@@ -31,76 +31,98 @@ export interface MessageRequestTS {
 }
 
 export interface WorkspaceProtocolRequestTS {
-  message?: MessageRequestTS;
-  
+  Message?: MessageRequestTS;
+
+  // GetWorkspace variant (correct command name from Rust protocol)
+  GetWorkspace?: null;
+
+  // Workspace commands
+  CreateWorkspace?: {
+    name: string;
+    description: string;
+    workspace_master_password: string;
+    metadata?: number[]; // Vec<u8> as number[]
+  };
+
+  // Workspace operations
+  UpdateWorkspace?: {
+    name?: string;
+    description?: string;
+    workspace_master_password: string;
+    metadata?: number[]; // Vec<u8> as number[]
+  };
+  DeleteWorkspace?: {
+    workspace_master_password: string;
+  };
+
   // Office operations
-  createOffice?: {
+  CreateOffice?: {
     name: string;
     description: string;
     mdx_content?: string;
   };
-  getOffice?: {
+  GetOffice?: {
     office_id: string;
   };
-  updateOffice?: {
+  UpdateOffice?: {
     office_id: string;
     name?: string;
     description?: string;
     mdx_content?: string;
   };
-  deleteOffice?: {
+  DeleteOffice?: {
     office_id: string;
   };
-  listOffices?: boolean;
-  
+  ListOffices?: null;
+
   // Room operations
-  createRoom?: {
+  CreateRoom?: {
     office_id: string;
     name: string;
     description: string;
     mdx_content?: string;
   };
-  getRoom?: {
+  GetRoom?: {
     room_id: string;
   };
-  updateRoom?: {
+  UpdateRoom?: {
     room_id: string;
     name?: string;
     description?: string;
     mdx_content?: string;
   };
-  deleteRoom?: {
+  DeleteRoom?: {
     room_id: string;
   };
-  listRooms?: {
+  ListRooms?: {
     office_id: string;
   };
-  
+
   // Member operations
-  addMember?: {
+  AddMember?: {
     user_id: string;
     office_id?: string;
     room_id?: string;
     role: UserRoleTS;
   };
-  getMember?: {
+  GetMember?: {
     user_id: string;
   };
-  updateMemberRole?: {
+  UpdateMemberRole?: {
     user_id: string;
     role: UserRoleTS;
   };
-  updateMemberPermissions?: {
+  UpdateMemberPermissions?: {
     user_id: string;
     domain_id: string;
     permissions: PermissionTS[];
     operation: UpdateOperationTS;
   };
-  removeMember?: {
+  RemoveMember?: {
     user_id: string;
     domain_id: string;
   };
-  listMembers?: {
+  ListMembers?: {
     office_id?: string;
     room_id?: string;
   };
@@ -145,9 +167,11 @@ export enum PermissionTS {
 /**
  * Enum alternatives for WorkspaceProtocolResponse
  */
-export type WorkspaceProtocolResponseTS = 
+export type WorkspaceProtocolResponseTS =
   | { success: true }
   | { error: string }
+  | { workspace_initialized: boolean }
+  | { WorkspaceNotInitialized: true }
   | { offices: OfficeTS[] }
   | { rooms: RoomTS[] }
   | { members: UserTS[] }
@@ -166,8 +190,8 @@ export enum UpdateOperationTS {
  */
 export function createMessagePayload(messageContents: Uint8Array): WorkspaceProtocolPayloadTS {
   return {
-    request: {
-      message: {
+    Request: {
+      Message: {
         contents: messageContents
       }
     }
@@ -190,7 +214,7 @@ export function serializeWorkspacePayload(payload: WorkspaceProtocolPayloadTS): 
     }
     return value;
   }));
-  
+
   // Convert to string and then to Uint8Array
   const jsonString = JSON.stringify(payloadCopy);
   return new TextEncoder().encode(jsonString);
@@ -204,7 +228,7 @@ export function serializeWorkspacePayload(payload: WorkspaceProtocolPayloadTS): 
 export function deserializeWorkspacePayload(data: Uint8Array): WorkspaceProtocolPayloadTS {
   // Convert from Uint8Array to string
   const jsonString = new TextDecoder().decode(data);
-  
+
   // Parse JSON with reviver function to handle special types
   return JSON.parse(jsonString, (key, value) => {
     // Check for our special object format that represents a Uint8Array
@@ -213,7 +237,7 @@ export function deserializeWorkspacePayload(data: Uint8Array): WorkspaceProtocol
       if (value.data === '') {
         return new Uint8Array(0);
       }
-      
+
       // Convert from base64 back to Uint8Array for non-empty arrays
       const binaryString = atob(value.data);
       const bytes = new Uint8Array(binaryString.length);

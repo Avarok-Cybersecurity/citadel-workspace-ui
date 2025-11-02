@@ -1,27 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Shield, HelpCircle } from "lucide-react";
+import { Shield, HelpCircle, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { WorkspaceConfig } from "@/types/workspace";
-import { invoke } from "@tauri-apps/api/core";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { websocketService } from "@/lib/websocket-service";
 import { Label } from "@/components/ui/label";
 import { SecuritySettingsValues } from "./SecuritySettings";
 import { SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm } from "@/types";
+import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
+import WorkspaceService from "@/lib/workspace-service";
+import { ConnectRequestTS, ConnectMode, UdpMode } from "@/types";
+import { eventEmitter } from "@/lib/event-emitter";
+import { ConnectionManager } from "@/lib/connection-manager";
+import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 
 interface JoinProps {
   onNext: (cid: string) => void;
   onBack: () => void;
+  defaultWorkspace?: string;
 }
 
-export const Join = ({ onNext, onBack }: JoinProps) => {
+export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
+  const [checkingWorkspace, setCheckingWorkspace] = useState(false);
+  const [showNotInitializedModal, setShowNotInitializedModal] = useState(false);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
@@ -38,13 +47,58 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
   } || { serverAddress: '', password: '' };
 
   const securitySettings = queryClient.getQueryData<SecuritySettingsValues>(['securitySettings']) || {
-    securityLevel: SecurityLevel.Standard,
-    secrecyMode: SecrecyMode.BestEffort,
-    encryptionAlgorithm: EncryptionAlgorithm.AES_GCM_256,
-    kemAlgorithm: KemAlgorithm.Kyber,
-    sigAlgorithm: SigAlgorithm.None,
+    securityLevel: 'Standard',
+    secrecyMode: 'BestEffort',
+    encryptionAlgorithm: 'AES_GCM_256',
+    kemAlgorithm: 'Kyber',
+    sigAlgorithm: 'None',
     headerObfuscatorSettings: {},
     // storeCredentials: false, 
+  };
+
+  // Check workspace initialization status before registration
+  const checkWorkspaceInitialization = async () => {
+    setCheckingWorkspace(true);
+    try {
+      // First, we need to connect temporarily to check workspace status
+      const connectPayload: ConnectRequestTS = {
+        workspaceAddress: serverData.serverAddress,
+        username: "temp_check", // Temporary username for checking
+        password: "temp_check",
+        connectMode: ConnectMode.Fetch,
+        udpMode: UdpMode.Disabled,
+        keepAliveTimeoutMs: 30000,
+        sessionSecuritySettings: {
+          securityLevel: securitySettings.securityLevel,
+          secrecyMode: securitySettings.secrecyMode,
+          encryptionAlgorithm: securitySettings.encryptionAlgorithm,
+          kemAlgorithm: securitySettings.kemAlgorithm,
+          sigAlgorithm: securitySettings.sigAlgorithm,
+          headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
+        },
+        serverPassword: serverData.password || ""
+      };
+
+      // Try to connect and get workspace info
+      try {
+        // Skip workspace initialization check for now
+        // The workspace should be checked after registration/connection
+        console.log("Skipping workspace initialization check for registration");
+        return true;
+      } catch (connectError) {
+        // If connection fails, it might be because no users exist yet
+        // In that case, allow registration to proceed
+        console.info("Temporary connection failed, allowing registration:", connectError);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error checking workspace initialization:", error);
+      // On error, allow registration to proceed
+      return true;
+    } finally {
+      setCheckingWorkspace(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,6 +129,13 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
 
     setIsRegistering(true);
 
+    // Check workspace initialization first
+    const canProceed = await checkWorkspaceInitialization();
+    if (!canProceed) {
+      setIsRegistering(false);
+      return;
+    }
+
     try {
       // Construct the request payload matching Rust structure
       const registerPayload = {
@@ -97,40 +158,142 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
 
       console.info("Register Payload:", JSON.stringify(registerPayload, null, 2));
 
-      // The Rust handler returns a RegisterSuccessTS on success
-      const response = await invoke<{ cid: string, request_id?: string }>("register", registerPayload);
+      // Generate request ID first to avoid race condition
+      const requestId = crypto.randomUUID();
+      
+      // Set up a one-time listener for the registration response BEFORE sending request
+      const responsePromise = new Promise<{ cid: string }>((resolve, reject) => {
+        let resolved = false;
+        
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            eventEmitter.off('websocket-message', handler);
+            reject(new Error('Registration timed out after 10 seconds'));
+          }
+        }, 10000); // Increased timeout
+
+        const handler = (message: any) => {
+          console.log('Registration response received:', message);
+          console.log('Response content:', JSON.stringify(message, null, 2));
+          console.log('Expected requestId:', requestId);
+          
+          // Handle both wrapped and unwrapped responses
+          // Try direct access first (for messages from internal service)
+          // Since connect_after_register is true, we'll receive ConnectSuccess
+          if (message.ConnectSuccess && message.ConnectSuccess.request_id === requestId) {
+            resolved = true;
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            // Store the session for persistence with the CID
+            const connectionManager = ConnectionManager.getInstance();
+            connectionManager.handleAuthSuccess(
+              formData.username,
+              formData.password,
+              formData.fullName,
+              serverData.serverAddress || '127.0.0.1:12349',
+              message.ConnectSuccess.cid
+            );
+            resolve({ cid: message.ConnectSuccess.cid });
+          } else if (message.RegisterFailure && message.RegisterFailure.request_id === requestId) {
+            resolved = true;
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            reject(new Error(message.RegisterFailure.message || 'Registration failed'));
+          } else if (message.WorkspaceError && message.WorkspaceError.request_id === requestId) {
+            resolved = true;
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            if (message.WorkspaceError.error === 'WorkspaceNotInitialized') {
+              setShowNotInitializedModal(true);
+              reject(new Error('Workspace not initialized'));
+            } else {
+              reject(new Error(message.WorkspaceError.message || 'Workspace error'));
+            }
+          } else if (message.InternalServiceError && message.InternalServiceError.request_id === requestId) {
+            resolved = true;
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            reject(new Error(message.InternalServiceError.message || 'Internal service error'));
+          } else {
+            // Also check wrapped format (Response.RegisterSuccess)
+            const response = message.Response || message;
+            if (response !== message) {
+              // It was wrapped, check again
+              // Since connect_after_register is true, we'll receive ConnectSuccess
+              if (response.ConnectSuccess && response.ConnectSuccess.request_id === requestId) {
+                resolved = true;
+                clearTimeout(timeout);
+                eventEmitter.off('websocket-message', handler);
+                // Store the session for persistence with the CID
+                const connectionManager = ConnectionManager.getInstance();
+                connectionManager.handleAuthSuccess(
+                  formData.username,
+                  formData.password,
+                  formData.fullName,
+                  serverData.serverAddress || '127.0.0.1:12349',
+                  response.ConnectSuccess.cid
+                );
+                resolve({ cid: response.ConnectSuccess.cid });
+              } else if (response.RegisterFailure && response.RegisterFailure.request_id === requestId) {
+                resolved = true;
+                clearTimeout(timeout);
+                eventEmitter.off('websocket-message', handler);
+                reject(new Error(response.RegisterFailure.message || 'Registration failed'));
+              } else if (response.ConnectFailure && response.ConnectFailure.request_id === requestId) {
+                resolved = true;
+                clearTimeout(timeout);
+                eventEmitter.off('websocket-message', handler);
+                reject(new Error(response.ConnectFailure.message || 'Connection after registration failed'));
+              }
+            }
+          }
+        };
+
+        // Set up listener for responses
+        eventEmitter.on('websocket-message', handler);
+        console.log('Join: Event listener registered');
+      });
+
+      // Send the registration request with our pre-generated request ID
+      await websocketService.register(
+        requestId,
+        formData.username,
+        formData.password,
+        formData.fullName,
+        {
+          securityLevel: securitySettings.securityLevel,
+          secrecyMode: securitySettings.secrecyMode,
+          encryptionAlgorithm: securitySettings.encryptionAlgorithm,
+          kemAlgorithm: securitySettings.kemAlgorithm,
+          sigAlgorithm: securitySettings.sigAlgorithm,
+          headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
+        }
+      );
+      
+      console.log('Registration request sent with ID:', requestId);
+      
+      // Wait for response
+      const response = await responsePromise;
 
       console.info("Register Response:", response);
 
       toast({
         title: "Registration Successful",
-        description: "Your account has been registered successfully.",
+        description: "Your account has been registered. Connecting to workspace...",
         variant: "default",
       });
 
-      // Optionally store the received CID or other data if needed
-      // queryClient.setQueryData(['connectionInfo'], { cid: response.cid });
-
-      // Pass the connection ID to the next step
-      if (response && response.cid) {
-        console.info(`Calling onNext() with cid: ${response.cid}...`);
-        onNext(response.cid);
-        console.info("onNext() finished.");
-      } else {
-        // Handle cases where response or cid might be missing (shouldn't happen on success)
-        console.error("Registration successful but cid missing in response:", response);
-        toast({
-          title: "Registration Issue",
-          description: "Registration succeeded but failed to get connection ID. Please try logging in.",
-        });
-        // Potentially navigate to login or show an error state
-      }
+      // Since connect_after_register is now true, the connection should be established
+      // Wait a bit longer to ensure connection is established before navigating
+      setTimeout(() => {
+        navigate('/office');
+      }, 2000);
     } catch (error: any) {
       console.error("Registration Error:", error); // Add logging
 
       toast({
-        title: "Registration Failed",
-        description: error.message || "An unknown error occurred during registration.",
+        title: getErrorTitle(error),
+        description: getUserFriendlyErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -146,7 +309,7 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
           <CardHeader>
             <CardTitle className="text-white text-xl">Create Your Profile</CardTitle>
             <CardDescription className="text-gray-300">
-              Create your profile for this workspace
+              {defaultWorkspace ? `Join ${defaultWorkspace} with a new account` : "Create your profile for this workspace"}
             </CardDescription>
           </CardHeader>
 
@@ -274,8 +437,8 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
               >
                 {isRegistering ? (
                   <>
-                    <span className="mr-2">REGISTERING...</span>
-                    <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    REGISTERING...
                   </>
                 ) : "JOIN"}
               </Button>
@@ -283,6 +446,14 @@ export const Join = ({ onNext, onBack }: JoinProps) => {
           </form>
         </Card>
       </div>
+      
+      <WorkspaceNotInitializedModal
+        isOpen={showNotInitializedModal}
+        onReturnToLogin={() => {
+          setShowNotInitializedModal(false);
+          onBack();
+        }}
+      />
     </div>
   );
 };

@@ -12,9 +12,11 @@ import { Label } from "@/components/ui/label";
 interface ServerConnectProps {
   onNext: () => void;
   onCancel?: () => void;
+  defaultServer?: string;
+  title?: string;
 }
 
-export const ServerConnect = ({ onNext, onCancel }: ServerConnectProps) => {
+export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: ServerConnectProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -22,7 +24,7 @@ export const ServerConnect = ({ onNext, onCancel }: ServerConnectProps) => {
   // Get existing data from cache
   const cachedData = queryClient.getQueryData(['serverConnectForm']) as { serverAddress: string; password: string } | undefined;
 
-  const [serverAddress, setServerAddress] = useState(cachedData?.serverAddress || '');
+  const [serverAddress, setServerAddress] = useState(defaultServer || cachedData?.serverAddress || '');
   const [password, setPassword] = useState(cachedData?.password || '');
 
   // Update cache when component mounts to ensure it's initialized
@@ -54,9 +56,9 @@ export const ServerConnect = ({ onNext, onCancel }: ServerConnectProps) => {
       <div className="w-full max-w-md">
         <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-xl">Add a New Workspace</CardTitle>
+            <CardTitle className="text-white text-xl">{title || "Add a New Workspace"}</CardTitle>
             <CardDescription className="text-gray-300">
-              Enter workspace details to get started
+              {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
             </CardDescription>
           </CardHeader>
           
