@@ -1,3 +1,4 @@
+// HMR Test - containerized UI with polling
 console.log("App.tsx loading...");
 
 import { Toaster } from "@/components/ui/toaster";
@@ -94,4 +95,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default App;// Container change test

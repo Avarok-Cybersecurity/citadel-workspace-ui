@@ -27,16 +27,29 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       strictPort: true,
-      host: 'localhost',
+      // Changed from 'localhost' to '0.0.0.0' for Docker container access
+      host: '0.0.0.0',
       hmr: {
         overlay: true,
+        // Explicit client port for HMR WebSocket connection
+        clientPort: 5173,
       },
-      
+
+      // File watching configuration for Docker volumes
+      watch: {
+        // Enable polling for Docker volume mounts
+        usePolling: true,
+        // Poll interval in milliseconds (fallback if env var not set)
+        interval: 100,
+      },
+
       // Allow serving files from citadel-internal-service directory
       fs: {
         allow: [
           // Search up for workspace root
           '..',
+          // Allow access to workspace mount in Docker
+          '/workspace',
         ]
       },
 
@@ -64,6 +77,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        // Explicit alias for WASM client to ensure proper resolution
+        "citadel-internal-service-wasm-client": path.resolve(__dirname, "./node_modules/citadel-internal-service-wasm-client"),
       },
     },
 
