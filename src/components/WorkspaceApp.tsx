@@ -16,6 +16,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { getUserFriendlyErrorMessage } from '@/lib/error-messages';
 import { healthCheckService } from '@/lib/health-check';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
+import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 
 /**
  * WorkspaceApp is the main container component that provides:
@@ -53,6 +54,10 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           await p2pRegistrationService.start({ autoRegisterAll: false });
           console.log('P2P Registration Service started');
+
+          // Auto-connect to all registered peers on startup
+          await p2pAutoConnectService.connectToAllRegisteredPeers();
+          console.log('P2P Auto-Connect initiated for all registered peers');
         } catch (error) {
           console.warn('Failed to start P2P Registration Service:', error);
           // Non-critical - P2P messaging will still work if manually registered
@@ -73,9 +78,25 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
     const connectionService = ConnectionService.getInstance();
     const userService = UserService;
 
+    // Track the last processed CID to prevent redundant workspace reloads
+    // This is critical to prevent flickering when BroadcastChannel sends connection-status
+    let lastProcessedCid: string | null = null;
+
     // Connection change listener - load workspace data when user connects
     connectionService.onConnectionChange((connection) => {
-      if (connection && connection.cid) {
+      // CID 0 is the service connection, not a user session - skip it
+      const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
+      if (connection && connection.cid && cidValue !== 0) {
+        // CRITICAL: Only reload workspace if CID actually changed
+        // This prevents flickering when BroadcastChannel broadcasts connection-status for same CID
+        const cidString = connection.cid.toString();
+        if (lastProcessedCid === cidString) {
+          console.log('WorkspaceApp: Skipping redundant connection update for CID:', cidString);
+          return;
+        }
+        lastProcessedCid = cidString;
+
+        console.log('WorkspaceApp: Valid user session detected, CID:', connection.cid);
         // Set the connection ID in the workspace service
         WorkspaceService.setConnectionId(connection.cid);
 

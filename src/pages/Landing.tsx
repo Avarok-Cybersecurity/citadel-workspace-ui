@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogIn } from "lucide-react";
+import { LogIn, Settings } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
@@ -13,6 +13,7 @@ import { ManageAccountsButton } from "@/components/ManageAccountsButton";
 import { ConnectionManager } from "@/lib/connection-manager";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
 import { LoginConflictModal } from "@/components/LoginConflictModal";
+import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 
 export const Landing = () => {
@@ -32,6 +33,7 @@ export const Landing = () => {
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
   const [orphanSessionCount, setOrphanSessionCount] = useState(0);
   const [showLoginConflict, setShowLoginConflict] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   
   // Check for orphan sessions (don't auto-navigate, just detect)
   useEffect(() => {
@@ -49,8 +51,12 @@ export const Landing = () => {
         // Get the connection manager instance
         const connectionManager = ConnectionManager.getInstance();
 
+        // Wait for connection manager to be ready before getting sessions
+        // This prevents race conditions during component initialization
+        await connectionManager.waitForReady();
+
         // Get active sessions from internal service
-        const activeSessions = await (connectionManager as any).getActiveSessions();
+        const activeSessions = await connectionManager.getActiveSessions();
 
         if (activeSessions && activeSessions.length > 0) {
           console.log('Landing: Found orphan sessions:', activeSessions.length);
@@ -203,9 +209,18 @@ export const Landing = () => {
             </Button>
           </div>
 
-          {/* Account management button */}
-          <div className="mt-8">
+          {/* Account management and settings buttons */}
+          <div className="mt-8 flex gap-3">
             <ManageAccountsButton />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
           </div>
         </div>
       </div>
@@ -234,6 +249,9 @@ export const Landing = () => {
           setShowLoginConflict(false);
         }}
       />
+
+      {/* Settings modal */}
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };

@@ -27,7 +27,7 @@ const NotificationCenter = () => {
   // Get counts of different notification types
   const unreadCount = notifications.filter(n => !n.read).length;
   const messageCount = notifications.filter(n => n.type === NotificationType.MESSAGE && !n.read).length;
-  const connectionCount = notifications.filter(n => n.type === NotificationType.CONNECTION_REQUEST && !n.read).length;
+  const requestCount = notifications.filter(n => n.type === NotificationType.PEER_REGISTRATION && !n.read).length;
   const systemCount = notifications.filter(n => n.type === NotificationType.SYSTEM && !n.read).length;
   
   useEffect(() => {
@@ -117,8 +117,8 @@ const NotificationCenter = () => {
             <TabsTrigger value={NotificationType.MESSAGE} className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
               Messages {messageCount > 0 && `(${messageCount})`}
             </TabsTrigger>
-            <TabsTrigger value={NotificationType.CONNECTION_REQUEST} className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
-              Requests {connectionCount > 0 && `(${connectionCount})`}
+            <TabsTrigger value={NotificationType.PEER_REGISTRATION} className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+              Requests {requestCount > 0 && `(${requestCount})`}
             </TabsTrigger>
             <TabsTrigger value={NotificationType.SYSTEM} className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
               System {systemCount > 0 && `(${systemCount})`}

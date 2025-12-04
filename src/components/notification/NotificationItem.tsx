@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { MessageSquare, UserPlus, Bell } from 'lucide-react';
+import { MessageSquare, Users, Bell } from 'lucide-react';
 import { 
   Card,
   CardContent,
@@ -44,8 +44,8 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
     switch (notification.type) {
       case NotificationType.MESSAGE:
         return <MessageSquare className="h-4 w-4" />;
-      case NotificationType.CONNECTION_REQUEST:
-        return <UserPlus className="h-4 w-4" />;
+      case NotificationType.PEER_REGISTRATION:
+        return <Users className="h-4 w-4" />;
       case NotificationType.SYSTEM:
         return <Bell className="h-4 w-4" />;
       default:
@@ -67,11 +67,26 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
     }
   };
   
+  // Handle card click (for PEER_REGISTRATION cards, opens the modal)
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking buttons or the dismiss X
+    if ((e.target as HTMLElement).closest('button')) return;
+
+    // Call onCardClick if provided in data
+    if (notification.data?.onCardClick) {
+      notification.data.onCardClick();
+    }
+  };
+
+  const isClickable = notification.type === NotificationType.PEER_REGISTRATION && notification.data?.onCardClick;
+
   return (
-    <Card 
-      className={`bg-[#262C4A] border-l-4 ${getBorderColor()} 
-        hover:bg-[#2E355A] transition-colors duration-200 
-        ${notification.read ? 'opacity-80' : 'opacity-100'}`}
+    <Card
+      onClick={handleCardClick}
+      className={`bg-[#262C4A] border-l-4 ${getBorderColor()}
+        hover:bg-[#2E355A] transition-colors duration-200
+        ${notification.read ? 'opacity-80' : 'opacity-100'}
+        ${isClickable ? 'cursor-pointer' : ''}`}
     >
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">

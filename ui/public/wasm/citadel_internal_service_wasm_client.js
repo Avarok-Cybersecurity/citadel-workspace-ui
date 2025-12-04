@@ -216,6 +216,22 @@ function makeMutClosure(arg0, arg1, dtor, f) {
     return real;
 }
 /**
+ * @returns {string}
+ */
+export function get_version() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.get_version();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @returns {Promise<void>}
  */
 export function close_connection() {
@@ -223,57 +239,8 @@ export function close_connection() {
     return ret;
 }
 
-/**
- * @param {string} ws_url
- * @returns {Promise<void>}
- */
-export function init(ws_url) {
-    const ptr0 = passStringToWasm0(ws_url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.init(ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {string} ws_url
- * @returns {Promise<void>}
- */
-export function restart(ws_url) {
-    const ptr0 = passStringToWasm0(ws_url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.restart(ptr0, len0);
-    return ret;
-}
-
-/**
- * @returns {Promise<any>}
- */
-export function next_message() {
-    const ret = wasm.next_message();
-    return ret;
-}
-
-/**
- * Opens a messenger handle for the given CID.
- * This creates an ISM (InterSession Messaging) channel for reliable-ordered messaging.
- * Must be called once at login and maintained via polling (see ensure_messenger_open).
- * @param {string} cid_str
- * @returns {Promise<void>}
- */
-export function open_messenger_for(cid_str) {
-    const ptr0 = passStringToWasm0(cid_str, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.open_messenger_for(ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {any} message
- * @returns {Promise<void>}
- */
-export function send_direct_to_internal_service(message) {
-    const ret = wasm.send_direct_to_internal_service(message);
-    return ret;
+export function main() {
+    wasm.main();
 }
 
 /**
@@ -282,20 +249,6 @@ export function send_direct_to_internal_service(message) {
 export function is_initialized() {
     const ret = wasm.is_initialized();
     return ret !== 0;
-}
-
-/**
- * Ensures a messenger handle is open for the given CID.
- * Returns true if the messenger was just opened, false if already open.
- * Use this for polling to maintain messenger handles across leader/follower tab transitions.
- * @param {string} cid_str
- * @returns {Promise<boolean>}
- */
-export function ensure_messenger_open(cid_str) {
-    const ptr0 = passStringToWasm0(cid_str, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.ensure_messenger_open(ptr0, len0);
-    return ret;
 }
 
 function passArray8ToWasm0(arg, malloc) {
@@ -327,44 +280,74 @@ export function send_p2p_message_reliable(local_cid_str, peer_cid_str, message, 
     return ret;
 }
 
-export function main() {
-    wasm.main();
+/**
+ * @param {string} ws_url
+ * @returns {Promise<void>}
+ */
+export function init(ws_url) {
+    const ptr0 = passStringToWasm0(ws_url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.init(ptr0, len0);
+    return ret;
 }
 
 /**
- * @returns {string}
+ * @returns {Promise<any>}
  */
-export function get_version() {
-    let deferred1_0;
-    let deferred1_1;
-    try {
-        const ret = wasm.get_version();
-        deferred1_0 = ret[0];
-        deferred1_1 = ret[1];
-        return getStringFromWasm0(ret[0], ret[1]);
-    } finally {
-        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-    }
+export function next_message() {
+    const ret = wasm.next_message();
+    return ret;
 }
 
-function __wbg_adapter_6(arg0, arg1) {
+/**
+ * @param {any} message
+ * @returns {Promise<void>}
+ */
+export function send_direct_to_internal_service(message) {
+    const ret = wasm.send_direct_to_internal_service(message);
+    return ret;
+}
+
+/**
+ * @param {string} ws_url
+ * @returns {Promise<void>}
+ */
+export function restart(ws_url) {
+    const ptr0 = passStringToWasm0(ws_url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.restart(ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {string} cid_str
+ * @returns {Promise<void>}
+ */
+export function open_p2p_connection(cid_str) {
+    const ptr0 = passStringToWasm0(cid_str, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.open_p2p_connection(ptr0, len0);
+    return ret;
+}
+
+function __wbg_adapter_8(arg0, arg1, arg2) {
+    wasm.closure405_externref_shim(arg0, arg1, arg2);
+}
+
+function __wbg_adapter_11(arg0, arg1, arg2) {
+    wasm.closure281_externref_shim(arg0, arg1, arg2);
+}
+
+function __wbg_adapter_14(arg0, arg1) {
     wasm.wasm_bindgen__convert__closures_____invoke__hffef68bb67144b57(arg0, arg1);
 }
 
-function __wbg_adapter_9(arg0, arg1, arg2) {
-    wasm.closure455_externref_shim(arg0, arg1, arg2);
-}
-
-function __wbg_adapter_12(arg0, arg1, arg2) {
-    wasm.closure389_externref_shim(arg0, arg1, arg2);
-}
-
 function __wbg_adapter_17(arg0, arg1, arg2) {
-    wasm.closure220_externref_shim(arg0, arg1, arg2);
+    wasm.closure473_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_97(arg0, arg1, arg2, arg3) {
-    wasm.closure484_externref_shim(arg0, arg1, arg2, arg3);
+function __wbg_adapter_96(arg0, arg1, arg2, arg3) {
+    wasm.closure498_externref_shim(arg0, arg1, arg2, arg3);
 }
 
 const __wbindgen_enum_BinaryType = ["blob", "arraybuffer"];
@@ -489,7 +472,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_97(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_96(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -670,29 +653,29 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_wbindgenthrow_451ec1a8469d7eb6 = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
     };
-    imports.wbg.__wbindgen_cast_13f76f7c228ed64d = function(arg0, arg1) {
-        // Cast intrinsic for `Closure(Closure { dtor_idx: 388, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 389, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-        const ret = makeMutClosure(arg0, arg1, 388, __wbg_adapter_12);
-        return ret;
-    };
     imports.wbg.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
         // Cast intrinsic for `Ref(String) -> Externref`.
         const ret = getStringFromWasm0(arg0, arg1);
         return ret;
     };
-    imports.wbg.__wbindgen_cast_914cd65ff13cb409 = function(arg0, arg1) {
-        // Cast intrinsic for `Closure(Closure { dtor_idx: 219, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 220, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-        const ret = makeMutClosure(arg0, arg1, 219, __wbg_adapter_17);
+    imports.wbg.__wbindgen_cast_3a57af0ee4357ed1 = function(arg0, arg1) {
+        // Cast intrinsic for `Closure(Closure { dtor_idx: 490, function: Function { arguments: [], shim_idx: 491, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+        const ret = makeMutClosure(arg0, arg1, 490, __wbg_adapter_14);
         return ret;
     };
-    imports.wbg.__wbindgen_cast_a1bd7324ce89ada8 = function(arg0, arg1) {
-        // Cast intrinsic for `Closure(Closure { dtor_idx: 454, function: Function { arguments: [Externref], shim_idx: 455, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-        const ret = makeMutClosure(arg0, arg1, 454, __wbg_adapter_9);
+    imports.wbg.__wbindgen_cast_3bf4b741a108bc57 = function(arg0, arg1) {
+        // Cast intrinsic for `Closure(Closure { dtor_idx: 472, function: Function { arguments: [Externref], shim_idx: 473, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+        const ret = makeMutClosure(arg0, arg1, 472, __wbg_adapter_17);
         return ret;
     };
-    imports.wbg.__wbindgen_cast_d8da95fbce60ee54 = function(arg0, arg1) {
-        // Cast intrinsic for `Closure(Closure { dtor_idx: 472, function: Function { arguments: [], shim_idx: 473, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-        const ret = makeMutClosure(arg0, arg1, 472, __wbg_adapter_6);
+    imports.wbg.__wbindgen_cast_95bb459024be0c5f = function(arg0, arg1) {
+        // Cast intrinsic for `Closure(Closure { dtor_idx: 280, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 281, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+        const ret = makeMutClosure(arg0, arg1, 280, __wbg_adapter_11);
+        return ret;
+    };
+    imports.wbg.__wbindgen_cast_c271982eb6baaf56 = function(arg0, arg1) {
+        // Cast intrinsic for `Closure(Closure { dtor_idx: 404, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 405, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+        const ret = makeMutClosure(arg0, arg1, 404, __wbg_adapter_8);
         return ret;
     };
     imports.wbg.__wbindgen_init_externref_table = function() {
@@ -762,7 +745,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (typeof module_or_path === 'undefined') {
-        module_or_path = new URL('citadel_internal_service_wasm_client_bg.wasm?v=1764790467', import.meta.url);
+        module_or_path = new URL('citadel_internal_service_wasm_client_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

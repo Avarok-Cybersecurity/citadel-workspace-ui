@@ -14,6 +14,7 @@ interface ConnectionRetryModalProps {
   errorMessage?: string;
   onRetry?: () => Promise<void>;
   maxRetries?: number;
+  maxBackoffSeconds?: number; // Maximum backoff time in seconds (default: 300 = 5 minutes)
 }
 
 export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
@@ -21,16 +22,19 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   onClose,
   errorMessage = "Failed to connect to the workspace server",
   onRetry,
-  maxRetries = 3
+  maxRetries = 10, // Increased for longer server startup times
+  maxBackoffSeconds = 300 // 5 minutes max
 }) => {
   const userFriendlyError = errorMessage ? getUserFriendlyErrorMessage(errorMessage) : "Unable to connect to the workspace server.";
   const [countdown, setCountdown] = useState(0);
-  const [isRetrying, setIsRetrying] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const { toast } = useToast();
 
   // Calculate retry delay based on attempt number (exponential backoff)
+  // Starts at 2s, then 4s, 8s, 16s, 32s, 64s, 128s, 256s (capped at maxBackoffSeconds)
   const getRetryDelay = (attempt: number) => {
-    return Math.min(1000 * Math.pow(2, attempt - 1), 30000); // Max 30 seconds
+    const baseDelay = 2000; // Start with 2 seconds
+    return Math.min(baseDelay * Math.pow(2, attempt - 1), maxBackoffSeconds * 1000);
   };
 
   const {
@@ -63,33 +67,45 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
       },
       onRetry: (attemptNum) => {
         console.log(`Retry attempt ${attemptNum} of ${maxRetries}`);
-        setIsRetrying(true);
       }
     }
   );
 
+  // Initialize retry when modal opens
+  useEffect(() => {
+    if (isOpen && !hasInitialized && attempt === 0) {
+      setHasInitialized(true);
+      // Start the first connection attempt
+      execute();
+    }
+
+    // Reset when modal closes
+    if (!isOpen && hasInitialized) {
+      setHasInitialized(false);
+    }
+  }, [isOpen, hasInitialized, attempt, execute]);
+
   // Handle countdown timer for auto-retry
   useEffect(() => {
-    if (!isOpen || isLoading || attempt >= maxRetries) return;
+    // Only start countdown after first attempt fails and we have more retries left
+    if (!isOpen || isLoading || attempt === 0 || attempt >= maxRetries) return;
 
-    const retryDelay = getRetryDelay(attempt + 1);
-    let startTime = Date.now();
+    const retryDelay = getRetryDelay(attempt);
+    const startTime = Date.now();
     setCountdown(Math.ceil(retryDelay / 1000));
 
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
-
       const remainingSeconds = Math.ceil((retryDelay - elapsed) / 1000);
       setCountdown(Math.max(remainingSeconds, 0));
 
       if (elapsed >= retryDelay && attempt < maxRetries) {
-        setIsRetrying(false);
         retryConnection();
       }
     };
 
     const interval = setInterval(updateProgress, 100);
-    
+
     return () => clearInterval(interval);
   }, [isOpen, attempt, maxRetries, isLoading, retryConnection]);
 
@@ -107,9 +123,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   }, [onClose]);
 
   const handleManualRetry = () => {
-    setProgress(0);
     setCountdown(0);
-    setIsRetrying(false);
     retryConnection();
   };
 
@@ -136,27 +150,36 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Attempting to reconnect...</span>
+                <span>Attempting to reconnect... (attempt {attempt} of {maxRetries})</span>
               </div>
             ) : attempt >= maxRetries ? (
               <div className="text-destructive">
                 Failed to reconnect after {maxRetries} attempts
               </div>
+            ) : attempt > 0 ? (
+              <div>
+                Attempt {attempt} failed. Waiting to retry...
+              </div>
             ) : (
               <div>
-                Retry attempt {attempt + 1} of {maxRetries}
+                Connecting...
               </div>
             )}
           </div>
 
           {/* Countdown with spinner */}
-          {!isLoading && attempt < maxRetries && (
+          {!isLoading && attempt > 0 && attempt < maxRetries && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span>Next retry in:</span>
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
-                  <span className="font-mono">{countdown}s</span>
+                  <span className="font-mono">
+                    {countdown >= 60
+                      ? `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
+                      : `${countdown}s`
+                    }
+                  </span>
                 </div>
               </div>
             </div>

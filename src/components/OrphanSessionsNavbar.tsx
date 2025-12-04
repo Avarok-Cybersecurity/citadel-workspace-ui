@@ -8,6 +8,8 @@ import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
 import { useToast } from "@/hooks/use-toast";
 import { setSelectedUser } from "@/lib/tab-context";
+import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
+import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 
 interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -29,8 +31,12 @@ export const OrphanSessionsNavbar = () => {
     try {
       const connectionManager = ConnectionManager.getInstance();
 
+      // Wait for connection manager to be ready before getting sessions
+      // This prevents race conditions during component initialization
+      await connectionManager.waitForReady();
+
       // Get active sessions from internal service
-      const activeSessions = await (connectionManager as any).getActiveSessions();
+      const activeSessions = await connectionManager.getActiveSessions();
 
       // Get stored sessions to map workspace names
       const storedSessions = connectionManager.getStoredSessions();
@@ -57,6 +63,24 @@ export const OrphanSessionsNavbar = () => {
 
       setSessions(sessionsWithWorkspace);
       console.log('OrphanSessionsNavbar: Loaded active sessions:', sessionsWithWorkspace);
+
+      // Add ALL active sessions to WASM connection manager for P2P messaging support
+      // This ensures messenger handles are maintained for all sessions, not just the current one
+      for (const session of sessionsWithWorkspace) {
+        try {
+          await wasmConnectionManager.addSession(session.cid);
+          console.log('OrphanSessionsNavbar: Added session to WASM manager:', session.cid);
+        } catch (err) {
+          console.error('OrphanSessionsNavbar: Failed to add session to WASM manager:', session.cid, err);
+        }
+
+        // Sync peer connections from GetSessions data to p2pRegistrationService
+        // This is more reliable than ListRegisteredPeers when sessions are claimed/switched
+        if (session.peer_connections) {
+          p2pRegistrationService.syncPeerConnectionsFromSession(session.peer_connections);
+          console.log('OrphanSessionsNavbar: Synced peer connections for session:', session.cid);
+        }
+      }
     } catch (error) {
       console.error('OrphanSessionsNavbar: Failed to load active sessions:', error);
       setSessions([]);
@@ -110,6 +134,15 @@ export const OrphanSessionsNavbar = () => {
       // Set the connection ID in WorkspaceService (the session is already connected/claimed)
       WorkspaceService.setConnectionId(session.cid);
 
+      // Start WASM connection manager for this CID (handles leader/follower transitions)
+      try {
+        await wasmConnectionManager.start(session.cid);
+        console.log('OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid);
+      } catch (error) {
+        console.error('OrphanSessionsNavbar: Failed to start WASM connection manager:', error);
+        // Don't block navigation - P2P messaging may not be immediately needed
+      }
+
       // Trigger workspace loading
       WorkspaceService.loadWorkspace();
       WorkspaceService.listOffices();
@@ -145,6 +178,11 @@ export const OrphanSessionsNavbar = () => {
 
     try {
       console.log('OrphanSessionsNavbar: Disconnecting session:', disconnectTarget.session.cid);
+
+      // Stop WASM connection manager if this is the current session
+      if (wasmConnectionManager.getCurrentCid() === disconnectTarget.session.cid) {
+        wasmConnectionManager.stop();
+      }
 
       // Disconnect the specific session via WebSocket service
       await websocketService.disconnect(disconnectTarget.session.cid);

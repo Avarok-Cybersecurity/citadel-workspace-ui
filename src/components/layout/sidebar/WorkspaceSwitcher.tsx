@@ -323,20 +323,20 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
   return (
     <>
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger asChild className="-ml-2">
+        <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center gap-3 py-2 hover:bg-[#E5DEFE] transition-colors rounded-r-md w-[calc(100%+0.5rem)] group bg-transparent"
+            className="flex items-center gap-3 py-2 hover:bg-[#E5DEFE] transition-colors rounded-md w-full group bg-transparent pl-3"
             disabled={isSwitching}
           >
             {isInitials ? (
-              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white ml-2">
+              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white">
                 {workspaceLogo || getWorkspaceInitials(workspaceName || currentWorkspace?.username || "W")}
               </div>
             ) : (
               <img
                 src={workspaceLogo || "/placeholder.svg"}
                 alt={workspaceName || currentWorkspace?.username || "Workspace"}
-                className="w-8 h-8 rounded ml-2"
+                className="w-8 h-8 rounded"
               />
             )}
             <div className="flex-1 text-left">
@@ -364,7 +364,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
         <DropdownMenuContent
           align="start"
           sideOffset={0}
-          className="w-[calc(var(--radix-dropdown-menu-trigger-width)+0.5rem)] -ml-2 bg-[#252424] border border-gray-800 animate-slide-down"
+          className="w-[var(--radix-dropdown-menu-trigger-width)] bg-[#252424] border border-gray-800 animate-slide-down"
           style={{ "--trigger-width": "var(--radix-dropdown-menu-trigger-width)" } as React.CSSProperties}
         >
           {/* Group workspaces by server */}
@@ -387,7 +387,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
                 <DropdownMenuItem
                   key={workspace.id}
                   onClick={() => handleWorkspaceChange(workspace)}
-                  className="flex items-center gap-3 py-3 hover:bg-[#E5DEFE] transition-all cursor-pointer text-white w-full pl-2 group bg-transparent workspace-item-hover"
+                  className="flex items-center gap-3 py-3 hover:bg-[#E5DEFE] transition-all cursor-pointer text-white w-full pl-3 group bg-transparent workspace-item-hover"
                   disabled={isSwitching}
                 >
                   <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#6E59A5] text-white text-sm font-semibold">
@@ -419,7 +419,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
           <div className="border-t border-gray-700">
             <DropdownMenuItem
               onClick={handleAddWorkspace}
-              className="flex items-center gap-3 py-3 hover:bg-[#E5DEFE] transition-colors cursor-pointer text-white w-full pl-2 group bg-transparent"
+              className="flex items-center gap-3 py-3 hover:bg-[#E5DEFE] transition-colors cursor-pointer text-white w-full pl-3 group bg-transparent"
             >
               <div className="w-8 h-8 rounded bg-[#6E59A5] flex items-center justify-center">
                 <Server className="w-5 h-5" />
@@ -429,7 +429,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
             {availableWorkspaces.length > 0 && (
               <DropdownMenuItem
                 onClick={handleManageAccounts}
-                className="flex items-center gap-3 py-3 hover:bg-[#E5DEFE] transition-colors cursor-pointer text-white w-full pl-2 group bg-transparent"
+                className="flex items-center gap-3 py-3 hover:bg-[#E5DEFE] transition-colors cursor-pointer text-white w-full pl-3 group bg-transparent"
               >
                 <div className="w-8 h-8 rounded bg-[#444A6C] flex items-center justify-center">
                   <Settings className="w-5 h-5" />

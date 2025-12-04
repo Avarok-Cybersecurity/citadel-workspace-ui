@@ -3,12 +3,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, UserPlus, UserCheck, RefreshCw, Loader2, Signal } from 'lucide-react';
+import { Users, UserPlus, UserCheck, RefreshCw, Loader2, Signal, Clock } from 'lucide-react';
 import { websocketService } from '@/lib/websocket-service';
 import { connectionManager } from '@/lib/connection-manager';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { useWorkspace } from '@/lib/workspace-context';
+import { peerRegistrationStore, OutgoingPeerRequest } from '@/lib/peer-registration-store';
+import { getSelectedUser } from '@/lib/tab-context';
 
 interface Peer {
   cid: string;
@@ -26,58 +28,45 @@ interface PeerDiscoveryModalProps {
 export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, onClose }) => {
   const [peers, setPeers] = useState<Peer[]>([]);
   const [registeredPeers, setRegisteredPeers] = useState<Set<string>>(new Set());
+  const [outgoingRequests, setOutgoingRequests] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
-  const [registeringPeer, setRegisteringPeer] = useState<string | null>(null);
-  const [incomingRegistrations, setIncomingRegistrations] = useState<Map<string, any>>(new Map());
   const { toast } = useToast();
   const { state } = useWorkspace();
   
   // Get current connection CID and username from tab-specific session
-  const currentCid = connectionManager.getConnectionInfo()?.cid || null;
+  // Priority: 1) Tab context selectedCid/selectedUsername (set during session switch), 2) StoredSession, 3) Global connection
+  const tabSelection = getSelectedUser();
   const tabSession = connectionManager.getTabSelectedSession();
-  const currentUsername = tabSession?.username || state.currentUser?.username || 'Unknown';
+  const currentCid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
+  const currentUsername = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
 
   useEffect(() => {
     if (isOpen) {
       discoverPeers();
+      // Load initial outgoing requests
+      setOutgoingRequests(peerRegistrationStore.getOutgoingRequestCids());
     }
   }, [isOpen]);
 
+  // Listen for outgoing request updates
+  useEffect(() => {
+    const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<string> }) => {
+      setOutgoingRequests(data.cids);
+    };
+
+    eventEmitter.on('outgoing-peer-requests:updated', handleOutgoingUpdate);
+    return () => {
+      eventEmitter.off('outgoing-peer-requests:updated', handleOutgoingUpdate);
+    };
+  }, []);
+
   // Set up listener for incoming registration notifications
+  // Delegate to peerRegistrationStore for persistence and non-disruptive UX
   useEffect(() => {
     const handleIncomingRegistration = (message: any) => {
       if (message.PeerRegisterNotification) {
-        const notification = message.PeerRegisterNotification;
-        const peerCid = notification.peer_cid;
-        
-        // Store the incoming registration
-        setIncomingRegistrations(prev => new Map(prev).set(peerCid, notification));
-        
-        toast({
-          title: "Registration Request",
-          description: `Peer ${peerCid.slice(0, 8)}... wants to connect`,
-          className: "bg-[#343A5C] border-yellow-600 text-yellow-400",
-          action: (
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-green-600 text-green-400"
-                onClick={() => acceptRegistration(peerCid)}
-              >
-                Accept
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-red-600 text-red-400"
-                onClick={() => rejectRegistration(peerCid)}
-              >
-                Reject
-              </Button>
-            </div>
-          ),
-        });
+        // Delegate to store - handles persistence, deduplication, and UI updates via badge
+        peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification);
       }
     };
 
@@ -218,8 +207,10 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       
       const registered = new Set<string>();
       if (response.peers) {
-        response.peers.forEach((p: any) => {
-          registered.add(p.cid.toString());
+        // peers is a HashMap<u64, PeerInformation>, not an array
+        // Keys are the peer CIDs
+        Object.keys(response.peers).forEach((peerCid: string) => {
+          registered.add(peerCid);
         });
       }
       setRegisteredPeers(registered);
@@ -228,7 +219,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     }
   };
 
-  const registerWithPeer = async (peerCid: string) => {
+  const registerWithPeer = async (peerCid: string, peerUsername: string) => {
     if (!currentCid) {
       toast({
         title: "Not Connected",
@@ -238,7 +229,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       return;
     }
 
-    setRegisteringPeer(peerCid);
+    // Fire-and-forget pattern: send request, add to outgoing, show "Awaiting Response..."
     try {
       const requestId = crypto.randomUUID();
       const request = {
@@ -256,74 +247,33 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
             },
             header_obfuscator_settings: "Disabled"
           },
-          connect_after_register: true,
+          connect_after_register: false,
           peer_session_password: null
         }
       };
 
-      // Set up response handler before sending request
-      const responsePromise = new Promise<any>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Registration request timed out'));
-        }, 10000);
-
-        const handleMessage = (message: any) => {
-          if (message.PeerRegisterSuccess && message.PeerRegisterSuccess.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            resolve(message.PeerRegisterSuccess);
-          } else if (message.PeerRegisterFailure && message.PeerRegisterFailure.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            reject(new Error(message.PeerRegisterFailure.message || 'Registration failed'));
-          }
-        };
-
-        eventEmitter.on('websocket-message', handleMessage);
+      // Add to outgoing requests store (persisted to LocalDB)
+      const now = Date.now();
+      await peerRegistrationStore.addOutgoingRequest({
+        id: requestId,
+        fromCid: currentCid.toString(),
+        toCid: peerCid,
+        peerUsername: peerUsername,
+        timestamp: now,
+        timeLastSent: now
       });
 
-      // Send the registration request
+      // Send the registration request (fire-and-forget - no timeout)
       await websocketService.sendMessage(request);
-      
-      try {
-        // Wait for response
-        const response = await responsePromise;
-        
-        toast({
-          title: "Registration Successful",
-          description: `Successfully registered with peer ${peerCid.slice(0, 8)}...`,
-          className: "bg-[#343A5C] border-green-600 text-green-400",
-        });
 
-        // Add to registered peers set
-        setRegisteredPeers(prev => new Set([...prev, peerCid]));
+      toast({
+        title: "Request Sent",
+        description: `Connection request sent to ${peerUsername}. They will receive it when online.`,
+        className: "bg-[#343A5C] border-purple-600 text-purple-400",
+      });
 
-        // If connect_after_register was true, open P2P connection
-        if (request.PeerRegister.connect_after_register) {
-          try {
-            await websocketService.openP2PConnection(currentCid, peerCid);
-            toast({
-              title: "P2P Connected",
-              description: "P2P connection established",
-              className: "bg-[#343A5C] border-blue-600 text-blue-400",
-            });
-          } catch (connErr) {
-            console.error('Failed to open P2P connection:', connErr);
-          }
-        }
-      } catch (error) {
-        console.error('Registration failed:', error);
-        toast({
-          title: "Registration Failed",
-          description: error instanceof Error ? error.message : "Could not register with peer",
-          variant: "destructive",
-        });
-      }
-
-      // Refresh the lists after a short delay
-      setTimeout(() => {
-        loadRegisteredPeers();
-      }, 1000);
+      // The peerRegistrationStore handles PeerRegisterSuccess/Failure events
+      // and will automatically remove from outgoing + update UI via event emitter
     } catch (error) {
       console.error('Failed to send registration request:', error);
       toast({
@@ -331,41 +281,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         description: "Could not send registration request",
         variant: "destructive",
       });
-    } finally {
-      setRegisteringPeer(null);
     }
-  };
-
-  const acceptRegistration = async (peerCid: string) => {
-    // For now, auto-accept by registering back with the peer
-    // In a real implementation, you'd send an accept response
-    const registration = incomingRegistrations.get(peerCid);
-    if (registration) {
-      // Register back with the peer to complete mutual registration
-      await registerWithPeer(peerCid);
-      
-      // Remove from incoming registrations
-      setIncomingRegistrations(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(peerCid);
-        return newMap;
-      });
-    }
-  };
-
-  const rejectRegistration = (peerCid: string) => {
-    // Remove from incoming registrations
-    setIncomingRegistrations(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(peerCid);
-      return newMap;
-    });
-    
-    toast({
-      title: "Registration Rejected",
-      description: `Rejected connection from ${peerCid.slice(0, 8)}...`,
-      className: "bg-[#343A5C] border-red-600 text-red-400",
-    });
   };
 
   const getUserInitial = (username: string) => {
@@ -453,19 +369,24 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                           <UserCheck className="h-3 w-3 mr-1" />
                           Connected
                         </Badge>
+                      ) : outgoingRequests.has(peer.cid) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="border-yellow-600/50 text-yellow-400 cursor-not-allowed"
+                        >
+                          <Clock className="h-3 w-3 mr-1 animate-pulse" />
+                          Awaiting Response...
+                        </Button>
                       ) : (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => registerWithPeer(peer.cid)}
-                          disabled={registeringPeer === peer.cid}
+                          onClick={() => registerWithPeer(peer.cid, peer.username)}
                           className="border-purple-600 text-purple-400 hover:bg-purple-600 hover:text-white"
                         >
-                          {registeringPeer === peer.cid ? (
-                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          ) : (
-                            <UserPlus className="h-3 w-3 mr-1" />
-                          )}
+                          <UserPlus className="h-3 w-3 mr-1" />
                           Connect
                         </Button>
                       )}

@@ -5,6 +5,7 @@ import WorkspaceService from './workspace-service';
 import { broadcastChannelService } from './broadcast-channel-service';
 import { healthCheckService } from './health-check';
 import { getTabData, setTabData, removeTabData, setSelectedUser, getSelectedUser, clearSelectedUser } from './tab-context';
+import { peerRegistrationStore } from './peer-registration-store';
 // Remove static import to avoid conflict with dynamic import in websocket-service
 // import { parseAndFormatMixedContent } from './wasm-debug-bridge';
 import { 
@@ -19,6 +20,7 @@ import {
   GetSessionsResponse
 } from '@/types/session-types';
 import { formatForDebug } from './debug-formatter';
+import { serverAutoConnectService } from './server-auto-connect-service';
 
 /**
  * ConnectionManager handles persistent connection management across sessions
@@ -35,6 +37,15 @@ export class ConnectionManager {
   private currentConnectionInfo: ConnectionInfo | null = null;
   private readyPromise: Promise<void> | null = null;
   private readyResolve: (() => void) | null = null;
+
+  // Request deduplication and caching for getActiveSessions()
+  private pendingGetSessions: Promise<ActiveSession[]> | null = null;
+  private cachedSessions: ActiveSession[] | null = null;
+  private cachedSessionsTimestamp: number = 0;
+  private readonly CACHE_TTL_MS = 2000; // 2 second cache
+
+  // Concurrency guard to prevent duplicate connection attempts
+  private connectionAttempts: Set<string> = new Set();
 
   private constructor() {
     // Create a promise that resolves when initialization is complete
@@ -85,7 +96,16 @@ export class ConnectionManager {
       
       // Load stored sessions
       await this.loadStoredSessions();
-      
+
+      // Initialize peer registration store for pending connection requests
+      try {
+        await peerRegistrationStore.initialize();
+        console.log('ConnectionManager: Peer registration store initialized');
+      } catch (error) {
+        console.warn('ConnectionManager: Failed to initialize peer registration store', error);
+        // Continue even if this fails - it's not critical
+      }
+
       // Clear stored CIDs on page reload to force fresh connections
       // This prevents using stale CIDs from previous WebSocket connections
       if (this.storedSessions.sessions.length > 0) {
@@ -98,7 +118,15 @@ export class ConnectionManager {
       
       this.isInitialized = true;
       console.log('ConnectionManager: Initialized successfully');
-      console.log('ConnectionManager: Auto-reconnect disabled - connections must be initiated explicitly');
+
+      // Initialize server auto-connect service
+      try {
+        await serverAutoConnectService.init();
+        console.log('ConnectionManager: Server auto-connect service initialized');
+      } catch (error) {
+        console.warn('ConnectionManager: Failed to initialize server auto-connect service:', error);
+        // Continue even if this fails - it's not critical
+      }
 
       // Resolve ready promise to unblock waiting callers
       if (this.readyResolve) {
@@ -348,26 +376,62 @@ export class ConnectionManager {
         session.lastConnected = Date.now();
         await this.storeSession(session);
         console.log('ConnectionManager: Updated stored session with CID:', cid);
+
+        // Notify auto-connect service of successful authentication
+        eventEmitter.emit('auth:success', { cid, username: session.username });
       }
     }
   }
 
   /**
-   * Get active sessions from the internal service
+   * Get active sessions from the internal service.
+   * Uses request deduplication and short-term caching to prevent concurrent requests.
    */
   public async getActiveSessions(): Promise<ActiveSession[]> {
+    // Check cache first (2 second TTL)
+    const now = Date.now();
+    if (this.cachedSessions && (now - this.cachedSessionsTimestamp) < this.CACHE_TTL_MS) {
+      console.log('ConnectionManager: Returning cached active sessions');
+      return this.cachedSessions;
+    }
+
+    // If a request is already in flight, reuse it (deduplication)
+    if (this.pendingGetSessions) {
+      console.log('ConnectionManager: Reusing pending getActiveSessions request');
+      return this.pendingGetSessions;
+    }
+
+    // Create the actual request
+    this.pendingGetSessions = this._fetchActiveSessions();
+
+    try {
+      const result = await this.pendingGetSessions;
+      // Cache the result
+      this.cachedSessions = result;
+      this.cachedSessionsTimestamp = Date.now();
+      return result;
+    } finally {
+      // Clear pending request so next call after cache expires makes fresh request
+      this.pendingGetSessions = null;
+    }
+  }
+
+  /**
+   * Internal method that actually fetches active sessions from the backend
+   */
+  private async _fetchActiveSessions(): Promise<ActiveSession[]> {
     try {
       console.log('ConnectionManager: Getting active sessions from internal service');
-      
+
       const requestId = crypto.randomUUID();
       const request: GetSessionsRequest = {
         request_id: requestId
       };
-      
+
       // Create promise for response
       const responsePromise = new Promise<GetSessionsResponse>((resolve, reject) => {
         this.pendingRequests.set(requestId, { resolve, reject });
-        
+
         // Set timeout
         setTimeout(() => {
           if (this.pendingRequests.has(requestId)) {
@@ -376,16 +440,16 @@ export class ConnectionManager {
           }
         }, 10000);
       });
-      
+
       // Send request
       await websocketService.sendMessage({
         GetSessions: request
       });
-      
+
       // Wait for response
       const response = await responsePromise;
       console.log('ConnectionManager: Active sessions:', response.sessions);
-      
+
       return response.sessions || [];
     } catch (error) {
       console.error('ConnectionManager: Failed to get active sessions', error);
@@ -533,41 +597,24 @@ export class ConnectionManager {
       session = this.storedSessions.sessions[activeIndex];
       console.log('ConnectionManager: Auto-reconnecting with default session index:', activeIndex);
     }
-    
-    if (session) {
-      // Check if this session is already active
-      const activeSession = activeSessions.find(
-        activeSession => 
-          activeSession.username === session.username && 
-          activeSession.server_address === session.serverAddress
-      );
-      
-      if (activeSession) {
-        console.log('ConnectionManager: Session already active for', session.username);
-        console.log('ConnectionManager: Active session CID:', activeSession.cid);
-        
-        // Use the active session's CID directly
-        try {
-          // Update our connection state with the active session's CID
-          await this.handleSuccessfulConnection(activeSession.cid.toString(), false);
-          
-          // Update the stored session with the active CID if it's different
-          if (session.cid !== activeSession.cid.toString()) {
-            session.cid = activeSession.cid.toString();
-            session.lastConnected = Date.now();
-            await this.storeSession(session);
-            console.log('ConnectionManager: Updated stored session with active CID');
-          }
-          
-          console.log('ConnectionManager: Successfully connected using existing active session');
-          return;
-        } catch (error) {
-          console.error('ConnectionManager: Failed to use active session:', error);
-        }
-      }
-      
-      console.log('ConnectionManager: Attempting auto-reconnect for', session.username);
-      
+
+    if (!session) {
+      return;
+    }
+
+    // GUARD: Prevent concurrent connection attempts for same user
+    const connectionKey = `${session.username}@${session.serverAddress}`;
+    if (this.connectionAttempts.has(connectionKey)) {
+      console.log(`ConnectionManager: Connection already in progress for ${connectionKey}`);
+      return;
+    }
+
+    // Session checking is now handled automatically by websocketService.connect()
+    console.log('ConnectionManager: Attempting auto-reconnect for', session.username);
+
+    try {
+      this.connectionAttempts.add(connectionKey);
+
       try {
         // Wait for service to be healthy before attempting connection
         console.log('ConnectionManager: Checking service health before reconnect...');
@@ -683,6 +730,9 @@ export class ConnectionManager {
           console.log('ConnectionManager: Max reconnection attempts reached, giving up');
         }
       }
+    } finally {
+      // Always clean up the connection attempt guard
+      this.connectionAttempts.delete(connectionKey);
     }
   }
 
@@ -734,6 +784,10 @@ export class ConnectionManager {
       this.storedSessions.activeSessionIndex = index;
       await this.setLocalDBValue(SESSION_STORAGE_KEY, this.storedSessions);
       console.log('ConnectionManager: Updated active session index to', index);
+
+      // Emit session-selected event for other services to react
+      const session = this.storedSessions.sessions[index];
+      eventEmitter.emit('session-selected', { session, index });
     }
   }
 

@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
-import { ConnectionService } from "@/lib/connection-service";
+import { p2pRegistrationService } from "@/lib/p2p-registration-service";
+import { useToast } from "@/hooks/use-toast";
 
 interface ConnectionPreferences {
   autoAcceptRegistrations: boolean;
@@ -23,14 +24,13 @@ export const PreferencesDialog = () => {
     autoAcceptRegistrations: false,
   });
   const [loading, setLoading] = useState(true);
-  
-  const connectionService = ConnectionService.getInstance();
+  const { toast } = useToast();
 
   useEffect(() => {
     const loadPreferences = async () => {
       setLoading(true);
       try {
-        const autoAcceptRegistrations = await connectionService.getAutoAcceptRegistrations();
+        const autoAcceptRegistrations = await p2pRegistrationService.getAutoAcceptSetting();
         setPreferences({ autoAcceptRegistrations });
       } catch (error) {
         console.error("Failed to load connection preferences:", error);
@@ -47,11 +47,20 @@ export const PreferencesDialog = () => {
   const handleAutoAcceptChange = async (checked: boolean) => {
     setPreferences((prev) => ({ ...prev, autoAcceptRegistrations: checked }));
     try {
-      await connectionService.setAutoAcceptRegistrations(checked);
+      await p2pRegistrationService.setAutoAcceptSetting(checked);
+      toast({
+        title: "Settings saved",
+        description: `Auto-accept is now ${checked ? "enabled" : "disabled"}`,
+      });
     } catch (error) {
       console.error("Failed to update auto-accept preference:", error);
       // Revert the UI state on error
       setPreferences((prev) => ({ ...prev, autoAcceptRegistrations: !checked }));
+      toast({
+        title: "Failed to save",
+        description: "Could not save your preference",
+        variant: "destructive",
+      });
     }
   };
 

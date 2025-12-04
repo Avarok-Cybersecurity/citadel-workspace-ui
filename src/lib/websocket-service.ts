@@ -23,6 +23,7 @@ declare global {
     [GLOBAL_INIT_KEY]?: {
       promise: Promise<void>;
       initialized: boolean;
+      client: WorkspaceClient | null;
     };
   }
 }
@@ -42,10 +43,13 @@ class WebSocketService {
   }
 
   async init(): Promise<void> {
-    // Check global state first
+    // Check global state first - silent return if already initialized (normal path)
     if (window[GLOBAL_INIT_KEY]?.initialized) {
-      debugLog('websocket', 'Service already initialized (global check)');
       this.isInitialized = true;
+      // Retrieve the shared client instance
+      if (window[GLOBAL_INIT_KEY].client) {
+        this.client = window[GLOBAL_INIT_KEY].client;
+      }
       return;
     }
 
@@ -60,6 +64,10 @@ class WebSocketService {
       try {
         await window[GLOBAL_INIT_KEY].promise;
         this.isInitialized = true;
+        // Retrieve the shared client instance
+        if (window[GLOBAL_INIT_KEY]?.client) {
+          this.client = window[GLOBAL_INIT_KEY].client;
+        }
         return;
       } catch (error) {
         errorLog('Global initialization failed:', error);
@@ -84,7 +92,8 @@ class WebSocketService {
     this.initializationPromise = this._doInit();
     window[GLOBAL_INIT_KEY] = {
       promise: this.initializationPromise,
-      initialized: false
+      initialized: false,
+      client: null
     };
 
     try {
@@ -141,6 +150,10 @@ class WebSocketService {
       this.client = new WorkspaceClient(clientConfig);
       await this.client.init();
       this.isInitialized = true;
+      // Store client in global state for sharing across instances
+      if (window[GLOBAL_INIT_KEY]) {
+        window[GLOBAL_INIT_KEY].client = this.client;
+      }
       debugLog('websocket', 'WASM client initialization completed successfully');
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
@@ -157,6 +170,51 @@ class WebSocketService {
 
   async connect(requestId: string, username: string, password: string, serverAddr: string = '127.0.0.1:12349'): Promise<void> {
     await this.init(); // ensure initialized
+
+    // STEP 1: Check if session already exists
+    console.log(`[Connect] Checking for existing session: ${username}@${serverAddr}`);
+
+    try {
+      const { connectionManager } = await import('./connection-manager');
+      const activeSessions = await connectionManager.getActiveSessions();
+
+      const existingSession = activeSessions.find(
+        s => s.username === username && s.server_address === serverAddr
+      );
+
+      if (existingSession) {
+        console.log(`[Connect] Found existing session CID ${existingSession.cid}`);
+
+        // STEP 2: Check if session is orphaned
+        // Heuristic: Session is likely orphaned if it exists in GetSessions
+        // but we don't have a stored CID for it, OR if workspace load fails
+        const { connectionManager: cm } = await import('./connection-manager');
+        const storedSession = cm.getStoredSessions().sessions.find(
+          s => s.username === username && s.serverAddress === serverAddr
+        );
+
+        const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid.toString();
+
+        if (isOrphaned) {
+          // STEP 3a: Session is orphaned → Claim it
+          console.log(`[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
+          await this.claimSession(existingSession.cid.toString(), false);
+          return; // Early return - session claimed successfully
+        } else {
+          // STEP 3b: Session exists but NOT orphaned → Disconnect then Connect
+          console.warn(`[Connect] Session exists but not orphaned - disconnecting first`);
+          await this.disconnect(existingSession.cid.toString());
+          await new Promise(resolve => setTimeout(resolve, 200)); // Allow cleanup time
+          // Fall through to connect
+        }
+      }
+    } catch (error) {
+      // If GetSessions or session check fails, log and continue with Connect
+      console.warn(`[Connect] Session check failed, proceeding with Connect:`, error);
+    }
+
+    // STEP 4: No existing session OR after disconnect → Proceed with Connect
+    console.log(`[Connect] Proceeding with new connection for ${username}`);
 
     // Create proper connect options for WorkspaceClient
     // TODO: use @avarok/citadel-protocol-types to inform the combinations below for:
@@ -258,8 +316,38 @@ class WebSocketService {
       throw new Error('CID is required to send P2P message');
     }
 
-    // For now, send raw message directly - proper triple-protocol nesting will be implemented in Phase 5
-    await this.client.sendP2PMessageDirect(targetCid, message);
+    if (!targetCid) {
+      throw new Error('Target CID (peer_cid) is required to send P2P message');
+    }
+
+    // Log the exact values being used
+    console.log('[P2P] sendP2PMessage called with:', {
+      cid: cid,
+      cidType: typeof cid,
+      targetCid: targetCid,
+      targetCidType: typeof targetCid,
+      messageLength: message.length
+    });
+
+    // Create InternalServiceRequest::Message with peer_cid to route to P2P channel
+    const messageRequest = {
+      Message: {
+        request_id: crypto.randomUUID(),
+        message: Array.from(new TextEncoder().encode(message)),
+        cid: cid, // sender CID as string - will be converted to BigInt by sendMessage
+        peer_cid: targetCid, // recipient CID as string - will be converted to BigInt by sendMessage
+        security_level: 'Standard'
+      }
+    };
+
+    console.log('[P2P] messageRequest before conversion:', JSON.stringify(messageRequest, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    ));
+
+    debugLog('websocket', 'Sending P2P message', { cid, targetCid, messageLength: message.length });
+
+    // Use sendMessage which handles BigInt conversion properly
+    await this.sendMessage(messageRequest);
   }
 
   async openP2PConnection(cid: string, targetCid: string): Promise<void> {
@@ -268,9 +356,132 @@ class WebSocketService {
     if (!cid) {
       throw new Error('CID is required to open P2P connection');
     }
+    
+    if (cid === targetCid) {
+      throw new Error('Cannot open P2P connection to self');
+    }
 
-    // Use the WorkspaceClient's P2P method
-    await this.client.openP2PConnection(targetCid);
+    debugLog('websocket', 'Opening P2P connection', { cid, targetCid });
+
+    // Send PeerConnect request to establish P2P channel
+    const requestId = crypto.randomUUID();
+    const peerConnectRequest = {
+      PeerConnect: {
+        request_id: requestId,
+        cid: cid, // our CID - will be converted to BigInt by sendMessage
+        peer_cid: targetCid, // peer CID - will be converted to BigInt by sendMessage
+        udp_mode: 'Disabled',
+        session_security_settings: {
+          security_level: 'Standard',
+          secrecy_mode: 'BestEffort',
+          crypto_params: {
+            encryption_algorithm: 'AES_GCM_256',
+            kem_algorithm: 'Kyber',
+            sig_algorithm: 'None'
+          },
+          header_obfuscator_settings: 'Disabled'
+        }
+      }
+    };
+
+    // Send the request and wait for success/failure
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handler);
+        reject(new Error('PeerConnect request timed out'));
+      }, 30000);
+
+      const handler = (message: any) => {
+        if ('PeerConnectSuccess' in message && message.PeerConnectSuccess.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          debugLog('websocket', 'P2P connection established', { targetCid });
+          resolve();
+        } else if ('PeerConnectFailure' in message && message.PeerConnectFailure.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          const error = message.PeerConnectFailure.message || 'PeerConnect failed';
+          errorLog('P2P connection failed:', error);
+          reject(new Error(error));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handler);
+
+      // Send the request
+      this.sendMessage(peerConnectRequest).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handler);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Open a messenger handle for the given CID.
+   * Creates an ISM (InterSession Messaging) channel for reliable-ordered messaging.
+   * Must be called once at login and maintained via polling (ensureMessengerOpen).
+   * NOTE: This does NOT establish a P2P connection - it only creates a local messaging handle.
+   * To establish a P2P connection, use openP2PConnection() which sends PeerConnect.
+   * @param cid - The CID to open the messenger for
+   */
+  async openMessengerFor(cid: string): Promise<void> {
+    await this.init(); // ensure initialized
+
+    if (!cid) {
+      throw new Error('CID is required to open messenger');
+    }
+
+    debugLog('websocket', 'Opening messenger handle for CID', { cid });
+
+    // Call the WorkspaceClient's openMessengerFor which directly calls WASM's open_messenger_for
+    // This creates a messenger.multiplex(cid) handle for ISM routing
+    await this.client.openMessengerFor(cid);
+  }
+
+  /**
+   * Ensures a messenger handle is open for the given CID.
+   * Returns true if the messenger was just opened, false if already open.
+   * Use this for polling to maintain messenger handles across leader/follower tab transitions.
+   * @param cid - The CID to ensure messenger is open for
+   */
+  async ensureMessengerOpen(cid: string): Promise<boolean> {
+    await this.init(); // ensure initialized
+
+    if (!cid) {
+      throw new Error('CID is required');
+    }
+
+    return await this.client.ensureMessengerOpen(cid);
+  }
+
+  /**
+   * Send a reliable P2P message using the ISM (InterSession Messaging) layer.
+   * This provides guaranteed delivery with retries and ordering.
+   * @param localCid - The local user's CID
+   * @param peerCid - The target peer's CID
+   * @param message - The message bytes to send
+   * @param securityLevel - Optional security level: 'Standard', 'Reinforced', 'High', or 'Extreme'
+   */
+  async sendP2PMessageReliable(
+    localCid: string,
+    peerCid: string,
+    message: Uint8Array,
+    securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
+  ): Promise<void> {
+    await this.init(); // ensure initialized
+
+    if (!localCid) {
+      throw new Error('Local CID is required to send reliable P2P message');
+    }
+
+    if (!peerCid) {
+      throw new Error('Peer CID is required to send reliable P2P message');
+    }
+
+    debugLog('websocket', 'Sending reliable P2P message', { localCid, peerCid, messageLength: message.length, securityLevel });
+
+    await this.client.sendP2PMessageReliable(localCid, peerCid, message, securityLevel);
   }
 
   async disconnect(cid?: string): Promise<void> {
@@ -342,14 +553,42 @@ class WebSocketService {
    */
   async sendMessage(message: any): Promise<void> {
     await this.init(); // ensure initialized
-    
+
     // First convert string CIDs to BigInt where needed, then convert back for serialization
     const processedMessage = this.convertCidFieldsToBigInt(message);
-    
+
+    // Log after BigInt conversion
+    if (message.Message) {
+      console.log('[P2P] After convertCidFieldsToBigInt:', {
+        cid: processedMessage.Message?.cid?.toString(),
+        cidType: typeof processedMessage.Message?.cid,
+        peer_cid: processedMessage.Message?.peer_cid?.toString(),
+        peer_cidType: typeof processedMessage.Message?.peer_cid
+      });
+    }
+
     // Convert BigInt values to strings for JSON serialization
     const jsonSerializableMessage = this.convertBigIntToString(processedMessage);
-    
+
+    // Log after string conversion
+    if (message.Message) {
+      console.log('[P2P] After convertBigIntToString (final to WASM):', {
+        cid: jsonSerializableMessage.Message?.cid,
+        cidType: typeof jsonSerializableMessage.Message?.cid,
+        peer_cid: jsonSerializableMessage.Message?.peer_cid,
+        peer_cidType: typeof jsonSerializableMessage.Message?.peer_cid
+      });
+    }
+
     debugLog('websocket', 'Sending message to internal service', jsonSerializableMessage);
+
+    // CRITICAL DEBUG: Log exact JSON being sent to WASM for ALL Message requests
+    if (jsonSerializableMessage.Message) {
+      const reqId = jsonSerializableMessage.Message.request_id;
+      const peerCid = jsonSerializableMessage.Message.peer_cid;
+      console.log(`[P2P-DEBUG] REQUEST_ID=${reqId} peer_cid=${peerCid} FINAL JSON:`, JSON.stringify(jsonSerializableMessage, null, 2));
+    }
+
     await this.client.sendDirectToInternalService(jsonSerializableMessage);
   }
 
@@ -560,6 +799,109 @@ class WebSocketService {
    */
   async getConnectionInfo(): Promise<{ cid: string } | null> {
     return connectionManager.getConnectionInfo();
+  }
+
+  // ============== LocalDB Methods ==============
+
+  /**
+   * Get a value from LocalDB
+   * @param cid - The user's CID for scoped storage
+   * @param key - The storage key
+   * @returns The stored value or null if not found
+   */
+  async sendLocalDBGet(cid: string, key: string): Promise<{ value: number[] } | null> {
+    const requestId = crypto.randomUUID();
+    const client = this.getClient();
+
+    if (!client) {
+      throw new Error('No WebSocket client available');
+    }
+
+    const request = {
+      LocalDBGetKV: {
+        request_id: requestId,
+        cid: cid,
+        peer_cid: null,
+        key
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(new Error('LocalDBGetKV request timed out'));
+      }, 5000);
+
+      const handleMessage = (message: any) => {
+        if (message.LocalDBGetKVSuccess?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          resolve({ value: message.LocalDBGetKVSuccess.value });
+        } else if (message.LocalDBGetKVFailure?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          reject(new Error(message.LocalDBGetKVFailure.message || 'LocalDB get failed'));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+      client.sendDirectToInternalService(request as any).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Set a value in LocalDB
+   * @param cid - The user's CID for scoped storage
+   * @param key - The storage key
+   * @param value - The value as a byte array
+   */
+  async sendLocalDBSet(cid: string, key: string, value: number[]): Promise<void> {
+    const requestId = crypto.randomUUID();
+    const client = this.getClient();
+
+    if (!client) {
+      throw new Error('No WebSocket client available');
+    }
+
+    const request = {
+      LocalDBSetKV: {
+        request_id: requestId,
+        cid: cid,
+        peer_cid: null,
+        key,
+        value
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(new Error('LocalDBSetKV request timed out'));
+      }, 5000);
+
+      const handleMessage = (message: any) => {
+        if (message.LocalDBSetKVSuccess?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          resolve();
+        } else if (message.LocalDBSetKVFailure?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          reject(new Error(message.LocalDBSetKVFailure.message || 'LocalDB set failed'));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+      client.sendDirectToInternalService(request as any).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(error);
+      });
+    });
   }
 
   /**

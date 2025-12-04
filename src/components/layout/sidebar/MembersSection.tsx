@@ -1,5 +1,5 @@
 import { Users, UserPlus, MoreVertical, Shield, User } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -30,6 +30,13 @@ import {
 } from "@/components/ui/tooltip";
 import { PermissionManagerModal } from "@/components/permissions/PermissionManagerModal";
 import { PeerDiscoveryModal } from "@/components/p2p/PeerDiscoveryModal";
+import { PendingRequestsModal } from "@/components/p2p/PendingRequestsModal";
+import { peerRegistrationStore } from "@/lib/peer-registration-store";
+import { eventEmitter } from "@/lib/event-emitter";
+import { p2pRegistrationService } from "@/lib/p2p-registration-service";
+import { p2pAutoConnectService } from "@/lib/p2p-auto-connect-service";
+import { P2PMessengerManager } from "@/lib/p2p-messenger-manager";
+import { connectionManager } from "@/lib/connection-manager";
 import {
   Dialog,
   DialogContent,
@@ -45,8 +52,25 @@ interface Member {
   full_name?: string; // Optional for backwards compatibility
 }
 
+interface RegisteredPeer {
+  cid: string;
+  username: string;
+  isOnline: boolean;
+  isConnected: boolean;
+}
+
+interface ConversationPeer {
+  peerCid: string;
+  peerUsername: string;
+  isOnline: boolean;
+  isConnected: boolean;
+  unreadCount: number;
+  lastMessageTime?: number;
+}
+
 export const MembersSection = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useWorkspace();
   const params = new URLSearchParams(location.search);
   const currentOfficeId = params.get("officeId");
@@ -66,8 +90,71 @@ export const MembersSection = () => {
     domainType: 'workspace' | 'office' | 'room';
   } | null>(null);
   const [showPeerDiscovery, setShowPeerDiscovery] = useState(false);
-  
+  const [showPendingRequests, setShowPendingRequests] = useState(false);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [registeredPeers, setRegisteredPeers] = useState<RegisteredPeer[]>([]);
+  const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
+
   const MEMBERS_TO_SHOW = 5; // Show first 5 members in sidebar
+
+  // Listen for pending peer registration requests
+  useEffect(() => {
+    const updatePendingCount = () => {
+      setPendingRequestCount(peerRegistrationStore.getPendingCount());
+    };
+
+    // Initial load
+    updatePendingCount();
+
+    // Listen for updates
+    eventEmitter.on('peer-requests:updated', updatePendingCount);
+    return () => {
+      eventEmitter.off('peer-requests:updated', updatePendingCount);
+    };
+  }, []);
+
+  // Listen for notification card clicks to open pending requests modal
+  useEffect(() => {
+    const openModal = () => setShowPendingRequests(true);
+    eventEmitter.on('open-pending-requests-modal', openModal);
+    return () => {
+      eventEmitter.off('open-pending-requests-modal', openModal);
+    };
+  }, []);
+
+  // Load registered P2P peers for DIRECT MESSAGES section
+  useEffect(() => {
+    const loadRegisteredPeers = async () => {
+      try {
+        const peers = await p2pRegistrationService.listRegisteredPeers();
+        const peerList = peers.map(p => ({
+          cid: p.cid?.toString() || '',
+          username: p.username || `User ${p.cid?.toString().slice(0, 8)}...`,
+          isOnline: p2pAutoConnectService.isPeerOnline(p.cid?.toString() || ''),
+          isConnected: p2pAutoConnectService.isPeerConnected(p.cid?.toString() || '')
+        }));
+        setRegisteredPeers(peerList);
+      } catch (error) {
+        console.error('Failed to load registered peers:', error);
+      }
+    };
+
+    loadRegisteredPeers();
+
+    // Listen for new registrations and connection changes
+    const handlePeerRegistered = () => loadRegisteredPeers();
+    const handleConnectionChange = () => loadRegisteredPeers();
+
+    eventEmitter.on('p2p:peer-registered', handlePeerRegistered);
+    eventEmitter.on('p2p-connection-established', handleConnectionChange);
+    eventEmitter.on('p2p-connection-lost', handleConnectionChange);
+
+    return () => {
+      eventEmitter.off('p2p:peer-registered', handlePeerRegistered);
+      eventEmitter.off('p2p-connection-established', handleConnectionChange);
+      eventEmitter.off('p2p-connection-lost', handleConnectionChange);
+    };
+  }, []);
 
   // Load members when location changes
   useEffect(() => {
@@ -102,9 +189,54 @@ export const MembersSection = () => {
 
     // Subscribe to members loaded event using workspace-events
     workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
-    
+
     // No cleanup needed as workspace-events handles it internally
   }, []);
+
+  // Load peers with active conversations (for DIRECT MESSAGES section)
+  useEffect(() => {
+    const loadConversations = () => {
+      const messenger = P2PMessengerManager.getInstance();
+      const conversations = messenger.getAllConversations();
+
+      // Get current user's CID to filter out self-conversations
+      const currentCid = connectionManager.getConnectionInfo()?.cid?.toString();
+
+      // Only include peers with actual messages, excluding self-conversations
+      const convPeers = conversations
+        .filter(c => c.messages.length > 0)
+        .filter(c => c.peerCid !== currentCid)  // Exclude self-conversations
+        .map(c => {
+          // Find the username from registered peers
+          const registeredPeer = registeredPeers.find(p => p.cid === c.peerCid);
+          return {
+            peerCid: c.peerCid,
+            peerUsername: registeredPeer?.username || `User ${c.peerCid.slice(0, 8)}...`,
+            isOnline: p2pAutoConnectService.isPeerOnline(c.peerCid),
+            isConnected: p2pAutoConnectService.isPeerConnected(c.peerCid),
+            unreadCount: c.unreadCount,
+            lastMessageTime: c.messages[c.messages.length - 1]?.timestamp
+          };
+        })
+        .sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+
+      setPeersWithConversations(convPeers);
+    };
+
+    loadConversations();
+
+    // Listen for new messages and conversation updates
+    const handleMessageUpdate = () => loadConversations();
+    eventEmitter.on('p2p:message-received', handleMessageUpdate);
+    eventEmitter.on('p2p:message-sent', handleMessageUpdate);
+    eventEmitter.on('p2p:conversation-updated', handleMessageUpdate);
+
+    return () => {
+      eventEmitter.off('p2p:message-received', handleMessageUpdate);
+      eventEmitter.off('p2p:message-sent', handleMessageUpdate);
+      eventEmitter.off('p2p:conversation-updated', handleMessageUpdate);
+    };
+  }, [registeredPeers]);
 
   const handleAddMember = () => {
     setShowAddModal(true);
@@ -175,13 +307,43 @@ export const MembersSection = () => {
     return "Workspace Members";
   };
 
+  const handlePeerClick = (peer: RegisteredPeer) => {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('showP2P', 'true');
+    searchParams.set('p2pUser', peer.username);
+    searchParams.set('channel', peer.cid);
+    navigate(`${location.pathname}?${searchParams.toString()}`);
+  };
+
+  const handleConversationClick = (conv: ConversationPeer) => {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('showP2P', 'true');
+    searchParams.set('p2pUser', conv.peerUsername);
+    searchParams.set('channel', conv.peerCid);
+    navigate(`${location.pathname}?${searchParams.toString()}`);
+  };
+
   return (
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
-          <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0">
-            {getLocationText().toUpperCase()}
-          </SidebarGroupLabel>
+          <div className="flex items-center gap-2">
+            <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0">
+              {getLocationText().toUpperCase()}
+            </SidebarGroupLabel>
+            {pendingRequestCount > 0 && (
+              <Badge
+                className="h-5 min-w-[20px] px-1.5 bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPendingRequests(true);
+                }}
+                title={`${pendingRequestCount} pending connection request${pendingRequestCount > 1 ? 's' : ''}`}
+              >
+                {pendingRequestCount}
+              </Badge>
+            )}
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -199,10 +361,12 @@ export const MembersSection = () => {
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   Loading members...
                 </div>
-              ) : members.length === 0 ? (
+              ) : members.length === 0 && registeredPeers.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   No members yet
                 </div>
+              ) : members.length === 0 ? (
+                null
               ) : (
                 <div className="animate-fade-in">
                   {members.slice(0, MEMBERS_TO_SHOW).map((member) => (
@@ -279,8 +443,85 @@ export const MembersSection = () => {
               )}
             </SidebarMenu>
           </ScrollArea>
+
+          {/* Registered P2P Peers - thin rows under members */}
+          {registeredPeers.length > 0 && (
+            <div className="mt-2 border-t border-[#444A6C] pt-2 px-2">
+              <SidebarMenu>
+                {registeredPeers.map((peer) => (
+                  <SidebarMenuItem key={peer.cid}>
+                    <SidebarMenuButton
+                      onClick={() => handlePeerClick(peer)}
+                      className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors h-8 py-1"
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        {/* Avatar with status indicator */}
+                        <div className="relative w-6 h-6 flex-shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-[#6E59A5] flex items-center justify-center text-xs font-medium">
+                            {peer.username[0]?.toUpperCase() || '?'}
+                          </div>
+                          {/* Status indicator - top-right corner */}
+                          <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#262C4A] ${
+                            peer.isConnected ? 'bg-green-500' :
+                            peer.isOnline ? 'bg-yellow-500' :
+                            'bg-red-500'
+                          }`} />
+                        </div>
+                        {/* Username */}
+                        <span className="flex-1 truncate text-sm">{peer.username}</span>
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </div>
+          )}
         </SidebarGroupContent>
       </SidebarGroup>
+
+      {/* Direct Messages - Only peers with message history */}
+      {peersWithConversations.length > 0 && (
+        <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
+          <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-3">
+            DIRECT MESSAGES
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {peersWithConversations.map((conv) => (
+                <SidebarMenuItem key={conv.peerCid}>
+                  <SidebarMenuButton
+                    onClick={() => handleConversationClick(conv)}
+                    className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors h-8 py-1"
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      {/* Avatar with status indicator */}
+                      <div className="relative w-6 h-6 flex-shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-[#6E59A5] flex items-center justify-center text-xs font-medium">
+                          {conv.peerUsername[0]?.toUpperCase() || '?'}
+                        </div>
+                        {/* Status indicator */}
+                        <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#262C4A] ${
+                          conv.isConnected ? 'bg-green-500' :
+                          conv.isOnline ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }`} />
+                      </div>
+                      {/* Username */}
+                      <span className="flex-1 truncate text-sm">{conv.peerUsername}</span>
+                      {/* Unread count badge */}
+                      {conv.unreadCount > 0 && (
+                        <Badge className="h-5 min-w-[20px] px-1.5 bg-[#6E59A5] text-white">
+                          {conv.unreadCount}
+                        </Badge>
+                      )}
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
 
       {/* Member Management Modals */}
       <MemberManagementModal
@@ -400,6 +641,12 @@ export const MembersSection = () => {
       <PeerDiscoveryModal
         isOpen={showPeerDiscovery}
         onClose={() => setShowPeerDiscovery(false)}
+      />
+
+      {/* Pending Requests Modal */}
+      <PendingRequestsModal
+        isOpen={showPendingRequests}
+        onClose={() => setShowPendingRequests(false)}
       />
     </>
   );

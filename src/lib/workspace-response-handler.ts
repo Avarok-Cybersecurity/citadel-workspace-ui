@@ -31,18 +31,34 @@ export class WorkspaceResponseHandler {
     // Handle MessageNotification responses (server sends this, not MessageDelivered)
     if (message.MessageNotification) {
       debugLog('workspace', 'Received MessageNotification', message.MessageNotification);
-      
+
+      // Check if this is a P2P message (has non-zero peer_cid different from our cid)
+      // P2P messages should be handled by p2p-messenger-manager, not workspace handler
+      // peer_cid=0 means it's from the workspace server, not a peer
+      const notification = message.MessageNotification;
+      if (notification.peer_cid && notification.cid) {
+        const peerCidStr = notification.peer_cid.toString();
+        const cidStr = notification.cid.toString();
+
+        // If peer_cid is non-zero and different from cid, this is a P2P message from another user
+        // Let p2p-messenger-manager handle it (it also listens to websocket-message event)
+        if (peerCidStr !== '0' && peerCidStr !== cidStr) {
+          debugLog('workspace', 'P2P message from peer, skipping workspace parsing', { peer_cid: peerCidStr, cid: cidStr });
+          return;
+        }
+      }
+
       // Extract the message array from notification (field is 'message' not 'contents')
-      if (message.MessageNotification.message && Array.isArray(message.MessageNotification.message)) {
+      if (notification.message && Array.isArray(notification.message)) {
         try {
           // Convert array of numbers to Uint8Array
-          const contentBytes = new Uint8Array(message.MessageNotification.message);
+          const contentBytes = new Uint8Array(notification.message);
           // Decode bytes to string
           const contentStr = new TextDecoder().decode(contentBytes);
-          
+
           // Parse the JSON workspace protocol response
           const workspacePayload = JSON.parse(contentStr);
-          
+
           // Process the workspace protocol response
           if (workspacePayload.Response) {
             this.processWorkspaceResponse(workspacePayload.Response);
@@ -53,7 +69,7 @@ export class WorkspaceResponseHandler {
           errorLog('Failed to decode MessageNotification', decodeError);
         }
       } else {
-        debugLog('workspace', 'MessageNotification missing message field', message.MessageNotification);
+        debugLog('workspace', 'MessageNotification missing message field', notification);
       }
       return;
     }
@@ -102,6 +118,18 @@ export class WorkspaceResponseHandler {
       cid: 0, // Will be overridden by actual CID from response if available
       request_id: crypto.randomUUID() // Generate if not provided
     };
+
+    // IMPORTANT: Check for string literal responses FIRST, before ANY 'in' operator checks
+    // The 'in' operator throws TypeError when used on primitives (strings)
+    if (typeof response === 'string') {
+      if (response === 'WorkspaceNotInitialized') {
+        debugLog('workspace', 'Workspace not initialized (string literal), triggering initialization flow');
+        eventEmitter.emit('workspace:not-initialized', connectionInfo);
+      } else {
+        debugLog('workspace', 'Unhandled string response:', response);
+      }
+      return;
+    }
 
     // Handle different response types based on the Rust enum structure
     if ('CreateWorkspace' in response) {
@@ -293,12 +321,8 @@ export class WorkspaceResponseHandler {
         connection: connectionInfo
       });
     } else if ('WorkspaceNotInitialized' in response) {
-      // Handle workspace not initialized response
+      // Handle workspace not initialized response (object form)
       debugLog('workspace', 'Workspace not initialized, triggering initialization flow');
-      eventEmitter.emit('workspace:not-initialized', connectionInfo);
-    } else if (response === 'WorkspaceNotInitialized') {
-      // Handle workspace not initialized response (string literal variant)
-      debugLog('workspace', 'Workspace not initialized (literal), triggering initialization flow');
       eventEmitter.emit('workspace:not-initialized', connectionInfo);
     } else if ('WorkspaceError' in response) {
       // Handle workspace-specific errors

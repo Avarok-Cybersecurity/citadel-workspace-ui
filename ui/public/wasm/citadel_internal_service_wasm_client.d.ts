@@ -1,44 +1,32 @@
 /* tslint:disable */
 /* eslint-disable */
+export function get_version(): string;
 export function close_connection(): Promise<void>;
-export function init(ws_url: string): Promise<void>;
-export function restart(ws_url: string): Promise<void>;
-export function next_message(): Promise<any>;
-/**
- * Opens a messenger handle for the given CID.
- * This creates an ISM (InterSession Messaging) channel for reliable-ordered messaging.
- * Must be called once at login and maintained via polling (see ensure_messenger_open).
- */
-export function open_messenger_for(cid_str: string): Promise<void>;
-export function send_direct_to_internal_service(message: any): Promise<void>;
+export function main(): void;
 export function is_initialized(): boolean;
-/**
- * Ensures a messenger handle is open for the given CID.
- * Returns true if the messenger was just opened, false if already open.
- * Use this for polling to maintain messenger handles across leader/follower tab transitions.
- */
-export function ensure_messenger_open(cid_str: string): Promise<boolean>;
 /**
  * Sends a P2P message using ISM-routed reliable messaging.
  * Unlike send_p2p_message which bypasses ISM, this function uses
  * send_message_to_with_security_level for guaranteed delivery.
  */
 export function send_p2p_message_reliable(local_cid_str: string, peer_cid_str: string, message: Uint8Array, security_level?: string | null): Promise<void>;
-export function main(): void;
-export function get_version(): string;
+export function init(ws_url: string): Promise<void>;
+export function next_message(): Promise<any>;
+export function send_direct_to_internal_service(message: any): Promise<void>;
+export function restart(ws_url: string): Promise<void>;
+export function open_p2p_connection(cid_str: string): Promise<void>;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly close_connection: () => any;
-  readonly ensure_messenger_open: (a: number, b: number) => any;
   readonly get_version: () => [number, number];
   readonly init: (a: number, b: number) => any;
   readonly is_initialized: () => number;
   readonly main: () => void;
   readonly next_message: () => any;
-  readonly open_messenger_for: (a: number, b: number) => any;
+  readonly open_p2p_connection: (a: number, b: number) => any;
   readonly restart: (a: number, b: number) => any;
   readonly send_direct_to_internal_service: (a: any) => any;
   readonly send_p2p_message_reliable: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
@@ -49,11 +37,11 @@ export interface InitOutput {
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_export_6: WebAssembly.Table;
+  readonly closure405_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure281_externref_shim: (a: number, b: number, c: any) => void;
   readonly wasm_bindgen__convert__closures_____invoke__hffef68bb67144b57: (a: number, b: number) => void;
-  readonly closure455_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure389_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure220_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure484_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure473_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure498_externref_shim: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_start: () => void;
 }
 

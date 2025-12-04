@@ -51,6 +51,7 @@
     "@radix-ui/react-tooltip": "^1.1.4",
     "@tanstack/react-query": "^5.56.2",
     "@types/uuid": "^10.0.0",
+    "citadel-internal-service-wasm-client": "file:../citadel-internal-service/typescript-client",
     "citadel-workspace-client-ts": "file:../citadel-workspace-client-ts",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

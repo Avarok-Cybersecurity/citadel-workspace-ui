@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection-manager";
 import { eventEmitter } from "@/lib/event-emitter";
+import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { useEffect } from "react";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import WorkspaceService from "@/lib/workspace-service";
@@ -181,6 +182,15 @@ export function Login({ onNext, onCancel }: LoginProps) {
       // Trigger workspace loading
       WorkspaceService.loadWorkspace();
       WorkspaceService.listOffices();
+
+      // Start WASM connection manager for this CID (handles leader/follower transitions)
+      try {
+        await wasmConnectionManager.start(cid.toString());
+        console.log('WASM connection manager started for CID:', cid.toString());
+      } catch (error) {
+        console.error('Failed to start WASM connection manager:', error);
+        // Don't block login - P2P messaging may not be immediately needed
+      }
 
       onNext(cid);
       

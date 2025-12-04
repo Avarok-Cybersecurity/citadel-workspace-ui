@@ -137,10 +137,12 @@ export class BroadcastChannelService {
     // Start heartbeat if we think we're the leader
     this.leaderCheckInterval = window.setInterval(() => {
       const now = Date.now();
-      
+
       if (this.isLeader) {
-        // Send heartbeat
-        this.broadcastLeaderClaim();
+        // Only send heartbeat if tab is visible (reduce unnecessary broadcasts)
+        if (typeof document === 'undefined' || !document.hidden) {
+          this.broadcastLeaderClaim();
+        }
       } else {
         // Check if the current leader is still alive
         if (now - this.lastLeaderHeartbeat > this.LEADER_TIMEOUT) {

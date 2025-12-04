@@ -11,9 +11,13 @@ interface DirectMessagesPanelProps {
 
 export const DirectMessagesPanel: React.FC<DirectMessagesPanelProps> = ({ isOpen, onClose }) => {
   const [selectedPeerCid, setSelectedPeerCid] = useState<string>('demo-peer-kathy');
+  // Use tab-specific session CID first, fallback to global connection CID
+  // Convert to string for proper comparison with message.senderCid (which is a string)
+  const tabSession = connectionManager.getTabSelectedSession();
   const connectionInfo = connectionManager.getConnectionInfo();
-  const currentUserCid = connectionInfo?.cid || undefined;
-  const currentUserName = connectionInfo?.fullName || 'You';
+  const rawCid = tabSession?.cid ?? connectionInfo?.cid;
+  const currentUserCid = rawCid !== undefined ? String(rawCid) : undefined;
+  const currentUserName = tabSession?.fullName || connectionInfo?.fullName || 'You';
 
   if (!isOpen) return null;
 

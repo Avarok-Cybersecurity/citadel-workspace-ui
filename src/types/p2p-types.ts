@@ -3,27 +3,50 @@
  * These types mirror the Rust enum structure for P2P communication
  */
 
+import type { MessagingLayer } from './messaging-layer';
+import {
+  MessagingLayerType,
+  serializeMessagingLayer,
+  deserializeMessagingLayer
+} from './messaging-layer';
+
+// Re-export MessagingLayer types for convenience
+export type { MessagingLayer } from './messaging-layer';
+export { MessagingLayerType } from './messaging-layer';
+
 export enum P2PCommandType {
-  Message = "Message",
+  /** MessagingLayer command - carries all messaging protocol variants */
+  MessagingLayerCommand = "MessagingLayerCommand",
+  /** Acknowledgment for delivered/read messages */
   MessageAck = "MessageAck",
-  TypingIndicator = "TypingIndicator",
+  /** File transfer initiation request */
   FileTransferRequest = "FileTransferRequest",
+  /** File transfer data chunk */
   FileTransferChunk = "FileTransferChunk",
+  /** File transfer completion notification */
   FileTransferComplete = "FileTransferComplete"
 }
 
-export interface P2PMessagePayload {
-  message_contents: Uint8Array; // UTF-8 encoded message
-  metadata: {
-    timestamp: number;
-    sender_cid: string;
-    recipient_cid: string;
-    message_id: string;
-    reply_to?: string; // Optional reference to another message
-    mentions?: string[]; // Optional user mentions
-    attachments?: P2PAttachment[]; // Optional file attachments
-  };
-  index: number; // Message index for ordering
+/**
+ * Payload for MessagingLayerCommand - wraps a MessagingLayer with metadata
+ */
+export interface P2PMessagingLayerPayload {
+  /** The serialized MessagingLayer data */
+  layer: MessagingLayer;
+  /** Sender's connection ID */
+  sender_cid: string;
+  /** Recipient's connection ID */
+  recipient_cid: string;
+  /** Unique message ID for acks */
+  message_id: string;
+  /** Message index for ordering (only relevant for Message type) */
+  index: number;
+  /** Optional reference to another message (for replies) */
+  reply_to?: string;
+  /** Optional user mentions */
+  mentions?: string[];
+  /** Optional file attachments */
+  attachments?: P2PAttachment[];
 }
 
 export interface P2PMessageAckPayload {
@@ -31,12 +54,6 @@ export interface P2PMessageAckPayload {
   message_id: string;
   timestamp: number;
   error?: string; // Optional error message for failed deliveries
-}
-
-export interface P2PTypingIndicatorPayload {
-  is_typing: boolean;
-  sender_cid: string;
-  timestamp: number;
 }
 
 export interface P2PFileTransferRequestPayload {
@@ -78,21 +95,17 @@ export interface P2PAttachment {
 // Main P2P Command structure
 export interface P2PCommand {
   type: P2PCommandType;
-  payload: P2PMessagePayload | P2PMessageAckPayload | P2PTypingIndicatorPayload | 
+  payload: P2PMessagingLayerPayload | P2PMessageAckPayload |
            P2PFileTransferRequestPayload | P2PFileTransferChunkPayload | P2PFileTransferCompletePayload;
 }
 
 // Type guards for payload discrimination
-export function isMessagePayload(payload: any): payload is P2PMessagePayload {
-  return 'message_contents' in payload && 'index' in payload;
+export function isMessagingLayerPayload(payload: any): payload is P2PMessagingLayerPayload {
+  return 'layer' in payload && 'sender_cid' in payload && 'recipient_cid' in payload;
 }
 
 export function isMessageAckPayload(payload: any): payload is P2PMessageAckPayload {
   return 'ack_type' in payload && 'message_id' in payload;
-}
-
-export function isTypingIndicatorPayload(payload: any): payload is P2PTypingIndicatorPayload {
-  return 'is_typing' in payload && 'sender_cid' in payload;
 }
 
 export function isFileTransferRequestPayload(payload: any): payload is P2PFileTransferRequestPayload {
@@ -108,31 +121,34 @@ export function isFileTransferCompletePayload(payload: any): payload is P2PFileT
 }
 
 // Helper functions for creating P2P commands
-export function createMessageCommand(
-  message: string,
+
+/**
+ * Create a MessagingLayerCommand with the given layer payload
+ */
+export function createMessagingLayerCommand(
+  layer: MessagingLayer,
   senderCid: string,
   recipientCid: string,
   index: number,
-  replyTo?: string,
-  mentions?: string[],
-  attachments?: P2PAttachment[]
+  options?: {
+    messageId?: string;
+    replyTo?: string;
+    mentions?: string[];
+    attachments?: P2PAttachment[];
+  }
 ): P2PCommand {
-  const encoder = new TextEncoder();
   return {
-    type: P2PCommandType.Message,
+    type: P2PCommandType.MessagingLayerCommand,
     payload: {
-      message_contents: encoder.encode(message),
-      metadata: {
-        timestamp: Date.now(),
-        sender_cid: senderCid,
-        recipient_cid: recipientCid,
-        message_id: crypto.randomUUID(),
-        reply_to: replyTo,
-        mentions,
-        attachments
-      },
-      index
-    } as P2PMessagePayload
+      layer,
+      sender_cid: senderCid,
+      recipient_cid: recipientCid,
+      message_id: options?.messageId ?? crypto.randomUUID(),
+      index,
+      reply_to: options?.replyTo,
+      mentions: options?.mentions,
+      attachments: options?.attachments
+    } as P2PMessagingLayerPayload
   };
 }
 
@@ -149,20 +165,6 @@ export function createMessageAckCommand(
       timestamp: Date.now(),
       error
     } as P2PMessageAckPayload
-  };
-}
-
-export function createTypingIndicatorCommand(
-  isTyping: boolean,
-  senderCid: string
-): P2PCommand {
-  return {
-    type: P2PCommandType.TypingIndicator,
-    payload: {
-      is_typing: isTyping,
-      sender_cid: senderCid,
-      timestamp: Date.now()
-    } as P2PTypingIndicatorPayload
   };
 }
 
@@ -193,10 +195,4 @@ export function deserializeP2PCommand(json: string): P2PCommand {
     }
     return value;
   });
-}
-
-// Message decoding helper
-export function decodeMessageContents(contents: Uint8Array): string {
-  const decoder = new TextDecoder();
-  return decoder.decode(contents);
 }

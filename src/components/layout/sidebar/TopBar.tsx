@@ -21,6 +21,7 @@ import { LeaderIndicator } from "@/components/ui/leader-indicator";
 import { connectionManager } from "@/lib/connection-manager";
 import { useNavigate } from "react-router-dom";
 import { clearSelectedUser } from "@/lib/tab-context";
+import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { useState } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 
@@ -54,6 +55,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   };
 
   const handleExit = () => {
+    // Stop WASM connection manager polling (session stays active but this tab won't poll)
+    wasmConnectionManager.stop();
+
     // Just navigate to landing page, keep session active
     clearSelectedUser();
     navigate('/');
@@ -67,6 +71,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
   const handleSignOut = async () => {
     try {
+      // Stop WASM connection manager polling
+      wasmConnectionManager.stop();
+
       // Get the current session BEFORE disconnecting
       const currentSession = connectionManager.getTabSelectedSession();
 

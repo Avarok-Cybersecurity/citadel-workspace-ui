@@ -104,6 +104,15 @@ export const SESSION_STORAGE_KEY = 'citadel_sessions';
 export const ACTIVE_SESSION_KEY = 'citadel_active_session';
 
 /**
+ * Peer connection information within a session
+ */
+export interface PeerSessionInformation {
+  cid: string;
+  peer_cid: string;
+  peer_username: string;
+}
+
+/**
  * Active session info from internal service
  */
 export interface ActiveSession {
@@ -111,6 +120,8 @@ export interface ActiveSession {
   username: string;
   server_address: string;
   full_name?: string;
+  /** Peers this session is connected to (peer_cid -> PeerSessionInformation) */
+  peer_connections?: Record<string, PeerSessionInformation>;
 }
 
 /**

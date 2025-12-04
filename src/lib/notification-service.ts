@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export enum NotificationType {
   MESSAGE = 'message',
-  CONNECTION_REQUEST = 'connection_request',
+  PEER_REGISTRATION = 'peer_registration',
   SYSTEM = 'system'
 }
 
@@ -108,18 +108,28 @@ export class NotificationService {
   }
 
   /**
-   * Add a connection request notification
+   * Add a peer registration notification with inline Accept/Decline buttons
    */
-  public addConnectionRequestNotification(title: string, content: string, senderId: string, requestId: string, actionButtons?: NotificationAction[]): Notification {
+  public addPeerRegistrationNotification(
+    peerUsername: string,
+    peerCid: string,
+    requestId: string,
+    onAccept: () => void,
+    onDecline: () => void,
+    onCardClick: () => void
+  ): Notification {
     return this.addNotification({
-      type: NotificationType.CONNECTION_REQUEST,
-      title,
-      content,
-      senderId,
+      type: NotificationType.PEER_REGISTRATION,
+      title: `${peerUsername} wants to connect`,
+      content: `CID: ${peerCid.slice(0, 12)}...`,
+      senderId: peerCid,
       sourceId: requestId,
       priority: NotificationPriority.HIGH,
-      actionButtons,
-      data: { requestId }
+      actionButtons: [
+        { id: 'accept', label: 'Accept', variant: 'default', onClick: onAccept },
+        { id: 'decline', label: 'Decline', variant: 'destructive', onClick: onDecline }
+      ],
+      data: { requestId, peerCid, peerUsername, onCardClick }
     });
   }
 
@@ -249,5 +259,8 @@ export class NotificationService {
     this.notificationHandlers.clear();
   }
 }
+
+// Singleton instance for convenience
+export const notificationService = NotificationService.getInstance();
 
 export default NotificationService;

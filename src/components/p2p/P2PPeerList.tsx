@@ -47,8 +47,13 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   ];
 
   useEffect(() => {
-    loadPeers();
-    loadAvailablePeers();
+    // Wait for LocalDB to load before loading peers
+    const initPeers = async () => {
+      await messenger.waitForReady();
+      loadPeers();
+      loadAvailablePeers();
+    };
+    initPeers();
 
     // Subscribe to message updates
     const unsubscribeMessage = messenger.onMessage(() => {
@@ -67,10 +72,15 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     };
     eventEmitter.on('p2p:peers-updated', handlePeersUpdated);
 
+    // Also listen for messages-loaded event in case init completes after mount
+    const handleMessagesLoaded = () => loadPeers();
+    eventEmitter.on('p2p:messages-loaded', handleMessagesLoaded);
+
     return () => {
       unsubscribeMessage();
       unsubscribeConnection();
       eventEmitter.off('p2p:peers-updated', handlePeersUpdated);
+      eventEmitter.off('p2p:messages-loaded', handleMessagesLoaded);
     };
   }, []);
 
@@ -80,7 +90,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       const lastMessage = conv.messages[conv.messages.length - 1];
       return {
         cid: conv.peerCid,
-        name: `User ${conv.peerCid.slice(0, 8)}...`, // In real app, fetch from user service
+        // Use stored username if available, otherwise fallback to truncated CID
+        name: conv.peerUsername || `User ${conv.peerCid.slice(0, 8)}...`,
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
         lastMessage: lastMessage?.content,

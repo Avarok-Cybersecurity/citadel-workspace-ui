@@ -104,7 +104,8 @@ export function P2PMessaging() {
   }, []);
   
   // For development: use a mock CID if the real one isn't available
-  const currentUserCid = connectionInfo?.cid || 'mock-user-cid';
+  // Convert to string for proper comparison with message.senderCid (which is a string)
+  const currentUserCid = connectionInfo?.cid !== undefined ? String(connectionInfo.cid) : 'mock-user-cid';
 
   // Show loading state while recovering connection
   if (isRecoveringConnection) {
