@@ -1,0 +1,55 @@
+import { Check, CheckCheck, Clock, RefreshCw, XCircle } from 'lucide-react';
+import type { P2PMessage } from '@/lib/p2p-messenger-manager';
+import { formatTime } from '@/components/chat/shared';
+
+interface BubbleFooterProps {
+  message: P2PMessage;
+  isOwn: boolean;
+  onRetry?: () => void;
+}
+
+function getMessageStatusIcon(message: P2PMessage) {
+  switch (message.status) {
+    case 'pending':
+      return <Clock className="h-3 w-3 text-gray-400" />;
+    case 'sent':
+      return <Check className="h-3 w-3 text-gray-400" />;
+    case 'delivered':
+      return <CheckCheck className="h-3 w-3 text-gray-400" />;
+    case 'read':
+      return <CheckCheck className="h-3 w-3 text-sky-400" />;
+    case 'failed':
+      return <XCircle className="h-3 w-3 text-red-400" />;
+    default:
+      return null;
+  }
+}
+
+export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
+  const isFailed = message.status === 'failed';
+
+  return (
+    <>
+      <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+        <span className="text-xs opacity-70" data-testid="message-timestamp">
+          {formatTime(message.timestamp)}
+        </span>
+        {isOwn && getMessageStatusIcon(message)}
+        {/* Retry button for failed messages */}
+        {isOwn && isFailed && onRetry && (
+          <button
+            onClick={onRetry}
+            className="ml-1 p-0.5 rounded hover:bg-white/10 transition-colors"
+            title="Retry sending"
+          >
+            <RefreshCw className="h-3 w-3 text-red-400 hover:text-white" />
+          </button>
+        )}
+      </div>
+      {/* Error message for failed sends */}
+      {isOwn && isFailed && message.error && (
+        <p className="text-xs text-red-400 mt-1">{message.error}</p>
+      )}
+    </>
+  );
+}

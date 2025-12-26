@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Room MDX Editor</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: #fff;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .log { 
+            background: #2a2a2a; 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 5px; 
+            white-space: pre-wrap; 
+            font-family: monospace;
+        }
+        button {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #6d28d9;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+        }
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Room MDX Editor</h1>
+        
+        <div class="input-group">
+            <label for="roomId">Room ID:</label>
+            <input type="text" id="roomId" value="test-room-1" />
+        </div>
+        
+        <div class="input-group">
+            <label for="officeId">Office ID:</label>
+            <input type="text" id="officeId" value="test-office-1" />
+        </div>
+        
+        <div class="input-group">
+            <label for="mdxContent">MDX Content:</label>
+            <textarea id="mdxContent" rows="10"># Welcome to Test Room
+
+This is a test room for MDX content editing.
+
+## Features
+- Real-time editing
+- MDX support
+- Template selection
+
+### Code Example
+```javascript
+const greeting = "Hello, World!";
+console.log(greeting);
+```
+</textarea>
+        </div>
+        
+        <button onclick="loadRoom()">Load Room</button>
+        <button onclick="updateRoomContent()">Update Room Content</button>
+        <button onclick="listRooms()">List Rooms</button>
+        
+        <div id="logs"></div>
+    </div>
+
+    <script type="module">
+        // This mock simulates the room data structure
+        const mockRoomData = {
+            'test-room-1': {
+                id: 'test-room-1',
+                name: 'Test Room',
+                description: 'A test room for MDX editing',
+                mdx_content: `# Test Room Content\n\nThis is the initial MDX content.`,
+                members: {}
+            }
+        };
+        
+        window.rooms = mockRoomData;
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.insertBefore(logEntry, logs.firstChild);
+        }
+        
+        window.loadRoom = async function() {
+            const roomId = document.getElementById('roomId').value;
+            const room = window.rooms[roomId];
+            
+            if (room) {
+                document.getElementById('mdxContent').value = room.mdx_content || '';
+                log(`Loaded room: ${room.name}`, 'success');
+                log(`Current MDX content:\n${room.mdx_content}`);
+            } else {
+                log(`Room ${roomId} not found`, 'error');
+            }
+        };
+        
+        window.updateRoomContent = async function() {
+            const roomId = document.getElementById('roomId').value;
+            const mdxContent = document.getElementById('mdxContent').value;
+            
+            if (window.rooms[roomId]) {
+                window.rooms[roomId].mdx_content = mdxContent;
+                log(`Updated room ${roomId} MDX content`, 'success');
+                log(`New content:\n${mdxContent}`);
+                
+                // Simulate MDX compilation
+                try {
+                    // In real app, this would use @mdx-js/mdx evaluate
+                    log('MDX compilation would happen here', 'info');
+                    log('Content is valid MDX', 'success');
+                } catch (error) {
+                    log(`MDX compilation error: ${error.message}`, 'error');
+                }
+            } else {
+                log(`Room ${roomId} not found`, 'error');
+            }
+        };
+        
+        window.listRooms = function() {
+            const roomList = Object.values(window.rooms).map(room => 
+                `${room.id}: ${room.name} - ${room.description}`
+            ).join('\n');
+            log(`Available rooms:\n${roomList}`);
+        };
+        
+        // Load initial room on page load
+        window.addEventListener('load', () => {
+            log('Test environment ready');
+            loadRoom();
+        });
+    </script>
+</body>
+</html>

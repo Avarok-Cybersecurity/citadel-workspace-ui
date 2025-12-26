@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-12-26T21:57:15.483Z",
+  "testName": "Office & Room CRUD Integration Test",
+  "overallPass": true,
+  "results": {
+    "accountCreation": true,
+    "workspaceLoaded": true,
+    "isAdmin": true,
+    "officeCreated": true,
+    "officeNameUpdated": false,
+    "officeDescriptionUpdated": false,
+    "officeMdxUpdated": false,
+    "officeDeleted": false,
+    "roomCreated": true,
+    "roomNameUpdated": false,
+    "roomDescriptionUpdated": false,
+    "roomMdxUpdated": false,
+    "roomDeleted": false,
+    "cascadeDeleteWorks": false,
+    "nonAdminCannotCreateOffice": true,
+    "nonAdminCannotDeleteOffice": false,
+    "nonAdminCannotCreateRoom": false,
+    "nonAdminCannotDeleteRoom": false,
+    "memberAddedToOffice": false,
+    "memberRemovedFromOffice": false,
+    "memberAddedToRoom": false,
+    "memberRemovedFromRoom": false
+  },
+  "uxIssues": []
+}

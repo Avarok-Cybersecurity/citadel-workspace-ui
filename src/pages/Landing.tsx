@@ -1,0 +1,260 @@
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { LogIn, Settings } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ServerConnect } from "@/components/ServerConnect";
+import { SecuritySettings } from "@/components/SecuritySettings";
+import { Join } from "@/components/Join";
+import { Login } from "@/components/Login";
+import WorkspaceService from "@/lib/workspace-service";
+import type { SecuritySettingsValues } from "@/components/SecuritySettings";
+import { listKnownServers } from "@/lib/server-utils";
+import { ManageAccountsButton } from "@/components/ManageAccountsButton";
+import { ConnectionManager } from "@/lib/connection-manager";
+import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
+import { LoginConflictModal } from "@/components/LoginConflictModal";
+import { SettingsModal } from "@/components/SettingsModal";
+import { cn } from "@/lib/utils";
+import { getWorkspacePath } from "@/lib/workspace-navigation";
+
+export const Landing = () => {
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
+  const [serverData, setServerData] = useState({ serverAddress: '127.0.0.1:12349', password: '' });
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsValues>({
+    securityLevel: 'Standard',
+    secrecyMode: 'BestEffort',
+    encryptionAlgorithm: 'AES_GCM_256',
+    kemAlgorithm: 'Kyber',
+    sigAlgorithm: 'None',
+    headerObfuscatorSettings: {},
+    storeCredentials: false
+  });
+  const [hasExistingServers, setHasExistingServers] = useState(false);
+  const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
+  const [orphanSessionCount, setOrphanSessionCount] = useState(0);
+  const [showLoginConflict, setShowLoginConflict] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  // Check for orphan sessions (don't auto-navigate, just detect)
+  useEffect(() => {
+    const checkOrphanSessions = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // Development mode: Check for dev flag in URL
+      if (urlParams.get('dev') === 'true') {
+        console.log('Development mode: Bypassing auth and navigating to office');
+        navigate(getWorkspacePath());
+        return;
+      }
+
+      try {
+        // Get the connection manager instance
+        const connectionManager = ConnectionManager.getInstance();
+
+        // Wait for connection manager to be ready before getting sessions
+        // This prevents race conditions during component initialization
+        await connectionManager.waitForReady();
+
+        // Get active sessions from internal service
+        const activeSessions = await connectionManager.getActiveSessions();
+
+        if (activeSessions && activeSessions.length > 0) {
+          console.log('Landing: Found orphan sessions:', activeSessions.length);
+          setHasOrphanSessions(true);
+          setOrphanSessionCount(activeSessions.length);
+          // Note: Don't auto-navigate - let user choose from the navbar
+        } else {
+          console.log('Landing: No orphan sessions found');
+          setHasOrphanSessions(false);
+          setOrphanSessionCount(0);
+        }
+      } catch (error) {
+        console.log('Landing: Error checking orphan sessions:', error);
+        setHasOrphanSessions(false);
+        setOrphanSessionCount(0);
+      }
+    };
+
+    checkOrphanSessions();
+  }, [navigate]);
+
+  // Memoize the checkForServers function to prevent it from being recreated on each render
+  const checkForServers = useCallback(async () => {
+    try {
+      // Using "0" as a valid u64 string representation for the landing page
+      const response = await listKnownServers({ cid: "0" });
+      setHasExistingServers(response.servers.length > 0);
+    } catch (error: any) {
+      // Silently ignore initialization errors on the landing page
+      // The WebSocket service will be initialized when needed
+      if (error.message?.includes('WASM client not initialized')) {
+        console.log('WebSocket not yet initialized, skipping known servers check');
+      } else {
+        console.error("Error checking for known servers:", error);
+        const errorMessage = error.message || error.toString() || "Unknown error";
+        console.error("Error details:", errorMessage);
+      }
+    }
+  }, []);
+
+  // Run the effect only once when the component mounts
+  useEffect(() => {
+    checkForServers();
+  }, [checkForServers]);
+
+  const handleServerNext = () => setCurrentStep('security');
+  const handleSecurityNext = () => {
+    if (currentStep === 'security' && serverData) {
+      // Store the security settings for use in create flow
+      setCurrentStep('join');
+    }
+  };
+  const handleSecurityBack = () => setCurrentStep('server');
+  const handleJoinNext = (cid: string) => {
+    console.info(`[Landing] handleJoinNext called with cid: ${cid}`);
+    try {
+      WorkspaceService.setConnectionId(cid);
+      // Trigger loading - no need to await, WorkspaceEventHandler will handle events
+      console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
+      WorkspaceService.loadWorkspace();
+      WorkspaceService.listOffices(); // Also trigger office loading
+      console.info('[Landing] Navigating to /office...');
+      navigate(getWorkspacePath());
+    } catch (error) {
+      console.error("[Landing] Error during post-registration setup:", error);
+      // TODO: Show an error message to the user
+    }
+  };
+  const handleJoinBack = () => setCurrentStep('security');
+  const startRegistration = () => {
+    // Allow joining new workspaces regardless of existing sessions (Slack-like multi-workspace)
+    setCurrentStep('server');
+  };
+  const startLogin = () => {
+    // Allow login flow - username-specific conflict check happens in Login.tsx
+    setCurrentStep('login');
+  };
+  const handleLoginNext = (cid: string) => {
+    console.info(`[Landing] handleLoginNext called with cid: ${cid}`);
+    try {
+      WorkspaceService.setConnectionId(cid);
+      // Trigger loading
+      console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
+      WorkspaceService.loadWorkspace();
+      WorkspaceService.listOffices();
+      console.info('[Landing] Navigating to /office...');
+      navigate(getWorkspacePath());
+    } catch (error) {
+      console.error("[Landing] Error during post-login setup:", error);
+      // TODO: Show an error message to the user
+    }
+  };
+  const goToTestPage = () => navigate('/test');
+  const goToConnectPage = () => navigate('/connect');
+
+  return (
+    <div className="min-h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
+      {/* Orphan sessions navbar */}
+      <OrphanSessionsNavbar />
+
+      {/* Solid background base */}
+      <div className="absolute inset-0 z-0 bg-[#1C1D28] fixed" />
+
+      {/* Background Image with proper positioning */}
+      <div
+        className="absolute inset-0 z-[1] bg-center bg-no-repeat bg-contain w-full h-full fixed md:bg-right"
+        style={{
+          backgroundImage: "url('/lovable-uploads/fcd25400-92a0-41ed-95ae-573a0298bd55.png')",
+        }}
+      />
+
+      {/* Strong gradient overlay for smooth transition */}
+      <div
+        className="absolute inset-0 z-[2] fixed pointer-events-none"
+        style={{
+          background: 'linear-gradient(to right, #1C1D28 0%, #1C1D28 30%, rgba(28, 29, 40, 0.7) 60%, rgba(28, 29, 40, 0.2) 80%, rgba(28, 29, 40, 0) 100%)',
+        }}
+      />
+
+      {/* Content */}
+      <div className={cn(
+        "container mx-auto px-4 sm:px-6 py-10 md:py-0 relative z-10",
+        hasOrphanSessions && "pt-24"
+      )}>
+        <div className="max-w-xl lg:max-w-3xl animate-fade-in">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight">
+            The World's First Post-Quantum Virtual Workspace
+          </h1>
+
+          <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-6 md:mb-8 lg:mb-12">
+            Hyper-security and control over defense and privacy at your fingertips
+          </p>
+
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4">
+            <Button
+              onClick={startLogin}
+              className="bg-purple-600 text-white hover:bg-purple-700 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] transition-colors duration-300 w-full sm:w-auto flex items-center gap-2"
+              size="lg"
+            >
+              <LogIn className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="whitespace-nowrap">Login Workspace</span>
+            </Button>
+
+            <Button
+              onClick={startRegistration}
+              className="bg-white text-black hover:bg-gray-100 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] transition-colors duration-300 w-full sm:w-auto"
+              size="lg"
+            >
+              <span className="whitespace-nowrap">Join Workspace</span>
+            </Button>
+          </div>
+
+          {/* Account management and settings buttons */}
+          <div className="mt-8 flex gap-3">
+            <ManageAccountsButton />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Registration Flow Overlays */}
+      {currentStep === 'server' && (
+        <ServerConnect onNext={handleServerNext} onCancel={() => setCurrentStep('none')} />
+      )}
+      {currentStep === 'security' && (
+        <SecuritySettings onNext={handleSecurityNext} onBack={handleSecurityBack} />
+      )}
+      {currentStep === 'join' && (
+        <Join onNext={handleJoinNext} onBack={handleJoinBack} />
+      )}
+      {currentStep === 'login' && (
+        <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} />
+      )}
+
+      {/* Login conflict modal */}
+      <LoginConflictModal
+        open={showLoginConflict}
+        onOpenChange={setShowLoginConflict}
+        workspaceCount={orphanSessionCount}
+        onDismiss={() => {
+          // Just close the modal - user can use the navbar icons
+          setShowLoginConflict(false);
+        }}
+      />
+
+      {/* Settings modal */}
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </div>
+  );
+};
+
+export default Landing;

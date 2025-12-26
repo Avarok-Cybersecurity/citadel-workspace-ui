@@ -1,0 +1,32 @@
+{
+  "name": "cw-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Citadel Workspace",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node dist/tests/p2p-messaging.test.js",
+    "test:p2p": "npm run build && node dist/tests/p2p-messaging.test.js",
+    "test:live-doc": "npm run build && node dist/tests/live-doc-sync.test.js",
+    "test:group": "npm run build && node dist/tests/group-messaging.test.js",
+    "test:group-multiuser": "npm run build && node dist/tests/group-messaging-multiuser.test.js",
+    "test:all-group": "npm run test:group && npm run test:group-multiuser",
+    "test:crud": "npm run build && node dist/tests/office-room-crud.test.js",
+    "test:all": "npm run test:p2p && npm run test:crud && npm run test:all-group",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Debug Logger</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4a5568;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover {
+            background: #2d3748;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 10px;
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #4a5568;
+        }
+    </style>
+</head>
+<body>
+    <h1>WASM Debug Logger Test</h1>
+    
+    <div class="section">
+        <h2>Test Large Byte Array Logging</h2>
+        <button id="testLargeArray">Trigger Large Array Log</button>
+        <button id="testParsedValue">Trigger Parsed JSON Value Log</button>
+        <button id="testNormalLog">Trigger Normal Log</button>
+    </div>
+
+    <div class="section">
+        <h2>Test LocalDB Operations</h2>
+        <button id="testLocalDBSet">Test LocalDBSetKV with Large Value</button>
+        <button id="testLocalDBGet">Test LocalDBGetKV</button>
+    </div>
+
+    <div class="section">
+        <h2>Console Output</h2>
+        <button id="clearConsole">Clear Console</button>
+        <div id="output">Console logs will appear here...</div>
+    </div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+        
+        // Intercept console.log to display in our output div
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            output.textContent += message + '\n';
+            output.scrollTop = output.scrollHeight;
+        };
+
+        // Test functions
+        document.getElementById('testLargeArray').addEventListener('click', () => {
+            // Create a large byte array (session data)
+            const largeArray = new Array(300).fill(0).map((_, i) => i % 256);
+            const testData = {
+                LocalDBSetKV: {
+                    request_id: "test-" + Date.now(),
+                    cid: 0,
+                    key: "test_session",
+                    value: largeArray
+                }
+            };
+            
+            // Simulate the log that would come from WASM
+            const logStr = `JSON string from JS: ${JSON.stringify(testData)}`;
+            console.log("Testing large array log (length: " + logStr.length + " chars)");
+            
+            // Call wasmDebugLog if it exists
+            if (window.wasmDebugLog) {
+                window.wasmDebugLog(logStr);
+            } else {
+                console.log("wasmDebugLog not available - is wasm-debug-bridge loaded?");
+            }
+        });
+
+        document.getElementById('testParsedValue').addEventListener('click', () => {
+            // Simulate a "Parsed JSON value" log with a large array
+            const largeArray = new Array(250).fill(0).map((_, i) => `Number(${i})`);
+            const logStr = `Parsed JSON value: Object {"LocalDBSetKV": Object {"cid": Number(0), "key": String("citadel_sessions"), "value": Array [${largeArray.join(', ')}]}} @ citadel_internal_service_wasm_client.js:415`;
+            
+            console.log("Testing parsed JSON value log (length: " + logStr.length + " chars)");
+            
+            if (window.wasmDebugLog) {
+                window.wasmDebugLog(logStr);
+            }
+        });
+
+        document.getElementById('testNormalLog').addEventListener('click', () => {
+            // Test a normal short log
+            const logStr = 'Connection established: {"cid": "12345", "status": "connected"}';
+            console.log("Testing normal log");
+            
+            if (window.wasmDebugLog) {
+                window.wasmDebugLog(logStr);
+            }
+        });
+
+        document.getElementById('testLocalDBSet').addEventListener('click', async () => {
+            console.log("Testing LocalDBSetKV with large session data...");
+            
+            // Create session data with a large value
+            const sessionData = {
+                sessions: [{
+                    username: "testuser",
+                    password: "password123",
+                    serverAddress: "127.0.0.1:12349",
+                    fullName: "Test User",
+                    lastConnected: Date.now(),
+                    cid: "11495598683972467428",
+                    sessionSecuritySettings: {
+                        securityLevel: "Standard",
+                        secrecyMode: "BestEffort",
+                        encryptionAlgorithm: "AES_GCM_256",
+                        kemAlgorithm: "Kyber",
+                        sigAlgorithm: "None",
+                        headerObfuscatorSettings: "Disabled"
+                    }
+                }]
+            };
+            
+            // This simulates what would happen when storing session data
+            const valueBytes = new TextEncoder().encode(JSON.stringify(sessionData));
+            const request = {
+                LocalDBSetKV: {
+                    request_id: "test-localdb-" + Date.now(),
+                    cid: 0,
+                    key: "citadel_sessions",
+                    value: Array.from(valueBytes)
+                }
+            };
+            
+            const logStr = `JSON string from JS: ${JSON.stringify(request)}`;
+            console.log("LocalDBSetKV request size: " + logStr.length + " chars");
+            
+            if (window.wasmDebugLog) {
+                window.wasmDebugLog(logStr);
+            }
+        });
+
+        document.getElementById('testLocalDBGet').addEventListener('click', () => {
+            const request = {
+                LocalDBGetKV: {
+                    request_id: "test-get-" + Date.now(),
+                    cid: 0,
+                    key: "citadel_sessions"
+                }
+            };
+            
+            const logStr = `JSON string from JS: ${JSON.stringify(request)}`;
+            console.log("Testing LocalDBGetKV (normal size log)");
+            
+            if (window.wasmDebugLog) {
+                window.wasmDebugLog(logStr);
+            }
+        });
+
+        document.getElementById('clearConsole').addEventListener('click', () => {
+            output.textContent = '';
+            console.log("Console cleared");
+        });
+
+        // Initialize on load
+        window.addEventListener('load', async () => {
+            console.log("Debug Logger Test Page Loaded");
+            console.log("Checking for wasmDebugLog function...");
+            
+            setTimeout(() => {
+                if (window.wasmDebugLog) {
+                    console.log("✓ wasmDebugLog is available");
+                } else {
+                    console.log("✗ wasmDebugLog is NOT available - wasm-debug-bridge may not be loaded");
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
