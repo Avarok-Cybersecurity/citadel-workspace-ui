@@ -109,6 +109,8 @@ export type WorkspaceEventType =
   | 'member:loaded'
   | 'members:loading'
   | 'members:loaded'
+  | 'member:role-updated'
+  | 'user:permissions:loaded'
   // Message events
   | 'message:received'
   | 'typing:started'
@@ -234,6 +236,8 @@ export class WorkspaceEvents {
   public async onMemberEvent<T>(event: 'member:updating_permissions', callback: (payload: { userId: string, domainId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: 'member:removing', callback: (payload: { userId: string, officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: 'members:loading', callback: (payload: { officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onMemberEvent<T>(event: 'member:role-updated', callback: (payload: { userId: string, role: string, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onMemberEvent<T>(event: 'user:permissions:loaded', callback: (payload: { userId: string, role: string, permissions: any[], domainId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: WorkspaceEventType, callback: any): Promise<() => void> {
     const unlistenFn = await listen(event, ({ payload }) => {
       callback(payload);

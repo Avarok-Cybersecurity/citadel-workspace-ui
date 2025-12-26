@@ -737,7 +737,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (typeof module_or_path === 'undefined') {
-        module_or_path = new URL('citadel_internal_service_wasm_client_bg.wasm?v=1766699280', import.meta.url);
+        module_or_path = new URL('citadel_internal_service_wasm_client_bg.wasm?v=1766777201', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

@@ -12,6 +12,8 @@ export interface WorkspaceState {
     id: string;
     username: string;
     name: string;
+    role?: string;
+    displayName?: string;
   };
   offices: Record<string, Office>;
   rooms: Record<string, Room>;

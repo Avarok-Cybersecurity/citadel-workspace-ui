@@ -12,8 +12,10 @@ import { UserRole } from "@/types/workspace-entities";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
-import { FileText } from "lucide-react";
+import { FileText, MessageSquare } from "lucide-react";
 import WorkspaceService from "@/lib/workspace-service";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import GroupChatView from "@/components/chat/GroupChatView";
 
 interface BaseOfficeProps {
   title: string;
@@ -159,6 +161,62 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
 
   const hasEditPermission = canEditMdxContent();
 
+  // Check if chat is enabled for this office/room
+  const chatEnabled = entityData?.chat_enabled ?? false;
+  const chatChannelId = entityData?.chat_channel_id;
+
+  // Get current user info from workspace state
+  const currentUserId = state.currentUser?.id || 'unknown';
+  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || 'Unknown User';
+
+  // Content view (MDX editor or rendered content)
+  const contentView = isEditing ? (
+    <div className="px-4 pt-6 pb-2">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-white">Edit Content</h2>
+        <div className="flex gap-2">
+          {(isNewContent || content.trim() === '') && (
+            <TemplateSelector
+              category={TemplateCategory.OFFICE}
+              onSelectTemplate={handleTemplateSelect}
+              buttonVariant="outline"
+              buttonSize="sm"
+              buttonText="Use Template"
+            />
+          )}
+        </div>
+      </div>
+      <MDXEditor
+        value={content}
+        onChange={(value) => setContent(value)}
+        height="400px"
+        placeholder="Write your office content here using Markdown or MDX..."
+      />
+    </div>
+  ) : (
+    <div className="px-4 pt-6 pb-2 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-none">
+      <MDXProvider components={components}>
+        {compiledContent}
+      </MDXProvider>
+    </div>
+  );
+
+  // If chat is not enabled, just show the content
+  if (!chatEnabled || !chatChannelId) {
+    return (
+      <OfficeLayout
+        title={entityData?.name || title}
+        isEditing={isEditing}
+        onEditToggle={() => setIsEditing(!isEditing)}
+        onSave={handleSave}
+        canEdit={hasEditPermission}
+      >
+        {contentView}
+      </OfficeLayout>
+    );
+  }
+
+  // If chat is enabled, show tabs
   return (
     <OfficeLayout
       title={entityData?.name || title}
@@ -167,36 +225,33 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
       onSave={handleSave}
       canEdit={hasEditPermission}
     >
-      {isEditing ? (
-        <div className="px-4 pt-6 pb-2">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-white">Edit Content</h2>
-            <div className="flex gap-2">
-              {(isNewContent || content.trim() === '') && (
-                <TemplateSelector
-                  category={TemplateCategory.OFFICE}
-                  onSelectTemplate={handleTemplateSelect}
-                  buttonVariant="outline"
-                  buttonSize="sm"
-                  buttonText="Use Template"
-                />
-              )}
-            </div>
-          </div>
-          <MDXEditor
-            value={content}
-            onChange={(value) => setContent(value)}
-            height="400px"
-            placeholder="Write your office content here using Markdown or MDX..."
+      <Tabs defaultValue="content" className="w-full h-full">
+        <div className="px-4 pt-4 border-b border-gray-700">
+          <TabsList className="bg-gray-800">
+            <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
+              <FileText className="h-4 w-4 mr-2" />
+              Content
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="data-[state=active]:bg-purple-600">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Chat
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="content" className="mt-0">
+          {contentView}
+        </TabsContent>
+
+        <TabsContent value="chat" className="mt-0 h-[calc(100vh-200px)]">
+          <GroupChatView
+            groupId={chatChannelId}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            rules={entityData?.rules}
           />
-        </div>
-      ) : (
-        <div className="px-4 pt-6 pb-2 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-none">
-          <MDXProvider components={components}>
-            {compiledContent}
-          </MDXProvider>
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </OfficeLayout>
   );
 };

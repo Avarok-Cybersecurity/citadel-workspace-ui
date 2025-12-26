@@ -72,3 +72,34 @@ export {
   getLiveDocContent,
   verifyLiveDocContent,
 } from './live-docs.js';
+
+// Group Chat
+export {
+  navigateToOffice,
+  navigateToRoom,
+  switchToChatTab,
+  switchToContentTab,
+  isChatEnabled,
+  sendGroupMessage,
+  verifyGroupMessageReceived,
+  getMessageCount,
+  checkMessageTimestamps,
+  loadOlderMessages,
+  checkRulesBanner,
+  hasOffices,
+  createOffice,
+} from './group-chat.js';
+
+// Diagnostics - Console error/warning collector and white-screen detector
+export {
+  startDiagnostics,
+  printDiagnosticsReport,
+  isWhiteScreen,
+} from './diagnostics.js';
+export type {
+  ConsoleMessage,
+  ConsoleMessageType,
+  WhiteScreenCheck,
+  DiagnosticsReport,
+  DiagnosticsHandle,
+} from './diagnostics.js';

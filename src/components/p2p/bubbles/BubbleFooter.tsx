@@ -1,5 +1,6 @@
 import { Check, CheckCheck, Clock, RefreshCw, XCircle } from 'lucide-react';
 import type { P2PMessage } from '@/lib/p2p-messenger-manager';
+import { formatTime } from '@/components/chat/shared';
 
 interface BubbleFooterProps {
   message: P2PMessage;
@@ -31,10 +32,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
     <>
       <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
         <span className="text-xs opacity-70" data-testid="message-timestamp">
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
+          {formatTime(message.timestamp)}
         </span>
         {isOwn && getMessageStatusIcon(message)}
         {/* Retry button for failed messages */}

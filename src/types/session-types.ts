@@ -12,6 +12,7 @@ export interface StoredSession {
   fullName: string;
   lastConnected: number;
   cid?: string; // Store the CID for claiming orphaned sessions
+  role?: string; // User's role in the workspace (Admin, Owner, Member, Guest)
   sessionSecuritySettings?: {
     securityLevel: string;
     secrecyMode: string;

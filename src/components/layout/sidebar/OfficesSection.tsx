@@ -119,6 +119,8 @@ export const OfficesSection = () => {
             size="icon"
             className="h-6 w-6 text-[#9b87f5] hover:bg-[#E5DEFF] hover:text-[#343A5C]"
             onClick={handleCreateOffice}
+            data-testid="add-office-button"
+            aria-label="Add office"
           >
             <Plus className="h-4 w-4" />
           </Button>

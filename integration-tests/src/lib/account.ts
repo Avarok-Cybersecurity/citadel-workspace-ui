@@ -22,7 +22,11 @@ export async function createAccount(page: Page, username: string, options: Creat
 
   console.log(`\n=== Creating account: ${username} ===`);
 
-  await page.goto(config.BASE_URL);
+  // Use 'commit' instead of 'load' because WASM loading can take a long time
+  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
+
+  // Wait for page to settle after commit
+  await sleep(2000);
 
   // CRITICAL: Clear all browser storage after navigation to avoid stale session/peer data
   // from previous test runs. This prevents P2PAutoConnect from trying to connect to
@@ -30,48 +34,50 @@ export async function createAccount(page: Page, username: string, options: Creat
   await clearBrowserStorage(page);
 
   // Reload the page to ensure the app starts fresh without stale state
-  await page.reload();
+  await page.reload({ waitUntil: 'commit', timeout: 60000 });
   await sleep(2000);
 
   // Click "Join Workspace" button
   const joinBtn = page.locator('button:has-text("Join Workspace")');
-  if (await joinBtn.isVisible()) {
+  if (await joinBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
     await joinBtn.click();
     await sleep(1000);
   }
 
-  // Step 1: Fill workspace location
-  const serverInput = page.locator('#serverAddress');
-  await serverInput.fill(config.WORKSPACE_SERVER);
-  await sleep(500);
+  // Step 1: Fill workspace location (using role-based selector)
+  const serverInput = page.getByRole('textbox', { name: 'Workspace Location' });
+  if (await serverInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await serverInput.fill(config.WORKSPACE_SERVER);
+    await sleep(500);
 
-  // Click NEXT to go to Security Settings
-  let nextBtn = page.locator('button:has-text("NEXT")');
-  await nextBtn.click();
-  await sleep(2000);
-
-  // Step 2: Security Settings - just click NEXT
-  const securityTitle = page.locator('text="Security Settings"');
-  if (await securityTitle.isVisible({ timeout: 2000 }).catch(() => false)) {
-    nextBtn = page.locator('button:has-text("NEXT")');
+    // Click NEXT to go to Security Settings
+    const nextBtn = page.getByRole('button', { name: 'NEXT' });
     await nextBtn.click();
     await sleep(2000);
   }
 
-  // Step 3: User Details form
-  const fullNameInput = page.locator('input#fullName');
+  // Step 2: Security Settings - just click NEXT
+  const securityTitle = page.locator('text="Security Settings"');
+  if (await securityTitle.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const nextBtn = page.getByRole('button', { name: 'NEXT' });
+    await nextBtn.click();
+    await sleep(2000);
+  }
+
+  // Step 3: User Details form (Create Your Profile)
+  const fullNameInput = page.getByRole('textbox', { name: 'Full Name' });
   if (await fullNameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
     await fullNameInput.fill(username);
     await sleep(300);
 
-    const usernameInput = page.locator('input#username');
+    const usernameInput = page.getByRole('textbox', { name: 'Username' });
     if (await usernameInput.isVisible()) {
       await usernameInput.fill(username);
       await sleep(300);
     }
 
-    const passwordInput = page.locator('input#password');
-    const confirmPasswordInput = page.locator('input#confirmPassword');
+    const passwordInput = page.getByRole('textbox', { name: 'Profile Password', exact: true });
+    const confirmPasswordInput = page.getByRole('textbox', { name: 'Confirm Profile Password' });
 
     if (await passwordInput.isVisible()) {
       await passwordInput.fill(password);
@@ -82,7 +88,8 @@ export async function createAccount(page: Page, username: string, options: Creat
       await sleep(300);
     }
 
-    const submitBtn = page.locator('button:has-text("Register"), button:has-text("Create Account"), button[type="submit"]').first();
+    // Click JOIN button (not Register/Create Account)
+    const submitBtn = page.getByRole('button', { name: 'JOIN', exact: true });
     if (await submitBtn.isVisible()) {
       await submitBtn.click();
       await sleep(8000);
@@ -96,7 +103,7 @@ export async function createAccount(page: Page, username: string, options: Creat
       await passwordField.fill(config.WORKSPACE_PASSWORD);
       await sleep(500);
 
-      const initBtn = page.locator('button:has-text("Initialize Workspace")');
+      const initBtn = page.locator('button:has-text("Initialize & Become Admin")');
       if (await initBtn.isVisible()) {
         await initBtn.click();
         await sleep(5000);

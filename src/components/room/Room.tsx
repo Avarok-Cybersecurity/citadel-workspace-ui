@@ -10,6 +10,9 @@ import { MDXEditor } from '@/components/mdx/MDXEditor';
 import TemplateSelector from '@/components/mdx/TemplateSelector';
 import { TemplateCategory, MdxTemplate } from '@/lib/mdx-templates';
 import WorkspaceService from '@/lib/workspace-service';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import GroupChatView from '@/components/chat/GroupChatView';
+import { FileText, MessageSquare } from 'lucide-react';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';
@@ -149,52 +152,59 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   const hasEditPermission = canEditMdxContent();
 
-  return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
-          <div className="h-10 w-10 rounded-lg bg-purple-600 flex items-center justify-center text-white font-semibold">
-            {room.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-white">{room.name}</h2>
-            <p className="text-gray-400 text-sm">{room.description || 'No description'}</p>
-          </div>
+  // Check if chat is enabled for this room
+  const chatEnabled = room.chat_enabled ?? false;
+  const chatChannelId = room.chat_channel_id;
+
+  // Get current user info from workspace state
+  const currentUserId = state.currentUser?.id || 'unknown';
+  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || 'Unknown User';
+
+  // Room header component
+  const roomHeader = (
+    <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center space-x-4">
+        <div className="h-10 w-10 rounded-lg bg-purple-600 flex items-center justify-center text-white font-semibold">
+          {room.name.charAt(0).toUpperCase()}
         </div>
-        <div className="flex space-x-2">
-          {hasEditPermission && (
-            isEditing ? (
-              <>
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
-              >
-                Edit
-              </button>
-            )
-          )}
-          <button
-            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-          >
-            Join Room
-          </button>
+        <div>
+          <h2 className="text-xl font-semibold text-white">{room.name}</h2>
+          <p className="text-gray-400 text-sm">{room.description || 'No description'}</p>
         </div>
       </div>
+      <div className="flex space-x-2">
+        {hasEditPermission && (
+          isEditing ? (
+            <>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+              Edit
+            </button>
+          )
+        )}
+      </div>
+    </div>
+  );
 
+  // Content view (MDX content and topics)
+  const contentView = (
+    <>
       {isEditing ? (
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -226,25 +236,6 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4">
-        {/* Topics section */}
-        <h3 className="text-lg font-semibold text-white mt-4 mb-2">Topics</h3>
-        {[
-          { title: 'General Discussion', description: 'General chat for all members' },
-          { title: 'Announcements', description: 'Important updates and information' }
-        ].map((topic, index) => (
-          <div key={index} className="flex items-start space-x-3 p-4 border border-gray-800 rounded-lg bg-gray-800 bg-opacity-30">
-            <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
-              {index + 1}
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-white">{topic.title}</h3>
-              <p className="text-gray-400 mt-1">{topic.description}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {room.members && Object.keys(room.members).length > 0 && (
         <div className="mt-8">
           <div className="flex items-center space-x-2 mb-4">
@@ -269,6 +260,49 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
           </div>
         </div>
       )}
+    </>
+  );
+
+  // If chat is not enabled, just show the content
+  if (!chatEnabled || !chatChannelId) {
+    return (
+      <div className="p-4">
+        {roomHeader}
+        {contentView}
+      </div>
+    );
+  }
+
+  // If chat is enabled, show tabs
+  return (
+    <div className="p-4">
+      {roomHeader}
+
+      <Tabs defaultValue="content" className="w-full">
+        <TabsList className="bg-gray-800 mb-4">
+          <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
+            <FileText className="h-4 w-4 mr-2" />
+            Content
+          </TabsTrigger>
+          <TabsTrigger value="chat" className="data-[state=active]:bg-purple-600">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Chat
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content" className="mt-0">
+          {contentView}
+        </TabsContent>
+
+        <TabsContent value="chat" className="mt-0 h-[calc(100vh-280px)]">
+          <GroupChatView
+            groupId={chatChannelId}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            rules={room.rules}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

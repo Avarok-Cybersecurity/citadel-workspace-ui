@@ -50,6 +50,8 @@ interface WorkspaceEventState {
     id: string;
     username: string;
     fullName: string;
+    role?: string;
+    displayName?: string;
   };
   lastRequestId?: string; // Track the last request ID for correlation
 }
@@ -169,12 +171,17 @@ export const WorkspaceEventHandler: React.FC<{
         const currentUser = userService.getCurrentUser();
 
         if (currentUser) {
+          // Get role from stored session (WorkspaceSwitcher uses this)
+          const storedSession = connectionManager.getTabSelectedSession();
+          const role = storedSession?.role;
+
           setState(prev => ({
             ...prev,
             currentUser: {
               id: currentUser.username,
               username: currentUser.username,
-              name: currentUser.fullName || currentUser.username
+              name: currentUser.fullName || currentUser.username,
+              role: role // Include role for admin indicators (golden border)
             }
           }));
         }
@@ -497,11 +504,36 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
-        setState(prev => ({
-          ...prev,
-          loading: { ...prev.loading, members: false },
-          lastRequestId: payload.connection.request_id
-        }));
+        setState(prev => {
+          // Try to find the current user in the members list and update their role
+          let updatedCurrentUser = prev.currentUser;
+          if (prev.currentUser && payload.members) {
+            const currentUserMember = payload.members.find(
+              (m: any) => m.username === prev.currentUser?.username
+            );
+            if (currentUserMember && currentUserMember.role) {
+              console.info(`Updating current user role to: ${currentUserMember.role}`);
+              updatedCurrentUser = {
+                ...prev.currentUser,
+                role: currentUserMember.role,
+                displayName: currentUserMember.displayName || prev.currentUser.fullName
+              };
+
+              // Persist role to stored session for WorkspaceSwitcher
+              const session = connectionManager.getTabSelectedSession();
+              if (session) {
+                connectionManager.updateSessionRole(session.username, session.serverAddress, currentUserMember.role);
+              }
+            }
+          }
+
+          return {
+            ...prev,
+            currentUser: updatedCurrentUser,
+            loading: { ...prev.loading, members: false },
+            lastRequestId: payload.connection.request_id
+          };
+        });
 
         // Don't re-emit the same event - it causes an infinite loop
         // The MembersSection will receive the event directly from workspace-events
@@ -519,10 +551,68 @@ export const WorkspaceEventHandler: React.FC<{
       // Member role updated event
       await workspaceEvents.onMemberEvent('member:role-updated', (payload: any) => {
         console.info('Member role updated:', payload.userId, payload.role);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
+        setState(prev => {
+          // Update currentUser's role if it matches
+          let updatedCurrentUser = prev.currentUser;
+          if (prev.currentUser && (prev.currentUser.username === payload.userId || prev.currentUser.id === payload.userId)) {
+            console.info(`Updating current user role to: ${payload.role}`);
+            updatedCurrentUser = {
+              ...prev.currentUser,
+              role: payload.role
+            };
+
+            // Persist role to stored session for WorkspaceSwitcher
+            const session = connectionManager.getTabSelectedSession();
+            if (session) {
+              connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
+            }
+          }
+          return {
+            ...prev,
+            currentUser: updatedCurrentUser,
+            lastRequestId: payload.connection.request_id
+          };
+        });
+      });
+
+      // User permissions loaded event - updates currentUser's role
+      await workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: any) => {
+        console.info('User permissions loaded:', payload.userId, payload.role);
+        setState(prev => {
+          // Update currentUser's role if it matches
+          let updatedCurrentUser = prev.currentUser;
+
+          // Check against currentUser username/id OR the stored session username
+          const storedSession = connectionManager.getStoredSessionsArray()[0];
+          const isCurrentUser = prev.currentUser && (
+            prev.currentUser.username === payload.userId ||
+            prev.currentUser.id === payload.userId ||
+            // Also match if currentUser has placeholder "Loading..." but payload matches stored session
+            (prev.currentUser.username === 'Loading...' && storedSession?.username === payload.userId)
+          );
+
+          if (isCurrentUser && prev.currentUser) {
+            console.info(`Updating current user role from permissions to: ${payload.role}`);
+            updatedCurrentUser = {
+              ...prev.currentUser,
+              // Also update username if it was 'Loading...'
+              username: prev.currentUser.username === 'Loading...' ? payload.userId : prev.currentUser.username,
+              id: prev.currentUser.id === 'Loading...' ? payload.userId : prev.currentUser.id,
+              role: payload.role
+            };
+
+            // Persist role to stored session for WorkspaceSwitcher
+            const session = connectionManager.getTabSelectedSession();
+            if (session) {
+              connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
+            }
+          }
+          return {
+            ...prev,
+            currentUser: updatedCurrentUser,
+            lastRequestId: payload.connection?.request_id
+          };
+        });
       });
 
       // Member removed event
@@ -825,8 +915,10 @@ export const WorkspaceEventHandler: React.FC<{
         onClose={() => setShowInitModal(false)}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}
-        serverAddress={connectionManager.getStoredSessions()[0]?.serverAddress}
-        username={state.currentUser?.username || connectionManager.getStoredSessions()[0]?.username}
+        workspaceId={state.workspace?.id || 'root'}
+        serverAddress={connectionManager.getStoredSessionsArray()[0]?.serverAddress}
+        username={state.currentUser?.username && state.currentUser.username !== 'Loading...' ? state.currentUser.username : connectionManager.getStoredSessionsArray()[0]?.username}
+        fullName={state.currentUser?.fullName && state.currentUser.fullName !== 'Loading...' ? state.currentUser.fullName : connectionManager.getStoredSessionsArray()[0]?.fullName}
       />
     </>
   );

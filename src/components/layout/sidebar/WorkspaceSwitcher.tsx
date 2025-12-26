@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, Plus, Server, Settings } from "lucide-react";
+import { ChevronRight, Plus, Server, Settings, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -89,7 +89,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
         isActive: session.cid === currentCid,
         cid: session.cid,
         fullName: session.fullName,
-        role: 'Member' // This could be enhanced to fetch actual role
+        role: session.role || 'Member' // Use stored role or default to Member
       }));
       
       setAvailableWorkspaces(workspaces);
@@ -397,8 +397,11 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
                     <span className="font-semibold block group-hover:text-[#1C1D28]">
                       {workspace.fullName || workspace.username}
                     </span>
-                    <span className="text-xs text-gray-400 group-hover:text-gray-600">
+                    <span className="text-xs text-gray-400 group-hover:text-gray-600 flex items-center gap-1">
                       @{workspace.username} · {workspace.role || 'Member'}
+                      {(workspace.role === 'Admin' || workspace.role === 'admin' || workspace.role === 'Owner' || workspace.role === 'owner') && (
+                        <Shield className="w-3 h-3 text-amber-400" title="Administrator" />
+                      )}
                     </span>
                   </div>
                   {workspace.isActive && (

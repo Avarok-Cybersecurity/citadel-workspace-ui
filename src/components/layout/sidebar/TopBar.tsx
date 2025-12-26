@@ -24,6 +24,7 @@ import { clearSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { useState } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
+import { cn } from "@/lib/utils";
 
 interface TopBarProps {
   // Optional prop for backward compatibility
@@ -45,6 +46,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const username = state.currentUser?.username || "User";
   const name = state.currentUser?.name || username;
   const userInitials = getUserInitials(name);
+
+  // Check if user is admin (handle both 'Admin' from backend and 'admin' from frontend)
+  const userRole = state.currentUser?.role;
+  const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
 
   const handleSettingsClick = () => {
     toast({
@@ -139,8 +144,11 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]">
-              <Avatar className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]" title={isAdmin ? "Workspace Administrator" : undefined}>
+              <Avatar className={cn(
+                "h-8 w-8",
+                isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#252424]"
+              )}>
                 <AvatarImage src="" />
                 <AvatarFallback className="bg-[#444A6C] text-white">{userInitials}</AvatarFallback>
               </Avatar>

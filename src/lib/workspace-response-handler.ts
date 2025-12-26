@@ -2,6 +2,7 @@ import { eventEmitter } from './event-emitter';
 import { WorkspaceProtocolPayloadTS, WorkspaceProtocolResponseTS } from '@/types/workspace-protocol';
 import { websocketService } from './websocket-service';
 import { debugLog, errorLog } from './debug-config';
+import { groupMessagingManager } from './group-messaging-manager';
 
 /**
  * Handles workspace protocol responses and emits appropriate events
@@ -334,6 +335,78 @@ export class WorkspaceResponseHandler {
           connection: connectionInfo
         });
       }
+    // ========== Group Messaging Responses ==========
+    } else if ('GroupMessageNotification' in response) {
+      // Handle new group message notification
+      const { group_id, message } = response.GroupMessageNotification;
+      debugLog('workspace', 'GroupMessageNotification received', { group_id, message });
+      groupMessagingManager.handleNewMessage(group_id, message);
+      eventEmitter.emit('group:message:new', {
+        groupId: group_id,
+        message,
+        connection: connectionInfo
+      });
+    } else if ('GroupMessages' in response) {
+      // Handle paginated messages response
+      const { group_id, messages, has_more } = response.GroupMessages;
+      debugLog('workspace', 'GroupMessages received', { group_id, count: messages.length, has_more });
+      groupMessagingManager.handleMessagesLoaded(group_id, messages, has_more);
+      eventEmitter.emit('group:messages:loaded', {
+        groupId: group_id,
+        messages,
+        hasMore: has_more,
+        connection: connectionInfo
+      });
+    } else if ('GroupMessageEdited' in response) {
+      // Handle message edited notification
+      const { group_id, message_id, new_content, edited_at } = response.GroupMessageEdited;
+      debugLog('workspace', 'GroupMessageEdited received', { group_id, message_id });
+      groupMessagingManager.handleMessageEdited(group_id, message_id, new_content, edited_at);
+      eventEmitter.emit('group:message:edited', {
+        groupId: group_id,
+        messageId: message_id,
+        newContent: new_content,
+        editedAt: edited_at,
+        connection: connectionInfo
+      });
+    } else if ('GroupMessageDeleted' in response) {
+      // Handle message deleted notification
+      const { group_id, message_id, deleted_by } = response.GroupMessageDeleted;
+      debugLog('workspace', 'GroupMessageDeleted received', { group_id, message_id, deleted_by });
+      groupMessagingManager.handleMessageDeleted(group_id, message_id);
+      eventEmitter.emit('group:message:deleted', {
+        groupId: group_id,
+        messageId: message_id,
+        deletedBy: deleted_by,
+        connection: connectionInfo
+      });
+    } else if ('GroupMessage' in response) {
+      // Handle single group message response
+      debugLog('workspace', 'GroupMessage received', response.GroupMessage);
+      eventEmitter.emit('group:message:single', {
+        message: response.GroupMessage,
+        connection: connectionInfo
+      });
+    } else if ('UserPermissions' in response) {
+      // Handle user permissions response
+      const { user_id, role, permissions, domain_id } = response.UserPermissions;
+      debugLog('workspace', 'UserPermissions received', { user_id, role, domain_id });
+      eventEmitter.emit('user:permissions:loaded', {
+        userId: user_id,
+        role,
+        permissions,
+        domainId: domain_id,
+        connection: connectionInfo
+      });
+    } else if ('MemberRoleUpdated' in response) {
+      // Handle member role update response
+      const { user_id, new_role } = response.MemberRoleUpdated;
+      debugLog('workspace', 'MemberRoleUpdated received', { user_id, new_role });
+      eventEmitter.emit('member:role-updated', {
+        userId: user_id,
+        role: new_role,
+        connection: connectionInfo
+      });
     } else {
       // Log unhandled response types for debugging
       debugLog('workspace', 'Unhandled response type:', response);

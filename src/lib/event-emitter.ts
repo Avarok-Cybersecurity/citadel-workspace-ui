@@ -1,6 +1,6 @@
 export type EventHandler<T = any> = (payload: T) => void;
 
-class EventEmitter {
+export class EventEmitter {
   private listeners: Map<string, Set<EventHandler>> = new Map();
 
   emit<T = any>(event: string, payload: T): void {

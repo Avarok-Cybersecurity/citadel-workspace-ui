@@ -31,6 +31,9 @@ export interface Office extends Entity {
   ownerId: string;
   members?: Record<string, User>;
   rooms?: Record<string, Room>;
+  rules?: string;
+  chat_enabled: boolean;
+  chat_channel_id?: string;
 }
 
 // Room entity
@@ -42,6 +45,9 @@ export interface Room extends Entity {
   ownerId: string;
   members?: Record<string, User>;
   isPrivate: boolean;
+  rules?: string;
+  chat_enabled: boolean;
+  chat_channel_id?: string;
 }
 
 // Role enumeration for users
@@ -78,4 +84,26 @@ export enum MessageType {
   Text = 'text',
   File = 'file',
   System = 'system'
+}
+
+// Group message type enum (matches Rust GroupMessageType)
+export enum GroupMessageType {
+  Text = 'Text',
+  Markdown = 'Markdown',
+  System = 'System'
+}
+
+// Group message interface (matches Rust GroupMessage)
+export interface GroupMessage {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  sender_name: string;
+  message_type: GroupMessageType;
+  content: string;
+  timestamp: number;
+  reply_to?: string;
+  reply_count: number;
+  mentions: string[];
+  edited_at?: number;
 }

@@ -21,6 +21,7 @@ import { liveDocumentStore } from '@/lib/live-document-store';
 import type { P2PMessage, PeerPresence } from '@/lib/p2p-messenger-manager';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { MessageType } from '@/types/message-protocol';
+import { getInitials } from '@/components/chat/shared';
 
 interface P2PChatProps {
   peerCid: string;
@@ -502,7 +503,7 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
-              <AvatarFallback>{peerName[0]}</AvatarFallback>
+              <AvatarFallback>{getInitials(peerName)}</AvatarFallback>
             </Avatar>
             <div>
               <h3 className="text-base font-semibold text-white">{peerName}</h3>

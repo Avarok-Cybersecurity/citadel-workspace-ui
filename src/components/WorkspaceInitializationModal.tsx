@@ -15,8 +15,10 @@ interface WorkspaceInitializationModalProps {
     onClose: () => void;
     onSuccess: () => void;
     workspaceName?: string;
+    workspaceId?: string;
     serverAddress?: string;
     username?: string;
+    fullName?: string;
 }
 
 export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModalProps> = ({
@@ -24,8 +26,10 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
     onClose,
     onSuccess,
     workspaceName,
+    workspaceId,
     serverAddress,
-    username
+    username,
+    fullName
 }) => {
     const [masterPassword, setMasterPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,11 +120,25 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             
             // Wait for the response
             await responsePromise;
-            
+
+            // Get the user's permissions to update their role (they should now be Admin)
+            // Use the username prop passed to this modal (not userService which may have "Loading..." placeholder)
+            try {
+                if (username) {
+                    await WorkspaceService.getUserPermissions(username, 'workspace-root');
+                    console.info('User permissions loaded after workspace initialization for:', username);
+                } else {
+                    console.warn('No username available to load permissions');
+                }
+            } catch (permErr) {
+                console.warn('Failed to load user permissions after initialization:', permErr);
+                // Don't fail the initialization, just warn
+            }
+
             // Only show success toast if we got here without error
             toast({
                 title: "Workspace Initialized",
-                description: "The workspace has been successfully initialized.",
+                description: "You are now the workspace administrator.",
             });
 
             // Clear form
@@ -162,15 +180,26 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
-                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 flex items-start gap-2">
-                            <AlertCircle className="h-5 w-5 text-purple-400 flex-shrink-0 mt-0.5" />
-                            <div className="text-sm text-purple-300">
-                                <p>This workspace has not been initialized. Please enter the workspace password to complete the setup.</p>
-                                {(workspaceName || serverAddress || username) && (
-                                    <div className="mt-2 space-y-1 text-xs">
-                                        {workspaceName && <p><span className="text-purple-400">Workspace:</span> {workspaceName}</p>}
-                                        {serverAddress && <p><span className="text-purple-400">Server:</span> {serverAddress}</p>}
-                                        {username && <p><span className="text-purple-400">User:</span> {username}</p>}
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
+                            <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm text-amber-300">
+                                <p className="font-semibold">You will become the Workspace Administrator</p>
+                                <p className="mt-1">By entering the workspace password, you will initialize this workspace and receive full administrator privileges including the ability to:</p>
+                                <ul className="mt-2 list-disc list-inside text-xs space-y-1">
+                                    <li>Create and manage offices and rooms</li>
+                                    <li>Add and remove users</li>
+                                    <li>Grant permissions to other users</li>
+                                    <li>Configure workspace settings</li>
+                                </ul>
+                                {(workspaceName || workspaceId || serverAddress || username) && (
+                                    <div className="mt-3 pt-2 border-t border-amber-500/30 space-y-1 text-xs">
+                                        {(workspaceId || workspaceName) && (
+                                            <p><span className="text-amber-400">Workspace:</span> {workspaceId || workspaceName}</p>
+                                        )}
+                                        {serverAddress && <p><span className="text-amber-400">Server:</span> {serverAddress}</p>}
+                                        {(fullName || username) && (
+                                            <p><span className="text-amber-400">User:</span> {fullName && username && fullName !== username ? `${fullName} (${username})` : (username || fullName)}</p>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -224,7 +253,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                                     Initializing...
                                 </>
                             ) : (
-                                "Initialize Workspace"
+                                "Initialize & Become Admin"
                             )}
                         </Button>
                     </CardFooter>

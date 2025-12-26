@@ -53,7 +53,7 @@
 }
 
 /* Ensure no yellow backgrounds on scroll */
-html, body {
+html, body, #root {
   background-color: #1C1D28 !important;
   height: 100%;
   width: 100%;
@@ -69,6 +69,12 @@ html {
 
 body {
   position: relative;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Custom scrollbar styling */

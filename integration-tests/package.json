@@ -8,6 +8,11 @@
     "test": "npm run build && node dist/tests/p2p-messaging.test.js",
     "test:p2p": "npm run build && node dist/tests/p2p-messaging.test.js",
     "test:live-doc": "npm run build && node dist/tests/live-doc-sync.test.js",
+    "test:group": "npm run build && node dist/tests/group-messaging.test.js",
+    "test:group-multiuser": "npm run build && node dist/tests/group-messaging-multiuser.test.js",
+    "test:all-group": "npm run test:group && npm run test:group-multiuser",
+    "test:crud": "npm run build && node dist/tests/office-room-crud.test.js",
+    "test:all": "npm run test:p2p && npm run test:crud && npm run test:all-group",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist"
   },

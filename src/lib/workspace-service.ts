@@ -1,6 +1,6 @@
 import { SecurityLevel } from '@/types';
-import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
-import { Office } from '@/types/workspace-entities';
+import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS, GroupMessageTypeTS } from '@/types/workspace-protocol';
+import { Office, GroupMessageType } from '@/types/workspace-entities';
 import { websocketService } from './websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { workspaceResponseHandler } from './workspace-response-handler';
@@ -503,6 +503,22 @@ export class WorkspaceService {
   }
 
   /**
+   * Get a user's permissions for a specific domain
+   * @param userId The user ID
+   * @param domainId The domain ID (workspace, office, or room)
+   */
+  public async getUserPermissions(userId: string, domainId: string): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetUserPermissions: {
+        user_id: userId,
+        domain_id: domainId
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
    * Send a message via workspace protocol
    * @param contents The message contents (can be any subprotocol)
    */
@@ -510,6 +526,118 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       Message: {
         contents: Array.from(contents)
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  // ========== Group Messaging Methods ==========
+
+  /**
+   * Send a group message to a chat channel
+   * @param groupId The group/channel ID (office or room chat_channel_id)
+   * @param content The message content
+   * @param messageType Type of message (Text, Markdown, System)
+   * @param replyTo Optional parent message ID for threading
+   * @param mentions Optional list of mentioned usernames
+   */
+  public async sendGroupMessage(
+    groupId: string,
+    content: string,
+    messageType: GroupMessageTypeTS = GroupMessageTypeTS.Text,
+    replyTo?: string,
+    mentions?: string[]
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      SendGroupMessage: {
+        group_id: groupId,
+        message_type: messageType,
+        content,
+        reply_to: replyTo,
+        mentions
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Edit an existing group message
+   * @param groupId The group/channel ID
+   * @param messageId The message ID to edit
+   * @param newContent The new message content
+   */
+  public async editGroupMessage(
+    groupId: string,
+    messageId: string,
+    newContent: string
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      EditGroupMessage: {
+        group_id: groupId,
+        message_id: messageId,
+        new_content: newContent
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Delete a group message
+   * @param groupId The group/channel ID
+   * @param messageId The message ID to delete
+   */
+  public async deleteGroupMessage(
+    groupId: string,
+    messageId: string
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      DeleteGroupMessage: {
+        group_id: groupId,
+        message_id: messageId
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Get paginated group messages
+   * @param groupId The group/channel ID
+   * @param beforeTimestamp Optional timestamp to fetch messages before (for pagination)
+   * @param limit Maximum number of messages to return (default 50)
+   */
+  public async getGroupMessages(
+    groupId: string,
+    beforeTimestamp?: number,
+    limit: number = 50
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetGroupMessages: {
+        group_id: groupId,
+        before_timestamp: beforeTimestamp,
+        limit
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * Get thread messages (replies to a parent message)
+   * @param groupId The group/channel ID
+   * @param parentMessageId The parent message ID
+   */
+  public async getThreadMessages(
+    groupId: string,
+    parentMessageId: string
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetThreadMessages: {
+        group_id: groupId,
+        parent_message_id: parentMessageId
       }
     };
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };

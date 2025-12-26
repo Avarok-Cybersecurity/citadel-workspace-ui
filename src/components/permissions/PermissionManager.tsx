@@ -90,17 +90,22 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
 
   const loadUserPermissions = async () => {
     try {
-      // TODO: Load actual permissions from backend
-      // For now, simulate based on role
+      // Load actual permissions from backend
+      await WorkspaceService.getUserPermissions(userId, domainId);
+      // The response will be handled by the workspace event handler
+      // For now, set defaults until we get the response
       const rolePermissions = getRoleDefaultPermissions(selectedRole);
       setSelectedPermissions(new Set(rolePermissions));
-      
+
       // Simulate inherited permissions from parent domains
       if (domainType !== 'workspace') {
         setInheritedPermissions(new Set(['ViewContent', 'ReadMessages']));
       }
     } catch (error) {
       console.error('Error loading permissions:', error);
+      // Fall back to defaults
+      const rolePermissions = getRoleDefaultPermissions(selectedRole);
+      setSelectedPermissions(new Set(rolePermissions));
     }
   };
 
@@ -148,15 +153,12 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // TODO: Save permissions to backend
-      // await WorkspaceService.updateUserPermissions(userId, domainId, {
-      //   role: selectedRole,
-      //   permissions: Array.from(selectedPermissions),
-      // });
+      // Update the user's role via backend
+      await WorkspaceService.updateMemberRole(userId, selectedRole as any);
 
       toast({
         title: "Permissions Updated",
-        description: "User permissions have been successfully updated.",
+        description: `User role updated to ${selectedRole}.`,
         className: "bg-[#343A5C] border-purple-800 text-purple-200",
       });
 

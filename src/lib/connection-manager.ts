@@ -1219,6 +1219,28 @@ export class ConnectionManager {
       // The UI will update to show the selected user's data
     }
   }
+
+  /**
+   * Update the role for a stored session
+   * @param username - Username of the session to update
+   * @param serverAddress - Server address of the session
+   * @param role - New role value (Admin, Owner, Member, Guest)
+   */
+  public async updateSessionRole(username: string, serverAddress: string, role: string): Promise<void> {
+    try {
+      const session = this.storedSessions.sessions.find(
+        s => s.username === username && s.serverAddress === serverAddress
+      );
+
+      if (session) {
+        session.role = role;
+        await this.storeSession(session);
+        console.log(`ConnectionManager: Updated role for ${username} to ${role}`);
+      }
+    } catch (error) {
+      console.error('ConnectionManager: Failed to update session role', error);
+    }
+  }
 }
 
 // Export singleton instance

@@ -126,6 +126,59 @@ export interface WorkspaceProtocolRequestTS {
     office_id?: string;
     room_id?: string;
   };
+
+  // Group messaging operations
+  SendGroupMessage?: {
+    group_id: string;
+    message_type: GroupMessageTypeTS;
+    content: string;
+    reply_to?: string;
+    mentions?: string[];
+  };
+
+  EditGroupMessage?: {
+    group_id: string;
+    message_id: string;
+    new_content: string;
+  };
+
+  DeleteGroupMessage?: {
+    group_id: string;
+    message_id: string;
+  };
+
+  GetGroupMessages?: {
+    group_id: string;
+    before_timestamp?: number;
+    limit?: number;
+  };
+
+  GetThreadMessages?: {
+    group_id: string;
+    parent_message_id: string;
+  };
+}
+
+// Group message type enum
+export enum GroupMessageTypeTS {
+  Text = 'Text',
+  Markdown = 'Markdown',
+  System = 'System'
+}
+
+// Group message interface
+export interface GroupMessageTS {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  sender_name: string;
+  message_type: GroupMessageTypeTS;
+  content: string;
+  timestamp: number;
+  reply_to?: string;
+  reply_count: number;
+  mentions: string[];
+  edited_at?: number;
 }
 
 /**
@@ -136,6 +189,9 @@ export interface OfficeTS {
   name: string;
   description: string;
   mdx_content?: string;
+  rules?: string;
+  chat_enabled: boolean;
+  chat_channel_id?: string;
 }
 
 export interface RoomTS {
@@ -144,6 +200,9 @@ export interface RoomTS {
   name: string;
   description?: string;
   mdx_content?: string;
+  rules?: string;
+  chat_enabled: boolean;
+  chat_channel_id?: string;
 }
 
 export interface UserTS {
@@ -177,7 +236,13 @@ export type WorkspaceProtocolResponseTS =
   | { members: UserTS[] }
   | { office: OfficeTS }
   | { room: RoomTS }
-  | { member: UserTS };
+  | { member: UserTS }
+  // Group messaging responses
+  | { GroupMessageNotification: { group_id: string; message: GroupMessageTS } }
+  | { GroupMessages: { group_id: string; messages: GroupMessageTS[]; has_more: boolean } }
+  | { GroupMessageEdited: { group_id: string; message_id: string; new_content: string; edited_at: number } }
+  | { GroupMessageDeleted: { group_id: string; message_id: string; deleted_by: string } }
+  | { GroupMessage: GroupMessageTS };
 
 export enum UpdateOperationTS {
   Add = 'add',
