@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-26T21:57:15.483Z",
+  "timestamp": "2025-12-26T22:09:07.029Z",
   "testName": "Office & Room CRUD Integration Test",
   "overallPass": true,
   "results": {
@@ -10,7 +10,7 @@
     "officeNameUpdated": false,
     "officeDescriptionUpdated": false,
     "officeMdxUpdated": false,
-    "officeDeleted": false,
+    "officeDeleted": true,
     "roomCreated": true,
     "roomNameUpdated": false,
     "roomDescriptionUpdated": false,

@@ -257,42 +257,48 @@ async function openEditModal(page: Page, itemName: string, type: 'office' | 'roo
 /**
  * Delete an office via the UI
  * Uses the 3-dot dropdown menu next to the office name
- * The menu button is hidden (opacity-0) until hover on the parent group element
+ * Uses JavaScript click to bypass opacity:0 styling
  */
 async function deleteOffice(page: Page, officeName: string): Promise<boolean> {
   console.log(`\n=== Deleting office: ${officeName} ===`);
 
-  // First close any open dialogs/menus by pressing Escape
+  // First close any open dialogs/menus
   await page.keyboard.press('Escape');
-  await sleep(200);
+  await sleep(300);
 
-  // Find the office button in the sidebar
-  const officeBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
+  try {
+    // Find the office in sidebar and get its menu button testid
+    const menuTestId = await page.evaluate((name: string) => {
+      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
+      for (const btn of buttons) {
+        if (btn.textContent?.trim() === name) {
+          const parent = btn.closest('.group');
+          if (parent) {
+            const menuBtn = parent.querySelector('button[data-testid^="office-menu-"]');
+            if (menuBtn) {
+              return menuBtn.getAttribute('data-testid');
+            }
+          }
+        }
+      }
+      return null;
+    }, officeName);
 
-  if (await officeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    // Find the parent group container that includes the menu button
-    const groupContainer = page.locator(`div.group:has([data-sidebar="menu-button"]:has-text("${officeName}"))`).first();
+    if (menuTestId) {
+      console.log(`  Found menu button: ${menuTestId}`);
 
-    // Hover to make the menu button visible - wait for transition
-    await groupContainer.hover();
-    await sleep(500); // Wait for opacity transition
-
-    // Find and click the menu button - look for the one with MoreVertical icon
-    const menuBtn = groupContainer.locator('button:has(svg)').last();
-
-    try {
-      // Click with force to bypass opacity check
+      // Use Playwright click with force to handle opacity:0
+      const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
       await menuBtn.click({ force: true, timeout: 2000 });
-      await sleep(800); // Wait for dropdown animation
+      await sleep(600);
 
-      // Look for Delete Office option in the dropdown menu (portaled to body)
-      // Use role="menuitem" with text matching
-      const deleteOption = page.locator('[role="menuitem"]:has-text("Delete Office")').first();
+      // Look for Delete Office option in dropdown - try multiple selectors
+      const deleteOption = page.locator('div[role="menuitem"]:has-text("Delete Office"), [data-testid="delete-office-option"]').first();
       if (await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
         await deleteOption.click();
         await sleep(500);
 
-        // Confirm deletion in AlertDialog
+        // Confirm deletion
         const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
         if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await confirmBtn.click();
@@ -300,65 +306,72 @@ async function deleteOffice(page: Page, officeName: string): Promise<boolean> {
           console.log('  Office delete confirmed');
           return true;
         } else {
-          console.log('  WARNING: Delete confirmation button not found');
-          await page.keyboard.press('Escape'); // Close dialog
+          console.log('  WARNING: Confirm button not found');
         }
       } else {
-        console.log('  WARNING: Delete Office menu option not found');
-        await page.keyboard.press('Escape'); // Close dropdown
+        console.log('  WARNING: Delete Office option not found');
+        // Debug: log what's visible
+        const allMenuItems = await page.locator('[role="menuitem"]').count();
+        console.log(`  DEBUG: Found ${allMenuItems} menu items`);
       }
-    } catch (err) {
-      console.log('  WARNING: Could not click menu button:', err);
-      await page.keyboard.press('Escape'); // Close any open dialogs
+    } else {
+      console.log('  WARNING: Could not find menu button');
     }
-  } else {
-    console.log(`  WARNING: Office button for "${officeName}" not found`);
+  } catch (err) {
+    console.log('  WARNING: Error:', err);
   }
 
+  await page.keyboard.press('Escape');
+  await sleep(300);
   console.log('  WARNING: Could not delete office');
-  await sleep(500);
   return false;
 }
 
 /**
  * Delete a room via the UI
  * Uses the 3-dot dropdown menu next to the room name
- * The menu button is hidden (opacity-0) until hover on the parent group element
+ * Uses JavaScript click to bypass opacity:0 styling
  */
 async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
   console.log(`\n=== Deleting room: ${roomName} ===`);
 
-  // First close any open dialogs/menus by pressing Escape
+  // First close any open dialogs/menus
   await page.keyboard.press('Escape');
-  await sleep(200);
+  await sleep(300);
 
-  // Find the room button in the sidebar
-  const roomBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${roomName}")`).first();
+  try {
+    // Find the room in sidebar and get its menu button testid
+    const menuTestId = await page.evaluate((name: string) => {
+      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
+      for (const btn of buttons) {
+        if (btn.textContent?.includes(name)) {
+          const parent = btn.closest('.group');
+          if (parent) {
+            const menuBtn = parent.querySelector('button[data-testid^="room-menu-"]');
+            if (menuBtn) {
+              return menuBtn.getAttribute('data-testid');
+            }
+          }
+        }
+      }
+      return null;
+    }, roomName);
 
-  if (await roomBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    // Find the parent group container that includes the menu button
-    const groupContainer = page.locator(`div.group:has([data-sidebar="menu-button"]:has-text("${roomName}"))`).first();
+    if (menuTestId) {
+      console.log(`  Found menu button: ${menuTestId}`);
 
-    // Hover to make the menu button visible - wait for transition
-    await groupContainer.hover();
-    await sleep(500); // Wait for opacity transition
-
-    // Find and click the menu button - look for the one with MoreVertical icon
-    const menuBtn = groupContainer.locator('button:has(svg)').last();
-
-    try {
-      // Click with force to bypass opacity check
+      // Use Playwright click with force to handle opacity:0
+      const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
       await menuBtn.click({ force: true, timeout: 2000 });
-      await sleep(800); // Wait for dropdown animation
+      await sleep(600);
 
-      // Look for Delete Room option in the dropdown menu (portaled to body)
-      // Use role="menuitem" with text matching
-      const deleteOption = page.locator('[role="menuitem"]:has-text("Delete Room")').first();
+      // Look for Delete Room option in dropdown - try multiple selectors
+      const deleteOption = page.locator('div[role="menuitem"]:has-text("Delete Room"), [data-testid="delete-room-option"]').first();
       if (await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
         await deleteOption.click();
         await sleep(500);
 
-        // Confirm deletion in AlertDialog
+        // Confirm deletion
         const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
         if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await confirmBtn.click();
@@ -366,23 +379,24 @@ async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
           console.log('  Room delete confirmed');
           return true;
         } else {
-          console.log('  WARNING: Delete confirmation button not found');
-          await page.keyboard.press('Escape'); // Close dialog
+          console.log('  WARNING: Confirm button not found');
         }
       } else {
-        console.log('  WARNING: Delete Room menu option not found');
-        await page.keyboard.press('Escape'); // Close dropdown
+        console.log('  WARNING: Delete Room option not found');
+        // Debug: log what's visible
+        const allMenuItems = await page.locator('[role="menuitem"]').count();
+        console.log(`  DEBUG: Found ${allMenuItems} menu items`);
       }
-    } catch (err) {
-      console.log('  WARNING: Could not click menu button:', err);
-      await page.keyboard.press('Escape'); // Close any open dialogs
+    } else {
+      console.log('  WARNING: Could not find menu button');
     }
-  } else {
-    console.log(`  WARNING: Room button for "${roomName}" not found`);
+  } catch (err) {
+    console.log('  WARNING: Error:', err);
   }
 
+  await page.keyboard.press('Escape');
+  await sleep(300);
   console.log('  WARNING: Could not delete room');
-  await sleep(500);
   return false;
 }
 
