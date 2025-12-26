@@ -45,7 +45,7 @@ const App = () => {
             <Route path="/connect" element={<Connect />} />
             
             {/* Protected routes that require workspace data to be loaded */}
-            <Route path="/office" element={
+            <Route path="/workspace" element={
               <WorkspaceLoader>
                 <Office />
               </WorkspaceLoader>

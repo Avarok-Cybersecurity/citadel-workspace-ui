@@ -129,20 +129,23 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
             notificationService.addSystemNotification(
               'Workspace Error',
               `Could not load workspace data: ${error.message}`,
-              NotificationPriority.HIGH
+              NotificationPriority.HIGH,
+              cidString // Associate with the session
             );
           });
+
+        // Welcome notification - inside connection handler to have access to cidString
+        // Fires 2 seconds after successful connection
+        setTimeout(() => {
+          notificationService.addSystemNotification(
+            'Welcome to Citadel Workspace',
+            'Your secure workspace is ready. Explore the features and connect with your team.',
+            NotificationPriority.NORMAL,
+            cidString // Associate with the session
+          );
+        }, 2000);
       }
     });
-
-    // Test notification (can be removed in production)
-    setTimeout(() => {
-      notificationService.addSystemNotification(
-        'Welcome to Citadel Workspace',
-        'Your secure workspace is ready. Explore the features and connect with your team.',
-        NotificationPriority.NORMAL
-      );
-    }, 2000);
 
     // Listen for WebSocket connection failures
     const handleConnectionFailure = (event: { error: string }) => {

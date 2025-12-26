@@ -5,11 +5,14 @@ import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
 import type { ActiveSession } from "@/types/session-types";
 import { OrphanSessionIcon } from "./OrphanSessionIcon";
-import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
+import { DisconnectConfirmModal, type DisconnectAction } from "./DisconnectConfirmModal";
 import { useToast } from "@/hooks/use-toast";
 import { setSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { p2pRegistrationService } from "@/lib/p2p-registration-service";
+import { notificationService, UnreadCountChange } from "@/lib/notification-service";
+import { eventEmitter } from "@/lib/event-emitter";
+import { getWorkspacePath } from "@/lib/workspace-navigation";
 
 interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -25,6 +28,7 @@ export const OrphanSessionsNavbar = () => {
     workspaceName: string;
   } | null>(null);
   const [glowingSessionCid, setGlowingSessionCid] = useState<string | null>(null);
+  const [notificationCounts, setNotificationCounts] = useState<Map<string, number>>(new Map());
 
   // Fetch active sessions and map to workspace data
   const loadActiveSessions = async () => {
@@ -75,9 +79,9 @@ export const OrphanSessionsNavbar = () => {
         }
 
         // Sync peer connections from GetSessions data to p2pRegistrationService
-        // This is more reliable than ListRegisteredPeers when sessions are claimed/switched
+        // Now validates against server before syncing to filter out stale peers
         if (session.peer_connections) {
-          p2pRegistrationService.syncPeerConnectionsFromSession(session.peer_connections);
+          await p2pRegistrationService.syncPeerConnectionsFromSession(session.peer_connections);
           console.log('OrphanSessionsNavbar: Synced peer connections for session:', session.cid);
         }
       }
@@ -89,6 +93,22 @@ export const OrphanSessionsNavbar = () => {
 
   useEffect(() => {
     loadActiveSessions();
+  }, []);
+
+  // Subscribe to notification count changes
+  useEffect(() => {
+    const updateCounts = (change: UnreadCountChange) => {
+      setNotificationCounts(new Map(change.byCid));
+    };
+
+    eventEmitter.on('unread-count-changed', updateCounts);
+
+    // Initialize with current counts
+    setNotificationCounts(notificationService.getUnreadCountsByCid());
+
+    return () => {
+      eventEmitter.off('unread-count-changed', updateCounts);
+    };
   }, []);
 
   const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
@@ -148,7 +168,7 @@ export const OrphanSessionsNavbar = () => {
       WorkspaceService.listOffices();
 
       // Navigate to the office page immediately
-      navigate('/office');
+      navigate(getWorkspacePath());
 
       // Show success toast
       toast({
@@ -173,26 +193,47 @@ export const OrphanSessionsNavbar = () => {
     });
   };
 
-  const handleConfirmDisconnect = async () => {
+  const handleConfirmDisconnect = async (action: DisconnectAction) => {
     if (!disconnectTarget) return;
 
     try {
-      console.log('OrphanSessionsNavbar: Disconnecting session:', disconnectTarget.session.cid);
+      const cid = disconnectTarget.session.cid;
+      console.log(`OrphanSessionsNavbar: ${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} session:`, cid);
 
       // Stop WASM connection manager if this is the current session
-      if (wasmConnectionManager.getCurrentCid() === disconnectTarget.session.cid) {
+      if (wasmConnectionManager.getCurrentCid() === cid) {
         wasmConnectionManager.stop();
       }
 
-      // Disconnect the specific session via WebSocket service
-      await websocketService.disconnect(disconnectTarget.session.cid);
+      if (action === 'deregister') {
+        // Deregister permanently removes the account from the server
+        await websocketService.deregister(cid);
+        toast({
+          title: "Account Deregistered",
+          description: `${disconnectTarget.workspaceName} has been permanently removed from the server.`,
+          className: "bg-red-900/80 border-red-800 text-white",
+        });
+      } else {
+        // Disconnect just ends the session (temporary)
+        await websocketService.disconnect(cid);
+        toast({
+          title: "Disconnected",
+          description: `${disconnectTarget.workspaceName} session ended. You can reconnect later.`,
+          className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        });
+      }
 
       // Reload the active sessions list to update the navbar
       await loadActiveSessions();
 
-      console.log('OrphanSessionsNavbar: Successfully disconnected');
+      console.log(`OrphanSessionsNavbar: Successfully ${action === 'deregister' ? 'deregistered' : 'disconnected'}`);
     } catch (error) {
-      console.error('OrphanSessionsNavbar: Failed to disconnect:', error);
+      console.error(`OrphanSessionsNavbar: Failed to ${action}:`, error);
+      toast({
+        title: "Error",
+        description: `Failed to ${action}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
     } finally {
       setDisconnectTarget(null);
     }
@@ -229,6 +270,7 @@ export const OrphanSessionsNavbar = () => {
                   onNavigate={() => handleNavigate(session)}
                   onDisconnect={() => handleDisconnect(session)}
                   shouldGlow={glowingSessionCid === session.cid}
+                  unreadCount={notificationCounts.get(session.cid) || 0}
                 />
               ))}
             </div>

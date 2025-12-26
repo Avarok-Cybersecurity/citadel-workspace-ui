@@ -126,14 +126,46 @@ export const MembersSection = () => {
   useEffect(() => {
     const loadRegisteredPeers = async () => {
       try {
-        const peers = await p2pRegistrationService.listRegisteredPeers();
-        const peerList = peers.map(p => ({
-          cid: p.cid?.toString() || '',
-          username: p.username || `User ${p.cid?.toString().slice(0, 8)}...`,
-          isOnline: p2pAutoConnectService.isPeerOnline(p.cid?.toString() || ''),
-          isConnected: p2pAutoConnectService.isPeerConnected(p.cid?.toString() || '')
-        }));
+        // First, get the internal state which has preserved usernames from PeerRegisterNotification
+        const { registeredPeers: cachedPeers } = p2pRegistrationService.getPeers();
+
+        // Also trigger a backend refresh to ensure we have latest data
+        // This will update internal state but preserve usernames
+        try {
+          await p2pRegistrationService.listRegisteredPeers();
+        } catch (e) {
+          // Ignore fetch errors, use cached data
+        }
+
+        // Get updated state after refresh
+        const { registeredPeers: updatedPeers } = p2pRegistrationService.getPeers();
+
+        // Use updated peers if available, else cached
+        const peersToUse = updatedPeers.length > 0 ? updatedPeers : cachedPeers;
+
+        const peerList = peersToUse.map(p => {
+          const cidStr = p.cid?.toString() || '';
+          // Prefer username from service (has preserved names), then fallback
+          const displayName = (p.username && p.username !== 'Unknown')
+            ? p.username
+            : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
+          return {
+            cid: cidStr,
+            username: displayName,
+            isOnline: p2pAutoConnectService.isPeerOnline(cidStr),
+            isConnected: p2pAutoConnectService.isPeerConnected(cidStr)
+          };
+        });
         setRegisteredPeers(peerList);
+
+        // Clean up stale conversations that reference non-registered peers
+        // This prevents "Peer XXXXXX" entries from previous test runs cluttering the sidebar
+        const validPeerCids = new Set(peerList.map(p => p.cid));
+        const messenger = P2PMessengerManager.getInstance();
+        const cleanedCount = messenger.cleanupStaleConversations(validPeerCids);
+        if (cleanedCount > 0) {
+          console.log(`MembersSection: Cleaned up ${cleanedCount} stale peer conversation(s)`);
+        }
       } catch (error) {
         console.error('Failed to load registered peers:', error);
       }
@@ -141,16 +173,22 @@ export const MembersSection = () => {
 
     loadRegisteredPeers();
 
-    // Listen for new registrations and connection changes
+    // Listen for new registrations, acceptance, and connection changes
     const handlePeerRegistered = () => loadRegisteredPeers();
+    const handleRegistrationAccepted = () => loadRegisteredPeers();
     const handleConnectionChange = () => loadRegisteredPeers();
+    const handlePeersUpdated = () => loadRegisteredPeers();
 
     eventEmitter.on('p2p:peer-registered', handlePeerRegistered);
+    eventEmitter.on('p2p:registration-accepted', handleRegistrationAccepted);
+    eventEmitter.on('p2p:peers-updated', handlePeersUpdated);
     eventEmitter.on('p2p-connection-established', handleConnectionChange);
     eventEmitter.on('p2p-connection-lost', handleConnectionChange);
 
     return () => {
       eventEmitter.off('p2p:peer-registered', handlePeerRegistered);
+      eventEmitter.off('p2p:registration-accepted', handleRegistrationAccepted);
+      eventEmitter.off('p2p:peers-updated', handlePeersUpdated);
       eventEmitter.off('p2p-connection-established', handleConnectionChange);
       eventEmitter.off('p2p-connection-lost', handleConnectionChange);
     };
@@ -209,9 +247,12 @@ export const MembersSection = () => {
         .map(c => {
           // Find the username from registered peers
           const registeredPeer = registeredPeers.find(p => p.cid === c.peerCid);
+          // Prefer registered peer username, then a friendly "Peer" label with last 6 digits of CID
+          const displayName = registeredPeer?.username ||
+            (c.peerCid ? `Peer ${c.peerCid.slice(-6)}` : 'Unknown Peer');
           return {
             peerCid: c.peerCid,
-            peerUsername: registeredPeer?.username || `User ${c.peerCid.slice(0, 8)}...`,
+            peerUsername: displayName,
             isOnline: p2pAutoConnectService.isPeerOnline(c.peerCid),
             isConnected: p2pAutoConnectService.isPeerConnected(c.peerCid),
             unreadCount: c.unreadCount,
@@ -304,6 +345,8 @@ export const MembersSection = () => {
   const getLocationText = () => {
     if (currentRoomId) return "Room Members";
     if (currentOfficeId) return "Office Members";
+    // At workspace level, show "Connected Peers" if we have P2P peers, else "Workspace Members"
+    if (registeredPeers.length > 0 && members.length === 0) return "Connected Peers";
     return "Workspace Members";
   };
 
@@ -323,12 +366,16 @@ export const MembersSection = () => {
     navigate(`${location.pathname}?${searchParams.toString()}`);
   };
 
+  // Filter out peers that already appear in DIRECT MESSAGES section
+  const conversationPeerCids = new Set(peersWithConversations.map(c => c.peerCid));
+  const filteredRegisteredPeers = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
+
   return (
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
           <div className="flex items-center gap-2">
-            <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0">
+            <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0 px-0">
               {getLocationText().toUpperCase()}
             </SidebarGroupLabel>
             {pendingRequestCount > 0 && (
@@ -361,9 +408,9 @@ export const MembersSection = () => {
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   Loading members...
                 </div>
-              ) : members.length === 0 && registeredPeers.length === 0 ? (
+              ) : members.length === 0 && filteredRegisteredPeers.length === 0 && registeredPeers.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                  No members yet
+                  No members yet. Use the <UserPlus className="h-3 w-3 inline mx-1" /> button to discover peers.
                 </div>
               ) : members.length === 0 ? (
                 null
@@ -444,11 +491,11 @@ export const MembersSection = () => {
             </SidebarMenu>
           </ScrollArea>
 
-          {/* Registered P2P Peers - thin rows under members */}
-          {registeredPeers.length > 0 && (
-            <div className="mt-2 border-t border-[#444A6C] pt-2 px-2">
+          {/* Registered P2P Peers - thin rows under members (filtered to exclude peers with conversations) */}
+          {filteredRegisteredPeers.length > 0 && (
+            <div className="mt-2 border-t border-[#444A6C] pt-2">
               <SidebarMenu>
-                {registeredPeers.map((peer) => (
+                {filteredRegisteredPeers.map((peer) => (
                   <SidebarMenuItem key={peer.cid}>
                     <SidebarMenuButton
                       onClick={() => handlePeerClick(peer)}
@@ -482,7 +529,7 @@ export const MembersSection = () => {
       {/* Direct Messages - Only peers with message history */}
       {peersWithConversations.length > 0 && (
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
-          <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-3">
+          <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-0 ml-3">
             DIRECT MESSAGES
           </SidebarGroupLabel>
           <SidebarGroupContent>

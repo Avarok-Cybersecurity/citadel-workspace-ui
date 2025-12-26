@@ -18,6 +18,7 @@ import { ConnectRequestTS, ConnectMode, UdpMode } from "@/types";
 import { eventEmitter } from "@/lib/event-emitter";
 import { ConnectionManager } from "@/lib/connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
+import { getWorkspacePath } from "@/lib/workspace-navigation";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -286,7 +287,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
       // Since connect_after_register is now true, the connection should be established
       // Wait a bit longer to ensure connection is established before navigating
       setTimeout(() => {
-        navigate('/office');
+        navigate(getWorkspacePath());
       }, 2000);
     } catch (error: any) {
       console.error("Registration Error:", error); // Add logging

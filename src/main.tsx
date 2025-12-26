@@ -4,6 +4,9 @@ import App from './App.tsx'
 // import TestApp from './TestApp.tsx'
 import './index.css'
 
+// Initialize tab notification service (updates tab title and favicon with unread count)
+import './lib/tab-notification-service'
+
 console.log("main.tsx starting");
 
 // Add error handlers to catch any issues

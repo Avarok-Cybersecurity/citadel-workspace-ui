@@ -8,15 +8,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import type { ActiveSession } from "@/types/session-types";
+
+export type DisconnectAction = "disconnect" | "deregister";
 
 interface DisconnectConfirmModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session: ActiveSession | null;
   workspaceName: string | null;
-  onConfirm: () => void;
+  onConfirm: (action: DisconnectAction) => void;
 }
 
 export const DisconnectConfirmModal = ({
@@ -26,16 +28,19 @@ export const DisconnectConfirmModal = ({
   workspaceName,
   onConfirm,
 }: DisconnectConfirmModalProps) => {
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<DisconnectAction | null>(null);
 
   if (!session) return null;
 
-  const handleConfirm = async () => {
-    setIsDisconnecting(true);
+  const handleConfirm = async (action: DisconnectAction) => {
+    setIsProcessing(true);
+    setSelectedAction(action);
     try {
-      await onConfirm();
+      await onConfirm(action);
     } finally {
-      setIsDisconnecting(false);
+      setIsProcessing(false);
+      setSelectedAction(null);
       onOpenChange(false);
     }
   };
@@ -45,14 +50,13 @@ export const DisconnectConfirmModal = ({
       <DialogContent className="bg-[#1C1D28] border-gray-800 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-white">
-            Disconnect from Workspace?
+            Remove Workspace Session?
           </DialogTitle>
           <DialogDescription className="text-gray-400 mt-2">
-            Are you sure you want to disconnect from{" "}
+            Choose how to remove{" "}
             <span className="font-semibold text-purple-400">
               {workspaceName || session.username}
             </span>
-            ?
           </DialogDescription>
         </DialogHeader>
 
@@ -71,27 +75,51 @@ export const DisconnectConfirmModal = ({
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
+        {/* Deregister warning */}
+        <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg flex items-start gap-2">
+          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-red-300">
+            <strong>Deregister</strong> permanently removes this account from the server.
+            Use this for cleanup between test runs.
+          </div>
+        </div>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
-            disabled={isDisconnecting}
+            disabled={isProcessing}
           >
             Cancel
           </Button>
           <Button
-            onClick={handleConfirm}
-            className="bg-red-600 hover:bg-red-700 text-white"
-            disabled={isDisconnecting}
+            onClick={() => handleConfirm("disconnect")}
+            variant="outline"
+            className="bg-transparent border-yellow-700 text-yellow-300 hover:bg-yellow-900/30 hover:text-yellow-200"
+            disabled={isProcessing}
           >
-            {isDisconnecting ? (
+            {isProcessing && selectedAction === "disconnect" ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Disconnecting...
               </>
             ) : (
-              "Disconnect"
+              "Disconnect (Temporary)"
+            )}
+          </Button>
+          <Button
+            onClick={() => handleConfirm("deregister")}
+            className="bg-red-600 hover:bg-red-700 text-white"
+            disabled={isProcessing}
+          >
+            {isProcessing && selectedAction === "deregister" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deregistering...
+              </>
+            ) : (
+              "Deregister (Permanent)"
             )}
           </Button>
         </DialogFooter>

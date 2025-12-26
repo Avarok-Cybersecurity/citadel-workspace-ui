@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import WorkspaceService from "@/lib/workspace-service";
+import { buildWorkspacePath } from "@/lib/workspace-navigation";
 
 // Legacy hardcoded rooms - will be removed once fully migrated
 export const officeRooms = {
@@ -69,7 +70,7 @@ export const RoomsSection = () => {
   const handleRoomClick = (roomId: string) => {
     const params = new URLSearchParams(location.search);
     params.set("roomId", roomId);
-    navigate(`/office?${params.toString()}`);
+    navigate(buildWorkspacePath(params));
     setOpenMobile(false);
   };
 
@@ -110,7 +111,7 @@ export const RoomsSection = () => {
       if (currentRoomId === roomToDelete.id) {
         const params = new URLSearchParams(location.search);
         params.delete('roomId');
-        navigate(`/office?${params.toString()}`);
+        navigate(buildWorkspacePath(params));
       }
 
       toast({
@@ -140,7 +141,7 @@ export const RoomsSection = () => {
   if (!currentOfficeId) {
     return (
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
-        <SidebarGroupLabel className="text-[#9b87f5] font-semibold">ROOMS</SidebarGroupLabel>
+        <SidebarGroupLabel className="text-[#9b87f5] font-semibold px-0 ml-3">ROOMS</SidebarGroupLabel>
         <SidebarGroupContent>
           <div className="px-3 py-2 text-sm text-muted-foreground">
             Select an office to view rooms
@@ -154,7 +155,7 @@ export const RoomsSection = () => {
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
-          <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0">ROOMS</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0 px-0">ROOMS</SidebarGroupLabel>
           <Button
             variant="ghost"
             size="icon"

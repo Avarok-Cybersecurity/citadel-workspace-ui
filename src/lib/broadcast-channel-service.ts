@@ -1,12 +1,18 @@
 import { eventEmitter } from './event-emitter';
+import { getSelectedUser } from './tab-context';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 export interface BroadcastMessage {
-  type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status';
+  type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message';
   data: any;
   timestamp: number;
   tabId: string;
   isLeader?: boolean;
+}
+
+interface PendingRequest {
+  cid: string;
+  insertTime: number;
 }
 
 interface LeaderElectionMessage {
@@ -29,7 +35,12 @@ export class BroadcastChannelService {
   private readonly CHANNEL_NAME = 'citadel-workspace-sync';
   private readonly HEARTBEAT_INTERVAL = 2000; // 2 seconds
   private readonly LEADER_TIMEOUT = 5000; // 5 seconds
-  
+  private readonly REQUEST_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+
+  // Map of request_id → { cid, insertTime } for response routing
+  private pendingRequests = new Map<string, PendingRequest>();
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
   private constructor() {
     this.tabId = this.generateTabId();
     this.initialize();
@@ -57,10 +68,27 @@ export class BroadcastChannelService {
       this.channel = new BroadcastChannel(this.CHANNEL_NAME);
       this.setupMessageHandler();
       this.startLeaderElection();
+      this.startCleanupInterval();
       console.log(`BroadcastChannelService: Initialized with tabId ${this.tabId}`);
     } catch (error) {
       console.error('BroadcastChannelService: Failed to initialize', error);
     }
+  }
+
+  /**
+   * Start periodic cleanup of expired pending requests (older than 30 minutes)
+   */
+  private startCleanupInterval(): void {
+    if (this.cleanupInterval) return;
+    this.cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [requestId, entry] of this.pendingRequests) {
+        if (now - entry.insertTime > this.REQUEST_EXPIRY_MS) {
+          this.pendingRequests.delete(requestId);
+          console.log(`BroadcastChannelService: Cleaned up expired request ${requestId}`);
+        }
+      }
+    }, 60000); // Check every minute
   }
 
   private setupMessageHandler(): void {
@@ -87,6 +115,12 @@ export class BroadcastChannelService {
         case 'connection-status':
           this.handleConnectionStatus(message);
           break;
+        case 'register-request':
+          this.handleRegisterRequest(message);
+          break;
+        case 'p2p-raw-message':
+          this.handleP2PRawMessage(message);
+          break;
       }
     };
 
@@ -98,9 +132,37 @@ export class BroadcastChannelService {
   private handleWorkspaceResponse(message: BroadcastMessage): void {
     // Forward workspace responses to the event emitter for non-leader tabs
     if (!this.isLeader && message.data) {
-      console.log('BroadcastChannelService: Forwarding workspace response to event system');
-      eventEmitter.emit('websocket-message', message.data);
-      eventEmitter.emit('broadcast-workspace-response', message.data);
+      // Extract request_id from various response types
+      const requestId = message.data.request_id ||
+                        message.data.ListAllPeersResponse?.request_id ||
+                        message.data.ListRegisteredPeersResponse?.request_id ||
+                        message.data.GetSessionsResponse?.request_id ||
+                        message.data.LocalDBGetKVSuccess?.request_id ||
+                        message.data.LocalDBSetKVSuccess?.request_id;
+
+      // Get this tab's current CID
+      const tabSelection = getSelectedUser();
+      const tabCid = tabSelection?.selectedCid;
+
+      // Forward if:
+      // 1. No request_id (broadcast to all) OR
+      // 2. Response CID matches this tab's CID
+      if (!requestId || (tabCid && this.isResponseForThisCid(requestId, tabCid))) {
+        console.log('BroadcastChannelService: Forwarding workspace response to event system');
+        eventEmitter.emit('websocket-message', message.data);
+        eventEmitter.emit('broadcast-workspace-response', message.data);
+        // Don't clear immediately - other tabs with same CID may also need it
+      }
+    }
+  }
+
+  private handleRegisterRequest(message: BroadcastMessage): void {
+    // All tabs track which CID owns which request (including leader)
+    if (message.data && message.data.requestId && message.data.cid) {
+      this.pendingRequests.set(message.data.requestId, {
+        cid: message.data.cid,
+        insertTime: Date.now()
+      });
     }
   }
 
@@ -128,6 +190,15 @@ export class BroadcastChannelService {
   private handleConnectionStatus(message: BroadcastMessage): void {
     // Forward connection status updates
     eventEmitter.emit('broadcast-connection-status', message.data);
+  }
+
+  private handleP2PRawMessage(message: BroadcastMessage): void {
+    // Forward P2P raw messages to non-leader tabs for Yjs sync
+    // Leader already handled the message when it was received via WebSocket
+    if (!this.isLeader && message.data) {
+      console.log('BroadcastChannelService: Forwarding P2P raw message to event system');
+      eventEmitter.emit('p2p:raw-message', message.data);
+    }
   }
 
   private startLeaderElection(): void {
@@ -198,6 +269,9 @@ export class BroadcastChannelService {
       console.warn('BroadcastChannelService: Only the leader can broadcast workspace responses');
       return;
     }
+    // Debug: log what type of response is being broadcast
+    const responseType = Object.keys(response)[0];
+    console.log(`BroadcastChannelService: Broadcasting ${responseType} as workspace-response`);
 
     const message: BroadcastMessage = {
       type: 'workspace-response',
@@ -240,6 +314,25 @@ export class BroadcastChannelService {
     this.broadcast(message);
   }
 
+  /**
+   * Broadcast P2P raw message to all tabs for Yjs sync
+   * Leader should call this when receiving P2P messages via WebSocket
+   */
+  public broadcastP2PRawMessage(data: { peerCid: string; message: string }): void {
+    // Only leader broadcasts P2P messages to followers
+    if (!this.isLeader) return;
+
+    const message: BroadcastMessage = {
+      type: 'p2p-raw-message',
+      data,
+      timestamp: Date.now(),
+      tabId: this.tabId,
+      isLeader: true
+    };
+
+    this.broadcast(message);
+  }
+
   private broadcast(message: BroadcastMessage): void {
     if (!this.channel) return;
 
@@ -265,11 +358,52 @@ export class BroadcastChannelService {
   }
 
   /**
+   * Register a request as belonging to a CID for response routing.
+   * This enables follower tabs to receive responses to their requests.
+   * @param requestId - The unique request ID
+   * @param cid - The CID that made the request
+   */
+  public registerRequest(requestId: string, cid: string): void {
+    this.pendingRequests.set(requestId, { cid, insertTime: Date.now() });
+    // Broadcast to all tabs so they know which CID made the request
+    this.broadcast({
+      type: 'register-request',
+      data: { requestId, cid },
+      timestamp: Date.now(),
+      tabId: this.tabId
+    });
+  }
+
+  /**
+   * Check if a response belongs to a specific CID
+   * @param requestId - The request ID from the response
+   * @param tabCid - The CID of the current tab
+   * @returns true if the response is for this CID
+   */
+  public isResponseForThisCid(requestId: string, tabCid: string): boolean {
+    const entry = this.pendingRequests.get(requestId);
+    return entry?.cid === tabCid;
+  }
+
+  /**
+   * Clean up a request after it has been handled
+   * @param requestId - The request ID to clear
+   */
+  public clearRequest(requestId: string): void {
+    this.pendingRequests.delete(requestId);
+  }
+
+  /**
    * Clean up resources
    */
   public destroy(): void {
     if (this.leaderCheckInterval) {
       clearInterval(this.leaderCheckInterval);
+    }
+
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
 
     if (this.channel) {

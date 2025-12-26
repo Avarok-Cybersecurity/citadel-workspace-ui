@@ -97,7 +97,8 @@ export class UserService {
       this.notificationService.addSystemNotification(
         'User Profile Error',
         `Could not load user profile: ${error}`,
-        NotificationPriority.HIGH
+        NotificationPriority.HIGH,
+        cid // Associate with the session
       );
     }
     

@@ -404,7 +404,8 @@ class PeerRegistrationStore {
       request.id,
       () => this.acceptRequest(request.id).catch(console.error),
       () => this.declineRequest(request.id).catch(console.error),
-      () => eventEmitter.emit('open-pending-requests-modal')
+      () => eventEmitter.emit('open-pending-requests-modal'),
+      request.cid // Recipient's CID for per-session notification badges
     );
   }
 

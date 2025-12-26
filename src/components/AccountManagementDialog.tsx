@@ -142,7 +142,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
             </DialogDescription>
           </DialogHeader>
           
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
             {/* Active Sessions Section - from internal service (in-memory) */}
             {activeSessions.length > 0 && (
               <div className="space-y-2">

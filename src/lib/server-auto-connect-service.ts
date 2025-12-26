@@ -73,9 +73,11 @@ export class ServerAutoConnectService {
    */
   private setupEventListeners(): void {
     // Start polling when user logs in successfully
+    // Add delay to let the new session be fully established before polling
+    // This prevents race conditions where poll() sees stale cache without the new session
     eventEmitter.on('auth:success', () => {
-      console.log('ServerAutoConnect: Auth success detected, starting polling');
-      this.startPolling();
+      console.log('ServerAutoConnect: Auth success detected, starting polling after delay');
+      setTimeout(() => this.startPolling(), 3000);
     });
 
     // Stop polling on logout (reuse existing event)
@@ -225,9 +227,12 @@ export class ServerAutoConnectService {
       return;
     }
 
-    // Get active sessions
+    // Get active sessions - FORCE FRESH to avoid race conditions with just-connected sessions
     let activeSessions: ActiveSession[] = [];
     try {
+      // Invalidate cache to ensure we get fresh session data
+      // This prevents duplicate connection attempts when a session was just established
+      connectionManager.invalidateSessionCache();
       activeSessions = await connectionManager.getActiveSessions();
     } catch (error) {
       console.warn('ServerAutoConnect: Failed to get active sessions:', error);

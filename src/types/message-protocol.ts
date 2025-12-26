@@ -1,10 +1,13 @@
 /**
  * Message Protocol Types
- * 
+ *
  * This defines a subprotocol for peer-to-peer messaging within the workspace protocol.
  * The contents of WorkspaceProtocolRequest::Message { contents: Vec<u8> } will be
  * serialized versions of these types.
  */
+
+// Message content types - determines how the message is rendered
+export type MessageType = 'text' | 'markdown' | 'live_document';
 
 // Message event types that can be sent between peers
 export type MessageEventType = 
@@ -25,11 +28,15 @@ export type MessageEventType =
 // Individual message data types
 export interface TextMessageData {
   id: string;                    // Unique message ID
+  message_type: MessageType;     // Content type (text, markdown, live_document)
   text: string;                  // Message content
   timestamp: number;             // Unix timestamp
   replyTo?: string;             // ID of message being replied to
   mentions?: string[];          // User IDs mentioned in the message
   metadata?: Record<string, any>; // Additional metadata
+  // Live document specific fields (only when message_type === 'live_document')
+  document_id?: string;          // Unique ID for the collaborative document
+  document_title?: string;       // User-provided title for the document
 }
 
 export interface FileMessageData {
@@ -127,19 +134,25 @@ export class MessageProtocol {
    * Create a text message event
    */
   static createTextMessage(text: string, options?: {
+    messageType?: MessageType;
     replyTo?: string;
     mentions?: string[];
     metadata?: Record<string, any>;
+    documentId?: string;
+    documentTitle?: string;
   }): MessageEventType {
     return {
       type: 'TextMessage',
       data: {
         id: crypto.randomUUID(),
+        message_type: options?.messageType || 'text',
         text,
         timestamp: Date.now(),
         replyTo: options?.replyTo,
         mentions: options?.mentions,
-        metadata: options?.metadata
+        metadata: options?.metadata,
+        document_id: options?.documentId,
+        document_title: options?.documentTitle
       }
     };
   }

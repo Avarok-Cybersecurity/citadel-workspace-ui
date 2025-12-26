@@ -32,10 +32,14 @@ import {
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
 import { p2pRegistrationService } from './p2p-registration-service';
+import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { connectionManager } from './connection-manager';
 import { getSelectedUser } from './tab-context';
 import { notificationService } from './notification-service';
+import { BroadcastChannelService } from './broadcast-channel-service';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+
+import type { MessageType } from '@/types/message-protocol';
 
 export interface P2PMessage {
   id: string;
@@ -49,6 +53,11 @@ export interface P2PMessage {
   replyTo?: string;
   mentions?: string[];
   attachments?: any[];
+  // Message type support (text, markdown, live_document)
+  message_type: MessageType;
+  // Live document specific fields
+  document_id?: string;
+  document_title?: string;
 }
 
 /** Peer presence status derived from MessagingLayer presence variants */
@@ -153,6 +162,61 @@ export class P2PMessengerManager {
   }
 
   /**
+   * Sync connections from backend active sessions.
+   * This handles the case where the page was reloaded and the connections map is empty,
+   * but the backend still has active P2P connections.
+   * Call this when opening a conversation to ensure presence status is accurate.
+   */
+  public async syncConnectionsFromBackend(): Promise<void> {
+    try {
+      const activeSessions = await connectionManager.getActiveSessions();
+      const currentCid = this.getCurrentCid();
+
+      if (!currentCid) {
+        console.log('[P2P] syncConnectionsFromBackend: No current CID, skipping');
+        return;
+      }
+
+      // Find the session matching our current CID
+      const mySession = activeSessions.find(s => s.cid?.toString() === currentCid);
+      if (!mySession) {
+        console.log('[P2P] syncConnectionsFromBackend: No session found for current CID');
+        return;
+      }
+
+      // Sync peer connections from backend
+      if (mySession.peer_connections) {
+        const peerCids = Object.keys(mySession.peer_connections);
+        console.log(`[P2P] syncConnectionsFromBackend: Found ${peerCids.length} peer connections in backend`);
+
+        for (const peerCid of peerCids) {
+          // Update local connections map
+          if (!this.connections.get(peerCid)) {
+            this.connections.set(peerCid, true);
+            console.log(`[P2P] syncConnectionsFromBackend: Synced connection for peer ${peerCid.slice(0, 8)}...`);
+          }
+
+          // Update presence to Online for connected peers
+          this.updatePeerPresenceOnConnect(peerCid);
+        }
+      }
+
+      // Also sync from p2pAutoConnectService which tracks connected peers
+      const connectedPeers = p2pAutoConnectService.getConnectedPeers();
+      for (const peerCid of connectedPeers) {
+        if (!this.connections.get(peerCid)) {
+          this.connections.set(peerCid, true);
+          console.log(`[P2P] syncConnectionsFromBackend: Synced from auto-connect service ${peerCid.slice(0, 8)}...`);
+        }
+        this.updatePeerPresenceOnConnect(peerCid);
+      }
+
+    } catch (error) {
+      console.warn('[P2P] syncConnectionsFromBackend: Failed to sync connections:', error);
+    }
+  }
+
+  /**
    * Set or update the username for a peer.
    * Call this when we learn the peer's username (e.g., from registration events).
    */
@@ -188,6 +252,9 @@ export class P2PMessengerManager {
     eventEmitter.on('p2p-connection-established', ({ peerCid }: { peerCid: string }) => {
       this.connections.set(peerCid, true);
       this.connectionListeners.forEach(listener => listener(peerCid, true));
+
+      // Update peer's presence to Online when connection is established
+      this.updatePeerPresenceOnConnect(peerCid);
     });
 
     eventEmitter.on('p2p-connection-lost', ({ peerCid }: { peerCid: string }) => {
@@ -195,6 +262,9 @@ export class P2PMessengerManager {
       this.connectionListeners.forEach(listener => listener(peerCid, false));
       // Clear ready state when peer disconnects - next message will trigger new CheckState handshake
       this.clearPeerReadyState(peerCid);
+
+      // Update peer's presence to Offline when connection is lost
+      this.updatePeerPresenceOnDisconnect(peerCid);
     });
 
     // Listen for peer registration events to store usernames
@@ -260,37 +330,15 @@ export class P2PMessengerManager {
         return;
       }
 
-      // For P2P messages in multi-tab environment:
-      // - peer_cid is the SENDER's CID
-      // - notification.cid is the RECIPIENT's CID (the session that received the message)
-      // - currentCid may be wrong in follower tabs (returns leader's connection CID)
-      //
-      // We should process the message if:
-      // 1. peer_cid is not 0 (it's a P2P message)
-      // 2. peer_cid != notification_cid (sanity check - not from ourselves)
-      //
-      // The internal service already routes the message to the correct session,
-      // so we don't need additional CID checks that could fail in follower tabs.
+      // Self-message check: Skip if sender is the same as recipient
       if (peerCidStr === notificationCidStr) {
         console.log('[P2P] Skipping: peer_cid equals notification_cid (self-message)');
         return;
       }
 
-      console.log('P2P MessageNotification received from peer:', peerCidStr);
-
-      // Verify sender is registered - messages from unregistered peers violate protocol
-      // Registration must happen BEFORE messaging is allowed per the P2P protocol
-      const isAlreadyConnected = this.isConnected(peerCidStr);
-      const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(peerCidStr);
-
-      if (!isAlreadyRegistered && !isAlreadyConnected) {
-        console.error(`[P2P] Received message from unregistered peer ${peerCidStr} - protocol violation`);
-        // Still process the message but log the violation
-        // This shouldn't happen if the protocol is followed correctly
-      }
-
       try {
-        // Convert message array to string
+        // STEP 1: Parse the raw message first
+        // This must happen before session checks so we can broadcast for Yjs sync
         let messageStr: string;
         if (Array.isArray(rawMessage)) {
           const contentBytes = new Uint8Array(rawMessage);
@@ -304,7 +352,46 @@ export class P2PMessengerManager {
 
         console.log('P2P message content:', messageStr);
 
-        // Try to deserialize as P2P command
+        // STEP 2: Broadcast raw message for Yjs sync BEFORE session check
+        // All tabs need to receive Yjs updates regardless of which session they own
+        const rawMessageData = { peerCid: peerCidStr, message: messageStr };
+        eventEmitter.emit('p2p:raw-message', rawMessageData);
+
+        // Broadcast to follower tabs so their YjsP2PProvider instances can receive updates
+        BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
+
+        // STEP 3: Check if this message is for THIS tab's session
+        // For P2P messages in multi-tab environment:
+        // - peer_cid is the SENDER's CID
+        // - notification.cid is the RECIPIENT's CID (the session that received the message)
+        // - currentCid is THIS tab's session CID (via getSelectedUser/tabContext)
+        //
+        // CRITICAL: In multi-tab scenarios with shared WebSocket:
+        // - Leader tab receives ALL MessageNotifications for all sessions
+        // - Each tab's P2PMessengerManager MUST only process messages for its own session
+        // - Without this check, leader processes messages meant for other sessions,
+        //   adding them to wrong conversations and breaking the UI
+        if (currentCid && notificationCidStr && notificationCidStr !== currentCid) {
+          console.log('[P2P] Skipping chat processing: notification is for different session', {
+            notification_cid: notificationCidStr,
+            currentCid,
+            peer_cid: peerCidStr
+          });
+          return;
+        }
+
+        console.log('P2P MessageNotification received from peer:', peerCidStr, 'for session:', notificationCidStr);
+
+        // STEP 4: Verify sender is registered
+        const isAlreadyConnected = this.isConnected(peerCidStr);
+        const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(peerCidStr);
+
+        if (!isAlreadyRegistered && !isAlreadyConnected) {
+          console.error(`[P2P] Received message from unregistered peer ${peerCidStr} - protocol violation`);
+          // Still process the message but log the violation
+        }
+
+        // STEP 5: Process the P2P command for chat messages
         const command = deserializeP2PCommand(messageStr);
         await this.handleP2PCommand(command, peerCidStr, notificationCidStr);
       } catch (error) {
@@ -326,12 +413,10 @@ export class P2PMessengerManager {
   }
 
   private async handleP2PCommand(command: P2PCommand, peerCid: string, recipientCid?: string) {
-    // Self-echo check: Skip if message is from our own CID (broadcast echo)
-    const currentCid = this.getCurrentCid();
-    if (currentCid && peerCid === currentCid.toString()) {
-      console.log(`[P2P] Ignoring self-echo message from ${peerCid}`);
-      return;
-    }
+    // Note: Session filtering is already performed in handleWebSocketMessage():
+    // - Self-echo check at line 334 (peer_cid !== notification.cid)
+    // - Session ownership check at line 374 (notification.cid === currentCid)
+    // This ensures only the correct tab processes each message
 
     switch (command.type) {
       case P2PCommandType.MessagingLayerCommand:
@@ -442,7 +527,11 @@ export class P2PMessengerManager {
       status: 'delivered',
       replyTo: payload.reply_to,
       mentions: payload.mentions,
-      attachments: payload.attachments
+      attachments: payload.attachments,
+      // Message type support - default to 'text' for backward compatibility
+      message_type: payload.message_type || 'text',
+      document_id: payload.document_id,
+      document_title: payload.document_title
     };
 
     // Add to conversation - returns false if this is a duplicate message
@@ -470,10 +559,10 @@ export class P2PMessengerManager {
         notificationService.addMessageNotification(
           `New message from ${peerUsername}`,
           message.content.substring(0, 100), // Preview first 100 chars
-          () => {
-            // Callback: Navigate to conversation
-            eventEmitter.emit('p2p:open-conversation', { peerCid });
-          }
+          peerCid,        // senderId - the peer who sent the message
+          message.id,     // messageId
+          recipientCid,   // recipientCid - the session receiving this message
+          { peerCid, onOpen: () => eventEmitter.emit('p2p:open-conversation', { peerCid }) }
         );
       }
 
@@ -550,10 +639,20 @@ export class P2PMessengerManager {
   public async sendMessage(
     recipientCid: string,
     content: string,
-    replyTo?: string,
-    mentions?: string[],
-    attachments?: any[]
+    options?: {
+      replyTo?: string;
+      mentions?: string[];
+      attachments?: any[];
+      messageType?: MessageType;
+      documentId?: string;
+      documentTitle?: string;
+    }
   ): Promise<P2PMessage> {
+    // CRITICAL DEBUG: Log entry to sendMessage
+    console.log(`[P2P] *** sendMessage ENTRY *** recipientCid=${recipientCid?.slice(0, 8)}..., content="${content.slice(0, 20)}..."`);
+
+    const { replyTo, mentions, attachments, messageType = 'text', documentId, documentTitle } = options || {};
+
     // Check if peer is registered OR already P2P connected
     // Skip registration if already connected - connection implies registration was successful
     const isAlreadyConnected = this.isConnected(recipientCid);
@@ -575,6 +674,10 @@ export class P2PMessengerManager {
     } else {
       console.log(`Peer ${recipientCid} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);
     }
+
+    // Ensure P2P connection is being established in background (non-blocking)
+    // This starts PeerConnect if not already connected, without blocking message sending
+    p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
 
     // Try to ensure peer is ready (non-blocking - proceed regardless of CheckState result)
     // The intersession layer manager in WASM handles message reliability
@@ -603,7 +706,7 @@ export class P2PMessengerManager {
       currentCid,
       recipientCid,
       index,
-      { messageId, replyTo, mentions, attachments }
+      { messageId, replyTo, mentions, attachments, messageType, documentId, documentTitle }
     );
 
     const message: P2PMessage = {
@@ -616,7 +719,10 @@ export class P2PMessengerManager {
       status: 'pending',
       replyTo,
       mentions,
-      attachments
+      attachments,
+      message_type: messageType,
+      document_id: documentId,
+      document_title: documentTitle
     };
 
     // Add to conversation optimistically
@@ -626,12 +732,16 @@ export class P2PMessengerManager {
     this.messageListeners.forEach(listener => listener(message));
 
     // Send via P2P connection
+    console.log(`[P2P] Sending message ${messageId} to ${recipientCid.slice(0, 8)}... (content: "${content.slice(0, 30)}${content.length > 30 ? '...' : ''}")`);
+    const sendStartTime = Date.now();
     try {
       await this.sendP2PCommand(recipientCid, command);
       message.status = 'sent';
+      console.log(`[P2P] Message ${messageId} sent successfully in ${Date.now() - sendStartTime}ms`);
     } catch (error) {
       message.status = 'failed';
       message.error = error instanceof Error ? error.message : 'Failed to send';
+      console.error(`[P2P] Message ${messageId} FAILED after ${Date.now() - sendStartTime}ms:`, error);
       throw error;
     }
 
@@ -667,6 +777,9 @@ export class P2PMessengerManager {
     // Notify listeners of status change
     this.messageStatusListeners.forEach(listener => listener(messageId, 'pending'));
 
+    // Ensure P2P connection is being established in background (non-blocking)
+    p2pAutoConnectService.ensurePeerConnectedInBackground(peerCid);
+
     // Try to ensure peer is ready (non-blocking)
     const peerReady = await this.tryEnsurePeerReady(peerCid);
     if (!peerReady) {
@@ -692,7 +805,10 @@ export class P2PMessengerManager {
         messageId: message.id,
         replyTo: message.replyTo,
         mentions: message.mentions,
-        attachments: message.attachments
+        attachments: message.attachments,
+        messageType: message.message_type,
+        documentId: message.document_id,
+        documentTitle: message.document_title
       }
     );
 
@@ -840,6 +956,60 @@ export class P2PMessengerManager {
   }
 
   /**
+   * Update peer's presence to Online when P2P connection is established.
+   * Also broadcasts our own Online presence to the peer.
+   */
+  private updatePeerPresenceOnConnect(peerCid: string): void {
+    const conversation = this.cache.conversations.get(peerCid);
+    if (conversation) {
+      const newPresence = {
+        status: MessagingLayerType.Online as const,
+        lastUpdate: Date.now()
+      };
+      conversation.presence = newPresence;
+      console.log(`[P2P] Updated presence to Online for peer: ${peerCid.slice(0, 8)}...`);
+
+      // Notify presence listeners so UI can update
+      this.presenceListeners.forEach(listener => listener(peerCid, newPresence));
+
+      // Emit presence update event so UI can refresh (for external listeners)
+      eventEmitter.emit('p2p:presence-updated', {
+        peerCid,
+        presence: newPresence
+      });
+    }
+
+    // Broadcast our own Online presence to the peer
+    this.sendPresenceUpdate(peerCid, createOnline()).catch(error => {
+      console.debug('[P2P] Failed to broadcast Online presence on connect:', error);
+    });
+  }
+
+  /**
+   * Update peer's presence to Offline when P2P connection is lost.
+   */
+  private updatePeerPresenceOnDisconnect(peerCid: string): void {
+    const conversation = this.cache.conversations.get(peerCid);
+    if (conversation) {
+      const newPresence = {
+        status: MessagingLayerType.Offline as const,
+        lastUpdate: Date.now()
+      };
+      conversation.presence = newPresence;
+      console.log(`[P2P] Updated presence to Offline for peer: ${peerCid.slice(0, 8)}...`);
+
+      // Notify presence listeners so UI can update
+      this.presenceListeners.forEach(listener => listener(peerCid, newPresence));
+
+      // Emit presence update event so UI can refresh (for external listeners)
+      eventEmitter.emit('p2p:presence-updated', {
+        peerCid,
+        presence: newPresence
+      });
+    }
+  }
+
+  /**
    * Ensure peer is ready for messaging by sending CheckState and waiting for response.
    * Must be called before sending any message to a peer.
    *
@@ -978,14 +1148,30 @@ export class P2PMessengerManager {
 
     const serialized = serializeP2PCommand(command);
 
+    // Debug: Log the command type being sent
+    const commandType = Object.keys(command)[0] || 'unknown';
+    console.log(`[P2P] *** sendP2PCommand *** ${commandType} from ${currentCid.slice(0, 8)}... to ${peerCid.slice(0, 8)}... (${serialized.length} bytes)`);
+
     // Use direct P2P message routing via internal service
     // This bypasses ISM (which has WASM time issues) and routes via InternalServiceRequest::Message
+    console.log(`[P2P] *** Calling websocketService.sendP2PMessage(${currentCid.slice(0, 8)}..., ${peerCid.slice(0, 8)}..., ...)`);
     await websocketService.sendP2PMessage(currentCid, peerCid, serialized);
+    console.log(`[P2P] *** websocketService.sendP2PMessage completed successfully ***`);
   }
 
   private getOrCreateConversation(peerCid: string, peerUsername?: string): P2PConversation {
     let conversation = this.cache.conversations.get(peerCid);
     if (!conversation) {
+      // Check multiple sources for connection status to determine initial presence
+      // This handles the timing race where connections map may not be updated yet
+      const isConnectedLocal = this.connections.get(peerCid) === true;
+      const isConnectedAutoConnect = p2pAutoConnectService.isPeerConnected(peerCid);
+      const isOnlineRegistration = p2pAutoConnectService.isPeerOnline(peerCid);
+      const isOnline = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
+
+      console.log(`[P2P] getOrCreateConversation for ${peerCid.slice(0, 8)}...: ` +
+        `local=${isConnectedLocal}, autoConnect=${isConnectedAutoConnect}, registration=${isOnlineRegistration} → ${isOnline ? 'Online' : 'Offline'}`);
+
       conversation = {
         peerCid,
         peerUsername,
@@ -995,8 +1181,8 @@ export class P2PMessengerManager {
         typing: false,
         lastTypingUpdate: 0,
         presence: {
-          status: MessagingLayerType.Offline,
-          lastUpdate: 0
+          status: isOnline ? MessagingLayerType.Online : MessagingLayerType.Offline,
+          lastUpdate: isOnline ? Date.now() : 0
         }
       };
       this.cache.conversations.set(peerCid, conversation);
@@ -1160,6 +1346,37 @@ export class P2PMessengerManager {
 
   public getAllConversations(): P2PConversation[] {
     return Array.from(this.cache.conversations.values());
+  }
+
+  /**
+   * Remove conversations for peers that are no longer registered on the server.
+   * Call this after syncing with server to clean up stale cached data from previous sessions.
+   * This prevents "Peer XXXXXX" entries from cluttering the DIRECT MESSAGES sidebar.
+   *
+   * @param validPeerCids - Set of CIDs for peers currently registered on the server
+   * @returns Number of stale conversations removed
+   */
+  public cleanupStaleConversations(validPeerCids: Set<string>): number {
+    const staleCids: string[] = [];
+
+    for (const [peerCid] of this.cache.conversations.entries()) {
+      if (!validPeerCids.has(peerCid)) {
+        staleCids.push(peerCid);
+      }
+    }
+
+    for (const cid of staleCids) {
+      console.log(`[P2P] Removing stale conversation for peer: ${cid.slice(0, 8)}...`);
+      this.cache.conversations.delete(cid);
+    }
+
+    if (staleCids.length > 0) {
+      console.log(`[P2P] Cleaned up ${staleCids.length} stale conversation(s)`);
+      this.persistConversations();
+      eventEmitter.emit('p2p:conversations-cleaned');
+    }
+
+    return staleCids.length;
   }
 
   public getRecentMessages(limit: number = 50): P2PMessage[] {

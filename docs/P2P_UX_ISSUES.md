@@ -12,6 +12,8 @@ This document catalogs user experience issues discovered during P2P messaging te
 4. [MessageSendFailure Alongside Successful Delivery](#issue-4-messagessendfailure-alongside-successful-delivery) (Medium)
 5. [Manage Accounts Shows Empty](#issue-5-manage-accounts-shows-empty) (Low)
 6. [Direct Navigation Fails to Claim Session](#issue-6-direct-navigation-fails-to-claim-session) (Critical)
+7. [ListRegisteredPeers Request Timeout](#issue-7-listregisteredpeers-request-timeout) (Medium)
+8. [Auto-Accept Setting Key Not Found](#issue-8-auto-accept-setting-key-not-found) (Low)
 
 ---
 
@@ -371,9 +373,182 @@ useEffect(() => {
 
 ---
 
+---
+
+## Issue 7: ListRegisteredPeers Request Timeout
+
+**Severity**: Medium (Reliability Issue)
+
+**Symptom**: Console shows `Error: ListRegisteredPeers request timed out` intermittently during P2P operations.
+
+### Observed Behavior
+
+During testing on Dec 10, 2024, multiple timeout errors were observed:
+```
+Error: ListRegisteredPeers request timed out
+```
+
+The timeouts occurred during:
+- Initial peer discovery after P2P registration
+- Background polling for peer list updates
+- Concurrent P2P operations
+
+### User Impact
+
+- Peer list may not update promptly after registration
+- DIRECT MESSAGES sidebar may show stale data
+- Users may not see newly registered peers immediately
+
+### Location
+
+- `citadel-workspaces/src/lib/p2p-registration-service.ts` (request sending)
+- `citadel-internal-service` (backend handling)
+
+### Investigation Needed
+
+1. Check if timeout value (currently ~5s) is sufficient for backend processing
+2. Investigate if concurrent requests are blocking each other
+3. Verify backend doesn't have bottlenecks in peer list retrieval
+4. Check if request queuing is causing delays
+
+### Proposed Fix
+
+1. Increase timeout for ListRegisteredPeers (10s instead of 5s)
+2. Add retry logic with exponential backoff
+3. Cache peer list locally and update incrementally
+4. Consider WebSocket push notifications for peer list changes instead of polling
+
+### Code Changes
+
+```typescript
+// p2p-registration-service.ts
+private async listRegisteredPeers(): Promise<RegisteredPeer[]> {
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const timeout = 10000 * (i + 1); // 10s, 20s, 30s
+      return await this.sendRequest('ListRegisteredPeers', {}, timeout);
+    } catch (error) {
+      lastError = error as Error;
+      if (!error.message?.includes('timed out')) {
+        throw error; // Non-timeout errors should propagate immediately
+      }
+      console.warn(`[P2P] ListRegisteredPeers attempt ${i + 1} timed out, retrying...`);
+    }
+  }
+
+  throw lastError;
+}
+```
+
+---
+
+## Issue 8: Auto-Accept Setting Key Not Found
+
+**Severity**: Low (First-Time Setup)
+
+**Symptom**: Console warning: `[P2P] Failed to get auto-accept setting: Error: Key not found`
+
+### Observed Behavior
+
+On first P2P registration attempt, the auto-accept setting lookup fails because the key hasn't been set yet.
+
+### User Impact
+
+Minimal - the system defaults to a sensible behavior. However, the console warning may cause confusion during debugging.
+
+### Location
+
+- `citadel-workspaces/src/lib/p2p-auto-connect-service.ts` (or similar)
+- LocalDB settings retrieval
+
+### Root Cause
+
+The LocalDB `get()` method throws an error when a key doesn't exist, rather than returning `undefined` or a default value.
+
+### Proposed Fix
+
+1. Initialize default settings on app startup
+2. OR modify the getter to catch the error and return a default value
+
+### Code Changes
+
+```typescript
+// p2p-auto-connect-service.ts
+async getAutoAcceptSetting(): Promise<boolean> {
+  try {
+    const setting = await this.localDb.get('p2p:auto_accept');
+    return setting === 'true';
+  } catch (error) {
+    // Default to false if setting doesn't exist
+    if (error.message?.includes('Key not found')) {
+      console.debug('[P2P] Auto-accept setting not found, defaulting to false');
+      return false;
+    }
+    throw error;
+  }
+}
+```
+
+---
+
+## Dec 10, 2024 Testing Session Results
+
+### Test Configuration
+- **Test Users**: p2ptest1 (CID: 7040934265064422768), p2ptest2 (CID: 11792220362710786214)
+- **Setup**: Tab 0 = p2ptest1, Tab 1 = p2ptest2
+- **Browser**: Single browser, multi-tab via Playwright MCP
+
+### Verified Working ✅
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Message Positioning | ✅ PASS | Sender messages on RIGHT (purple), Receiver on LEFT (gray) |
+| Peer Online Status | ✅ PASS | Green indicator with "Online" text for connected peers |
+| Bidirectional Messaging | ✅ PASS | Messages flow correctly in both directions |
+| Self-Echo Filter | ✅ PASS | Console shows `[P2P] Ignoring self-echo message` |
+| Message Acknowledgments | ✅ PASS | Both "delivered" and "read" ACKs working |
+| DIRECT MESSAGES Sidebar | ✅ PASS | Populates automatically after P2P registration |
+| P2P Registration Flow | ✅ PASS | Invitation sent and accepted successfully |
+| Auto-Connect After Registration | ✅ PASS | P2P connection established automatically |
+
+### Issues Observed ⚠️
+
+| Issue | Severity | Occurrences | Notes |
+|-------|----------|-------------|-------|
+| ListRegisteredPeers Timeout | Medium | Multiple | See Issue #7 |
+| MessageSendFailure (false positive) | Medium | 1-2 | See Issue #4 |
+| Auto-Accept Key Not Found | Low | 1 | See Issue #8 |
+
+### Screenshots Captured
+
+1. `p2p-sender-view-tab0.png` - Sender's message on RIGHT (purple bubble)
+2. `p2p-receiver-view-tab1.png` - Received message on LEFT (gray bubble)
+3. `p2p-bidirectional-tab0.png` - Both messages visible in Tab 0
+4. `p2p-bidirectional-tab1.png` - Both messages visible in Tab 1
+
+---
+
+## Updated Implementation Priority
+
+| Priority | Issue | Effort | Impact | Status |
+|----------|-------|--------|--------|--------|
+| 1 | Duplicate Messages (#1) | Low | High | Pending |
+| 2 | Direct Navigation Session Claim (#6) | Medium | Critical | Pending |
+| 3 | ListRegisteredPeers Timeout (#7) | Low | Medium | **NEW** |
+| 4 | Peer Status Display (#2) | Low | Medium | Pending |
+| 5 | Register Button (#3) | Low | Low | Pending |
+| 6 | MessageSendFailure (#4) | Medium | Medium | Pending |
+| 7 | Auto-Accept Key Not Found (#8) | Low | Low | **NEW** |
+| 8 | Manage Accounts (#5) | Medium | Low | Pending |
+
+---
+
 ## Test Environment
 
-- **Date**: Nov 29, 2024
+- **Date**: Nov 29, 2024 (initial), Dec 10, 2024 (updated)
 - **Setup**: One-tab-per-user (Tab 0 = user1, Tab 1 = user2)
 - **Architecture**: Single browser, multiple tabs sharing WebSocket connection
 - **Test Flow**: Account creation → Peer discovery → Peer registration → Bidirectional messaging

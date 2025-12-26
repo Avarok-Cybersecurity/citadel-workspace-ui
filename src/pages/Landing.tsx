@@ -15,6 +15,7 @@ import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
 import { LoginConflictModal } from "@/components/LoginConflictModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
+import { getWorkspacePath } from "@/lib/workspace-navigation";
 
 export const Landing = () => {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export const Landing = () => {
       // Development mode: Check for dev flag in URL
       if (urlParams.get('dev') === 'true') {
         console.log('Development mode: Bypassing auth and navigating to office');
-        navigate('/office');
+        navigate(getWorkspacePath());
         return;
       }
 
@@ -119,7 +120,7 @@ export const Landing = () => {
       WorkspaceService.loadWorkspace();
       WorkspaceService.listOffices(); // Also trigger office loading
       console.info('[Landing] Navigating to /office...');
-      navigate('/office');
+      navigate(getWorkspacePath());
     } catch (error) {
       console.error("[Landing] Error during post-registration setup:", error);
       // TODO: Show an error message to the user
@@ -143,7 +144,7 @@ export const Landing = () => {
       WorkspaceService.loadWorkspace();
       WorkspaceService.listOffices();
       console.info('[Landing] Navigating to /office...');
-      navigate('/office');
+      navigate(getWorkspacePath());
     } catch (error) {
       console.error("[Landing] Error during post-login setup:", error);
       // TODO: Show an error message to the user

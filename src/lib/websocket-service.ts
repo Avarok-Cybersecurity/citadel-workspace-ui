@@ -506,6 +506,59 @@ class WebSocketService {
     }
   }
 
+  /**
+   * Deregister from the server - permanently removes the account
+   * This is different from disconnect which only ends the session.
+   * Use this for complete cleanup between test runs.
+   */
+  async deregister(cid: string): Promise<void> {
+    await this.init(); // ensure initialized
+
+    const requestId = crypto.randomUUID();
+    const request = {
+      Deregister: {
+        request_id: requestId,
+        cid: cid // Send CID as string - Rust side will parse to u64
+      }
+    };
+
+    debugLog('websocket', 'Sending Deregister request', request);
+
+    // Set up event listener for response
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handler);
+        reject(new Error('Deregister request timed out'));
+      }, 30000); // 30 second timeout
+
+      const handler = (message: any) => {
+        const response = message.Response || message;
+
+        if ('DeregisterSuccess' in response && response.DeregisterSuccess.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          debugLog('websocket', 'Deregister successful for CID:', cid);
+          resolve();
+        }
+
+        if ('DeregisterFailure' in response && response.DeregisterFailure.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          reject(new Error(response.DeregisterFailure.message || 'Failed to deregister'));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handler);
+
+      // Send the request
+      this.client.sendDirectToInternalService(request).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handler);
+        reject(error);
+      });
+    });
+  }
+
   async disconnectAndClose(): Promise<void> {
     // This completely closes the WebSocket connection
     this.client = null;

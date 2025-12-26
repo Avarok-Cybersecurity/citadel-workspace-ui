@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useWorkspace } from '@/lib/workspace-context';
 import { peerRegistrationStore, OutgoingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser } from '@/lib/tab-context';
+import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 
 interface Peer {
   cid: string;
@@ -89,7 +90,9 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     setLoading(true);
     try {
       const requestId = crypto.randomUUID();
-      
+      // Register request for cross-tab response routing
+      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+
       // Create request for listing all peers
       const request = {
         ListAllPeers: {
@@ -101,6 +104,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       // Set up response handler before sending request
       const responsePromise = new Promise<any>((resolve, reject) => {
         const timeout = setTimeout(() => {
+          broadcastChannelService.clearRequest(requestId);
           reject(new Error('Request timed out'));
         }, 10000);
 
@@ -145,7 +149,23 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         // Continue anyway - we can still show peers without registration status
       });
       
+      // If ListAllPeers returns empty, try GetSessions as fallback
+      // GetSessions queries the internal service's session map directly
       if (processedPeers.length === 0) {
+        console.log('[PeerDiscovery] ListAllPeers returned empty, trying GetSessions fallback...');
+        const sessionPeers = await discoverPeersViaGetSessions();
+        if (sessionPeers.length > 0) {
+          setPeers(sessionPeers);
+          loadRegisteredPeers().catch(err => {
+            console.warn('Could not load registered peers:', err);
+          });
+          toast({
+            title: "Peers Discovered",
+            description: `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`,
+            className: "bg-[#343A5C] border-purple-800 text-purple-200",
+          });
+          return;
+        }
         toast({
           title: "No Peers Found",
           description: "You are the only user connected to this workspace",
@@ -159,7 +179,26 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         });
       }
     } catch (error) {
-      console.error('Failed to discover peers:', error);
+      console.error('Failed to discover peers via ListAllPeers:', error);
+      // Try GetSessions as fallback on error
+      try {
+        console.log('[PeerDiscovery] ListAllPeers failed, trying GetSessions fallback...');
+        const sessionPeers = await discoverPeersViaGetSessions();
+        if (sessionPeers.length > 0) {
+          setPeers(sessionPeers);
+          loadRegisteredPeers().catch(err => {
+            console.warn('Could not load registered peers:', err);
+          });
+          toast({
+            title: "Peers Discovered",
+            description: `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`,
+            className: "bg-[#343A5C] border-purple-800 text-purple-200",
+          });
+          return;
+        }
+      } catch (fallbackError) {
+        console.error('GetSessions fallback also failed:', fallbackError);
+      }
       toast({
         title: "Discovery Failed",
         description: "Could not discover peers in the workspace",
@@ -170,11 +209,62 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     }
   };
 
+  /**
+   * Fallback discovery using GetSessions
+   * This queries the internal service's session map directly
+   * Works even when the Citadel SDK's peer discovery hasn't propagated yet
+   */
+  const discoverPeersViaGetSessions = async (): Promise<Peer[]> => {
+    const requestId = crypto.randomUUID();
+    // GetSessions doesn't need CID - it returns all sessions
+    const request = {
+      GetSessions: {
+        request_id: requestId,
+        cid: 0  // 0 means get all sessions
+      }
+    };
+
+    const responsePromise = new Promise<any>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('GetSessions timed out'));
+      }, 5000);
+
+      const handleMessage = (message: any) => {
+        if (message.GetSessionsResponse && message.GetSessionsResponse.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          resolve(message.GetSessionsResponse);
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+    });
+
+    await websocketService.sendMessage(request);
+    const response = await responsePromise;
+
+    // Convert sessions to Peer format
+    const sessions = response.sessions || [];
+    console.log('[PeerDiscovery] GetSessions returned', sessions.length, 'sessions');
+
+    return sessions
+      .filter((s: any) => s.cid.toString() !== currentCid?.toString()) // Filter out self
+      .map((s: any) => ({
+        cid: s.cid.toString(),
+        username: s.username || 'Unknown',
+        fullName: undefined,
+        is_online: true  // If they have a session, they're online
+      }));
+  };
+
   const loadRegisteredPeers = async () => {
     if (!currentCid) return;
 
     try {
       const requestId = crypto.randomUUID();
+      // Register request for cross-tab response routing
+      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+
       const request = {
         ListRegisteredPeers: {
           request_id: requestId,
@@ -184,6 +274,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
       const responsePromise = new Promise<any>((resolve, reject) => {
         const timeout = setTimeout(() => {
+          broadcastChannelService.clearRequest(requestId);
           reject(new Error('Request timed out'));
         }, 10000);
 
@@ -232,6 +323,9 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     // Fire-and-forget pattern: send request, add to outgoing, show "Awaiting Response..."
     try {
       const requestId = crypto.randomUUID();
+      // Register request for cross-tab response routing
+      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+
       const request = {
         PeerRegister: {
           request_id: requestId,

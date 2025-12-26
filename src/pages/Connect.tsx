@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listKnownServers } from "@/lib/server-utils";
+import { getWorkspacePath } from "@/lib/workspace-navigation";
 
 interface ServerInfo {
   server_address: string;
@@ -68,7 +69,7 @@ export const Connect = () => {
         description: `Connecting to ${selectedServer}...`,
       });
       
-      navigate("/office");
+      navigate(getWorkspacePath());
     } catch (error: any) {
       console.error("Error connecting to server:", error);
       const errorMessage = error.message || error.toString() || "Unknown error";

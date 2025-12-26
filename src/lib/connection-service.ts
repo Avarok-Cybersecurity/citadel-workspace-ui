@@ -546,7 +546,8 @@ export class ConnectionService {
       this.notificationService.addSystemNotification(
         'Connection Established',
         `Your connection with user ${request.requesterId} has been automatically established.`,
-        NotificationPriority.NORMAL
+        NotificationPriority.NORMAL,
+        request.recipientId // Associate with the recipient's session
       );
 
       this.acceptConnectionRequest(request.id);

@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { officeRooms } from "../layout/sidebar/RoomsSection";
 import { FileUploadButton } from "@/components/files/FileUploadButton";
 import { useWorkspace } from "@/lib/workspace-context";
+import { buildWorkspacePath } from "@/lib/workspace-navigation";
 
 interface OfficeLayoutProps {
   title: string;
@@ -46,7 +47,7 @@ export const OfficeLayout = ({
   const handleOfficeClick = () => {
     const params = new URLSearchParams(location.search);
     params.delete("room");
-    navigate(`/office?${params.toString()}`);
+    navigate(buildWorkspacePath(params));
   };
 
   return (

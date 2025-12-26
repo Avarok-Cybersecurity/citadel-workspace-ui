@@ -6,7 +6,7 @@ import { ConnectionManager } from '@/lib/connection-manager';
 import { websocketService } from '@/lib/websocket-service';
 import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import WorkspaceService from '@/lib/workspace-service';
-import { setSelectedUser } from '@/lib/tab-context';
+import { setSelectedUser, getSelectedUser } from '@/lib/tab-context';
 
 interface WorkspaceLoaderProps {
   children: React.ReactNode;
@@ -86,8 +86,26 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
           return;
         }
 
-        // Use the first available session
-        const session = activeSessions[0];
+        // CRITICAL: Check if this tab already has a selected user from a previous login
+        // If so, use that session instead of blindly picking activeSessions[0]
+        // This prevents the bug where Tab 2 (Bob) would claim Tab 1's session (Alice)
+        const existingSelection = getSelectedUser();
+        let session: typeof activeSessions[0] | undefined;
+
+        if (existingSelection?.selectedCid) {
+          // Try to find the session matching this tab's existing selection
+          session = activeSessions.find(s => s.cid === existingSelection.selectedCid);
+          if (session) {
+            console.log('WorkspaceLoader: Using existing tab selection:', session.username, session.cid);
+          } else {
+            console.log('WorkspaceLoader: Existing selection not found in active sessions, using first available');
+            session = activeSessions[0];
+          }
+        } else {
+          // No existing selection, use the first available session
+          session = activeSessions[0];
+        }
+
         console.log('WorkspaceLoader: Auto-claiming session:', session.username, session.cid);
 
         // Try to claim the session (same logic as OrphanSessionsNavbar.handleNavigate)

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import { FilePreviewDialog } from "./FilePreviewDialog";
 import { useNavigate, useLocation } from "react-router-dom";
+import { buildWorkspacePath } from "@/lib/workspace-navigation";
 
 export const files = [
   {
@@ -91,13 +92,13 @@ export const FilesSection = () => {
   const handleFileManagerClick = () => {
     const params = new URLSearchParams(location.search);
     params.set('section', 'files');
-    navigate(`/office?${params.toString()}`);
+    navigate(buildWorkspacePath(params));
   };
 
   return (
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem]">
-        <SidebarGroupLabel className="text-[#9b87f5] font-semibold">FILES</SidebarGroupLabel>
+        <SidebarGroupLabel className="text-[#9b87f5] font-semibold px-0 ml-3">FILES</SidebarGroupLabel>
         <SidebarGroupContent>
           <ScrollArea className="max-h-[30vh]">
             <SidebarMenu>

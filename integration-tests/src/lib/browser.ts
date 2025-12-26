@@ -1,0 +1,76 @@
+/**
+ * Browser setup and management
+ */
+
+import { chromium, Page } from 'playwright';
+import type { BrowserOptions, BrowserSetup } from './types.js';
+
+/**
+ * Create a browser and context for testing
+ *
+ * NOTE: We use a SINGLE browser context for all tabs to share ONE WebSocket connection.
+ * This mirrors real-world usage where users have multiple tabs in the same browser.
+ * We clear storage to ensure a clean state for each test run.
+ */
+export async function createBrowser(options: BrowserOptions = {}): Promise<BrowserSetup> {
+  const { headless = false, slowMo = 50 } = options;
+
+  const browser = await chromium.launch({ headless, slowMo });
+
+  // Create context with cleared storage for fresh test state
+  const context = await browser.newContext({
+    storageState: undefined, // Clear any previous storage
+  });
+
+  // Clear storage in context to ensure no stale data
+  await context.clearCookies();
+
+  return { browser, context };
+}
+
+/**
+ * Clear all browser storage (localStorage, sessionStorage, IndexedDB) for a page
+ * Must be called AFTER navigating to the page since storage is origin-specific
+ */
+export async function clearBrowserStorage(page: Page): Promise<void> {
+  console.log('  Clearing browser storage...');
+  await page.evaluate(() => {
+    // Clear localStorage
+    localStorage.clear();
+    // Clear sessionStorage
+    sessionStorage.clear();
+    // Clear IndexedDB databases
+    if ('indexedDB' in window) {
+      indexedDB.databases().then((databases) => {
+        databases.forEach((db) => {
+          if (db.name) {
+            indexedDB.deleteDatabase(db.name);
+          }
+        });
+      }).catch(() => {
+        // indexedDB.databases() not supported in all browsers
+      });
+    }
+  });
+  console.log('  Browser storage cleared');
+}
+
+/**
+ * Setup console log capture for a page
+ */
+export function setupConsoleCapture(page: Page, label: string, filterKeywords: string[] = []): string[] {
+  const logs: string[] = [];
+
+  page.on('console', msg => {
+    const text = msg.text();
+    const shouldLog = filterKeywords.length === 0 ||
+      filterKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()));
+
+    if (shouldLog) {
+      logs.push(`[${new Date().toISOString()}] ${text}`);
+      console.log(`  [${label}] ${text.substring(0, 150)}`);
+    }
+  });
+
+  return logs;
+}

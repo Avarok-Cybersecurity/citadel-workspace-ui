@@ -3,6 +3,7 @@
  * These types mirror the Rust enum structure for P2P communication
  */
 
+import type { MessageType } from './message-protocol';
 import type { MessagingLayer } from './messaging-layer';
 import {
   MessagingLayerType,
@@ -47,6 +48,12 @@ export interface P2PMessagingLayerPayload {
   mentions?: string[];
   /** Optional file attachments */
   attachments?: P2PAttachment[];
+  /** Message content type (text, markdown, live_document) */
+  message_type?: MessageType;
+  /** Live document ID (only for live_document type) */
+  document_id?: string;
+  /** Live document title (only for live_document type) */
+  document_title?: string;
 }
 
 export interface P2PMessageAckPayload {
@@ -135,6 +142,9 @@ export function createMessagingLayerCommand(
     replyTo?: string;
     mentions?: string[];
     attachments?: P2PAttachment[];
+    messageType?: MessageType;
+    documentId?: string;
+    documentTitle?: string;
   }
 ): P2PCommand {
   return {
@@ -147,7 +157,10 @@ export function createMessagingLayerCommand(
       index,
       reply_to: options?.replyTo,
       mentions: options?.mentions,
-      attachments: options?.attachments
+      attachments: options?.attachments,
+      message_type: options?.messageType || 'text',
+      document_id: options?.documentId,
+      document_title: options?.documentTitle
     } as P2PMessagingLayerPayload
   };
 }
@@ -195,4 +208,167 @@ export function deserializeP2PCommand(json: string): P2PCommand {
     }
     return value;
   });
+}
+
+// ============================================
+// YJS SYNC MESSAGE TYPES
+// ============================================
+
+/**
+ * Sub-types for YJS sync protocol messages
+ */
+export type YjsSyncSubType =
+  | 'sync_step1'      // Initial state vector exchange
+  | 'sync_step2'      // Differential update
+  | 'update'          // Live document update
+  | 'ack'             // Acknowledgment with hash
+  | 'hash_check'      // Request hash verification
+  | 'full_state'      // Full state for creator authority resync
+  | 'request_full';   // Request full state from creator
+
+/**
+ * YJS document sync message
+ */
+export interface YjsSyncMessage {
+  type: 'yjs_sync';
+  sub_type: YjsSyncSubType;
+  document_id: string;
+  /** YJS update data as array (Uint8Array converted) */
+  data: number[];
+  /** SHA-256 hash of current document state */
+  doc_hash?: string;
+  /** Document revision counter */
+  revision?: number;
+  /** Unique message ID for ACK tracking */
+  message_id: string;
+  /** Whether this message expects an ACK response */
+  requires_ack?: boolean;
+  /** Whether sender is the document creator (authority) */
+  is_creator?: boolean;
+}
+
+/**
+ * YJS awareness message (cursor positions, user info)
+ */
+export interface YjsAwarenessMessage {
+  type: 'yjs_awareness';
+  document_id: string;
+  /** Awareness update data as array */
+  awareness: number[];
+}
+
+/**
+ * YJS acknowledgment message
+ */
+export interface YjsAckMessage {
+  type: 'yjs_ack';
+  document_id: string;
+  /** ID of the message being acknowledged */
+  message_id: string;
+  /** Hash of local document state after applying update */
+  local_hash: string;
+  /** Local revision number */
+  revision: number;
+}
+
+/**
+ * YJS divergence notification message
+ */
+export interface YjsDivergenceMessage {
+  type: 'yjs_divergence';
+  document_id: string;
+  /** Local document hash */
+  local_hash: string;
+  /** Remote document hash that caused divergence detection */
+  remote_hash: string;
+  /** Indices of diverged chunks (if using Merkle tree) */
+  diverged_chunks?: number[];
+  /** Action to take for recovery */
+  action: 'request_chunks' | 'full_resync';
+}
+
+/**
+ * Union type for all YJS P2P messages
+ */
+export type YjsP2PMessage = YjsSyncMessage | YjsAwarenessMessage | YjsAckMessage | YjsDivergenceMessage;
+
+/**
+ * Type guard for YJS sync messages
+ */
+export function isYjsSyncMessage(msg: any): msg is YjsSyncMessage {
+  return msg?.type === 'yjs_sync' && 'sub_type' in msg && 'document_id' in msg;
+}
+
+/**
+ * Type guard for YJS awareness messages
+ */
+export function isYjsAwarenessMessage(msg: any): msg is YjsAwarenessMessage {
+  return msg?.type === 'yjs_awareness' && 'awareness' in msg;
+}
+
+/**
+ * Type guard for YJS ACK messages
+ */
+export function isYjsAckMessage(msg: any): msg is YjsAckMessage {
+  return msg?.type === 'yjs_ack' && 'message_id' in msg && 'local_hash' in msg;
+}
+
+/**
+ * Type guard for YJS divergence messages
+ */
+export function isYjsDivergenceMessage(msg: any): msg is YjsDivergenceMessage {
+  return msg?.type === 'yjs_divergence' && 'action' in msg;
+}
+
+/**
+ * Check if a message is any type of YJS P2P message
+ */
+export function isYjsP2PMessage(msg: any): msg is YjsP2PMessage {
+  return isYjsSyncMessage(msg) || isYjsAwarenessMessage(msg) ||
+         isYjsAckMessage(msg) || isYjsDivergenceMessage(msg);
+}
+
+// ============================================
+// MERKLE TREE TYPES FOR P2P SYNC
+// ============================================
+
+/**
+ * Serialized chunk for network transmission
+ */
+export interface SerializedChunk {
+  index: number;
+  hash: string;
+  data: number[]; // Uint8Array as array for JSON
+}
+
+/**
+ * Merkle proof for verification and comparison
+ */
+export interface MerkleProof {
+  rootHash: string;
+  leafCount: number;
+  treeHeight: number;
+  /** Node hashes by level (0 = root) */
+  levelHashes: string[][];
+  /** Optional chunks for targeted sync */
+  chunks?: SerializedChunk[];
+}
+
+/**
+ * YJS-specific Merkle proof with document metadata
+ */
+export interface YjsMerkleProof extends MerkleProof {
+  documentId: string;
+  creatorCid: string | null;
+  revision: number;
+}
+
+/**
+ * Revision entry for hash chain
+ */
+export interface RevisionEntry {
+  revision: number;
+  rootHash: string;
+  timestamp: number;
+  prevHash?: string;
 }

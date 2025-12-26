@@ -122,7 +122,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
             <Avatar className="h-8 w-8">
               <AvatarImage src="" />
               <AvatarFallback className="bg-[#444A6C] text-white text-xs">
-                {notification.senderId.substring(0, 2).toUpperCase()}
+                {String(notification.senderId).substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
           )}

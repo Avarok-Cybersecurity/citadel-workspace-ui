@@ -203,6 +203,7 @@ export class MessagingService {
         content.length > 50 ? `${content.substring(0, 50)}...` : content,
         senderId,
         message.id,
+        undefined, // recipientCid - not available in this legacy code path
         { message }
       );
 

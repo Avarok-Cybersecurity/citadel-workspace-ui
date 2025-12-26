@@ -1,0 +1,1123 @@
+/**
+ * Citadel Workspace Integration Test Library
+ *
+ * Shared utilities for Playwright-based integration tests.
+ * Provides DRY functions for common testing operations.
+ */
+
+import { chromium, Browser, BrowserContext, Page } from 'playwright';
+import * as fs from 'fs';
+import * as net from 'net';
+import * as path from 'path';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface TestConfig {
+  BASE_URL: string;
+  INTERNAL_SERVICE_URL: string;
+  WORKSPACE_SERVER: string;
+  WORKSPACE_PASSWORD: string;
+  DEFAULT_PASSWORD: string;
+  SCREENSHOTS_DIR: string;
+  LOGS_DIR: string;
+}
+
+export type UxSeverity = 'critical' | 'major' | 'minor' | 'suggestion';
+export type UxCategory = 'visual' | 'functional' | 'performance' | 'accessibility';
+
+export interface UxIssue {
+  severity: UxSeverity;
+  category: UxCategory;
+  description: string;
+  screenshot: string | null;
+  timestamp: string;
+}
+
+export interface CreateAccountOptions {
+  isFirstUser?: boolean;
+  password?: string;
+  uxTracker?: UxIssueTracker | null;
+}
+
+export interface BrowserOptions {
+  headless?: boolean;
+  slowMo?: number;
+}
+
+export interface BrowserSetup {
+  browser: Browser;
+  context: BrowserContext;
+}
+
+export interface DebugObservation {
+  timestamp: string;
+  iteration: number;
+  phase: string;
+  observation: string;
+  details: Record<string, unknown>;
+  status: 'investigating' | 'implemented' | 'verified' | 'failed';
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+export const config: TestConfig = {
+  BASE_URL: 'http://localhost:5173',
+  INTERNAL_SERVICE_URL: 'http://localhost:12345',
+  WORKSPACE_SERVER: 'localhost:12349',
+  WORKSPACE_PASSWORD: 'SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME',
+  DEFAULT_PASSWORD: 'test12345',
+  SCREENSHOTS_DIR: path.join(process.cwd(), 'screenshots'),
+  LOGS_DIR: path.join(process.cwd(), 'logs'),
+};
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Sleep for specified milliseconds
+ */
+export async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Generate a unique test ID based on timestamp
+ */
+export function generateTestId(prefix = 'test'): string {
+  return `${prefix}_${Date.now()}`;
+}
+
+/**
+ * Check if a TCP port is open (works for HTTP and WebSocket services)
+ */
+export async function isTcpPortOpen(host: string, port: number, timeout = 3000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+
+    socket.setTimeout(timeout);
+
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+
+    socket.on('error', () => {
+      socket.destroy();
+      resolve(false);
+    });
+
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+
+    socket.connect(port, host);
+  });
+}
+
+/**
+ * Check if a service is alive (supports both HTTP and WebSocket services)
+ */
+export async function isServiceAlive(url: string, timeout = 5000): Promise<boolean> {
+  const urlObj = new URL(url);
+  const host = urlObj.hostname;
+  const port = parseInt(urlObj.port) || (urlObj.protocol === 'https:' ? 443 : 80);
+  return isTcpPortOpen(host, port, timeout);
+}
+
+/**
+ * Wait for backend services to be alive
+ */
+export async function waitForServicesAlive(timeout = 180000, pollInterval = 2000): Promise<boolean> {
+  console.log('\n=== Waiting for services to be alive ===');
+  const startTime = Date.now();
+
+  // Only check UI since internal service is inside Docker and connects via the UI's WebSocket
+  const services = [
+    { name: 'UI', url: config.BASE_URL },
+  ];
+
+  while (Date.now() - startTime < timeout) {
+    const results = await Promise.all(
+      services.map(async (svc) => ({
+        name: svc.name,
+        alive: await isServiceAlive(svc.url, 3000),
+      }))
+    );
+
+    const allAlive = results.every(r => r.alive);
+
+    if (allAlive) {
+      console.log('  All services are alive:');
+      results.forEach(r => console.log(`    ${r.name}: OK`));
+      // Give backend services a moment to fully initialize
+      console.log('  Waiting 3s for backend initialization...');
+      await sleep(3000);
+      return true;
+    }
+
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    console.log(`  Waiting... (${elapsed}s elapsed)`);
+    results.forEach(r => {
+      console.log(`    ${r.name}: ${r.alive ? 'OK' : 'waiting...'}`);
+    });
+
+    await sleep(pollInterval);
+  }
+
+  throw new Error(`Services did not become alive within ${timeout / 1000}s`);
+}
+
+// ============================================================================
+// UX Issue Tracking
+// ============================================================================
+
+export class UxIssueTracker {
+  private issues: UxIssue[] = [];
+
+  /**
+   * Log a UX issue
+   */
+  log(severity: UxSeverity, category: UxCategory, description: string, screenshot: string | null = null): void {
+    const issue: UxIssue = {
+      severity,
+      category,
+      description,
+      screenshot,
+      timestamp: new Date().toISOString(),
+    };
+    this.issues.push(issue);
+    console.log(`  [UX ${severity.toUpperCase()}/${category}]: ${description}`);
+  }
+
+  getIssues(): UxIssue[] {
+    return this.issues;
+  }
+
+  clear(): void {
+    this.issues = [];
+  }
+}
+
+// ============================================================================
+// Debug Observation Logging
+// ============================================================================
+
+let observationCounter = 0;
+
+/**
+ * Log a debug observation to the JSONL file
+ */
+export function logObservation(
+  phase: string,
+  observation: string,
+  details: Record<string, unknown>,
+  status: DebugObservation['status'] = 'investigating'
+): void {
+  observationCounter++;
+  const entry: DebugObservation = {
+    timestamp: new Date().toISOString(),
+    iteration: observationCounter,
+    phase,
+    observation,
+    details,
+    status,
+  };
+
+  const logPath = path.join(config.LOGS_DIR, 'debug-observations.jsonl');
+  fs.appendFileSync(logPath, JSON.stringify(entry) + '\n');
+  console.log(`  [DEBUG LOG] ${phase}: ${observation}`);
+}
+
+// ============================================================================
+// Screenshot Utilities
+// ============================================================================
+
+/**
+ * Ensure screenshots directory exists
+ */
+export function ensureScreenshotsDir(clean = false): void {
+  if (clean && fs.existsSync(config.SCREENSHOTS_DIR)) {
+    fs.rmSync(config.SCREENSHOTS_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(config.SCREENSHOTS_DIR)) {
+    fs.mkdirSync(config.SCREENSHOTS_DIR, { recursive: true });
+  }
+}
+
+/**
+ * Take a screenshot
+ */
+export async function takeScreenshot(page: Page, name: string, fullPage = true): Promise<string | null> {
+  try {
+    const screenshotPath = `${config.SCREENSHOTS_DIR}/${name}.png`;
+    await page.screenshot({ path: screenshotPath, fullPage, timeout: 10000 });
+    console.log(`  Screenshot: ${name}.png`);
+    return screenshotPath;
+  } catch (e) {
+    const error = e as Error;
+    console.log(`  Screenshot failed: ${name} (${error.message})`);
+    return null;
+  }
+}
+
+// ============================================================================
+// Modal & Dialog Utilities
+// ============================================================================
+
+/**
+ * Close any open modals by pressing Escape
+ */
+export async function closeAnyModals(page: Page, maxAttempts = 3): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const backdrop = page.locator('.bg-black\\/60, [data-state="open"]').first();
+    if (await backdrop.isVisible({ timeout: 300 }).catch(() => false)) {
+      await page.keyboard.press('Escape');
+      await sleep(300);
+    } else {
+      break;
+    }
+  }
+}
+
+/**
+ * Check for error toasts or messages on the page
+ */
+export async function checkForErrors(page: Page, context: string, uxTracker: UxIssueTracker | null = null): Promise<boolean> {
+  const errorToast = page.locator('[role="alert"]:has-text("error"), [role="alert"]:has-text("failed")').first();
+  if (await errorToast.isVisible({ timeout: 500 }).catch(() => false)) {
+    const errorText = await errorToast.textContent();
+    if (uxTracker && errorText) {
+      uxTracker.log('critical', 'functional', `Error in ${context}: ${errorText}`);
+    }
+    console.log(`  ERROR in ${context}: ${errorText}`);
+    return true;
+  }
+  return false;
+}
+
+// ============================================================================
+// Workspace Loading Utilities
+// ============================================================================
+
+/**
+ * Wait for workspace to fully load
+ */
+export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promise<boolean> {
+  console.log('  Waiting for workspace to fully load...');
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const loadingIndicator = page.locator('text="Loading workspace..."');
+    const isLoading = await loadingIndicator.isVisible({ timeout: 500 }).catch(() => false);
+
+    if (!isLoading) {
+      const sidebar = page.locator('text="WORKSPACE MEMBERS"').first();
+      if (await sidebar.isVisible({ timeout: 1000 }).catch(() => false)) {
+        console.log('  Workspace fully loaded');
+        return true;
+      }
+    }
+
+    await sleep(1000);
+  }
+
+  console.log('  Workspace loading timeout');
+  return false;
+}
+
+// ============================================================================
+// Account Management
+// ============================================================================
+
+/**
+ * Create a new user account
+ */
+export async function createAccount(page: Page, username: string, options: CreateAccountOptions = {}): Promise<boolean> {
+  const {
+    isFirstUser = false,
+    password = config.DEFAULT_PASSWORD,
+    uxTracker = null,
+  } = options;
+
+  console.log(`\n=== Creating account: ${username} ===`);
+
+  await page.goto(config.BASE_URL);
+  await sleep(2000);
+
+  // Click "Join Workspace" button
+  const joinBtn = page.locator('button:has-text("Join Workspace")');
+  if (await joinBtn.isVisible()) {
+    await joinBtn.click();
+    await sleep(1000);
+  }
+
+  // Step 1: Fill workspace location
+  const serverInput = page.locator('#serverAddress');
+  await serverInput.fill(config.WORKSPACE_SERVER);
+  await sleep(500);
+
+  // Click NEXT to go to Security Settings
+  let nextBtn = page.locator('button:has-text("NEXT")');
+  await nextBtn.click();
+  await sleep(2000);
+
+  // Step 2: Security Settings - just click NEXT
+  const securityTitle = page.locator('text="Security Settings"');
+  if (await securityTitle.isVisible({ timeout: 2000 }).catch(() => false)) {
+    nextBtn = page.locator('button:has-text("NEXT")');
+    await nextBtn.click();
+    await sleep(2000);
+  }
+
+  // Step 3: User Details form
+  const fullNameInput = page.locator('input#fullName');
+  if (await fullNameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await fullNameInput.fill(username);
+    await sleep(300);
+
+    const usernameInput = page.locator('input#username');
+    if (await usernameInput.isVisible()) {
+      await usernameInput.fill(username);
+      await sleep(300);
+    }
+
+    const passwordInput = page.locator('input#password');
+    const confirmPasswordInput = page.locator('input#confirmPassword');
+
+    if (await passwordInput.isVisible()) {
+      await passwordInput.fill(password);
+      await sleep(300);
+    }
+    if (await confirmPasswordInput.isVisible()) {
+      await confirmPasswordInput.fill(password);
+      await sleep(300);
+    }
+
+    const submitBtn = page.locator('button:has-text("Register"), button:has-text("Create Account"), button[type="submit"]').first();
+    if (await submitBtn.isVisible()) {
+      await submitBtn.click();
+      await sleep(8000);
+    }
+  }
+
+  // Handle Initialize Workspace modal (only for first user)
+  if (isFirstUser) {
+    const passwordField = page.locator('input#masterPassword');
+    if (await passwordField.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await passwordField.fill(config.WORKSPACE_PASSWORD);
+      await sleep(500);
+
+      const initBtn = page.locator('button:has-text("Initialize Workspace")');
+      if (await initBtn.isVisible()) {
+        await initBtn.click();
+        await sleep(5000);
+      }
+    }
+  }
+
+  await closeAnyModals(page);
+  await checkForErrors(page, 'account creation', uxTracker);
+
+  // Wait for workspace to load
+  const loaded = await waitForWorkspaceLoaded(page, 45000);
+  if (!loaded) {
+    console.log('  WARNING: Workspace may not have fully loaded');
+  }
+
+  await takeScreenshot(page, `${username}_created`);
+  console.log(`  Account ${username} created`);
+  return true;
+}
+
+// ============================================================================
+// P2P Operations
+// ============================================================================
+
+/**
+ * Register a P2P connection with a peer
+ */
+export async function p2pRegister(
+  page: Page,
+  myUsername: string,
+  peerUsername: string,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== P2P Register: ${myUsername} -> ${peerUsername} ===`);
+
+  const loaded = await waitForWorkspaceLoaded(page, 45000);
+  if (!loaded) {
+    if (uxTracker) {
+      uxTracker.log('critical', 'functional', 'Workspace failed to load for P2P registration');
+    }
+    await takeScreenshot(page, `${myUsername}_workspace_not_loaded`);
+    return false;
+  }
+
+  // Wait longer for session to be fully established in Citadel SDK
+  console.log('  Waiting for session to be fully established...');
+  await sleep(5000);
+
+  // Try to open Peer Discovery modal
+  let modalOpened = false;
+
+  // Method 1: Click the UserPlus button directly
+  const userPlusBtn = page.locator('button:has(svg.lucide-user-plus), button[title="Discover Peers"]').first();
+  if (await userPlusBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    console.log('  Found Discover Peers button, clicking...');
+    await userPlusBtn.click();
+    await sleep(2000);
+    modalOpened = true;
+  }
+
+  // Method 2: Hover over WORKSPACE MEMBERS section first
+  if (!modalOpened) {
+    const membersSection = page.locator('text="WORKSPACE MEMBERS"').first();
+    if (await membersSection.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('  Hovering over WORKSPACE MEMBERS...');
+      await membersSection.hover();
+      await sleep(1000);
+
+      const discoverBtn = page.locator('button[title="Discover Peers"], button:has(svg.lucide-user-plus)').first();
+      if (await discoverBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await discoverBtn.click();
+        await sleep(2000);
+        modalOpened = true;
+      }
+    }
+  }
+
+  // Method 3: Force click
+  if (!modalOpened) {
+    console.log('  Attempting force click on Discover Peers...');
+    await page.locator('button[title="Discover Peers"]').click({ force: true, timeout: 5000 }).catch(() => {});
+    await sleep(2000);
+  }
+
+  await takeScreenshot(page, `${myUsername}_peer_discovery`);
+
+  // Wait for peer list modal
+  const modalTitle = page.locator('text="Peer Discovery"');
+  if (!await modalTitle.isVisible({ timeout: 8000 }).catch(() => false)) {
+    const altModal = page.locator('[role="dialog"]:has-text("Peer"), [role="dialog"]:has-text("Discovery")');
+    if (!await altModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (uxTracker) {
+        uxTracker.log('critical', 'functional', 'Peer Discovery modal did not open');
+      }
+      await takeScreenshot(page, `${myUsername}_modal_not_opened`);
+      return false;
+    }
+  }
+
+  console.log('  Peer Discovery modal opened');
+
+  // Retry mechanism for peer discovery (API can timeout initially)
+  const MAX_RETRIES = 3;
+  let peerFound = false;
+
+  for (let retry = 0; retry < MAX_RETRIES && !peerFound; retry++) {
+    if (retry > 0) {
+      console.log(`  Retry ${retry}/${MAX_RETRIES - 1}: Refreshing peer list...`);
+      // Click refresh button if available
+      const refreshBtn = page.locator('[role="dialog"] button:has(svg.lucide-refresh-cw)');
+      if (await refreshBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await refreshBtn.click();
+        await sleep(1000);
+      }
+    }
+
+    // Wait for loading to complete (spinner to disappear)
+    console.log('  Waiting for peer list to load...');
+    for (let i = 0; i < 15; i++) {
+      // Check if loading spinner is gone - look for Loader2 with animate-spin
+      const loadingSpinner = page.locator('[role="dialog"] svg.lucide-loader-2.animate-spin, [role="dialog"] .animate-spin');
+      const isLoading = await loadingSpinner.isVisible({ timeout: 500 }).catch(() => false);
+
+      if (!isLoading) {
+        console.log('  Peer list loaded');
+        break;
+      }
+
+      if (i === 14) {
+        console.log('  WARNING: Peer list loading timed out (will retry)');
+      }
+      await sleep(1000);
+    }
+
+    await sleep(1000); // Extra wait for UI to settle
+
+    // Method 1: Find Connect button in the dialog and check if peer name is nearby
+    const dialog = page.locator('[role="dialog"]');
+    const connectButtons = dialog.locator('button:has-text("Connect")');
+    const connectCount = await connectButtons.count();
+    console.log(`  Found ${connectCount} Connect buttons in dialog`);
+
+    for (let i = 0; i < connectCount && !peerFound; i++) {
+      const connectBtn = connectButtons.nth(i);
+      // Get the parent container and check if it contains the peer username
+      const parent = connectBtn.locator('..').locator('..');
+      const parentText = await parent.textContent().catch(() => '');
+      console.log(`  Button ${i} parent text: "${(parentText ?? '').substring(0, 50)}..."`);
+
+      if ((parentText ?? '').toLowerCase().includes(peerUsername.toLowerCase())) {
+        peerFound = true;
+        console.log(`  Found peer ${peerUsername}, clicking Connect...`);
+        await connectBtn.click();
+        await sleep(3000);
+        console.log(`  P2P registration request sent`);
+        break;
+      }
+    }
+
+    // Method 2: Look for any text containing the peer username and find nearby Connect button
+    if (!peerFound) {
+      const peerText = dialog.locator(`text="${peerUsername}"`).first();
+      if (await peerText.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log(`  Found peer text, looking for Connect button nearby...`);
+        // Find parent container with Connect button
+        const container = peerText.locator('xpath=ancestor::div[.//button[contains(text(), "Connect")]]').first();
+        const connectBtn = container.locator('button:has-text("Connect")');
+        if (await connectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          peerFound = true;
+          console.log(`  Found peer ${peerUsername}, clicking Connect...`);
+          await connectBtn.click();
+          await sleep(3000);
+          console.log(`  P2P registration request sent`);
+        }
+      }
+    }
+
+    if (!peerFound && retry < MAX_RETRIES - 1) {
+      const visiblePeers = await page.locator('[role="dialog"] div.rounded-lg p.font-medium').allTextContents().catch(() => []);
+      console.log(`  Peer not found yet. Available: ${visiblePeers.join(', ') || 'none'}. Retrying...`);
+    }
+  } // End of retry loop
+
+  console.log(`  DEBUG: After retry loop, peerFound = ${peerFound}`);
+
+  if (!peerFound) {
+    const visiblePeers = await page.locator('[role="dialog"] div.rounded-lg p.font-medium').allTextContents().catch(() => []);
+    console.log(`  Available peers: ${visiblePeers.join(', ') || 'none'}`);
+    if (uxTracker) {
+      uxTracker.log('major', 'functional', `Peer ${peerUsername} not found after ${MAX_RETRIES} retries. Available: ${visiblePeers.join(', ')}`);
+    }
+    await takeScreenshot(page, `${myUsername}_peer_not_found`);
+  } else {
+    console.log(`  SUCCESS: Peer ${peerUsername} found and Connect clicked`);
+  }
+
+  await page.keyboard.press('Escape');
+  await sleep(500);
+  return peerFound;
+}
+
+/**
+ * Accept a pending P2P request
+ */
+export async function acceptP2PRequest(
+  page: Page,
+  username: string,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Checking for P2P requests ===`);
+
+  await waitForWorkspaceLoaded(page, 30000);
+  await sleep(2000);
+
+  // Look for pending request badge
+  const membersSection = page.locator('text="WORKSPACE MEMBERS"').locator('..');
+  let badge = membersSection.locator('button.rounded-full').first();
+
+  if (!await badge.isVisible({ timeout: 2000 }).catch(() => false)) {
+    badge = page.locator('.bg-red-500').first();
+  }
+
+  if (await badge.isVisible({ timeout: 8000 }).catch(() => false)) {
+    console.log('  Found pending request badge');
+    await badge.click();
+    await sleep(2000);
+
+    await takeScreenshot(page, `${username}_pending_requests`);
+
+    const acceptBtn = page.locator('button:has-text("Accept")');
+    if (await acceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await acceptBtn.click();
+      await sleep(3000);
+      console.log(`  P2P request accepted`);
+
+      await page.keyboard.press('Escape');
+      await sleep(500);
+      return true;
+    } else {
+      if (uxTracker) {
+        uxTracker.log('major', 'functional', 'Accept button not found in pending requests modal');
+      }
+    }
+  } else {
+    console.log(`  No pending P2P request badge found`);
+  }
+
+  await closeAnyModals(page);
+  return false;
+}
+
+/**
+ * Open a conversation with a peer
+ */
+export async function openConversation(
+  page: Page,
+  username: string,
+  peerUsername: string,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Opening conversation with ${peerUsername} ===`);
+
+  await waitForWorkspaceLoaded(page, 30000);
+  await closeAnyModals(page);
+  await sleep(1000);
+
+  // Wait for peer to appear in sidebar
+  for (let attempt = 0; attempt < 15; attempt++) {
+    // Look in DIRECT MESSAGES section
+    const dmSection = page.locator('text="DIRECT MESSAGES"').locator('..').locator('..');
+    const peerInDM = dmSection.locator(`text="${peerUsername}"`).first();
+
+    if (await peerInDM.isVisible({ timeout: 1000 }).catch(() => false)) {
+      console.log(`  Found ${peerUsername} in DIRECT MESSAGES`);
+      await peerInDM.click();
+      await sleep(2000);
+      await takeScreenshot(page, `${username}_conversation_opened`);
+      return true;
+    }
+
+    // Also check WORKSPACE MEMBERS section
+    const wsSection = page.locator('text="WORKSPACE MEMBERS"').locator('..').locator('..');
+    const peerInWS = wsSection.locator(`text="${peerUsername}"`).first();
+
+    if (await peerInWS.isVisible({ timeout: 500 }).catch(() => false)) {
+      console.log(`  Found ${peerUsername} in WORKSPACE MEMBERS`);
+      await peerInWS.click();
+      await sleep(2000);
+      await takeScreenshot(page, `${username}_conversation_opened`);
+      return true;
+    }
+
+    // Try button match
+    const peerBtn = page.locator(`button:has-text("${peerUsername}")`).first();
+    if (await peerBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+      console.log(`  Found ${peerUsername} via button`);
+      await peerBtn.click();
+      await sleep(2000);
+      await takeScreenshot(page, `${username}_conversation_opened`);
+      return true;
+    }
+
+    console.log(`  Waiting for peer in sidebar... (${attempt + 1}/15)`);
+    await sleep(2000);
+  }
+
+  if (uxTracker) {
+    uxTracker.log('critical', 'functional', `Could not find ${peerUsername} in sidebar after 15 attempts`);
+  }
+  await takeScreenshot(page, `${username}_peer_not_in_sidebar`);
+  return false;
+}
+
+// ============================================================================
+// Messaging Operations
+// ============================================================================
+
+/**
+ * Send a message in the current chat
+ */
+export async function sendMessage(
+  page: Page,
+  username: string,
+  messageText: string,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Sending message ===`);
+
+  const messageInput = page.locator('input[placeholder*="message"]').first();
+
+  if (!await messageInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (uxTracker) {
+      uxTracker.log('critical', 'functional', 'Message input not found');
+    }
+    return false;
+  }
+
+  const isDisabled = await messageInput.isDisabled();
+  if (isDisabled) {
+    if (uxTracker) {
+      uxTracker.log('major', 'functional', 'Message input is disabled');
+    }
+    await takeScreenshot(page, `${username}_input_disabled`);
+    return false;
+  }
+
+  await messageInput.fill(messageText);
+  await sleep(300);
+
+  const sendBtn = page.locator('button[type="submit"]').last();
+  if (await sendBtn.isVisible()) {
+    await sendBtn.click();
+  } else {
+    await messageInput.press('Enter');
+  }
+
+  await sleep(1500);
+  console.log(`  Message sent: "${messageText}"`);
+  await takeScreenshot(page, `${username}_message_sent`);
+  return true;
+}
+
+/**
+ * Verify a message was received in the chat
+ * Uses proper Playwright waiting mechanisms for synchronization
+ */
+export async function verifyMessageReceived(
+  page: Page,
+  username: string,
+  expectedText: string,
+  timeout = 30000,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Verifying message received ===`);
+  console.log(`  Looking for: "${expectedText.substring(0, 50)}..."`);
+
+  // Escape special regex characters in the expected text for use in selectors
+  const escapedText = expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  try {
+    // Use Playwright's waitForFunction to wait for the message to appear in DOM
+    // This is the most reliable synchronization mechanism
+    await page.waitForFunction(
+      (text: string) => {
+        // Check all potential message containers
+        const selectors = [
+          '.prose',
+          '[class*="message"]',
+          '[class*="chat"]',
+          '[class*="bubble"]',
+          'p',
+          'div',
+        ];
+
+        for (let i = 0; i < selectors.length; i++) {
+          const elements = document.querySelectorAll(selectors[i]);
+          for (let j = 0; j < elements.length; j++) {
+            if (elements[j].textContent?.includes(text)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      expectedText,
+      { timeout, polling: 500 }
+    );
+
+    console.log(`  ✓ Message found: "${expectedText.substring(0, 50)}..."`);
+    await takeScreenshot(page, `${username}_message_verified`);
+    return true;
+  } catch {
+    // waitForFunction timed out, try alternative methods
+    console.log(`  waitForFunction timed out, trying alternative selectors...`);
+  }
+
+  // Alternative: Try multiple specific selectors with waitForSelector
+  const messageSelectors = [
+    `text="${expectedText}"`,
+    `text=/${escapedText}/`,
+    `.prose:has-text("${expectedText}")`,
+    `p:has-text("${expectedText}")`,
+    `div:has-text("${expectedText}")`,
+    `[class*="message"]:has-text("${expectedText}")`,
+  ];
+
+  for (const selector of messageSelectors) {
+    try {
+      const element = page.locator(selector).first();
+      await element.waitFor({ state: 'visible', timeout: 3000 });
+      console.log(`  ✓ Message found with selector: ${selector.substring(0, 30)}...`);
+      await takeScreenshot(page, `${username}_message_verified`);
+      return true;
+    } catch {
+      // This selector didn't work, try next
+    }
+  }
+
+  // Final fallback: Check page content directly
+  const pageContent = await page.content();
+  if (pageContent.includes(expectedText)) {
+    console.log(`  ✓ Message found in page content (may not be visible)`);
+    await takeScreenshot(page, `${username}_message_in_content`);
+    return true;
+  }
+
+  // Debug: Log what IS visible in the chat area
+  console.log(`  ✗ Message not found. Debugging chat content...`);
+  try {
+    const chatMessages = await page.locator('[class*="message"], .prose, [class*="chat"] p').allTextContents();
+    console.log(`  Visible messages (${chatMessages.length}):`);
+    chatMessages.slice(0, 5).forEach((msg, i) => {
+      console.log(`    ${i + 1}. "${msg.substring(0, 60)}..."`);
+    });
+  } catch {
+    console.log(`  Could not enumerate chat messages`);
+  }
+
+  if (uxTracker) {
+    uxTracker.log('critical', 'functional', `Message not received within ${timeout}ms: "${expectedText}"`);
+  }
+  await takeScreenshot(page, `${username}_message_not_received`);
+  return false;
+}
+
+// ============================================================================
+// Browser Setup
+// ============================================================================
+
+/**
+ * Create a browser and context for testing
+ *
+ * NOTE: We use a SINGLE browser context for all tabs to share ONE WebSocket connection.
+ * This mirrors real-world usage where users have multiple tabs in the same browser.
+ */
+export async function createBrowser(options: BrowserOptions = {}): Promise<BrowserSetup> {
+  const { headless = false, slowMo = 50 } = options;
+
+  const browser = await chromium.launch({ headless, slowMo });
+  const context = await browser.newContext();
+
+  return { browser, context };
+}
+
+/**
+ * Setup console log capture for a page
+ */
+export function setupConsoleCapture(page: Page, label: string, filterKeywords: string[] = []): string[] {
+  const logs: string[] = [];
+
+  page.on('console', msg => {
+    const text = msg.text();
+    const shouldLog = filterKeywords.length === 0 ||
+      filterKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()));
+
+    if (shouldLog) {
+      logs.push(`[${new Date().toISOString()}] ${text}`);
+      console.log(`  [${label}] ${text.substring(0, 150)}`);
+    }
+  });
+
+  return logs;
+}
+
+// ============================================================================
+// Test Report Generation
+// ============================================================================
+
+export interface TestReport {
+  timestamp: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Write test results to a JSON file
+ */
+export function writeTestReport(filename: string, results: Record<string, unknown>): void {
+  const report: TestReport = {
+    timestamp: new Date().toISOString(),
+    ...results,
+  };
+  fs.writeFileSync(filename, JSON.stringify(report, null, 2));
+  console.log(`\nReport saved to: ${filename}`);
+}
+
+// ============================================================================
+// Live Document Operations (shared functions for YJS-based live docs)
+// ============================================================================
+
+/**
+ * Create a new Live Document
+ */
+export async function createLiveDoc(
+  page: Page,
+  username: string,
+  docName: string,
+  _uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Creating Live Doc "${docName}" ===`);
+
+  // Look for the Live Docs section or create button
+  const createBtn = page.locator('button:has-text("Create Live Doc"), button:has-text("New Document")').first();
+
+  if (!await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    // Try clicking a + button near LIVE DOCS section
+    const liveDocsSection = page.locator('text="LIVE DOCS"').first();
+    if (await liveDocsSection.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await liveDocsSection.hover();
+      await sleep(500);
+      const addBtn = page.locator('button:has(svg.lucide-plus)').first();
+      if (await addBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await addBtn.click();
+        await sleep(1000);
+      }
+    }
+  } else {
+    await createBtn.click();
+    await sleep(1000);
+  }
+
+  // Fill in document name if modal appears
+  const nameInput = page.locator('input[placeholder*="name"], input[placeholder*="title"]').first();
+  if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await nameInput.fill(docName);
+    await sleep(300);
+
+    const confirmBtn = page.locator('button:has-text("Create"), button:has-text("Save"), button[type="submit"]').first();
+    if (await confirmBtn.isVisible()) {
+      await confirmBtn.click();
+      await sleep(2000);
+    }
+  }
+
+  await takeScreenshot(page, `${username}_live_doc_created`);
+  console.log(`  Live Doc "${docName}" created`);
+  return true;
+}
+
+/**
+ * Open a Live Document by name
+ */
+export async function openLiveDoc(
+  page: Page,
+  username: string,
+  docName: string,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Opening Live Doc "${docName}" ===`);
+
+  // Look in LIVE DOCS section
+  const liveDocsSection = page.locator('text="LIVE DOCS"').locator('..').locator('..');
+  const docLink = liveDocsSection.locator(`text="${docName}"`).first();
+
+  if (await docLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await docLink.click();
+    await sleep(2000);
+    await takeScreenshot(page, `${username}_live_doc_opened`);
+    console.log(`  Live Doc "${docName}" opened`);
+    return true;
+  }
+
+  // Try alternative selectors
+  const altDocLink = page.locator(`button:has-text("${docName}"), a:has-text("${docName}")`).first();
+  if (await altDocLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await altDocLink.click();
+    await sleep(2000);
+    await takeScreenshot(page, `${username}_live_doc_opened`);
+    return true;
+  }
+
+  if (uxTracker) {
+    uxTracker.log('major', 'functional', `Live Doc "${docName}" not found in sidebar`);
+  }
+  return false;
+}
+
+/**
+ * Type text into a Live Document editor
+ */
+export async function typeInLiveDocEditor(
+  page: Page,
+  username: string,
+  text: string,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Typing in Live Doc editor ===`);
+
+  // Common editor selectors (TipTap, ProseMirror, etc.)
+  const editorSelectors = [
+    '.ProseMirror',
+    '[contenteditable="true"]',
+    '.tiptap',
+    '.editor-content',
+    'div[data-placeholder]',
+  ];
+
+  for (const selector of editorSelectors) {
+    const editor = page.locator(selector).first();
+    if (await editor.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await editor.click();
+      await sleep(300);
+      await editor.type(text, { delay: 50 });
+      await sleep(500);
+      console.log(`  Typed: "${text.substring(0, 50)}..."`);
+      await takeScreenshot(page, `${username}_typed_in_editor`);
+      return true;
+    }
+  }
+
+  if (uxTracker) {
+    uxTracker.log('critical', 'functional', 'Live Doc editor not found');
+  }
+  return false;
+}
+
+/**
+ * Get content from a Live Document editor
+ */
+export async function getLiveDocContent(page: Page): Promise<string> {
+  const editorSelectors = [
+    '.ProseMirror',
+    '[contenteditable="true"]',
+    '.tiptap',
+    '.editor-content',
+  ];
+
+  for (const selector of editorSelectors) {
+    const editor = page.locator(selector).first();
+    if (await editor.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const content = await editor.textContent();
+      return content ?? '';
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Verify Live Doc content matches expected text
+ */
+export async function verifyLiveDocContent(
+  page: Page,
+  username: string,
+  expectedText: string,
+  timeout = 10000,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Verifying Live Doc content ===`);
+
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const content = await getLiveDocContent(page);
+    if (content.includes(expectedText)) {
+      console.log(`  Content verified: "${expectedText.substring(0, 50)}..."`);
+      return true;
+    }
+    await sleep(500);
+  }
+
+  if (uxTracker) {
+    uxTracker.log('critical', 'functional', `Live Doc content not found within ${timeout}ms: "${expectedText}"`);
+  }
+  await takeScreenshot(page, `${username}_content_not_found`);
+  return false;
+}

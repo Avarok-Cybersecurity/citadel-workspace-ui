@@ -9,6 +9,7 @@ interface OrphanSessionIconProps {
   onNavigate: () => void;
   onDisconnect: () => void;
   shouldGlow?: boolean;
+  unreadCount?: number;
 }
 
 export const OrphanSessionIcon = ({
@@ -17,6 +18,7 @@ export const OrphanSessionIcon = ({
   onNavigate,
   onDisconnect,
   shouldGlow = false,
+  unreadCount = 0,
 }: OrphanSessionIconProps) => {
   const initials = getWorkspaceInitials(workspaceName || session.username);
 
@@ -43,6 +45,13 @@ export const OrphanSessionIcon = ({
       >
         {initials}
       </button>
+
+      {/* Notification badge - top right */}
+      {unreadCount > 0 && (
+        <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1 pointer-events-none">
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </div>
+      )}
 
       {/* Disconnect button - positioned on bottom-right */}
       <button

@@ -1,31 +1,42 @@
 /* tslint:disable */
 /* eslint-disable */
+
 export function close_connection(): Promise<void>;
-export function init(ws_url: string): Promise<void>;
-export function restart(ws_url: string): Promise<void>;
-export function next_message(): Promise<any>;
-/**
- * Opens a messenger handle for the given CID.
- * This creates an ISM (InterSession Messaging) channel for reliable-ordered messaging.
- * Must be called once at login and maintained via polling (see ensure_messenger_open).
- */
-export function open_messenger_for(cid_str: string): Promise<void>;
-export function send_direct_to_internal_service(message: any): Promise<void>;
-export function is_initialized(): boolean;
+
 /**
  * Ensures a messenger handle is open for the given CID.
  * Returns true if the messenger was just opened, false if already open.
  * Use this for polling to maintain messenger handles across leader/follower tab transitions.
  */
 export function ensure_messenger_open(cid_str: string): Promise<boolean>;
+
+export function get_version(): string;
+
+export function init(ws_url: string): Promise<void>;
+
+export function is_initialized(): boolean;
+
+export function main(): void;
+
+export function next_message(): Promise<any>;
+
+/**
+ * Opens a messenger handle for the given CID.
+ * This creates an ISM (InterSession Messaging) channel for reliable-ordered messaging.
+ * Must be called once at login and maintained via polling (see ensure_messenger_open).
+ */
+export function open_messenger_for(cid_str: string): Promise<void>;
+
+export function restart(ws_url: string): Promise<void>;
+
+export function send_direct_to_internal_service(message: any): Promise<void>;
+
 /**
  * Sends a P2P message using ISM-routed reliable messaging.
  * Unlike send_p2p_message which bypasses ISM, this function uses
  * send_message_to_with_security_level for guaranteed delivery.
  */
 export function send_p2p_message_reliable(local_cid_str: string, peer_cid_str: string, message: Uint8Array, security_level?: string | null): Promise<void>;
-export function main(): void;
-export function get_version(): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -42,22 +53,26 @@ export interface InitOutput {
   readonly restart: (a: number, b: number) => any;
   readonly send_direct_to_internal_service: (a: any) => any;
   readonly send_p2p_message_reliable: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
-  readonly __wbindgen_exn_store: (a: number) => void;
-  readonly __externref_table_alloc: () => number;
-  readonly __wbindgen_export_2: WebAssembly.Table;
-  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+  readonly wasm_bindgen__convert__closures_____invoke__h1091a2bd61c67144: (a: number, b: number, c: any) => void;
+  readonly wasm_bindgen__closure__destroy__h57846bf0feebf189: (a: number, b: number) => void;
+  readonly wasm_bindgen__convert__closures_____invoke__hfc7969a467461df8: (a: number, b: number, c: any) => void;
+  readonly wasm_bindgen__closure__destroy__h635057cf238ab386: (a: number, b: number) => void;
+  readonly wasm_bindgen__convert__closures_____invoke__hc8adb55dc8d53303: (a: number, b: number) => void;
+  readonly wasm_bindgen__closure__destroy__hef3cbac11a7756ae: (a: number, b: number) => void;
+  readonly wasm_bindgen__convert__closures_____invoke__hdd61e8d0c040105f: (a: number, b: number, c: any) => void;
+  readonly wasm_bindgen__closure__destroy__hb3b762a8165c6006: (a: number, b: number) => void;
+  readonly wasm_bindgen__convert__closures_____invoke__h54a98780339cd665: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
-  readonly __wbindgen_export_6: WebAssembly.Table;
-  readonly wasm_bindgen__convert__closures_____invoke__hffef68bb67144b57: (a: number, b: number) => void;
-  readonly closure455_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure389_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure220_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure484_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly __wbindgen_exn_store: (a: number) => void;
+  readonly __externref_table_alloc: () => number;
+  readonly __wbindgen_externrefs: WebAssembly.Table;
+  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_start: () => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
+
 /**
 * Instantiates the given `module`, which can either be bytes or
 * a precompiled `WebAssembly.Module`.

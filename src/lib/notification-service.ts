@@ -1,5 +1,13 @@
-import { listen } from './event-emitter';
+import { listen, eventEmitter } from './event-emitter';
 import { v4 as uuidv4 } from 'uuid';
+
+export interface UnreadCountChange {
+  total: number;
+  messages: number;
+  peerRegistrations: number;
+  system: number;
+  byCid: Map<string, number>; // Per-session notification counts
+}
 
 export enum NotificationType {
   MESSAGE = 'message',
@@ -20,6 +28,7 @@ export interface Notification {
   content: string;
   sourceId?: string; // ID of the message, connection request, etc.
   senderId?: string; // User ID who triggered this notification
+  recipientCid?: string; // CID of the session this notification belongs to
   priority: NotificationPriority;
   read: boolean;
   timestamp: number;
@@ -89,19 +98,30 @@ export class NotificationService {
     // Notify all handlers
     this.notifyHandlers(fullNotification);
 
+    // Emit unread count change event for tab notifications
+    this.notifyUnreadChange();
+
     return fullNotification;
   }
 
   /**
    * Add a message notification
    */
-  public addMessageNotification(title: string, content: string, senderId: string, messageId: string, data?: Record<string, any>): Notification {
+  public addMessageNotification(
+    title: string,
+    content: string,
+    senderId: string,
+    messageId: string,
+    recipientCid?: string,
+    data?: Record<string, any>
+  ): Notification {
     return this.addNotification({
       type: NotificationType.MESSAGE,
       title,
       content,
       senderId,
       sourceId: messageId,
+      recipientCid,
       priority: NotificationPriority.NORMAL,
       data
     });
@@ -116,7 +136,8 @@ export class NotificationService {
     requestId: string,
     onAccept: () => void,
     onDecline: () => void,
-    onCardClick: () => void
+    onCardClick: () => void,
+    recipientCid?: string
   ): Notification {
     return this.addNotification({
       type: NotificationType.PEER_REGISTRATION,
@@ -124,6 +145,7 @@ export class NotificationService {
       content: `CID: ${peerCid.slice(0, 12)}...`,
       senderId: peerCid,
       sourceId: requestId,
+      recipientCid,
       priority: NotificationPriority.HIGH,
       actionButtons: [
         { id: 'accept', label: 'Accept', variant: 'default', onClick: onAccept },
@@ -136,12 +158,18 @@ export class NotificationService {
   /**
    * Add a system notification
    */
-  public addSystemNotification(title: string, content: string, priority: NotificationPriority = NotificationPriority.NORMAL): Notification {
+  public addSystemNotification(
+    title: string,
+    content: string,
+    priority: NotificationPriority = NotificationPriority.NORMAL,
+    recipientCid?: string
+  ): Notification {
     return this.addNotification({
       type: NotificationType.SYSTEM,
       title,
       content,
-      priority
+      priority,
+      recipientCid
     });
   }
 
@@ -150,10 +178,11 @@ export class NotificationService {
    */
   public markAsRead(notificationId: string): void {
     const notification = this.notifications.get(notificationId);
-    if (notification) {
+    if (notification && !notification.read) {
       notification.read = true;
       this.notifications.set(notificationId, notification);
       this.notifyHandlers(notification);
+      this.notifyUnreadChange();
     }
   }
 
@@ -161,15 +190,44 @@ export class NotificationService {
    * Mark all notifications as read
    */
   public markAllAsRead(): void {
+    let anyChanged = false;
     for (const [id, notification] of this.notifications.entries()) {
       if (!notification.read) {
         notification.read = true;
         this.notifications.set(id, notification);
+        anyChanged = true;
       }
     }
 
     // Notify handlers that all notifications have been updated
     this.notifyAllHandlers();
+
+    // Emit unread count change if any notifications were marked as read
+    if (anyChanged) {
+      this.notifyUnreadChange();
+    }
+  }
+
+  /**
+   * Mark message notifications as read by sender ID
+   * Used when viewing a P2P conversation to auto-clear related notifications
+   */
+  public markMessageNotificationsAsReadBySender(senderId: string): void {
+    let anyChanged = false;
+    for (const [id, notification] of this.notifications.entries()) {
+      if (notification.type === NotificationType.MESSAGE &&
+          notification.senderId === senderId &&
+          !notification.read) {
+        notification.read = true;
+        this.notifications.set(id, notification);
+        anyChanged = true;
+      }
+    }
+
+    // Emit unread count change if any notifications were marked as read
+    if (anyChanged) {
+      this.notifyUnreadChange();
+    }
   }
 
   /**
@@ -178,8 +236,13 @@ export class NotificationService {
   public removeNotification(notificationId: string): void {
     const notification = this.notifications.get(notificationId);
     if (notification) {
+      const wasUnread = !notification.read;
       this.notifications.delete(notificationId);
       this.notifyRemovedHandler(notification);
+      // Only emit unread change if the removed notification was unread
+      if (wasUnread) {
+        this.notifyUnreadChange();
+      }
     }
   }
 
@@ -205,6 +268,49 @@ export class NotificationService {
   public getNotificationsByType(type: NotificationType): Notification[] {
     return this.getNotifications()
       .filter(notification => notification.type === type);
+  }
+
+  /**
+   * Get unread notification count for a specific session CID
+   */
+  public getUnreadCountByCid(cid: string): number {
+    return Array.from(this.notifications.values())
+      .filter(n => !n.read && n.recipientCid === cid)
+      .length;
+  }
+
+  /**
+   * Get unread notification counts grouped by session CID
+   */
+  public getUnreadCountsByCid(): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const notification of this.notifications.values()) {
+      if (!notification.read && notification.recipientCid) {
+        const current = counts.get(notification.recipientCid) || 0;
+        counts.set(notification.recipientCid, current + 1);
+      }
+    }
+    return counts;
+  }
+
+  /**
+   * Emit an event with current unread count breakdown.
+   * Called whenever the unread state changes (add, read, remove).
+   * Tab notification service listens for this to update tab title and favicon.
+   */
+  public notifyUnreadChange(): void {
+    const notifications = Array.from(this.notifications.values());
+    const unread = notifications.filter(n => !n.read);
+
+    const change: UnreadCountChange = {
+      total: unread.length,
+      messages: unread.filter(n => n.type === NotificationType.MESSAGE).length,
+      peerRegistrations: unread.filter(n => n.type === NotificationType.PEER_REGISTRATION).length,
+      system: unread.filter(n => n.type === NotificationType.SYSTEM).length,
+      byCid: this.getUnreadCountsByCid()
+    };
+
+    eventEmitter.emit('unread-count-changed', change);
   }
 
   /**
@@ -262,5 +368,10 @@ export class NotificationService {
 
 // Singleton instance for convenience
 export const notificationService = NotificationService.getInstance();
+
+// Expose on window for debugging
+if (typeof window !== 'undefined') {
+  (window as any).notificationService = notificationService;
+}
 
 export default NotificationService;

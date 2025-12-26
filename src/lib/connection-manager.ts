@@ -417,6 +417,16 @@ export class ConnectionManager {
   }
 
   /**
+   * Invalidate the session cache to force fresh data on next getActiveSessions() call.
+   * Use this when a connection state change has occurred and stale cache could cause issues.
+   */
+  public invalidateSessionCache(): void {
+    this.cachedSessions = null;
+    this.cachedSessionsTimestamp = 0;
+    console.log('ConnectionManager: Session cache invalidated');
+  }
+
+  /**
    * Internal method that actually fetches active sessions from the backend
    */
   private async _fetchActiveSessions(): Promise<ActiveSession[]> {

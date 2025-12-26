@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import WorkspaceService from "@/lib/workspace-service";
+import { buildWorkspacePath, getWorkspacePath } from "@/lib/workspace-navigation";
 
 export const OfficesSection = () => {
   const location = useLocation();
@@ -49,7 +50,7 @@ export const OfficesSection = () => {
     const params = new URLSearchParams(location.search);
     params.set("officeId", officeId);
     params.delete("roomId"); // Clear room when changing office
-    navigate(`/office?${params.toString()}`);
+    navigate(buildWorkspacePath(params));
     setOpenMobile(false);
   };
 
@@ -84,7 +85,7 @@ export const OfficesSection = () => {
       
       // If we're currently viewing the deleted office, navigate away
       if (currentOfficeId === officeToDelete.id) {
-        navigate('/office');
+        navigate(getWorkspacePath());
       }
 
       toast({
@@ -112,7 +113,7 @@ export const OfficesSection = () => {
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
-          <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0">OFFICES</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0 px-0">OFFICES</SidebarGroupLabel>
           <Button
             variant="ghost"
             size="icon"

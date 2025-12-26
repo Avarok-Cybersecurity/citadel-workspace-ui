@@ -5,6 +5,7 @@ import { P2PChat } from '../p2p/P2PChat';
 import { getDefaultOfficeContent, getDefaultRoomContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
 import { useWorkspace } from '@/lib/workspace-context';
 import { connectionManager } from '@/lib/connection-manager';
+import { getSelectedUser } from '@/lib/tab-context';
 
 interface WorkspaceViewProps {
   officeId?: string | null;
@@ -42,11 +43,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }
 
   // When P2P chat is active, show the chat view
   if (showP2P && peerCid) {
-    // Use tab-specific session CID first, fallback to global connection CID
-    // Convert to string for proper comparison with message.senderCid (which is a string)
+    // Priority chain for currentUserCid:
+    // 1) Tab context selectedCid (most authoritative for follower tabs)
+    // 2) tabSession.cid from connection manager
+    // 3) connectionInfo.cid (global connection)
+    const tabSelection = getSelectedUser();
     const tabSession = connectionManager.getTabSelectedSession();
     const connectionInfo = connectionManager.getConnectionInfo();
-    const rawCid = tabSession?.cid ?? connectionInfo?.cid;
+    const rawCid = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
     const currentUserCid = rawCid !== undefined ? String(rawCid) : undefined;
     const currentUserName = tabSession?.fullName || connectionInfo?.fullName || 'You';
 
