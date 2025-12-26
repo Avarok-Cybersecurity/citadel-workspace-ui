@@ -154,17 +154,19 @@ export const OfficesSection = () => {
                             size="icon"
                             className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={(e) => e.stopPropagation()}
+                            data-testid={`office-menu-${office.id}`}
                           >
                             <MoreVertical className="h-3 w-3" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditOffice(office.id)}>
+                          <DropdownMenuItem onClick={() => handleEditOffice(office.id)} data-testid="edit-office-option">
                             Edit Office
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleDeleteOffice(office.id)}
                             className="text-red-600"
+                            data-testid="delete-office-option"
                           >
                             Delete Office
                           </DropdownMenuItem>

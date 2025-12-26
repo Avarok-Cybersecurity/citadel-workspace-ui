@@ -64,9 +64,10 @@ export async function waitForServicesAlive(timeout = 180000, pollInterval = 2000
   console.log('\n=== Waiting for services to be alive ===');
   const startTime = Date.now();
 
-  // Only check UI since internal service is inside Docker and connects via the UI's WebSocket
+  // Check both UI and internal service
   const services = [
     { name: 'UI', url: config.BASE_URL },
+    { name: 'Internal Service', url: config.INTERNAL_SERVICE_URL },
   ];
 
   while (Date.now() - startTime < timeout) {
@@ -82,9 +83,9 @@ export async function waitForServicesAlive(timeout = 180000, pollInterval = 2000
     if (allAlive) {
       console.log('  All services are alive:');
       results.forEach(r => console.log(`    ${r.name}: OK`));
-      // Give backend services a moment to fully initialize
-      console.log('  Waiting 3s for backend initialization...');
-      await sleep(3000);
+      // Give backend services time to fully initialize WebSocket handlers
+      console.log('  Waiting 5s for backend initialization...');
+      await sleep(5000);
       return true;
     }
 

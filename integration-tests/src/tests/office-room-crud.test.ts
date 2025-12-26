@@ -221,31 +221,32 @@ async function fillCreateRoomModal(
 
 /**
  * Open the office/room settings/edit modal
+ * Uses hover-triggered dropdown menu (3-dot icon)
  */
-async function openEditModal(page: Page, itemName: string): Promise<boolean> {
-  console.log(`  Opening edit modal for: ${itemName}`);
+async function openEditModal(page: Page, itemName: string, type: 'office' | 'room' = 'office'): Promise<boolean> {
+  console.log(`  Opening edit modal for ${type}: ${itemName}`);
 
-  // Right-click or find edit button near the item
-  const itemLocator = page.locator(`button:has-text("${itemName}"), [data-testid*="${itemName}"]`).first();
+  // Find the item in the sidebar
+  const itemLocator = page.locator(`button:has-text("${itemName}")`).first();
 
   if (await itemLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await itemLocator.click({ button: 'right' });
+    // Hover over the item to reveal the 3-dot menu
+    await itemLocator.hover();
     await sleep(500);
 
-    // Look for Edit option in context menu
-    const editOption = page.locator('button:has-text("Edit"), [role="menuitem"]:has-text("Edit")').first();
-    if (await editOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await editOption.click();
+    // Click the 3-dot menu button (appears on hover)
+    const menuBtn = page.locator('button:has(svg.lucide-more-vertical)').first();
+    if (await menuBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await menuBtn.click();
       await sleep(500);
-      return true;
-    }
 
-    // Try looking for a settings/edit icon button
-    const editBtn = page.locator(`button:has(svg):near(:text("${itemName}"))`).first();
-    if (await editBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await editBtn.click();
-      await sleep(500);
-      return true;
+      // Click "Edit Office" or "Edit Room" in the dropdown
+      const editOption = page.locator(`[data-testid="edit-${type}-option"], [role="menuitem"]:has-text("Edit ${type === 'office' ? 'Office' : 'Room'}")`).first();
+      if (await editOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await editOption.click();
+        await sleep(500);
+        return true;
+      }
     }
   }
 
@@ -255,30 +256,53 @@ async function openEditModal(page: Page, itemName: string): Promise<boolean> {
 
 /**
  * Delete an office via the UI
+ * Uses the 3-dot dropdown menu next to the office name
+ * The menu button is hidden (opacity-0) until hover on the parent group element
  */
 async function deleteOffice(page: Page, officeName: string): Promise<boolean> {
   console.log(`\n=== Deleting office: ${officeName} ===`);
 
-  // Right-click or find delete button
-  const itemLocator = page.locator(`button:has-text("${officeName}")`).first();
+  // Find the SidebarMenuItem containing the office - it has a div.group wrapper
+  // Structure: SidebarMenuItem > div.group > [SidebarMenuButton, DropdownMenu]
+  const officeItem = page.locator(`div.group:has(button:has-text("${officeName}"))`).first();
 
-  if (await itemLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await itemLocator.click({ button: 'right' });
+  if (await officeItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Hover over the group to reveal the menu button (triggers group-hover:opacity-100)
+    await officeItem.hover();
     await sleep(500);
 
-    const deleteOption = page.locator('button:has-text("Delete"), [role="menuitem"]:has-text("Delete")').first();
-    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await deleteOption.click();
+    // Find the MoreVertical menu button - it's inside DropdownMenuTrigger
+    // Use the svg class to identify it
+    const menuBtn = officeItem.locator('button:has(svg.lucide-more-vertical)').first();
+
+    if (await menuBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await menuBtn.click();
       await sleep(500);
 
-      // Confirm deletion
-      const confirmBtn = page.locator('button:has-text("Confirm"), button:has-text("Delete")').last();
-      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmBtn.click();
-        await sleep(2000);
-        return true;
+      // Click the Delete Office option using data-testid
+      const deleteOption = page.locator('[data-testid="delete-office-option"]').first();
+      if (await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await deleteOption.click();
+        await sleep(500);
+
+        // Confirm deletion in AlertDialog - the action button has bg-red-600
+        const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
+        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await confirmBtn.click();
+          await sleep(2000);
+          console.log('  Office delete confirmed');
+          return true;
+        } else {
+          console.log('  WARNING: Delete confirmation button not found');
+        }
+      } else {
+        console.log('  WARNING: Delete Office menu option not found');
       }
+    } else {
+      console.log('  WARNING: 3-dot menu button not visible after hover');
     }
+  } else {
+    console.log(`  WARNING: Office item for "${officeName}" not found`);
   }
 
   console.log('  WARNING: Could not delete office');
@@ -287,28 +311,52 @@ async function deleteOffice(page: Page, officeName: string): Promise<boolean> {
 
 /**
  * Delete a room via the UI
+ * Uses the 3-dot dropdown menu next to the room name
+ * The menu button is hidden (opacity-0) until hover on the parent group element
  */
 async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
   console.log(`\n=== Deleting room: ${roomName} ===`);
 
-  const itemLocator = page.locator(`button:has-text("${roomName}")`).first();
+  // Find the SidebarMenuItem containing the room - it has a div.group wrapper
+  // Structure: SidebarMenuItem > div.group > [SidebarMenuButton, DropdownMenu]
+  const roomItem = page.locator(`div.group:has(button:has-text("${roomName}"))`).first();
 
-  if (await itemLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await itemLocator.click({ button: 'right' });
+  if (await roomItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Hover over the group to reveal the menu button (triggers group-hover:opacity-100)
+    await roomItem.hover();
     await sleep(500);
 
-    const deleteOption = page.locator('button:has-text("Delete"), [role="menuitem"]:has-text("Delete")').first();
-    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await deleteOption.click();
+    // Find the MoreVertical menu button - it's inside DropdownMenuTrigger
+    const menuBtn = roomItem.locator('button:has(svg.lucide-more-vertical)').first();
+
+    if (await menuBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await menuBtn.click();
       await sleep(500);
 
-      const confirmBtn = page.locator('button:has-text("Confirm"), button:has-text("Delete")').last();
-      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmBtn.click();
-        await sleep(2000);
-        return true;
+      // Click the Delete Room option using data-testid
+      const deleteOption = page.locator('[data-testid="delete-room-option"]').first();
+      if (await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await deleteOption.click();
+        await sleep(500);
+
+        // Confirm deletion in AlertDialog - the action button has bg-red-600
+        const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
+        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await confirmBtn.click();
+          await sleep(2000);
+          console.log('  Room delete confirmed');
+          return true;
+        } else {
+          console.log('  WARNING: Delete confirmation button not found');
+        }
+      } else {
+        console.log('  WARNING: Delete Room menu option not found');
       }
+    } else {
+      console.log('  WARNING: 3-dot menu button not visible after hover');
     }
+  } else {
+    console.log(`  WARNING: Room item for "${roomName}" not found`);
   }
 
   console.log('  WARNING: Could not delete room');
@@ -409,7 +457,8 @@ async function runTest(): Promise<boolean> {
     await takeScreenshot(adminPage, `${ADMIN_USER}_admin_ready`);
 
     // Check if user is admin (look for admin indicators)
-    const adminIndicator = adminPage.locator('[data-testid="admin-indicator"], text="ADMIN", .ring-amber-400').first();
+    // Look for the "Admin" badge in the sidebar or "ADMIN SETTINGS" text
+    const adminIndicator = adminPage.locator('text="ADMIN SETTINGS"').first();
     results.isAdmin = await adminIndicator.isVisible({ timeout: 3000 }).catch(() => false);
     console.log(`  Admin status: ${results.isAdmin}`);
 

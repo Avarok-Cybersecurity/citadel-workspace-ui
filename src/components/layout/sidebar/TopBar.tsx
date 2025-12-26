@@ -144,7 +144,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]" title={isAdmin ? "Workspace Administrator" : undefined}>
+            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]" title={isAdmin ? "Workspace Administrator" : undefined} data-testid={isAdmin ? "admin-indicator" : undefined}>
               <Avatar className={cn(
                 "h-8 w-8",
                 isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#252424]"

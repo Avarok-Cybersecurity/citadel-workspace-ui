@@ -31,28 +31,28 @@ export async function createBrowser(options: BrowserOptions = {}): Promise<Brows
 /**
  * Clear all browser storage (localStorage, sessionStorage, IndexedDB) for a page
  * Must be called AFTER navigating to the page since storage is origin-specific
+ * Uses timeout to avoid hanging if page is unresponsive
  */
 export async function clearBrowserStorage(page: Page): Promise<void> {
   console.log('  Clearing browser storage...');
-  await page.evaluate(() => {
-    // Clear localStorage
-    localStorage.clear();
-    // Clear sessionStorage
-    sessionStorage.clear();
-    // Clear IndexedDB databases
-    if ('indexedDB' in window) {
-      indexedDB.databases().then((databases) => {
-        databases.forEach((db) => {
-          if (db.name) {
-            indexedDB.deleteDatabase(db.name);
-          }
-        });
-      }).catch(() => {
-        // indexedDB.databases() not supported in all browsers
-      });
-    }
-  });
-  console.log('  Browser storage cleared');
+  try {
+    // Use Promise.race with timeout to avoid hanging
+    await Promise.race([
+      page.evaluate(() => {
+        // Clear localStorage
+        localStorage.clear();
+        // Clear sessionStorage
+        sessionStorage.clear();
+        // Note: Skip IndexedDB clearing - it can cause hangs and localStorage/sessionStorage is sufficient
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Storage clear timeout')), 5000)
+      )
+    ]);
+    console.log('  Browser storage cleared');
+  } catch (error) {
+    console.log('  WARNING: Storage clear failed or timed out, continuing anyway');
+  }
 }
 
 /**

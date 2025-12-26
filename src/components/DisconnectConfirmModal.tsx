@@ -84,43 +84,45 @@ export const DisconnectConfirmModal = ({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+        <DialogFooter className="flex flex-col gap-2 mt-4">
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
+            <Button
+              onClick={() => handleConfirm("disconnect")}
+              variant="outline"
+              className="flex-1 bg-transparent border-yellow-700 text-yellow-300 hover:bg-yellow-900/30 hover:text-yellow-200"
+              disabled={isProcessing}
+            >
+              {isProcessing && selectedAction === "disconnect" ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Disconnecting...
+                </>
+              ) : (
+                "Disconnect"
+              )}
+            </Button>
+            <Button
+              onClick={() => handleConfirm("deregister")}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              disabled={isProcessing}
+            >
+              {isProcessing && selectedAction === "deregister" ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deregistering...
+                </>
+              ) : (
+                "Deregister"
+              )}
+            </Button>
+          </div>
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+            className="w-full text-gray-400 hover:bg-gray-800 hover:text-white"
             disabled={isProcessing}
           >
             Cancel
-          </Button>
-          <Button
-            onClick={() => handleConfirm("disconnect")}
-            variant="outline"
-            className="bg-transparent border-yellow-700 text-yellow-300 hover:bg-yellow-900/30 hover:text-yellow-200"
-            disabled={isProcessing}
-          >
-            {isProcessing && selectedAction === "disconnect" ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Disconnecting...
-              </>
-            ) : (
-              "Disconnect (Temporary)"
-            )}
-          </Button>
-          <Button
-            onClick={() => handleConfirm("deregister")}
-            className="bg-red-600 hover:bg-red-700 text-white"
-            disabled={isProcessing}
-          >
-            {isProcessing && selectedAction === "deregister" ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deregistering...
-              </>
-            ) : (
-              "Deregister (Permanent)"
-            )}
           </Button>
         </DialogFooter>
       </DialogContent>

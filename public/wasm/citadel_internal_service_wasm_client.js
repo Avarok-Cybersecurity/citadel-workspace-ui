@@ -215,20 +215,20 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
-function wasm_bindgen__convert__closures_____invoke__hfc7969a467461df8(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hfc7969a467461df8(arg0, arg1, arg2);
-}
-
-function wasm_bindgen__convert__closures_____invoke__hc8adb55dc8d53303(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hc8adb55dc8d53303(arg0, arg1);
-}
-
 function wasm_bindgen__convert__closures_____invoke__hdd61e8d0c040105f(arg0, arg1, arg2) {
     wasm.wasm_bindgen__convert__closures_____invoke__hdd61e8d0c040105f(arg0, arg1, arg2);
 }
 
 function wasm_bindgen__convert__closures_____invoke__h1091a2bd61c67144(arg0, arg1, arg2) {
     wasm.wasm_bindgen__convert__closures_____invoke__h1091a2bd61c67144(arg0, arg1, arg2);
+}
+
+function wasm_bindgen__convert__closures_____invoke__hc8adb55dc8d53303(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__hc8adb55dc8d53303(arg0, arg1);
+}
+
+function wasm_bindgen__convert__closures_____invoke__hfc7969a467461df8(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__hfc7969a467461df8(arg0, arg1, arg2);
 }
 
 function wasm_bindgen__convert__closures_____invoke__h54a98780339cd665(arg0, arg1, arg2, arg3) {
@@ -737,7 +737,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (typeof module_or_path === 'undefined') {
-        module_or_path = new URL('citadel_internal_service_wasm_client_bg.wasm?v=1766782651', import.meta.url);
+        module_or_path = new URL('citadel_internal_service_wasm_client_bg.wasm?v=1766785492', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

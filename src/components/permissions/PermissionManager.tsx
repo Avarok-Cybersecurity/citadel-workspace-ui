@@ -191,22 +191,22 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-4xl bg-[#343A5C] border-purple-800">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Shield className="h-5 w-5" />
+    <Card className="w-full max-w-lg bg-[#343A5C] border-purple-800 max-h-[80vh] flex flex-col">
+      <CardHeader className="flex-shrink-0 pb-2">
+        <CardTitle className="text-white flex items-center gap-2 text-base">
+          <Shield className="h-4 w-4" />
           Permission Manager
         </CardTitle>
-        <CardDescription className="text-gray-300">
-          Manage user permissions for {getDomainIcon()} {domainType}
+        <CardDescription className="text-gray-300 text-sm">
+          {getDomainIcon()} {domainType} permissions
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Role Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="role" className="text-white">User Role</Label>
+      <CardContent className="flex flex-col flex-1 overflow-hidden space-y-3 pt-0">
+        {/* Role Selection - Fixed */}
+        <div className="flex-shrink-0 space-y-1">
+          <Label htmlFor="role" className="text-white text-sm">User Role</Label>
           <Select value={selectedRole} onValueChange={handleRoleChange}>
-            <SelectTrigger id="role" className="bg-[#444A6C] border-gray-600 text-white">
+            <SelectTrigger id="role" className="bg-[#444A6C] border-gray-600 text-white h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#444A6C] border-gray-600">
@@ -222,85 +222,79 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           </Select>
         </div>
 
-        <Separator className="bg-gray-600" />
+        <Separator className="bg-gray-600 flex-shrink-0" />
 
-        {/* Inherited Permissions */}
-        {inheritedPermissions.size > 0 && (
-          <>
-            <div className="space-y-2">
-              <Label className="text-white">Inherited Permissions</Label>
-              <div className="p-3 bg-[#444A6C] rounded-lg">
-                <p className="text-sm text-gray-300 mb-2">
-                  These permissions are inherited from parent domains:
-                </p>
-                <div className="flex flex-wrap gap-2">
+        {/* Scrollable Permissions Area */}
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-3">
+          {/* Inherited Permissions */}
+          {inheritedPermissions.size > 0 && (
+            <div className="space-y-1">
+              <Label className="text-white text-sm">Inherited</Label>
+              <div className="p-2 bg-[#444A6C] rounded-lg">
+                <div className="flex flex-wrap gap-1">
                   {Array.from(inheritedPermissions).map((perm) => (
-                    <Badge key={perm} variant="secondary" className="bg-[#555B7C]">
+                    <Badge key={perm} variant="secondary" className="bg-[#555B7C] text-xs">
                       {perm}
                     </Badge>
                   ))}
                 </div>
               </div>
             </div>
-            <Separator className="bg-gray-600" />
-          </>
-        )}
+          )}
 
-        {/* Permission Categories */}
-        <div className="space-y-4">
-          <Label className="text-white">Specific Permissions</Label>
-          {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
-            <div key={category} className="space-y-2">
-              <h4 className="text-sm font-semibold text-purple-300">{category}</h4>
-              <div className="space-y-2">
-                {permissions.map((permission) => {
-                  const isInherited = inheritedPermissions.has(permission.id);
-                  const isSelected = selectedPermissions.has(permission.id);
-                  
-                  return (
-                    <div
-                      key={permission.id}
-                      className={`flex items-start space-x-3 p-2 rounded ${
-                        isInherited ? 'bg-[#3A4058] opacity-75' : 'bg-[#444A6C]'
-                      }`}
-                    >
-                      <Checkbox
-                        id={permission.id}
-                        checked={isSelected || isInherited}
-                        disabled={isInherited}
-                        onCheckedChange={() => handlePermissionToggle(permission.id)}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1">
-                        <Label
-                          htmlFor={permission.id}
-                          className="text-sm font-medium text-white cursor-pointer"
-                        >
-                          {permission.label}
-                        </Label>
-                        <p className="text-xs text-gray-400">{permission.description}</p>
-                        {isInherited && (
-                          <Badge variant="outline" className="mt-1 text-xs">
-                            Inherited
-                          </Badge>
-                        )}
+          {/* Permission Categories */}
+          <div className="space-y-3">
+            <Label className="text-white text-sm">Specific Permissions</Label>
+            {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
+              <div key={category} className="space-y-1">
+                <h4 className="text-xs font-semibold text-purple-300">{category}</h4>
+                <div className="space-y-1">
+                  {permissions.map((permission) => {
+                    const isInherited = inheritedPermissions.has(permission.id);
+                    const isSelected = selectedPermissions.has(permission.id);
+
+                    return (
+                      <div
+                        key={permission.id}
+                        className={`flex items-center space-x-2 p-1.5 rounded ${
+                          isInherited ? 'bg-[#3A4058] opacity-75' : 'bg-[#444A6C]'
+                        }`}
+                      >
+                        <Checkbox
+                          id={permission.id}
+                          checked={isSelected || isInherited}
+                          disabled={isInherited}
+                          onCheckedChange={() => handlePermissionToggle(permission.id)}
+                          className="h-4 w-4"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <Label
+                            htmlFor={permission.id}
+                            className="text-xs font-medium text-white cursor-pointer"
+                          >
+                            {permission.label}
+                            {isInherited && (
+                              <span className="ml-1 text-gray-500">(inherited)</span>
+                            )}
+                          </Label>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-2 pt-4">
+        {/* Action Buttons - Fixed */}
+        <div className="flex-shrink-0 flex justify-end gap-2 pt-2 border-t border-gray-600">
           {onClose && (
             <Button
               variant="ghost"
               onClick={onClose}
               disabled={isLoading}
-              className="text-white hover:bg-[#444A6C]"
+              className="text-white hover:bg-[#444A6C] h-8 text-sm"
             >
               Cancel
             </Button>
@@ -308,9 +302,9 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           <Button
             onClick={handleSave}
             disabled={isLoading}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-purple-600 hover:bg-purple-700 text-white h-8 text-sm"
           >
-            {isLoading ? 'Saving...' : 'Save Permissions'}
+            {isLoading ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </CardContent>
