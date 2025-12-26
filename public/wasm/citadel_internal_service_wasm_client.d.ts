@@ -53,10 +53,10 @@ export interface InitOutput {
   readonly restart: (a: number, b: number) => any;
   readonly send_direct_to_internal_service: (a: any) => any;
   readonly send_p2p_message_reliable: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
-  readonly wasm_bindgen__convert__closures_____invoke__h1091a2bd61c67144: (a: number, b: number, c: any) => void;
-  readonly wasm_bindgen__closure__destroy__h57846bf0feebf189: (a: number, b: number) => void;
   readonly wasm_bindgen__convert__closures_____invoke__hfc7969a467461df8: (a: number, b: number, c: any) => void;
   readonly wasm_bindgen__closure__destroy__h635057cf238ab386: (a: number, b: number) => void;
+  readonly wasm_bindgen__convert__closures_____invoke__h1091a2bd61c67144: (a: number, b: number, c: any) => void;
+  readonly wasm_bindgen__closure__destroy__h57846bf0feebf189: (a: number, b: number) => void;
   readonly wasm_bindgen__convert__closures_____invoke__hc8adb55dc8d53303: (a: number, b: number) => void;
   readonly wasm_bindgen__closure__destroy__hef3cbac11a7756ae: (a: number, b: number) => void;
   readonly wasm_bindgen__convert__closures_____invoke__hdd61e8d0c040105f: (a: number, b: number, c: any) => void;

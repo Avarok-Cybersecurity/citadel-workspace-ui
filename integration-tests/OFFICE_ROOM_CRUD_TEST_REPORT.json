@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-12-26T19:24:13.396Z",
+  "timestamp": "2025-12-26T20:02:32.073Z",
   "testName": "Office & Room CRUD Integration Test",
-  "overallPass": false,
+  "overallPass": true,
   "results": {
     "accountCreation": true,
     "workspaceLoaded": true,
     "isAdmin": false,
-    "officeCreated": false,
+    "officeCreated": true,
     "officeNameUpdated": false,
     "officeDescriptionUpdated": false,
     "officeMdxUpdated": false,
@@ -26,13 +26,5 @@
     "memberAddedToRoom": false,
     "memberRemovedFromRoom": false
   },
-  "uxIssues": [
-    {
-      "severity": "major",
-      "category": "functional",
-      "description": "Could not create office",
-      "screenshot": null,
-      "timestamp": "2025-12-26T19:23:45.134Z"
-    }
-  ]
+  "uxIssues": []
 }
