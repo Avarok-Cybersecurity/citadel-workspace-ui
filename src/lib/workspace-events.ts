@@ -79,36 +79,48 @@ export interface ProtocolWarningPayload {
 }
 
 // Define all event types
-export type WorkspaceEventType = 
+export type WorkspaceEventType =
   // Workspace events
   | 'workspace:loading'
   | 'workspace:loaded'
+  | 'workspace:created'
   | 'workspace:not-initialized'
   // Office events
   | 'office:creating'
+  | 'office:created'
   | 'office:loading'
   | 'office:updating'
+  | 'office:updated'
   | 'office:deleting'
+  | 'office:deleted'
   | 'office:loaded'
   | 'offices:loading'
   | 'offices:loaded'
+  | 'offices:reload'
   // Room events
   | 'room:creating'
+  | 'room:created'
   | 'room:loading'
   | 'room:updating'
+  | 'room:updated'
   | 'room:deleting'
+  | 'room:deleted'
   | 'room:loaded'
   | 'rooms:loading'
   | 'rooms:loaded'
+  | 'rooms:reload'
   // Member events
   | 'member:adding'
+  | 'member:added'
   | 'member:loading'
   | 'member:updating_role'
   | 'member:updating_permissions'
   | 'member:removing'
+  | 'member:removed'
   | 'member:loaded'
   | 'members:loading'
   | 'members:loaded'
+  | 'members:reload'
   | 'member:role-updated'
   | 'user:permissions:loaded'
   // Message events
@@ -118,6 +130,7 @@ export type WorkspaceEventType =
   // Operation events
   | 'operation:success'
   | 'operation:error'
+  | 'operation:deleted'
   // Protocol events
   | 'protocol:warning';
 
@@ -166,8 +179,10 @@ export class WorkspaceEvents {
    */
   public async onOfficeEvent<T>(event: 'office:loaded', callback: (payload: OfficePayload) => void): Promise<() => void>;
   public async onOfficeEvent<T>(event: 'offices:loaded', callback: (payload: OfficesPayload) => void): Promise<() => void>;
-  public async onOfficeEvent<T>(event: 'office:creating' | 'offices:loading', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
+  public async onOfficeEvent<T>(event: 'office:creating' | 'offices:loading' | 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
   public async onOfficeEvent<T>(event: 'office:loading' | 'office:updating' | 'office:deleting', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onOfficeEvent<T>(event: 'office:created' | 'office:updated', callback: (payload: { office: Office, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onOfficeEvent<T>(event: 'office:deleted', callback: (payload: { officeId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onOfficeEvent<T>(event: WorkspaceEventType, callback: any): Promise<() => void> {
     const unlistenFn = await listen(event, ({ payload }) => {
       callback(payload);
@@ -200,7 +215,9 @@ export class WorkspaceEvents {
   public async onRoomEvent<T>(event: 'rooms:loaded', callback: (payload: RoomsPayload) => void): Promise<() => void>;
   public async onRoomEvent<T>(event: 'room:creating', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onRoomEvent<T>(event: 'room:loading' | 'room:updating' | 'room:deleting', callback: (payload: { room_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: 'rooms:loading', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onRoomEvent<T>(event: 'rooms:loading' | 'rooms:reload', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onRoomEvent<T>(event: 'room:created' | 'room:updated', callback: (payload: { room: Room, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onRoomEvent<T>(event: 'room:deleted', callback: (payload: { roomId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onRoomEvent<T>(event: WorkspaceEventType, callback: any): Promise<() => void> {
     const unlistenFn = await listen(event, ({ payload }) => {
       callback(payload);

@@ -302,15 +302,22 @@ async function deleteOffice(page: Page, officeName: string): Promise<boolean> {
         const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
         if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await confirmBtn.click();
-          await sleep(2000);
           console.log('  Office delete confirmed');
-          return true;
+
+          // Wait for the office to be removed from sidebar
+          const officeLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
+          try {
+            await officeLocator.waitFor({ state: 'hidden', timeout: 5000 });
+            console.log('  Office removed from sidebar');
+            return true;
+          } catch {
+            console.log('  WARNING: Office still visible after delete');
+          }
         } else {
           console.log('  WARNING: Confirm button not found');
         }
       } else {
         console.log('  WARNING: Delete Office option not found');
-        // Debug: log what's visible
         const allMenuItems = await page.locator('[role="menuitem"]').count();
         console.log(`  DEBUG: Found ${allMenuItems} menu items`);
       }
@@ -375,15 +382,22 @@ async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
         const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
         if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await confirmBtn.click();
-          await sleep(2000);
           console.log('  Room delete confirmed');
-          return true;
+
+          // Wait for the room to be removed from sidebar
+          const roomLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${roomName}")`).first();
+          try {
+            await roomLocator.waitFor({ state: 'hidden', timeout: 5000 });
+            console.log('  Room removed from sidebar');
+            return true;
+          } catch {
+            console.log('  WARNING: Room still visible after delete');
+          }
         } else {
           console.log('  WARNING: Confirm button not found');
         }
       } else {
         console.log('  WARNING: Delete Room option not found');
-        // Debug: log what's visible
         const allMenuItems = await page.locator('[role="menuitem"]').count();
         console.log(`  DEBUG: Found ${allMenuItems} menu items`);
       }

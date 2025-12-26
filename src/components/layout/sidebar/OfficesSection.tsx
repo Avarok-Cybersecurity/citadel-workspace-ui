@@ -138,41 +138,41 @@ export const OfficesSection = () => {
                 </div>
               ) : (
                 offices.map((office) => (
-                  <SidebarMenuItem key={office.id}>
-                    <div className="flex items-center w-full group">
-                      <SidebarMenuButton
-                        className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors flex-1"
-                        isActive={currentOfficeId === office.id}
-                        onClick={() => handleOfficeClick(office.id)}
-                      >
-                        {office.name}
-                      </SidebarMenuButton>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => e.stopPropagation()}
-                            data-testid={`office-menu-${office.id}`}
-                          >
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditOffice(office.id)} data-testid="edit-office-option">
-                            Edit Office
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteOffice(office.id)}
-                            className="text-red-600"
-                            data-testid="delete-office-option"
-                          >
-                            Delete Office
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                  <SidebarMenuItem key={office.id} className="relative group">
+                    <SidebarMenuButton
+                      className={`text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors w-full pr-8 ${
+                        currentOfficeId === office.id ? 'bg-[#E5DEFF] text-[#343A5C]' : ''
+                      }`}
+                      isActive={currentOfficeId === office.id}
+                      onClick={() => handleOfficeClick(office.id)}
+                    >
+                      <span className="truncate">{office.name}</span>
+                    </SidebarMenuButton>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white hover:bg-[#444A6C]"
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`office-menu-${office.id}`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" sideOffset={8}>
+                        <DropdownMenuItem onClick={() => handleEditOffice(office.id)} data-testid="edit-office-option">
+                          Edit Office
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteOffice(office.id)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                          data-testid="delete-office-option"
+                        >
+                          Delete Office
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </SidebarMenuItem>
                 ))
               )}
