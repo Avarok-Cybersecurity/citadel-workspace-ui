@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-12-26T20:02:32.073Z",
+  "timestamp": "2025-12-26T20:43:34.787Z",
   "testName": "Office & Room CRUD Integration Test",
-  "overallPass": true,
+  "overallPass": false,
   "results": {
-    "accountCreation": true,
-    "workspaceLoaded": true,
+    "accountCreation": false,
+    "workspaceLoaded": false,
     "isAdmin": false,
-    "officeCreated": true,
+    "officeCreated": false,
     "officeNameUpdated": false,
     "officeDescriptionUpdated": false,
     "officeMdxUpdated": false,
@@ -17,7 +17,7 @@
     "roomMdxUpdated": false,
     "roomDeleted": false,
     "cascadeDeleteWorks": false,
-    "nonAdminCannotCreateOffice": true,
+    "nonAdminCannotCreateOffice": false,
     "nonAdminCannotDeleteOffice": false,
     "nonAdminCannotCreateRoom": false,
     "nonAdminCannotDeleteRoom": false,
@@ -26,5 +26,13 @@
     "memberAddedToRoom": false,
     "memberRemovedFromRoom": false
   },
-  "uxIssues": []
+  "uxIssues": [
+    {
+      "severity": "critical",
+      "category": "functional",
+      "description": "Test crashed: Error: page.reload: Target page, context or browser has been closed",
+      "screenshot": null,
+      "timestamp": "2025-12-26T20:43:34.673Z"
+    }
+  ]
 }

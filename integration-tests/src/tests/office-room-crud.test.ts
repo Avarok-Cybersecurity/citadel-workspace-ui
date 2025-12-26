@@ -28,7 +28,6 @@ import {
 } from '../lib/index.js';
 
 import type { Page, Browser } from 'playwright';
-import { clearBrowserStorage } from '../lib/browser.js';
 
 // ============================================================================
 // Types
@@ -396,10 +395,7 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 1: Create Admin Account');
     console.log('─'.repeat(50));
 
-    // Navigate first, then clear browser storage (localStorage is origin-specific)
-    await adminPage.goto('http://localhost:5173/');
-    await clearBrowserStorage(adminPage);
-
+    // createAccount handles navigation and storage clearing internally
     results.accountCreation = await createAccount(adminPage, ADMIN_USER, {
       isFirstUser: true,
     });
@@ -555,9 +551,7 @@ async function runTest(): Promise<boolean> {
     const nonAdminContext = await browser.newContext();
     const nonAdminPage = await nonAdminContext.newPage();
 
-    // Navigate first, then clear browser storage (localStorage is origin-specific)
-    await nonAdminPage.goto('http://localhost:5173/');
-    await clearBrowserStorage(nonAdminPage);
+    // createAccount handles navigation and storage clearing internally
     const nonAdminCreated = await createAccount(nonAdminPage, NON_ADMIN_USER, {
       isFirstUser: false,
     });
