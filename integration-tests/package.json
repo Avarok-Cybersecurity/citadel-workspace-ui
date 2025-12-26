@@ -12,7 +12,8 @@
     "test:group-multiuser": "npm run build && node dist/tests/group-messaging-multiuser.test.js",
     "test:all-group": "npm run test:group && npm run test:group-multiuser",
     "test:crud": "npm run build && node dist/tests/office-room-crud.test.js",
-    "test:all": "npm run test:p2p && npm run test:crud && npm run test:all-group",
+    "test:login": "npm run build && node dist/tests/login-flow.test.js",
+    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:all-group",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist"
   },
