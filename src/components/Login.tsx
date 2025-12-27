@@ -1,10 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft, Settings, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useToast } from "@/components/ui/use-toast";
@@ -12,10 +12,10 @@ import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection-manager";
 import { eventEmitter } from "@/lib/event-emitter";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
-import { useEffect } from "react";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import WorkspaceService from "@/lib/workspace-service";
 import { setSelectedUser } from "@/lib/tab-context";
+import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { 
   ConnectMode, 
   UdpMode, 
@@ -50,21 +50,112 @@ export function Login({ onNext, onCancel }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
-  
+
   // Default security settings that can be overridden by SecuritySettings component
   const [securitySettings, setSecuritySettings] = useState<SecuritySettingsState>({
-    securityLevel: 'Standard', 
-    secrecyMode: 'BestEffort',   
-    encryptionAlgorithm: 'AES_GCM_256', 
-    kemAlgorithm: 'Kyber',       
-    sigAlgorithm: 'None',        
+    securityLevel: 'Standard',
+    secrecyMode: 'BestEffort',
+    encryptionAlgorithm: 'AES_GCM_256',
+    kemAlgorithm: 'Kyber',
+    sigAlgorithm: 'None',
     headerObfuscatorSettings: {},
     storeCredentials: false
   });
-  
+
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // WebSocket service is initialized by ConnectionManager in WorkspaceApp
+
+  /**
+   * Seamlessly redirect to an existing session instead of showing an error.
+   * This provides a smooth UX - user doesn't need to know the session already exists.
+   */
+  const redirectToExistingSession = async (session: { cid: string; username: string; server_address: string }) => {
+    try {
+      console.log('Login: Redirecting to existing session seamlessly:', session.username);
+
+      // Show loading toast
+      toast({
+        title: "Reconnecting...",
+        description: `Loading ${session.username}'s workspace`,
+        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      });
+
+      // Update last accessed time for ordering in Previous Sessions navbar
+      const lastAccessedKey = `session_last_accessed_${session.cid}`;
+      localStorage.setItem(lastAccessedKey, Date.now().toString());
+
+      // Try to claim the session if it's orphaned
+      try {
+        await websocketService.claimSession(session.cid, true);
+        console.log('Login: Session claimed successfully (was orphaned)');
+      } catch (claimError: any) {
+        if (claimError?.message?.includes('not orphaned')) {
+          console.log('Login: Session is still active (not orphaned), no claim needed');
+        } else {
+          // Re-throw if it's a different error
+          throw claimError;
+        }
+      }
+
+      // Get stored sessions to find the session index
+      const storedSessions = connectionManager.getStoredSessions();
+      const storedIndex = storedSessions.sessions.findIndex(
+        (stored) =>
+          stored.username === session.username &&
+          stored.serverAddress === session.server_address
+      );
+
+      // Set the active session index if found
+      if (storedIndex >= 0) {
+        await connectionManager.setActiveSessionIndex(storedIndex);
+      }
+
+      // Update tab context to track which workspace this tab is viewing
+      setSelectedUser({
+        selectedUsername: session.username,
+        selectedServerAddress: session.server_address,
+        selectedCid: session.cid
+      });
+
+      // Set the connection ID in WorkspaceService
+      WorkspaceService.setConnectionId(session.cid);
+
+      // Start WASM connection manager for this CID (handles leader/follower transitions)
+      try {
+        await wasmConnectionManager.start(session.cid);
+        console.log('Login: WASM connection manager started for CID:', session.cid);
+      } catch (error) {
+        console.error('Login: Failed to start WASM connection manager:', error);
+        // Don't block navigation - P2P messaging may not be immediately needed
+      }
+
+      // Trigger workspace loading
+      WorkspaceService.loadWorkspace();
+      WorkspaceService.listOffices();
+
+      // Navigate to the office page
+      navigate(getWorkspacePath());
+
+      // Show success toast
+      toast({
+        title: "Connected!",
+        description: `Now viewing ${session.username}'s workspace`,
+        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      });
+
+      // Call onNext to complete the login flow
+      onNext(session.cid);
+    } catch (error) {
+      console.error('Login: Failed to redirect to existing session:', error);
+      toast({
+        title: "Connection Failed",
+        description: "Could not reconnect to workspace. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,11 +174,12 @@ export function Login({ onNext, onCancel }: LoginProps) {
       const existingSession = activeSessions.find(session => session.username === username.trim());
 
       if (existingSession) {
-        console.log('Login: Username already has active session:', existingSession);
-        // Emit event for existing session - this allows the user to claim/disconnect it
-        eventEmitter.emit('session-already-connected', {
+        console.log('Login: Username already has active session, redirecting seamlessly:', existingSession);
+        // Seamlessly redirect to the existing session - no error shown to user
+        await redirectToExistingSession({
           cid: existingSession.cid,
-          message: `Session already exists for ${username}`
+          username: existingSession.username,
+          server_address: existingSession.server_address
         });
         setLoading(false);
         return;
@@ -130,11 +222,19 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 errorMessage.toLowerCase().includes('already connected')) {
               // This should rarely happen since we check proactively above
               // But keep as fallback in case session becomes active between our check and connect call
-              console.warn('Login: Session already connected error from backend (fallback path)');
-              eventEmitter.emit('session-already-connected', {
-                cid: response.ConnectFailure.cid,
-                message: errorMessage
-              });
+              console.log('Login: Session already connected (fallback path), redirecting seamlessly');
+
+              // If we have a cid from the error, redirect to that session
+              if (response.ConnectFailure.cid) {
+                // Redirect to the existing session seamlessly
+                redirectToExistingSession({
+                  cid: response.ConnectFailure.cid,
+                  username: username.trim(),
+                  server_address: server
+                }).finally(() => setLoading(false));
+                // Don't reject - we're handling it seamlessly
+                return;
+              }
             }
 
             reject(new Error(errorMessage));

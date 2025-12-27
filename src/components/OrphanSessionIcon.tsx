@@ -23,7 +23,11 @@ export const OrphanSessionIcon = ({
   const initials = getWorkspaceInitials(workspaceName || session.username);
 
   return (
-    <div className="relative group">
+    <div
+      className="relative group flex-shrink-0"
+      data-testid={`session-icon-${session.username}`}
+      data-session-cid={session.cid}
+    >
       {/* Main workspace icon */}
       <button
         onClick={onNavigate}
@@ -42,6 +46,7 @@ export const OrphanSessionIcon = ({
             : undefined
         }
         title={`${session.full_name || session.username} - ${workspaceName}`}
+        data-testid={`session-button-${session.username}`}
       >
         {initials}
       </button>
@@ -68,6 +73,7 @@ export const OrphanSessionIcon = ({
           "cursor-pointer"
         )}
         title="Disconnect from workspace"
+        data-testid={`disconnect-button-${session.username}`}
       >
         <X className="w-3 h-3" />
       </button>

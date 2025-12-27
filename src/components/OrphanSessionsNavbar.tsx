@@ -17,6 +17,7 @@ import { getWorkspacePath } from "@/lib/workspace-navigation";
 interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
   storedSessionIndex: number;
+  lastAccessed?: number; // Unix timestamp for ordering by most recently used
 }
 
 export const OrphanSessionsNavbar = () => {
@@ -57,13 +58,21 @@ export const OrphanSessionsNavbar = () => {
 
           const storedSession = storedSessions.sessions[storedIndex];
 
+          // Get last accessed time from localStorage, default to 0 for ordering
+          const lastAccessedKey = `session_last_accessed_${activeSession.cid}`;
+          const lastAccessed = parseInt(localStorage.getItem(lastAccessedKey) || '0', 10);
+
           return {
             ...activeSession,
             workspaceName: storedSession?.username || activeSession.username,
             storedSessionIndex: storedIndex,
+            lastAccessed,
           };
         }
       );
+
+      // Sort by most recently accessed (highest timestamp first)
+      sessionsWithWorkspace.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
 
       setSessions(sessionsWithWorkspace);
       console.log('OrphanSessionsNavbar: Loaded active sessions:', sessionsWithWorkspace);
@@ -114,6 +123,10 @@ export const OrphanSessionsNavbar = () => {
   const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
     try {
       console.log('OrphanSessionsNavbar: Navigating to workspace:', session.workspaceName);
+
+      // Update last accessed time for ordering
+      const lastAccessedKey = `session_last_accessed_${session.cid}`;
+      localStorage.setItem(lastAccessedKey, Date.now().toString());
 
       // Show loading toast
       toast({
@@ -257,11 +270,24 @@ export const OrphanSessionsNavbar = () => {
   return (
     <>
       {/* Navbar container */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-[#1C1D28]/95 backdrop-blur-sm border-b border-gray-800">
+      <div
+        className="fixed top-0 left-0 right-0 z-50 bg-[#1C1D28]/95 backdrop-blur-sm border-b border-gray-800"
+        data-testid="previous-sessions-navbar"
+      >
         <div className="container mx-auto px-6 py-3">
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-400 font-medium">Active Workspaces:</span>
-            <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <span className="text-sm text-gray-400 font-medium whitespace-nowrap flex-shrink-0">
+              Previous Sessions:
+            </span>
+            {/* Scrollable container for sessions */}
+            <div
+              className="flex items-center gap-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pb-1"
+              style={{
+                scrollbarWidth: 'thin',
+                msOverflowStyle: 'auto',
+              }}
+              data-testid="sessions-scroll-container"
+            >
               {sessions.map((session) => (
                 <OrphanSessionIcon
                   key={session.cid}
