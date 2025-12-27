@@ -27,6 +27,7 @@ export class ServerAutoConnectService {
   // Connection state tracking
   private reconnectAttempts = new Map<string, ConnectionAttempt>();
   private activeSessionKeys = new Set<string>();
+  private userDisconnectedSessions = new Set<string>(); // Track user-initiated disconnects
   private pollingInterval: NodeJS.Timeout | null = null;
   private isEnabled = true; // Default: ON
   private isInitialized = false;
@@ -266,6 +267,12 @@ export class ServerAutoConnectService {
         continue;
       }
 
+      // Skip if user explicitly disconnected this session (respect user intent)
+      if (this.userDisconnectedSessions.has(sessionKey)) {
+        console.log(`ServerAutoConnect: Skipping ${session.username} (user-initiated disconnect)`);
+        continue;
+      }
+
       console.log(`ServerAutoConnect: Scheduling reconnect for ${session.username}`);
       this.scheduleReconnect(sessionKey, session);
     }
@@ -339,6 +346,8 @@ export class ServerAutoConnectService {
       const sessionKey = `${username}@${serverAddress}`;
       this.cancelRetry(sessionKey);
       this.activeSessionKeys.add(sessionKey);
+      // Clear user-disconnected status since user is now connected
+      this.userDisconnectedSessions.delete(sessionKey);
       console.log(`ServerAutoConnect: Connection successful for ${username}`);
     }
   }
@@ -366,6 +375,28 @@ export class ServerAutoConnectService {
       // Trigger immediate poll to attempt reconnection
       setTimeout(() => this.poll(), 1000);
     }
+  }
+
+  /**
+   * Mark a session as user-disconnected to prevent auto-reconnect.
+   * Call this when user explicitly disconnects via UI.
+   * Respects user intent - if they disconnected, don't auto-reconnect.
+   */
+  public markUserDisconnected(username: string, serverAddress: string = '127.0.0.1:12349'): void {
+    const sessionKey = `${username}@${serverAddress}`;
+    this.userDisconnectedSessions.add(sessionKey);
+    this.cancelRetry(sessionKey);
+    console.log(`ServerAutoConnect: Marked ${username} as user-disconnected (won't auto-reconnect)`);
+  }
+
+  /**
+   * Clear user-disconnected status for a session.
+   * Called when user successfully logs in manually.
+   */
+  public clearUserDisconnected(username: string, serverAddress: string = '127.0.0.1:12349'): void {
+    const sessionKey = `${username}@${serverAddress}`;
+    this.userDisconnectedSessions.delete(sessionKey);
+    console.log(`ServerAutoConnect: Cleared user-disconnected status for ${username}`);
   }
 
   /**

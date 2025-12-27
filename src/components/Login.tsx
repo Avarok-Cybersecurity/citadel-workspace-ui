@@ -224,15 +224,36 @@ export function Login({ onNext, onCancel }: LoginProps) {
               // But keep as fallback in case session becomes active between our check and connect call
               console.log('Login: Session already connected (fallback path), redirecting seamlessly');
 
-              // If we have a cid from the error, redirect to that session
-              if (response.ConnectFailure.cid) {
+              // If we have a valid cid from the error (not "0"), redirect to that session
+              // Otherwise, look up the session by username from active sessions
+              const errorCid = response.ConnectFailure.cid;
+              if (errorCid && errorCid !== '0' && errorCid !== 0) {
                 // Redirect to the existing session seamlessly
                 redirectToExistingSession({
-                  cid: response.ConnectFailure.cid,
+                  cid: errorCid.toString(),
                   username: username.trim(),
                   server_address: server
                 }).finally(() => setLoading(false));
-                // Don't reject - we're handling it seamlessly
+                return;
+              } else {
+                // CID is 0 or missing - look up session by username
+                connectionManager.getActiveSessions().then(sessions => {
+                  const matchingSession = sessions.find(s => s.username === username.trim());
+                  if (matchingSession) {
+                    redirectToExistingSession({
+                      cid: matchingSession.cid,
+                      username: matchingSession.username,
+                      server_address: matchingSession.server_address
+                    }).finally(() => setLoading(false));
+                  } else {
+                    // No matching session found, reject with original error
+                    setLoading(false);
+                    reject(new Error(errorMessage));
+                  }
+                }).catch(() => {
+                  setLoading(false);
+                  reject(new Error(errorMessage));
+                });
                 return;
               }
             }

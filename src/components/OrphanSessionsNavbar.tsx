@@ -6,6 +6,7 @@ import WorkspaceService from "@/lib/workspace-service";
 import type { ActiveSession } from "@/types/session-types";
 import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal, type DisconnectAction } from "./DisconnectConfirmModal";
+import { DisconnectLoadingModal, type DisconnectStatus } from "./DisconnectLoadingModal";
 import { useToast } from "@/hooks/use-toast";
 import { setSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
@@ -13,6 +14,7 @@ import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { notificationService, UnreadCountChange } from "@/lib/notification-service";
 import { eventEmitter } from "@/lib/event-emitter";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
 
 interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -30,6 +32,18 @@ export const OrphanSessionsNavbar = () => {
   } | null>(null);
   const [glowingSessionCid, setGlowingSessionCid] = useState<string | null>(null);
   const [notificationCounts, setNotificationCounts] = useState<Map<string, number>>(new Map());
+
+  // Loading modal state for disconnect flow
+  const [loadingModal, setLoadingModal] = useState<{
+    open: boolean;
+    status: DisconnectStatus;
+    workspaceName: string;
+    errorMessage?: string;
+  }>({
+    open: false,
+    status: "disconnecting",
+    workspaceName: "",
+  });
 
   // Fetch active sessions and map to workspace data
   const loadActiveSessions = async () => {
@@ -209,47 +223,75 @@ export const OrphanSessionsNavbar = () => {
   const handleConfirmDisconnect = async (action: DisconnectAction) => {
     if (!disconnectTarget) return;
 
+    const workspaceName = disconnectTarget.workspaceName;
+    const cid = disconnectTarget.session.cid;
+    const username = disconnectTarget.session.username;
+    const serverAddress = disconnectTarget.session.server_address;
+
+    // Close the confirm modal and show the loading modal
+    setDisconnectTarget(null);
+    setLoadingModal({
+      open: true,
+      status: "disconnecting",
+      workspaceName,
+    });
+
     try {
-      const cid = disconnectTarget.session.cid;
       console.log(`OrphanSessionsNavbar: ${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} session:`, cid);
+
+      // Mark as user-disconnected BEFORE disconnecting to prevent auto-reconnect race
+      // This respects user intent - if they explicitly disconnect, don't auto-reconnect
+      serverAutoConnectService.markUserDisconnected(username, serverAddress);
 
       // Stop WASM connection manager if this is the current session
       if (wasmConnectionManager.getCurrentCid() === cid) {
         wasmConnectionManager.stop();
       }
 
+      // Update status to show we're disconnecting (spinner)
+      // The websocketService.disconnect() and deregister() now wait for
+      // the actual DisconnectNotification/DeregisterSuccess signals from the backend
+      // before resolving - no more sleeping!
+
       if (action === 'deregister') {
         // Deregister permanently removes the account from the server
+        // This returns only after DeregisterSuccess signal is received
         await websocketService.deregister(cid);
-        toast({
-          title: "Account Deregistered",
-          description: `${disconnectTarget.workspaceName} has been permanently removed from the server.`,
-          className: "bg-red-900/80 border-red-800 text-white",
-        });
       } else {
         // Disconnect just ends the session (temporary)
+        // This returns only after DisconnectNotification signal is received
         await websocketService.disconnect(cid);
-        toast({
-          title: "Disconnected",
-          description: `${disconnectTarget.workspaceName} session ended. You can reconnect later.`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
       }
 
+      // Update status to cleaning - backend has confirmed disconnect, now update local state
+      setLoadingModal(prev => ({ ...prev, status: "cleaning" }));
+
       // Reload the active sessions list to update the navbar
+      // No artificial delay needed - backend has already confirmed cleanup via signal
       await loadActiveSessions();
+
+      // Show ready status
+      setLoadingModal(prev => ({ ...prev, status: "ready" }));
 
       console.log(`OrphanSessionsNavbar: Successfully ${action === 'deregister' ? 'deregistered' : 'disconnected'}`);
     } catch (error) {
       console.error(`OrphanSessionsNavbar: Failed to ${action}:`, error);
-      toast({
-        title: "Error",
-        description: `Failed to ${action}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: "destructive",
-      });
-    } finally {
-      setDisconnectTarget(null);
+      setLoadingModal(prev => ({
+        ...prev,
+        status: "error",
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      }));
+
+      // Auto-close error modal after 3 seconds
+      setTimeout(() => {
+        setLoadingModal(prev => ({ ...prev, open: false }));
+      }, 3000);
     }
+  };
+
+  // Handle loading modal completion
+  const handleLoadingComplete = () => {
+    setLoadingModal(prev => ({ ...prev, open: false }));
   };
 
   // Trigger glowing effect on a session
@@ -311,6 +353,15 @@ export const OrphanSessionsNavbar = () => {
         session={disconnectTarget?.session || null}
         workspaceName={disconnectTarget?.workspaceName || null}
         onConfirm={handleConfirmDisconnect}
+      />
+
+      {/* Loading modal for disconnect progress */}
+      <DisconnectLoadingModal
+        open={loadingModal.open}
+        status={loadingModal.status}
+        workspaceName={loadingModal.workspaceName}
+        errorMessage={loadingModal.errorMessage}
+        onComplete={handleLoadingComplete}
       />
     </>
   );

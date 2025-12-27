@@ -203,8 +203,9 @@ class WebSocketService {
         } else {
           // STEP 3b: Session exists but NOT orphaned → Disconnect then Connect
           console.warn(`[Connect] Session exists but not orphaned - disconnecting first`);
+          // disconnect() now waits for DisconnectNotification signal before resolving
+          // No artificial delay needed - backend confirmed cleanup via signal
           await this.disconnect(existingSession.cid.toString());
-          await new Promise(resolve => setTimeout(resolve, 200)); // Allow cleanup time
           // Fall through to connect
         }
       }
@@ -484,26 +485,75 @@ class WebSocketService {
     await this.client.sendP2PMessageReliable(localCid, peerCid, message, securityLevel);
   }
 
+  /**
+   * Disconnect a session from the server.
+   * Waits for DisconnectNotification from backend before resolving.
+   * This ensures the session is fully cleaned up before the Promise resolves.
+   * @param cid - The CID of the session to disconnect
+   */
   async disconnect(cid?: string): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (cid) {
-      try {
-        // Send a Disconnect request for specific CID
-        // Disconnect is already a top-level request, no need to wrap in Request
-        const request = {
-          Disconnect: {
-            request_id: crypto.randomUUID(),
-            cid: cid // Send CID as string - Rust side will parse to u64
-          }
-        };
-        debugLog('websocket', 'Sending Disconnect request', request);
-        await this.client.sendDirectToInternalService(request);
-      } catch (error) {
-        errorLog('Error disconnecting:', error);
-        throw error; // Re-throw so caller knows disconnect failed
-      }
+    if (!cid) {
+      return; // Nothing to disconnect
     }
+
+    const requestId = crypto.randomUUID();
+    const request = {
+      Disconnect: {
+        request_id: requestId,
+        cid: cid // Send CID as string - Rust side will parse to u64
+      }
+    };
+
+    debugLog('websocket', 'Sending Disconnect request', request);
+
+    // Wait for DisconnectNotification or DisconnectFailure response
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handler);
+        reject(new Error('Disconnect request timed out'));
+      }, 30000); // 30 second timeout
+
+      const handler = (message: any) => {
+        const response = message.Response || message;
+
+        // Check for DisconnectNotification with matching request_id
+        if ('DisconnectNotification' in response) {
+          const notification = response.DisconnectNotification;
+          // Match by request_id if present, otherwise match by cid
+          if (notification.request_id === requestId ||
+              (notification.request_id === null && notification.cid?.toString() === cid)) {
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            debugLog('websocket', 'Disconnect successful for CID:', cid);
+            resolve();
+          }
+        }
+
+        // Check for DisconnectFailure with matching request_id
+        if ('DisconnectFailure' in response) {
+          const failure = response.DisconnectFailure;
+          if (failure.request_id === requestId ||
+              (failure.request_id === null && failure.cid?.toString() === cid)) {
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            errorLog('Disconnect failed:', failure.message);
+            reject(new Error(failure.message || 'Failed to disconnect'));
+          }
+        }
+      };
+
+      eventEmitter.on('websocket-message', handler);
+
+      // Send the request
+      this.client.sendDirectToInternalService(request).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handler);
+        errorLog('Error sending disconnect request:', error);
+        reject(error);
+      });
+    });
   }
 
   /**
