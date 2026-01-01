@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-12-30T17:23:02.316Z",
+  "timestamp": "2026-01-01T18:58:45.568Z",
   "users": {
-    "user1": "offline_alice_1767114995096",
-    "user2": "offline_bob_1767114995096"
+    "user1": "offline_alice_1767293750512",
+    "user2": "offline_bob_1767293750512"
   },
   "results": {
     "accountCreation": {
@@ -18,8 +18,8 @@
     "initialMessaging": {
       "user1ToUser2": true,
       "user2ToUser1": true,
-      "user1Received": false,
-      "user2Received": false
+      "user1Received": true,
+      "user2Received": true
     },
     "disconnection": {
       "user2Disconnected": true,
@@ -35,32 +35,17 @@
       "claimSessionSuccess": true
     },
     "offlineDelivery": {
-      "message1Received": false,
-      "message2Received": false,
-      "message3Received": false
+      "message1Received": true,
+      "message2Received": true,
+      "message3Received": true
     },
     "postReconnectMessaging": {
       "user1ToUser2": true,
       "user2ToUser1": true,
-      "user1Received": false,
-      "user2Received": false
+      "user1Received": true,
+      "user2Received": true
     }
   },
-  "uxIssues": [
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not received within 15000ms: \"Hello Bob! Time: 12:18:23 PM\"",
-      "screenshot": null,
-      "timestamp": "2025-12-30T17:19:10.704Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not received within 15000ms: \"Hi Alice! Got it! Time: 12:18:23 PM\"",
-      "screenshot": null,
-      "timestamp": "2025-12-30T17:19:43.766Z"
-    }
-  ],
-  "passed": false
+  "uxIssues": [],
+  "passed": true
 }
