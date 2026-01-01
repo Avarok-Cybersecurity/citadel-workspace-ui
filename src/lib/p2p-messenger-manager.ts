@@ -26,6 +26,11 @@ import {
   isPresenceUpdate,
   isCheckState,
   isCheckStateResponse,
+  isFileTransferRequest,
+  isFileTransferResponse,
+  isFileTransferProgress,
+  isFileTransferComplete,
+  isFileTransferCancel,
   TYPING_POLL_INTERVAL_MS,
   TYPING_DISPLAY_DURATION_MS
 } from '@/types/messaging-layer';
@@ -53,11 +58,21 @@ export interface P2PMessage {
   replyTo?: string;
   mentions?: string[];
   attachments?: any[];
-  // Message type support (text, markdown, live_document)
+  // Message type support (text, markdown, live_document, file_transfer)
   message_type: MessageType;
   // Live document specific fields
   document_id?: string;
   document_title?: string;
+  // File transfer specific fields
+  transfer_id?: string;
+  file_name?: string;
+  file_size?: number;
+  file_type?: string;
+  file_thumbnail?: string;
+  transfer_mode?: 'async' | 'p2p';
+  transfer_state?: 'pending' | 'uploading' | 'staged' | 'transferring' | 'complete' | 'declined' | 'cancelled' | 'expired' | 'error';
+  transfer_progress?: number; // 0-100 percentage
+  virtual_path?: string;
 }
 
 /** Peer presence status derived from MessagingLayer presence variants */
@@ -128,6 +143,9 @@ export class P2PMessengerManager {
   // Track active conversation to suppress notifications
   private activeConversationPeerCid: string | null = null;
 
+  // Track whether cached messages were loaded successfully
+  private cachedMessagesLoaded = false;
+
   private constructor() {
     this.cache = {
       conversations: new Map(),
@@ -138,10 +156,34 @@ export class P2PMessengerManager {
 
     this.setupEventListeners();
     this.setupVisibilityHandler();
-    // Store the promise and emit event when ready
-    this.initPromise = this.loadCachedMessages().then(() => {
-      this.isReady = true;
-      eventEmitter.emit('p2p:messages-loaded');
+
+    // Set up connection listener FIRST - this is sync and immediate
+    // Listener will be ready before websocket.init() is ever called
+    this.setupConnectionListener();
+
+    // Fallback: if already connected (hot reload scenario), load immediately
+    if (websocketService.isConnected()) {
+      this.initPromise = this.loadCachedMessages().then(() => {
+        this.isReady = true;
+        eventEmitter.emit('p2p:messages-loaded');
+      });
+    }
+  }
+
+  /**
+   * Set up listener for WebSocket connection success.
+   * Called BEFORE WebSocket init to avoid race conditions.
+   */
+  private setupConnectionListener(): void {
+    eventEmitter.on('on-ws-connection-success', async () => {
+      if (this.cachedMessagesLoaded) return; // Already loaded
+
+      console.log('[P2P] WebSocket connected, loading cached messages...');
+      await this.loadCachedMessages();
+      if (this.cachedMessagesLoaded) {
+        this.isReady = true;
+        eventEmitter.emit('p2p:messages-loaded');
+      }
     });
   }
 
@@ -253,6 +295,12 @@ export class P2PMessengerManager {
       this.connections.set(peerCid, true);
       this.connectionListeners.forEach(listener => listener(peerCid, true));
 
+      // Mark peer as ready immediately - if they can complete PeerConnect, they can receive messages.
+      // This eliminates CheckState timeout warnings for the first message after connection.
+      // CheckState was always optional (ILM handles reliability), but this prevents log noise.
+      this.peerReadyState.set(peerCid, true);
+      console.log(`[P2P] Marked peer ${peerCid.slice(0, 8)}... as ready (connection established)`);
+
       // Update peer's presence to Online when connection is established
       this.updatePeerPresenceOnConnect(peerCid);
     });
@@ -321,7 +369,10 @@ export class P2PMessengerManager {
         peer_cid: peerCidStr,
         notification_cid: notificationCidStr,
         currentCid,
-        isP2P: peerCidStr && peerCidStr !== '0'
+        isP2P: peerCidStr && peerCidStr !== '0',
+        rawMessageLength: rawMessage?.length || 0,
+        rawPeerCidType: typeof peer_cid,
+        rawCidType: typeof cid
       });
 
       // Skip if no peer_cid or peer_cid is 0 (from server)
@@ -337,46 +388,86 @@ export class P2PMessengerManager {
       }
 
       try {
-        // STEP 1: Parse the raw message first
-        // This must happen before session checks so we can broadcast for Yjs sync
-        let messageStr: string;
+        // STEP 1: Convert raw message to Uint8Array for MessagePack deserialization
+        // Backend always sends as array of bytes, no string fallback
+        let contentBytes: Uint8Array;
         if (Array.isArray(rawMessage)) {
-          const contentBytes = new Uint8Array(rawMessage);
-          messageStr = new TextDecoder().decode(contentBytes);
-        } else if (typeof rawMessage === 'string') {
-          messageStr = rawMessage;
+          contentBytes = new Uint8Array(rawMessage);
+        } else if (rawMessage instanceof Uint8Array) {
+          contentBytes = rawMessage;
         } else {
-          console.error('Unexpected message format:', typeof rawMessage);
+          console.error('Unexpected message format (expected array or Uint8Array):', typeof rawMessage);
           return;
         }
 
-        console.log('P2P message content:', messageStr);
+        console.log('P2P message received:', contentBytes.length, 'bytes');
 
         // STEP 2: Broadcast raw message for Yjs sync BEFORE session check
         // All tabs need to receive Yjs updates regardless of which session they own
-        const rawMessageData = { peerCid: peerCidStr, message: messageStr };
+        // BroadcastChannel uses structured clone which supports Uint8Array directly
+        const rawMessageData = { peerCid: peerCidStr, message: contentBytes };
         eventEmitter.emit('p2p:raw-message', rawMessageData);
 
         // Broadcast to follower tabs so their YjsP2PProvider instances can receive updates
         BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
 
-        // STEP 3: Check if this message is for THIS tab's session
-        // For P2P messages in multi-tab environment:
-        // - peer_cid is the SENDER's CID
-        // - notification.cid is the RECIPIENT's CID (the session that received the message)
-        // - currentCid is THIS tab's session CID (via getSelectedUser/tabContext)
+        // STEP 3: Check if this message is for THIS tab's session (MULTI-TAB ONLY)
         //
-        // CRITICAL: In multi-tab scenarios with shared WebSocket:
-        // - Leader tab receives ALL MessageNotifications for all sessions
-        // - Each tab's P2PMessengerManager MUST only process messages for its own session
-        // - Without this check, leader processes messages meant for other sessions,
-        //   adding them to wrong conversations and breaking the UI
-        if (currentCid && notificationCidStr && notificationCidStr !== currentCid) {
-          console.log('[P2P] Skipping chat processing: notification is for different session', {
+        // IMPORTANT: The notification.cid field has inconsistent meaning:
+        // - For some messages: recipient's CID
+        // - For ILM/queued messages: sender's CID
+        //
+        // For P2P messages (peer_cid is set), we should NOT filter by notification.cid
+        // because the message was delivered to us by the backend - it must be for us.
+        //
+        // Multi-tab session filtering is only needed when:
+        // 1. We have multiple sessions on ONE WebSocket (shared browser context)
+        // 2. AND the notification.cid clearly indicates a different session
+        // 3. AND peer_cid equals notification.cid (indicating WE sent this message)
+        //
+        // If peer_cid differs from notification.cid, it's an incoming P2P message - process it.
+        const isOwnOutgoingEcho = peerCidStr === currentCid;
+        if (isOwnOutgoingEcho && notificationCidStr !== currentCid) {
+          // This is an echo of OUR outgoing message but notification.cid doesn't match
+          // This can happen in multi-tab when another tab sent the message
+          console.log('[P2P] Outgoing echo for different session, broadcasting to follower tabs', {
             notification_cid: notificationCidStr,
             currentCid,
             peer_cid: peerCidStr
           });
+          BroadcastChannelService.getInstance().broadcastP2PNotification({
+            notification,
+            messageBytes: contentBytes
+          });
+          return;
+        }
+
+        // CRITICAL FIX: Broadcast messages for different sessions to follower tabs
+        // In multi-tab architecture, the leader tab receives ALL messages via WebSocket.
+        // If this message is for a different session (different user logged in another tab),
+        // we must broadcast it so the correct tab can store it in its cache.
+        //
+        // Two scenarios where we broadcast:
+        // 1. We SENT a message - recipient (notificationCidStr) is different from our session
+        // 2. We RECEIVED a message - recipient (notificationCidStr) is different from our session
+        //
+        // The key is: if the notification.cid doesn't match our session, someone else needs it.
+        // Previously this also checked peerCidStr !== currentCid which incorrectly filtered
+        // out messages WE sent to other tabs (where we are the sender = peerCid).
+        const isForDifferentSession = notificationCidStr && notificationCidStr !== currentCid;
+        if (isForDifferentSession) {
+          console.log('[P2P] Message for different session, broadcasting to follower tabs', {
+            notification_cid: notificationCidStr,
+            currentCid,
+            peer_cid: peerCidStr,
+            weAreSender: peerCidStr === currentCid
+          });
+          BroadcastChannelService.getInstance().broadcastP2PNotification({
+            notification,
+            messageBytes: contentBytes
+          });
+          // FIXED: Return early - leader should NOT process messages for other sessions locally
+          // Only the follower tab with the matching session should process this message
           return;
         }
 
@@ -391,8 +482,8 @@ export class P2PMessengerManager {
           // Still process the message but log the violation
         }
 
-        // STEP 5: Process the P2P command for chat messages
-        const command = deserializeP2PCommand(messageStr);
+        // STEP 5: Process the P2P command using MessagePack deserialization
+        const command = deserializeP2PCommand(contentBytes);
         await this.handleP2PCommand(command, peerCidStr, notificationCidStr);
       } catch (error) {
         console.error('Failed to deserialize P2P command:', error);
@@ -400,11 +491,22 @@ export class P2PMessengerManager {
       return;
     }
 
-    // Legacy handler for PeerMessage (in case backend format changes)
+    // Handler for PeerMessage format
     if ('PeerMessage' in response) {
       const { peer_cid, message } = (response as any).PeerMessage;
       try {
-        const command = deserializeP2PCommand(message);
+        // Convert message to Uint8Array for MessagePack deserialization
+        // Backend sends as array of bytes, no string fallback
+        let messageBytes: Uint8Array;
+        if (Array.isArray(message)) {
+          messageBytes = new Uint8Array(message);
+        } else if (message instanceof Uint8Array) {
+          messageBytes = message;
+        } else {
+          console.error('Unexpected PeerMessage format (expected array or Uint8Array):', typeof message);
+          return;
+        }
+        const command = deserializeP2PCommand(messageBytes);
         await this.handleP2PCommand(command, peer_cid?.toString());
       } catch (error) {
         console.error('Failed to deserialize P2P command:', error);
@@ -418,23 +520,49 @@ export class P2PMessengerManager {
     // - Session ownership check at line 374 (notification.cid === currentCid)
     // This ensures only the correct tab processes each message
 
+    // DEBUG: Log all incoming P2P commands
+    console.log('[P2P] handleP2PCommand received:', {
+      type: command.type,
+      typeValue: P2PCommandType[command.type] || command.type,
+      peerCid: peerCid?.slice(0, 12),
+      hasPayload: !!command.payload,
+      payloadKeys: command.payload ? Object.keys(command.payload) : []
+    });
+
     switch (command.type) {
       case P2PCommandType.MessagingLayerCommand:
         if (isMessagingLayerPayload(command.payload)) {
           await this.handleMessagingLayerCommand(command.payload, peerCid, recipientCid);
+        } else {
+          console.warn('[P2P] handleP2PCommand: MessagingLayerCommand payload failed type check');
         }
         break;
 
       case P2PCommandType.MessageAck:
+        console.log('[P2P] handleP2PCommand: MessageAck branch reached');
         if (isMessageAckPayload(command.payload)) {
           await this.handleMessageAck(command.payload);
+        } else {
+          console.warn('[P2P] handleP2PCommand: MessageAck payload failed type check', command.payload);
         }
         break;
+
+      default:
+        console.warn('[P2P] handleP2PCommand: Unknown command type:', command.type);
     }
   }
 
   private async handleMessagingLayerCommand(payload: P2PMessagingLayerPayload, peerCid: string, recipientCid?: string) {
     const { layer } = payload;
+
+    // OPTIMIZATION: Any P2P message received means the peer is online and ready.
+    // Mark them ready to prevent CheckState handshake on our next outgoing message.
+    // This handles cases where peer sends first message before we do.
+    if (!this.peerReadyState.get(peerCid)) {
+      this.peerReadyState.set(peerCid, true);
+      // Only log for first-time ready marking to reduce noise
+      console.log(`[P2P] Marked peer ${peerCid.slice(0, 8)}... as ready (received ${layer.type})`);
+    }
 
     switch (layer.type) {
       case MessagingLayerType.Message:
@@ -465,7 +593,9 @@ export class P2PMessengerManager {
 
       case MessagingLayerType.CheckState:
         // Peer is asking if we're ready - respond immediately and queue for flush on visibility
+        // Note: Peer already marked as ready at top of this method
         console.log('[P2P] Received CheckState from peer:', peerCid, '- responding Ready');
+
         // Queue for flush when tab becomes visible (handles browser throttling in background tabs)
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
           this.pendingCheckStateResponses.push(peerCid);
@@ -485,7 +615,118 @@ export class P2PMessengerManager {
           this.pendingCheckStates.delete(peerCid);
         }
         break;
+
+      // File Transfer message handling
+      case MessagingLayerType.FileTransferRequest:
+      case MessagingLayerType.FileTransferResponse:
+      case MessagingLayerType.FileTransferProgress:
+      case MessagingLayerType.FileTransferComplete:
+      case MessagingLayerType.FileTransferCancel:
+      case MessagingLayerType.FileTransferChunk:
+        // Delegate to FileTransferService via event
+        console.log('[P2P] Received file transfer message:', layer.type, 'from:', peerCid);
+        eventEmitter.emit('p2p:file-transfer-message', {
+          layer,
+          senderCid: peerCid,
+          recipientCid: recipientCid || this.getCurrentCid()
+        });
+        // Also add to conversation history for display in chat
+        await this.handleFileTransferMessage(payload, peerCid, recipientCid);
+        break;
     }
+  }
+
+  /**
+   * Handle incoming file transfer messages - stores in conversation history
+   */
+  private async handleFileTransferMessage(payload: P2PMessagingLayerPayload, peerCid: string, recipientCid?: string) {
+    const layer = payload.layer;
+
+    // Only store request messages as visible chat messages (not progress/response updates)
+    if (!isFileTransferRequest(layer)) {
+      return;
+    }
+
+    const message: P2PMessage = {
+      id: payload.message_id,
+      content: `File transfer: ${layer.file_name}`,
+      senderCid: payload.sender_cid,
+      recipientCid: payload.recipient_cid,
+      timestamp: layer.timestamp,
+      index: payload.index,
+      status: 'delivered',
+      message_type: 'file_transfer',
+      // File transfer specific fields
+      transfer_id: layer.transfer_id,
+      file_name: layer.file_name,
+      file_size: layer.file_size,
+      file_type: layer.file_type,
+      file_thumbnail: layer.thumbnail,
+      transfer_mode: layer.transfer_mode,
+      transfer_state: 'pending',
+      virtual_path: layer.virtual_path
+    };
+
+    // Add to conversation
+    const conversation = this.getOrCreateConversation(peerCid);
+    conversation.messages.push(message);
+    conversation.lastMessageIndex = Math.max(conversation.lastMessageIndex, payload.index);
+
+    console.log(`[P2P] Stored file transfer message in conversation with ${peerCid.slice(0, 8)}...`, {
+      messageId: message.id,
+      messageType: message.message_type,
+      senderCid: message.senderCid,
+      recipientCid: message.recipientCid,
+      totalMessages: conversation.messages.length
+    });
+
+    // Notify message listeners (this is what P2PChat subscribes to via onMessage())
+    this.messageListeners.forEach(listener => listener(message));
+    console.log('[P2P] Notified messageListeners for file transfer message');
+
+    // Also emit event for other components (like notifications)
+    // Include full message object for redundant UI updates
+    eventEmitter.emit('p2p:message-received', {
+      peerCid,
+      messageId: message.id,
+      text: message.content,
+      timestamp: message.timestamp,
+      message,  // Full message object for redundant UI updates
+    });
+
+    // Send delivery ack (messageId, ackType, peerCid)
+    await this.sendMessageAck(message.id, 'delivered', peerCid);
+  }
+
+  /**
+   * Update a file transfer message's state in the conversation
+   * Called by FileTransferService when transfer state changes
+   */
+  public updateFileTransferState(
+    peerCid: string,
+    transferId: string,
+    updates: {
+      transfer_state?: P2PMessage['transfer_state'];
+      transfer_progress?: number;
+    }
+  ): void {
+    const conversation = this.cache.conversations.get(peerCid);
+    if (!conversation) return;
+
+    const message = conversation.messages.find(m => m.transfer_id === transferId);
+    if (!message) return;
+
+    // Update the message
+    if (updates.transfer_state !== undefined) {
+      message.transfer_state = updates.transfer_state;
+    }
+    if (updates.transfer_progress !== undefined) {
+      message.transfer_progress = updates.transfer_progress;
+    }
+
+    // Emit update event for UI
+    eventEmitter.emit('p2p:message-updated', message);
+    console.log('[P2P] File transfer state updated:', transferId, updates);
   }
 
   /**
@@ -540,15 +781,30 @@ export class P2PMessengerManager {
     // Only notify listeners if message was newly added (prevents duplicate notifications)
     // This handles the case where optimistic update already added the message in sendMessage()
     if (wasAdded) {
+      // IMPORTANT: Send delivery acknowledgment BEFORE notifying listeners.
+      // This ensures "delivered" ack is sent before any "read" ack that might
+      // be triggered by listeners (e.g., P2PChat marking messages as read).
+      // The correct order is: sent → delivered → read
+      // Previously, sending delivered AFTER listeners caused race conditions
+      // where the read ack was sent first and got dropped/lost.
+      try {
+        await this.sendMessageAck(message.id, 'delivered', peerCid, recipientCid);
+      } catch (error) {
+        console.debug('[P2P] Delivery ACK send failed (non-blocking):', error);
+      }
+
       console.log('[P2P] Notifying listeners of new message:', message.id);
       this.messageListeners.forEach(listener => listener(message));
 
       // Emit event for UI updates
+      // Include full message object so backup listeners can use it directly
+      // without fetching from cache (prevents race conditions)
       eventEmitter.emit('p2p:message-received', {
         peerCid,
         messageId: message.id,
         text: message.content,
         timestamp: message.timestamp,
+        message,  // Full message object for redundant UI updates
       });
 
       // Show notification if chat not open
@@ -565,40 +821,80 @@ export class P2PMessengerManager {
           { peerCid, onOpen: () => eventEmitter.emit('p2p:open-conversation', { peerCid }) }
         );
       }
-
-      // Send delivery acknowledgment only for newly added messages (fire-and-forget)
-      // ACKs are ancillary - downgrade to debug to avoid spurious error logs
-      this.sendMessageAck(message.id, 'delivered', peerCid, recipientCid).catch(error => {
-        console.debug('[P2P] Delivery ACK send failed (non-blocking, expected occasionally):', error);
-      });
     } else {
       console.log('[P2P] Skipping duplicate message notification:', message.id);
     }
   }
 
   private async handleMessageAck(payload: P2PMessageAckPayload) {
+    console.log('[P2P] handleMessageAck received:', {
+      ack_type: payload.ack_type,
+      message_id: payload.message_id.slice(0, 8),
+      full_message_id: payload.message_id,
+    });
+
     // Update message status in all conversations
     let statusUpdated = false;
     let newStatus: P2PMessage['status'] = 'sent';
+    const updatedMessageIds: string[] = [];
+
+    // Debug: Log all conversations and message IDs
+    console.log('[P2P] handleMessageAck searching for message in', this.cache.conversations.size, 'conversations');
+    this.cache.conversations.forEach((conv, peerCid) => {
+      console.log(`[P2P] handleMessageAck conversation ${peerCid.slice(0, 8)}: ${conv.messages.length} messages, IDs:`,
+        conv.messages.map(m => m.id.slice(0, 8)));
+    });
 
     this.cache.conversations.forEach(conversation => {
       const message = conversation.messages.find(m => m.id === payload.message_id);
       if (message) {
+        console.log('[P2P] handleMessageAck FOUND message, updating status:', message.status, '->', payload.ack_type);
         newStatus = payload.ack_type === 'failed' ? 'failed' : payload.ack_type;
         message.status = newStatus;
         if (payload.error) {
           message.error = payload.error;
         }
         statusUpdated = true;
+        updatedMessageIds.push(message.id);
+
+        // FIX: When marking a message as "read" or "delivered", also mark all
+        // earlier messages from the same sender to that same status.
+        // This fixes the bug where earlier messages show grey checkmarks while
+        // later messages show blue checkmarks.
+        if (newStatus === 'read' || newStatus === 'delivered') {
+          const ackedMessageTimestamp = message.timestamp;
+          const ackedMessageSender = message.senderCid;
+
+          // Find all earlier messages from the same sender that have a lower status
+          conversation.messages.forEach(earlierMsg => {
+            if (
+              earlierMsg.senderCid === ackedMessageSender &&
+              earlierMsg.timestamp < ackedMessageTimestamp &&
+              earlierMsg.id !== message.id &&
+              (earlierMsg.status === 'sent' || earlierMsg.status === 'delivered')
+            ) {
+              // Only upgrade status (sent -> delivered -> read), never downgrade
+              if (newStatus === 'read' || earlierMsg.status === 'sent') {
+                earlierMsg.status = newStatus;
+                updatedMessageIds.push(earlierMsg.id);
+              }
+            }
+          });
+        }
       }
     });
 
     // Persist the update
     await this.persistConversations();
 
-    // Notify listeners about status change
+    // Notify listeners about status changes for all updated messages
     if (statusUpdated) {
-      this.messageStatusListeners.forEach(listener => listener(payload.message_id, newStatus));
+      console.log('[P2P] handleMessageAck notifying listeners for', updatedMessageIds.length, 'messages, new status:', newStatus);
+      updatedMessageIds.forEach(msgId => {
+        this.messageStatusListeners.forEach(listener => listener(msgId, newStatus));
+      });
+    } else {
+      console.warn('[P2P] handleMessageAck: Message NOT FOUND in any conversation!', payload.message_id.slice(0, 8));
     }
   }
 
@@ -655,7 +951,9 @@ export class P2PMessengerManager {
 
     // Check if peer is registered OR already P2P connected
     // Skip registration if already connected - connection implies registration was successful
-    const isAlreadyConnected = this.isConnected(recipientCid);
+    // NOTE: With Single Source of Truth architecture, p2pAutoConnectService is the authoritative source
+    // for peer connection state. WASM ILM calls JavaScript to get current peers.
+    const isAlreadyConnected = p2pAutoConnectService.isPeerConnected(recipientCid) || this.isConnected(recipientCid);
     const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(recipientCid);
 
     if (!isAlreadyRegistered && !isAlreadyConnected) {
@@ -732,15 +1030,22 @@ export class P2PMessengerManager {
     this.messageListeners.forEach(listener => listener(message));
 
     // Send via P2P connection
+    // NOTE: With Single Source of Truth architecture, WASM ILM now correctly knows which peers
+    // are connected via the JavaScript callback. ILM handles offline queueing internally.
     console.log(`[P2P] Sending message ${messageId} to ${recipientCid.slice(0, 8)}... (content: "${content.slice(0, 30)}${content.length > 30 ? '...' : ''}")`);
     const sendStartTime = Date.now();
     try {
       await this.sendP2PCommand(recipientCid, command);
       message.status = 'sent';
+      // CRITICAL FIX: Notify UI of status change from 'pending' to 'sent'
+      // Previously this was missing, causing messages to appear stuck at 'pending'
+      this.messageStatusListeners.forEach(listener => listener(messageId, 'sent'));
       console.log(`[P2P] Message ${messageId} sent successfully in ${Date.now() - sendStartTime}ms`);
     } catch (error) {
       message.status = 'failed';
       message.error = error instanceof Error ? error.message : 'Failed to send';
+      // Also notify UI of failure status
+      this.messageStatusListeners.forEach(listener => listener(messageId, 'failed'));
       console.error(`[P2P] Message ${messageId} FAILED after ${Date.now() - sendStartTime}ms:`, error);
       throw error;
     }
@@ -826,6 +1131,31 @@ export class P2PMessengerManager {
 
     // Persist the updated status
     await this.persistConversations();
+  }
+
+  /**
+   * Send a raw MessagingLayer message to a peer.
+   * Used by FileTransferService for file transfer messages.
+   */
+  public async sendRawMessage(recipientCid: string, layer: MessagingLayer): Promise<void> {
+    const currentCid = this.getCurrentCid();
+    if (!currentCid) {
+      throw new Error('Not connected to server');
+    }
+
+    // Ensure P2P connection is being established in background (non-blocking)
+    p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
+
+    const conversation = this.getOrCreateConversation(recipientCid);
+    const command = createMessagingLayerCommand(
+      layer,
+      currentCid,
+      recipientCid,
+      conversation.lastMessageIndex
+    );
+
+    await this.sendP2PCommand(recipientCid, command);
+    console.log(`[P2P] Sent raw message type=${layer.type} to ${recipientCid.slice(0, 8)}...`);
   }
 
   /**
@@ -1136,6 +1466,11 @@ export class P2PMessengerManager {
   }
 
   private async sendMessageAck(messageId: string, ackType: "delivered" | "read" | "failed", peerCid: string, senderCid?: string) {
+    console.log('[P2P] sendMessageAck:', {
+      ack_type: ackType,
+      message_id: messageId.slice(0, 8),
+      to_peer: peerCid.slice(0, 10),
+    });
     const command = createMessageAckCommand(messageId, ackType);
     await this.sendP2PCommand(peerCid, command, senderCid);
   }
@@ -1146,17 +1481,25 @@ export class P2PMessengerManager {
       throw new Error('Not connected to server');
     }
 
-    const serialized = serializeP2PCommand(command);
+    // Serialize to Uint8Array using MessagePack (direct Object → Uint8Array)
+    const messageBytes = serializeP2PCommand(command);
 
     // Debug: Log the command type being sent
     const commandType = Object.keys(command)[0] || 'unknown';
-    console.log(`[P2P] *** sendP2PCommand *** ${commandType} from ${currentCid.slice(0, 8)}... to ${peerCid.slice(0, 8)}... (${serialized.length} bytes)`);
+    console.log(`[P2P] *** sendP2PCommand *** ${commandType} from ${currentCid.slice(0, 8)}... to ${peerCid.slice(0, 8)}... (${messageBytes.length} bytes)`);
 
-    // Use direct P2P message routing via internal service
-    // This bypasses ISM (which has WASM time issues) and routes via InternalServiceRequest::Message
-    console.log(`[P2P] *** Calling websocketService.sendP2PMessage(${currentCid.slice(0, 8)}..., ${peerCid.slice(0, 8)}..., ...)`);
-    await websocketService.sendP2PMessage(currentCid, peerCid, serialized);
-    console.log(`[P2P] *** websocketService.sendP2PMessage completed successfully ***`);
+    // Ensure the messenger (ILM layer) is open before sending
+    await websocketService.ensureMessengerOpen(currentCid);
+
+    // Use ILM (Intersession Layer Messaging) for reliable P2P messaging.
+    // ILM provides:
+    // - Message queuing for offline peers
+    // - Guaranteed delivery with ACKs
+    // - Automatic retry on reconnection
+    // The ILM uses wasmtimer for WASM-compatible timing.
+    console.log(`[P2P] *** Calling websocketService.sendP2PMessageReliable(${currentCid.slice(0, 8)}..., ${peerCid.slice(0, 8)}..., ...)`);
+    await websocketService.sendP2PMessageReliable(currentCid, peerCid, messageBytes);
+    console.log(`[P2P] *** websocketService.sendP2PMessageReliable completed successfully ***`);
   }
 
   private getOrCreateConversation(peerCid: string, peerUsername?: string): P2PConversation {
@@ -1305,6 +1648,7 @@ export class P2PMessengerManager {
   private async loadCachedMessages() {
     try {
       // Use sendLocalDBGet which properly handles request/response with event listener
+      // Caller ensures WebSocket is connected before calling this method
       const response = await websocketService.sendLocalDBGet('0', `${this.dbPrefix}_conversations`);
 
       if (response && response.value) {
@@ -1333,11 +1677,24 @@ export class P2PMessengerManager {
             }
           });
         });
+        console.log(`[P2P] Loaded ${conversations.length} cached conversation(s)`);
       }
+      this.cachedMessagesLoaded = true;
     } catch (error) {
-      console.error('Failed to load cached messages:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // "Key not found" is expected when there's no cached data yet (first-time user)
+      if (errorMessage.includes('Key not found')) {
+        console.log('[P2P] No cached messages found (first time or cleared storage)');
+        this.cachedMessagesLoaded = true; // No messages, but that's OK
+      } else {
+        console.error('Failed to load cached messages:', error);
+        // Mark as loaded to prevent infinite retries on errors
+        this.cachedMessagesLoaded = true;
+      }
     }
   }
+
 
   // Public API methods
   public getConversation(peerCid: string): P2PConversation | undefined {
@@ -1512,3 +1869,6 @@ export class P2PMessengerManager {
     this.activeConversationPeerCid = peerCid;
   }
 }
+
+// Singleton instance export
+export const p2pMessengerManager = P2PMessengerManager.getInstance();

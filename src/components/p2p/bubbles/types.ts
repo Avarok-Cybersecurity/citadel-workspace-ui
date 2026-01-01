@@ -10,6 +10,13 @@ export interface LiveDocumentBubbleProps extends BaseBubbleProps {
   onOpenDocument?: (documentId: string, documentTitle: string) => void;
 }
 
+export interface FileTransferBubbleProps extends BaseBubbleProps {
+  onAccept?: (transferId: string) => void;
+  onDecline?: (transferId: string) => void;
+  onCancel?: (transferId: string) => void;
+  onOpen?: (downloadPath: string) => void;
+}
+
 // Shared bubble styles
 export function getBubbleStyles(isOwn: boolean, isFailed: boolean): string {
   if (isOwn) {

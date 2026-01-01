@@ -24,6 +24,7 @@ import { clearSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { useState } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
+import { ProfileModal } from "@/components/settings/ProfileModal";
 import { cn } from "@/lib/utils";
 
 interface TopBarProps {
@@ -38,6 +39,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const { state } = useWorkspace();
   const navigate = useNavigate();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Get workspace name from context or fallback to prop
   const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
@@ -46,6 +48,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const username = state.currentUser?.username || "User";
   const name = state.currentUser?.name || username;
   const userInitials = getUserInitials(name);
+  const avatarUrl = state.currentUser?.avatarUrl;
 
   // Check if user is admin (handle both 'Admin' from backend and 'admin' from frontend)
   const userRole = state.currentUser?.role;
@@ -144,12 +147,12 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]" title={isAdmin ? "Workspace Administrator" : undefined} data-testid={isAdmin ? "admin-indicator" : undefined}>
+            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
               <Avatar className={cn(
                 "h-8 w-8",
                 isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#252424]"
               )}>
-                <AvatarImage src="" />
+                <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-[#444A6C] text-white">{userInitials}</AvatarFallback>
               </Avatar>
             </Button>
@@ -157,7 +160,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
           <DropdownMenuContent align="end" className="w-56 bg-[#343A5C] text-white border-purple-800">
             <DropdownMenuLabel>{name}</DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-purple-800" />
-            <DropdownMenuItem className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer">
+            <DropdownMenuItem
+              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              onClick={() => setShowProfileModal(true)}
+            >
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer">
@@ -187,6 +193,12 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         onConfirm={handleExit}
         userName={name}
         workspaceName={workspaceName}
+      />
+
+      {/* Profile settings modal */}
+      <ProfileModal
+        open={showProfileModal}
+        onOpenChange={setShowProfileModal}
       />
     </div>
   );

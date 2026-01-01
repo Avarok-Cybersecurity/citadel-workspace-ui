@@ -24,6 +24,8 @@ import {
   navigateToOffice,
   waitForWorkspaceLoaded,
   startDiagnostics,
+  assertNoToastConflict,
+  dismissAllToasts,
   type DiagnosticsHandle,
 } from '../lib/index.js';
 
@@ -66,6 +68,9 @@ interface TestResults {
   memberRemovedFromOffice: boolean;
   memberAddedToRoom: boolean;
   memberRemovedFromRoom: boolean;
+
+  // Toast Conflicts (should all be false)
+  toastConflictDetected: boolean;
 }
 
 // ============================================================================
@@ -467,6 +472,7 @@ async function runTest(): Promise<boolean> {
     memberRemovedFromOffice: false,
     memberAddedToRoom: false,
     memberRemovedFromRoom: false,
+    toastConflictDetected: false,
   };
 
   const uxTracker = new UxIssueTracker();
@@ -524,10 +530,19 @@ async function runTest(): Promise<boolean> {
       await takeScreenshot(adminPage, `${ADMIN_USER}_create_office_modal`);
 
       if (await fillCreateOfficeModal(adminPage, TEST_OFFICE_NAME, 'Test office description')) {
+        // Assert no toast conflict (both success AND error visible = bug)
+        const toastOk = await assertNoToastConflict(adminPage, 'Create Office', uxTracker);
+        if (!toastOk) {
+          results.toastConflictDetected = true;
+          await takeScreenshot(adminPage, `${ADMIN_USER}_office_create_TOAST_CONFLICT`);
+          throw new Error('Toast conflict detected after Create Office - both success and error toasts visible');
+        }
+
         // Verify office was created
         results.officeCreated = await itemExistsInSidebar(adminPage, TEST_OFFICE_NAME);
         console.log(`  Office created: ${results.officeCreated}`);
         await takeScreenshot(adminPage, `${ADMIN_USER}_office_created`);
+        await dismissAllToasts(adminPage);
       }
     }
 
@@ -551,9 +566,18 @@ async function runTest(): Promise<boolean> {
         await takeScreenshot(adminPage, `${ADMIN_USER}_create_room_modal`);
 
         if (await fillCreateRoomModal(adminPage, TEST_ROOM_NAME, 'Test room description')) {
+          // Assert no toast conflict
+          const toastOk = await assertNoToastConflict(adminPage, 'Create Room', uxTracker);
+          if (!toastOk) {
+            results.toastConflictDetected = true;
+            await takeScreenshot(adminPage, `${ADMIN_USER}_room_create_TOAST_CONFLICT`);
+            throw new Error('Toast conflict detected after Create Room - both success and error toasts visible');
+          }
+
           results.roomCreated = await itemExistsInSidebar(adminPage, TEST_ROOM_NAME);
           console.log(`  Room created: ${results.roomCreated}`);
           await takeScreenshot(adminPage, `${ADMIN_USER}_room_created`);
+          await dismissAllToasts(adminPage);
         }
       }
     }
@@ -579,7 +603,17 @@ async function runTest(): Promise<boolean> {
           if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
             await saveBtn.click();
             await sleep(2000);
+
+            // Assert no toast conflict
+            const toastOk = await assertNoToastConflict(adminPage, 'Update Office', uxTracker);
+            if (!toastOk) {
+              results.toastConflictDetected = true;
+              await takeScreenshot(adminPage, `${ADMIN_USER}_office_update_TOAST_CONFLICT`);
+              throw new Error('Toast conflict detected after Update Office - both success and error toasts visible');
+            }
+
             results.officeNameUpdated = await itemExistsInSidebar(adminPage, updatedOfficeName);
+            await dismissAllToasts(adminPage);
           }
         }
         await takeScreenshot(adminPage, `${ADMIN_USER}_office_updated`);
@@ -598,9 +632,18 @@ async function runTest(): Promise<boolean> {
       results.roomDeleted = await deleteRoom(adminPage, TEST_ROOM_NAME);
 
       if (results.roomDeleted) {
+        // Assert no toast conflict
+        const toastOk = await assertNoToastConflict(adminPage, 'Delete Room', uxTracker);
+        if (!toastOk) {
+          results.toastConflictDetected = true;
+          await takeScreenshot(adminPage, `${ADMIN_USER}_room_delete_TOAST_CONFLICT`);
+          throw new Error('Toast conflict detected after Delete Room - both success and error toasts visible');
+        }
+
         // Verify room no longer exists
         const roomStillExists = await itemExistsInSidebar(adminPage, TEST_ROOM_NAME);
         results.roomDeleted = !roomStillExists;
+        await dismissAllToasts(adminPage);
       }
       console.log(`  Room deleted: ${results.roomDeleted}`);
       await takeScreenshot(adminPage, `${ADMIN_USER}_room_deleted`);
@@ -619,17 +662,44 @@ async function runTest(): Promise<boolean> {
     // Create office for cascade test
     if (await clickAddOfficeButton(adminPage)) {
       if (await fillCreateOfficeModal(adminPage, cascadeOfficeName, 'Cascade test')) {
+        // Assert no toast conflict after cascade office creation
+        const toastOk1 = await assertNoToastConflict(adminPage, 'Create Cascade Office', uxTracker);
+        if (!toastOk1) {
+          results.toastConflictDetected = true;
+          await takeScreenshot(adminPage, `${ADMIN_USER}_cascade_office_TOAST_CONFLICT`);
+          throw new Error('Toast conflict detected after Create Cascade Office');
+        }
+        await dismissAllToasts(adminPage);
+
         await navigateToOffice(adminPage, ADMIN_USER, cascadeOfficeName);
         await sleep(1000);
 
         // Create room inside
         if (await clickAddRoomButton(adminPage)) {
           await fillCreateRoomModal(adminPage, cascadeRoomName, 'Will be cascade deleted');
+
+          // Assert no toast conflict after cascade room creation
+          const toastOk2 = await assertNoToastConflict(adminPage, 'Create Cascade Room', uxTracker);
+          if (!toastOk2) {
+            results.toastConflictDetected = true;
+            await takeScreenshot(adminPage, `${ADMIN_USER}_cascade_room_TOAST_CONFLICT`);
+            throw new Error('Toast conflict detected after Create Cascade Room');
+          }
+          await dismissAllToasts(adminPage);
           await sleep(1000);
         }
 
         // Delete the office
         if (await deleteOffice(adminPage, cascadeOfficeName)) {
+          // Assert no toast conflict after cascade delete
+          const toastOk3 = await assertNoToastConflict(adminPage, 'Cascade Delete Office', uxTracker);
+          if (!toastOk3) {
+            results.toastConflictDetected = true;
+            await takeScreenshot(adminPage, `${ADMIN_USER}_cascade_delete_TOAST_CONFLICT`);
+            throw new Error('Toast conflict detected after Cascade Delete Office');
+          }
+          await dismissAllToasts(adminPage);
+
           // Verify both office and room are gone
           const officeGone = !(await itemExistsInSidebar(adminPage, cascadeOfficeName));
           const roomGone = !(await itemExistsInSidebar(adminPage, cascadeRoomName));
@@ -691,8 +761,24 @@ async function runTest(): Promise<boolean> {
     const updatedOfficeName = `${TEST_OFFICE_NAME}_Updated`;
     if (await itemExistsInSidebar(adminPage, updatedOfficeName)) {
       results.officeDeleted = await deleteOffice(adminPage, updatedOfficeName);
+      if (results.officeDeleted) {
+        const toastOk = await assertNoToastConflict(adminPage, 'Cleanup Delete Office', uxTracker);
+        if (!toastOk) {
+          results.toastConflictDetected = true;
+          await takeScreenshot(adminPage, `${ADMIN_USER}_cleanup_delete_TOAST_CONFLICT`);
+        }
+        await dismissAllToasts(adminPage);
+      }
     } else if (await itemExistsInSidebar(adminPage, TEST_OFFICE_NAME)) {
       results.officeDeleted = await deleteOffice(adminPage, TEST_OFFICE_NAME);
+      if (results.officeDeleted) {
+        const toastOk = await assertNoToastConflict(adminPage, 'Cleanup Delete Office', uxTracker);
+        if (!toastOk) {
+          results.toastConflictDetected = true;
+          await takeScreenshot(adminPage, `${ADMIN_USER}_cleanup_delete_TOAST_CONFLICT`);
+        }
+        await dismissAllToasts(adminPage);
+      }
     }
     console.log(`  Cleanup - office deleted: ${results.officeDeleted}`);
 
@@ -736,11 +822,15 @@ async function runTest(): Promise<boolean> {
     console.log('\nAuthorization:');
     console.log(`  Non-Admin Cannot Create:    ${results.nonAdminCannotCreateOffice ? 'PASS' : 'FAIL'}`);
 
+    console.log('\nToast Validation:');
+    console.log(`  No Toast Conflicts:         ${!results.toastConflictDetected ? 'PASS' : 'FAIL'}`);
+
     // Determine overall pass/fail
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
       results.officeCreated,
+      !results.toastConflictDetected, // No toast conflicts is critical
     ];
 
     const allCriticalPassed = criticalTests.every(Boolean);

@@ -1,6 +1,7 @@
 import { TextBubble } from './TextBubble';
 import { MarkdownBubble } from './MarkdownBubble';
 import { LiveDocumentBubble } from './LiveDocumentBubble';
+import { FileTransferBubble } from './FileTransferBubble';
 import { getBubbleContainerStyles } from './types';
 import type { P2PMessage } from '@/lib/p2p-messenger-manager';
 
@@ -9,9 +10,22 @@ interface MessageBubbleProps {
   isOwn: boolean;
   onRetry?: () => void;
   onOpenDocument?: (documentId: string, documentTitle: string) => void;
+  onAcceptTransfer?: (transferId: string) => void;
+  onDeclineTransfer?: (transferId: string) => void;
+  onCancelTransfer?: (transferId: string) => void;
+  onOpenFile?: (downloadPath: string) => void;
 }
 
-export function MessageBubble({ message, isOwn, onRetry, onOpenDocument }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isOwn,
+  onRetry,
+  onOpenDocument,
+  onAcceptTransfer,
+  onDeclineTransfer,
+  onCancelTransfer,
+  onOpenFile
+}: MessageBubbleProps) {
   const containerStyles = getBubbleContainerStyles(isOwn);
 
   const renderBubble = () => {
@@ -26,6 +40,19 @@ export function MessageBubble({ message, isOwn, onRetry, onOpenDocument }: Messa
             isOwn={isOwn}
             onRetry={onRetry}
             onOpenDocument={onOpenDocument}
+          />
+        );
+
+      case 'file_transfer':
+        return (
+          <FileTransferBubble
+            message={message}
+            isOwn={isOwn}
+            onRetry={onRetry}
+            onAccept={onAcceptTransfer}
+            onDecline={onDeclineTransfer}
+            onCancel={onCancelTransfer}
+            onOpen={onOpenFile}
           />
         );
 
@@ -46,5 +73,6 @@ export function MessageBubble({ message, isOwn, onRetry, onOpenDocument }: Messa
 export { TextBubble } from './TextBubble';
 export { MarkdownBubble } from './MarkdownBubble';
 export { LiveDocumentBubble } from './LiveDocumentBubble';
+export { FileTransferBubble } from './FileTransferBubble';
 export { BubbleFooter } from './BubbleFooter';
 export * from './types';

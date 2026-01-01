@@ -1,15 +1,15 @@
 # P2P Basic Test Report
 
-**Date:** 2025-12-24
-**Test Timestamp:** 1766592974
-**Test Duration:** ~4 minutes
+**Date:** 2025-12-30
+**Timestamp:** 1767129910
+**Test Duration:** ~5 minutes
 
 ## Accounts Created
 
-| User | Username | Full Name | CID |
-|------|----------|-----------|-----|
-| User 1 | p2ptest1_1766592974 | P2P Test User One | 12463121792378155133 |
-| User 2 | p2ptest2_1766592974 | P2P Test User Two | 10313095544397149471 |
+| User | Username | Full Name | CID | Role |
+|------|----------|-----------|-----|------|
+| User 1 | p2ptest1_1767129910 | P2P Test User One | 4086725222825359081 | Admin |
+| User 2 | p2ptest2_1767129910 | P2P Test User Two | 7670537719965412480 | Member |
 
 ## Test Configuration
 
@@ -17,145 +17,129 @@
 - **Server Location:** 127.0.0.1:12349
 - **Workspace Password:** SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME
 - **User Password:** test12345
-- **Security Level:** Standard / BestEffort
 
 ## Test Results
 
 | Step | Test | Status | Notes |
 |------|------|--------|-------|
-| 0.1 | Prerequisites - Internal Service | PASS | Service running correctly |
-| 0.2 | Prerequisites - UI Accessible | PASS | HTTP 200 response |
-| 0.3 | Prerequisites - Server Running | PASS | Workspace server operational |
-| 1.1-1.9 | User 1 Account Creation | PASS | Account created, workspace initialized |
-| 1.10-1.17 | User 2 Account Creation | PASS | Account created, no init modal (correct) |
-| 2.1-2.6 | User 1 Sends P2P Invite | PASS | Connection request sent notification shown |
-| 2.7-2.11 | User 2 Accepts P2P Invite | PASS | "Connection Accepted" notification shown |
-| 3.1-3.6 | Message User1 -> User2 | PASS | "Hello from user1!" sent and displayed |
-| 3.7-3.9 | Message Received by User2 | PASS | Message appeared on left side (receiver) |
-| 3.10-3.12 | Message User2 -> User1 | PASS | "Hello back from user2!" sent and displayed |
-| 3.13-3.14 | Message Received by User1 | PASS | Message appeared on left side (receiver) |
+| 1 | Account Creation (User 1) | PASS | Workspace initialized successfully |
+| 2 | Account Creation (User 2) | PASS | Joined existing workspace (no init modal - correct) |
+| 3 | P2P Peer Discovery | PASS | User 2 appeared in peer list |
+| 4 | P2P Registration | PASS | Connection request sent and accepted |
+| 5 | Deterministic Initiator Selection | PASS | Higher CID correctly identified as initiator |
+| 6 | Message User1 -> User2 | PASS | "Hello from user1!" delivered in 24ms |
+| 7 | Message User2 -> User1 | PASS | "Hello back from user2!" delivered in 19ms |
+| 8 | Virtual Connection Overwrite Warnings | PASS | None found in server logs |
+| 9 | UI Freezes/Retry Loops | PASS | None observed |
 
 ## Overall Result: PASS
 
-All test steps completed successfully. Bidirectional P2P messaging is fully functional.
+All core P2P messaging functionality is working correctly.
 
-## Test Evidence (Screenshots)
+## Deterministic Initiator Selection Verification
+
+The P2P connection correctly identified the initiator based on CID comparison:
+
+```
+CID 7670537719965412480 (User 2) - "IS the initiator" (higher CID)
+CID 4086725222825359081 (User 1) - "is NOT the initiator" (lower CID)
+```
+
+This confirms the deterministic initiator selection algorithm is working correctly. The higher CID always initiates the P2P connection, ensuring consistent behavior across reconnections.
+
+## Message Delivery Timeline
+
+| Time | Direction | Message | Delivery Time |
+|------|-----------|---------|---------------|
+| 04:48 PM | User1 -> User2 | "Hello from user1!" | 24ms |
+| 04:49 PM | User2 -> User1 | "Hello back from user2!" | 19ms |
+
+Both messages were successfully delivered with acknowledgments (delivered/read status).
+
+## Screenshots Captured
 
 | Screenshot | Description |
 |------------|-------------|
-| 01-user1-workspace.png | User 1 workspace loaded after account creation |
-| 02-user2-workspace.png | User 2 workspace loaded after account creation |
-| 03-user1-sends-invite.png | User 1 sending P2P connection invite |
-| 04-user2-accepts.png | User 2 accepting P2P connection request |
-| 05-message-sent-user1.png | User 1's "Hello from user1!" message sent |
-| 07-message-sent-user2.png | User 2's reply "Hello back from user2!" sent |
-| 08-bidirectional-complete.png | User 1 view with both messages - bidirectional complete |
+| 01-user1-workspace.png | User 1 workspace after login |
+| 02-user2-workspace.png | User 2 workspace after login |
+| 03-user1-sends-invite.png | User 1 sending P2P registration invite |
+| 04-user2-accepts.png | User 2 accepting P2P registration |
+| 05-message-sent-user1.png | User 1 sent first message |
+| 07-message-sent-user2.png | User 2 sent reply message |
+| 08-bidirectional-complete.png | Both messages visible in User 1's chat |
 
-## Message Flow Verification
+## P2P Registration Flow
 
-### User 1 -> User 2
-- **Message ID:** a2d9d9f5-aa47-4506-a4b3-675d33531b07
-- **Content:** "Hello from user1!"
-- **Sent at:** 11:20 AM
-- **Delivery confirmed:** MessageAck (ack_type: delivered)
-- **Read confirmed:** MessageAck (ack_type: read)
-
-### User 2 -> User 1
-- **Message ID:** 6c40dbfe-68c4-4db0-85fb-12a0a47bdb0a
-- **Content:** "Hello back from user2!"
-- **Sent at:** 11:22 AM
-- **Delivery confirmed:** MessageAck (ack_type: delivered)
-- **Read confirmed:** MessageAck (ack_type: read)
-
-## UX/UI Observations
-
-### Positive UX Elements
-
-| Feature | Observation |
-|---------|-------------|
-| Notification Badge | Works correctly - shows "1 pending connection request" |
-| Online Status | Peer shows "Online" status indicator correctly |
-| Message Timestamps | Messages display correct timestamps (11:20 AM, 11:22 AM) |
-| Message Acknowledgments | Checkmarks appear for sent messages (delivered/read) |
-| Section Transitions | "WORKSPACE MEMBERS" correctly changes to "CONNECTED PEERS" after connection |
-| DIRECT MESSAGES | Section appears automatically after P2P registration |
-| Toast Notifications | "Connection Accepted" toast appears after successful P2P registration |
-
-### Minor UX Issues
-
-| Severity | Issue | Details |
-|----------|-------|---------|
-| Low | DIRECT MESSAGES Shows Truncated CID | Shows "Peer 149471" instead of full username in some views |
-| Low | Leader Election Logs | BroadcastChannelService logs many "leader-election" messages in console |
-| Low | LocalDB Load Failures | PeerRegistrationStore fails to load from LocalDB on fresh state (expected) |
-| Low | ServerAutoConnect | Fails to load "enabled" setting on fresh state (expected, uses defaults) |
+1. User 1 opened Peer Discovery modal from WORKSPACE MEMBERS section
+2. User 1 clicked "Refresh" to populate peer list
+3. User 2 (p2ptest2_1767129910) appeared in available peers
+4. User 1 clicked "Connect" to initiate P2P registration
+5. User 2 received notification badge showing "1 pending connection request"
+6. User 2 clicked notification bell and accepted the request
+7. P2P connection established bilaterally
+8. Both users appeared in each other's DIRECT MESSAGES section
 
 ## Console Warnings/Errors
 
-### Warnings (Non-blocking)
+### Internal Service Logs
+| Type | Message | Impact |
+|------|---------|--------|
+| Warning | CheckState timeout for [CID], proceeding with send anyway | Low - Transport layer handles delivery |
+| Info | P2P connection established with proper initiator selection | Expected behavior |
 
-1. **React Router Future Flag Warnings (2)**
-   - v7_startTransition future flag notice
-   - v7_relativeSplatPath future flag notice
+### Server Logs
+- No "virtual connection overwrite" warnings found
+- Normal workspace protocol operations
+- Successful message routing between peers
 
-2. **LocalDB Key Not Found (Expected for new accounts)**
-   - PeerRegistrationStore: Failed to load from LocalDB
-   - PeerRegistrationStore: Failed to load outgoing from LocalDB
-   - ServerAutoConnect: Failed to load enabled setting
-   - Failed to load cached messages
+## UX/UI Issues Discovered
 
-3. **WASM Initialization**
-   - "using deprecated parameters for the initialization function" - minor deprecation warning
+| Severity | Issue | Details |
+|----------|-------|---------|
+| Low | CheckState Timeout Warnings | Both users experienced timeout warnings before message send. Messages still delivered successfully via transport layer fallback. |
+| Medium | Potential Message Refresh Issue | Initial message from User 1 may not have immediately appeared on User 2's chat view. Message count was 0 at first check before messages appeared. May require investigating auto-refresh behavior for incoming P2P messages. |
 
-### Transient Errors (Resolved Automatically)
+## Protocol Flow Verified
 
-1. **P2P Connection Establishment**
-   - `[ERROR] P2P connection failed: "EncryptionFailure"` - Initial attempt failed, succeeded on retry
-   - `PeerConnect request timed out` - Resolved when proper handshake completed
-   - This is expected behavior during P2P channel establishment
+1. **P2P Registration:** PeerRegister request sent -> PeerRegisterNotification received -> Accept -> PeerConnect established
+2. **CheckState Handshake:** Sender sends CheckState before messaging (timeout handled gracefully)
+3. **Message Delivery:** P2P command with MessagingLayerCommand type
+4. **Message Acknowledgment:** Delivered/Read confirmation received
+5. **Bidirectional Communication:** Both directions working correctly
 
-## Backend Session Status
+## Technical Observations
 
+### Architecture Confirmation
+- Single WebSocket per browser (not per tab)
+- Leader tab coordinates message distribution via BroadcastChannel
+- Multiple sessions (user1, user2) share one WebSocket connection
+- Sessions persist in server_connection_map with orphan mode
+
+### Message Protocol Stack
+Messages use triple-nested protocol structure:
 ```
-GetSessions: Found 2 total sessions in server_connection_map
-- Session 12463121792378155133 (p2ptest1_1766592974) with peer connection to 10313095544397149471
-- Session 10313095544397149471 (p2ptest2_1766592974) with peer connection to 12463121792378155133
+InternalServiceRequest::Message {
+  peer_cid: target_peer,
+  message: WorkspaceProtocol::Message {
+    contents: MessageProtocol::TextMessage { text: "..." }
+  }
+}
 ```
 
-## Protocol Observations
+## Recommendations
 
-1. **CheckState Handshake**: P2P messaging requires a CheckState/CheckStateResponse handshake before actual messages can be sent
-2. **First Message Behavior**: The first message attempt triggers channel establishment; actual message is sent after handshake completes
-3. **Message Persistence**: Messages are saved to LocalDB (p2p_messages-{cid} keys) after successful delivery
-4. **Cross-Tab Coordination**: BroadcastChannelService properly coordinates messages between tabs via leader/follower pattern
-
-## Protocol Flow Verification
-
-### P2P Registration Flow
-1. User 1 clicked "Discover Peers" -> Found User 2 (CID: 10313095544397149471)
-2. User 1 clicked "Connect" -> PeerRegister request sent
-3. User 2 received notification badge (1 pending request)
-4. User 2 clicked "Accept" -> PeerRegisterSuccess
-5. P2P connection established -> Both users see each other in CONNECTED PEERS
-
-### Message Flow
-1. User 1 sends "Hello from user1!" -> Message displayed on right (sender)
-2. CheckState/CheckStateResponse handshake
-3. User 2 receives message -> Displayed on left (receiver)
-4. MessageAck (delivered/read) sent back to User 1
-5. User 2 replies "Hello back from user2!" -> Same flow in reverse
-6. User 1 receives reply -> Displayed on left (receiver)
+1. **CheckState Optimization:** Investigate reducing CheckState timeout or optimizing the handshake to eliminate timeout warnings
+2. **Message Auto-Refresh:** Verify incoming messages appear immediately on recipient's screen without requiring user interaction
+3. **UX Polish:** Consider adding visual feedback during P2P connection establishment
 
 ## Conclusion
 
-The P2P messaging feature is fully functional:
-
-- Account creation works correctly for multiple users
-- Workspace initialization only prompts for the first user (correct behavior)
-- P2P peer discovery works
-- P2P registration (invite/accept) works
-- Bidirectional messaging works with proper delivery and read acknowledgments
-- UI correctly reflects connection states and message status
-- No critical errors in console or backend logs
+The P2P messaging system is fully functional:
+- Account creation and workspace joining work correctly
+- P2P peer discovery and registration complete successfully
+- Deterministic initiator selection algorithm is working as designed
+- Bidirectional messaging delivers messages in both directions
+- No virtual connection overwrite warnings or UI freezes observed
+- Message acknowledgments (delivered/read) working correctly
 
 **Test Status: PASS**

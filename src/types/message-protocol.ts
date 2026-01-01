@@ -7,7 +7,7 @@
  */
 
 // Message content types - determines how the message is rendered
-export type MessageType = 'text' | 'markdown' | 'live_document';
+export type MessageType = 'text' | 'markdown' | 'live_document' | 'file_transfer';
 
 // Message event types that can be sent between peers
 export type MessageEventType = 

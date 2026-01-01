@@ -14,6 +14,7 @@ export interface WorkspaceState {
     name: string;
     role?: string;
     displayName?: string;
+    avatarUrl?: string; // Base64 data URL for avatar image
   };
   offices: Record<string, Office>;
   rooms: Record<string, Room>;

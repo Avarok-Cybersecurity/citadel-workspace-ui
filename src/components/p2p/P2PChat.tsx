@@ -4,11 +4,12 @@ import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { notificationService } from '@/lib/notification-service';
+import { fileTransferService } from '@/lib/file-transfer-service';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, Paperclip, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MessageBubble } from './bubbles';
 import { ChatTabBar, ChatTab, MESSAGES_TAB, createLiveDocumentTab } from './ChatTabBar';
@@ -17,10 +18,13 @@ import { MarkdownToolbar, useMarkdownFormat } from './MarkdownToolbar';
 import ReactMarkdown from 'react-markdown';
 import { LiveDocumentView } from './LiveDocumentView';
 import { LiveDocumentModal } from './LiveDocumentModal';
+import { FileTransferModal } from './FileTransferModal';
+import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { liveDocumentStore } from '@/lib/live-document-store';
 import type { P2PMessage, PeerPresence } from '@/lib/p2p-messenger-manager';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { MessageType } from '@/types/message-protocol';
+import type { FileTransferMode } from '@/types/messaging-layer';
 import { getInitials } from '@/components/chat/shared';
 
 interface P2PChatProps {
@@ -54,6 +58,12 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
 
   // Live document modal state
   const [showDocModal, setShowDocModal] = useState(false);
+
+  // File transfer modal state
+  const [showFileModal, setShowFileModal] = useState(false);
+
+  // Chat settings modal state
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Markdown preview state
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
@@ -143,6 +153,7 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
     } else {
       // Load existing conversation after LocalDB is ready
       const loadConversation = async () => {
+        console.log('[P2PChat] loadConversation - starting for peerCid:', peerCid?.slice(0, 12));
         await messenger.waitForReady();
 
         // CRITICAL: Sync connections from backend BEFORE getting conversation
@@ -150,8 +161,34 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
         await messenger.syncConnectionsFromBackend();
 
         const conversation = messenger.getConversation(peerCid);
+        console.log('[P2PChat] loadConversation - got conversation:', {
+          hasConversation: !!conversation,
+          messageCount: conversation?.messages?.length || 0,
+          messageTypes: conversation?.messages?.map(m => m.message_type) || [],
+          messageIds: conversation?.messages?.map(m => m.id?.slice(0, 8)) || []
+        });
         if (conversation) {
-          setMessages(conversation.messages);
+          console.log('[P2PChat] loadConversation - calling setMessages with:', {
+            messageCount: conversation.messages.length,
+            messageIds: conversation.messages.map(m => m.id?.slice(0, 8))
+          });
+          // IMPORTANT: MERGE cache messages with existing state instead of replacing.
+          // Messages may arrive via onMessage listener BEFORE this completes,
+          // and we must not overwrite them.
+          setMessages(prev => {
+            if (prev.length === 0) {
+              // No live messages arrived yet, load directly from cache
+              return [...conversation.messages];
+            }
+            // Merge: add messages from cache that aren't already in state
+            const existingIds = new Set(prev.map(m => m.id));
+            const newFromCache = conversation.messages.filter(m => !existingIds.has(m.id));
+            if (newFromCache.length === 0) {
+              return prev; // No new messages to add
+            }
+            console.log('[P2PChat] Merging', newFromCache.length, 'messages from cache with', prev.length, 'live messages');
+            return [...prev, ...newFromCache].sort((a, b) => a.timestamp - b.timestamp);
+          });
           setPeerPresence(conversation.presence);
 
           // Also update isConnected based on synced state
@@ -173,12 +210,29 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
 
     // Subscribe to new messages
     const unsubscribeMessage = messenger.onMessage((message) => {
+      console.log('[P2PChat] onMessage received:', {
+        messageId: message.id?.slice(0, 8),
+        messageType: message.message_type,
+        senderCid: message.senderCid?.slice(0, 12),
+        recipientCid: message.recipientCid?.slice(0, 12),
+        peerCid: peerCid?.slice(0, 12),
+        matchesSender: message.senderCid === peerCid,
+        matchesRecipient: message.recipientCid === peerCid
+      });
       if (message.senderCid === peerCid || message.recipientCid === peerCid) {
+        console.log('[P2PChat] Message matches peer, adding to messages state');
         setMessages(prev => {
+          console.log('[P2PChat] setMessages callback - prev:', {
+            prevLength: prev.length,
+            prevIds: prev.map(m => m.id?.slice(0, 8)),
+            newMessageId: message.id?.slice(0, 8)
+          });
           // Deduplication: Check if message already exists by ID
           if (prev.some(m => m.id === message.id)) {
+            console.log('[P2PChat] Message already exists, skipping duplicate');
             return prev;  // Don't add duplicate
           }
+          console.log('[P2PChat] Adding new message, total will be:', prev.length + 1);
           return [...prev, message];
         });
 
@@ -208,6 +262,21 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
       setMessages(prev => prev.map(m =>
         m.id === messageId ? { ...m, status } : m
       ));
+    });
+
+    // Subscribe to file transfer state updates
+    // This handles updates when FileTransferService changes transfer state
+    const unsubscribeMessageUpdate = eventEmitter.on('p2p:message-updated', (updatedMessage: P2PMessage) => {
+      if (updatedMessage.senderCid === peerCid || updatedMessage.recipientCid === peerCid) {
+        console.log('[P2PChat] p2p:message-updated for peer:', {
+          messageId: updatedMessage.id?.slice(0, 8),
+          transferState: updatedMessage.transfer_state,
+          transferProgress: updatedMessage.transfer_progress
+        });
+        setMessages(prev => prev.map(m =>
+          m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m
+        ));
+      }
     });
 
     // Subscribe to typing indicators
@@ -240,6 +309,34 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
       }
     });
 
+    // CRITICAL FIX: Subscribe to p2p:message-received as redundant notification mechanism.
+    // This ensures incoming messages appear immediately even if the onMessage listener
+    // misses a message due to timing issues with React state batching or async operations.
+    // The event is emitted by P2PMessengerManager after adding message to cache and notifying
+    // messageListeners. Uses full message object from event to avoid cache race conditions.
+    const unsubscribeMessageReceived = eventEmitter.on('p2p:message-received', (eventData: { peerCid: string; messageId: string; message?: P2PMessage }) => {
+      const { peerCid: messagePeerCid, messageId, message: eventMessage } = eventData;
+      if (messagePeerCid === peerCid) {
+        // Check if this message is already in our state - if not, add it
+        setMessages(prev => {
+          if (prev.some(m => m.id === messageId)) {
+            return prev; // Already have this message
+          }
+          // Message not in state - use the full message from event if available
+          const newMessage = eventMessage || (() => {
+            // Fallback: fetch from cache if event didn't include full message
+            const conversation = messenger.getConversation(peerCid);
+            return conversation?.messages.find(m => m.id === messageId);
+          })();
+          if (newMessage) {
+            console.log('[P2PChat] p2p:message-received caught message missed by onMessage:', messageId.slice(0, 8));
+            return [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp);
+          }
+          return prev;
+        });
+      }
+    });
+
     // Check initial connection status from multiple sources
     const initialConnected = messenger.isConnected(peerCid) || p2pAutoConnectService.isPeerConnected(peerCid);
     setIsConnected(initialConnected);
@@ -254,6 +351,27 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
       });
     }
 
+    // FALLBACK: Re-check cache after a short delay to catch any messages
+    // that might have arrived during initialization but weren't loaded.
+    // This handles race conditions between WebSocket messages and cache loading.
+    const refreshTimeout = setTimeout(() => {
+      const conversation = messenger.getConversation(peerCid);
+      if (conversation && conversation.messages.length > 0) {
+        setMessages(prev => {
+          // Only update if we have fewer messages than cache
+          if (prev.length < conversation.messages.length) {
+            const existingIds = new Set(prev.map(m => m.id));
+            const newFromCache = conversation.messages.filter(m => !existingIds.has(m.id));
+            if (newFromCache.length > 0) {
+              console.log('[P2PChat] Fallback refresh found', newFromCache.length, 'additional messages');
+              return [...prev, ...newFromCache].sort((a, b) => a.timestamp - b.timestamp);
+            }
+          }
+          return prev;
+        });
+      }
+    }, 500); // 500ms delay to allow any in-flight messages to be processed
+
     // Listen for tab visibility changes - mark messages as read when tab becomes visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && peerCid !== 'demo-peer-kathy') {
@@ -267,11 +385,14 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
     return () => {
       unsubscribeMessage();
       unsubscribeStatusChange();
+      unsubscribeMessageUpdate();
       unsubscribeTyping();
       unsubscribeConnection();
       unsubscribePresence();
       unsubscribeRegistration();
+      unsubscribeMessageReceived();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(refreshTimeout);
       // Stop typing polling when unmounting or changing peer
       messenger.stopTypingPolling(peerCid);
     };
@@ -287,9 +408,15 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
   // Listen for raw P2P messages to detect yjs_sync for tab activity indicators
   // This works even when CollaborativeEditor is not mounted (user on Messages tab)
   useEffect(() => {
-    const handleRawMessage = ({ peerCid, message }: { peerCid: string; message: string }) => {
+    // Message is now Uint8Array (MessagePack or JSON bytes)
+    // YJS messages use JSON, chat messages use MessagePack
+    const handleRawMessage = ({ peerCid, message }: { peerCid: string; message: Uint8Array }) => {
       try {
-        const parsed = JSON.parse(message);
+        // Decode Uint8Array to string and try JSON parse
+        // If it's a valid JSON YJS message, handle it
+        // If it's MessagePack (chat message), JSON.parse will throw and we ignore it
+        const decoded = new TextDecoder().decode(message);
+        const parsed = JSON.parse(decoded);
         // Check if it's a yjs_sync message (document edit from peer)
         if (parsed.type === 'yjs_sync' && parsed.document_id) {
           const documentId = parsed.document_id;
@@ -302,7 +429,7 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
           }
         }
       } catch (e) {
-        // Not a JSON message or not a yjs message, ignore
+        // Not a JSON message or not a yjs message (likely MessagePack chat), ignore
       }
     };
 
@@ -445,6 +572,64 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
     }
   }, [peerCid, messenger]);
 
+  // File transfer handlers
+  const handleSendFile = useCallback(async (file: File, mode: FileTransferMode) => {
+    try {
+      await fileTransferService.sendFile(peerCid, file, mode);
+      toast({
+        title: 'File Sent',
+        description: `Sending ${file.name} to ${peerName}`,
+      });
+    } catch (error) {
+      console.error('Failed to send file:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to send file',
+        description: error instanceof Error ? error.message : 'Check your connection and try again.',
+      });
+      throw error; // Re-throw so modal shows error
+    }
+  }, [peerCid, peerName, toast]);
+
+  const handleAcceptTransfer = useCallback(async (transferId: string) => {
+    try {
+      await fileTransferService.acceptTransfer(transferId);
+    } catch (error) {
+      console.error('Failed to accept transfer:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to accept file',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }, [toast]);
+
+  const handleDeclineTransfer = useCallback(async (transferId: string) => {
+    try {
+      await fileTransferService.declineTransfer(transferId);
+    } catch (error) {
+      console.error('Failed to decline transfer:', error);
+    }
+  }, []);
+
+  const handleCancelTransfer = useCallback(async (transferId: string) => {
+    try {
+      await fileTransferService.cancelTransfer(transferId);
+    } catch (error) {
+      console.error('Failed to cancel transfer:', error);
+    }
+  }, []);
+
+  const handleOpenFile = useCallback((downloadPath: string) => {
+    // Open the file - for now just log it
+    // TODO: Implement actual file opening based on environment
+    console.log('Opening file:', downloadPath);
+    toast({
+      title: 'File Ready',
+      description: `File saved to: ${downloadPath}`,
+    });
+  }, [toast]);
+
   // Helper to get combined status display with priority:
   // 1. P2P connected -> "Online" (green)
   // 2. Registered -> "Registered" (blue)
@@ -519,6 +704,16 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
               </div>
             </div>
           </div>
+          {/* Settings Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowSettingsModal(true)}
+            className="text-gray-400 hover:text-white hover:bg-[#262C4A]"
+            data-testid="chat-settings-button"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -545,8 +740,23 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
           <>
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
               <div className="space-y-4">
+                {/* DEBUG: Log messages array at render time */}
+                {console.log('[P2PChat] Render - messages:', {
+                  count: messages.length,
+                  types: messages.map(m => m.message_type),
+                  peerCid: peerCid?.slice(0, 12)
+                })}
                 {messages.map((message) => {
                   const isOwn = message.senderCid === currentUserCid;
+                  // DEBUG: Log to understand isOwn calculation
+                  if (message.message_type === 'file_transfer') {
+                    console.log('[P2PChat] File transfer message isOwn calculation:', {
+                      isOwn,
+                      senderCid: message.senderCid,
+                      currentUserCid,
+                      equal: message.senderCid === currentUserCid
+                    });
+                  }
                   return (
                     <MessageBubble
                       key={message.id}
@@ -554,6 +764,10 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
                       isOwn={isOwn}
                       onRetry={() => handleRetryMessage(message)}
                       onOpenDocument={handleOpenDocument}
+                      onAcceptTransfer={handleAcceptTransfer}
+                      onDeclineTransfer={handleDeclineTransfer}
+                      onCancelTransfer={handleCancelTransfer}
+                      onOpenFile={handleOpenFile}
                     />
                   );
                 })}
@@ -589,6 +803,18 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
                   }}
                   className="flex gap-2"
                 >
+                  {/* File attachment button */}
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setShowFileModal(true)}
+                    disabled={!canSendMessages}
+                    className="text-gray-400 hover:text-white hover:bg-white/10"
+                    title="Send file"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
                   <Input
                     ref={inputRef}
                     value={inputMessage}
@@ -633,6 +859,22 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
         onClose={() => setShowDocModal(false)}
         onCreateDocument={handleCreateDocument}
         initialContent={inputMessage}
+      />
+
+      {/* File Transfer Modal */}
+      <FileTransferModal
+        isOpen={showFileModal}
+        onClose={() => setShowFileModal(false)}
+        onSendFile={handleSendFile}
+        peerCid={peerCid}
+      />
+
+      {/* Chat Settings Modal */}
+      <ChatSettingsPanel
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        peerCid={peerCid}
+        peerName={peerName}
       />
     </div>
   );

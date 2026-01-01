@@ -17,16 +17,51 @@ export async function sendMessage(
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Sending message ===`);
 
+  // Bring tab to front
+  await page.bringToFront();
+
+  console.log(`  [DEBUG] Waiting for message input to be visible (5s timeout)...`);
+
+  // Use waitFor with timeout instead of isVisible which doesn't timeout properly
   const messageInput = page.locator('input[placeholder*="message"]').first();
 
-  if (!await messageInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+  try {
+    await messageInput.waitFor({ state: 'visible', timeout: 5000 });
+    console.log(`  [DEBUG] Message input is now visible`);
+  } catch (e) {
+    console.log(`  [DEBUG] Message input not found or timed out: ${e}`);
+
+    // Debug: Take screenshot and check what's visible
+    await takeScreenshot(page, `${username}_message_input_NOT_FOUND`);
+    const currentUrl = page.url();
+    console.log(`  [DEBUG] Current URL: ${currentUrl}`);
+
+    // Check for common issues
+    const p2pChatVisible = await page.locator('[data-testid="p2p-chat"], .p2p-chat').first().isVisible().catch(() => false);
+    console.log(`  [DEBUG] P2PChat visible: ${p2pChatVisible}`);
+
+    const anyInput = await page.locator('input').count();
+    console.log(`  [DEBUG] Total input elements on page: ${anyInput}`);
+
+    const chatSection = await page.locator('[class*="chat"], [class*="message"], [class*="conversation"]').count();
+    console.log(`  [DEBUG] Chat-related elements: ${chatSection}`);
+
+    const modalVisible = await page.locator('[role="dialog"], .modal, [class*="modal"]').first().isVisible().catch(() => false);
+    console.log(`  [DEBUG] Modal visible: ${modalVisible}`);
+
     if (uxTracker) {
       uxTracker.log('critical', 'functional', 'Message input not found');
     }
     return false;
   }
 
-  const isDisabled = await messageInput.isDisabled();
+  console.log(`  [DEBUG] Checking if input is disabled...`);
+  const isDisabled = await messageInput.isDisabled().catch(() => {
+    console.log(`  [DEBUG] isDisabled check failed, assuming not disabled`);
+    return false;
+  });
+  console.log(`  [DEBUG] isDisabled: ${isDisabled}`);
+
   if (isDisabled) {
     if (uxTracker) {
       uxTracker.log('major', 'functional', 'Message input is disabled');
@@ -35,13 +70,22 @@ export async function sendMessage(
     return false;
   }
 
+  console.log(`  [DEBUG] Filling message text...`);
   await messageInput.fill(messageText);
+  console.log(`  [DEBUG] Message text filled, waiting 300ms...`);
   await new Promise(resolve => setTimeout(resolve, 300));
 
+  console.log(`  [DEBUG] Looking for send button...`);
   const sendBtn = page.locator('button[type="submit"]').last();
-  if (await sendBtn.isVisible()) {
+
+  const sendBtnVisible = await sendBtn.isVisible().catch(() => false);
+  console.log(`  [DEBUG] Send button visible: ${sendBtnVisible}`);
+
+  if (sendBtnVisible) {
+    console.log(`  [DEBUG] Clicking send button...`);
     await sendBtn.click();
   } else {
+    console.log(`  [DEBUG] Pressing Enter to send...`);
     await messageInput.press('Enter');
   }
 
@@ -63,6 +107,10 @@ export async function verifyMessageReceived(
   uxTracker: UxIssueTracker | null = null
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Verifying message received ===`);
+
+  // Bring tab to front
+  await page.bringToFront();
+
   console.log(`  Looking for: "${expectedText.substring(0, 50)}..."`);
 
   // Escape special regex characters in the expected text for use in selectors
@@ -152,4 +200,177 @@ export async function verifyMessageReceived(
   }
   await takeScreenshot(page, `${username}_message_not_received`);
   return false;
+}
+
+/**
+ * Verify that messages appear in the expected order in the chat
+ * Returns an object with success status and details about each message
+ */
+export async function verifyMessageOrder(
+  page: Page,
+  username: string,
+  expectedMessages: string[],
+  timeout = 30000,
+  uxTracker: UxIssueTracker | null = null
+): Promise<{ success: boolean; details: { message: string; found: boolean; index: number }[] }> {
+  console.log(`\n=== ${username}: Verifying message order ===`);
+  console.log(`  Expecting ${expectedMessages.length} messages in order:`);
+  expectedMessages.forEach((msg, i) => {
+    console.log(`    ${i + 1}. "${msg.substring(0, 40)}${msg.length > 40 ? '...' : ''}"`);
+  });
+
+  const details: { message: string; found: boolean; index: number }[] = [];
+
+  // Wait for all messages to appear first
+  for (const msg of expectedMessages) {
+    try {
+      await page.waitForFunction(
+        (text: string) => {
+          const elements = document.querySelectorAll('.prose, [class*="message"], [class*="bubble"], p, div');
+          for (let i = 0; i < elements.length; i++) {
+            if (elements[i].textContent?.includes(text)) {
+              return true;
+            }
+          }
+          return false;
+        },
+        msg,
+        { timeout, polling: 500 }
+      );
+    } catch {
+      console.log(`  ✗ Message not found within timeout: "${msg.substring(0, 40)}..."`);
+      if (uxTracker) {
+        uxTracker.log('critical', 'functional', `Message not found: "${msg}"`);
+      }
+      details.push({ message: msg, found: false, index: -1 });
+    }
+  }
+
+  // Now get all message elements and find their positions using Playwright locators
+  // This is more reliable than page.evaluate() as it handles timing and context properly
+  const allMessageTexts: string[] = [];
+  const seen = new Set<string>();
+
+  // Use 'p' selector since it finds the message text reliably
+  const locator = page.locator('p');
+  const count = await locator.count();
+
+  for (let i = 0; i < count; i++) {
+    const text = await locator.nth(i).textContent();
+    if (text) {
+      const trimmed = text.trim();
+      // Filter out empty strings, very short strings, and duplicates
+      if (trimmed.length > 10 && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        allMessageTexts.push(trimmed);
+      }
+    }
+  }
+
+  console.log(`  Found ${allMessageTexts.length} message elements on page`);
+
+  // Find the index of each expected message
+  let lastFoundIndex = -1;
+  let allInOrder = true;
+
+  for (const expectedMsg of expectedMessages) {
+    // Find the first occurrence of this message at or after lastFoundIndex
+    let foundIndex = -1;
+    for (let i = lastFoundIndex + 1; i < allMessageTexts.length; i++) {
+      if (allMessageTexts[i].includes(expectedMsg)) {
+        foundIndex = i;
+        break;
+      }
+    }
+
+    if (foundIndex === -1) {
+      // Message not found at all, or not found after the previous message
+      // Check if it exists anywhere (out of order)
+      const existsAnywhere = allMessageTexts.some(t => t.includes(expectedMsg));
+      if (existsAnywhere) {
+        console.log(`  ✗ Message found but OUT OF ORDER: "${expectedMsg.substring(0, 40)}..."`);
+        if (uxTracker) {
+          uxTracker.log('major', 'functional', `Message out of order: "${expectedMsg}"`);
+        }
+      } else {
+        console.log(`  ✗ Message NOT FOUND: "${expectedMsg.substring(0, 40)}..."`);
+      }
+      details.push({ message: expectedMsg, found: existsAnywhere, index: -1 });
+      allInOrder = false;
+    } else {
+      console.log(`  ✓ Message at index ${foundIndex}: "${expectedMsg.substring(0, 40)}..."`);
+      details.push({ message: expectedMsg, found: true, index: foundIndex });
+      lastFoundIndex = foundIndex;
+    }
+  }
+
+  if (allInOrder) {
+    console.log(`  ✓ All ${expectedMessages.length} messages found in correct order`);
+  } else {
+    console.log(`  ✗ Message order verification FAILED`);
+    await takeScreenshot(page, `${username}_message_order_failed`);
+  }
+
+  return { success: allInOrder, details };
+}
+
+/**
+ * Verify that sent messages have been seen (read status - blue checkmarks).
+ * This checks that the receiver has read the messages and sent back read receipts.
+ *
+ * @param page - The sender's page (the one who sent the messages)
+ * @param username - Username for logging
+ * @param expectedSeenCount - Number of messages expected to show "read" (blue checkmark) status
+ * @param timeout - Timeout in ms to wait for status to update
+ * @param uxTracker - Optional UX issue tracker
+ * @returns Object with success status and count details
+ */
+export async function verifyMessagesSeen(
+  page: Page,
+  username: string,
+  expectedSeenCount: number,
+  timeout = 15000,
+  uxTracker: UxIssueTracker | null = null
+): Promise<{ success: boolean; seenCount: number; deliveredCount: number; sentCount: number }> {
+  console.log(`\n=== ${username}: Verifying messages seen (read status) ===`);
+  console.log(`  Expecting ${expectedSeenCount} messages with "read" status (blue checkmarks)`);
+
+  const startTime = Date.now();
+  let seenCount = 0;
+  let deliveredCount = 0;
+  let sentCount = 0;
+
+  // Poll until we get the expected seen count or timeout
+  while (Date.now() - startTime < timeout) {
+    // Count status indicators using data-testid attributes
+    seenCount = await page.locator('[data-testid="message-status-read"]').count();
+    deliveredCount = await page.locator('[data-testid="message-status-delivered"]').count();
+    sentCount = await page.locator('[data-testid="message-status-sent"]').count();
+
+    console.log(`  Status counts: read=${seenCount}, delivered=${deliveredCount}, sent=${sentCount}`);
+
+    if (seenCount >= expectedSeenCount) {
+      console.log(`  ✓ Found ${seenCount} messages with "read" status (expected ${expectedSeenCount})`);
+      await takeScreenshot(page, `${username}_messages_seen_verified`);
+      return { success: true, seenCount, deliveredCount, sentCount };
+    }
+
+    // Wait a bit before checking again
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  // Timeout - didn't get expected seen count
+  console.log(`  ✗ Timeout waiting for messages to be seen`);
+  console.log(`  Final counts: read=${seenCount}, delivered=${deliveredCount}, sent=${sentCount}`);
+
+  if (uxTracker) {
+    uxTracker.log(
+      'critical',
+      'functional',
+      `Messages not marked as seen within ${timeout}ms. Expected ${expectedSeenCount} read, got ${seenCount}. Delivered: ${deliveredCount}, Sent: ${sentCount}`
+    );
+  }
+
+  await takeScreenshot(page, `${username}_messages_not_seen`);
+  return { success: false, seenCount, deliveredCount, sentCount };
 }

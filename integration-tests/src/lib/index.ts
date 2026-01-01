@@ -43,10 +43,24 @@ export {
   closeAnyModals,
   checkForErrors,
   waitForWorkspaceLoaded,
+  checkToastState,
+  assertNoToastConflict,
+  dismissAllToasts,
 } from './modals.js';
+export type { ToastState } from './modals.js';
 
 // Browser
-export { createBrowser, setupConsoleCapture, clearBrowserStorage } from './browser.js';
+export {
+  createBrowser,
+  setupConsoleCapture,
+  clearBrowserStorage,
+  wakeUpTab,
+  createIsolatedContexts,
+  createSeparateBrowsers,
+  recoverUnresponsiveTab,
+  wakeUpTabWithRecovery,
+} from './browser.js';
+export type { MultiBrowserSetup } from './browser.js';
 
 // Reports
 export { writeTestReport } from './report.js';
@@ -59,10 +73,17 @@ export {
   p2pRegister,
   acceptP2PRequest,
   openConversation,
+  disconnectViaNavbar,
+  disconnectViaTopBar,
+  disconnectViaTcpDrop,
+  assertSessionNotInOrphanNavbar,
+  assertSessionInOrphanNavbar,
+  loginAfterDisconnect,
+  reconnectViaClaimSession,
 } from './p2p.js';
 
 // Messaging
-export { sendMessage, verifyMessageReceived } from './messaging.js';
+export { sendMessage, verifyMessageReceived, verifyMessageOrder, verifyMessagesSeen } from './messaging.js';
 
 // Live Documents
 export {

@@ -6,7 +6,7 @@
  */
 
 import { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
-import { EventEmitter } from './event-emitter';
+import { TypedEventEmitter } from './event-emitter';
 
 export interface GroupMessageEvent {
   type: 'new_message' | 'message_edited' | 'message_deleted' | 'messages_loaded';
@@ -30,11 +30,11 @@ export interface GroupMessagesState {
  */
 class GroupMessagingManagerClass {
   private static instance: GroupMessagingManagerClass;
-  private eventEmitter: EventEmitter<GroupMessageEvent>;
+  private eventEmitter: TypedEventEmitter<GroupMessageEvent>;
   private groupMessages: Map<string, GroupMessagesState>;
 
   private constructor() {
-    this.eventEmitter = new EventEmitter();
+    this.eventEmitter = new TypedEventEmitter<GroupMessageEvent>();
     this.groupMessages = new Map();
   }
 

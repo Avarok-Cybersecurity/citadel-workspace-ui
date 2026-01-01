@@ -1,4 +1,5 @@
 import { formatForDebug } from './debug-formatter';
+import { eventEmitter } from './event-emitter';
 
 /**
  * Parses a string that may contain mixed text and JSON objects.
@@ -116,6 +117,21 @@ export function setupWasmDebugBridge() {
       console.log(logStr);
     }
   };
-  
+
+  // Set up the WebSocket disconnection callback
+  // This is called by the WASM module when the WebSocket connection dies
+  (window as any).onWasmWebSocketDisconnected = (reason: string) => {
+    console.error('[WASM Bridge] WebSocket disconnected:', reason);
+
+    // Emit connection-failure event to show the retry modal
+    eventEmitter.emit('connection-failure', {
+      error: `WebSocket connection lost: ${reason}`,
+      isDisconnect: true
+    });
+
+    // Also emit a specific event for services to stop background operations
+    eventEmitter.emit('websocket-disconnected', { reason });
+  };
+
   console.log('WASM debug bridge set up');
 }

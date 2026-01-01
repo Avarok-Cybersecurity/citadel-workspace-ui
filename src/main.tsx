@@ -7,6 +7,10 @@ import './index.css'
 // Initialize tab notification service (updates tab title and favicon with unread count)
 import './lib/tab-notification-service'
 
+// Initialize WASM peer bridge (provides peer connection state to WASM ILM via JS callback)
+import { initWasmPeerBridge } from './lib/wasm-peer-bridge'
+initWasmPeerBridge();
+
 console.log("main.tsx starting");
 
 // Add error handlers to catch any issues

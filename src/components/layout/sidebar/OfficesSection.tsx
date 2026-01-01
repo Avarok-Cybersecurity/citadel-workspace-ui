@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useWorkspace } from "@/lib/workspace-context";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreVertical } from "lucide-react";
+import { Plus, MoreVertical, Star } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -74,6 +74,27 @@ export const OfficesSection = () => {
     const office = state.offices[officeId];
     if (office) {
       setOfficeToDelete({ id: office.id, name: office.name });
+    }
+  };
+
+  const handleSetAsDefault = async (officeId: string) => {
+    const office = state.offices[officeId];
+    if (!office) return;
+
+    try {
+      await WorkspaceService.updateOffice(officeId, { is_default: true });
+      toast({
+        title: "Default Office Updated",
+        description: `${office.name} is now the default office`,
+        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      });
+    } catch (error) {
+      console.error("Error setting default office:", error);
+      toast({
+        title: "Error",
+        description: "Failed to set default office. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -146,7 +167,15 @@ export const OfficesSection = () => {
                       isActive={currentOfficeId === office.id}
                       onClick={() => handleOfficeClick(office.id)}
                     >
-                      <span className="truncate">{office.name}</span>
+                      <span className="truncate flex items-center gap-1.5">
+                        {office.name}
+                        {office.is_default && (
+                          <Star
+                            className="h-3 w-3 text-yellow-500 fill-yellow-500 flex-shrink-0"
+                            aria-label="Default office"
+                          />
+                        )}
+                      </span>
                     </SidebarMenuButton>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -164,6 +193,16 @@ export const OfficesSection = () => {
                         <DropdownMenuItem onClick={() => handleEditOffice(office.id)} data-testid="edit-office-option">
                           Edit Office
                         </DropdownMenuItem>
+                        {!office.is_default && (
+                          <DropdownMenuItem
+                            onClick={() => handleSetAsDefault(office.id)}
+                            className="text-yellow-400 hover:text-yellow-300"
+                            data-testid="set-default-office-option"
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            Set as Default
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           onClick={() => handleDeleteOffice(office.id)}
                           className="text-red-400 hover:text-red-300 hover:bg-red-900/30"

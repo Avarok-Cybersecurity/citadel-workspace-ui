@@ -34,6 +34,7 @@ export interface Office extends Entity {
   rules?: string;
   chat_enabled: boolean;
   chat_channel_id?: string;
+  is_default?: boolean; // Whether this is the default office (navigated to on login)
 }
 
 // Room entity

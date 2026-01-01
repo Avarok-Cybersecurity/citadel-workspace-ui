@@ -1,5 +1,34 @@
 export type EventHandler<T = any> = (payload: T) => void;
 
+/**
+ * TypedEventEmitter - A simple typed event emitter for strongly-typed events
+ * Used by managers like GroupMessagingManager that emit/subscribe to typed events
+ */
+export class TypedEventEmitter<T> {
+  private subscribers: Set<(event: T) => void> = new Set();
+
+  emit(event: T): void {
+    this.subscribers.forEach(callback => {
+      try {
+        callback(event);
+      } catch (error) {
+        console.error('Error in typed event handler:', error);
+      }
+    });
+  }
+
+  subscribe(callback: (event: T) => void): () => void {
+    this.subscribers.add(callback);
+    return () => {
+      this.subscribers.delete(callback);
+    };
+  }
+
+  clear(): void {
+    this.subscribers.clear();
+  }
+}
+
 export class EventEmitter {
   private listeners: Map<string, Set<EventHandler>> = new Map();
 

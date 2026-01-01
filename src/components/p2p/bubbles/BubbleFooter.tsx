@@ -11,15 +11,15 @@ interface BubbleFooterProps {
 function getMessageStatusIcon(message: P2PMessage) {
   switch (message.status) {
     case 'pending':
-      return <Clock className="h-3 w-3 text-gray-400" />;
+      return <Clock className="h-3 w-3 text-gray-400" data-testid="message-status-pending" />;
     case 'sent':
-      return <Check className="h-3 w-3 text-gray-400" />;
+      return <Check className="h-3 w-3 text-gray-400" data-testid="message-status-sent" />;
     case 'delivered':
-      return <CheckCheck className="h-3 w-3 text-gray-400" />;
+      return <CheckCheck className="h-3 w-3 text-gray-400" data-testid="message-status-delivered" />;
     case 'read':
-      return <CheckCheck className="h-3 w-3 text-sky-400" />;
+      return <CheckCheck className="h-3 w-3 text-sky-400" data-testid="message-status-read" />;
     case 'failed':
-      return <XCircle className="h-3 w-3 text-red-400" />;
+      return <XCircle className="h-3 w-3 text-red-400" data-testid="message-status-failed" />;
     default:
       return null;
   }

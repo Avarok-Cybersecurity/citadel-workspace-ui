@@ -5,6 +5,12 @@ import { broadcastChannelService } from './broadcast-channel-service';
 import { connectionManager } from './connection-manager';
 import { debugLog, errorLog } from './debug-config';
 
+// New multi-instance architecture imports
+import { instanceManager } from './instance-manager';
+import { instanceChannel } from './instance-channel';
+import { leaderOutboundHandler } from './leader-outbound-handler';
+import { instanceInboundRouter } from './instance-inbound-router';
+
 export interface WebSocketServiceConfig {
   websocketUrl?: string;
   messageHandler?: (message: any) => void;
@@ -128,17 +134,24 @@ class WebSocketService {
       websocketUrl: this.config.websocketUrl!,
       messageHandler: (message: InternalServiceResponse) => {
         debugLog('websocket', 'Message received from WASM client', message);
-        
-        // Broadcast the message to other tabs if we're the leader
+
+        // NEW: Route inbound messages through instance inbound router
+        // The router will forward to the correct instance based on CID
+        if (instanceManager.isLeader) {
+          instanceInboundRouter.routeMessage(message);
+        }
+
+        // Legacy: Broadcast the message to other tabs if we're the leader
+        // This is being replaced by instanceInboundRouter but kept for compatibility
         if (broadcastChannelService.getIsLeader()) {
           broadcastChannelService.broadcastWorkspaceResponse(message);
         }
-        
+
         // Forward the response to the handler
         if (this.config.messageHandler) {
           this.config.messageHandler(message);
         }
-        
+
         // Also emit events for compatibility
         eventEmitter.emit('websocket-message', message);
       },
@@ -150,20 +163,44 @@ class WebSocketService {
       this.client = new WorkspaceClient(clientConfig);
       await this.client.init();
       this.isInitialized = true;
+
+      // Notify all listeners that WebSocket connection is ready
+      // Services can now safely use WebSocket for their initialization
+      eventEmitter.emit('on-ws-connection-success');
+
       // Store client in global state for sharing across instances
       if (window[GLOBAL_INIT_KEY]) {
         window[GLOBAL_INIT_KEY].client = this.client;
       }
+
+      // NEW: Register the direct send function with leader outbound handler
+      // This allows the handler to send messages when this instance is leader
+      leaderOutboundHandler.setWebSocketSendFunction(async (message: any) => {
+        if (this.client) {
+          await this.client.sendDirectToInternalService(message);
+        }
+      });
+      debugLog('websocket', 'Registered send function with leader outbound handler');
+
+      // Listen for WebSocket disconnection to stop the message processing loop
+      // This prevents the UI from freezing when the WebSocket dies
+      eventEmitter.on('websocket-disconnected', () => {
+        debugLog('websocket', 'WebSocket disconnected event received, stopping message processing');
+        if (this.client) {
+          this.client.stopMessageProcessing();
+        }
+      });
+
       debugLog('websocket', 'WASM client initialization completed successfully');
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
       this.client = null;
       this.isInitialized = false;
-      
+
       // Emit connection-failure event for UI to handle
       const errorMessage = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
       eventEmitter.emit('connection-failure', { error: errorMessage });
-      
+
       throw error;
     }
   }
@@ -357,7 +394,7 @@ class WebSocketService {
     if (!cid) {
       throw new Error('CID is required to open P2P connection');
     }
-    
+
     if (cid === targetCid) {
       throw new Error('Cannot open P2P connection to self');
     }
@@ -414,6 +451,82 @@ class WebSocketService {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handler);
         reject(error);
+      });
+    });
+  }
+
+  /**
+   * Accept an incoming P2P connection request.
+   * This is sent in response to PeerConnectNotification to complete the handshake.
+   * @param cid - Our session CID
+   * @param peerCid - The peer who initiated the connection
+   * @param notification - The original PeerConnectNotification (for session_security_settings and udp_mode)
+   */
+  async acceptPeerConnect(cid: string, peerCid: string, notification: any): Promise<void> {
+    await this.init(); // ensure initialized
+
+    if (!cid || !peerCid) {
+      throw new Error('CID and peerCid are required to accept P2P connection');
+    }
+
+    debugLog('websocket', 'Accepting P2P connection', { cid, peerCid });
+
+    const requestId = crypto.randomUUID();
+    const acceptRequest = {
+      PeerConnectAccept: {
+        request_id: requestId,
+        cid: cid,
+        peer_cid: peerCid,
+        accept: true,
+        udp_mode: notification?.udp_mode || 'Disabled',
+        session_security_settings: notification?.session_security_settings || {
+          security_level: 'Standard',
+          secrecy_mode: 'BestEffort',
+          crypto_params: {
+            encryption_algorithm: 'AES_GCM_256',
+            kem_algorithm: 'Kyber',
+            sig_algorithm: 'None'
+          },
+          header_obfuscator_settings: 'Disabled'
+        },
+        peer_session_password: null
+      }
+    };
+
+    // Send the request and wait for success/failure (with shorter timeout since it should be fast)
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handler);
+        // Don't reject on timeout - this is a best-effort accept
+        console.warn('PeerConnectAccept timed out - continuing with PeerConnect fallback');
+        resolve();
+      }, 10000);
+
+      const handler = (message: any) => {
+        if ('PeerConnectAcceptSuccess' in message && message.PeerConnectAcceptSuccess.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          debugLog('websocket', 'P2P connection accept sent', { peerCid });
+          resolve();
+        } else if ('PeerConnectAcceptFailure' in message && message.PeerConnectAcceptFailure.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          const error = message.PeerConnectAcceptFailure.message || 'PeerConnectAccept failed';
+          // Don't reject - we'll fall back to PeerConnect
+          console.warn('PeerConnectAccept failed:', error, '- will use PeerConnect fallback');
+          resolve();
+        }
+      };
+
+      eventEmitter.on('websocket-message', handler);
+
+      // Send the request
+      this.sendMessage(acceptRequest).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handler);
+        // Don't reject - we'll fall back to PeerConnect
+        console.warn('Failed to send PeerConnectAccept:', error);
+        resolve();
       });
     });
   }
@@ -615,10 +728,66 @@ class WebSocketService {
     this.isInitialized = false;
   }
 
+  /**
+   * Reset the WebSocket service state to allow re-initialization.
+   * Call this before attempting to reconnect after a connection failure.
+   * This clears both local and global state.
+   */
+  reset(): void {
+    debugLog('websocket', 'Resetting WebSocket service state for reconnection');
+
+    // Clear local state
+    this.client = null;
+    this.isInitialized = false;
+    this.initializationPromise = null;
+
+    // Clear global state to allow re-initialization
+    window[GLOBAL_INIT_KEY] = undefined;
+
+    debugLog('websocket', 'WebSocket service state reset complete');
+  }
+
   isConnected(): boolean {
     return this.isInitialized && this.client !== null;
   }
 
+  /**
+   * Wait for WebSocket initialization to complete.
+   * Use this before making requests that require a connected WebSocket.
+   * Returns immediately if already initialized.
+   */
+  async waitForInit(): Promise<void> {
+    // Already initialized - return immediately
+    if (this.isInitialized && this.client) {
+      return;
+    }
+
+    // Check global state
+    if (window[GLOBAL_INIT_KEY]?.initialized && window[GLOBAL_INIT_KEY]?.client) {
+      this.isInitialized = true;
+      this.client = window[GLOBAL_INIT_KEY].client;
+      return;
+    }
+
+    // Wait for initialization promise if it exists
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      return;
+    }
+
+    // Wait for global initialization promise if it exists
+    if (window[GLOBAL_INIT_KEY]?.promise) {
+      await window[GLOBAL_INIT_KEY].promise;
+      if (window[GLOBAL_INIT_KEY]?.client) {
+        this.client = window[GLOBAL_INIT_KEY].client;
+        this.isInitialized = true;
+      }
+      return;
+    }
+
+    // If no initialization is in progress, start it
+    await this.init();
+  }
 
   getClient(): WorkspaceClient | null {
     return this.client;
@@ -721,7 +890,7 @@ class WebSocketService {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('SetConnectionOrphan request timed out'));
-      }, 10000);
+      }, 3000); // Reduced from 10s to 3s - fail fast, don't block UI
       
       const handler = (message: any) => {
         const response = message.Response || message;
@@ -748,6 +917,16 @@ class WebSocketService {
         eventEmitter.off('websocket-message', handler);
         reject(error);
       });
+    });
+  }
+
+  /**
+   * Non-blocking version of setOrphanMode for initialization
+   * Fire-and-forget - don't wait for response, don't block UI
+   */
+  setOrphanModeNonBlocking(enabled: boolean): void {
+    this.setOrphanMode(enabled).catch(err => {
+      console.warn('[WebSocketService] setOrphanMode failed (non-blocking):', err.message);
     });
   }
 
@@ -995,6 +1174,73 @@ class WebSocketService {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
           reject(new Error(message.LocalDBSetKVFailure.message || 'LocalDB set failed'));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+      client.sendDirectToInternalService(request as any).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(error);
+      });
+    });
+  }
+
+  // ============== File Picker ==============
+
+  /**
+   * Open a native file picker dialog to select a file.
+   * This requires the internal-service to be running natively (not in browser sandbox).
+   * @param cid - The user's CID
+   * @param title - Optional title for the file picker dialog
+   * @param allowedExtensions - Optional list of allowed file extensions (e.g., ["pdf", "txt"])
+   * @returns The selected file's path, name, and size
+   */
+  async pickFile(
+    cid: string,
+    title?: string,
+    allowedExtensions?: string[]
+  ): Promise<{ file_path: string; file_name: string; file_size: bigint }> {
+    await this.init(); // ensure initialized
+
+    const requestId = crypto.randomUUID();
+    const client = this.getClient();
+
+    if (!client) {
+      throw new Error('No WebSocket client available');
+    }
+
+    const request = {
+      PickFile: {
+        request_id: requestId,
+        cid: cid,
+        title: title || null,
+        allowed_extensions: allowedExtensions || null
+      }
+    };
+
+    debugLog('websocket', 'Sending PickFile request', request);
+
+    return new Promise((resolve, reject) => {
+      // Longer timeout for file picker - user interaction can take time
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(new Error('File picker timed out'));
+      }, 120000); // 2 minute timeout
+
+      const handleMessage = (message: any) => {
+        if (message.PickFileSuccess?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          resolve({
+            file_path: message.PickFileSuccess.file_path,
+            file_name: message.PickFileSuccess.file_name,
+            file_size: message.PickFileSuccess.file_size
+          });
+        } else if (message.PickFileFailure?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          reject(new Error(message.PickFileFailure.message || 'File picker failed'));
         }
       };
 

@@ -199,19 +199,25 @@ export class YjsP2PProvider {
   }
 
   private setupMessageListener() {
-    this.messageListener = eventEmitter.on('p2p:raw-message', ({ peerCid, message }: { peerCid: string; message: string }) => {
+    // Message is now Uint8Array (MessagePack or JSON bytes)
+    // YJS messages use JSON, chat messages use MessagePack
+    this.messageListener = eventEmitter.on('p2p:raw-message', ({ peerCid, message }: { peerCid: string; message: Uint8Array }) => {
       if (this.destroyed) return;
       if (peerCid !== this.peerCid) return;
 
       try {
-        const parsed = JSON.parse(message) as YjsP2PMessage;
+        // Decode Uint8Array to string and try JSON parse
+        // If it's a valid JSON YJS message, handle it
+        // If it's MessagePack (chat message), JSON.parse will throw and we ignore it
+        const decoded = new TextDecoder().decode(message);
+        const parsed = JSON.parse(decoded) as YjsP2PMessage;
 
         // Check if it's a Yjs message for our document
         if ('document_id' in parsed && parsed.document_id !== this.documentId) return;
 
         this.handleMessage(parsed);
       } catch (error) {
-        // Not a Yjs message, ignore
+        // Not a Yjs message (likely MessagePack chat message), ignore
       }
     });
   }

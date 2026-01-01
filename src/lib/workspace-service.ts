@@ -271,6 +271,7 @@ export class WorkspaceService {
       description?: string;
       mdxContent?: string;
       metadata?: Uint8Array;
+      is_default?: boolean;
     }
   ): Promise<any> {
     const requestPart: WorkspaceProtocolRequestTS = {
@@ -279,7 +280,8 @@ export class WorkspaceService {
         name: updates.name,
         description: updates.description,
         mdx_content: updates.mdxContent,
-        metadata: updates.metadata ? Array.from(updates.metadata) : undefined
+        metadata: updates.metadata ? Array.from(updates.metadata) : undefined,
+        is_default: updates.is_default
       }
     };
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
@@ -638,6 +640,27 @@ export class WorkspaceService {
       GetThreadMessages: {
         group_id: groupId,
         parent_message_id: parentMessageId
+      }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  // ========== User Profile Methods ==========
+
+  /**
+   * Update the current user's profile
+   * @param name Optional new display name
+   * @param avatarData Optional base64-encoded avatar image (WebP format)
+   */
+  public async updateUserProfile(
+    name?: string,
+    avatarData?: string
+  ): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      UpdateUserProfile: {
+        name,
+        avatar_data: avatarData
       }
     };
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };

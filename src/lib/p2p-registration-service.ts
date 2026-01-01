@@ -50,9 +50,14 @@ export class P2PRegistrationService {
   private pendingRequests = new Map<string, { resolve: Function; reject: Function }>();
   // Track outgoing registrations separately (peers WE registered with, not who registered with us)
   private outgoingRegistrations = new Set<string>();
+  // Guard to prevent concurrent checkAndRegisterPeers calls (prevents UI freezing from stacked operations)
+  private isCheckingPeers = false;
 
   // Default polling interval (30 seconds)
   private readonly POLLING_INTERVAL = 30000;
+
+  // Timeout for peer listing operations - fail fast to prevent UI freeze (was 10s)
+  private readonly PEER_LIST_TIMEOUT = 3000;
 
   // LocalDB key for auto-accept setting
   private static readonly AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';
@@ -291,8 +296,16 @@ export class P2PRegistrationService {
 
   /**
    * Check for peers and register them if needed
+   * Uses isCheckingPeers guard to prevent concurrent calls from stacking up (prevents UI freeze)
    */
   private async checkAndRegisterPeers(options: PeerRegistrationOptions = {}): Promise<void> {
+    // Guard: prevent concurrent calls from stacking up (prevents UI freeze)
+    if (this.isCheckingPeers) {
+      console.log('[P2P] Skipping peer check - previous check still in progress');
+      return;
+    }
+    this.isCheckingPeers = true;
+
     try {
       // Get all available peers
       const allPeers = await this.listAllPeers();
@@ -320,6 +333,8 @@ export class P2PRegistrationService {
         return;
       }
       console.error('Error checking and registering peers:', error);
+    } finally {
+      this.isCheckingPeers = false;
     }
   }
 
@@ -348,14 +363,14 @@ export class P2PRegistrationService {
     const responsePromise = new Promise<any>((resolve, reject) => {
       this.pendingRequests.set(requestId, { resolve, reject });
 
-      // Set timeout
+      // Fail fast timeout to prevent UI freeze (was 10s, now 3s)
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
           broadcastChannelService.clearRequest(requestId);
           reject(new Error('ListAllPeers request timed out'));
         }
-      }, 10000);
+      }, this.PEER_LIST_TIMEOUT);
     });
 
     await websocketService.sendMessage(request);
@@ -368,8 +383,9 @@ export class P2PRegistrationService {
 
   /**
    * List currently registered peers with retry logic
+   * Reduced retries and backoff to prevent UI freeze (was 3 retries with 1-3s backoff = up to 12s)
    */
-  public async listRegisteredPeersWithRetry(maxRetries = 3): Promise<any[]> {
+  public async listRegisteredPeersWithRetry(maxRetries = 2): Promise<any[]> {
     let lastError: Error | null = null;
     for (let i = 0; i < maxRetries; i++) {
       try {
@@ -380,7 +396,7 @@ export class P2PRegistrationService {
           throw error; // Non-timeout errors propagate immediately
         }
         console.warn(`[P2P] ListRegisteredPeers attempt ${i + 1}/${maxRetries} timed out, retrying...`);
-        await new Promise(r => setTimeout(r, 1000 * (i + 1))); // 1s, 2s, 3s backoff
+        await new Promise(r => setTimeout(r, 500)); // Fixed 500ms backoff (was 1-3s)
       }
     }
     throw lastError || new Error('ListRegisteredPeers failed after retries');
@@ -411,14 +427,14 @@ export class P2PRegistrationService {
     const responsePromise = new Promise<any>((resolve, reject) => {
       this.pendingRequests.set(requestId, { resolve, reject });
 
-      // Set timeout
+      // Fail fast timeout to prevent UI freeze (was 10s, now 3s)
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
           broadcastChannelService.clearRequest(requestId);
           reject(new Error('ListRegisteredPeers request timed out'));
         }
-      }, 10000);
+      }, this.PEER_LIST_TIMEOUT);
     });
 
     await websocketService.sendMessage(request);

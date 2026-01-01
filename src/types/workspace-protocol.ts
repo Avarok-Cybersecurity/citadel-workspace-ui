@@ -57,9 +57,12 @@ export interface WorkspaceProtocolRequestTS {
 
   // Office operations
   CreateOffice?: {
+    workspace_id: string;
     name: string;
     description: string;
     mdx_content?: string;
+    metadata?: number[];
+    is_default?: boolean;
   };
   GetOffice?: {
     office_id: string;
@@ -69,6 +72,8 @@ export interface WorkspaceProtocolRequestTS {
     name?: string;
     description?: string;
     mdx_content?: string;
+    metadata?: number[];
+    is_default?: boolean;
   };
   DeleteOffice?: {
     office_id: string;
@@ -157,6 +162,12 @@ export interface WorkspaceProtocolRequestTS {
     group_id: string;
     parent_message_id: string;
   };
+
+  // User profile operations
+  UpdateUserProfile?: {
+    name?: string;
+    avatar_data?: string; // Base64-encoded WebP image
+  };
 }
 
 // Group message type enum
@@ -192,6 +203,7 @@ export interface OfficeTS {
   rules?: string;
   chat_enabled: boolean;
   chat_channel_id?: string;
+  is_default?: boolean; // Whether this is the default office (navigated to on login)
 }
 
 export interface RoomTS {
@@ -209,6 +221,8 @@ export interface UserTS {
   id: string;
   username: string;
   display_name: string;
+  name?: string;
+  metadata?: Record<string, any>; // For avatar and other user metadata
 }
 
 export enum UserRoleTS {
@@ -242,7 +256,9 @@ export type WorkspaceProtocolResponseTS =
   | { GroupMessages: { group_id: string; messages: GroupMessageTS[]; has_more: boolean } }
   | { GroupMessageEdited: { group_id: string; message_id: string; new_content: string; edited_at: number } }
   | { GroupMessageDeleted: { group_id: string; message_id: string; deleted_by: string } }
-  | { GroupMessage: GroupMessageTS };
+  | { GroupMessage: GroupMessageTS }
+  // User profile responses
+  | { UserProfileUpdated: UserTS };
 
 export enum UpdateOperationTS {
   Add = 'add',

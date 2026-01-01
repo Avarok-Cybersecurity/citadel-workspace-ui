@@ -21,6 +21,8 @@ import {
   openConversation,
   sendMessage,
   verifyMessageReceived,
+  verifyMessageOrder,
+  verifyMessagesSeen,
   takeScreenshot,
   waitForServicesAlive,
   writeTestReport,
@@ -49,6 +51,14 @@ interface TestResults {
     user2ToUser1: boolean;
     user1Received: boolean;
     user2Received: boolean;
+  };
+  messageOrder: {
+    aliceMessagesInOrder: boolean;
+    bobMessagesInOrder: boolean;
+  };
+  seenStatus: {
+    aliceMessagesSeen: boolean;
+    bobMessagesSeen: boolean;
   };
   uxChecks: {
     timestamps: boolean;
@@ -135,6 +145,14 @@ async function runTest(): Promise<boolean> {
       user1Received: false,
       user2Received: false,
     },
+    messageOrder: {
+      aliceMessagesInOrder: false,
+      bobMessagesInOrder: false,
+    },
+    seenStatus: {
+      aliceMessagesSeen: false,
+      bobMessagesSeen: false,
+    },
     uxChecks: {
       timestamps: false,
       onlineStatus: false,
@@ -145,9 +163,9 @@ async function runTest(): Promise<boolean> {
     const page1 = await context.newPage();
     const page2 = await context.newPage();
 
-    // Setup console capture
-    setupConsoleCapture(page1, 'Alice', ['P2P', 'error', 'Error']);
-    setupConsoleCapture(page2, 'Bob', ['P2P', 'error', 'Error']);
+    // Setup console capture - include ILM for InterSession Layer Messaging diagnostics
+    setupConsoleCapture(page1, 'Alice', ['P2P', 'error', 'Error', 'ILM', 'ism']);
+    setupConsoleCapture(page2, 'Bob', ['P2P', 'error', 'Error', 'ILM', 'ism']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));
@@ -251,9 +269,42 @@ async function runTest(): Promise<boolean> {
     await sendMessage(page1, USER1, MESSAGE_3, uxTracker);
     await verifyMessageReceived(page2, USER2, MESSAGE_3, 15000, uxTracker);
 
-    // ========== STEP 6: UX Checks ==========
+    // ========== STEP 6: Message Order Verification ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 6: UX Quality Checks');
+    console.log('STEP 6: Message Order Verification');
+    console.log('─'.repeat(50));
+
+    // Alice should see: her sent messages (MESSAGE_1, MESSAGE_3) + Bob's reply (MESSAGE_2)
+    // Expected order on Alice's screen: MESSAGE_1, MESSAGE_2, MESSAGE_3
+    const aliceExpectedMessages = [MESSAGE_1, MESSAGE_2, MESSAGE_3];
+    const aliceOrderResult = await verifyMessageOrder(page1, USER1, aliceExpectedMessages, 10000, uxTracker);
+    results.messageOrder.aliceMessagesInOrder = aliceOrderResult.success;
+
+    // Bob should see: Alice's messages (MESSAGE_1, MESSAGE_3) + his reply (MESSAGE_2)
+    // Expected order on Bob's screen: MESSAGE_1, MESSAGE_2, MESSAGE_3
+    const bobExpectedMessages = [MESSAGE_1, MESSAGE_2, MESSAGE_3];
+    const bobOrderResult = await verifyMessageOrder(page2, USER2, bobExpectedMessages, 10000, uxTracker);
+    results.messageOrder.bobMessagesInOrder = bobOrderResult.success;
+
+    // ========== STEP 7: Read Receipt Verification (Seen Status) ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 7: Read Receipt Verification (Seen Status)');
+    console.log('─'.repeat(50));
+
+    // Alice sent 2 test messages (MESSAGE_1, MESSAGE_3) + warmup message
+    // After Bob opens the conversation, all should show "read" (blue checkmarks)
+    // We check for the 2 test messages specifically
+    const aliceSeenResult = await verifyMessagesSeen(page1, USER1, 2, 15000, uxTracker);
+    results.seenStatus.aliceMessagesSeen = aliceSeenResult.success;
+
+    // Bob sent 1 test message (MESSAGE_2) + warmup message
+    // After Alice views it, it should show "read" (blue checkmark)
+    const bobSeenResult = await verifyMessagesSeen(page2, USER2, 1, 15000, uxTracker);
+    results.seenStatus.bobMessagesSeen = bobSeenResult.success;
+
+    // ========== STEP 8: UX Checks ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 8: UX Quality Checks');
     console.log('─'.repeat(50));
 
     results.uxChecks.timestamps = await checkMessageTimestamp(page1, USER1);
@@ -284,7 +335,11 @@ async function runTest(): Promise<boolean> {
       results.messaging.user1ToUser2 &&
       results.messaging.user2ToUser1 &&
       results.messaging.user1Received &&
-      results.messaging.user2Received;
+      results.messaging.user2Received &&
+      results.messageOrder.aliceMessagesInOrder &&
+      results.messageOrder.bobMessagesInOrder &&
+      results.seenStatus.aliceMessagesSeen &&
+      results.seenStatus.bobMessagesSeen;
 
     console.log('\nCore Functionality:');
     console.log(`  Account Creation (Alice):     ${results.accountCreation.user1 ? 'PASS' : 'FAIL'}`);
@@ -297,6 +352,14 @@ async function runTest(): Promise<boolean> {
     console.log(`  Bob Received Message:         ${results.messaging.user2Received ? 'PASS' : 'FAIL'}`);
     console.log(`  Bob -> Alice Message:         ${results.messaging.user2ToUser1 ? 'PASS' : 'FAIL'}`);
     console.log(`  Alice Received Message:       ${results.messaging.user1Received ? 'PASS' : 'FAIL'}`);
+
+    console.log('\nMessage Order Verification:');
+    console.log(`  Alice Messages In Order:      ${results.messageOrder.aliceMessagesInOrder ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bob Messages In Order:        ${results.messageOrder.bobMessagesInOrder ? 'PASS' : 'FAIL'}`);
+
+    console.log('\nRead Receipts (Seen Status):');
+    console.log(`  Alice Messages Seen:          ${results.seenStatus.aliceMessagesSeen ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bob Messages Seen:            ${results.seenStatus.bobMessagesSeen ? 'PASS' : 'FAIL'}`);
 
     console.log('\nUX Quality:');
     console.log(`  Message Timestamps:           ${results.uxChecks.timestamps ? 'PASS' : 'CHECK'}`);

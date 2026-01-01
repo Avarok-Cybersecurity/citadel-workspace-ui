@@ -1,5 +1,5 @@
-import { FileSpreadsheet, FileText, FileType, FileCode, Folder } from "lucide-react";
-import { useState } from "react";
+import { FileSpreadsheet, FileText, FileType, FileCode, Folder, FileX } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -12,49 +12,71 @@ import {
 import { FilePreviewDialog } from "./FilePreviewDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
+import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer-service";
+import { eventEmitter } from "@/lib/event-emitter";
 
-export const files = [
-  {
-    id: "q4-report",
-    name: "Q4 Report.pdf",
-    type: "Portable Document Format (PDF)",
-    size: 8834000,
+/**
+ * File display type for sidebar rendering
+ */
+interface FileDisplay {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  sender: {
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  url?: string;
+}
+
+/**
+ * Format bytes to human readable size
+ */
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+/**
+ * Format timestamp to readable date
+ */
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  return date.toLocaleString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+/**
+ * Convert FileTransfer to FileDisplay for sidebar
+ */
+function mapTransferToDisplay(transfer: FileTransfer): FileDisplay {
+  return {
+    id: transfer.id,
+    name: transfer.fileName,
+    type: transfer.fileType || 'Unknown',
+    size: transfer.fileSize,
     sender: {
-      name: "David Anderson",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e"
+      name: transfer.senderCid.slice(0, 12) + '...', // Truncate CID for display
     },
-    createdAt: "7:13 PM EST - March 16, 2024",
-    url: "/files/Q4 Report.pdf"
-  },
-  {
-    id: "project-timeline",
-    name: "Project Timeline.xlsx",
-    type: "Microsoft Excel Spreadsheet",
-    size: 2450000,
-    sender: {
-      name: "Sarah Miller",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80"
-    },
-    createdAt: "2:30 PM EST - March 15, 2024",
-    url: "/files/Project Timeline.xlsx"
-  },
-  {
-    id: "meeting-notes",
-    name: "Meeting Notes.docx",
-    type: "Microsoft Word Document",
-    size: 1250000,
-    sender: {
-      name: "John Cooper",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e"
-    },
-    createdAt: "11:45 AM EST - March 14, 2024",
-    url: "/files/Meeting Notes.docx"
-  }
-];
+    createdAt: formatDate(transfer.updatedAt),
+    url: transfer.downloadPath,
+  };
+}
 
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split('.').pop()?.toLowerCase();
-  
+
   switch (extension) {
     case 'xlsx':
     case 'xls':
@@ -74,12 +96,40 @@ const getFileIcon = (fileName: string) => {
 };
 
 export const FilesSection = () => {
-  const [selectedFile, setSelectedFile] = useState<typeof files[0] | null>(null);
+  const [files, setFiles] = useState<FileDisplay[]>([]);
+  const [selectedFile, setSelectedFile] = useState<FileDisplay | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleFileClick = (file: typeof files[0]) => {
+  /**
+   * Load completed incoming transfers from FileTransferService
+   */
+  const loadFiles = useCallback(() => {
+    const downloads = fileTransferService.getAllTransfers()
+      .filter(t => t.state === 'complete' && t.isIncoming)
+      .sort((a, b) => b.updatedAt - a.updatedAt); // Most recent first
+
+    setFiles(downloads.map(mapTransferToDisplay));
+  }, []);
+
+  useEffect(() => {
+    // Initial load
+    loadFiles();
+
+    // Subscribe to file transfer completion events
+    const handleCompleted = () => {
+      loadFiles();
+    };
+
+    eventEmitter.on(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
+
+    return () => {
+      eventEmitter.off(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
+    };
+  }, [loadFiles]);
+
+  const handleFileClick = (file: FileDisplay) => {
     setSelectedFile(file);
     setIsPreviewOpen(true);
   };
@@ -97,26 +147,41 @@ export const FilesSection = () => {
 
   return (
     <>
-      <SidebarGroup className="flex-shrink-0 min-h-[4rem]">
+      <SidebarGroup className="flex-shrink-0 min-h-[4rem]" data-testid="files-section">
         <SidebarGroupLabel className="text-[#9b87f5] font-semibold px-0 ml-3">FILES</SidebarGroupLabel>
         <SidebarGroupContent>
           <ScrollArea className="max-h-[30vh]">
             <SidebarMenu>
-              {files.map((file) => (
-                <SidebarMenuItem key={file.id}>
-                  <SidebarMenuButton 
-                    className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors"
-                    onClick={() => handleFileClick(file)}
+              {files.length === 0 ? (
+                <SidebarMenuItem>
+                  <div
+                    className="px-3 py-2 text-sm text-gray-400 flex items-center gap-2"
+                    data-testid="no-files-message"
                   >
-                    {getFileIcon(file.name)}
-                    <span>{file.name}</span>
-                  </SidebarMenuButton>
+                    <FileX className="h-4 w-4" />
+                    <span>No downloaded files yet</span>
+                  </div>
                 </SidebarMenuItem>
-              ))}
+              ) : (
+                files.map((file) => (
+                  <SidebarMenuItem key={file.id} data-testid={`file-item-${file.id}`}>
+                    <SidebarMenuButton
+                      className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors"
+                      onClick={() => handleFileClick(file)}
+                    >
+                      {getFileIcon(file.name)}
+                      <span className="truncate" title={`${file.name} (${formatBytes(file.size)})`}>
+                        {file.name}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors"
                   onClick={handleFileManagerClick}
+                  data-testid="file-manager-button"
                 >
                   <Folder className="h-4 w-4" />
                   <span>File Manager</span>

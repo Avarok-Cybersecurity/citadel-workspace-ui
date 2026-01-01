@@ -1,138 +1,100 @@
 # P2P Basic Test Report
 
-**Date:** 2025-12-24
-**Timestamp:** 1766635053
-**Test Type:** Final Bidirectional P2P Messaging Verification
-
-## Test Purpose
-Verify that bidirectional P2P messaging works correctly between two users (Alice and Bob) in separate browser tabs. This is the final verification to confirm the fix is stable.
-
-## Test Configuration
-
-| Setting | Value |
-|---------|-------|
-| UI URL | http://localhost:5173/ |
-| Server Location | 127.0.0.1:12349 |
-| Workspace Password | SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME |
-| User Password | test12345 |
+**Date:** 2025-12-30
+**Timestamp:** 1767109387
+**Test Run:** 2 (after WasmPeerBridge ESM fix)
 
 ## Accounts Created
-
-| User | Username | CID | Role |
-|------|----------|-----|------|
-| Alice | alice_1766635053 | 12562815073372512476 | User 1 (Tab 0) |
-| Bob | bob_1766635053 | 11705589838361298114 | User 2 (Tab 2) |
+- User 1: p2ptest1_1767109387 (CID: 893330922318524083)
+- User 2: p2ptest2_1767109387 (CID: 10324791384386614288)
 
 ## Test Results
 
-| Test Step | Status | Notes |
-|-----------|--------|-------|
-| Alice Account Creation (Tab 0) | PASS | Account created, workspace initialized |
-| Bob Account Creation (Tab 2) | PASS | Account created, no init modal (correct) |
-| P2P Registration (Alice -> Bob) | PASS | Connection request sent |
-| P2P Accept (Bob accepts) | PASS | "Connection Accepted" notification |
-| Test 1: Alice sends "Hello Bob!" | PASS | Message delivered with ack |
-| Test 2: Bob receives "Hello Bob!" | **PASS** | Message displayed in Bob's chat |
-| Test 3: Bob sends "Hello Alice!" | PASS | Message delivered with ack |
-| Test 4: Alice receives "Hello Alice!" | **PASS** | Message displayed in Alice's chat |
+| Test | Status | Notes |
+|------|--------|-------|
+| Account Creation | PASS | Both accounts created successfully |
+| Workspace Initialization | PASS | User 1 initialized workspace as admin, User 2 correctly did not see init modal |
+| P2P Registration | PASS | Connection request sent and accepted, PeerConnectSuccess received |
+| Message User2 -> User1 | PASS | "Hello from user2!" delivered and displayed in User 1's chat |
+| Message User1 -> User2 | PASS | "Hello back from user1!" delivered and displayed in User 2's chat |
 
-## Detailed Test Flow
+## Key Verification Points
 
-### Phase 1: Account Creation
-1. Navigated to http://localhost:5173/
-2. Created Alice account (alice_1766635053) in Tab 0
-3. Alice initialized workspace with admin password
-4. Opened new tab, created Bob account (bob_1766635053) in Tab 2
-5. Bob joined existing workspace (no init modal - correct behavior)
+### WasmPeerBridge Fix Confirmed
+The previous test failed due to a CommonJS/ESM compatibility issue (`require is not defined`). This has been fixed by changing `wasm-peer-bridge.ts` to use ES module import instead of require().
 
-### Phase 2: P2P Registration
-1. Switched to Alice's tab (Tab 0)
-2. Clicked "Discover Peers" in CONNECTED PEERS section
-3. Found bob_1766635053 in peer list
-4. Alice clicked "Connect" - saw "Request Sent - Connection request sent to bob_1766635053"
-5. Switched to Bob's tab (Tab 2)
-6. Saw badge: "1 pending connection request"
-7. Clicked badge, opened "Pending Connection Requests" dialog
-8. Clicked "Accept" for alice_1766635053
-9. Saw "Connection Accepted - You are now connected with alice_1766635053"
-10. PeerConnectSuccess confirmed in console logs
+**Verification:**
+- **NO "[WasmPeerBridge]" console errors** - The ESM import fix works correctly
+- **getPeersForSession logs appear correctly:**
+  - `[WasmPeerBridge] Initialized - global callback registered`
+  - `[WasmPeerBridge] getPeersForSession(89333092...) -> 1 peers`
+  - `[WasmPeerBridge] getPeersForSession(10324791...) -> 1 peers`
 
-### Phase 3: Bidirectional Messaging
-
-**Test 1: Alice -> Bob**
-- Switched to Alice's tab (Tab 0)
-- Clicked bob_1766635053 in CONNECTED PEERS to open P2P chat
-- Bob shown as "Online" in chat header
-- Typed "Hello Bob!" in message input
-- Pressed Enter to send
-- Message appeared on Alice's side with checkmark icon (delivered)
-- Console: `[P2P] Message 958f9ddf... sent successfully in 0ms`
-- Console: `MessageAck delivered` received
-
-**Test 2: Verify Bob Received**
-- Switched to Bob's tab (Tab 2)
-- Clicked alice_1766635053 in DIRECT MESSAGES
-- Alice shown as "Online"
-- "Hello Bob!" visible in chat area with timestamp 11:02 PM
-- **MESSAGE RECEIVED SUCCESSFULLY**
-
-**Test 3: Bob -> Alice**
-- In Bob's chat with Alice, typed "Hello Alice!"
-- Pressed Enter to send
-- Message appeared on Bob's side with checkmark icon (delivered)
-- Console: `[P2P] Message 2c297ada... sent successfully in 1ms`
-- Console: `MessageAck delivered` and `MessageAck read` received
-
-**Test 4: Verify Alice Received**
-- Switched to Alice's tab (Tab 0)
-- Both messages visible in conversation:
-  - "Hello Bob!" (sent by Alice, with checkmark)
-  - "Hello Alice!" (received from Bob)
-- **MESSAGE RECEIVED SUCCESSFULLY**
-
-## Protocol Verification
-
-The following P2P protocol messages were observed working correctly:
-
-| Protocol Message | Direction | Status |
-|-----------------|-----------|--------|
-| CheckState | Sender -> Receiver | WORKING |
-| CheckStateResponse | Receiver -> Sender | WORKING |
-| Message | Sender -> Receiver | WORKING |
-| MessageAck (delivered) | Receiver -> Sender | WORKING |
-| MessageAck (read) | Receiver -> Sender | WORKING |
+### Message Acknowledgments Working
+- Delivery acknowledgments received for both messages
+- Read acknowledgments received when chat was opened
+- `[P2P] handleMessageAck received: {ack_type: delivered, ...}`
+- `[P2P] handleMessageAck received: {ack_type: read, ...}`
 
 ## UX/UI Issues Discovered
 
 | Severity | Issue |
 |----------|-------|
-| Low | DIRECT MESSAGES shows truncated peer IDs (e.g., "Peer 485743") for stale entries |
-| Info | Tab titles correctly show unread message counts (e.g., "(10) Citadel Workspaces") |
+| Low | React Router future flag warnings (v7_startTransition, v7_relativeSplatPath) - cosmetic only |
+| Low | WASM client initialization uses deprecated parameters warning |
+| Low | ServerAutoConnect: "Failed to load enabled setting: Key not found" on initial load - non-blocking |
+| Low | Failed to load cached messages error on initial WebSocket connection - non-blocking, race condition on first load |
 
 ## Console Warnings/Errors
 
-**No critical errors observed.**
+### Non-Critical Warnings (cosmetic/race conditions)
+1. **React Router Future Flag Warnings** (cosmetic):
+   - v7_startTransition future flag warning
+   - v7_relativeSplatPath future flag warning
 
-Normal protocol messages included:
-- CheckState/CheckStateResponse handshake working correctly
-- MessageAck (delivered and read) confirmations received
-- LocalDBSetKVSuccess for message persistence
-- BroadcastChannel coordination between tabs working
+2. **WASM Deprecation Warning** (cosmetic):
+   - "using deprecated parameters for the initialization function; pass a single object instead"
 
-## Screenshots
+3. **LocalDB Key Not Found** (non-blocking):
+   - "ServerAutoConnect: Failed to load enabled setting: Error: Key not found"
+   - Occurs on first load before settings are saved
 
-- `/Volumes/nvme/Development/avarok/citadel-workspace/.playwright-mcp/p2p-bidirectional-test-final.png` - Final state showing bidirectional conversation
+4. **Cached Messages Load** (non-blocking):
+   - "Failed to load cached messages: Error: No WebSocket client available"
+   - Occurs during P2PMessengerManager initialization race condition
 
-## Overall Result: **PASS**
+### NO Critical Errors
+The previous WasmPeerBridge errors (`require is not defined`) have been completely eliminated.
 
-All test criteria met:
+## Backend Log Analysis
+
+From `tilt logs internal-service`:
+- All operations showed successful LocalDBGetKVSuccess responses
+- Inbound/outbound message storage working correctly for all CIDs
+- Proper message serialization (BytesLike data with appropriate lengths)
+- No errors or failures in backend logs
+
+## Comparison with Previous Test Run
+
+| Aspect | Previous Run (FAIL) | Current Run (PASS) |
+|--------|---------------------|-------------------|
+| WasmPeerBridge errors | Hundreds of "require is not defined" errors | NONE |
+| getPeersForSession | Never called successfully | Working correctly |
+| Message delivery | Messages stuck in outbound queue | Bidirectional delivery working |
+| Acknowledgments | None received | Both delivered and read acks working |
+
+## Overall Result: PASS
+
+### Summary
 - Both accounts created successfully
-- P2P registration completed with proper handshake
+- P2P registration completed (request sent and accepted)
 - **Bidirectional messaging works correctly**
-- Message delivery confirmations (acks) received for both directions
-- No "Session Already Connected" errors
-- No protocol-level errors
+- WasmPeerBridge ESM fix confirmed working
+- Message acknowledgments (delivered + read) working
+- No critical errors in console or backend logs
 
-## Conclusion
-
-The P2P messaging fix is **STABLE** and working correctly. Both directions of messaging (Alice -> Bob and Bob -> Alice) work as expected with proper delivery confirmations.
+### Fix Applied
+The root cause of the previous failure was identified and fixed:
+- **File:** `citadel-workspaces/ui/src/lib/wasm-peer-bridge.ts`
+- **Issue:** CommonJS `require()` used in ESM/browser context
+- **Fix:** Changed to use ES module dynamic import

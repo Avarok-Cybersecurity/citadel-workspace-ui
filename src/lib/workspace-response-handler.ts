@@ -172,6 +172,22 @@ export class WorkspaceResponseHandler {
         offices: response.Offices,
         connection: connectionInfo
       });
+
+      // Determine default office (first one with is_default=true, or first office)
+      const offices = response.Offices;
+      if (offices && offices.length > 0) {
+        const defaultOffice = offices.find((o: any) => o.is_default === true) || offices[0];
+        debugLog('workspace', 'Default office determined', {
+          officeId: defaultOffice.id,
+          officeName: defaultOffice.name,
+          isExplicitDefault: defaultOffice.is_default === true
+        });
+        eventEmitter.emit('offices:default-determined', {
+          officeId: defaultOffice.id,
+          officeName: defaultOffice.name,
+          connection: connectionInfo
+        });
+      }
     } else if ('CreateOffice' in response) {
       // Handle office creation response
       debugLog('workspace', 'CreateOffice response', response.CreateOffice);
@@ -303,16 +319,37 @@ export class WorkspaceResponseHandler {
       });
       // Trigger rooms reload
       eventEmitter.emit('rooms:reload', connectionInfo);
+    // ========== Content Broadcast Responses ==========
+    } else if ('OfficeContentUpdated' in response) {
+      // Handle office content update broadcast (from another user)
+      const { office_id, mdx_content, updated_by, timestamp } = response.OfficeContentUpdated;
+      debugLog('workspace', 'OfficeContentUpdated broadcast received', { office_id, updated_by, timestamp });
+      eventEmitter.emit('office:content-updated', {
+        officeId: office_id,
+        mdxContent: mdx_content,
+        updatedBy: updated_by,
+        timestamp,
+        connection: connectionInfo
+      });
+    } else if ('RoomContentUpdated' in response) {
+      // Handle room content update broadcast (from another user)
+      const { room_id, office_id, mdx_content, updated_by, timestamp } = response.RoomContentUpdated;
+      debugLog('workspace', 'RoomContentUpdated broadcast received', { room_id, office_id, updated_by, timestamp });
+      eventEmitter.emit('room:content-updated', {
+        roomId: room_id,
+        officeId: office_id,
+        mdxContent: mdx_content,
+        updatedBy: updated_by,
+        timestamp,
+        connection: connectionInfo
+      });
     } else if ('Success' in response) {
       // Handle success response
       eventEmitter.emit('operation:success', connectionInfo);
-      
-      // Emit specific success events based on context
-      if (response.Success.includes('Office created')) {
-        eventEmitter.emit('office:created', connectionInfo);
-      } else if (response.Success.includes('Room created')) {
-        eventEmitter.emit('room:created', connectionInfo);
-      } else if (response.Success.includes('deleted')) {
+
+      // Note: office:created and room:created are emitted by their specific handlers
+      // (CreateOffice, CreateRoom) - don't duplicate here
+      if (response.Success.includes('deleted')) {
         eventEmitter.emit('operation:deleted', connectionInfo);
       }
     } else if ('Error' in response) {
@@ -405,6 +442,14 @@ export class WorkspaceResponseHandler {
       eventEmitter.emit('member:role-updated', {
         userId: user_id,
         role: new_role,
+        connection: connectionInfo
+      });
+    } else if ('UserProfileUpdated' in response) {
+      // Handle user profile update response
+      const user = response.UserProfileUpdated;
+      debugLog('workspace', 'UserProfileUpdated received', { userId: user.id, name: user.name });
+      eventEmitter.emit('user:profile-updated', {
+        user,
         connection: connectionInfo
       });
     } else {

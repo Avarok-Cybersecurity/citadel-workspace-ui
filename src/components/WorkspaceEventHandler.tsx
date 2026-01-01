@@ -9,8 +9,9 @@ import { getWorkspaceLogo } from '../lib/workspace-metadata-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
 import { eventEmitter } from '../lib/event-emitter';
 import { broadcastChannelService } from '../lib/broadcast-channel-service';
-import { p2pRegistrationService } from '../lib/p2p-registration-service';
 import { connectionManager } from '../lib/connection-manager';
+// P2P startup is now centralized in SessionStartupService, but we still need stop() for cleanup
+import { p2pRegistrationService } from '../lib/p2p-registration-service';
 
 interface WorkspaceEventState {
   workspace?: {
@@ -52,6 +53,7 @@ interface WorkspaceEventState {
     fullName: string;
     role?: string;
     displayName?: string;
+    avatarUrl?: string; // Base64 data URL for avatar image
   };
   lastRequestId?: string; // Track the last request ID for correlation
 }
@@ -149,15 +151,9 @@ export const WorkspaceEventHandler: React.FC<{
           ...newState
         }));
 
-        // Start P2P registration service if workspace is initialized
-        if (isInitialized) {
-          p2pRegistrationService.start({
-            autoRegisterAll: true,
-            connectAfterRegister: false
-          }).catch(error => {
-            console.error('Failed to start P2P registration service:', error);
-          });
-        }
+        // P2P startup is now handled by SessionStartupService
+        // It listens for 'session:activated' events emitted from WorkspaceApp and OrphanSessionsNavbar
+        // This centralized approach ensures P2P works consistently for Connect, ClaimSession, and Login
 
         // Broadcast workspace state to other tabs (excluding currentUser which is tab-specific)
         const { currentUser: excludedUser, ...stateWithoutUser } = newState;
@@ -772,11 +768,130 @@ export const WorkspaceEventHandler: React.FC<{
       });
     };
 
-    // Setup broadcast state sync listener
-    const setupBroadcastSync = () => {
-      eventEmitter.on('broadcast-state-sync', (data: any) => {
+    // Setup user profile update listener - returns cleanup function
+    const setupUserProfileListener = (): (() => void) => {
+      const handler = (data: { user: any; connection: any }) => {
+        console.log('WorkspaceEventHandler: Received user profile update', data);
+
+        const user = data.user;
+        // Extract avatar from metadata if present
+        // MetadataValue is a tagged enum: { type: "String", content: "..." }
+        let avatarUrl: string | undefined;
+        if (user.metadata?.avatar) {
+          const avatar = user.metadata.avatar;
+          // Handle tagged enum format: { type: "String", content: "data:..." }
+          const avatarData = typeof avatar === 'string'
+            ? avatar
+            : avatar?.content || avatar?.String;
+          if (avatarData) {
+            // Convert base64 to data URL if not already
+            avatarUrl = avatarData.startsWith('data:')
+              ? avatarData
+              : `data:image/webp;base64,${avatarData}`;
+          }
+        }
+
+        setState(prev => ({
+          ...prev,
+          currentUser: prev.currentUser ? {
+            ...prev.currentUser,
+            displayName: user.name || prev.currentUser.displayName,
+            fullName: user.name || prev.currentUser.fullName,
+            avatarUrl: avatarUrl || prev.currentUser.avatarUrl
+          } : prev.currentUser
+        }));
+      };
+
+      eventEmitter.on('user:profile-updated', handler);
+      return () => eventEmitter.off('user:profile-updated', handler);
+    };
+
+    // Setup content broadcast listeners (for real-time updates from other clients) - returns cleanup function
+    const setupContentBroadcastListeners = (): (() => void) => {
+      // Office content update broadcast handler
+      const officeContentHandler = (data: {
+        officeId: string;
+        mdxContent: string;
+        updatedBy: string;
+        timestamp: number;
+        connection: any;
+      }) => {
+        console.log('WorkspaceEventHandler: Received office content update broadcast', {
+          officeId: data.officeId,
+          updatedBy: data.updatedBy,
+          timestamp: data.timestamp
+        });
+
+        setState(prev => {
+          const existingOffice = prev.offices[data.officeId];
+          if (!existingOffice) {
+            console.warn('Received content update for unknown office:', data.officeId);
+            return prev;
+          }
+
+          return {
+            ...prev,
+            offices: {
+              ...prev.offices,
+              [data.officeId]: {
+                ...existingOffice,
+                mdx_content: data.mdxContent
+              }
+            }
+          };
+        });
+      };
+
+      // Room content update broadcast handler
+      const roomContentHandler = (data: {
+        roomId: string;
+        officeId: string;
+        mdxContent: string;
+        updatedBy: string;
+        timestamp: number;
+        connection: any;
+      }) => {
+        console.log('WorkspaceEventHandler: Received room content update broadcast', {
+          roomId: data.roomId,
+          officeId: data.officeId,
+          updatedBy: data.updatedBy,
+          timestamp: data.timestamp
+        });
+
+        setState(prev => {
+          const existingRoom = prev.rooms[data.roomId];
+          if (!existingRoom) {
+            console.warn('Received content update for unknown room:', data.roomId);
+            return prev;
+          }
+
+          return {
+            ...prev,
+            rooms: {
+              ...prev.rooms,
+              [data.roomId]: {
+                ...existingRoom,
+                mdx_content: data.mdxContent
+              }
+            }
+          };
+        });
+      };
+
+      eventEmitter.on('office:content-updated', officeContentHandler);
+      eventEmitter.on('room:content-updated', roomContentHandler);
+
+      return () => {
+        eventEmitter.off('office:content-updated', officeContentHandler);
+        eventEmitter.off('room:content-updated', roomContentHandler);
+      };
+    };
+
+    // Setup broadcast state sync listener - returns cleanup function
+    const setupBroadcastSync = (): (() => void) => {
+      const handler = (data: any) => {
         console.log('WorkspaceEventHandler: Received broadcast state sync', data);
-        
+
         if (data.type === 'workspace') {
           // When receiving workspace state, preserve our tab's currentUser
           const { currentUser: receivedUser, ...receivedData } = data.data;
@@ -802,8 +917,14 @@ export const WorkspaceEventHandler: React.FC<{
             members: data.data
           }));
         }
-      });
+      };
+
+      eventEmitter.on('broadcast-state-sync', handler);
+      return () => eventEmitter.off('broadcast-state-sync', handler);
     };
+
+    // Store cleanup functions for eventEmitter listeners
+    let eventEmitterCleanups: (() => void)[] = [];
 
     // Initialize all event listeners
     const initializeEvents = async () => {
@@ -814,7 +935,13 @@ export const WorkspaceEventHandler: React.FC<{
       await setupErrorHandling();
       await setupProtocolWarningHandling();
       await setupMessageListeners();
-      setupBroadcastSync();
+
+      // Collect cleanup functions from eventEmitter-based setup functions
+      eventEmitterCleanups = [
+        setupBroadcastSync(),
+        setupUserProfileListener(),
+        setupContentBroadcastListeners()
+      ];
 
       console.info('Workspace event listeners initialized');
     };
@@ -825,6 +952,8 @@ export const WorkspaceEventHandler: React.FC<{
     return () => {
       workspaceEvents.cleanupAllListeners();
       p2pRegistrationService.stop();
+      // Clean up eventEmitter listeners
+      eventEmitterCleanups.forEach(cleanup => cleanup());
     };
   }, []);
 

@@ -14,7 +14,9 @@
     "test:crud": "npm run build && node dist/tests/office-room-crud.test.js",
     "test:login": "npm run build && node dist/tests/login-flow.test.js",
     "test:prev-sessions": "npm run build && node dist/tests/previous-sessions.test.js",
-    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group",
+    "test:file-transfer": "npm run build && node dist/tests/file-transfer.test.js",
+    "test:offline": "npm run build && node dist/tests/offline-messaging.test.js",
+    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist"
   },

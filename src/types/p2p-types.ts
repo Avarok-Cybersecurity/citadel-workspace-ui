@@ -3,6 +3,7 @@
  * These types mirror the Rust enum structure for P2P communication
  */
 
+import { encode, decode } from '@msgpack/msgpack';
 import type { MessageType } from './message-protocol';
 import type { MessagingLayer } from './messaging-layer';
 import {
@@ -181,33 +182,22 @@ export function createMessageAckCommand(
   };
 }
 
-// Message serialization/deserialization for storage
-export function serializeP2PCommand(command: P2PCommand): string {
-  return JSON.stringify(command, (key, value) => {
-    // Convert Uint8Array to base64 for JSON serialization
-    if (value instanceof Uint8Array) {
-      return {
-        _type: 'Uint8Array',
-        data: btoa(String.fromCharCode(...value))
-      };
-    }
-    return value;
-  });
+// Message serialization/deserialization using MessagePack
+// MessagePack provides direct Object ↔ Uint8Array conversion with native binary support
+
+/**
+ * Serialize a P2P command to Uint8Array using MessagePack.
+ * More efficient than JSON: no string intermediate, native Uint8Array support.
+ */
+export function serializeP2PCommand(command: P2PCommand): Uint8Array {
+  return encode(command);
 }
 
-export function deserializeP2PCommand(json: string): P2PCommand {
-  return JSON.parse(json, (key, value) => {
-    // Convert base64 back to Uint8Array
-    if (value && typeof value === 'object' && value._type === 'Uint8Array') {
-      const binary = atob(value.data);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes;
-    }
-    return value;
-  });
+/**
+ * Deserialize a P2P command from Uint8Array using MessagePack.
+ */
+export function deserializeP2PCommand(data: Uint8Array): P2PCommand {
+  return decode(data) as P2PCommand;
 }
 
 // ============================================

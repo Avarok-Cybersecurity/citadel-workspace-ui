@@ -6,6 +6,8 @@ import { broadcastChannelService } from './broadcast-channel-service';
 import { healthCheckService } from './health-check';
 import { getTabData, setTabData, removeTabData, setSelectedUser, getSelectedUser, clearSelectedUser } from './tab-context';
 import { peerRegistrationStore } from './peer-registration-store';
+import { instanceManager } from './instance-manager';
+import { instanceChannel } from './instance-channel';
 // Remove static import to avoid conflict with dynamic import in websocket-service
 // import { parseAndFormatMixedContent } from './wasm-debug-bridge';
 import { 
@@ -74,37 +76,25 @@ export class ConnectionManager {
 
     try {
       console.log('ConnectionManager: Initializing...');
-      
-      // Initialize WebSocket service first
-      await websocketService.init();
-      
-      // Wait a bit for the service connection to be established
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Enable orphan mode to persist sessions across page reloads
-      try {
-        console.log('ConnectionManager: Enabling orphan mode...');
-        const orphanResult = await websocketService.setOrphanMode(true);
-        console.log('ConnectionManager: Orphan mode result:', orphanResult);
-      } catch (error) {
-        console.warn('ConnectionManager: Failed to enable orphan mode', error);
-        // Continue even if orphan mode fails - it's not critical
-      }
-      
-      // Get active sessions from internal service
-      const activeSessions = await this.getActiveSessions();
-      
-      // Load stored sessions
-      await this.loadStoredSessions();
 
-      // Initialize peer registration store for pending connection requests
-      try {
-        await peerRegistrationStore.initialize();
-        console.log('ConnectionManager: Peer registration store initialized');
-      } catch (error) {
-        console.warn('ConnectionManager: Failed to initialize peer registration store', error);
-        // Continue even if this fails - it's not critical
-      }
+      // Step 1: Initialize WebSocket service first (required)
+      await websocketService.init();
+
+      // Step 2: Fire-and-forget orphan mode - don't block on this
+      console.log('ConnectionManager: Enabling orphan mode (non-blocking)...');
+      websocketService.setOrphanModeNonBlocking(true);
+
+      // Step 3: Run these in parallel - they don't depend on each other
+      const [activeSessions] = await Promise.all([
+        // Get active sessions from internal service (has its own timeout)
+        this.getActiveSessions().catch(() => ({ sessions: [] })),
+        // Load stored sessions
+        this.loadStoredSessions(),
+        // Initialize peer registration store
+        peerRegistrationStore.initialize().catch(error => {
+          console.warn('ConnectionManager: Failed to initialize peer registration store', error);
+        }),
+      ]);
 
       // Clear stored CIDs on page reload to force fresh connections
       // This prevents using stale CIDs from previous WebSocket connections
@@ -115,18 +105,14 @@ export class ConnectionManager {
         }
         await this.setLocalDBValue(SESSION_STORAGE_KEY, this.storedSessions);
       }
-      
+
       this.isInitialized = true;
       console.log('ConnectionManager: Initialized successfully');
 
-      // Initialize server auto-connect service
-      try {
-        await serverAutoConnectService.init();
-        console.log('ConnectionManager: Server auto-connect service initialized');
-      } catch (error) {
+      // Step 4: Fire-and-forget server auto-connect (non-critical)
+      serverAutoConnectService.init().catch(error => {
         console.warn('ConnectionManager: Failed to initialize server auto-connect service:', error);
-        // Continue even if this fails - it's not critical
-      }
+      });
 
       // Resolve ready promise to unblock waiting callers
       if (this.readyResolve) {
@@ -193,15 +179,16 @@ export class ConnectionManager {
    * Handle WebSocket messages for LocalDB and connection responses
    */
   private handleWebSocketMessage(message: any): void {
-    // Use JSON.stringify directly since parseAndFormatMixedContent is removed to avoid import conflict
-    console.log('ConnectionManager: Handling WebSocket message:', formatForDebug(JSON.stringify(message)));
-    
+    // PERF FIX: Removed per-message logging that was causing UI freezes
+    // Only log specific message types that need debugging, not every message
+
     // @human-review: Add logging for messages received for non-selected users
     // Check if this message is for the tab's selected user
     const tabSelection = getSelectedUser();
     if (message.cid && tabSelection && tabSelection.selectedCid) {
       if (message.cid !== tabSelection.selectedCid) {
-        console.log(`ConnectionManager: DEBUG - Message received for CID ${message.cid} but tab has CID ${tabSelection.selectedCid} selected`);
+        // Rate-limited debug logging for cross-CID messages
+        // console.log(`ConnectionManager: DEBUG - Message received for CID ${message.cid} but tab has CID ${tabSelection.selectedCid} selected`);
       }
     }
     
@@ -346,7 +333,14 @@ export class ConnectionManager {
     // Store current connection info
     this.currentConnectionInfo = { cid };
     console.log('ConnectionManager: Handling successful connection', cid);
-    
+
+    // Update instance manager with the CID this tab/instance owns
+    instanceManager.setCid(cid);
+    console.log('ConnectionManager: Set instanceManager CID to', cid);
+
+    // Announce updated CID to other instances so leader knows which CID this instance owns
+    instanceChannel.announcePresence();
+
     // Update connection service
     const connectionService = ConnectionService.getInstance();
     connectionService.updateConnectionStatus({
@@ -391,13 +385,13 @@ export class ConnectionManager {
     // Check cache first (2 second TTL)
     const now = Date.now();
     if (this.cachedSessions && (now - this.cachedSessionsTimestamp) < this.CACHE_TTL_MS) {
-      console.log('ConnectionManager: Returning cached active sessions');
+      // PERF FIX: Removed per-call logging - this is called every 1-2 seconds
       return this.cachedSessions;
     }
 
     // If a request is already in flight, reuse it (deduplication)
     if (this.pendingGetSessions) {
-      console.log('ConnectionManager: Reusing pending getActiveSessions request');
+      // PERF FIX: Removed per-call logging
       return this.pendingGetSessions;
     }
 
@@ -431,7 +425,28 @@ export class ConnectionManager {
    */
   private async _fetchActiveSessions(): Promise<ActiveSession[]> {
     try {
-      console.log('ConnectionManager: Getting active sessions from internal service');
+      // Check if WebSocket is connected before attempting to send
+      // This prevents timeouts and errors when the internal service is down
+      if (!websocketService.isConnected()) {
+        // Try to wait for initialization (with a short timeout)
+        try {
+          await Promise.race([
+            websocketService.waitForInit(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('WebSocket init timeout')), 3000)
+            )
+          ]);
+        } catch {
+          // WebSocket not available - return empty sessions
+          // This is expected during startup or when internal service is down
+          return [];
+        }
+
+        // Double-check connection after waiting
+        if (!websocketService.isConnected()) {
+          return [];
+        }
+      }
 
       const requestId = crypto.randomUUID();
       const request: GetSessionsRequest = {
@@ -458,7 +473,7 @@ export class ConnectionManager {
 
       // Wait for response
       const response = await responsePromise;
-      console.log('ConnectionManager: Active sessions:', response.sessions);
+      // PERF FIX: Removed per-response logging - this is called every 2 seconds
 
       return response.sessions || [];
     } catch (error) {
@@ -583,29 +598,31 @@ export class ConnectionManager {
     if (this.storedSessions.sessions.length === 0) {
       return;
     }
-    
+
     // Only attempt connection if we're the leader
     if (!this.isLeader && !broadcastChannelService.getIsLeader()) {
       console.log('ConnectionManager: Not the leader, skipping auto-reconnect');
       return;
     }
-    
+
     // Get the tab-specific selected user to determine which session to reconnect
     const tabSelection = getSelectedUser();
     let session: StoredSession | undefined;
-    
+
     if (tabSelection && tabSelection.selectedUsername && tabSelection.selectedServerAddress) {
       // Use the tab's selected session
       session = this.storedSessions.sessions.find(
-        s => s.username === tabSelection.selectedUsername && 
+        s => s.username === tabSelection.selectedUsername &&
              s.serverAddress === tabSelection.selectedServerAddress
       );
       console.log('ConnectionManager: Auto-reconnecting with tab-selected user:', tabSelection.selectedUsername);
     } else {
-      // Fall back to the active session index
-      const activeIndex = this.storedSessions.activeSessionIndex ?? 0;
-      session = this.storedSessions.sessions[activeIndex];
-      console.log('ConnectionManager: Auto-reconnecting with default session index:', activeIndex);
+      // No tab-specific selection - DO NOT fall back to shared activeSessionIndex
+      // Each tab must explicitly select which session to use
+      // This prevents Tab 2 from auto-connecting to Tab 1's session
+      console.log('ConnectionManager: No tab-specific selection, skipping auto-reconnect');
+      console.log('ConnectionManager: Tab must explicitly select a user via OrphanSessionsNavbar');
+      return;
     }
 
     if (!session) {
@@ -725,15 +742,14 @@ export class ConnectionManager {
           return;
         }
         
-        // Try next session if available with a delay to prevent tight loops
+        // Retry with exponential backoff - each tab has ONE designated session, no rotation
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000); // Exponential backoff, max 10s
           console.log(`ConnectionManager: Will retry in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-          
+
           setTimeout(async () => {
-            const nextIndex = (activeIndex + 1) % this.storedSessions.sessions.length;
-            this.storedSessions.activeSessionIndex = nextIndex;
+            // Retry same session - each tab owns ONE session (no rotation)
             await this.autoReconnect(activeSessions);
           }, delay);
         } else {

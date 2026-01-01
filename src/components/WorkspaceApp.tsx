@@ -15,8 +15,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { getUserFriendlyErrorMessage } from '@/lib/error-messages';
 import { healthCheckService } from '@/lib/health-check';
-import { p2pRegistrationService } from '@/lib/p2p-registration-service';
-import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
+import { getSelectedUser, setSelectedUser } from '@/lib/tab-context';
+// Import sessionStartupService to ensure it's instantiated (sets up event listeners)
+// P2P startup is now centralized here - triggered by 'session:activated' event
+import '@/lib/session-startup-service';
 
 /**
  * WorkspaceApp is the main container component that provides:
@@ -44,24 +46,11 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         await connectionManager.initialize();
         console.log('ConnectionManager initialized successfully');
 
-        // Enable orphan mode globally for all sessions
-        // This ensures sessions persist when TCP connections drop
-        await websocketService.setOrphanMode(true);
-        console.log('Orphan mode enabled globally');
+        // Note: Orphan mode is already enabled by connectionManager.initialize() (non-blocking)
 
-        // Start P2P registration service for peer discovery
-        // Auto-registration is disabled by default - users manually add peers
-        try {
-          await p2pRegistrationService.start({ autoRegisterAll: false });
-          console.log('P2P Registration Service started');
-
-          // Auto-connect to all registered peers on startup
-          await p2pAutoConnectService.connectToAllRegisteredPeers();
-          console.log('P2P Auto-Connect initiated for all registered peers');
-        } catch (error) {
-          console.warn('Failed to start P2P Registration Service:', error);
-          // Non-critical - P2P messaging will still work if manually registered
-        }
+        // P2P startup is now handled by SessionStartupService
+        // It listens for 'session:activated' events and triggers P2P connection
+        // This centralized approach ensures P2P works after ClaimSession too
       } catch (error) {
         console.error('Failed to initialize ConnectionManager:', error);
         // Don't prevent app from loading if initialization fails
@@ -94,11 +83,34 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('WorkspaceApp: Skipping redundant connection update for CID:', cidString);
           return;
         }
+
+        // CRITICAL: Only process connection updates for THIS tab's session
+        // In multi-tab scenarios, BroadcastChannel sends connection-status for ALL sessions
+        // Each tab must only respond to updates for its own selected user
+        const tabSelection = getSelectedUser();
+        if (tabSelection?.selectedCid && tabSelection.selectedCid !== cidString) {
+          console.log(`WorkspaceApp: Ignoring connection update for CID ${cidString} (tab has CID ${tabSelection.selectedCid})`);
+          return;
+        }
+
         lastProcessedCid = cidString;
 
         console.log('WorkspaceApp: Valid user session detected, CID:', connection.cid);
         // Set the connection ID in the workspace service
         WorkspaceService.setConnectionId(connection.cid);
+
+        // Emit session:activated to trigger P2P startup (handled by SessionStartupService)
+        // Get username from stored session if available
+        const storedSession = connectionManager.getStoredSessionsArray().find(
+          s => s.cid === cidString || s.cid === connection.cid?.toString()
+        );
+        eventEmitter.emit('session:activated', {
+          cid: cidString,
+          username: storedSession?.username || '',
+          serverAddress: connection.serverAddress,
+          activationType: 'connect' as const
+        });
+        console.log('WorkspaceApp: Emitted session:activated for connection');
 
         // Load user registration info based on connection
         // Always use CID for identification when retrieving user data

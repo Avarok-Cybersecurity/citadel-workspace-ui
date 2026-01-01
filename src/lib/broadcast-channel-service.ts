@@ -3,7 +3,7 @@ import { getSelectedUser } from './tab-context';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 export interface BroadcastMessage {
-  type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message';
+  type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message' | 'p2p-notification';
   data: any;
   timestamp: number;
   tabId: string;
@@ -44,6 +44,19 @@ export class BroadcastChannelService {
   private constructor() {
     this.tabId = this.generateTabId();
     this.initialize();
+    this.setupLeaderSync();
+  }
+
+  /**
+   * Sync leader state from instance-channel (which is the source of truth for leader election)
+   */
+  private setupLeaderSync(): void {
+    // Listen to leader-changed events from instance-channel
+    eventEmitter.on('leader-changed', ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
+      console.log(`BroadcastChannelService: Syncing leader state from instance-channel - isLeader: ${isLeader}, leaderId: ${leaderId}`);
+      this.isLeader = isLeader;
+      this.lastLeaderHeartbeat = Date.now();
+    });
   }
 
   public static getInstance(): BroadcastChannelService {
@@ -120,6 +133,9 @@ export class BroadcastChannelService {
           break;
         case 'p2p-raw-message':
           this.handleP2PRawMessage(message);
+          break;
+        case 'p2p-notification':
+          this.handleP2PNotification(message);
           break;
       }
     };
@@ -198,6 +214,57 @@ export class BroadcastChannelService {
     if (!this.isLeader && message.data) {
       console.log('BroadcastChannelService: Forwarding P2P raw message to event system');
       eventEmitter.emit('p2p:raw-message', message.data);
+    }
+  }
+
+  private handleP2PNotification(message: BroadcastMessage): void {
+    // Forward P2P MessageNotifications to the correct follower tab for chat processing
+    // The leader broadcasts these when it receives a message meant for a different session
+    console.log('[BroadcastChannel] handleP2PNotification received:', {
+      isLeader: this.isLeader,
+      hasData: !!message.data,
+      fromTabId: message.tabId
+    });
+
+    if (!this.isLeader && message.data) {
+      const { notification, messageBytes } = message.data;
+      if (!notification) {
+        console.log('[BroadcastChannel] handleP2PNotification: No notification in data');
+        return;
+      }
+
+      // Check if this notification is for THIS tab's session
+      const tabSelection = getSelectedUser();
+      const tabCid = tabSelection?.selectedCid;
+      const notificationCid = notification.cid?.toString();
+      const peerCid = notification.peer_cid?.toString();
+
+      console.log('[BroadcastChannel] handleP2PNotification checking session match:', {
+        notificationCid,
+        peerCid,
+        tabCid,
+        hasMessageBytes: !!messageBytes,
+        messageLength: notification.message?.length || 0,
+        isMatch: tabCid && notificationCid === tabCid
+      });
+
+      if (tabCid && notificationCid === tabCid) {
+        console.log('[BroadcastChannel] Forwarding P2P notification for our session', {
+          notificationCid,
+          tabCid,
+          peerCid
+        });
+        // Emit as websocket-message so handleWebSocketMessage processes it
+        eventEmitter.emit('websocket-message', { MessageNotification: notification });
+      } else {
+        console.log('[BroadcastChannel] P2P notification NOT for our session, ignoring', {
+          notificationCid,
+          tabCid,
+          reason: !tabCid ? 'no tabCid selected' : 'CID mismatch'
+        });
+      }
+    } else if (this.isLeader) {
+      console.log('[BroadcastChannel] handleP2PNotification: Ignoring (we are leader)');
     }
   }
 
@@ -317,13 +384,48 @@ export class BroadcastChannelService {
   /**
    * Broadcast P2P raw message to all tabs for Yjs sync
    * Leader should call this when receiving P2P messages via WebSocket
+   * BroadcastChannel uses structured clone which supports Uint8Array directly
    */
-  public broadcastP2PRawMessage(data: { peerCid: string; message: string }): void {
+  public broadcastP2PRawMessage(data: { peerCid: string; message: Uint8Array }): void {
     // Only leader broadcasts P2P messages to followers
     if (!this.isLeader) return;
 
     const message: BroadcastMessage = {
       type: 'p2p-raw-message',
+      data,
+      timestamp: Date.now(),
+      tabId: this.tabId,
+      isLeader: true
+    };
+
+    this.broadcast(message);
+  }
+
+  /**
+   * Broadcast a P2P MessageNotification to follower tabs for chat processing.
+   * Called when leader receives a message meant for a different session.
+   * BroadcastChannel uses structured clone which supports Uint8Array directly.
+   */
+  public broadcastP2PNotification(data: { notification: any; messageBytes: Uint8Array }): void {
+    // Only leader broadcasts P2P notifications to followers
+    if (!this.isLeader) {
+      console.log('[BroadcastChannel] broadcastP2PNotification: Not leader, skipping');
+      return;
+    }
+
+    const notificationCid = data.notification?.cid?.toString();
+    const peerCid = data.notification?.peer_cid?.toString();
+
+    console.log('[BroadcastChannel] Broadcasting P2P notification to followers:', {
+      notificationCid: notificationCid?.slice(0, 12),
+      peerCid: peerCid?.slice(0, 12),
+      messageLength: data.notification?.message?.length || 0,
+      hasMessageBytes: !!data.messageBytes,
+      tabId: this.tabId
+    });
+
+    const message: BroadcastMessage = {
+      type: 'p2p-notification',
       data,
       timestamp: Date.now(),
       tabId: this.tabId,

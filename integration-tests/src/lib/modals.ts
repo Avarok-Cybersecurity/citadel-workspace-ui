@@ -74,3 +74,132 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
   console.log('  Workspace loading timeout');
   return false;
 }
+
+/**
+ * Toast state counts - tracks visible toast notifications
+ */
+export interface ToastState {
+  successCount: number;
+  errorCount: number;
+  warningCount: number;
+  totalCount: number;
+}
+
+/**
+ * Check the current state of toast notifications on the page.
+ * Supports both Sonner and Radix UI toast components.
+ */
+export async function checkToastState(page: Page): Promise<ToastState> {
+  // Sonner toast selectors
+  const sonnerToasts = page.locator('[data-sonner-toast]');
+  const sonnerSuccess = page.locator('[data-sonner-toast][data-type="success"]');
+  const sonnerError = page.locator('[data-sonner-toast][data-type="error"]');
+  const sonnerWarning = page.locator('[data-sonner-toast][data-type="warning"]');
+
+  // Radix UI toast selectors (fallback)
+  const radixToasts = page.locator('[data-radix-toast-viewport] [data-state="open"]');
+  const radixDestructive = page.locator('[data-radix-toast-viewport] [data-state="open"].destructive');
+
+  // Count Sonner toasts
+  const sonnerTotal = await sonnerToasts.count();
+  const sonnerSuccessCount = await sonnerSuccess.count();
+  const sonnerErrorCount = await sonnerError.count();
+  const sonnerWarningCount = await sonnerWarning.count();
+
+  // Count Radix toasts (if Sonner not in use)
+  const radixTotal = await radixToasts.count();
+  const radixDestructiveCount = await radixDestructive.count();
+
+  // Combine counts (prefer Sonner if both present)
+  if (sonnerTotal > 0) {
+    return {
+      successCount: sonnerSuccessCount,
+      errorCount: sonnerErrorCount,
+      warningCount: sonnerWarningCount,
+      totalCount: sonnerTotal,
+    };
+  }
+
+  // Radix fallback - classify destructive as error
+  return {
+    successCount: radixTotal - radixDestructiveCount,
+    errorCount: radixDestructiveCount,
+    warningCount: 0,
+    totalCount: radixTotal,
+  };
+}
+
+/**
+ * Assert that no conflicting toasts appear (both success AND error visible).
+ * This indicates a bug in the response handling - operations shouldn't
+ * trigger both success and error simultaneously.
+ *
+ * @returns true if no conflict (test should continue), false if conflict detected
+ * @throws Error if conflict detected and uxTracker is null (strict mode)
+ */
+export async function assertNoToastConflict(
+  page: Page,
+  context: string,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  // Wait briefly for toasts to appear
+  await sleep(500);
+
+  const state = await checkToastState(page);
+
+  if (state.successCount > 0 && state.errorCount > 0) {
+    const message = `Toast conflict in ${context}: ${state.successCount} success and ${state.errorCount} error toasts visible simultaneously`;
+    console.log(`  CONFLICT: ${message}`);
+
+    if (uxTracker) {
+      uxTracker.log('critical', 'functional', message);
+    }
+
+    // Return false to indicate test should fail
+    return false;
+  }
+
+  if (state.errorCount > 0) {
+    // Only error toasts visible - this is a real error
+    console.log(`  ERROR TOAST: ${state.errorCount} error toast(s) visible in ${context}`);
+
+    // Try to get error text for debugging
+    const errorToast = page.locator('[data-sonner-toast][data-type="error"], [data-radix-toast-viewport] .destructive').first();
+    if (await errorToast.isVisible({ timeout: 100 }).catch(() => false)) {
+      const errorText = await errorToast.textContent();
+      console.log(`  Error content: ${errorText}`);
+      if (uxTracker) {
+        uxTracker.log('critical', 'functional', `Error toast in ${context}: ${errorText}`);
+      }
+    }
+    return false;
+  }
+
+  if (state.successCount > 0) {
+    console.log(`  ✓ Success toast visible (${state.successCount} toast(s))`);
+  }
+
+  return true;
+}
+
+/**
+ * Wait for and dismiss all visible toasts
+ */
+export async function dismissAllToasts(page: Page, timeout = 5000): Promise<void> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const state = await checkToastState(page);
+    if (state.totalCount === 0) {
+      return;
+    }
+
+    // Try clicking dismiss buttons
+    const dismissBtn = page.locator('[data-sonner-toast] button[data-dismiss], [data-radix-toast-viewport] button[aria-label*="close"]').first();
+    if (await dismissBtn.isVisible({ timeout: 100 }).catch(() => false)) {
+      await dismissBtn.click();
+    }
+
+    await sleep(500);
+  }
+}

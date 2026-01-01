@@ -23,9 +23,12 @@ const loadConfig = (): DebugConfig => {
   } catch (e) {
     // Ignore errors and use defaults
   }
-  
+
+  // PERF FIX: Disabled verbose logging by default even in development
+  // Verbose logging causes UI freezes due to heavy JSON.stringify on every message
+  // Use window.debugConfig.enable() in console to enable when needed
   return {
-    enableVerboseLogging: process.env.NODE_ENV === 'development',
+    enableVerboseLogging: false,
     enabledCategories: new Set(['errors', 'connection', 'auth'])
   };
 };
