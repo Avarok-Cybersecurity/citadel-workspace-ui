@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-01-01T23:18:53.054Z",
+  "user": "groupchat_user_1767309433018",
+  "office": "General",
+  "room": "Random",
+  "results": {
+    "accountCreation": true,
+    "workspaceLoaded": true,
+    "isAdminAfterInit": true,
+    "officeNavigation": true,
+    "officeChatEnabled": true,
+    "officeChatTabSwitch": true,
+    "officeMessageSent": true,
+    "officeMessageReceived": true,
+    "officeContentTabSwitch": true,
+    "roomNavigation": true,
+    "roomChatEnabled": true,
+    "roomChatTabSwitch": true,
+    "roomMessageSent": true,
+    "roomMessageReceived": true,
+    "multipleMessagesSent": true,
+    "messagesOrdered": true,
+    "uxChecks": {
+      "timestamps": false,
+      "rulesBanner": false,
+      "chatTabVisible": true,
+      "contentTabVisible": true
+    }
+  },
+  "uxIssues": [],
+  "passed": true
+}

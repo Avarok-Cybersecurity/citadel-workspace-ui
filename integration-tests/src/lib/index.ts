@@ -124,3 +124,6 @@ export type {
   DiagnosticsReport,
   DiagnosticsHandle,
 } from './diagnostics.js';
+
+// Service Helpers - Backend service management
+export { restartBackendServices } from './service-helpers.js';

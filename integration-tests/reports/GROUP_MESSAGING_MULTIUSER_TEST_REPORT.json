@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-01-01T23:21:20.995Z",
+  "users": {
+    "user1": "grp_alice_1767309550135",
+    "user2": "grp_bob_1767309550135"
+  },
+  "office": "General",
+  "room": "Random",
+  "results": {
+    "accountCreation": {
+      "user1": true,
+      "user2": true
+    },
+    "officeNavigation": {
+      "user1": true,
+      "user2": true
+    },
+    "officeChatEnabled": true,
+    "officeChatTab": {
+      "user1": true,
+      "user2": true
+    },
+    "officeMessaging": {
+      "user1Sent": true,
+      "user2Received": true,
+      "user2Sent": true,
+      "user1Received": true
+    },
+    "roomNavigation": {
+      "user1": true,
+      "user2": true
+    },
+    "roomChatEnabled": true,
+    "roomChatTab": {
+      "user1": true,
+      "user2": true
+    },
+    "roomMessaging": {
+      "user1Sent": true,
+      "user2Received": true,
+      "user2Sent": true,
+      "user1Received": true
+    }
+  },
+  "uxIssues": [],
+  "passed": true
+}

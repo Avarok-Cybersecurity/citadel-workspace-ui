@@ -26,6 +26,7 @@ import {
   startDiagnostics,
   assertNoToastConflict,
   dismissAllToasts,
+  restartBackendServices,
   type DiagnosticsHandle,
 } from '../lib/index.js';
 
@@ -482,6 +483,12 @@ async function runTest(): Promise<boolean> {
 
   try {
     await ensureScreenshotsDir();
+
+    // Restart backend services to ensure clean state
+    // This is critical because the admin user is the first user to join
+    // the workspace with the master password. If stale state exists from
+    // previous test runs, new users may not get admin role.
+    await restartBackendServices();
     await waitForServicesAlive();
 
     // Create browser

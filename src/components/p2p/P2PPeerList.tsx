@@ -50,6 +50,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     // Wait for LocalDB to load before loading peers
     const initPeers = async () => {
       await messenger.waitForReady();
+      // Sync connection status from backend BEFORE loading peers
+      // This ensures status dots are accurate on page reload
+      await messenger.syncConnectionsFromBackend();
       loadPeers();
       loadAvailablePeers();
     };

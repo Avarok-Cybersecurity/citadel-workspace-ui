@@ -1186,6 +1186,110 @@ class WebSocketService {
     });
   }
 
+  /**
+   * Delete a key from LocalDB
+   * @param cid - The user's CID for scoped storage
+   * @param key - The storage key to delete
+   */
+  async sendLocalDBDelete(cid: string, key: string): Promise<void> {
+    const requestId = crypto.randomUUID();
+    const client = this.getClient();
+
+    if (!client) {
+      throw new Error('No WebSocket client available');
+    }
+
+    const request = {
+      LocalDBDeleteKV: {
+        request_id: requestId,
+        cid: cid,
+        peer_cid: null,
+        key
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(new Error('LocalDBDeleteKV request timed out'));
+      }, 5000);
+
+      const handleMessage = (message: any) => {
+        if (message.LocalDBDeleteKVSuccess?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          resolve();
+        } else if (message.LocalDBDeleteKVFailure?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          reject(new Error(message.LocalDBDeleteKVFailure.message || 'LocalDB delete failed'));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+      client.sendDirectToInternalService(request as any).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Get all keys from LocalDB matching a prefix
+   * @param cid - The user's CID for scoped storage
+   * @param prefix - Optional prefix to filter keys
+   * @returns Array of keys matching the prefix
+   */
+  async sendLocalDBListKeys(cid: string, prefix?: string): Promise<string[]> {
+    const requestId = crypto.randomUUID();
+    const client = this.getClient();
+
+    if (!client) {
+      throw new Error('No WebSocket client available');
+    }
+
+    const request = {
+      LocalDBGetAllKV: {
+        request_id: requestId,
+        cid: cid,
+        peer_cid: null
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(new Error('LocalDBGetAllKV request timed out'));
+      }, 5000);
+
+      const handleMessage = (message: any) => {
+        if (message.LocalDBGetAllKVSuccess?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          // Extract keys from the map and filter by prefix
+          const map = message.LocalDBGetAllKVSuccess.map || {};
+          let keys = Object.keys(map);
+          if (prefix) {
+            keys = keys.filter(k => k.startsWith(prefix));
+          }
+          resolve(keys);
+        } else if (message.LocalDBGetAllKVFailure?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          reject(new Error(message.LocalDBGetAllKVFailure.message || 'LocalDB get all failed'));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+      client.sendDirectToInternalService(request as any).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(error);
+      });
+    });
+  }
+
   // ============== File Picker ==============
 
   /**

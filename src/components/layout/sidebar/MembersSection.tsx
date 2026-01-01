@@ -162,7 +162,7 @@ export const MembersSection = () => {
         // This prevents "Peer XXXXXX" entries from previous test runs cluttering the sidebar
         const validPeerCids = new Set(peerList.map(p => p.cid));
         const messenger = P2PMessengerManager.getInstance();
-        const cleanedCount = messenger.cleanupStaleConversations(validPeerCids);
+        const cleanedCount = await messenger.cleanupStaleConversations(validPeerCids);
         if (cleanedCount > 0) {
           console.log(`MembersSection: Cleaned up ${cleanedCount} stale peer conversation(s)`);
         }

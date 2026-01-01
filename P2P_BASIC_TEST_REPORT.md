@@ -1,15 +1,15 @@
 # P2P Basic Test Report
 
-**Date:** 2025-12-30
-**Timestamp:** 1767129910
+**Date:** 2026-01-01
+**Timestamp:** 1767299778
 **Test Duration:** ~5 minutes
 
 ## Accounts Created
 
 | User | Username | Full Name | CID | Role |
 |------|----------|-----------|-----|------|
-| User 1 | p2ptest1_1767129910 | P2P Test User One | 4086725222825359081 | Admin |
-| User 2 | p2ptest2_1767129910 | P2P Test User Two | 7670537719965412480 | Member |
+| User 1 | p2ptest1_1767299778 | P2P Test User One | 14782882929968937300 | Admin |
+| User 2 | p2ptest2_1767299778 | P2P Test User Two | 16909526114541488659 | Member |
 
 ## Test Configuration
 
@@ -22,98 +22,116 @@
 
 | Step | Test | Status | Notes |
 |------|------|--------|-------|
-| 1 | Account Creation (User 1) | PASS | Workspace initialized successfully |
+| 1 | Account Creation (User 1) | PASS | Workspace initialized successfully as admin |
 | 2 | Account Creation (User 2) | PASS | Joined existing workspace (no init modal - correct) |
 | 3 | P2P Peer Discovery | PASS | User 2 appeared in peer list |
 | 4 | P2P Registration | PASS | Connection request sent and accepted |
 | 5 | Deterministic Initiator Selection | PASS | Higher CID correctly identified as initiator |
-| 6 | Message User1 -> User2 | PASS | "Hello from user1!" delivered in 24ms |
-| 7 | Message User2 -> User1 | PASS | "Hello back from user2!" delivered in 19ms |
-| 8 | Virtual Connection Overwrite Warnings | PASS | None found in server logs |
+| 6 | Message User1 -> User2 | PASS | "Hello from user1!" delivered in 58ms |
+| 7 | Message User2 -> User1 | PASS | "Hello back from user2!" delivered in 45ms |
+| 8 | Paginated Message Persistence | PASS | Messages persisted via LocalDB with proper metadata |
 | 9 | UI Freezes/Retry Loops | PASS | None observed |
 
 ## Overall Result: PASS
 
-All core P2P messaging functionality is working correctly.
+All core P2P messaging functionality is working correctly, including the new paginated message persistence implementation.
 
-## Deterministic Initiator Selection Verification
+## Message Persistence Verification
 
-The P2P connection correctly identified the initiator based on CID comparison:
-
+Console logs confirm paginated message storage is working:
 ```
-CID 7670537719965412480 (User 2) - "IS the initiator" (higher CID)
-CID 4086725222825359081 (User 1) - "is NOT the initiator" (lower CID)
+[P2PChat] Found paginated metadata: {totalMessages: 1, latestPage: 0, peerUsername: undefined}
+[P2PChat] Adding new message, total will be: 2
+[P2P] handleMessageAck conversation 14782882: 2 messages, IDs: [1387ad4e, bcfc2845]
 ```
 
-This confirms the deterministic initiator selection algorithm is working correctly. The higher CID always initiates the P2P connection, ensuring consistent behavior across reconnections.
+Backend logs confirm LocalDB operations:
+```
+LocalDBGetKVSuccess { cid: 16909526114541488659, key: "inbound_messages-16909526114541488659" }
+LocalDBSetKVSuccess - Messages successfully persisted
+```
 
 ## Message Delivery Timeline
 
 | Time | Direction | Message | Delivery Time |
 |------|-----------|---------|---------------|
-| 04:48 PM | User1 -> User2 | "Hello from user1!" | 24ms |
-| 04:49 PM | User2 -> User1 | "Hello back from user2!" | 19ms |
+| 03:45 PM | User1 -> User2 | "Hello from user1!" | 58ms |
+| 03:46 PM | User2 -> User1 | "Hello back from user2!" | 45ms |
 
-Both messages were successfully delivered with acknowledgments (delivered/read status).
+Both messages were successfully delivered with full acknowledgment chain:
+- `sent` -> `delivered` -> `read`
 
 ## Screenshots Captured
 
 | Screenshot | Description |
 |------------|-------------|
-| 01-user1-workspace.png | User 1 workspace after login |
-| 02-user2-workspace.png | User 2 workspace after login |
+| 01-user1-workspace.png | User 1 workspace after admin initialization |
+| 02-user2-workspace.png | User 2 workspace after joining |
 | 03-user1-sends-invite.png | User 1 sending P2P registration invite |
 | 04-user2-accepts.png | User 2 accepting P2P registration |
 | 05-message-sent-user1.png | User 1 sent first message |
+| 06-message-received-user2.png | User 2 received the message |
 | 07-message-sent-user2.png | User 2 sent reply message |
 | 08-bidirectional-complete.png | Both messages visible in User 1's chat |
 
 ## P2P Registration Flow
 
-1. User 1 opened Peer Discovery modal from WORKSPACE MEMBERS section
-2. User 1 clicked "Refresh" to populate peer list
-3. User 2 (p2ptest2_1767129910) appeared in available peers
-4. User 1 clicked "Connect" to initiate P2P registration
-5. User 2 received notification badge showing "1 pending connection request"
-6. User 2 clicked notification bell and accepted the request
-7. P2P connection established bilaterally
-8. Both users appeared in each other's DIRECT MESSAGES section
+1. User 1 opened Peer Discovery modal from OFFICE MEMBERS section
+2. User 2 (p2ptest2_1767299778) appeared in available peers
+3. User 1 clicked "Connect" to initiate P2P registration
+4. User 2 received notification badge showing "(2)" in tab title
+5. User 2 clicked pending request badge and accepted
+6. P2P connection established bilaterally
+7. Both users appeared in each other's DIRECT MESSAGES section
 
 ## Console Warnings/Errors
 
-### Internal Service Logs
+### Warnings
+| Type | Count | Message | Impact |
+|------|-------|---------|--------|
+| Warning | Frequent | `[InstanceInboundRouter] No instance owns CID 0, message may be lost` | Low - Internal routing message |
+| Warning | Periodic | `[P2P] ListRegisteredPeers attempt 1/2 timed out, retrying...` | Low - Peer list refresh timeout |
+| Warning | Rare | `[ILM-BLOCKED] CID X -> peer Y blocked (awaiting ACK)` | Low - Flow control working |
+| Warning | Once | React Router Future Flag Warnings (v7 migration) | Low - Framework upgrade notice |
+| Warning | Once | `using deprecated parameters for the initialization function` | Low - WASM client deprecation |
+| Warning | Once | `PeerRegistrationStore: Failed to load from LocalDB` | Low - Expected on first login |
+
+### Errors
 | Type | Message | Impact |
 |------|---------|--------|
-| Warning | CheckState timeout for [CID], proceeding with send anyway | Low - Transport layer handles delivery |
-| Info | P2P connection established with proper initiator selection | Expected behavior |
+| Error | `Error checking and registering peers: ListRegisteredPeers request timed out` | Low - Non-critical, messages still work |
 
-### Server Logs
-- No "virtual connection overwrite" warnings found
-- Normal workspace protocol operations
-- Successful message routing between peers
+### Backend Logs
+- Both sessions successfully tracked in `server_connection_map`
+- LocalDB KV operations working correctly for message persistence
+- Peer connections properly established between both users
+- `GetSessionsResponse` confirms 2 active sessions with bidirectional peer connections
 
 ## UX/UI Issues Discovered
 
 | Severity | Issue | Details |
 |----------|-------|---------|
-| Low | CheckState Timeout Warnings | Both users experienced timeout warnings before message send. Messages still delivered successfully via transport layer fallback. |
-| Medium | Potential Message Refresh Issue | Initial message from User 1 may not have immediately appeared on User 2's chat view. Message count was 0 at first check before messages appeared. May require investigating auto-refresh behavior for incoming P2P messages. |
+| Low | High frequency polling | `getPeersForSession` called 1300+ times during test (~8 calls/second) |
+| Medium | ListRegisteredPeers timeouts | Periodic timeout warnings when checking registered peers |
+| Low | CID 0 routing warnings | Frequent "No instance owns CID 0" messages clutter console |
+| Low | React Router deprecation | Future flag warnings for v7 migration |
 
 ## Protocol Flow Verified
 
-1. **P2P Registration:** PeerRegister request sent -> PeerRegisterNotification received -> Accept -> PeerConnect established
-2. **CheckState Handshake:** Sender sends CheckState before messaging (timeout handled gracefully)
+1. **P2P Registration:** PeerRegister request -> PeerRegisterNotification -> Accept -> PeerConnect established
+2. **Connection Management:** Sessions properly tracked in server_connection_map
 3. **Message Delivery:** P2P command with MessagingLayerCommand type
-4. **Message Acknowledgment:** Delivered/Read confirmation received
+4. **Message Acknowledgment:** sent -> delivered -> read status chain
 5. **Bidirectional Communication:** Both directions working correctly
+6. **Message Persistence:** Paginated storage via LocalDB working
 
 ## Technical Observations
 
 ### Architecture Confirmation
 - Single WebSocket per browser (not per tab)
 - Leader tab coordinates message distribution via BroadcastChannel
-- Multiple sessions (user1, user2) share one WebSocket connection
-- Sessions persist in server_connection_map with orphan mode
+- Multiple sessions share one WebSocket connection
+- Sessions persist in server_connection_map
 
 ### Message Protocol Stack
 Messages use triple-nested protocol structure:
@@ -126,11 +144,18 @@ InternalServiceRequest::Message {
 }
 ```
 
+### Paginated Message Storage
+New implementation successfully stores:
+- Message metadata with totalMessages count
+- Per-conversation message pages
+- Bidirectional tracking (inbound/outbound messages)
+
 ## Recommendations
 
-1. **CheckState Optimization:** Investigate reducing CheckState timeout or optimizing the handshake to eliminate timeout warnings
-2. **Message Auto-Refresh:** Verify incoming messages appear immediately on recipient's screen without requiring user interaction
-3. **UX Polish:** Consider adding visual feedback during P2P connection establishment
+1. **Reduce Polling Frequency:** Consider throttling `getPeersForSession` calls to reduce CPU/network overhead
+2. **ListRegisteredPeers Timeout:** Increase timeout or investigate root cause of periodic timeouts
+3. **CID 0 Warnings:** Consider suppressing or handling CID 0 routing messages more gracefully
+4. **Paginated Loading:** Test message loading when conversation exceeds page size
 
 ## Conclusion
 
@@ -139,7 +164,8 @@ The P2P messaging system is fully functional:
 - P2P peer discovery and registration complete successfully
 - Deterministic initiator selection algorithm is working as designed
 - Bidirectional messaging delivers messages in both directions
-- No virtual connection overwrite warnings or UI freezes observed
+- **NEW: Paginated message persistence is working correctly**
 - Message acknowledgments (delivered/read) working correctly
+- No UI freezes observed
 
 **Test Status: PASS**

@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-01-01T23:14:37.550Z",
+  "users": {
+    "user1": "prev_sess_a_1767309093787",
+    "user2": "prev_sess_b_1767309093787",
+    "user3": "prev_sess_c_1767309093787"
+  },
+  "results": {
+    "session1Created": true,
+    "session2Created": true,
+    "session3Created": true,
+    "navbarVisible": true,
+    "allSessionsInNavbar": true,
+    "disconnectRemovesSession": true,
+    "reconnectAfterDisconnect": false,
+    "deregisterRemovesSession": true,
+    "deregisterPermanent": true,
+    "oneClickLoginWorks": true,
+    "mostRecentFirst": true,
+    "previousSessionsLabel": true,
+    "scrollContainerExists": true
+  },
+  "uxIssues": [],
+  "passed": true,
+  "corePassed": true,
+  "allPassed": false
+}

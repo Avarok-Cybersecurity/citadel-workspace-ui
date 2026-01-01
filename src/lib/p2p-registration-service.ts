@@ -56,8 +56,9 @@ export class P2PRegistrationService {
   // Default polling interval (30 seconds)
   private readonly POLLING_INTERVAL = 30000;
 
-  // Timeout for peer listing operations - fail fast to prevent UI freeze (was 10s)
-  private readonly PEER_LIST_TIMEOUT = 3000;
+  // Timeout for peer listing operations - must be longer than backend SDK timeout (5s)
+  // to avoid frontend timing out while backend is still processing
+  private readonly PEER_LIST_TIMEOUT = 6000;
 
   // LocalDB key for auto-accept setting
   private static readonly AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';

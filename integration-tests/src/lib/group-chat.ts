@@ -25,31 +25,41 @@ export async function navigateToOffice(
   console.log(`\n=== ${username}: Navigating to office "${officeName}" ===`);
 
   try {
-    // Look for the office in the sidebar
-    const officeLink = page.locator(`[data-testid="office-${officeName}"], a:has-text("${officeName}"), button:has-text("${officeName}")`).first();
+    // Try multiple selectors for the office button in the sidebar
+    const selectors = [
+      `[data-sidebar="menu-button"]:has-text("${officeName}")`,
+      `[data-testid="office-${officeName}"]`,
+      `button:has-text("${officeName}")`,
+      `a:has-text("${officeName}")`,
+    ];
 
-    if (await officeLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await officeLink.click();
-      await sleep(2000);
-      console.log(`  Clicked on office "${officeName}"`);
-      await takeScreenshot(page, `${username}_office_${officeName}`);
-      return true;
+    for (const selector of selectors) {
+      const officeLink = page.locator(selector).first();
+      if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await officeLink.click();
+        await sleep(2000);
+        console.log(`  Clicked on office "${officeName}" (${selector})`);
+        await takeScreenshot(page, `${username}_office_${officeName}`);
+        return true;
+      }
     }
 
     // Try expanding offices section first
-    const officesHeader = page.locator('text="Offices", [data-testid="offices-section"]').first();
+    const officesHeader = page.locator('text="OFFICES", [data-testid="offices-section"]').first();
     if (await officesHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
       await officesHeader.click();
       await sleep(1000);
 
       // Try again after expanding
-      const expandedOfficeLink = page.locator(`a:has-text("${officeName}"), button:has-text("${officeName}")`).first();
-      if (await expandedOfficeLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expandedOfficeLink.click();
-        await sleep(2000);
-        console.log(`  Clicked on office "${officeName}" (after expanding)`);
-        await takeScreenshot(page, `${username}_office_${officeName}`);
-        return true;
+      for (const selector of selectors) {
+        const officeLink = page.locator(selector).first();
+        if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await officeLink.click();
+          await sleep(2000);
+          console.log(`  Clicked on office "${officeName}" (after expanding)`);
+          await takeScreenshot(page, `${username}_office_${officeName}`);
+          return true;
+        }
       }
     }
 
@@ -119,15 +129,24 @@ export async function switchToChatTab(
   console.log(`\n=== ${username}: Switching to Chat tab ===`);
 
   try {
-    // Look for the Chat tab trigger
-    const chatTab = page.locator('[data-state][value="chat"], button:has-text("Chat"), [role="tab"]:has-text("Chat")').first();
+    // Try multiple selectors for the Chat tab trigger
+    // The TabsTrigger has value="chat" and data-state attribute
+    const selectors = [
+      '[role="tab"]:has-text("Chat")',
+      'button[value="chat"]',
+      '[data-state][value="chat"]',
+      'button:has-text("Chat"):not([data-sidebar])', // Exclude sidebar buttons
+    ];
 
-    if (await chatTab.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await chatTab.click();
-      await sleep(1500);
-      console.log(`  Switched to Chat tab`);
-      await takeScreenshot(page, `${username}_chat_tab`);
-      return true;
+    for (const selector of selectors) {
+      const chatTab = page.locator(selector).first();
+      if (await chatTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await chatTab.click();
+        await sleep(1500);
+        console.log(`  Switched to Chat tab (${selector})`);
+        await takeScreenshot(page, `${username}_chat_tab`);
+        return true;
+      }
     }
 
     // Check if chat tab content is already visible (might already be on chat tab)
@@ -137,9 +156,16 @@ export async function switchToChatTab(
       return true;
     }
 
-    console.log(`  WARNING: Could not find Chat tab`);
+    // Check if message input is visible (indicates we're on chat tab)
+    const messageInput = page.locator('textarea[placeholder*="message" i]').first();
+    if (await messageInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log(`  Chat input already visible`);
+      return true;
+    }
+
+    console.log(`  WARNING: Could not find Chat tab (chat may not be enabled for this office/room)`);
     if (options.uxTracker) {
-      options.uxTracker.log('minor', 'functional', 'Chat tab not visible or accessible');
+      options.uxTracker.log('minor', 'functional', 'Chat tab not visible - chat may not be enabled');
     }
     return false;
   } catch (error) {
@@ -154,12 +180,31 @@ export async function switchToChatTab(
 export async function isChatEnabled(page: Page, username: string): Promise<boolean> {
   console.log(`\n=== ${username}: Checking if chat is enabled ===`);
 
-  // Look for Chat tab or chat-related UI elements
-  const chatTab = page.locator('[value="chat"], button:has-text("Chat"), [role="tab"]:has-text("Chat")').first();
-  const chatEnabled = await chatTab.isVisible({ timeout: 3000 }).catch(() => false);
+  // Look for Chat tab (TabsTrigger with text "Chat")
+  const selectors = [
+    '[role="tab"]:has-text("Chat")',
+    'button[value="chat"]',
+    '[data-state][value="chat"]',
+    'button:has-text("Chat"):not([data-sidebar])',
+  ];
 
-  console.log(`  Chat enabled: ${chatEnabled}`);
-  return chatEnabled;
+  for (const selector of selectors) {
+    const chatTab = page.locator(selector).first();
+    if (await chatTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log(`  Chat enabled: true (found ${selector})`);
+      return true;
+    }
+  }
+
+  // Also check if we're already on a chat view
+  const chatInput = page.locator('textarea[placeholder*="message" i]').first();
+  if (await chatInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+    console.log(`  Chat enabled: true (chat input visible)`);
+    return true;
+  }
+
+  console.log(`  Chat enabled: false`);
+  return false;
 }
 
 /**
@@ -359,8 +404,20 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
       return false;
     }
 
-    // Check for office items in the list
-    const officeList = page.locator('[class*="offices"] button, .offices-list button').first();
+    // Check for known offices from the config (General, Engineering, etc.)
+    // These are loaded from workspaces.json and should have chat_enabled: true
+    const knownOffices = ['General', 'Engineering', 'Landing Page', 'Tutorials', 'Welcome'];
+
+    for (const officeName of knownOffices) {
+      const officeBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
+      if (await officeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        console.log(`  Found office: ${officeName}`);
+        return true;
+      }
+    }
+
+    // Fallback: Check for any office items in the sidebar
+    const officeList = page.locator('[data-sidebar="menu-button"]').first();
     const hasItems = await officeList.isVisible({ timeout: 2000 }).catch(() => false);
 
     console.log(`  Offices exist: ${hasItems}`);
@@ -384,17 +441,22 @@ export async function createOffice(
   console.log(`\n=== ${username}: Creating office "${officeName}" ===`);
 
   try {
-    // Try different selectors for the add button
-    let clicked = false;
-    const possibleButtons = [
-      page.locator('.offices-section button:has(svg)').first(),
-      page.locator('[class*="offices"] button:has(svg)').first(),
-      page.locator('button:has(svg):near(:text("OFFICES"))').first(),
+    // Try different selectors for the add button (same selectors as office-room-crud.test.ts)
+    console.log('  Looking for Add Office button...');
+    const selectors = [
+      '[data-testid="add-office-button"]',
+      '.offices-section button:has(svg)',
+      'button[aria-label*="office" i]:has(svg)',
+      'section:has-text("OFFICES") button:has(svg)',
     ];
 
-    for (const btn of possibleButtons) {
+    let clicked = false;
+    for (const selector of selectors) {
+      const btn = page.locator(selector).first();
       if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
         await btn.click();
+        await sleep(500);
+        console.log(`  Clicked Add Office button (${selector})`);
         clicked = true;
         break;
       }
@@ -407,8 +469,8 @@ export async function createOffice(
 
     await sleep(1000);
 
-    // Fill in office name
-    const nameInput = page.getByRole('textbox', { name: 'Office Name' });
+    // Fill in office name - use id selector since the input has id="name"
+    const nameInput = page.locator('input#name, input[id="name"]').first();
     if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await nameInput.fill(officeName);
       await sleep(300);
@@ -417,9 +479,9 @@ export async function createOffice(
       return false;
     }
 
-    // Fill in description if provided
+    // Fill in description - use id selector since textarea has id="description"
     if (description) {
-      const descInput = page.getByRole('textbox', { name: 'Description' });
+      const descInput = page.locator('textarea#description, textarea[id="description"]').first();
       if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
         await descInput.fill(description);
         await sleep(300);
@@ -427,7 +489,7 @@ export async function createOffice(
     }
 
     // Click Create Office button
-    const createBtn = page.getByRole('button', { name: 'Create Office' });
+    const createBtn = page.locator('button:has-text("Create Office"), button:has-text("Update Office")').first();
     if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await createBtn.click();
       await sleep(3000);

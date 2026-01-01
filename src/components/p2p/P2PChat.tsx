@@ -68,6 +68,11 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
   // Markdown preview state
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
 
+  // Pagination state for lazy loading
+  const [currentPage, setCurrentPage] = useState<number | null>(null);
+  const [hasMorePages, setHasMorePages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Ref to always have latest inputMessage available for polling callback
@@ -160,42 +165,60 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
         // This ensures the presence status is accurate (handles page reload scenario)
         await messenger.syncConnectionsFromBackend();
 
-        const conversation = messenger.getConversation(peerCid);
-        console.log('[P2PChat] loadConversation - got conversation:', {
-          hasConversation: !!conversation,
-          messageCount: conversation?.messages?.length || 0,
-          messageTypes: conversation?.messages?.map(m => m.message_type) || [],
-          messageIds: conversation?.messages?.map(m => m.id?.slice(0, 8)) || []
-        });
-        if (conversation) {
-          console.log('[P2PChat] loadConversation - calling setMessages with:', {
-            messageCount: conversation.messages.length,
-            messageIds: conversation.messages.map(m => m.id?.slice(0, 8))
+        // Try to load from paginated storage first
+        const metadata = await messenger.getConversationMetadata(peerCid);
+        if (metadata) {
+          console.log('[P2PChat] Found paginated metadata:', {
+            totalMessages: metadata.totalMessageCount,
+            latestPage: metadata.latestPage,
+            peerUsername: metadata.peerUsername
           });
-          // IMPORTANT: MERGE cache messages with existing state instead of replacing.
-          // Messages may arrive via onMessage listener BEFORE this completes,
-          // and we must not overwrite them.
-          setMessages(prev => {
-            if (prev.length === 0) {
-              // No live messages arrived yet, load directly from cache
-              return [...conversation.messages];
-            }
-            // Merge: add messages from cache that aren't already in state
-            const existingIds = new Set(prev.map(m => m.id));
-            const newFromCache = conversation.messages.filter(m => !existingIds.has(m.id));
-            if (newFromCache.length === 0) {
-              return prev; // No new messages to add
-            }
-            console.log('[P2PChat] Merging', newFromCache.length, 'messages from cache with', prev.length, 'live messages');
-            return [...prev, ...newFromCache].sort((a, b) => a.timestamp - b.timestamp);
-          });
-          setPeerPresence(conversation.presence);
 
-          // Also update isConnected based on synced state
-          const syncedConnected = messenger.isConnected(peerCid);
-          if (syncedConnected) {
-            setIsConnected(true);
+          // Load the latest page
+          const latestMessages = await messenger.loadLatestMessages(peerCid);
+          if (latestMessages.length > 0) {
+            setMessages(prev => {
+              if (prev.length === 0) {
+                return [...latestMessages];
+              }
+              // Merge with any messages that arrived via onMessage
+              const existingIds = new Set(prev.map(m => m.id));
+              const newFromStorage = latestMessages.filter(m => !existingIds.has(m.id));
+              if (newFromStorage.length === 0) return prev;
+              return [...prev, ...newFromStorage].sort((a, b) => a.timestamp - b.timestamp);
+            });
           }
+
+          // Track pagination state
+          setCurrentPage(metadata.latestPage);
+          setHasMorePages(metadata.latestPage > 0);
+        } else {
+          // Fall back to in-memory cache (for conversations not yet paginated)
+          const conversation = messenger.getConversation(peerCid);
+          console.log('[P2PChat] loadConversation - got conversation from cache:', {
+            hasConversation: !!conversation,
+            messageCount: conversation?.messages?.length || 0
+          });
+          if (conversation) {
+            setMessages(prev => {
+              if (prev.length === 0) {
+                return [...conversation.messages];
+              }
+              const existingIds = new Set(prev.map(m => m.id));
+              const newFromCache = conversation.messages.filter(m => !existingIds.has(m.id));
+              if (newFromCache.length === 0) return prev;
+              return [...prev, ...newFromCache].sort((a, b) => a.timestamp - b.timestamp);
+            });
+            setPeerPresence(conversation.presence);
+          }
+          setCurrentPage(null);
+          setHasMorePages(false);
+        }
+
+        // Update connection state
+        const syncedConnected = messenger.isConnected(peerCid);
+        if (syncedConnected) {
+          setIsConnected(true);
         }
 
         // Double-check with p2pAutoConnectService as additional source
@@ -466,6 +489,58 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
       notificationService.markMessageNotificationsAsReadBySender(peerCid);
     }
   }, [peerCid, activeTabId]);
+
+  // Load older messages when scrolling to top (lazy loading)
+  const loadOlderMessages = useCallback(async () => {
+    if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) {
+      return;
+    }
+
+    console.log('[P2PChat] Loading older page:', currentPage - 1);
+    setIsLoadingMore(true);
+
+    try {
+      const olderPage = await messenger.loadMessagePage(peerCid, currentPage - 1);
+      if (olderPage && olderPage.messages.length > 0) {
+        // Preserve scroll position by calculating offset
+        const scrollElement = scrollRef.current;
+        const previousScrollHeight = scrollElement?.scrollHeight || 0;
+
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const newMessages = olderPage.messages.filter(m => !existingIds.has(m.id));
+          if (newMessages.length === 0) return prev;
+          return [...newMessages, ...prev].sort((a, b) => a.timestamp - b.timestamp);
+        });
+
+        // Restore scroll position after prepending messages
+        requestAnimationFrame(() => {
+          if (scrollElement) {
+            const newScrollHeight = scrollElement.scrollHeight;
+            scrollElement.scrollTop = newScrollHeight - previousScrollHeight;
+          }
+        });
+
+        setCurrentPage(currentPage - 1);
+        setHasMorePages(currentPage - 1 > 0);
+      } else {
+        setHasMorePages(false);
+      }
+    } catch (error) {
+      console.error('[P2PChat] Failed to load older messages:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, currentPage, hasMorePages, peerCid, messenger]);
+
+  // Scroll handler for lazy loading
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    // Trigger load when scrolled to top (with small threshold)
+    if (target.scrollTop < 100 && hasMorePages && !isLoadingMore) {
+      loadOlderMessages();
+    }
+  }, [hasMorePages, isLoadingMore, loadOlderMessages]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -738,8 +813,20 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
           />
         ) : (
           <>
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+            <ScrollArea className="flex-1 p-4" ref={scrollRef} onScroll={handleScroll}>
               <div className="space-y-4">
+                {/* Loading indicator for older messages */}
+                {isLoadingMore && (
+                  <div className="flex justify-center py-2">
+                    <div className="text-sm text-muted-foreground">Loading older messages...</div>
+                  </div>
+                )}
+                {/* "Load more" hint when more pages exist */}
+                {hasMorePages && !isLoadingMore && (
+                  <div className="flex justify-center py-2">
+                    <div className="text-xs text-muted-foreground">↑ Scroll up for older messages</div>
+                  </div>
+                )}
                 {/* DEBUG: Log messages array at render time */}
                 {console.log('[P2PChat] Render - messages:', {
                   count: messages.length,

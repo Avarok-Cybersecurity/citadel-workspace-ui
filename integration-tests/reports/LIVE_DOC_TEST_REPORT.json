@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-01-01T23:08:03.615Z",
+  "users": {
+    "user1": "livedoc_a_1767308772064",
+    "user2": "livedoc_b_1767308772064"
+  },
+  "document": "TestDoc_1767308772064",
+  "results": {
+    "accountCreation": true,
+    "p2pRegistration": true,
+    "p2pAccept": true,
+    "docCreated": true,
+    "user1ToUser2Sync": true,
+    "user2ToUser1Sync": true
+  },
+  "passed": true
+}

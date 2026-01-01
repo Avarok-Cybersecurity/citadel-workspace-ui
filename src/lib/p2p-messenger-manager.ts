@@ -46,6 +46,48 @@ import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 import type { MessageType } from '@/types/message-protocol';
 
+// ============================================================================
+// PAGINATED MESSAGE PERSISTENCE
+// ============================================================================
+// Messages are stored in pages to support lazy loading and efficient storage.
+// Format:
+//   - Metadata: msgs_with_peer_{CID}_metadata
+//   - Pages: msgs_with_peer_{CID}_{pageNumber}
+// Page 0 = oldest messages, higher pages = newer messages
+// ============================================================================
+
+const MESSAGES_PER_PAGE = 50;
+const PAGINATED_PREFIX = 'msgs_with_peer_';
+
+/**
+ * Metadata for a conversation stored at `msgs_with_peer_{CID}_metadata`
+ */
+export interface ConversationMetadata {
+  peerCid: string;
+  peerUsername?: string;
+  totalMessageCount: number;
+  oldestMessageTimestamp: number;
+  newestMessageTimestamp: number;
+  latestPage: number;        // Current highest page number (0-indexed)
+  messagesPerPage: number;   // Default: 50
+  unreadCount: number;
+  lastMessageIndex: number;
+  lastUpdated: number;
+}
+
+/**
+ * A page of messages stored at `msgs_with_peer_{CID}_{page}`
+ */
+export interface MessagePage {
+  peerCid: string;
+  pageNumber: number;
+  messages: P2PMessage[];  // Sorted by timestamp ascending
+  pageTimestamps: {
+    minTimestamp: number;
+    maxTimestamp: number;
+  };
+}
+
 export interface P2PMessage {
   id: string;
   content: string;
@@ -266,7 +308,10 @@ export class P2PMessengerManager {
     const conversation = this.cache.conversations.get(peerCid);
     if (conversation) {
       conversation.peerUsername = username;
-      this.persistConversations();
+      // Persist to paginated metadata (async, fire-and-forget)
+      this.updatePeerUsernameInMetadata(peerCid, username).catch(err => {
+        console.warn('[P2P] Failed to persist peer username:', err);
+      });
     }
   }
 
@@ -836,7 +881,7 @@ export class P2PMessengerManager {
     // Update message status in all conversations
     let statusUpdated = false;
     let newStatus: P2PMessage['status'] = 'sent';
-    const updatedMessageIds: string[] = [];
+    const updatedMessages: Array<{ peerCid: string; messageId: string; status: P2PMessage['status']; error?: string }> = [];
 
     // Debug: Log all conversations and message IDs
     console.log('[P2P] handleMessageAck searching for message in', this.cache.conversations.size, 'conversations');
@@ -845,7 +890,7 @@ export class P2PMessengerManager {
         conv.messages.map(m => m.id.slice(0, 8)));
     });
 
-    this.cache.conversations.forEach(conversation => {
+    this.cache.conversations.forEach((conversation, peerCid) => {
       const message = conversation.messages.find(m => m.id === payload.message_id);
       if (message) {
         console.log('[P2P] handleMessageAck FOUND message, updating status:', message.status, '->', payload.ack_type);
@@ -855,7 +900,7 @@ export class P2PMessengerManager {
           message.error = payload.error;
         }
         statusUpdated = true;
-        updatedMessageIds.push(message.id);
+        updatedMessages.push({ peerCid, messageId: message.id, status: newStatus, error: payload.error });
 
         // FIX: When marking a message as "read" or "delivered", also mark all
         // earlier messages from the same sender to that same status.
@@ -876,7 +921,7 @@ export class P2PMessengerManager {
               // Only upgrade status (sent -> delivered -> read), never downgrade
               if (newStatus === 'read' || earlierMsg.status === 'sent') {
                 earlierMsg.status = newStatus;
-                updatedMessageIds.push(earlierMsg.id);
+                updatedMessages.push({ peerCid, messageId: earlierMsg.id, status: newStatus });
               }
             }
           });
@@ -884,14 +929,18 @@ export class P2PMessengerManager {
       }
     });
 
-    // Persist the update
-    await this.persistConversations();
+    // Persist status updates to paginated storage
+    await Promise.all(
+      updatedMessages.map(({ peerCid, messageId, status, error }) =>
+        this.updateMessageInPages(peerCid, messageId, { status, error })
+      )
+    );
 
     // Notify listeners about status changes for all updated messages
     if (statusUpdated) {
-      console.log('[P2P] handleMessageAck notifying listeners for', updatedMessageIds.length, 'messages, new status:', newStatus);
-      updatedMessageIds.forEach(msgId => {
-        this.messageStatusListeners.forEach(listener => listener(msgId, newStatus));
+      console.log('[P2P] handleMessageAck notifying listeners for', updatedMessages.length, 'messages, new status:', newStatus);
+      updatedMessages.forEach(({ messageId }) => {
+        this.messageStatusListeners.forEach(listener => listener(messageId, newStatus));
       });
     } else {
       console.warn('[P2P] handleMessageAck: Message NOT FOUND in any conversation!', payload.message_id.slice(0, 8));
@@ -1129,8 +1178,8 @@ export class P2PMessengerManager {
       throw error;
     }
 
-    // Persist the updated status
-    await this.persistConversations();
+    // Persist the updated status to paginated storage
+    await this.updateMessageInPages(peerCid, messageId, { status: message.status, error: message.error });
   }
 
   /**
@@ -1446,20 +1495,26 @@ export class P2PMessengerManager {
       : conversation.messages.filter(m => m.senderCid === peerCid && m.status === 'delivered');
 
     // Send read acknowledgments for each message
+    const markedMessageIds: string[] = [];
     for (const message of messagesToMark) {
       if (message.status === 'delivered') {
         message.status = 'read';
+        markedMessageIds.push(message.id);
         await this.sendMessageAck(message.id, 'read', peerCid);
       }
     }
 
     // Update unread count
-    conversation.unreadCount = conversation.messages.filter(
+    const newUnreadCount = conversation.messages.filter(
       m => m.senderCid === peerCid && m.status === 'delivered'
     ).length;
+    conversation.unreadCount = newUnreadCount;
 
-    // Persist changes
-    await this.persistConversations();
+    // Persist changes to paginated storage (update messages and unread count)
+    await Promise.all([
+      ...markedMessageIds.map(msgId => this.updateMessageInPages(peerCid, msgId, { status: 'read' })),
+      this.updateUnreadCount(peerCid, newUnreadCount)
+    ]);
 
     // Emit update event
     eventEmitter.emit('conversation-updated', { peerCid, conversation });
@@ -1549,27 +1604,24 @@ export class P2PMessengerManager {
       return false;
     }
 
-    // Add message
+    // Add message to in-memory conversation for immediate UI
     conversation.messages.push(message);
     conversation.lastMessageIndex = Math.max(conversation.lastMessageIndex, message.index);
 
     // Sort messages by timestamp for chronological order
     conversation.messages.sort((a, b) => a.timestamp - b.timestamp);
 
-    // Trim to max size
+    // Keep in-memory cache trimmed to maxMessagesPerConversation
+    // (but all messages are persisted in paginated storage)
     if (conversation.messages.length > this.cache.maxMessagesPerConversation) {
-      const overflow = conversation.messages.splice(0,
-        conversation.messages.length - this.cache.maxMessagesPerConversation);
-
-      // Move overflow to long-term storage
-      await this.moveToLongTermStorage(peerCid, overflow);
+      conversation.messages.splice(0, conversation.messages.length - this.cache.maxMessagesPerConversation);
     }
 
-    // Update queue
+    // Update global message queue (for getRecentMessages)
     this.updateMessageQueue(message);
 
-    // Persist changes
-    await this.persistConversations();
+    // Persist to paginated storage
+    await this.appendMessageToPage(peerCid, message);
 
     return true;  // Message was newly added
   }
@@ -1577,124 +1629,363 @@ export class P2PMessengerManager {
   private updateMessageQueue(message: P2PMessage) {
     this.cache.messageQueue.push(message);
 
+    // Trim queue to maxQueueSize
     if (this.cache.messageQueue.length > this.cache.maxQueueSize) {
-      const overflow = this.cache.messageQueue.splice(0,
-        this.cache.messageQueue.length - this.cache.maxQueueSize);
-
-      // Move to long-term storage asynchronously
-      this.moveQueueToLongTermStorage(overflow);
+      this.cache.messageQueue.splice(0, this.cache.messageQueue.length - this.cache.maxQueueSize);
     }
-  }
-
-  private async moveToLongTermStorage(peerCid: string, messages: P2PMessage[]) {
-    // Use LocalDB to store messages
-    for (const message of messages) {
-      const key = `${this.dbPrefix}_${peerCid}_${message.id}`;
-      const valueStr = JSON.stringify(message);
-      // Convert to byte array - backend expects Vec<u8>
-      const valueBytes = Array.from(new TextEncoder().encode(valueStr));
-
-      const request = {
-        LocalDBSetKV: {
-          request_id: crypto.randomUUID(),
-          cid: 0, // Use 0 for local operations
-          peer_cid: null,
-          key,
-          value: valueBytes
-        }
-      };
-
-      await websocketService.sendRequest(request);
-    }
-  }
-
-  private async moveQueueToLongTermStorage(messages: P2PMessage[]) {
-    // Group by conversation
-    const byConversation = new Map<string, P2PMessage[]>();
-    messages.forEach(msg => {
-      const peerCid = msg.senderCid === msg.recipientCid ? msg.recipientCid :
-        (msg.senderCid === this.getCurrentCid() ? msg.recipientCid : msg.senderCid);
-
-      if (!byConversation.has(peerCid)) {
-        byConversation.set(peerCid, []);
-      }
-      byConversation.get(peerCid)!.push(msg);
-    });
-
-    // Store each conversation's messages
-    for (const [peerCid, msgs] of byConversation) {
-      await this.moveToLongTermStorage(peerCid, msgs);
-    }
-  }
-
-  private async persistConversations() {
-    // Save current conversations to LocalDB
-    const conversations = Array.from(this.cache.conversations.entries()).map(([peerCid, conv]) => ({
-      peerCid,
-      peerUsername: conv.peerUsername,  // Persist username for display
-      messages: conv.messages,
-      lastMessageIndex: conv.lastMessageIndex,
-      unreadCount: conv.unreadCount
-    }));
-
-    const valueStr = JSON.stringify(conversations);
-    // Convert to byte array - backend expects Vec<u8>
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
-
-    // Use sendLocalDBSet for proper request/response handling
-    await websocketService.sendLocalDBSet('0', `${this.dbPrefix}_conversations`, valueBytes);
   }
 
   private async loadCachedMessages() {
     try {
-      // Use sendLocalDBGet which properly handles request/response with event listener
-      // Caller ensures WebSocket is connected before calling this method
-      const response = await websocketService.sendLocalDBGet('0', `${this.dbPrefix}_conversations`);
+      // Step 1: Delete old monolithic format (fresh start per plan)
+      await this.deleteOldFormat();
 
-      if (response && response.value) {
+      // Step 2: Load all conversation metadata from paginated format
+      await this.loadAllMetadata();
+
+      this.cachedMessagesLoaded = true;
+    } catch (error) {
+      console.error('Failed to load cached messages:', error);
+      this.cachedMessagesLoaded = true; // Mark as loaded to prevent infinite retries
+    }
+  }
+
+  // ============================================================================
+  // PAGINATED STORAGE METHODS
+  // ============================================================================
+
+  /**
+   * Delete the old monolithic `p2p_messages_conversations` key.
+   * Called once on startup to migrate to paginated format.
+   */
+  private async deleteOldFormat(): Promise<void> {
+    try {
+      const key = `${this.dbPrefix}_conversations`;
+      await websocketService.sendLocalDBDelete('0', key);
+      console.log('[P2P] Deleted old monolithic format');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('Key not found')) {
+        console.warn('[P2P] Failed to delete old format:', error);
+      }
+      // Key not found is fine - means already migrated or fresh install
+    }
+  }
+
+  /**
+   * Load all conversation metadata from LocalDB.
+   * Scans for keys matching `msgs_with_peer_*_metadata` pattern.
+   */
+  private async loadAllMetadata(): Promise<void> {
+    try {
+      // Get all keys from LocalDB that match our metadata pattern
+      const allKeys = await websocketService.sendLocalDBListKeys('0', `${PAGINATED_PREFIX}`);
+
+      if (!allKeys || allKeys.length === 0) {
+        console.log('[P2P] No paginated conversations found (fresh install)');
+        return;
+      }
+
+      // Filter for metadata keys only
+      const metadataKeys = allKeys.filter((key: string) => key.endsWith('_metadata'));
+      console.log(`[P2P] Found ${metadataKeys.length} conversation metadata keys`);
+
+      // Load each metadata and create conversation stubs
+      for (const key of metadataKeys) {
+        try {
+          const metadata = await this.loadMetadataByKey(key);
+          if (metadata) {
+            // Create conversation stub with metadata (messages loaded on demand)
+            this.cache.conversations.set(metadata.peerCid, {
+              peerCid: metadata.peerCid,
+              peerUsername: metadata.peerUsername,
+              messages: [],  // Empty - loaded on demand via loadMessagePage
+              lastMessageIndex: metadata.lastMessageIndex,
+              unreadCount: metadata.unreadCount,
+              typing: false,
+              lastTypingUpdate: 0,
+              presence: {
+                status: MessagingLayerType.Offline,
+                lastUpdate: 0
+              }
+            });
+          }
+        } catch (e) {
+          console.warn(`[P2P] Failed to load metadata for key ${key}:`, e);
+        }
+      }
+
+      console.log(`[P2P] Loaded ${this.cache.conversations.size} conversation(s) from paginated storage`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Key not found') || errorMessage.includes('No keys found')) {
+        console.log('[P2P] No paginated conversations found');
+      } else {
+        console.error('[P2P] Failed to load metadata:', error);
+      }
+    }
+  }
+
+  /**
+   * Load metadata for a specific peer.
+   */
+  private async loadMetadata(peerCid: string): Promise<ConversationMetadata | null> {
+    const key = `${PAGINATED_PREFIX}${peerCid}_metadata`;
+    return this.loadMetadataByKey(key);
+  }
+
+  /**
+   * Load metadata by full key.
+   */
+  private async loadMetadataByKey(key: string): Promise<ConversationMetadata | null> {
+    try {
+      const response = await websocketService.sendLocalDBGet('0', key);
+      if (response?.value) {
         const rawValue = response.value;
-
-        // Handle byte array response - backend returns Vec<u8>
         let valueStr: string;
         if (Array.isArray(rawValue)) {
           valueStr = new TextDecoder().decode(new Uint8Array(rawValue));
         } else if (typeof rawValue === 'string') {
           valueStr = rawValue;
         } else {
-          console.error('Unexpected value type in LocalDBGetKVSuccess:', typeof rawValue);
-          return;
+          return null;
         }
-
-        const conversations = JSON.parse(valueStr);
-        conversations.forEach((conv: any) => {
-          this.cache.conversations.set(conv.peerCid, {
-            ...conv,
-            typing: false,
-            lastTypingUpdate: 0,
-            presence: conv.presence || {
-              status: MessagingLayerType.Offline,
-              lastUpdate: 0
-            }
-          });
-        });
-        console.log(`[P2P] Loaded ${conversations.length} cached conversation(s)`);
+        return JSON.parse(valueStr) as ConversationMetadata;
       }
-      this.cachedMessagesLoaded = true;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // "Key not found" is expected when there's no cached data yet (first-time user)
-      if (errorMessage.includes('Key not found')) {
-        console.log('[P2P] No cached messages found (first time or cleared storage)');
-        this.cachedMessagesLoaded = true; // No messages, but that's OK
-      } else {
-        console.error('Failed to load cached messages:', error);
-        // Mark as loaded to prevent infinite retries on errors
-        this.cachedMessagesLoaded = true;
-      }
+      return null;
+    } catch {
+      return null;
     }
   }
 
+  /**
+   * Save metadata for a peer.
+   */
+  private async saveMetadata(peerCid: string, metadata: ConversationMetadata): Promise<void> {
+    const key = `${PAGINATED_PREFIX}${peerCid}_metadata`;
+    const valueStr = JSON.stringify(metadata);
+    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    await websocketService.sendLocalDBSet('0', key, valueBytes);
+  }
+
+  /**
+   * Load a specific page of messages for a peer.
+   * @param peerCid The peer's CID
+   * @param pageNumber Page number (0 = oldest, higher = newer)
+   * @returns MessagePage or null if not found
+   */
+  public async loadMessagePage(peerCid: string, pageNumber: number): Promise<MessagePage | null> {
+    const key = `${PAGINATED_PREFIX}${peerCid}_${pageNumber}`;
+    try {
+      const response = await websocketService.sendLocalDBGet('0', key);
+      if (response?.value) {
+        const rawValue = response.value;
+        let valueStr: string;
+        if (Array.isArray(rawValue)) {
+          valueStr = new TextDecoder().decode(new Uint8Array(rawValue));
+        } else if (typeof rawValue === 'string') {
+          valueStr = rawValue;
+        } else {
+          return null;
+        }
+        return JSON.parse(valueStr) as MessagePage;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Save a page of messages for a peer.
+   */
+  private async saveMessagePage(peerCid: string, pageNumber: number, page: MessagePage): Promise<void> {
+    const key = `${PAGINATED_PREFIX}${peerCid}_${pageNumber}`;
+    const valueStr = JSON.stringify(page);
+    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    await websocketService.sendLocalDBSet('0', key, valueBytes);
+  }
+
+  /**
+   * Append a message to the latest page, creating a new page if needed.
+   * This is the main method for persisting new messages.
+   */
+  private async appendMessageToPage(peerCid: string, message: P2PMessage): Promise<void> {
+    // Load or create metadata
+    let metadata = await this.loadMetadata(peerCid);
+    const isNewConversation = !metadata;
+
+    if (!metadata) {
+      metadata = {
+        peerCid,
+        peerUsername: this.cache.conversations.get(peerCid)?.peerUsername,
+        totalMessageCount: 0,
+        oldestMessageTimestamp: message.timestamp,
+        newestMessageTimestamp: message.timestamp,
+        latestPage: 0,
+        messagesPerPage: MESSAGES_PER_PAGE,
+        unreadCount: 0,
+        lastMessageIndex: 0,
+        lastUpdated: Date.now()
+      };
+    }
+
+    // Load the latest page (or create empty one)
+    let currentPage = await this.loadMessagePage(peerCid, metadata.latestPage);
+    if (!currentPage) {
+      currentPage = {
+        peerCid,
+        pageNumber: metadata.latestPage,
+        messages: [],
+        pageTimestamps: {
+          minTimestamp: message.timestamp,
+          maxTimestamp: message.timestamp
+        }
+      };
+    }
+
+    // Check if page is full - create new page if needed
+    if (currentPage.messages.length >= MESSAGES_PER_PAGE) {
+      // Save current full page
+      await this.saveMessagePage(peerCid, metadata.latestPage, currentPage);
+
+      // Create new page
+      metadata.latestPage++;
+      currentPage = {
+        peerCid,
+        pageNumber: metadata.latestPage,
+        messages: [],
+        pageTimestamps: {
+          minTimestamp: message.timestamp,
+          maxTimestamp: message.timestamp
+        }
+      };
+      console.log(`[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.slice(0, 8)}...`);
+    }
+
+    // Add message to current page
+    currentPage.messages.push(message);
+    currentPage.messages.sort((a, b) => a.timestamp - b.timestamp);
+    currentPage.pageTimestamps.minTimestamp = currentPage.messages[0].timestamp;
+    currentPage.pageTimestamps.maxTimestamp = currentPage.messages[currentPage.messages.length - 1].timestamp;
+
+    // Update metadata
+    metadata.totalMessageCount++;
+    metadata.newestMessageTimestamp = message.timestamp;
+    if (isNewConversation || message.timestamp < metadata.oldestMessageTimestamp) {
+      metadata.oldestMessageTimestamp = message.timestamp;
+    }
+    metadata.lastMessageIndex = Math.max(metadata.lastMessageIndex, message.index);
+    metadata.lastUpdated = Date.now();
+
+    // Update unread count for incoming messages
+    const currentCid = this.getCurrentCid();
+    if (message.senderCid !== currentCid && message.status === 'delivered') {
+      metadata.unreadCount++;
+    }
+
+    // Persist both page and metadata
+    await Promise.all([
+      this.saveMessagePage(peerCid, metadata.latestPage, currentPage),
+      this.saveMetadata(peerCid, metadata)
+    ]);
+  }
+
+  /**
+   * Load the most recent messages for a conversation (latest page).
+   * Call this when opening a chat to populate the UI.
+   */
+  public async loadLatestMessages(peerCid: string): Promise<P2PMessage[]> {
+    const metadata = await this.loadMetadata(peerCid);
+    if (!metadata) return [];
+
+    const latestPage = await this.loadMessagePage(peerCid, metadata.latestPage);
+    return latestPage?.messages || [];
+  }
+
+  /**
+   * Get conversation metadata for a peer.
+   */
+  public async getConversationMetadata(peerCid: string): Promise<ConversationMetadata | null> {
+    return this.loadMetadata(peerCid);
+  }
+
+  /**
+   * Update unread count and persist to metadata.
+   */
+  public async updateUnreadCount(peerCid: string, unreadCount: number): Promise<void> {
+    const metadata = await this.loadMetadata(peerCid);
+    if (metadata) {
+      metadata.unreadCount = unreadCount;
+      metadata.lastUpdated = Date.now();
+      await this.saveMetadata(peerCid, metadata);
+    }
+
+    // Also update in-memory cache
+    const conversation = this.cache.conversations.get(peerCid);
+    if (conversation) {
+      conversation.unreadCount = unreadCount;
+    }
+  }
+
+  /**
+   * Update a message's status in its persisted page.
+   * Searches all pages to find the message and update it.
+   */
+  public async updateMessageInPages(peerCid: string, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
+    const metadata = await this.loadMetadata(peerCid);
+    if (!metadata) return false;
+
+    // Search all pages for the message (start from latest as most status updates are for recent messages)
+    for (let pageNum = metadata.latestPage; pageNum >= 0; pageNum--) {
+      const page = await this.loadMessagePage(peerCid, pageNum);
+      if (!page) continue;
+
+      const msgIndex = page.messages.findIndex(m => m.id === messageId);
+      if (msgIndex !== -1) {
+        // Found the message - update it
+        page.messages[msgIndex] = { ...page.messages[msgIndex], ...updates };
+        await this.saveMessagePage(peerCid, pageNum, page);
+        return true;
+      }
+    }
+
+    return false; // Message not found in any page
+  }
+
+  /**
+   * Update peer username in metadata.
+   */
+  public async updatePeerUsernameInMetadata(peerCid: string, username: string): Promise<void> {
+    const metadata = await this.loadMetadata(peerCid);
+    if (metadata) {
+      metadata.peerUsername = username;
+      metadata.lastUpdated = Date.now();
+      await this.saveMetadata(peerCid, metadata);
+    }
+  }
+
+  /**
+   * Delete all pages and metadata for a conversation.
+   */
+  public async deleteConversationPages(peerCid: string): Promise<void> {
+    const metadata = await this.loadMetadata(peerCid);
+    if (!metadata) return;
+
+    // Delete all message pages
+    const deletePromises: Promise<void>[] = [];
+    for (let pageNum = 0; pageNum <= metadata.latestPage; pageNum++) {
+      const key = `${PAGINATED_PREFIX}${peerCid}_${pageNum}`;
+      deletePromises.push(websocketService.sendLocalDBDelete('0', key));
+    }
+
+    // Delete metadata
+    const metadataKey = `${PAGINATED_PREFIX}${peerCid}_metadata`;
+    deletePromises.push(websocketService.sendLocalDBDelete('0', metadataKey));
+
+    await Promise.all(deletePromises);
+    console.log(`[P2P] Deleted ${metadata.latestPage + 1} pages + metadata for peer ${peerCid.slice(0, 8)}...`);
+  }
 
   // Public API methods
   public getConversation(peerCid: string): P2PConversation | undefined {
@@ -1713,7 +2004,7 @@ export class P2PMessengerManager {
    * @param validPeerCids - Set of CIDs for peers currently registered on the server
    * @returns Number of stale conversations removed
    */
-  public cleanupStaleConversations(validPeerCids: Set<string>): number {
+  public async cleanupStaleConversations(validPeerCids: Set<string>): Promise<number> {
     const staleCids: string[] = [];
 
     for (const [peerCid] of this.cache.conversations.entries()) {
@@ -1729,7 +2020,8 @@ export class P2PMessengerManager {
 
     if (staleCids.length > 0) {
       console.log(`[P2P] Cleaned up ${staleCids.length} stale conversation(s)`);
-      this.persistConversations();
+      // Delete all pages and metadata for stale conversations
+      await Promise.all(staleCids.map(cid => this.deleteConversationPages(cid)));
       eventEmitter.emit('p2p:conversations-cleaned');
     }
 

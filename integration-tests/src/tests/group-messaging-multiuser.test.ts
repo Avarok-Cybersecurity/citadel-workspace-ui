@@ -30,6 +30,7 @@ import {
   sendGroupMessage,
   verifyGroupMessageReceived,
   waitForWorkspaceLoaded,
+  restartBackendServices,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -106,6 +107,12 @@ async function runTest(): Promise<boolean> {
   // Initialize
   ensureScreenshotsDir();
   const uxTracker = new UxIssueTracker();
+
+  // Restart backend services to ensure clean state
+  // This is critical because the admin user is the first user to join
+  // the workspace with the master password. If stale state exists from
+  // previous test runs, new users may not get admin role.
+  await restartBackendServices();
 
   // Wait for services
   await waitForServicesAlive();
