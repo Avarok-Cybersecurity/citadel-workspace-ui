@@ -96,14 +96,15 @@ export const WorkspaceEventHandler: React.FC<{
   });
 
   const [showInitModal, setShowInitModal] = useState(false);
+  const [initModalDismissed, setInitModalDismissed] = useState(false);
 
   // Watch for initialization requirement and show modal
   useEffect(() => {
-    if (state.needsWorkspaceInitialization && !showInitModal) {
+    if (state.needsWorkspaceInitialization && !showInitModal && !initModalDismissed) {
       console.info('Workspace needs initialization - showing modal');
       setShowInitModal(true);
     }
-  }, [state.needsWorkspaceInitialization, showInitModal]);
+  }, [state.needsWorkspaceInitialization, showInitModal, initModalDismissed]);
 
   useEffect(() => {
     // Set up event listeners for workspace
@@ -1041,7 +1042,10 @@ export const WorkspaceEventHandler: React.FC<{
       </WorkspaceProvider>
       <WorkspaceInitializationModal
         isOpen={showInitModal}
-        onClose={() => setShowInitModal(false)}
+        onClose={() => {
+          setShowInitModal(false);
+          setInitModalDismissed(true);  // Prevent modal from reappearing after cancel
+        }}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}
         workspaceId={state.workspace?.id || 'root'}
