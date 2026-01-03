@@ -19,6 +19,7 @@ import { eventEmitter } from "@/lib/event-emitter";
 import { ConnectionManager } from "@/lib/connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { mapSecuritySettings } from "@/lib/security-utils";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -30,7 +31,6 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
-  const [checkingWorkspace, setCheckingWorkspace] = useState(false);
   const [showNotInitializedModal, setShowNotInitializedModal] = useState(false);
   const queryClient = useQueryClient();
 
@@ -55,51 +55,6 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
     sigAlgorithm: 'None',
     headerObfuscatorSettings: {},
     // storeCredentials: false, 
-  };
-
-  // Check workspace initialization status before registration
-  const checkWorkspaceInitialization = async () => {
-    setCheckingWorkspace(true);
-    try {
-      // First, we need to connect temporarily to check workspace status
-      const connectPayload: ConnectRequestTS = {
-        workspaceAddress: serverData.serverAddress,
-        username: "temp_check", // Temporary username for checking
-        password: "temp_check",
-        connectMode: ConnectMode.Fetch,
-        udpMode: UdpMode.Disabled,
-        keepAliveTimeoutMs: 30000,
-        sessionSecuritySettings: {
-          securityLevel: securitySettings.securityLevel,
-          secrecyMode: securitySettings.secrecyMode,
-          encryptionAlgorithm: securitySettings.encryptionAlgorithm,
-          kemAlgorithm: securitySettings.kemAlgorithm,
-          sigAlgorithm: securitySettings.sigAlgorithm,
-          headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
-        },
-        serverPassword: serverData.password || ""
-      };
-
-      // Try to connect and get workspace info
-      try {
-        // Skip workspace initialization check for now
-        // The workspace should be checked after registration/connection
-        console.log("Skipping workspace initialization check for registration");
-        return true;
-      } catch (connectError) {
-        // If connection fails, it might be because no users exist yet
-        // In that case, allow registration to proceed
-        console.info("Temporary connection failed, allowing registration:", connectError);
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Error checking workspace initialization:", error);
-      // On error, allow registration to proceed
-      return true;
-    } finally {
-      setCheckingWorkspace(false);
-    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,13 +84,6 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
     }
 
     setIsRegistering(true);
-
-    // Check workspace initialization first
-    const canProceed = await checkWorkspaceInitialization();
-    if (!canProceed) {
-      setIsRegistering(false);
-      return;
-    }
 
     try {
       // Construct the request payload matching Rust structure
@@ -191,7 +139,9 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
               formData.username,
               formData.password,
               formData.fullName,
-              serverData.serverAddress || '127.0.0.1:12349',
+              serverData.serverAddress,
+              serverData.password || "", // Server password from ServerConnect step
+              mapSecuritySettings(securitySettings), // Map camelCase to snake_case
               message.ConnectSuccess.cid
             );
             resolve({ cid: message.ConnectSuccess.cid });
@@ -231,7 +181,9 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                   formData.username,
                   formData.password,
                   formData.fullName,
-                  serverData.serverAddress || '127.0.0.1:12349',
+                  serverData.serverAddress,
+                  serverData.password || "", // Server password from ServerConnect step
+                  mapSecuritySettings(securitySettings), // Map camelCase to snake_case
                   response.ConnectSuccess.cid
                 );
                 resolve({ cid: response.ConnectSuccess.cid });
@@ -261,6 +213,11 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         formData.username,
         formData.password,
         formData.fullName,
+        serverData.serverAddress,
+        // NOT to be confused with the "workspace master password", which only is for admins.
+        // The "password" is an optional security feature that prevents connections to the server (at the Citadel Protocol layer)
+        // unless the password is provided. For security reasons, a client does not know if such a password is required unless it is provided.
+        serverData.password || "",
         {
           securityLevel: securitySettings.securityLevel,
           secrecyMode: securitySettings.secrecyMode,

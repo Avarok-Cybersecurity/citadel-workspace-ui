@@ -10,6 +10,7 @@ import { websocketService } from "@/lib/websocket-service";
 import { eventEmitter } from "@/lib/event-emitter";
 import WorkspaceService from "@/lib/workspace-service";
 import { connectionManager } from "@/lib/connection-manager";
+import { mapSecuritySettings } from "@/lib/security-utils";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 
 interface CreateWorkspaceProps {
@@ -103,6 +104,7 @@ export const CreateWorkspace = ({
       });
 
       console.log('CreateWorkspace: Calling websocketService.register');
+      // TODO: DNS resolution on the serverAddress to allow domain name inputs
       
       // Start registration with our pre-generated request ID
       websocketService.register(
@@ -110,6 +112,8 @@ export const CreateWorkspace = ({
         adminData.username,
         adminData.password,
         adminData.fullName,
+        serverAddress,
+        serverPassword || "",
         {
           securityLevel: securitySettings.securityLevel,
           secrecyMode: securitySettings.secrecyMode,
@@ -125,13 +129,16 @@ export const CreateWorkspace = ({
       console.log('CreateWorkspace: Got CID:', cid);
       
       setAdminCid(cid);
-      
-      // Store the session for persistence
+
+      // Store the session for persistence using shared mapping helper (DRY)
       connectionManager.handleAuthSuccess(
         adminData.username,
         adminData.password,
         adminData.fullName,
-        serverAddress || '127.0.0.1:12349'
+        serverAddress,
+        serverPassword,
+        mapSecuritySettings(securitySettings),
+        cid,
       );
       
       toast({

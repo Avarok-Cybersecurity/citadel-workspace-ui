@@ -240,20 +240,27 @@ export class ServerAutoConnectService {
     }
 
     // Build set of active session keys
+    // Note: ActiveSession uses snake_case (server_address), normalize for comparison
     const activeKeys = new Set<string>();
+    console.log(`ServerAutoConnect: Active sessions count: ${activeSessions.length}`);
     for (const session of activeSessions) {
       // Match by username + server address if available
       if (session.username) {
-        activeKeys.add(`${session.username}@${session.serverAddress || '127.0.0.1:12349'}`);
+        const key = `${session.username}@${session.server_address}`;
+        activeKeys.add(key);
+        console.log(`ServerAutoConnect: Active session key: ${key}`);
       }
     }
 
     // Find disconnected sessions
+    console.log(`ServerAutoConnect: Stored sessions count: ${storedSessions.sessions.length}`);
     for (const session of storedSessions.sessions) {
       const sessionKey = this.getSessionKey(session);
+      console.log(`ServerAutoConnect: Checking stored session: ${sessionKey}, active: ${activeKeys.has(sessionKey)}`);
 
       // Skip if already connected
       if (activeKeys.has(sessionKey)) {
+        console.log(`ServerAutoConnect: Skipping ${session.username} (already active)`);
         continue;
       }
 
@@ -310,7 +317,9 @@ export class ServerAutoConnectService {
         uuidv4(),
         session.username,
         session.password,
-        session.serverAddress
+        session.serverAddress,
+        session.serverPassword,
+        session.sessionSecuritySettings
       );
 
       // Success will be handled by event listener
@@ -340,7 +349,7 @@ export class ServerAutoConnectService {
   private handleConnectionSuccess(connectSuccess: any): void {
     const cid = connectSuccess.cid?.toString();
     const username = connectSuccess.username;
-    const serverAddress = connectSuccess.server_addr || '127.0.0.1:12349';
+    const serverAddress = connectSuccess.server_addr;
 
     if (username) {
       const sessionKey = `${username}@${serverAddress}`;
@@ -382,7 +391,7 @@ export class ServerAutoConnectService {
    * Call this when user explicitly disconnects via UI.
    * Respects user intent - if they disconnected, don't auto-reconnect.
    */
-  public markUserDisconnected(username: string, serverAddress: string = '127.0.0.1:12349'): void {
+  public markUserDisconnected(username: string, serverAddress: string): void {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.add(sessionKey);
     this.cancelRetry(sessionKey);
@@ -393,7 +402,7 @@ export class ServerAutoConnectService {
    * Clear user-disconnected status for a session.
    * Called when user successfully logs in manually.
    */
-  public clearUserDisconnected(username: string, serverAddress: string = '127.0.0.1:12349'): void {
+  public clearUserDisconnected(username: string, serverAddress: string): void {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.delete(sessionKey);
     console.log(`ServerAutoConnect: Cleared user-disconnected status for ${username}`);

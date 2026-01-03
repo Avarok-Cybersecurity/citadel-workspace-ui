@@ -10,6 +10,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['**/*.{test,spec}.{ts,tsx}'],
+    // Exclude integration tests that are meant to be run as standalone scripts
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'integration-tests/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

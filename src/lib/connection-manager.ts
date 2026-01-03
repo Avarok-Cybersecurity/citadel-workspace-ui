@@ -23,6 +23,7 @@ import {
 } from '@/types/session-types';
 import { formatForDebug } from './debug-formatter';
 import { serverAutoConnectService } from './server-auto-connect-service';
+import { SessionSecuritySettings } from './p2p-registration-service';
 
 /**
  * ConnectionManager handles persistent connection management across sessions
@@ -345,7 +346,6 @@ export class ConnectionManager {
     const connectionService = ConnectionService.getInstance();
     connectionService.updateConnectionStatus({
       cid,
-      serverAddress: '127.0.0.1:12349',
       isConnected: true
     });
     
@@ -651,19 +651,21 @@ export class ConnectionManager {
         } catch (healthError) {
           console.warn('ConnectionManager: Service health check failed, attempting anyway:', healthError);
         }
-        
+
         const requestId = crypto.randomUUID();
         await websocketService.connect(
           requestId,
           session.username,
           session.password,
-          session.serverAddress
+          session.serverAddress,
+          session.serverPassword,
+          session.sessionSecuritySettings
         );
-        
+
         // Update last connected time
         session.lastConnected = Date.now();
         await this.storeSession(session);
-        
+
         console.log('ConnectionManager: Auto-reconnect successful');
       } catch (error: any) {
         console.error('ConnectionManager: Auto-reconnect failed', error);
@@ -672,7 +674,6 @@ export class ConnectionManager {
         const connectionService = ConnectionService.getInstance();
         connectionService.updateConnectionStatus({
           cid: null,
-          serverAddress: '127.0.0.1:12349',
           isConnected: false
         });
         
@@ -733,7 +734,6 @@ export class ConnectionManager {
           // Update connection status to disconnected
           connectionService.updateConnectionStatus({
             cid: null,  
-            serverAddress: '127.0.0.1:12349',
             isConnected: false
           });
           
@@ -941,7 +941,9 @@ export class ConnectionManager {
     username: string,
     password: string,
     fullName: string,
-    serverAddress: string = '127.0.0.1:12349',
+    serverAddress: string,
+    serverPassword: string,
+    securitySettings: SessionSecuritySettings,
     cid?: string
   ): Promise<void> {
     console.log('ConnectionManager: handleAuthSuccess called');
@@ -949,22 +951,19 @@ export class ConnectionManager {
     console.log('  Full Name:', fullName);
     console.log('  Server Address:', serverAddress);
     console.log('  CID:', cid);
+    if (serverPassword != "") {
+      console.log('  Server Password:', serverPassword);
+    }
     
     const session: StoredSession = {
       username,
       password,
       serverAddress,
+      serverPassword,
       fullName,
       lastConnected: Date.now(),
       cid, // Store the CID if provided
-      sessionSecuritySettings: {
-        securityLevel: "Standard",
-        secrecyMode: "BestEffort",
-        encryptionAlgorithm: "AES_GCM_256",
-        kemAlgorithm: "Kyber",
-        sigAlgorithm: "None",
-        headerObfuscatorSettings: "Disabled"
-      }
+      sessionSecuritySettings: securitySettings
     };
     
     console.log('ConnectionManager: Created session object:', session);
@@ -989,7 +988,7 @@ export class ConnectionManager {
   /**
    * Handle user logout - removes the session for a specific user
    */
-  public async handleLogout(username: string, serverAddress: string = '127.0.0.1:12349'): Promise<void> {
+  public async handleLogout(username: string, serverAddress: string): Promise<void> {
     console.log('ConnectionManager: handleLogout called for', username);
     
     // Remove the session from stored sessions
@@ -1173,7 +1172,6 @@ export class ConnectionManager {
       const connectionService = ConnectionService.getInstance();
       connectionService.updateConnectionStatus({
         cid: null,
-        serverAddress: '127.0.0.1:12349',
         isConnected: false
       });
       
@@ -1211,7 +1209,7 @@ export class ConnectionManager {
     // Followers should just update their selected user without disconnecting
     if (this.isLeader) {
       await this.disconnect();
-      
+
       // Connect with the selected account
       try {
         const requestId = crypto.randomUUID();
@@ -1219,9 +1217,11 @@ export class ConnectionManager {
           requestId,
           session.username,
           session.password,
-          session.serverAddress
+          session.serverAddress,
+          session.serverPassword,
+          session.sessionSecuritySettings
         );
-        
+
         // Update last connected time
         session.lastConnected = Date.now();
         await this.storeSession(session);

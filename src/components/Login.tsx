@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection-manager";
 import { eventEmitter } from "@/lib/event-emitter";
+import { getDefaultSecuritySettings } from "@/lib/security-utils";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import WorkspaceService from "@/lib/workspace-service";
@@ -45,7 +46,7 @@ interface SecuritySettingsState {
 export function Login({ onNext, onCancel }: LoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [server, setServer] = useState("127.0.0.1:12349");
+  const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
@@ -274,18 +275,23 @@ export function Login({ onNext, onCancel }: LoginProps) {
         // Ignore disconnect errors
       }
       
-      await websocketService.connect(requestId, username, password, server);
-      
+      // Login uses empty server password and undefined security settings
+      // (security settings were established during registration)
+      await websocketService.connect(requestId, username, password, server, "", undefined);
+
       // Wait for the response
       const cid = await responsePromise;
-      
+
       // If we get here, the connection was successful
       // Store the session for auto-reconnect
+      // Use default security settings for session storage (actual settings were set during registration)
       await connectionManager.handleAuthSuccess(
         username,
         password,
         username, // Use username as display name for login
         server,
+        "", // No server password for login flow
+        getDefaultSecuritySettings(),
         cid.toString()
       );
 

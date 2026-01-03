@@ -104,17 +104,23 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         const storedSession = connectionManager.getStoredSessionsArray().find(
           s => s.cid === cidString || s.cid === connection.cid?.toString()
         );
+        
+        if (!storedSession) {
+          console.error('No stored session found for CID:', cidString);
+          return;
+        }
+        
         eventEmitter.emit('session:activated', {
           cid: cidString,
-          username: storedSession?.username || '',
-          serverAddress: connection.serverAddress,
+          username: storedSession.username,
+          serverAddress: storedSession.serverAddress,
           activationType: 'connect' as const
         });
         console.log('WorkspaceApp: Emitted session:activated for connection');
 
         // Load user registration info based on connection
         // Always use CID for identification when retrieving user data
-        userService.loadUserRegistration(connection.serverAddress, connection.cid)
+        userService.loadUserRegistration(storedSession.serverAddress, connection.cid)
           .then(userInfo => {
             console.info('User registration info loaded:', userInfo);
           })
@@ -240,7 +246,6 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
               if (result.cid) {
                 connectionService.updateConnectionStatus({
                   cid: result.cid,
-                  serverAddress: '127.0.0.1:12349',
                   isConnected: true
                 });
                 setShowConnectionRetry(false);

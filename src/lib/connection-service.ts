@@ -93,7 +93,6 @@ export class ConnectionService {
       // Update our connection status based on the broadcast
       this.updateConnectionStatus({
         cid: status.cid || null,
-        serverAddress: '127.0.0.1:12349',
         isConnected: status.isConnected
       });
     });

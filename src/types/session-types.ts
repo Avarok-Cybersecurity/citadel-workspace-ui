@@ -2,6 +2,8 @@
  * Session types for managing persistent connections
  */
 
+import { SessionSecuritySettings } from "@/lib/p2p-registration-service";
+
 /**
  * Represents a stored session for auto-reconnection
  */
@@ -9,18 +11,12 @@ export interface StoredSession {
   username: string;
   password: string; // Note: This should be encrypted in production
   serverAddress: string;
+  serverPassword: string;
   fullName: string;
   lastConnected: number;
   cid?: string; // Store the CID for claiming orphaned sessions
   role?: string; // User's role in the workspace (Admin, Owner, Member, Guest)
-  sessionSecuritySettings?: {
-    securityLevel: string;
-    secrecyMode: string;
-    encryptionAlgorithm: string;
-    kemAlgorithm: string;
-    sigAlgorithm: string;
-    headerObfuscatorSettings: string;
-  };
+  sessionSecuritySettings: SessionSecuritySettings
 }
 
 /**

@@ -129,19 +129,18 @@ export const MembersSection = () => {
         // First, get the internal state which has preserved usernames from PeerRegisterNotification
         const { registeredPeers: cachedPeers } = p2pRegistrationService.getPeers();
 
-        // Also trigger a backend refresh to ensure we have latest data
-        // This will update internal state but preserve usernames
+        // Trigger a backend refresh to get latest registered peers from SDK
+        // This queries the SDK's persistent peer registry, not just in-memory state
+        let freshPeers: any[] = [];
         try {
-          await p2pRegistrationService.listRegisteredPeers();
+          freshPeers = await p2pRegistrationService.listRegisteredPeers();
         } catch (e) {
           // Ignore fetch errors, use cached data
+          console.debug('[MembersSection] listRegisteredPeers failed, using cache:', e);
         }
 
-        // Get updated state after refresh
-        const { registeredPeers: updatedPeers } = p2pRegistrationService.getPeers();
-
-        // Use updated peers if available, else cached
-        const peersToUse = updatedPeers.length > 0 ? updatedPeers : cachedPeers;
+        // Use fresh data from backend if available, else cached
+        const peersToUse = freshPeers.length > 0 ? freshPeers : cachedPeers;
 
         const peerList = peersToUse.map(p => {
           const cidStr = p.cid?.toString() || '';

@@ -14,13 +14,13 @@ describe('Workspace Protocol', () => {
     const testData = new Uint8Array([1, 2, 3, 4, 5]);
     const payload = createMessagePayload(testData);
 
-    // Verify the structure
-    expect(payload).toHaveProperty('request');
-    expect(payload.request).toHaveProperty('message');
-    expect(payload.request?.message).toHaveProperty('contents');
+    // Verify the structure (uses Pascal case to match Rust serialization)
+    expect(payload).toHaveProperty('Request');
+    expect(payload.Request).toHaveProperty('Message');
+    expect(payload.Request?.Message).toHaveProperty('contents');
 
     // Verify the contents are preserved
-    const contents = payload.request?.message?.contents;
+    const contents = payload.Request?.Message?.contents;
     expect(contents instanceof Uint8Array).toBe(true);
     expect(Array.from(contents as Uint8Array)).toEqual([1, 2, 3, 4, 5]);
   });
@@ -32,7 +32,7 @@ describe('Workspace Protocol', () => {
 
     // Check payload type before serialization
     console.info('Original payload:', payload);
-    console.info('Original contents type:', payload.request?.message?.contents?.constructor.name);
+    console.info('Original contents type:', payload.Request?.Message?.contents?.constructor.name);
 
     // Serialize
     const serialized = serializeWorkspacePayload(payload);
@@ -41,15 +41,15 @@ describe('Workspace Protocol', () => {
     // Deserialize
     const deserialized = deserializeWorkspacePayload(serialized);
     console.info('Deserialized payload:', deserialized);
-    console.info('Deserialized contents type:', deserialized.request?.message?.contents?.constructor.name);
+    console.info('Deserialized contents type:', deserialized.Request?.Message?.contents?.constructor.name);
 
-    // Verify the structure is preserved
-    expect(deserialized).toHaveProperty('request');
-    expect(deserialized.request).toHaveProperty('message');
-    expect(deserialized.request?.message).toHaveProperty('contents');
+    // Verify the structure is preserved (uses Pascal case to match Rust serialization)
+    expect(deserialized).toHaveProperty('Request');
+    expect(deserialized.Request).toHaveProperty('Message');
+    expect(deserialized.Request?.Message).toHaveProperty('contents');
 
     // Verify the binary data is correctly preserved through serialization/deserialization
-    const deserializedContents = deserialized.request?.message?.contents;
+    const deserializedContents = deserialized.Request?.Message?.contents;
     expect(deserializedContents instanceof Uint8Array).toBe(true);
     expect(Array.from(deserializedContents as Uint8Array)).toEqual([1, 2, 3, 4, 5]);
   });
@@ -60,21 +60,21 @@ describe('Workspace Protocol', () => {
     const payload = createMessagePayload(emptyData);
 
     console.info('Empty payload:', payload);
-    console.info('Empty contents type:', payload.request?.message?.contents?.constructor.name);
+    console.info('Empty contents type:', payload.Request?.Message?.contents?.constructor.name);
 
     // Serialize and then deserialize
     const serialized = serializeWorkspacePayload(payload);
     const deserialized = deserializeWorkspacePayload(serialized);
 
     console.info('Deserialized empty payload:', deserialized);
-    console.info('Deserialized empty contents:', deserialized.request?.message?.contents);
+    console.info('Deserialized empty contents:', deserialized.Request?.Message?.contents);
     console.info('Deserialized empty contents type:',
-      deserialized.request?.message?.contents ?
-        deserialized.request?.message?.contents.constructor.name : 'undefined');
+      deserialized.Request?.Message?.contents ?
+        deserialized.Request?.Message?.contents.constructor.name : 'undefined');
 
-    // Verify structure and content
-    expect(deserialized.request?.message?.contents).toBeDefined();
-    const contents = deserialized.request?.message?.contents;
+    // Verify structure and content (uses Pascal case to match Rust serialization)
+    expect(deserialized.Request?.Message?.contents).toBeDefined();
+    const contents = deserialized.Request?.Message?.contents;
 
     // Instead of checking instanceof, check if it's array-like and has expected properties
     if (contents) {
@@ -97,8 +97,8 @@ describe('Workspace Protocol', () => {
     const serialized = serializeWorkspacePayload(payload);
     const deserialized = deserializeWorkspacePayload(serialized);
 
-    // Verify the contents length
-    const deserializedContents = deserialized.request?.message?.contents as Uint8Array;
+    // Verify the contents length (uses Pascal case to match Rust serialization)
+    const deserializedContents = deserialized.Request?.Message?.contents as Uint8Array;
     expect(deserializedContents instanceof Uint8Array).toBe(true);
     expect(deserializedContents.length).toEqual(1024);
 

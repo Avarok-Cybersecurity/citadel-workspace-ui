@@ -8,6 +8,15 @@ import type {
   InternalServiceRequest,
   InternalServiceResponse
 } from 'citadel-workspace-client-ts';
+// Import and re-export security types from central location (DRY)
+import {
+  type SessionSecuritySettings,
+  type HeaderObfuscatorSettings,
+  getDefaultSecuritySettings
+} from './security-utils';
+
+// Re-export for backward compatibility
+export type { SessionSecuritySettings, HeaderObfuscatorSettings };
 
 export interface Peer {
   cid: string;
@@ -15,17 +24,6 @@ export interface Peer {
   fullName: string;
   isOnline: boolean;
   isRegistered: boolean;
-}
-
-export interface SessionSecuritySettings {
-  security_level: string;
-  secrecy_mode: string;
-  crypto_params: {
-    encryption_algorithm: string;
-    kem_algorithm: string;
-    sig_algorithm: string;
-  };
-  header_obfuscator_settings: string;
 }
 
 export interface PeerRegistrationOptions {
@@ -63,17 +61,8 @@ export class P2PRegistrationService {
   // LocalDB key for auto-accept setting
   private static readonly AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';
   
-  // Default session security settings for P2P
-  private readonly DEFAULT_SESSION_SECURITY = {
-    security_level: "Standard",
-    secrecy_mode: "BestEffort",
-    crypto_params: {
-      encryption_algorithm: "AES_GCM_256",
-      kem_algorithm: "Kyber",
-      sig_algorithm: "None"
-    },
-    header_obfuscator_settings: "Disabled"
-  };
+  // Default session security settings for P2P (from shared utils)
+  private readonly DEFAULT_SESSION_SECURITY = getDefaultSecuritySettings();
 
   private constructor() {
     this.setupEventListeners();

@@ -4,6 +4,8 @@ import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { broadcastChannelService } from './broadcast-channel-service';
 import { connectionManager } from './connection-manager';
 import { debugLog, errorLog } from './debug-config';
+import { normalizeHeaderObfuscatorSettings } from './security-utils';
+import { resolveServerAddress } from './address-resolver';
 
 // New multi-instance architecture imports
 import { instanceManager } from './instance-manager';
@@ -205,18 +207,22 @@ class WebSocketService {
     }
   }
 
-  async connect(requestId: string, username: string, password: string, serverAddr: string = '127.0.0.1:12349'): Promise<void> {
+  async connect(requestId: string, username: string, password: string, serverAddr: string, serverPassword?: string, sessionSecuritySettings?: any): Promise<void> {
     await this.init(); // ensure initialized
 
+    // Resolve hostname to IP if needed (DNS resolution)
+    const resolvedAddr = await resolveServerAddress(serverAddr);
+    console.log(`[Connect] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
+
     // STEP 1: Check if session already exists
-    console.log(`[Connect] Checking for existing session: ${username}@${serverAddr}`);
+    console.log(`[Connect] Checking for existing session: ${username}@${resolvedAddr}`);
 
     try {
       const { connectionManager } = await import('./connection-manager');
       const activeSessions = await connectionManager.getActiveSessions();
 
       const existingSession = activeSessions.find(
-        s => s.username === username && s.server_address === serverAddr
+        s => s.username === username && s.server_address === resolvedAddr
       );
 
       if (existingSession) {
@@ -227,7 +233,7 @@ class WebSocketService {
         // but we don't have a stored CID for it, OR if workspace load fails
         const { connectionManager: cm } = await import('./connection-manager');
         const storedSession = cm.getStoredSessions().sessions.find(
-          s => s.username === username && s.serverAddress === serverAddr
+          s => s.username === username && s.serverAddress === resolvedAddr
         );
 
         const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid.toString();
@@ -260,23 +266,24 @@ class WebSocketService {
     // These type all should exist inside that package ready to be slotted inside the UI components for anywhere they're required, not just connect.
     const connectOptions = {
       request_id: requestId,
-      server_addr: serverAddr,
+      server_addr: resolvedAddr,
       username,
       password: stringToByteArray(password),
       connect_mode: { Standard: { force_login: true } } as any,
       udp_mode: "Disabled" as any,
       keep_alive_timeout: null,
+      // Use provided session security settings or defaults
       session_security_settings: {
-        security_level: "Standard",
-        secrecy_mode: "BestEffort",
+        security_level: sessionSecuritySettings?.securityLevel || "Standard",
+        secrecy_mode: sessionSecuritySettings?.secrecyMode || "BestEffort",
+        header_obfuscator_settings: normalizeHeaderObfuscatorSettings(sessionSecuritySettings?.headerObfuscatorSettings),
         crypto_params: {
-          encryption_algorithm: "AES_GCM_256",
-          kem_algorithm: "Kyber",
-          sig_algorithm: "None"
+          encryption_algorithm: sessionSecuritySettings?.encryptionAlgorithm || "AES_GCM_256",
+          kem_algorithm: sessionSecuritySettings?.kemAlgorithm || "Kyber",
+          sig_algorithm: sessionSecuritySettings?.sigAlgorithm || "None"
         },
-        header_obfuscator_settings: "Disabled"
-      } as any,
-      server_password: null as any
+      },
+      server_password: serverPassword || null
     };
 
     // Send connect request directly to avoid the waitForResponse handler replacement issue
@@ -288,38 +295,32 @@ class WebSocketService {
     await this.client.sendDirectToInternalService(connectRequest);
   }
 
-  async register(requestId: string, username: string, password: string, fullName: string, sessionSecuritySettings?: any): Promise<void> {
+  async register(requestId: string, username: string, password: string, fullName: string, server_addr: string, server_password?: string, sessionSecuritySettings?: any): Promise<void> {
     await this.init(); // ensure initialized
 
-    // Use provided session security settings or defaults
-    const securitySettings = sessionSecuritySettings || {
-      securityLevel: "Standard",
-      secrecyMode: "BestEffort",
-      encryptionAlgorithm: "AES_GCM_256",
-      kemAlgorithm: "Kyber",
-      sigAlgorithm: "None",
-      headerObfuscatorSettings: "Disabled"
-    };
+    // Resolve hostname to IP if needed (DNS resolution)
+    const resolvedAddr = await resolveServerAddress(server_addr);
+    console.log(`[Register] Resolved address: ${server_addr} -> ${resolvedAddr}`);
 
-    // Create proper register options for WorkspaceClient
     const registerOptions = {
       request_id: requestId,
-      server_addr: '127.0.0.1:12349',
+      server_addr: resolvedAddr,
       full_name: fullName,
       username,
       proposed_password: stringToByteArray(password),
       connect_after_register: true, // Establish connection immediately after registration
+      // Use provided session security settings or defaults
       session_security_settings: {
-        security_level: securitySettings.securityLevel,
-        secrecy_mode: securitySettings.secrecyMode,
+        security_level: sessionSecuritySettings?.securityLevel || "Standard",
+        secrecy_mode: sessionSecuritySettings?.secrecyMode || "BestEffort",
+        header_obfuscator_settings: normalizeHeaderObfuscatorSettings(sessionSecuritySettings?.headerObfuscatorSettings),
         crypto_params: {
-          encryption_algorithm: securitySettings.encryptionAlgorithm,
-          kem_algorithm: securitySettings.kemAlgorithm,
-          sig_algorithm: securitySettings.sigAlgorithm
+          encryption_algorithm: sessionSecuritySettings?.encryptionAlgorithm || "AES_GCM_256",
+          kem_algorithm: sessionSecuritySettings?.kemAlgorithm || "Kyber",
+          sig_algorithm: sessionSecuritySettings?.sigAlgorithm || "None"
         },
-        header_obfuscator_settings: "Disabled"
-      } as any,
-      server_password: null as any
+      },
+      server_password: server_password || null
     };
 
     debugLog('websocket', 'Sending register options to WASM client', registerOptions);

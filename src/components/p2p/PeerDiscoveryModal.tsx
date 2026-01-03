@@ -9,7 +9,7 @@ import { connectionManager } from '@/lib/connection-manager';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { useWorkspace } from '@/lib/workspace-context';
-import { peerRegistrationStore, OutgoingPeerRequest } from '@/lib/peer-registration-store';
+import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser } from '@/lib/tab-context';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 
@@ -30,7 +30,9 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   const [peers, setPeers] = useState<Peer[]>([]);
   const [registeredPeers, setRegisteredPeers] = useState<Set<string>>(new Set());
   const [outgoingRequests, setOutgoingRequests] = useState<Set<string>>(new Set());
+  const [incomingRequests, setIncomingRequests] = useState<Map<string, PendingPeerRequest>>(new Map());
   const [loading, setLoading] = useState(false);
+  const [acceptingPeerCid, setAcceptingPeerCid] = useState<string | null>(null);
   const { toast } = useToast();
   const { state } = useWorkspace();
   
@@ -60,6 +62,29 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       eventEmitter.off('outgoing-peer-requests:updated', handleOutgoingUpdate);
     };
   }, []);
+
+  // Listen for incoming pending requests (for "Accept Request" button)
+  useEffect(() => {
+    const updateIncomingRequests = () => {
+      const pending = peerRegistrationStore.getPendingRequests();
+      const incomingMap = new Map<string, PendingPeerRequest>();
+      pending.forEach(req => {
+        incomingMap.set(req.peer_cid, req);
+      });
+      setIncomingRequests(incomingMap);
+    };
+
+    // Initial load when modal opens
+    if (isOpen) {
+      updateIncomingRequests();
+    }
+
+    // Listen for updates
+    eventEmitter.on('peer-requests:updated', updateIncomingRequests);
+    return () => {
+      eventEmitter.off('peer-requests:updated', updateIncomingRequests);
+    };
+  }, [isOpen]);
 
   // Set up listener for incoming registration notifications
   // Delegate to peerRegistrationStore for persistence and non-disruptive UX
@@ -310,6 +335,32 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     }
   };
 
+  /**
+   * Accept an incoming peer registration request from the Peer Discovery modal.
+   * Uses the same logic as PendingRequestsModal's handleAccept.
+   */
+  const acceptIncomingRequest = async (request: PendingPeerRequest) => {
+    setAcceptingPeerCid(request.peer_cid);
+    try {
+      await peerRegistrationStore.acceptRequest(request.id);
+      toast({
+        title: 'Connection Accepted',
+        description: `You are now connected with ${request.peer_username}`,
+        className: 'bg-[#343A5C] border-green-600 text-green-400',
+      });
+      // Refresh the registered peers list
+      loadRegisteredPeers();
+    } catch (error) {
+      toast({
+        title: 'Failed to Accept',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setAcceptingPeerCid(null);
+    }
+  };
+
   const registerWithPeer = async (peerCid: string, peerUsername: string) => {
     if (!currentCid) {
       toast({
@@ -472,6 +523,21 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                         >
                           <Clock className="h-3 w-3 mr-1 animate-pulse" />
                           Awaiting Response...
+                        </Button>
+                      ) : incomingRequests.has(peer.cid) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => acceptIncomingRequest(incomingRequests.get(peer.cid)!)}
+                          disabled={acceptingPeerCid === peer.cid}
+                          className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+                        >
+                          {acceptingPeerCid === peer.cid ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <UserPlus className="h-3 w-3 mr-1" />
+                          )}
+                          Accept Request
                         </Button>
                       ) : (
                         <Button

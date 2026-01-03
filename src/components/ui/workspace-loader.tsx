@@ -61,6 +61,30 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
       const currentConnection = connectionManager.getConnectionInfo();
       if (currentConnection?.cid && currentConnection.cid !== '0') {
         console.log('WorkspaceLoader: Already connected with CID:', currentConnection.cid);
+
+        // Set up tab context if not already set
+        const existingSelection = getSelectedUser();
+        if (!existingSelection?.selectedCid) {
+          // Get session info from active sessions to populate tab context
+          const activeSessions = await connectionManager.getActiveSessions();
+          const session = activeSessions.find(s => s.cid === currentConnection.cid);
+          if (session) {
+            setSelectedUser({
+              selectedUsername: session.username,
+              selectedServerAddress: session.server_address,
+              selectedCid: session.cid
+            });
+          }
+        }
+
+        // Set the connection ID in WorkspaceService
+        WorkspaceService.setConnectionId(currentConnection.cid);
+
+        // Trigger workspace loading (this is what was missing!)
+        console.log('WorkspaceLoader: Triggering workspace loading for existing connection');
+        WorkspaceService.loadWorkspace();
+        WorkspaceService.listOffices();
+
         setHasConnection(true);
         return;
       }

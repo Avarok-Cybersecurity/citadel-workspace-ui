@@ -20,17 +20,6 @@ import { getWorkspacePath } from "@/lib/workspace-navigation";
 export const Landing = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
-  const [serverData, setServerData] = useState({ serverAddress: '127.0.0.1:12349', password: '' });
-  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsValues>({
-    securityLevel: 'Standard',
-    secrecyMode: 'BestEffort',
-    encryptionAlgorithm: 'AES_GCM_256',
-    kemAlgorithm: 'Kyber',
-    sigAlgorithm: 'None',
-    headerObfuscatorSettings: {},
-    storeCredentials: false
-  });
-  const [hasExistingServers, setHasExistingServers] = useState(false);
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
   const [orphanSessionCount, setOrphanSessionCount] = useState(0);
   const [showLoginConflict, setShowLoginConflict] = useState(false);
@@ -39,15 +28,6 @@ export const Landing = () => {
   // Check for orphan sessions (don't auto-navigate, just detect)
   useEffect(() => {
     const checkOrphanSessions = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-
-      // Development mode: Check for dev flag in URL
-      if (urlParams.get('dev') === 'true') {
-        console.log('Development mode: Bypassing auth and navigating to office');
-        navigate(getWorkspacePath());
-        return;
-      }
-
       try {
         // Get the connection manager instance
         const connectionManager = ConnectionManager.getInstance();
@@ -84,7 +64,7 @@ export const Landing = () => {
     try {
       // Using "0" as a valid u64 string representation for the landing page
       const response = await listKnownServers({ cid: "0" });
-      setHasExistingServers(response.servers.length > 0);
+      // TODO: do we need this??
     } catch (error: any) {
       // Silently ignore initialization errors on the landing page
       // The WebSocket service will be initialized when needed
@@ -105,7 +85,7 @@ export const Landing = () => {
 
   const handleServerNext = () => setCurrentStep('security');
   const handleSecurityNext = () => {
-    if (currentStep === 'security' && serverData) {
+    if (currentStep === 'security') {
       // Store the security settings for use in create flow
       setCurrentStep('join');
     }
