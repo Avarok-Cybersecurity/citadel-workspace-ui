@@ -193,6 +193,12 @@ class WebSocketService {
         }
       });
 
+      // Listen for session release requests (from instance-channel when last tab with a CID closes)
+      eventEmitter.on('session:release-request', ({ cid }: { cid: string }) => {
+        debugLog('websocket', `Session release requested for CID ${cid}`);
+        this.releaseSession(cid);
+      });
+
       debugLog('websocket', 'WASM client initialization completed successfully');
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
@@ -1046,6 +1052,41 @@ class WebSocketService {
         eventEmitter.off('websocket-message', handler);
         reject(error);
       });
+    });
+  }
+
+  /**
+   * Release a session, marking it as orphaned for immediate reclaiming.
+   * Called when the last browser tab with this CID closes.
+   * This is a fire-and-forget operation since it's called during beforeunload.
+   * @param sessionCid The CID of the session to release
+   */
+  releaseSession(sessionCid: string | bigint): void {
+    if (!this.client) {
+      console.warn('[WebSocketService] Cannot release session - client not initialized');
+      return;
+    }
+
+    // Convert to string to avoid BigInt JSON serialization issues
+    const cidString = sessionCid.toString();
+
+    const request = {
+      ConnectionManagement: {
+        request_id: crypto.randomUUID(),
+        management_command: {
+          ReleaseSession: {
+            // Use string representation - serde will parse it as u64
+            session_cid: cidString
+          }
+        }
+      }
+    };
+
+    debugLog('websocket', `Releasing session ${cidString}`);
+
+    // Fire-and-forget - don't await since tab may be closing
+    this.client.sendDirectToInternalService(request).catch(error => {
+      console.error('[WebSocketService] Failed to release session:', error);
     });
   }
 

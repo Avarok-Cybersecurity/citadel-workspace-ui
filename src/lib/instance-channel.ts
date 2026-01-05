@@ -34,7 +34,8 @@ export type ChannelMessageType =
   | 'leader-election'
   | 'leader-heartbeat'
   | 'instance-announce'
-  | 'instance-goodbye';
+  | 'instance-goodbye'
+  | 'session-release';
 
 export interface ChannelMessage {
   type: ChannelMessageType;
@@ -77,6 +78,7 @@ class InstanceChannel {
       this.setupMessageHandler();
       this.startLeaderElection();
       this.announcePresence();
+      this.setupBeforeUnloadHandler();
 
       console.log('[InstanceChannel] Initialized');
     } catch (error) {
@@ -106,6 +108,41 @@ class InstanceChannel {
     this.channel.onerror = (error) => {
       console.error('[InstanceChannel] Channel error:', error);
     };
+  }
+
+  /**
+   * Set up handler for tab close to release session if this is the last tab with the CID
+   */
+  private setupBeforeUnloadHandler(): void {
+    window.addEventListener('beforeunload', () => {
+      const myCid = instanceManager.cid;
+
+      if (myCid) {
+        // Check if any OTHER instance has this same CID
+        const otherInstancesWithSameCid = instanceManager.getAllInstances()
+          .filter(i => i.instanceId !== instanceManager.instanceId && i.cid === myCid);
+
+        if (otherInstancesWithSameCid.length === 0) {
+          // This is the LAST tab with this CID - release the session
+          console.log(`[InstanceChannel] Last tab with CID ${myCid} closing, releasing session`);
+
+          if (instanceManager.isLeader) {
+            // We're the leader - emit event directly for websocket-service to handle
+            eventEmitter.emit('session:release-request', { cid: myCid });
+          } else {
+            // Ask leader to release via BroadcastChannel
+            this.send({
+              type: 'session-release',
+              targetInstanceId: 'leader',
+              payload: { cid: myCid },
+            });
+          }
+        }
+      }
+
+      // Always announce goodbye
+      this.announceGoodbye();
+    });
   }
 
   /**
@@ -161,6 +198,10 @@ class InstanceChannel {
 
       case 'instance-goodbye':
         this.handleInstanceGoodbye(message);
+        break;
+
+      case 'session-release':
+        this.handleSessionRelease(message);
         break;
     }
   }
@@ -237,6 +278,25 @@ class InstanceChannel {
       console.log('[InstanceChannel] Leader is leaving, triggering election');
       this.tryBecomeLeader();
     }
+  }
+
+  private handleSessionRelease(message: ChannelMessage): void {
+    // Only leader processes session release requests
+    if (!instanceManager.isLeader) {
+      console.warn('[InstanceChannel] Received session-release but not leader');
+      return;
+    }
+
+    const { cid } = message.payload || {};
+    if (!cid) {
+      console.warn('[InstanceChannel] Received session-release without CID');
+      return;
+    }
+
+    console.log(`[InstanceChannel] Leader handling session release for CID ${cid}`);
+
+    // Emit event for websocket-service to handle
+    eventEmitter.emit('session:release-request', { cid });
   }
 
   // ============ Leader Election ============

@@ -10,6 +10,7 @@ import { websocketService } from './websocket-service';
 import { connectionManager } from './connection-manager';
 import { notificationService } from './notification-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
+import { p2pRegistrationService } from './p2p-registration-service';
 import { getSelectedUser } from './tab-context';
 
 export interface PendingPeerRequest {
@@ -117,6 +118,10 @@ class PeerRegistrationStore {
   /**
    * Poll and resend outgoing requests that have exceeded the resend threshold
    * IMPORTANT: Load from LocalDB first for multi-tab synchronization
+   *
+   * CRITICAL FIX: Checks if peer is already registered before resending.
+   * This prevents stale PeerRegister requests from being resent after ClaimSession
+   * when peers are already registered (which causes "Ratchet does not exist" errors).
    */
   private async pollAndResend(): Promise<void> {
     // Load latest state from LocalDB before processing (multi-tab sync)
@@ -132,8 +137,24 @@ class PeerRegistrationStore {
     console.log('PeerRegistrationStore: Poll checking', requests.length, 'outgoing requests');
 
     let needsPersist = false;
+    const toRemove: string[] = [];
 
     for (const request of requests) {
+      // CRITICAL: Skip and remove if peer is already registered
+      // This handles stale requests after ClaimSession/reconnection
+      if (p2pRegistrationService.isPeerRegistered(request.toCid)) {
+        console.log(`PeerRegistrationStore: Removing stale request for ${request.peerUsername} (${request.toCid.slice(0, 8)}...) - already registered`);
+        toRemove.push(request.id);
+        continue;
+      }
+
+      // Skip if toCid is invalid (defensive - should be filtered on load)
+      if (!request.toCid) {
+        console.warn('PeerRegistrationStore: Removing invalid request without toCid');
+        toRemove.push(request.id);
+        continue;
+      }
+
       const elapsed = now - request.timeLastSent;
 
       if (elapsed >= OUTGOING_RESEND_THRESHOLD_MS) {
@@ -153,11 +174,21 @@ class PeerRegistrationStore {
             // Still update timeLastSent so we don't spam
             request.timeLastSent = Date.now();
             needsPersist = true;
+          } else if (errorMsg.includes('Ratchet does not exist')) {
+            // Ratchet error means peer relationship is broken - remove stale request
+            console.warn(`PeerRegistrationStore: Ratchet error for ${request.peerUsername}, removing stale request`);
+            toRemove.push(request.id);
           } else {
             console.error('PeerRegistrationStore: Failed to resend to', request.peerUsername, ':', errorMsg);
           }
         }
       }
+    }
+
+    // Remove all stale/invalid requests
+    for (const id of toRemove) {
+      await this.removeOutgoingRequest(id);
+      needsPersist = true;
     }
 
     if (needsPersist) {
@@ -279,6 +310,16 @@ class PeerRegistrationStore {
    * Add an outgoing request (fire-and-forget - no timeout)
    */
   public async addOutgoingRequest(request: OutgoingPeerRequest): Promise<void> {
+    // Validate required fields - toCid is mandatory
+    if (!request.toCid) {
+      console.error('PeerRegistrationStore: Cannot add outgoing request without toCid');
+      return;
+    }
+    if (!request.fromCid) {
+      console.error('PeerRegistrationStore: Cannot add outgoing request without fromCid');
+      return;
+    }
+
     // Avoid duplicates
     if (this.hasOutgoingRequestTo(request.toCid, request.fromCid)) {
       console.log('PeerRegistrationStore: Duplicate outgoing request to', request.toCid);
@@ -795,8 +836,14 @@ class PeerRegistrationStore {
       this.pendingKVRequests.set(requestId, {
         resolve: (data: any) => {
           if (data && Array.isArray(data)) {
-            this.outgoingRequests = data;
-            console.log('PeerRegistrationStore: Loaded', data.length, 'outgoing requests');
+            // Filter out any invalid requests missing required fields (toCid, fromCid)
+            const validRequests = data.filter((r: OutgoingPeerRequest) => r.toCid && r.fromCid);
+            const invalidCount = data.length - validRequests.length;
+            if (invalidCount > 0) {
+              console.warn(`PeerRegistrationStore: Filtered out ${invalidCount} invalid outgoing requests (missing toCid or fromCid)`);
+            }
+            this.outgoingRequests = validRequests;
+            console.log('PeerRegistrationStore: Loaded', validRequests.length, 'valid outgoing requests');
             this.emitOutgoingUpdate();
           }
           resolve(undefined);

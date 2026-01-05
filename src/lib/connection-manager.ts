@@ -636,7 +636,30 @@ export class ConnectionManager {
       return;
     }
 
-    // Session checking is now handled automatically by websocketService.connect()
+    // GUARD: Skip Connect if session is already active in backend (prevents ratchet reset after ClaimSession)
+    // This is the frontend guard complementing the backend guard in connect.rs
+    const freshActiveSessions = await this.getActiveSessions();
+    const alreadyActiveSession = freshActiveSessions.find(
+      activeSession => activeSession.username === session.username &&
+                       activeSession.server_address === session.serverAddress
+    );
+
+    if (alreadyActiveSession) {
+      console.log('ConnectionManager: Session already active in backend, skipping Connect to prevent ratchet reset');
+      console.log('ConnectionManager: Active session CID:', alreadyActiveSession.cid);
+
+      // Just update connection info without calling Connect
+      await this.handleSuccessfulConnection(alreadyActiveSession.cid.toString(), false);
+
+      // Update stored session with CID
+      session.cid = alreadyActiveSession.cid.toString();
+      session.lastConnected = Date.now();
+      await this.storeSession(session);
+
+      console.log('ConnectionManager: Reusing existing session instead of reconnecting');
+      return;
+    }
+
     console.log('ConnectionManager: Attempting auto-reconnect for', session.username);
 
     try {

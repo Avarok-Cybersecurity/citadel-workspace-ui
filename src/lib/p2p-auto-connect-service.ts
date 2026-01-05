@@ -62,6 +62,13 @@ export class P2PAutoConnectService {
 
   private pendingConnections = new Set<string>(); // Peers we've initiated connection to (waiting for PeerConnectSuccess)
 
+  /**
+   * Force initiator mode - set after ClaimSession to bypass deterministic CID check.
+   * When a user reconnects via ClaimSession, they must ALWAYS initiate PeerConnect
+   * regardless of CID comparison, because the peer doesn't know they've reconnected.
+   */
+  private forceInitiatorMode = false;
+
   // Periodic polling for connection attempts
   private pollingInterval: NodeJS.Timeout | null = null;
 
@@ -470,15 +477,20 @@ export class P2PAutoConnectService {
       return;
     }
 
-    if (currentCidBigInt < peerCidBigInt) {
+    // FORCE INITIATOR MODE: After ClaimSession, the reconnecting user must ALWAYS
+    // initiate PeerConnect because the peer doesn't know they've reconnected.
+    // This bypasses the deterministic CID check for reconnection scenarios.
+    if (this.forceInitiatorMode) {
+      console.log(`P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.slice(0, 8)}... forcing PeerConnect to ${peerCid.slice(0, 8)}... (ClaimSession reconnection)`);
+    } else if (currentCidBigInt < peerCidBigInt) {
       // We have the lower CID - we are NOT the initiator
       // The peer with the higher CID will call PeerConnect, and we'll receive PeerChannelCreated
       console.log(`P2PAutoConnect: Client ${currentCid.slice(0, 8)}... is NOT the initiator; peer ${peerCid.slice(0, 8)}... has higher CID. Will handle PeerConnect asynchronously when received via PeerChannelCreated.`);
       return;
+    } else {
+      // We have the higher CID - we ARE the initiator
+      console.log(`P2PAutoConnect: Client ${currentCid.slice(0, 8)}... IS the initiator for ${peerCid.slice(0, 8)}... (higher CID): now sending PeerConnect request`);
     }
-
-    // We have the higher CID - we ARE the initiator
-    console.log(`P2PAutoConnect: Client ${currentCid.slice(0, 8)}... IS the initiator for ${peerCid.slice(0, 8)}... (higher CID): now sending PeerConnect request`);
 
     // Mark as pending to prevent duplicate attempts
     if (this.pendingConnections.has(peerCid)) {
@@ -611,6 +623,13 @@ export class P2PAutoConnectService {
           console.error(`P2PAutoConnect: Failed to initiate connection to ${peerCid}:`, err);
         });
       }
+    }
+
+    // Clear force initiator mode after launching all connection attempts
+    // The flag is only needed for the initial reconnection wave after ClaimSession
+    if (this.forceInitiatorMode) {
+      this.forceInitiatorMode = false;
+      console.log('[ILM-TRACE] P2PAutoConnect: forceInitiatorMode=false (connection attempts launched)');
     }
   }
 
@@ -810,6 +829,13 @@ export class P2PAutoConnectService {
     }
     this.pendingConnections.clear();
     this.cancelAllRetries();
+
+    // CRITICAL: Force initiator mode after ClaimSession
+    // The reconnecting user must ALWAYS initiate PeerConnect because the peer
+    // doesn't know they've reconnected and won't initiate from their side.
+    this.forceInitiatorMode = true;
+    console.log('[ILM-TRACE] P2PAutoConnect: forceInitiatorMode=true (reconnection)');
+
     console.log('P2PAutoConnect: Connection state reset for reconnection');
   }
 

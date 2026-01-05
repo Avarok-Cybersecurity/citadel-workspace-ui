@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-01-02T17:39:00.939Z",
+  "timestamp": "2026-01-05T22:02:08.276Z",
   "users": {
-    "user1": "msg_alice_1767375236864",
-    "user2": "msg_bob_1767375236864"
+    "user1": "msg_alice_1767650410994",
+    "user2": "msg_bob_1767650410994"
   },
   "results": {
     "accountCreation": {
@@ -12,127 +12,28 @@
     "p2pRegistration": true,
     "p2pAccept": true,
     "conversationOpen": {
-      "user1": false,
+      "user1": true,
       "user2": true
     },
     "messaging": {
-      "user1ToUser2": false,
+      "user1ToUser2": true,
       "user2ToUser1": true,
-      "user1Received": false,
-      "user2Received": false
+      "user1Received": true,
+      "user2Received": true
     },
     "messageOrder": {
-      "aliceMessagesInOrder": false,
-      "bobMessagesInOrder": false
+      "aliceMessagesInOrder": true,
+      "bobMessagesInOrder": true
     },
     "seenStatus": {
-      "aliceMessagesSeen": false,
-      "bobMessagesSeen": false
+      "aliceMessagesSeen": true,
+      "bobMessagesSeen": true
     },
     "uxChecks": {
-      "timestamps": false,
-      "onlineStatus": false
+      "timestamps": true,
+      "onlineStatus": true
     }
   },
-  "uxIssues": [
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Could not find msg_bob_1767375236864 in sidebar after 15 attempts",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:35:57.719Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message input not found",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:36:25.380Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not received within 15000ms: \"Hi Alice! Bob here. Got your message! Time: 12:36:06 PM\"",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:37:02.376Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message input not found",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:37:07.475Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not received within 15000ms: \"Great! The P2P chat is working perfectly!\"",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:37:40.498Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not found: \"Hello Bob! This is Alice. Time: 12:36:06 PM\"",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:37:50.543Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not found: \"Hi Alice! Bob here. Got your message! Time: 12:36:06 PM\"",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:38:00.544Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not found: \"Great! The P2P chat is working perfectly!\"",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:38:10.546Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not found: \"Hello Bob! This is Alice. Time: 12:36:06 PM\"",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:38:20.619Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not found: \"Great! The P2P chat is working perfectly!\"",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:38:30.622Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Messages not marked as seen within 15000ms. Expected 2 read, got 0. Delivered: 0, Sent: 0",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:38:45.725Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Messages not marked as seen within 15000ms. Expected 1 read, got 0. Delivered: 2, Sent: 0",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:39:00.831Z"
-    },
-    {
-      "severity": "minor",
-      "category": "visual",
-      "description": "No visible timestamps on messages",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:39:00.873Z"
-    },
-    {
-      "severity": "minor",
-      "category": "visual",
-      "description": "Peer online status indicator not clearly visible",
-      "screenshot": null,
-      "timestamp": "2026-01-02T17:39:00.874Z"
-    }
-  ],
-  "passed": false
+  "uxIssues": [],
+  "passed": true
 }
