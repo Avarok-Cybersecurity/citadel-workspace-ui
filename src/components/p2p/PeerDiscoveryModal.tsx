@@ -343,11 +343,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     setAcceptingPeerCid(request.peer_cid);
     try {
       await peerRegistrationStore.acceptRequest(request.id);
-      toast({
-        title: 'Connection Accepted',
-        description: `You are now connected with ${request.peer_username}`,
-        className: 'bg-[#343A5C] border-green-600 text-green-400',
-      });
+      // Toast removed - modal already shows success state
       // Refresh the registered peers list
       loadRegisteredPeers();
     } catch (error) {

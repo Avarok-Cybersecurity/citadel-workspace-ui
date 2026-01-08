@@ -78,8 +78,12 @@ export class P2PAutoConnectService {
 
   // Backoff configuration
   private readonly BASE_DELAY = 1000; // 1 second
-  private readonly MAX_DELAY = 5 * 60 * 1000; // 5 minutes
-  private readonly POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes continuous polling
+  private readonly MAX_DELAY = 30 * 1000; // 30 seconds (reduced from 5 minutes for faster reconnection)
+  private readonly POLL_INTERVAL = 30 * 1000; // 30 seconds continuous polling (reduced from 5 minutes)
+
+  // Online status caching (10s TTL to avoid redundant API calls)
+  private lastOnlineStatusRefresh = 0;
+  private readonly ONLINE_STATUS_CACHE_TTL = 10 * 1000; // 10 seconds
 
   private constructor() {
     this.setupEventListeners();
@@ -409,9 +413,17 @@ export class P2PAutoConnectService {
   // ============================================================
 
   /**
-   * Refresh online status from internal service
+   * Refresh online status from internal service (with caching)
+   * @param force - If true, bypass cache and force refresh
    */
-  public async refreshOnlineStatus(): Promise<void> {
+  public async refreshOnlineStatus(force = false): Promise<void> {
+    // Use cached status if recently refreshed (within TTL) and not forced
+    const now = Date.now();
+    if (!force && now - this.lastOnlineStatusRefresh < this.ONLINE_STATUS_CACHE_TTL) {
+      console.log(`P2PAutoConnect: Using cached online status (${Math.round((now - this.lastOnlineStatusRefresh) / 1000)}s old)`);
+      return;
+    }
+
     try {
       const peers = await p2pRegistrationService.listAllPeers();
       this.onlinePeers.clear();
@@ -425,6 +437,7 @@ export class P2PAutoConnectService {
         }
       }
 
+      this.lastOnlineStatusRefresh = Date.now();
       console.log(`P2PAutoConnect: Refreshed online status, ${this.onlinePeers.size} peers online`);
     } catch (error: any) {
       // Skip silently if there's no valid user session (expected when not logged in)
@@ -566,37 +579,28 @@ export class P2PAutoConnectService {
 
     const attempt = this.connectionAttempts.get(peerCid) || { attempts: 0, timeout: null };
 
-    // Refresh online status before attempting
-    await this.refreshOnlineStatus();
+    // OPTIMIZATION: Use cached online status (non-blocking) - skip if definitely offline
+    // If cache says offline, defer; if cache stale or online, try optimistically
     const isOnline = this.isPeerOnline(peerCid);
-    console.log(`[ILM-TRACE] connectToPeer: peer ${peerCid.slice(0, 8)} online=${isOnline}`);
+    const cacheAge = Date.now() - this.lastOnlineStatusRefresh;
+    const cacheValid = cacheAge < this.ONLINE_STATUS_CACHE_TTL;
 
-    // If peer is offline, skip this attempt and schedule next poll
-    if (!isOnline) {
-      console.log(`P2PAutoConnect: Peer ${peerCid.slice(0, 8)}... offline, scheduling next check in ${this.POLL_INTERVAL / 1000}s`);
-      console.log('[ILM-TRACE] connectToPeer: DEFERRED - peer offline');
-      this.pendingConnections.delete(peerCid); // Remove from pending since we're not connecting now
+    if (cacheValid && !isOnline) {
+      // Cache is fresh and says peer is offline - defer
+      console.log(`P2PAutoConnect: Peer ${peerCid.slice(0, 8)}... offline (cached), scheduling next check in ${this.POLL_INTERVAL / 1000}s`);
+      console.log('[ILM-TRACE] connectToPeer: DEFERRED - peer offline (cached)');
+      this.pendingConnections.delete(peerCid);
       attempt.timeout = setTimeout(() => this.connectToPeer(peerCid), this.POLL_INTERVAL);
       this.connectionAttempts.set(peerCid, attempt);
       return;
     }
 
-    // Check if connection was established while we were doing async operations
-    // This handles SIMULTANEOUS_CONNECT where handleIncomingPeerConnect already connected
-    if (this.isPeerConnectedForSession(currentCid, peerCid)) {
-      console.log(`P2PAutoConnect: ${peerCid.slice(0, 8)}... connected during async wait, skipping ClaimSession/PeerConnect`);
-      console.log('[ILM-TRACE] connectToPeer: EARLY_EXIT - peer connected during refreshOnlineStatus');
-      this.pendingConnections.delete(peerCid);
-      return;
-    }
+    // Try connection optimistically - if peer is offline, it will fail fast
+    console.log(`[ILM-TRACE] connectToPeer: trying optimistically (cacheValid=${cacheValid}, isOnline=${isOnline})`);
 
     try {
-      // Claim session first to ensure backend processes request in correct context
-      console.log(`P2PAutoConnect: Claiming session ${currentCid.slice(0, 8)}... before PeerConnect`);
-      console.log(`[ILM-TRACE] connectToPeer: calling claimSession(${currentCid.slice(0, 8)})`);
-      await websocketService.claimSession(currentCid);
-      console.log('[ILM-TRACE] connectToPeer: claimSession SUCCESS');
-
+      // OPTIMIZATION: Removed claimSession call - session context is already established at login
+      // ClaimSession was causing an extra round-trip delay before every P2P connection attempt
       console.log(`P2PAutoConnect: Attempting connection to ${peerCid.slice(0, 8)}...`);
       console.log(`[ILM-TRACE] connectToPeer: calling openP2PConnection(${currentCid.slice(0, 8)}, ${peerCid.slice(0, 8)})`);
       await websocketService.openP2PConnection(currentCid, peerCid);
@@ -638,8 +642,9 @@ export class P2PAutoConnectService {
       return;
     }
 
-    // Refresh online status first
-    await this.refreshOnlineStatus();
+    // OPTIMIZATION: Kick off non-blocking online status refresh (uses caching internally)
+    // Each connectToPeer() will use cached status or try optimistically
+    this.refreshOnlineStatus().catch(() => {}); // Fire-and-forget
     console.log(`[ILM-TRACE] connectToAllRegisteredPeers: onlinePeers=${Array.from(this.onlinePeers).map(c => c.slice(0, 8)).join(',')}`);
 
     let registeredPeers: any[] = [];
