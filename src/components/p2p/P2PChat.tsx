@@ -93,8 +93,10 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
 
   const messenger = P2PMessengerManager.getInstance();
 
-  // Can send messages if peer is registered (P2P connection is optional)
-  const canSendMessages = isRegistered || isConnected;
+  // Always allow message composition - ILM handles offline queueing
+  // Registration happens automatically when sending to unregistered peers
+  // See p2p-messenger-manager.ts lines 1001-1027 for auto-registration logic
+  const canSendMessages = true;
 
   // Keep refs in sync with state (fixes stale closure issues)
   useEffect(() => {

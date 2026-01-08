@@ -16,7 +16,8 @@
     "test:prev-sessions": "npm run build && node dist/tests/previous-sessions.test.js",
     "test:file-transfer": "npm run build && node dist/tests/file-transfer.test.js",
     "test:offline": "npm run build && node dist/tests/offline-messaging.test.js",
-    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline",
+    "test:hard-disconnect": "npm run build && node dist/tests/hard-disconnect-offline.test.js",
+    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist"
   },

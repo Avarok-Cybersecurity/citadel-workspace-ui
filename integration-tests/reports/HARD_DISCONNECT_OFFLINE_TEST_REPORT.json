@@ -1,0 +1,66 @@
+{
+  "timestamp": "2026-01-07T15:53:26.248Z",
+  "users": {
+    "user1": "harddc_alice_1767800701735",
+    "user2": "harddc_bob_1767800701735"
+  },
+  "results": {
+    "accountCreation": {
+      "user1": true,
+      "user2": true
+    },
+    "p2pRegistration": true,
+    "p2pAccept": true,
+    "conversationOpen": {
+      "user1": true,
+      "user2": true
+    },
+    "initialMessaging": {
+      "user1ToUser2": true,
+      "user2ToUser1": true,
+      "user1Received": true,
+      "user2Received": true
+    },
+    "disconnection": {
+      "user2Disconnected": true,
+      "sessionNotOrphaned": true
+    },
+    "offlineMessages": {
+      "message1Sent": true,
+      "message2Sent": true,
+      "message3Sent": true
+    },
+    "reconnection": {
+      "user2LoggedIn": false,
+      "p2pReEstablished": false
+    },
+    "offlineDelivery": {
+      "message1Received": false,
+      "message2Received": false,
+      "message3Received": false
+    },
+    "postReconnectMessaging": {
+      "user1ToUser2": true,
+      "user2ToUser1": false,
+      "user1Received": false,
+      "user2Received": false
+    }
+  },
+  "uxIssues": [
+    {
+      "severity": "critical",
+      "category": "functional",
+      "description": "Could not find harddc_alice_1767800701735 in sidebar after 15 attempts",
+      "screenshot": null,
+      "timestamp": "2026-01-07T15:49:47.549Z"
+    },
+    {
+      "severity": "critical",
+      "category": "functional",
+      "description": "Could not find harddc_alice_1767800701735 in sidebar after 15 attempts",
+      "screenshot": null,
+      "timestamp": "2026-01-07T15:50:58.780Z"
+    }
+  ],
+  "passed": false
+}

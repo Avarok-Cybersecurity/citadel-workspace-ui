@@ -17,15 +17,16 @@ import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages
 import WorkspaceService from "@/lib/workspace-service";
 import { setSelectedUser } from "@/lib/tab-context";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
-import { 
-  ConnectMode, 
-  UdpMode, 
-  SecurityLevel, 
-  SecrecyMode, 
-  EncryptionAlgorithm, 
-  KemAlgorithm, 
-  SigAlgorithm, 
-  stringToUint8Array 
+import { ConnectLoadingModal, ConnectStatus } from "./LoadingModal";
+import {
+  ConnectMode,
+  UdpMode,
+  SecurityLevel,
+  SecrecyMode,
+  EncryptionAlgorithm,
+  KemAlgorithm,
+  SigAlgorithm,
+  stringToUint8Array
 } from "@/types";
 
 interface LoginProps {
@@ -136,6 +137,16 @@ export function Login({ onNext, onCancel }: LoginProps) {
       WorkspaceService.loadWorkspace();
       WorkspaceService.listOffices();
 
+      // CRITICAL: Emit session:activated to trigger P2P re-establishment
+      // This ensures P2P channels are established when redirecting to existing session
+      eventEmitter.emit('session:activated', {
+        cid: session.cid,
+        username: session.username,
+        serverAddress: session.server_address,
+        activationType: 'claim', // Treat as claim since we're reclaiming existing session
+      });
+      console.log('Login: Emitted session:activated for redirect to existing session');
+
       // Navigate to the office page
       navigate(getWorkspacePath());
 
@@ -212,6 +223,22 @@ export function Login({ onNext, onCancel }: LoginProps) {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
             resolve(response.ConnectSuccess.cid);
+          } else if ('SessionAlreadyActive' in response && response.SessionAlreadyActive.request_id === requestId) {
+            // Session is already active - redirect to workspace seamlessly
+            responseReceived = true;
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+
+            const { cid, username: sessionUsername, message } = response.SessionAlreadyActive;
+            console.log(`Login: SessionAlreadyActive - ${message}`);
+
+            // Redirect to the existing session
+            redirectToExistingSession({
+              cid: cid.toString(),
+              username: sessionUsername || username.trim(),
+              server_address: server
+            }).finally(() => setLoading(false));
+            return; // Don't resolve/reject - redirectToExistingSession handles navigation
           } else if ('ConnectFailure' in response && response.ConnectFailure.request_id === requestId) {
             responseReceived = true;
             clearTimeout(timeout);
@@ -318,6 +345,19 @@ export function Login({ onNext, onCancel }: LoginProps) {
         console.error('Failed to start WASM connection manager:', error);
         // Don't block login - P2P messaging may not be immediately needed
       }
+
+      // CRITICAL: Emit session:activated to trigger P2P re-establishment
+      // After login (especially after explicit disconnect), we need to:
+      // 1. Start p2pRegistrationService to discover registered peers
+      // 2. Call connectToAllRegisteredPeers() to establish P2P channels
+      // Without this, ILM message delivery will fail because P2P channels aren't established.
+      eventEmitter.emit('session:activated', {
+        cid: cid.toString(),
+        username: username.trim(),
+        serverAddress: server,
+        activationType: 'login',
+      });
+      console.log('Login: Emitted session:activated for login');
 
       onNext(cid);
       

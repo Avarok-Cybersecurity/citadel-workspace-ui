@@ -73,6 +73,8 @@ export {
   p2pRegister,
   acceptP2PRequest,
   openConversation,
+  connectP2P,        // NEW: Explicitly connect to registered P2P peer
+  disconnectP2P,     // NEW: Disconnect from P2P peer (C2S stays active)
   disconnectViaNavbar,
   disconnectViaTopBar,
   disconnectViaTcpDrop,

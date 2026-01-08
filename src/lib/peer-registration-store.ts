@@ -8,6 +8,7 @@
 import { eventEmitter } from './event-emitter';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection-manager';
+import { instanceManager } from './instance-manager';
 import { notificationService } from './notification-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { p2pRegistrationService } from './p2p-registration-service';
@@ -88,9 +89,16 @@ class PeerRegistrationStore {
   }
 
   /**
-   * Start the poll loop for resending outgoing requests to offline peers
+   * Start the poll loop for resending outgoing requests to offline peers.
+   * Only runs on leader tab to prevent duplicate registration requests from multiple tabs.
    */
   public startPollLoop(): void {
+    // Only leader tab should poll to prevent duplicate registration requests from multiple tabs
+    if (!instanceManager.isLeader) {
+      console.log('PeerRegistrationStore: Poll loop not started (not leader tab)');
+      return;
+    }
+
     if (this.pollIntervalId) {
       console.log('PeerRegistrationStore: Poll loop already running');
       return;
@@ -122,8 +130,15 @@ class PeerRegistrationStore {
    * CRITICAL FIX: Checks if peer is already registered before resending.
    * This prevents stale PeerRegister requests from being resent after ClaimSession
    * when peers are already registered (which causes "Ratchet does not exist" errors).
+   *
+   * Only runs on leader tab to prevent duplicate registration requests from multiple tabs.
    */
   private async pollAndResend(): Promise<void> {
+    // Defensive: only leader tab should poll to prevent duplicate registration requests
+    if (!instanceManager.isLeader) {
+      return;
+    }
+
     // Load latest state from LocalDB before processing (multi-tab sync)
     await this.loadOutgoingFromLocalDB();
 
@@ -890,6 +905,21 @@ class PeerRegistrationStore {
       setTimeout(() => {
         this.refreshNotificationsForCurrentSession();
       }, 100);
+    });
+
+    // Start/stop poll loop based on leader status
+    // Only leader tab should poll to prevent duplicate registration requests from multiple tabs
+    eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
+      console.log(`PeerRegistrationStore: Leader changed - isLeader: ${data.isLeader}`);
+      if (data.isLeader) {
+        // Became leader, start poll loop if initialized
+        if (this.isInitialized) {
+          this.startPollLoop();
+        }
+      } else {
+        // Lost leadership, stop poll loop
+        this.stopPollLoop();
+      }
     });
 
     eventEmitter.on('websocket-message', (message: any) => {

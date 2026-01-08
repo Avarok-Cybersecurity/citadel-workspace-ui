@@ -93,17 +93,17 @@ class SessionStartupService {
 
   private async runStartupSequence(event: SessionActivatedEvent): Promise<void> {
     try {
-      // 0. For reconnection scenarios (ClaimSession), reset connection state
+      // 0. For reconnection scenarios (ClaimSession OR Login), reset connection state
       // This is CRITICAL because:
-      // - When TCP drops with orphan mode, PeerDisconnect is NOT sent to peers
-      // - So peers' connectedPeers Set still has this user's CID
-      // - When this user reconnects, peers skip reverse PeerConnect
-      // - This causes unidirectional channels (only reconnecting user → peer works)
+      // - For ClaimSession: TCP drops with orphan mode, PeerDisconnect is NOT sent to peers
+      //   So peers' connectedPeers Set still has this user's CID
+      // - For Login: After explicit disconnect, the previous session is destroyed
+      //   A new session with a new CID is created, but local state may be stale
       //
       // By resetting state, we ensure fresh PeerConnect calls that properly
       // establish bidirectional channels.
-      if (event.activationType === 'claim') {
-        console.log('[ILM-TRACE] SessionStartup: Resetting connection state for ClaimSession');
+      if (event.activationType === 'claim' || event.activationType === 'login') {
+        console.log(`[ILM-TRACE] SessionStartup: Resetting connection state for ${event.activationType}`);
         p2pAutoConnectService.resetConnectionState();
       }
 

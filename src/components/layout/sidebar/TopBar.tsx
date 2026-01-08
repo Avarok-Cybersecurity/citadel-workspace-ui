@@ -25,6 +25,7 @@ import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { useState } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
+import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
 
 interface TopBarProps {
@@ -40,6 +41,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const navigate = useNavigate();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [disconnectStatus, setDisconnectStatus] = useState<DisconnectStatus>("disconnecting");
+  const [disconnectError, setDisconnectError] = useState<string | undefined>();
 
   // Get workspace name from context or fallback to prop
   const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
@@ -78,6 +82,11 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   };
 
   const handleSignOut = async () => {
+    // Show the disconnect modal immediately
+    setDisconnectStatus("disconnecting");
+    setDisconnectError(undefined);
+    setShowDisconnectModal(true);
+
     try {
       // Stop WASM connection manager polling
       wasmConnectionManager.stop();
@@ -87,11 +96,8 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
       if (!currentSession) {
         console.error('TopBar: No current session found');
-        toast({
-          title: "Sign out failed",
-          description: "No active session found",
-          variant: "destructive",
-        });
+        setDisconnectStatus("error");
+        setDisconnectError("No active session found");
         return;
       }
 
@@ -100,26 +106,33 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       // Full disconnect via WebSocket
       await connectionManager.disconnect();
 
+      // Update status to cleaning
+      setDisconnectStatus("cleaning");
+
       // Remove the session completely from stored sessions
       await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
 
       // Clear tab-specific user selection
       clearSelectedUser();
 
-      // Navigate to landing page
-      navigate('/');
+      // Show ready status briefly before navigating
+      setDisconnectStatus("ready");
 
+    } catch (error) {
+      console.error('TopBar: Sign out failed', error);
+      setDisconnectStatus("error");
+      setDisconnectError("An error occurred while signing out");
+    }
+  };
+
+  const handleDisconnectComplete = () => {
+    setShowDisconnectModal(false);
+    if (disconnectStatus === "ready") {
+      navigate('/');
       toast({
         title: "Signed out",
         description: "You have been fully logged out. You'll need to login again to access this workspace.",
         className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
-    } catch (error) {
-      console.error('TopBar: Sign out failed', error);
-      toast({
-        title: "Sign out failed",
-        description: "An error occurred while signing out",
-        variant: "destructive",
       });
     }
   };
@@ -199,6 +212,15 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       <ProfileModal
         open={showProfileModal}
         onOpenChange={setShowProfileModal}
+      />
+
+      {/* Disconnect loading modal */}
+      <DisconnectLoadingModal
+        open={showDisconnectModal}
+        status={disconnectStatus}
+        workspaceName={workspaceName}
+        errorMessage={disconnectError}
+        onComplete={handleDisconnectComplete}
       />
     </div>
   );

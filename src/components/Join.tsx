@@ -20,6 +20,7 @@ import { ConnectionManager } from "@/lib/connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { mapSecuritySettings } from "@/lib/security-utils";
+import { ConnectLoadingModal, type ConnectStatus } from "./LoadingModal";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -32,6 +33,8 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
   const [showNotInitializedModal, setShowNotInitializedModal] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus>("connecting");
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
@@ -84,6 +87,8 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
     }
 
     setIsRegistering(true);
+    setShowConnectModal(true);
+    setConnectStatus("connecting");
 
     try {
       // Construct the request payload matching Rust structure
@@ -229,9 +234,11 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
       );
       
       console.log('Registration request sent with ID:', requestId);
-      
+      setConnectStatus("authenticating");
+
       // Wait for response
       const response = await responsePromise;
+      setConnectStatus("loading");
 
       console.info("Register Response:", response);
 
@@ -241,13 +248,17 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         variant: "default",
       });
 
-      // Since connect_after_register is now true, the connection should be established
-      // Wait a bit longer to ensure connection is established before navigating
-      setTimeout(() => {
-        navigate(getWorkspacePath());
-      }, 2000);
+      // Show ready status - modal will auto-close and navigate via onComplete callback
+      setConnectStatus("ready");
     } catch (error: any) {
       console.error("Registration Error:", error); // Add logging
+
+      // Close modal on error (unless it's workspace not initialized, which shows its own modal)
+      if (!error.message?.includes('Workspace not initialized')) {
+        setShowConnectModal(false);
+      } else {
+        setShowConnectModal(false);
+      }
 
       toast({
         title: getErrorTitle(error),
@@ -410,6 +421,16 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         onReturnToLogin={() => {
           setShowNotInitializedModal(false);
           onBack();
+        }}
+      />
+
+      <ConnectLoadingModal
+        open={showConnectModal}
+        status={connectStatus}
+        username={formData.username}
+        onComplete={() => {
+          setShowConnectModal(false);
+          navigate(getWorkspacePath());
         }}
       />
     </div>

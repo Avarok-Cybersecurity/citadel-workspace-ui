@@ -19,6 +19,7 @@ import { websocketService } from './websocket-service';
 import { p2pRegistrationService } from './p2p-registration-service';
 import { connectionManager } from './connection-manager';
 import { eventEmitter } from './event-emitter';
+import { instanceManager } from './instance-manager';
 import { getSelectedUser } from './tab-context';
 import { P2P_CONSTANTS } from './constants';
 
@@ -122,6 +123,22 @@ export class P2PAutoConnectService {
       this.cancelAllRetries();
     });
 
+    // Start/stop polling based on leader status
+    // Only leader tab should poll to prevent duplicate P2P connect requests from multiple tabs
+    eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
+      console.log(`[P2PAutoConnect] Leader changed - isLeader: ${data.isLeader}`);
+      if (data.isLeader) {
+        // Became leader, start polling if P2P service is active
+        this.startPolling();
+        this.startBackendPolling();
+      } else {
+        // Lost leadership, stop polling
+        this.stopPolling();
+        this.stopBackendPolling();
+        this.cancelAllRetries();
+      }
+    });
+
     // CRITICAL: Immediately connect to newly registered peers (don't wait for 5-min poll)
     // Handle both incoming and outgoing registrations appropriately
     eventEmitter.on('p2p:peer-registered', ({ peer, isIncoming, isOutgoing }: { peer: any; isIncoming?: boolean; isOutgoing?: boolean }) => {
@@ -215,6 +232,25 @@ export class P2PAutoConnectService {
           this.handlePeerDisconnect(currentCid, peerCid);
         }
       }
+
+      // Handle DisconnectNotification with peer_cid - this is sent when a peer's C2S session disconnects
+      // The SDK emits PeerSignal::Disconnect to all connected peers, which becomes DisconnectNotification
+      // This is different from PeerDisconnect (explicit P2P disconnect request)
+      if (message.DisconnectNotification && message.DisconnectNotification.peer_cid) {
+        const messageCid = message.DisconnectNotification.cid?.toString();
+        const currentCid = this.getCurrentCid();
+
+        if (messageCid && currentCid && messageCid !== currentCid) {
+          // This message is for a different tab's session, ignore it
+          return;
+        }
+
+        const peerCid = message.DisconnectNotification.peer_cid?.toString();
+        if (peerCid && currentCid) {
+          console.log(`[P2PAutoConnect] DisconnectNotification: Peer ${peerCid.slice(0, 8)}... session disconnected`);
+          this.handlePeerDisconnect(currentCid, peerCid);
+        }
+      }
     });
   }
 
@@ -285,8 +321,15 @@ export class P2PAutoConnectService {
   /**
    * Start periodic GetSessions polling for backend state sync.
    * This provides PERIODIC consistency updates to the single source of truth.
+   * Only runs on leader tab to prevent redundant backend queries.
    */
   public startBackendPolling(): void {
+    // Only leader tab should poll to prevent redundant backend queries from multiple tabs
+    if (!instanceManager.isLeader) {
+      console.log('[P2PAutoConnect] Backend polling not started (not leader tab)');
+      return;
+    }
+
     if (this.backendPollInterval) {
       // Already running - silently return (don't spam logs)
       return;
@@ -448,9 +491,17 @@ export class P2PAutoConnectService {
    *
    * This ensures exactly one side initiates the connection, avoiding SDK
    * virtual connection overwrites that cause "unable to proxy" errors.
+   *
+   * Only runs on leader tab to prevent duplicate P2P connect requests.
    */
   public async connectToPeer(peerCid: string): Promise<void> {
     console.log(`[ILM-TRACE] connectToPeer: START peerCid=${peerCid?.slice(0, 8)}`);
+
+    // Only leader tab should initiate P2P connections to prevent duplicate requests from multiple tabs
+    if (!instanceManager.isLeader) {
+      console.log(`[P2PAutoConnect] connectToPeer skipped for ${peerCid?.slice(0, 8)} (not leader tab)`);
+      return;
+    }
 
     const currentCid = this.getCurrentCid();
     if (!currentCid) {
@@ -869,8 +920,15 @@ export class P2PAutoConnectService {
    * the same code path whether triggered by:
    * - Periodic background polling
    * - On-demand events (new registration, app startup, etc.)
+   * Only runs on leader tab to prevent duplicate P2P connect requests.
    */
   public poll(): void {
+    // Only leader tab should poll to prevent duplicate P2P connect requests from multiple tabs
+    if (!instanceManager.isLeader) {
+      console.log('[P2PAutoConnect] Poll skipped (not leader tab)');
+      return;
+    }
+
     this.connectToAllRegisteredPeers().catch((err) => {
       console.error('P2PAutoConnect: Poll failed:', err);
     });
@@ -880,8 +938,15 @@ export class P2PAutoConnectService {
    * Start periodic background polling for auto-reconnection.
    * Polls every POLL_INTERVAL (5 minutes) to reconnect to any
    * registered peers that have disconnected.
+   * Only runs on leader tab to prevent duplicate P2P connect requests.
    */
   public startPolling(): void {
+    // Only leader tab should poll to prevent duplicate P2P connect requests from multiple tabs
+    if (!instanceManager.isLeader) {
+      console.log('[P2PAutoConnect] Polling not started (not leader tab)');
+      return;
+    }
+
     if (this.pollingInterval) {
       return; // Already polling
     }

@@ -10,6 +10,7 @@
 
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
+import { instanceManager } from './instance-manager';
 import { getSelectedUser } from './tab-context';
 import type { StoredSession, StoredSessions, ActiveSession } from '@/types/session-types';
 import { v4 as uuidv4 } from 'uuid';
@@ -37,6 +38,7 @@ export class ServerAutoConnectService {
   private readonly MAX_DELAY = 300000;     // 5 minutes
   private readonly POLL_INTERVAL = 60000;  // 1 minute check interval
   private readonly LOCALDB_KEY = 'server_auto_connect_enabled';
+  private readonly USER_DISCONNECTED_KEY = 'user_disconnected_sessions';
   private readonly GLOBAL_CID = '0';       // CID 0 for global settings
 
   private constructor() {
@@ -60,12 +62,51 @@ export class ServerAutoConnectService {
 
     try {
       this.isEnabled = await this.loadEnabledSetting();
+      await this.loadUserDisconnectedSessions();
       this.isInitialized = true;
-      console.log(`ServerAutoConnect: Initialized (enabled: ${this.isEnabled})`);
+      console.log(`ServerAutoConnect: Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ${this.userDisconnectedSessions.size})`);
     } catch (error) {
       console.warn('ServerAutoConnect: Failed to load settings, using defaults:', error);
       this.isEnabled = true; // Default to enabled
       this.isInitialized = true;
+    }
+  }
+
+  /**
+   * Load user disconnected sessions from LocalDB.
+   * These are sessions the user explicitly signed out from and should not auto-reconnect.
+   */
+  private async loadUserDisconnectedSessions(): Promise<void> {
+    try {
+      const result = await websocketService.sendLocalDBGet(
+        this.GLOBAL_CID,
+        this.USER_DISCONNECTED_KEY
+      );
+
+      if (result?.value) {
+        const decoded = new TextDecoder().decode(new Uint8Array(result.value));
+        const sessions = JSON.parse(decoded);
+        if (Array.isArray(sessions)) {
+          this.userDisconnectedSessions = new Set(sessions);
+          console.log(`ServerAutoConnect: Loaded ${sessions.length} user-disconnected sessions from LocalDB`);
+        }
+      }
+    } catch (error) {
+      console.warn('ServerAutoConnect: Failed to load user disconnected sessions:', error);
+      // Keep empty set as default
+    }
+  }
+
+  /**
+   * Persist user disconnected sessions to LocalDB
+   */
+  private async persistUserDisconnectedSessions(): Promise<void> {
+    try {
+      const sessions = Array.from(this.userDisconnectedSessions);
+      const value = Array.from(new TextEncoder().encode(JSON.stringify(sessions)));
+      await websocketService.sendLocalDBSet(this.GLOBAL_CID, this.USER_DISCONNECTED_KEY, value);
+    } catch (error) {
+      console.warn('ServerAutoConnect: Failed to persist user disconnected sessions:', error);
     }
   }
 
@@ -98,6 +139,20 @@ export class ServerAutoConnectService {
       }
       if (message.DisconnectNotification) {
         this.handleDisconnect(message.DisconnectNotification);
+      }
+    });
+
+    // Start/stop polling based on leader status
+    // Only leader tab should poll to prevent duplicate connect requests from multiple tabs
+    eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
+      console.log(`ServerAutoConnect: Leader changed - isLeader: ${data.isLeader}`);
+      if (data.isLeader) {
+        // Became leader, start polling if enabled
+        this.startPolling();
+      } else {
+        // Lost leadership, stop polling
+        this.stopPolling();
+        this.cancelAllRetries();
       }
     });
   }
@@ -168,10 +223,17 @@ export class ServerAutoConnectService {
   /**
    * Trigger an immediate poll to reconnect disconnected sessions.
    * Call this when a relevant event occurs.
+   * Only runs on leader tab to prevent duplicate connect requests.
    */
   public poll(): void {
     if (!this.isEnabled) {
       console.log('ServerAutoConnect: Poll skipped (disabled)');
+      return;
+    }
+
+    // Only leader tab should poll to prevent duplicate connect requests from multiple tabs
+    if (!instanceManager.isLeader) {
+      console.log('ServerAutoConnect: Poll skipped (not leader tab)');
       return;
     }
 
@@ -182,10 +244,17 @@ export class ServerAutoConnectService {
 
   /**
    * Start periodic background polling for auto-reconnection.
+   * Only runs on leader tab to prevent duplicate connect requests.
    */
   public startPolling(): void {
     if (!this.isEnabled) {
       console.log('ServerAutoConnect: Polling not started (disabled)');
+      return;
+    }
+
+    // Only leader tab should poll to prevent duplicate connect requests from multiple tabs
+    if (!instanceManager.isLeader) {
+      console.log('ServerAutoConnect: Polling not started (not leader tab)');
       return;
     }
 
@@ -356,7 +425,11 @@ export class ServerAutoConnectService {
       this.cancelRetry(sessionKey);
       this.activeSessionKeys.add(sessionKey);
       // Clear user-disconnected status since user is now connected
-      this.userDisconnectedSessions.delete(sessionKey);
+      if (this.userDisconnectedSessions.has(sessionKey)) {
+        this.userDisconnectedSessions.delete(sessionKey);
+        // Persist to LocalDB (fire-and-forget to avoid blocking)
+        this.persistUserDisconnectedSessions();
+      }
       console.log(`ServerAutoConnect: Connection successful for ${username}`);
     }
   }
@@ -395,7 +468,9 @@ export class ServerAutoConnectService {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.add(sessionKey);
     this.cancelRetry(sessionKey);
-    console.log(`ServerAutoConnect: Marked ${username} as user-disconnected (won't auto-reconnect)`);
+    // Persist to LocalDB (fire-and-forget to avoid blocking)
+    this.persistUserDisconnectedSessions();
+    console.log(`ServerAutoConnect: Marked ${username} as user-disconnected (won't auto-reconnect, persisted to LocalDB)`);
   }
 
   /**
@@ -405,7 +480,9 @@ export class ServerAutoConnectService {
   public clearUserDisconnected(username: string, serverAddress: string): void {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.delete(sessionKey);
-    console.log(`ServerAutoConnect: Cleared user-disconnected status for ${username}`);
+    // Persist to LocalDB (fire-and-forget to avoid blocking)
+    this.persistUserDisconnectedSessions();
+    console.log(`ServerAutoConnect: Cleared user-disconnected status for ${username} (persisted to LocalDB)`);
   }
 
   /**

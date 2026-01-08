@@ -651,6 +651,14 @@ export class ConnectionManager {
       // Just update connection info without calling Connect
       await this.handleSuccessfulConnection(alreadyActiveSession.cid.toString(), false);
 
+      // Update currentConnectionInfo with full session data for disconnect() support
+      this.currentConnectionInfo = {
+        cid: alreadyActiveSession.cid.toString(),
+        username: session.username,
+        serverAddress: session.serverAddress,
+        fullName: session.fullName
+      };
+
       // Update stored session with CID
       session.cid = alreadyActiveSession.cid.toString();
       session.lastConnected = Date.now();
@@ -1000,7 +1008,18 @@ export class ConnectionManager {
         selectedServerAddress: serverAddress,
         selectedCid: cid
       });
-      
+
+      // Update currentConnectionInfo with full session data so disconnect() can
+      // properly call markUserDisconnected() with username and serverAddress.
+      // This is critical for preventing ServerAutoConnect from attempting to
+      // reconnect a session that the user explicitly signed out from.
+      this.currentConnectionInfo = {
+        cid: cid || '',
+        username,
+        serverAddress,
+        fullName
+      };
+
       console.log('ConnectionManager: handleAuthSuccess completed successfully');
     } catch (error) {
       console.error('ConnectionManager: handleAuthSuccess failed:', error);
@@ -1081,11 +1100,19 @@ export class ConnectionManager {
     
     if (response.ConnectionManagementSuccess) {
       console.log('ConnectionManager: Successfully claimed orphaned session');
-      
+
       // Update connection service with the claimed CID
       // Pass false to avoid updating the stored session again (we already have the CID)
       await this.handleSuccessfulConnection(sessionCid.toString(), false);
-      
+
+      // Update currentConnectionInfo with full session data for disconnect() support
+      this.currentConnectionInfo = {
+        cid: sessionCid.toString(),
+        username: session.username,
+        serverAddress: session.serverAddress,
+        fullName: session.fullName
+      };
+
       // Update last connected time
       session.lastConnected = Date.now();
       await this.storeSession(session);
@@ -1186,18 +1213,30 @@ export class ConnectionManager {
   public async disconnect(): Promise<void> {
     try {
       if (this.currentConnectionInfo) {
+        // Mark as user-disconnected BEFORE disconnecting to prevent ServerAutoConnect
+        // from trying to reconnect this session automatically.
+        // This respects user intent - if they explicitly sign out, don't auto-reconnect.
+        const { username, serverAddress } = this.currentConnectionInfo;
+        if (username && serverAddress) {
+          serverAutoConnectService.markUserDisconnected(username, serverAddress);
+        }
+
         await websocketService.disconnect(this.currentConnectionInfo.cid);
       }
-      
+
       this.currentConnectionInfo = null;
-      
+
+      // Invalidate session cache to ensure fresh data on next getActiveSessions() call
+      // This prevents stale cached sessions from causing login redirects to non-existent sessions
+      this.invalidateSessionCache();
+
       // Update connection status
       const connectionService = ConnectionService.getInstance();
       connectionService.updateConnectionStatus({
         cid: null,
         isConnected: false
       });
-      
+
       // Broadcast disconnection status
       broadcastChannelService.broadcastConnectionStatus({
         isConnected: false

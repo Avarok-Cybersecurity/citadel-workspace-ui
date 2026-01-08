@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-01-08T00:23:29.123Z",
+  "testName": "One C2S Reconnection Test",
+  "users": {
+    "user1": "onec2s_1_1767831656183",
+    "user2": "onec2s_2_1767831656183"
+  },
+  "results": [
+    {
+      "step": "Phase 1a: Create User1 (initializer)",
+      "status": "PASS",
+      "notes": "Created onec2s_1_1767831656183"
+    },
+    {
+      "step": "Phase 1b: Create User2",
+      "status": "PASS",
+      "notes": "Created onec2s_2_1767831656183"
+    },
+    {
+      "step": "Phase 2a: P2P Register Request",
+      "status": "PASS",
+      "notes": "P2P registration initiated"
+    },
+    {
+      "step": "Phase 2b: P2P Accept",
+      "status": "PASS",
+      "notes": "P2P registration accepted"
+    },
+    {
+      "step": "Phase 2c: Initial Message",
+      "status": "PASS",
+      "notes": "Initial messaging works"
+    },
+    {
+      "step": "Phase 3: P2P Disconnect",
+      "status": "PASS",
+      "notes": "P2P disconnected"
+    },
+    {
+      "step": "Phase 4a: User1 Sign Out",
+      "status": "PASS",
+      "notes": "User1 signed out"
+    },
+    {
+      "step": "Phase 4b: User1 NOT Orphaned",
+      "status": "PASS",
+      "notes": "Session correctly NOT in OrphanSessionsNavbar"
+    },
+    {
+      "step": "Phase 5: User1 Login",
+      "status": "PASS",
+      "notes": "User1 logged back in"
+    },
+    {
+      "step": "Phase 6: P2P Reconnect",
+      "status": "PASS",
+      "notes": "P2P reconnected"
+    },
+    {
+      "step": "Phase 7a: Send Message After Reconnect",
+      "status": "PASS",
+      "notes": "Message sent"
+    },
+    {
+      "step": "Phase 7b: Verify Message Received",
+      "status": "PASS",
+      "notes": "Message received"
+    },
+    {
+      "step": "Phase 8: No Ratchet Errors",
+      "status": "PASS",
+      "notes": "No ratchet errors detected"
+    }
+  ],
+  "uxIssues": [],
+  "consoleErrors": [],
+  "passed": true
+}

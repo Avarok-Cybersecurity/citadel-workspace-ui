@@ -1,6 +1,13 @@
 import { Check, CheckCheck, Clock, RefreshCw, XCircle } from 'lucide-react';
 import type { P2PMessage } from '@/lib/p2p-messenger-manager';
 import { formatTime } from '@/components/chat/shared';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { MessageStatusDetails } from './MessageStatusDetails';
 
 interface BubbleFooterProps {
   message: P2PMessage;
@@ -27,6 +34,7 @@ function getMessageStatusIcon(message: P2PMessage) {
 
 export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
   const isFailed = message.status === 'failed';
+  const statusIcon = getMessageStatusIcon(message);
 
   return (
     <>
@@ -34,7 +42,23 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
         <span className="text-xs opacity-70" data-testid="message-timestamp">
           {formatTime(message.timestamp)}
         </span>
-        {isOwn && getMessageStatusIcon(message)}
+        {isOwn && statusIcon && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help inline-flex">
+                  {statusIcon}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="bg-[#1C1D28] border-gray-700 p-3"
+              >
+                <MessageStatusDetails message={message} />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {/* Retry button for failed messages */}
         {isOwn && isFailed && onRetry && (
           <button

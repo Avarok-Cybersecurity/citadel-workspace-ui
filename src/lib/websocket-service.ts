@@ -137,6 +137,14 @@ class WebSocketService {
       messageHandler: (message: InternalServiceResponse) => {
         debugLog('websocket', 'Message received from WASM client', message);
 
+        // DEBUG: Log Connect responses specifically
+        const resp = (message as any).Response || message;
+        if ('ConnectSuccess' in resp) {
+          console.log('[WS-MSG] ConnectSuccess received:', resp.ConnectSuccess);
+        } else if ('ConnectFailure' in resp) {
+          console.log('[WS-MSG] ConnectFailure received:', resp.ConnectFailure);
+        }
+
         // NEW: Route inbound messages through instance inbound router
         // The router will forward to the correct instance based on CID
         if (instanceManager.isLeader) {
@@ -186,11 +194,32 @@ class WebSocketService {
 
       // Listen for WebSocket disconnection to stop the message processing loop
       // This prevents the UI from freezing when the WebSocket dies
-      eventEmitter.on('websocket-disconnected', () => {
-        debugLog('websocket', 'WebSocket disconnected event received, stopping message processing');
+      // Also reset initialization state to allow re-initialization on next connect
+      eventEmitter.on('websocket-disconnected', async () => {
+        debugLog('websocket', 'WebSocket disconnected event received, stopping message processing and resetting state');
         if (this.client) {
           this.client.stopMessageProcessing();
+          // CRITICAL: Call close() to reset WASM internal state
+          // This ensures is_initialized() returns false, allowing init() to succeed on reconnect
+          // Without this, the WASM module's workspace_state remains Some(...) and init() fails
+          // with "Already initialized" error when user tries to login again
+          try {
+            await this.client.close();
+            debugLog('websocket', 'WASM client closed successfully');
+          } catch (closeError) {
+            // Ignore errors during close - the connection is already dead
+            debugLog('websocket', 'WASM client close error (ignored):', closeError);
+          }
+          this.client = null;
         }
+        // Reset initialization state to allow re-initialization
+        // This is critical for scenarios like sign-out + re-login where the WebSocket
+        // closes but the page stays open (no page reload)
+        this.isInitialized = false;
+        this.initializationPromise = null;
+        // Clear global state to allow full re-initialization
+        window[GLOBAL_INIT_KEY] = undefined;
+        debugLog('websocket', 'WebSocket service state reset after disconnection');
       });
 
       // Listen for session release requests (from instance-channel when last tab with a CID closes)
@@ -296,9 +325,19 @@ class WebSocketService {
     const connectRequest = {
       Connect: connectOptions
     };
-    
+
+    // DEBUG: Log the connect request being sent
+    console.log(`[Connect] Sending Connect request with request_id: ${requestId}`);
+    console.log(`[Connect] WebSocket client initialized: ${this.isInitialized}, client exists: ${!!this.client}`);
+
     // Send directly to internal service without using the problematic waitForResponse pattern
-    await this.client.sendDirectToInternalService(connectRequest);
+    try {
+      await this.client.sendDirectToInternalService(connectRequest);
+      console.log(`[Connect] Connect request sent successfully for ${username}`);
+    } catch (sendError) {
+      console.error(`[Connect] FAILED to send Connect request:`, sendError);
+      throw sendError;
+    }
   }
 
   async register(requestId: string, username: string, password: string, fullName: string, server_addr: string, server_password?: string, sessionSecuritySettings?: any): Promise<void> {
@@ -534,6 +573,82 @@ class WebSocketService {
         // Don't reject - we'll fall back to PeerConnect
         console.warn('Failed to send PeerConnectAccept:', error);
         resolve();
+      });
+    });
+  }
+
+  /**
+   * Disconnect from a specific P2P peer.
+   * Sends PeerDisconnect request - C2S connection stays active.
+   * Can reconnect later via openP2PConnection().
+   * @param localCid - Our session CID
+   * @param peerCid - The peer to disconnect from
+   */
+  async disconnectP2P(localCid: string, peerCid: string): Promise<void> {
+    await this.init(); // ensure initialized
+
+    if (!localCid) {
+      throw new Error('Local CID is required to disconnect P2P');
+    }
+
+    if (!peerCid) {
+      throw new Error('Peer CID is required to disconnect P2P');
+    }
+
+    debugLog('websocket', 'Disconnecting P2P connection', { localCid, peerCid });
+
+    const requestId = crypto.randomUUID();
+    const peerDisconnectRequest = {
+      PeerDisconnect: {
+        request_id: requestId,
+        cid: localCid, // our CID - will be converted to BigInt by sendMessage
+        peer_cid: peerCid // peer CID - will be converted to BigInt by sendMessage
+      }
+    };
+
+    // Send the request and wait for success/failure
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handler);
+        reject(new Error('PeerDisconnect request timed out'));
+      }, 10000);
+
+      const handler = (message: any) => {
+        // Check for PeerDisconnectSuccess with matching request_id
+        if ('PeerDisconnectSuccess' in message && message.PeerDisconnectSuccess.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          debugLog('websocket', 'P2P disconnect successful', { peerCid });
+          resolve();
+        }
+        // Also accept DisconnectNotification with matching peer_cid (peer-initiated disconnect)
+        else if ('DisconnectNotification' in message) {
+          const notification = message.DisconnectNotification;
+          if (notification.request_id === requestId ||
+              notification.peer_cid?.toString() === peerCid) {
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            debugLog('websocket', 'P2P disconnect notification received', { peerCid });
+            resolve();
+          }
+        }
+        // Check for PeerDisconnectFailure with matching request_id
+        else if ('PeerDisconnectFailure' in message && message.PeerDisconnectFailure.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handler);
+          const error = message.PeerDisconnectFailure.message || 'PeerDisconnect failed';
+          errorLog('P2P disconnect failed:', error);
+          reject(new Error(error));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handler);
+
+      // Send the request
+      this.sendMessage(peerDisconnectRequest).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handler);
+        reject(error);
       });
     });
   }

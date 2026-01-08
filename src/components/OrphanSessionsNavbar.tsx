@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ConnectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection-manager";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
 import type { ActiveSession } from "@/types/session-types";
 import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal, type DisconnectAction } from "./DisconnectConfirmModal";
-import { DisconnectLoadingModal, type DisconnectStatus } from "./DisconnectLoadingModal";
+import { DisconnectLoadingModal, type DisconnectStatus } from "./LoadingModal";
 import { useToast } from "@/hooks/use-toast";
 import { setSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
@@ -50,8 +50,6 @@ export const OrphanSessionsNavbar = () => {
   // Fetch active sessions and map to workspace data
   const loadActiveSessions = async () => {
     try {
-      const connectionManager = ConnectionManager.getInstance();
-
       // Wait for connection manager to be ready before getting sessions
       // This prevents race conditions during component initialization
       await connectionManager.waitForReady();
@@ -172,8 +170,6 @@ export const OrphanSessionsNavbar = () => {
         description: `Loading ${session.workspaceName}`,
         className: "bg-[#343A5C] border-purple-800 text-purple-200",
       });
-
-      const connectionManager = ConnectionManager.getInstance();
 
       // Try to claim the session if it's orphaned
       // Note: If the session is still active (not orphaned), this will fail with "not orphaned"
@@ -302,6 +298,10 @@ export const OrphanSessionsNavbar = () => {
         // This returns only after DisconnectNotification signal is received
         await websocketService.disconnect(cid);
       }
+
+      // Remove session from stored sessions (browser storage)
+      // After explicit disconnect/deregister, user doesn't want session saved
+      await connectionManager.removeSession(username, serverAddress);
 
       // Update status to cleaning - backend has confirmed disconnect, now update local state
       setLoadingModal(prev => ({ ...prev, status: "cleaning" }));
