@@ -13,6 +13,28 @@
  * - PERIODIC: GetSessions polling for consistency
  *
  * WASM ILM calls getPeersForSession() via JavaScript callback to get current state.
+ *
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                        CID LIFECYCLE - CRITICAL INFO                         ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║ CID (Client ID) is a persistent 64-bit identifier assigned per account.      ║
+ * ║                                                                              ║
+ * ║ | Operation              | CID Behavior                                     |║
+ * ║ |------------------------|--------------------------------------------------|║
+ * ║ | Register (new account) | NEW CID assigned                                 |║
+ * ║ | Login (credentials)    | SAME CID preserved                               |║
+ * ║ | ClaimSession (orphan)  | SAME CID preserved                               |║
+ * ║ | C2S disconnect+reconnect| SAME CID preserved, rekey works                 |║
+ * ║ | TCP drop with orphan   | SAME CID, session persists on server             |║
+ * ║                                                                              ║
+ * ║ IMPORTANT: Only Register creates a new CID. All reconnection scenarios       ║
+ * ║ (login, claim, TCP reconnect) preserve the original CID.                     ║
+ * ║                                                                              ║
+ * ║ For P2P auto-connect:                                                        ║
+ * ║ - connectedPeers Map is keyed by localCid (our CID, never changes)           ║
+ * ║ - forceInitiatorMode is set after ClaimSession to re-establish connections   ║
+ * ║ - resetConnectionState() clears local state but CID remains the same         ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
 import { websocketService } from './websocket-service';
@@ -281,7 +303,8 @@ export class P2PAutoConnectService {
       lastVerified: now,
     });
 
-    console.log(`[P2PAutoConnect] setPeerConnected: ${localCid.slice(0, 8)} -> ${peerCid.slice(0, 8)} (total: ${peerMap.size})`);
+    // ILM-DIAG: Log full CIDs for comparison with ILM queries
+    console.log(`[ILM-DIAG] setPeerConnected: STORED localCid=${localCid} peerCid=${peerCid} (total: ${peerMap.size})`);
   }
 
   /**
@@ -306,6 +329,12 @@ export class P2PAutoConnectService {
   public getPeersForSession(localCid: string): string[] {
     const peerMap = this.connectedPeers.get(localCid);
     if (!peerMap) {
+      // ILM-DIAG: Log when no entry exists for the queried CID
+      // This helps identify CID mismatches
+      const allCids = Array.from(this.connectedPeers.keys());
+      if (allCids.length > 0) {
+        console.warn(`[ILM-DIAG] getPeersForSession: NO ENTRY for CID ${localCid.slice(0, 8)}..., but connectedPeers has entries for: ${allCids.map(c => c.slice(0, 8)).join(', ')}`);
+      }
       return [];
     }
     return Array.from(peerMap.keys());
@@ -811,6 +840,9 @@ export class P2PAutoConnectService {
     }
 
     console.log(`[P2P-DEBUG] handleIncomingPeerConnect PASSED checks - accepting connection from ${initiatorCid.slice(0, 8)}...`);
+
+    // ILM-DIAG: Log the exact CID being stored for later comparison with ILM queries
+    console.log(`[ILM-DIAG] handleIncomingPeerConnect: STORING peer ${initiatorCid.slice(0, 8)} under localCid=${currentCid}`);
 
     // Mark initiator as connected - INSTANT update
     this.setPeerConnected(currentCid, initiatorCid, peerUsername);

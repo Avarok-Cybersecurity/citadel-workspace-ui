@@ -17,7 +17,9 @@
     "test:file-transfer": "npm run build && node dist/tests/file-transfer.test.js",
     "test:offline": "npm run build && node dist/tests/offline-messaging.test.js",
     "test:hard-disconnect": "npm run build && node dist/tests/hard-disconnect-offline.test.js",
-    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect",
+    "test:permissions": "npm run build && node dist/tests/permissions.test.js",
+    "test:admin-modal": "npm run build && node dist/tests/admin-modal.test.js",
+    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist"
   },

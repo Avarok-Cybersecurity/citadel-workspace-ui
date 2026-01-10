@@ -72,8 +72,8 @@ export async function sendMessage(
 
   console.log(`  [DEBUG] Filling message text...`);
   await messageInput.fill(messageText);
-  console.log(`  [DEBUG] Message text filled, waiting 300ms...`);
-  await new Promise(resolve => setTimeout(resolve, 300));
+  console.log(`  [DEBUG] Message text filled, waiting 500ms for UI to process...`);
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   console.log(`  [DEBUG] Looking for send button...`);
   const sendBtn = page.locator('button[type="submit"]').last();
@@ -312,6 +312,70 @@ export async function verifyMessageOrder(
   }
 
   return { success: allInOrder, details };
+}
+
+/**
+ * Wait for multiple messages to appear in the chat (reactive polling).
+ * More efficient than sequential verifyMessageReceived calls - polls for all at once.
+ *
+ * @param page - The page to check
+ * @param username - Username for logging
+ * @param expectedMessages - Array of message texts to find
+ * @param timeout - Total timeout in ms for ALL messages to appear
+ * @param pollInterval - How often to check (default 500ms)
+ * @returns Object with results for each message
+ */
+export async function waitForAllMessages(
+  page: Page,
+  username: string,
+  expectedMessages: string[],
+  timeout = 30000,
+  pollInterval = 500
+): Promise<{ allReceived: boolean; results: Record<string, boolean> }> {
+  console.log(`\n=== ${username}: Waiting for ${expectedMessages.length} messages ===`);
+  expectedMessages.forEach((msg, i) => {
+    console.log(`  ${i + 1}. "${msg.substring(0, 50)}${msg.length > 50 ? '...' : ''}"`);
+  });
+
+  await page.bringToFront();
+
+  const results: Record<string, boolean> = {};
+  expectedMessages.forEach(msg => results[msg] = false);
+
+  const startTime = Date.now();
+  let found = 0;
+
+  while (Date.now() - startTime < timeout && found < expectedMessages.length) {
+    // Check page content for all remaining messages
+    const pageContent = await page.content();
+
+    for (const msg of expectedMessages) {
+      if (!results[msg] && pageContent.includes(msg)) {
+        results[msg] = true;
+        found++;
+        console.log(`  ✓ Found (${found}/${expectedMessages.length}): "${msg.substring(0, 40)}..."`);
+      }
+    }
+
+    if (found < expectedMessages.length) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+
+  const allReceived = found === expectedMessages.length;
+  if (allReceived) {
+    console.log(`  ✓ All ${expectedMessages.length} messages received in ${Date.now() - startTime}ms`);
+  } else {
+    console.log(`  ✗ Timeout after ${timeout}ms. Found ${found}/${expectedMessages.length} messages`);
+    for (const msg of expectedMessages) {
+      if (!results[msg]) {
+        console.log(`    Missing: "${msg.substring(0, 50)}..."`);
+      }
+    }
+    await takeScreenshot(page, `${username}_messages_timeout`);
+  }
+
+  return { allReceived, results };
 }
 
 /**

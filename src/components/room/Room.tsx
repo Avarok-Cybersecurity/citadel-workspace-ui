@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../lib/workspace-context';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
-import { User, UserRole } from '../../types/workspace-entities';
+import { User } from '../../types/workspace-entities';
 import { MDXProvider } from '@mdx-js/react';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
@@ -13,6 +13,9 @@ import WorkspaceService from '@/lib/workspace-service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
 import { FileText, MessageSquare } from 'lucide-react';
+import { usePermission } from '@/hooks/usePermission';
+import { Permission } from '@/contexts/PermissionsContext';
+import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';
@@ -70,6 +73,12 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
     }
   }, [room]);
 
+  // Check if user can edit the MDX content using the permissions system
+  const { allowed: canEditMdx, reason: editDeniedReason, loading: permissionLoading } = usePermission(
+    roomId,
+    Permission.EditMdx
+  );
+
   // Compile MDX content
   useEffect(() => {
     const compileContent = async () => {
@@ -91,19 +100,6 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
     compileContent();
   }, [content]);
-
-  // Check if user can edit the MDX content
-  const canEditMdxContent = (): boolean => {
-    // If no room data, we're in demo mode - allow editing
-    if (!room) return true;
-
-    // For now, just return true to allow editing
-    // In a production version, you would:
-    // 1. Get current user ID from auth context/state
-    // 2. Check if user is owner or has admin role
-    // 3. Check specific permission to edit MDX content
-    return true;
-  };
 
   // Handle saving MDX content
   const handleSave = async () => {
@@ -150,7 +146,8 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
     return <RoomSkeletonLoader />;
   }
 
-  const hasEditPermission = canEditMdxContent();
+  // Use permission check result
+  const hasEditPermission = canEditMdx;
 
   // Check if chat is enabled for this room
   const chatEnabled = room.chat_enabled ?? false;
@@ -173,30 +170,33 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         </div>
       </div>
       <div className="flex space-x-2">
-        {hasEditPermission && (
-          isEditing ? (
-            <>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
+        {isEditing ? (
+          <>
             <button
-              onClick={() => setIsEditing(true)}
+              onClick={handleSave}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setIsEditing(false)}
+              className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <DisabledWithTooltip
+            disabled={!hasEditPermission}
+            tooltip={editDeniedReason || "You don't have permission to edit this content"}
+          >
+            <button
+              onClick={() => hasEditPermission && setIsEditing(true)}
               className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
               Edit
             </button>
-          )
+          </DisabledWithTooltip>
         )}
       </div>
     </div>

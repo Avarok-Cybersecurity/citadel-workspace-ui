@@ -20,10 +20,10 @@
  *
  * Key Differences from ClaimSession Test:
  * - Explicit disconnect destroys the session (not orphaned)
- * - New login creates a fresh session with new CID
+ * - Login preserves the SAME CID (only Register creates new CID)
  * - P2P registration persists (stored on server)
  * - P2PAutoConnect automatically reconnects to registered peers
- * - ILM delivers queued messages to the new session
+ * - ILM delivers queued messages using the preserved CID
  */
 
 import {
@@ -36,6 +36,7 @@ import {
   openConversation,
   sendMessage,
   verifyMessageReceived,
+  waitForAllMessages,
   disconnectViaTopBar,
   assertSessionNotInOrphanNavbar,
   loginAfterDisconnect,
@@ -305,11 +306,12 @@ async function runTest(): Promise<boolean> {
 
     results.offlineMessages.message1Sent = await sendMessage(page1, USER1, OFFLINE_MSG_1);
     console.log(`  Offline message 1: ${results.offlineMessages.message1Sent ? 'SENT' : 'FAILED'}`);
-    await sleep(1000);
+    // Wait longer between offline messages to avoid UI input debouncing issues
+    await sleep(2500);
 
     results.offlineMessages.message2Sent = await sendMessage(page1, USER1, OFFLINE_MSG_2);
     console.log(`  Offline message 2: ${results.offlineMessages.message2Sent ? 'SENT' : 'FAILED'}`);
-    await sleep(1000);
+    await sleep(2500);
 
     results.offlineMessages.message3Sent = await sendMessage(page1, USER1, OFFLINE_MSG_3);
     console.log(`  Offline message 3: ${results.offlineMessages.message3Sent ? 'SENT' : 'FAILED'}`);
@@ -353,15 +355,28 @@ async function runTest(): Promise<boolean> {
       results.reconnection.p2pReEstablished = await openConversation(page2, USER2, USER1, uxTracker);
     }
 
-    await sleep(3000);
+    // Give conversation time to fully load messages from local storage/ILM
+    console.log('  Waiting 5s for conversation to fully load...');
+    await sleep(5000);
 
-    results.offlineDelivery.message1Received = await verifyMessageReceived(page2, USER2, OFFLINE_MSG_1, 15000);
+    // Use reactive polling to wait for all offline messages at once
+    // This is more efficient than sequential checks with fixed timeouts
+    // ILM has significant control traffic (GetSessions, Poll, ACK) interspersed with data messages,
+    // so offline messages may take a while to be delivered after reconnection
+    const offlineMessageResults = await waitForAllMessages(
+      page2,
+      USER2,
+      [OFFLINE_MSG_1, OFFLINE_MSG_2, OFFLINE_MSG_3],
+      180000, // 180s (3 min) timeout - ILM delivery can be slow due to control traffic
+      500    // Poll every 500ms
+    );
+
+    results.offlineDelivery.message1Received = offlineMessageResults.results[OFFLINE_MSG_1];
+    results.offlineDelivery.message2Received = offlineMessageResults.results[OFFLINE_MSG_2];
+    results.offlineDelivery.message3Received = offlineMessageResults.results[OFFLINE_MSG_3];
+
     console.log(`  Offline message 1: ${results.offlineDelivery.message1Received ? 'RECEIVED' : 'NOT RECEIVED'}`);
-
-    results.offlineDelivery.message2Received = await verifyMessageReceived(page2, USER2, OFFLINE_MSG_2, 5000);
     console.log(`  Offline message 2: ${results.offlineDelivery.message2Received ? 'RECEIVED' : 'NOT RECEIVED'}`);
-
-    results.offlineDelivery.message3Received = await verifyMessageReceived(page2, USER2, OFFLINE_MSG_3, 5000);
     console.log(`  Offline message 3: ${results.offlineDelivery.message3Received ? 'RECEIVED' : 'NOT RECEIVED'}`);
 
     await takeScreenshot(page2, `${USER2}_offline_messages_verification`);

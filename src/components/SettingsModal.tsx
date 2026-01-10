@@ -11,8 +11,9 @@ import {
   ConnectionsSettingsTab,
   AppearanceSettingsTab,
   PrivacySettingsTab,
+  PermissionsSettingsTab,
 } from './settings';
-import { Settings, Wifi, Palette, Shield } from 'lucide-react';
+import { Settings, Wifi, Palette, Shield, Lock } from 'lucide-react';
 
 interface SettingsModalProps {
   open: boolean;
@@ -31,7 +32,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-4">
-          <TabsList className="grid w-full grid-cols-4 bg-[#1a1b26] h-12">
+          <TabsList className="grid w-full grid-cols-5 bg-[#1a1b26] h-12">
             <TabsTrigger
               value="general"
               className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
@@ -60,6 +61,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Privacy</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="permissions"
+              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+            >
+              <Lock className="h-4 w-4" />
+              <span className="hidden sm:inline">Permissions</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="mt-6">
@@ -76,6 +84,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
           <TabsContent value="privacy" className="mt-6">
             <PrivacySettingsTab />
+          </TabsContent>
+
+          <TabsContent value="permissions" className="mt-6">
+            <PermissionsSettingsTab />
           </TabsContent>
         </Tabs>
       </DialogContent>

@@ -4,6 +4,28 @@
  * Bridge between TypeScript frontend and WASM ILM (Intersession Layer Messaging).
  * Provides peer connection data to WASM via a global callback function.
  *
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                        CID LIFECYCLE - CRITICAL INFO                         ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║ CID (Client ID) is a persistent 64-bit identifier assigned per account.      ║
+ * ║                                                                              ║
+ * ║ | Operation              | CID Behavior                                     |║
+ * ║ |------------------------|--------------------------------------------------|║
+ * ║ | Register (new account) | NEW CID assigned                                 |║
+ * ║ | Login (credentials)    | SAME CID preserved                               |║
+ * ║ | ClaimSession (orphan)  | SAME CID preserved                               |║
+ * ║ | C2S disconnect+reconnect| SAME CID preserved, rekey works                 |║
+ * ║ | TCP drop with orphan   | SAME CID, session persists on server             |║
+ * ║                                                                              ║
+ * ║ IMPORTANT: Only Register creates a new CID. All reconnection scenarios       ║
+ * ║ (login, claim, TCP reconnect) preserve the original CID.                     ║
+ * ║                                                                              ║
+ * ║ For P2P messaging, this means:                                               ║
+ * ║ - Offline messages queued by CID will be delivered on reconnect              ║
+ * ║ - ILM tracks messages by CID pairs (sender_cid, receiver_cid)                ║
+ * ║ - Peer connections are associated with CIDs, not usernames                   ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
+ *
  * This is the key component for making TypeScript the single source of truth
  * for peer connection state. The Rust WASM `connected_peers()` function calls
  * into this JavaScript function instead of maintaining its own internal state.
@@ -47,8 +69,9 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
     const now = Date.now();
     if (now - lastLogTime > LOG_INTERVAL_MS || peers.length > 0) {
       lastLogTime = now;
-      console.log(`[P2P][WasmPeerBridge] CALL #${callCount} getPeersForSession(${cid.slice(0, 8)}...): ${peers.length} peers`,
-        peers.length > 0 ? peers.map(p => p.slice(0, 8) + '...') : '(none)');
+      // ILM-DIAG: Log full CID for comparison with setPeerConnected logs
+      console.log(`[ILM-DIAG][WasmPeerBridge] QUERY localCid=${cid} -> ${peers.length} peers`,
+        peers.length > 0 ? peers : '(none)');
     }
 
     // Convert string CIDs to BigUint64Array for WASM

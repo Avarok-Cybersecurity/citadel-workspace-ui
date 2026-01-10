@@ -5,6 +5,7 @@ import { officeRooms } from "../layout/sidebar/RoomsSection";
 import { FileUploadButton } from "@/components/files/FileUploadButton";
 import { useWorkspace } from "@/lib/workspace-context";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
+import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 
 interface OfficeLayoutProps {
   title: string;
@@ -13,6 +14,7 @@ interface OfficeLayoutProps {
   onSave?: () => void;
   children: React.ReactNode;
   canEdit?: boolean;
+  editDeniedReason?: string;
 }
 
 const officeNames = {
@@ -21,13 +23,14 @@ const officeNames = {
   hr: "Human Resources"
 };
 
-export const OfficeLayout = ({ 
-  title, 
-  isEditing, 
-  onEditToggle, 
-  onSave, 
+export const OfficeLayout = ({
+  title,
+  isEditing,
+  onEditToggle,
+  onSave,
   children,
-  canEdit = true // Default to true for backward compatibility
+  canEdit = true, // Default to true for backward compatibility
+  editDeniedReason
 }: OfficeLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -99,24 +102,35 @@ export const OfficeLayout = ({
               entityId={entityId}
               className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
             />
-            {canEdit && (
+            {isEditing ? (
               <>
                 <Button
                   variant="secondary"
                   className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
                   onClick={onEditToggle}
                 >
-                  {isEditing ? "Cancel" : "Edit"}
+                  Cancel
                 </Button>
-                {isEditing && (
-                  <Button 
-                    onClick={onSave}
-                    className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
-                  >
-                    Save Changes
-                  </Button>
-                )}
+                <Button
+                  onClick={onSave}
+                  className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                >
+                  Save Changes
+                </Button>
               </>
+            ) : (
+              <DisabledWithTooltip
+                disabled={!canEdit}
+                tooltip={editDeniedReason || "You don't have permission to edit this content"}
+              >
+                <Button
+                  variant="secondary"
+                  className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                  onClick={canEdit ? onEditToggle : undefined}
+                >
+                  Edit
+                </Button>
+              </DisabledWithTooltip>
             )}
           </div>
         </div>

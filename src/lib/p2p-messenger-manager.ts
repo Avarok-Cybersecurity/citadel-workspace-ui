@@ -487,18 +487,28 @@ export class P2PMessengerManager {
           return;
         }
 
-        // CRITICAL FIX: Broadcast messages for different sessions to follower tabs
-        // In multi-tab architecture, the leader tab receives ALL messages via WebSocket.
-        // If this message is for a different session (different user logged in another tab),
-        // we must broadcast it so the correct tab can store it in its cache.
+        // MULTI-TAB SESSION ROUTING
         //
-        // Two scenarios where we broadcast:
-        // 1. We SENT a message - recipient (notificationCidStr) is different from our session
-        // 2. We RECEIVED a message - recipient (notificationCidStr) is different from our session
+        // ╔══════════════════════════════════════════════════════════════════════════════╗
+        // ║                        CID LIFECYCLE - CRITICAL INFO                         ║
+        // ╠══════════════════════════════════════════════════════════════════════════════╣
+        // ║ CID (Client ID) is PERMANENT per account. Once assigned during registration, ║
+        // ║ it NEVER changes. Login/ClaimSession preserve the same CID.                  ║
+        // ║                                                                              ║
+        // ║ | Operation              | CID Behavior                                     |║
+        // ║ |------------------------|--------------------------------------------------|║
+        // ║ | Register (new account) | NEW CID assigned                                 |║
+        // ║ | Login (credentials)    | SAME CID preserved                               |║
+        // ║ | ClaimSession (orphan)  | SAME CID preserved                               |║
+        // ╚══════════════════════════════════════════════════════════════════════════════╝
         //
-        // The key is: if the notification.cid doesn't match our session, someone else needs it.
-        // Previously this also checked peerCidStr !== currentCid which incorrectly filtered
-        // out messages WE sent to other tabs (where we are the sender = peerCid).
+        // In multi-tab architecture:
+        // - All tabs share ONE WebSocket and ONE ILM
+        // - Each tab pretends to be a different computer/node
+        // - notification.cid identifies which session the message is for
+        // - We MUST filter by notification.cid === currentCid to route to correct tab
+        // - Processing messages where CID doesn't match would cause WRONG tab to handle them
+        //
         const isForDifferentSession = notificationCidStr && notificationCidStr !== currentCid;
         if (isForDifferentSession) {
           console.log('[P2P] Message for different session, broadcasting to follower tabs', {
@@ -511,8 +521,8 @@ export class P2PMessengerManager {
             notification,
             messageBytes: contentBytes
           });
-          // FIXED: Return early - leader should NOT process messages for other sessions locally
-          // Only the follower tab with the matching session should process this message
+          // Return early - leader should NOT process messages for other sessions locally
+          // Only the tab with the matching session CID should process this message
           return;
         }
 
@@ -2006,8 +2016,15 @@ export class P2PMessengerManager {
    */
   public async cleanupStaleConversations(validPeerCids: Set<string>): Promise<number> {
     const staleCids: string[] = [];
+    const currentCid = this.getCurrentCid();
 
     for (const [peerCid] of this.cache.conversations.entries()) {
+      // Skip self-conversations (shouldn't exist, but LocalDB is shared between browsers)
+      // This prevents cleaning up another user's conversation data
+      if (currentCid && peerCid === currentCid) {
+        console.log(`[P2P] Skipping self-conversation cleanup for CID: ${peerCid.slice(0, 8)}...`);
+        continue;
+      }
       if (!validPeerCids.has(peerCid)) {
         staleCids.push(peerCid);
       }

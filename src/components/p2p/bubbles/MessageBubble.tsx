@@ -14,6 +14,16 @@ interface MessageBubbleProps {
   onDeclineTransfer?: (transferId: string) => void;
   onCancelTransfer?: (transferId: string) => void;
   onOpenFile?: (downloadPath: string) => void;
+
+  // Group mode display options
+  showSenderName?: boolean;
+  showSenderAvatar?: boolean;
+  senderName?: string;
+
+  // Message actions (group mode)
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onReply?: () => void;
 }
 
 export function MessageBubble({
@@ -24,21 +34,38 @@ export function MessageBubble({
   onAcceptTransfer,
   onDeclineTransfer,
   onCancelTransfer,
-  onOpenFile
+  onOpenFile,
+  showSenderName,
+  showSenderAvatar,
+  senderName,
+  onEdit,
+  onDelete,
+  onReply,
 }: MessageBubbleProps) {
   const containerStyles = getBubbleContainerStyles(isOwn);
+
+  // Common props for all bubble types
+  const commonProps = {
+    message,
+    isOwn,
+    onRetry,
+    showSenderName,
+    showSenderAvatar,
+    senderName,
+    onEdit,
+    onDelete,
+    onReply,
+  };
 
   const renderBubble = () => {
     switch (message.message_type) {
       case 'markdown':
-        return <MarkdownBubble message={message} isOwn={isOwn} onRetry={onRetry} />;
+        return <MarkdownBubble {...commonProps} />;
 
       case 'live_document':
         return (
           <LiveDocumentBubble
-            message={message}
-            isOwn={isOwn}
-            onRetry={onRetry}
+            {...commonProps}
             onOpenDocument={onOpenDocument}
           />
         );
@@ -46,9 +73,7 @@ export function MessageBubble({
       case 'file_transfer':
         return (
           <FileTransferBubble
-            message={message}
-            isOwn={isOwn}
-            onRetry={onRetry}
+            {...commonProps}
             onAccept={onAcceptTransfer}
             onDecline={onDeclineTransfer}
             onCancel={onCancelTransfer}
@@ -58,7 +83,7 @@ export function MessageBubble({
 
       case 'text':
       default:
-        return <TextBubble message={message} isOwn={isOwn} onRetry={onRetry} />;
+        return <TextBubble {...commonProps} />;
     }
   };
 

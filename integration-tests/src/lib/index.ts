@@ -85,7 +85,7 @@ export {
 } from './p2p.js';
 
 // Messaging
-export { sendMessage, verifyMessageReceived, verifyMessageOrder, verifyMessagesSeen } from './messaging.js';
+export { sendMessage, verifyMessageReceived, verifyMessageOrder, verifyMessagesSeen, waitForAllMessages } from './messaging.js';
 
 // Live Documents
 export {

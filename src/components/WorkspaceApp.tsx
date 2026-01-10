@@ -3,6 +3,7 @@ import { WorkspaceEventHandler } from './WorkspaceEventHandler';
 import { ErrorDisplay } from './ui/error-display';
 import { ProtocolWarning } from './ui/protocol-warning';
 import { ConnectionRetryModal } from './ConnectionRetryModal';
+import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import NotificationService, { NotificationPriority } from '@/lib/notification-service';
 import { MessagingService } from '@/lib/messaging-service';
 import { ConnectionService } from '@/lib/connection-service';
@@ -223,13 +224,14 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <WorkspaceEventHandler>
-      {/* Application content */}
-      {children}
+    <PermissionsProvider>
+      <WorkspaceEventHandler>
+        {/* Application content */}
+        {children}
 
-      {/* Notifications */}
-      <ErrorDisplay />
-      <ProtocolWarning />
+        {/* Notifications */}
+        <ErrorDisplay />
+        <ProtocolWarning />
       
       {/* Connection Retry Modal */}
       <ConnectionRetryModal
@@ -261,7 +263,8 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
           await websocketService.init();
         }}
       />
-    </WorkspaceEventHandler>
+      </WorkspaceEventHandler>
+    </PermissionsProvider>
   );
 };
 

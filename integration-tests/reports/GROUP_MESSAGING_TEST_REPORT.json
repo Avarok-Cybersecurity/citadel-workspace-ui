@@ -1,25 +1,25 @@
 {
-  "timestamp": "2026-01-01T23:18:53.054Z",
-  "user": "groupchat_user_1767309433018",
+  "timestamp": "2026-01-10T04:16:26.563Z",
+  "user": "groupchat_user_1768015121244",
   "office": "General",
   "room": "Random",
   "results": {
     "accountCreation": true,
     "workspaceLoaded": true,
-    "isAdminAfterInit": true,
+    "isAdminAfterInit": false,
     "officeNavigation": true,
     "officeChatEnabled": true,
     "officeChatTabSwitch": true,
     "officeMessageSent": true,
     "officeMessageReceived": true,
     "officeContentTabSwitch": true,
-    "roomNavigation": true,
-    "roomChatEnabled": true,
-    "roomChatTabSwitch": true,
-    "roomMessageSent": true,
-    "roomMessageReceived": true,
-    "multipleMessagesSent": true,
-    "messagesOrdered": true,
+    "roomNavigation": false,
+    "roomChatEnabled": false,
+    "roomChatTabSwitch": false,
+    "roomMessageSent": false,
+    "roomMessageReceived": false,
+    "multipleMessagesSent": false,
+    "messagesOrdered": false,
     "uxChecks": {
       "timestamps": false,
       "rulesBanner": false,
@@ -27,6 +27,21 @@
       "contentTabVisible": true
     }
   },
-  "uxIssues": [],
+  "uxIssues": [
+    {
+      "severity": "suggestion",
+      "category": "functional",
+      "description": "Admin status indicator not visible in UI after workspace initialization",
+      "screenshot": null,
+      "timestamp": "2026-01-10T03:19:50.506Z"
+    },
+    {
+      "severity": "suggestion",
+      "category": "functional",
+      "description": "Room \"Random\" chat is not enabled in config",
+      "screenshot": null,
+      "timestamp": "2026-01-10T04:16:26.562Z"
+    }
+  ],
   "passed": true
 }

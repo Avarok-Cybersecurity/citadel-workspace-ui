@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-01-01T23:11:10.979Z",
+  "timestamp": "2026-01-10T03:08:09.288Z",
   "users": {
-    "user1": "file_alice_1767308915776",
-    "user2": "file_bob_1767308915776"
+    "user1": "file_alice_1768014344589",
+    "user2": "file_bob_1768014344589"
   },
   "results": {
     "accountCreation": {
@@ -25,7 +25,7 @@
       "declineFlow": false,
       "cancelFlow": false,
       "contentVerified": true,
-      "receivedContent": "Hello from Citadel! This is a P2P file transfer test - timestamp: 1767308915776"
+      "receivedContent": "Hello from Citadel! This is a P2P file transfer test - timestamp: 1768014344589"
     },
     "uxChecks": {
       "fileIconVisible": true,

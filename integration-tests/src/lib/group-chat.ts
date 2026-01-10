@@ -36,7 +36,8 @@ export async function navigateToOffice(
     for (const selector of selectors) {
       const officeLink = page.locator(selector).first();
       if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await officeLink.click();
+        // Use JavaScript click to bypass any Playwright click issues
+        await officeLink.evaluate((el: HTMLElement) => el.click());
         await sleep(2000);
         console.log(`  Clicked on office "${officeName}" (${selector})`);
         await takeScreenshot(page, `${username}_office_${officeName}`);
@@ -54,7 +55,8 @@ export async function navigateToOffice(
       for (const selector of selectors) {
         const officeLink = page.locator(selector).first();
         if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await officeLink.click();
+          // Use JavaScript click to bypass any Playwright click issues
+          await officeLink.evaluate((el: HTMLElement) => el.click());
           await sleep(2000);
           console.log(`  Clicked on office "${officeName}" (after expanding)`);
           await takeScreenshot(page, `${username}_office_${officeName}`);

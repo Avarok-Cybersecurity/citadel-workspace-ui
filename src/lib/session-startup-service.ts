@@ -9,6 +9,31 @@
  *
  * All P2P startup logic is centralized here to prevent duplicate
  * service starts and ensure ILM message delivery works after reconnection.
+ *
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                        CID LIFECYCLE - CRITICAL INFO                         ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║ CID (Client ID) is a persistent 64-bit identifier assigned per account.      ║
+ * ║                                                                              ║
+ * ║ | Operation              | CID Behavior                                     |║
+ * ║ |------------------------|--------------------------------------------------|║
+ * ║ | Register (new account) | NEW CID assigned                                 |║
+ * ║ | Login (credentials)    | SAME CID preserved                               |║
+ * ║ | ClaimSession (orphan)  | SAME CID preserved                               |║
+ * ║ | C2S disconnect+reconnect| SAME CID preserved, rekey works                 |║
+ * ║ | TCP drop with orphan   | SAME CID, session persists on server             |║
+ * ║                                                                              ║
+ * ║ IMPORTANT: Only Register creates a new CID. All reconnection scenarios       ║
+ * ║ (login, claim, TCP reconnect) preserve the original CID.                     ║
+ * ║                                                                              ║
+ * ║ For session startup:                                                         ║
+ * ║ - 'connect' activationType: New registration, new CID assigned               ║
+ * ║ - 'claim' activationType: Same CID, reconnecting orphaned session            ║
+ * ║ - 'login' activationType: Same CID, re-authenticating with credentials       ║
+ * ║                                                                              ║
+ * ║ The startup sequence resets local connection state but the CID from the      ║
+ * ║ event remains the same - we're reconnecting to the SAME session.             ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
 import { eventEmitter } from './event-emitter';
@@ -26,6 +51,11 @@ class SessionStartupService {
   private static instance: SessionStartupService;
   private lastActivatedCid: string | null = null;
   private isStartingUp = false;
+  // Track when the last reconnection startup completed (for time-based guards)
+  private lastReconnectionCompletedAt: number = 0;
+  // Grace period in ms after reconnection during which stale cleanup is skipped
+  // 15s is needed because Test 8 has multiple steps between reconnection and verification
+  private static readonly RECONNECTION_GRACE_PERIOD_MS = 15000;
 
   private constructor() {
     this.setupEventListeners();
@@ -43,27 +73,31 @@ class SessionStartupService {
       // ILM-TRACE: Log incoming event for debugging
       console.log(`[ILM-TRACE] session:activated received: cid=${event.cid?.slice(0, 8)}, type=${event.activationType}, user=${event.username}`);
 
-      // For 'claim' type, ALWAYS run the startup sequence even if same CID
-      // ClaimSession means user is reconnecting after TCP drop - must re-establish P2P connections
-      // This is critical for ILM to deliver queued messages
-      const isClaimSession = event.activationType === 'claim';
-      console.log(`[ILM-TRACE] isClaimSession=${isClaimSession}, lastActivatedCid=${this.lastActivatedCid?.slice(0, 8)}, isStartingUp=${this.isStartingUp}`);
+      // For 'claim' and 'login' types, ALWAYS run the startup sequence even if same CID
+      // - ClaimSession: User is reconnecting after TCP drop - must re-establish P2P connections
+      // - Login: User logged back in after explicit disconnect - must re-establish P2P connections
+      // Both scenarios preserve the CID, so we can't use CID matching to block them.
+      // This is critical for ILM to deliver queued messages after reconnection.
+      const isReconnection = event.activationType === 'claim' || event.activationType === 'login';
+      console.log(`[ILM-TRACE] isReconnection=${isReconnection} (type=${event.activationType}), lastActivatedCid=${this.lastActivatedCid?.slice(0, 8)}, isStartingUp=${this.isStartingUp}`);
 
-      // Prevent duplicate activations for same CID (except for ClaimSession)
-      if (!isClaimSession && this.lastActivatedCid === event.cid) {
+      // Prevent duplicate activations for same CID (except for ClaimSession and Login)
+      // Only block duplicate 'connect' events (initial registration) - these should not happen
+      // in normal operation but could occur due to event system bugs.
+      if (!isReconnection && this.lastActivatedCid === event.cid) {
         console.log('SessionStartup: Session already activated for CID:', event.cid.slice(0, 8) + '...');
-        console.log('[ILM-TRACE] BLOCKED: Duplicate CID (non-claim)');
+        console.log('[ILM-TRACE] BLOCKED: Duplicate CID (non-reconnection)');
         return;
       }
 
-      // Prevent concurrent startup sequences - EXCEPT for 'claim' type
-      // ClaimSession events are more important than regular connect events
+      // Prevent concurrent startup sequences - EXCEPT for reconnection events (claim/login)
+      // Reconnection events are more important than regular connect events
       // because they indicate reconnection which REQUIRES P2P re-establishment
       if (this.isStartingUp) {
-        if (isClaimSession) {
-          // Allow 'claim' to preempt - wait for current startup to finish, then re-run
-          console.log('SessionStartup: Claim event will wait for current startup, then re-run for CID:', event.cid.slice(0, 8) + '...');
-          console.log('[ILM-TRACE] CLAIM WAITING: Will run after current startup completes');
+        if (isReconnection) {
+          // Allow reconnection events to preempt - wait for current startup to finish, then re-run
+          console.log(`SessionStartup: ${event.activationType} event will wait for current startup, then re-run for CID:`, event.cid.slice(0, 8) + '...');
+          console.log('[ILM-TRACE] RECONNECTION WAITING: Will run after current startup completes');
           // Queue this to run after current startup finishes
           // We use a short delay to let the current startup complete
           setTimeout(() => {
@@ -73,7 +107,7 @@ class SessionStartupService {
           return;
         }
         console.log('SessionStartup: Startup already in progress, skipping for CID:', event.cid.slice(0, 8) + '...');
-        console.log('[ILM-TRACE] BLOCKED: Concurrent startup in progress (non-claim)');
+        console.log('[ILM-TRACE] BLOCKED: Concurrent startup in progress (non-reconnection)');
         return;
       }
 
@@ -118,7 +152,13 @@ class SessionStartupService {
       await p2pAutoConnectService.connectToAllRegisteredPeers();
       console.log('SessionStartup: P2P Auto-Connect initiated for all registered peers');
 
-      // 3. Emit completion event for any listeners that need to know startup is done
+      // 3. Track reconnection completion time for grace period logic
+      if (event.activationType === 'claim' || event.activationType === 'login') {
+        this.lastReconnectionCompletedAt = Date.now();
+        console.log(`SessionStartup: Reconnection completed, grace period started (${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
+      }
+
+      // 4. Emit completion event for any listeners that need to know startup is done
       eventEmitter.emit('session:startup-complete', event);
       console.log(`SessionStartup: Startup sequence complete for ${event.username}`);
     } catch (error) {
@@ -143,6 +183,31 @@ class SessionStartupService {
    */
   public getLastActivatedCid(): string | null {
     return this.lastActivatedCid;
+  }
+
+  /**
+   * Check if session startup is currently in progress OR we're within the grace period
+   * after a reconnection. Used by MembersSection to avoid premature stale conversation cleanup.
+   *
+   * Returns true if:
+   * - Startup sequence is currently running, OR
+   * - A reconnection (claim/login) completed less than RECONNECTION_GRACE_PERIOD_MS ago
+   */
+  public isStartupInProgress(): boolean {
+    if (this.isStartingUp) {
+      return true;
+    }
+
+    // Check grace period after reconnection
+    if (this.lastReconnectionCompletedAt > 0) {
+      const elapsed = Date.now() - this.lastReconnectionCompletedAt;
+      if (elapsed < SessionStartupService.RECONNECTION_GRACE_PERIOD_MS) {
+        console.log(`[SessionStartup] Within reconnection grace period (${elapsed}ms of ${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
+        return true;
+      }
+    }
+
+    return false;
   }
 }
 

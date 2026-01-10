@@ -1,0 +1,10 @@
+{
+  "baseUrl": "http://127.0.0.1:5173",
+  "internalServiceUrl": "http://127.0.0.1:12345",
+  "workspaceServer": {
+    "host": "127.0.0.1",
+    "port": 12349
+  },
+  "workspacePassword": "SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME",
+  "defaultPassword": "test12345"
+}

@@ -479,6 +479,7 @@ async function runTest(): Promise<boolean> {
   const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let adminPage: Page | null = null;
+  let nonAdminPage: Page | null = null;
   let diagnostics: DiagnosticsHandle | null = null;
 
   try {
@@ -491,11 +492,14 @@ async function runTest(): Promise<boolean> {
     await restartBackendServices();
     await waitForServicesAlive();
 
-    // Create browser
+    // Create browser with BOTH contexts upfront to avoid browser state issues
+    // Creating contexts late (after many operations) can fail with "browser has been closed"
     const setup = await createBrowser({ headless: false });
     browser = setup.browser;
-    const context = setup.context;
-    adminPage = await context.newPage();
+    const adminContext = setup.context;
+    const nonAdminContext = await browser.newContext();
+    adminPage = await adminContext.newPage();
+    nonAdminPage = await nonAdminContext.newPage();
 
     // Start diagnostics
     diagnostics = await startDiagnostics(adminPage);
@@ -724,12 +728,9 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 7: Non-Admin Authorization Test');
     console.log('─'.repeat(50));
 
-    // Create second user (non-admin) in a new context
-    const nonAdminContext = await browser.newContext();
-    const nonAdminPage = await nonAdminContext.newPage();
-
+    // Use the pre-created nonAdminPage (context created at start to avoid browser state issues)
     // createAccount handles navigation and storage clearing internally
-    const nonAdminCreated = await createAccount(nonAdminPage, NON_ADMIN_USER, {
+    const nonAdminCreated = await createAccount(nonAdminPage!, NON_ADMIN_USER, {
       isFirstUser: false,
     });
 
@@ -756,7 +757,7 @@ async function runTest(): Promise<boolean> {
       await takeScreenshot(nonAdminPage, `${NON_ADMIN_USER}_auth_test`);
     }
 
-    await nonAdminContext.close();
+    // Note: Don't close nonAdminContext here - browser.close() in finally handles it
 
     // ========================================================================
     // Cleanup: Delete test office

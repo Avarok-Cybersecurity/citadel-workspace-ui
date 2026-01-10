@@ -181,6 +181,15 @@ export const WorkspaceEventHandler: React.FC<{
               role: role // Include role for admin indicators (golden border)
             }
           }));
+
+          // Fetch workspace-level members to update currentUser role (for admin golden border)
+          // This is needed because MembersSection only loads members when inside an office/room
+          // On first login, storedSession.role may be undefined until members:loaded fires
+          if (!role) {
+            WorkspaceService.listMembers().catch(err => {
+              console.warn('Failed to fetch workspace members for role update:', err);
+            });
+          }
         }
       });
 

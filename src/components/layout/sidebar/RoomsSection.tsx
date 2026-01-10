@@ -1,4 +1,4 @@
-import { Building2, Home, Plus, MoreVertical } from "lucide-react";
+import { Building2, Home, Plus, MoreVertical, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -17,9 +17,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RoomManagementModal } from "@/components/room/RoomManagementModal";
+import { AdminModal } from "@/components/admin";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +68,8 @@ export const RoomsSection = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<{ id: string; name: string; description: string } | null>(null);
   const [roomToDelete, setRoomToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminRoomId, setAdminRoomId] = useState<string | null>(null);
 
   const handleRoomClick = (roomId: string) => {
     const params = new URLSearchParams(location.search);
@@ -99,6 +103,11 @@ export const RoomsSection = () => {
     if (room) {
       setRoomToDelete({ id: room.id, name: room.name });
     }
+  };
+
+  const handleAdminSettings = (roomId: string) => {
+    setAdminRoomId(roomId);
+    setShowAdminModal(true);
   };
 
   const confirmDeleteRoom = async () => {
@@ -209,6 +218,14 @@ export const RoomsSection = () => {
                             Edit Room
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => handleAdminSettings(room.id)}
+                            data-testid="admin-settings-room-option"
+                          >
+                            <Settings className="h-4 w-4 mr-2" />
+                            Admin Settings
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
                             onClick={() => handleDeleteRoom(room.id)}
                             className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
                             data-testid="delete-room-option"
@@ -274,6 +291,17 @@ export const RoomsSection = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Admin Settings Modal */}
+      <AdminModal
+        isOpen={showAdminModal}
+        onClose={() => {
+          setShowAdminModal(false);
+          setAdminRoomId(null);
+        }}
+        entityType="room"
+        entityId={adminRoomId || ''}
+      />
     </>
   );
 };

@@ -49,12 +49,32 @@ export async function clearBrowserStorage(page: Page): Promise<void> {
   try {
     // Use Promise.race with timeout to avoid hanging
     await Promise.race([
-      page.evaluate(() => {
+      page.evaluate(async () => {
         // Clear localStorage
         localStorage.clear();
         // Clear sessionStorage
         sessionStorage.clear();
-        // Note: Skip IndexedDB clearing - it can cause hangs and localStorage/sessionStorage is sufficient
+        // Clear ALL IndexedDB databases (WASM client stores sessions here)
+        // This is required to clear stored sessions which include server address
+        if ('indexedDB' in window && indexedDB.databases) {
+          try {
+            const dbs = await indexedDB.databases();
+            await Promise.all(
+              dbs.map(db => {
+                if (db.name) {
+                  return new Promise<void>((resolve, reject) => {
+                    const req = indexedDB.deleteDatabase(db.name!);
+                    req.onsuccess = () => resolve();
+                    req.onerror = () => reject(req.error);
+                  });
+                }
+                return Promise.resolve();
+              })
+            );
+          } catch (e) {
+            console.warn('Failed to clear IndexedDB:', e);
+          }
+        }
       }),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Storage clear timeout')), 5000)

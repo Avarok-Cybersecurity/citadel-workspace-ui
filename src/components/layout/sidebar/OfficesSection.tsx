@@ -11,15 +11,17 @@ import {
 } from "@/components/ui/sidebar";
 import { useWorkspace } from "@/lib/workspace-context";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreVertical, Star } from "lucide-react";
+import { Plus, MoreVertical, Star, Settings } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { OfficeManagementModal } from "@/components/office/OfficeManagementModal";
+import { AdminModal } from "@/components/admin";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +47,8 @@ export const OfficesSection = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState<{ id: string; name: string; description: string } | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminOfficeId, setAdminOfficeId] = useState<string | null>(null);
 
   const handleOfficeClick = (officeId: string) => {
     const params = new URLSearchParams(location.search);
@@ -96,6 +100,11 @@ export const OfficesSection = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleAdminSettings = (officeId: string) => {
+    setAdminOfficeId(officeId);
+    setShowAdminModal(true);
   };
 
   const confirmDeleteOffice = async () => {
@@ -193,6 +202,13 @@ export const OfficesSection = () => {
                         <DropdownMenuItem onClick={() => handleEditOffice(office.id)} data-testid="edit-office-option">
                           Edit Office
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleAdminSettings(office.id)}
+                          data-testid="admin-settings-office-option"
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          Admin Settings
+                        </DropdownMenuItem>
                         {!office.is_default && (
                           <DropdownMenuItem
                             onClick={() => handleSetAsDefault(office.id)}
@@ -203,6 +219,7 @@ export const OfficesSection = () => {
                             Set as Default
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => handleDeleteOffice(office.id)}
                           className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
@@ -262,6 +279,17 @@ export const OfficesSection = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Admin Settings Modal */}
+      <AdminModal
+        isOpen={showAdminModal}
+        onClose={() => {
+          setShowAdminModal(false);
+          setAdminOfficeId(null);
+        }}
+        entityType="office"
+        entityId={adminOfficeId || ''}
+      />
     </>
   );
 };

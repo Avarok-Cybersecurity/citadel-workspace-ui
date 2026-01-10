@@ -299,6 +299,10 @@ export const OrphanSessionsNavbar = () => {
         await websocketService.disconnect(cid);
       }
 
+      // CRITICAL: Invalidate the session cache to ensure loadActiveSessions() fetches fresh data
+      // Without this, the 2-second cache TTL causes stale sessions to appear in navbar
+      connectionManager.invalidateSessionCache();
+
       // Remove session from stored sessions (browser storage)
       // After explicit disconnect/deregister, user doesn't want session saved
       await connectionManager.removeSession(username, serverAddress);

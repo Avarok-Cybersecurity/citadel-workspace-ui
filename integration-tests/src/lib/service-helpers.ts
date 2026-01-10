@@ -6,7 +6,19 @@
  */
 
 import { execSync } from 'child_process';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { sleep, waitForServicesAlive } from './utils.js';
+
+/**
+ * Get the workspace root directory dynamically.
+ * This resolves from integration-tests/src/lib/service-helpers.ts up 3 levels.
+ */
+function getWorkspaceRoot(): string {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  return path.resolve(__dirname, '..', '..', '..');
+}
 
 /**
  * Restart backend services (server and internal-service) to ensure clean state.
@@ -37,13 +49,13 @@ export async function restartBackendServices(options: {
     console.log('\n  Restarting server container...');
     execSync('docker compose restart server', {
       stdio: 'inherit',
-      cwd: '/Volumes/nvme/Development/avarok/citadel-workspace/citadel-workspaces',
+      cwd: getWorkspaceRoot(),
     });
 
     console.log('  Restarting internal-service container...');
     execSync('docker compose restart internal-service', {
       stdio: 'inherit',
-      cwd: '/Volumes/nvme/Development/avarok/citadel-workspace/citadel-workspaces',
+      cwd: getWorkspaceRoot(),
     });
 
     // Wait for services to restart

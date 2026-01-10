@@ -27,14 +27,49 @@ import type { MessageType } from '@/types/message-protocol';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { getInitials } from '@/components/chat/shared';
 
+/**
+ * Chat mode determines the context and features available.
+ * - 'p2p': Direct peer-to-peer messaging (default)
+ * - 'group': Group chat in office/room context
+ */
+export type ChatMode = 'p2p' | 'group';
+
 interface P2PChatProps {
+  // Common props
   peerCid: string;
   peerName?: string;
   currentUserCid?: string;
   currentUserName?: string;
+
+  // Group mode props
+  mode?: ChatMode;
+  groupId?: string;                    // Channel ID for group messaging
+  showSenderName?: boolean;            // Show sender name above messages (default: true in group mode)
+  showSenderAvatar?: boolean;          // Show avatar for other users' messages (default: true in group mode)
+  rules?: string;                      // Optional rules banner for group chats
+  onEditMessage?: (messageId: string, content: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
+  onReplyMessage?: (messageId: string) => void;
 }
 
-export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUserName = 'You' }: P2PChatProps) {
+export function P2PChat({
+  peerCid,
+  peerName = 'Peer',
+  currentUserCid,
+  currentUserName = 'You',
+  mode = 'p2p',
+  groupId,
+  showSenderName,
+  showSenderAvatar,
+  rules,
+  onEditMessage,
+  onDeleteMessage,
+  onReplyMessage,
+}: P2PChatProps) {
+  // Derive display settings based on mode
+  const isGroupMode = mode === 'group';
+  const displaySenderName = showSenderName ?? isGroupMode;
+  const displaySenderAvatar = showSenderAvatar ?? isGroupMode;
   const [messages, setMessages] = useState<P2PMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [peerTyping, setPeerTyping] = useState(false);
@@ -802,6 +837,13 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
         onTabClose={handleCloseTab}
       />
 
+      {/* Rules Banner (group mode only) */}
+      {rules && (
+        <div className="px-4 py-2 bg-purple-900/30 border-b border-purple-800/50">
+          <p className="text-sm text-purple-300">{rules}</p>
+        </div>
+      )}
+
       {/* Content Area - Messages or Live Document */}
       <div className="flex-1 p-0 flex flex-col overflow-hidden">
         {isViewingDocument && activeTab?.documentId ? (
@@ -846,6 +888,9 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
                       equal: message.senderCid === currentUserCid
                     });
                   }
+                  // Determine sender name - use peerName for non-own messages, currentUserName for own
+                  const messageSenderName = isOwn ? currentUserName : peerName;
+
                   return (
                     <MessageBubble
                       key={message.id}
@@ -857,6 +902,13 @@ export function P2PChat({ peerCid, peerName = 'Peer', currentUserCid, currentUse
                       onDeclineTransfer={handleDeclineTransfer}
                       onCancelTransfer={handleCancelTransfer}
                       onOpenFile={handleOpenFile}
+                      // Group mode props
+                      showSenderName={displaySenderName}
+                      showSenderAvatar={displaySenderAvatar}
+                      senderName={messageSenderName}
+                      onEdit={onEditMessage ? () => onEditMessage(message.id, message.content) : undefined}
+                      onDelete={onDeleteMessage ? () => onDeleteMessage(message.id) : undefined}
+                      onReply={onReplyMessage ? () => onReplyMessage(message.id) : undefined}
                     />
                   );
                 })}

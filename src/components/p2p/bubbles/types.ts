@@ -4,6 +4,16 @@ export interface BaseBubbleProps {
   message: P2PMessage;
   isOwn: boolean;
   onRetry?: () => void;
+
+  // Group mode display options
+  showSenderName?: boolean;     // Show sender name above message (group mode)
+  showSenderAvatar?: boolean;   // Show avatar for other users' messages
+  senderName?: string;          // Display name for sender
+
+  // Message actions (group mode)
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onReply?: () => void;
 }
 
 export interface LiveDocumentBubbleProps extends BaseBubbleProps {

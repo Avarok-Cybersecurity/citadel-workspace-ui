@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useWorkspace } from "@/lib/workspace-context";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,7 @@ import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { p2pAutoConnectService } from "@/lib/p2p-auto-connect-service";
 import { P2PMessengerManager } from "@/lib/p2p-messenger-manager";
 import { connectionManager } from "@/lib/connection-manager";
+import { sessionStartupService } from "@/lib/session-startup-service";
 import {
   Dialog,
   DialogContent,
@@ -94,6 +95,14 @@ export const MembersSection = () => {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [registeredPeers, setRegisteredPeers] = useState<RegisteredPeer[]>([]);
   const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
+  // Track if session startup is complete - skip stale cleanup until P2P reconnection finishes
+  // This prevents race condition where cleanup runs before peer list is refreshed after login
+  const [startupComplete, setStartupComplete] = useState(true); // Default true for initial load
+  // Ref to access current value in closures (useEffect callbacks)
+  const startupCompleteRef = useRef(startupComplete);
+  useEffect(() => {
+    startupCompleteRef.current = startupComplete;
+  }, [startupComplete]);
 
   const MEMBERS_TO_SHOW = 5; // Show first 5 members in sidebar
 
@@ -119,6 +128,31 @@ export const MembersSection = () => {
     eventEmitter.on('open-pending-requests-modal', openModal);
     return () => {
       eventEmitter.off('open-pending-requests-modal', openModal);
+    };
+  }, []);
+
+  // Track session startup state to prevent premature stale conversation cleanup
+  // When login/claim happens, we need to wait for P2P reconnection before cleanup
+  useEffect(() => {
+    const handleSessionActivated = (event: { activationType: string }) => {
+      // For login/claim, pause stale cleanup until P2P re-registration completes
+      if (event.activationType === 'login' || event.activationType === 'claim') {
+        console.log(`[MembersSection] Session ${event.activationType} - pausing stale cleanup until startup complete`);
+        setStartupComplete(false);
+      }
+    };
+
+    const handleStartupComplete = () => {
+      console.log('[MembersSection] Session startup complete - enabling stale cleanup');
+      setStartupComplete(true);
+    };
+
+    eventEmitter.on('session:activated', handleSessionActivated);
+    eventEmitter.on('session:startup-complete', handleStartupComplete);
+
+    return () => {
+      eventEmitter.off('session:activated', handleSessionActivated);
+      eventEmitter.off('session:startup-complete', handleStartupComplete);
     };
   }, []);
 
@@ -159,11 +193,19 @@ export const MembersSection = () => {
 
         // Clean up stale conversations that reference non-registered peers
         // This prevents "Peer XXXXXX" entries from previous test runs cluttering the sidebar
-        const validPeerCids = new Set(peerList.map(p => p.cid));
-        const messenger = P2PMessengerManager.getInstance();
-        const cleanedCount = await messenger.cleanupStaleConversations(validPeerCids);
-        if (cleanedCount > 0) {
-          console.log(`MembersSection: Cleaned up ${cleanedCount} stale peer conversation(s)`);
+        // IMPORTANT: Skip cleanup during session startup (login/claim) to avoid race condition
+        // where P2P re-registration hasn't completed yet and valid peers would be removed
+        // Check BOTH: local state (for initial mount) AND service state (for race conditions)
+        const isStartupInProgress = sessionStartupService.isStartupInProgress();
+        if (startupCompleteRef.current && !isStartupInProgress) {
+          const validPeerCids = new Set(peerList.map(p => p.cid));
+          const messenger = P2PMessengerManager.getInstance();
+          const cleanedCount = await messenger.cleanupStaleConversations(validPeerCids);
+          if (cleanedCount > 0) {
+            console.log(`MembersSection: Cleaned up ${cleanedCount} stale peer conversation(s)`);
+          }
+        } else {
+          console.log(`[MembersSection] Skipping stale cleanup - startup in progress (local=${!startupCompleteRef.current}, service=${isStartupInProgress})`);
         }
       } catch (error) {
         console.error('Failed to load registered peers:', error);
@@ -177,12 +219,18 @@ export const MembersSection = () => {
     const handleRegistrationAccepted = () => loadRegisteredPeers();
     const handleConnectionChange = () => loadRegisteredPeers();
     const handlePeersUpdated = () => loadRegisteredPeers();
+    // Re-run after startup completes to do cleanup with correct peer list
+    const handleStartupComplete = () => {
+      console.log('[MembersSection] Startup complete - reloading peers for cleanup');
+      loadRegisteredPeers();
+    };
 
     eventEmitter.on('p2p:peer-registered', handlePeerRegistered);
     eventEmitter.on('p2p:registration-accepted', handleRegistrationAccepted);
     eventEmitter.on('p2p:peers-updated', handlePeersUpdated);
     eventEmitter.on('p2p-connection-established', handleConnectionChange);
     eventEmitter.on('p2p-connection-lost', handleConnectionChange);
+    eventEmitter.on('session:startup-complete', handleStartupComplete);
 
     return () => {
       eventEmitter.off('p2p:peer-registered', handlePeerRegistered);
@@ -190,6 +238,7 @@ export const MembersSection = () => {
       eventEmitter.off('p2p:peers-updated', handlePeersUpdated);
       eventEmitter.off('p2p-connection-established', handleConnectionChange);
       eventEmitter.off('p2p-connection-lost', handleConnectionChange);
+      eventEmitter.off('session:startup-complete', handleStartupComplete);
     };
   }, []);
 

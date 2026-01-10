@@ -28,6 +28,29 @@ import { SessionSecuritySettings } from './p2p-registration-service';
 /**
  * ConnectionManager handles persistent connection management across sessions
  * It stores credentials securely and automatically reconnects when needed
+ *
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                        CID LIFECYCLE - CRITICAL INFO                         ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║ CID (Client ID) is a persistent 64-bit identifier assigned per account.      ║
+ * ║                                                                              ║
+ * ║ | Operation              | CID Behavior                                     |║
+ * ║ |------------------------|--------------------------------------------------|║
+ * ║ | Register (new account) | NEW CID assigned                                 |║
+ * ║ | Login (credentials)    | SAME CID preserved                               |║
+ * ║ | ClaimSession (orphan)  | SAME CID preserved                               |║
+ * ║ | C2S disconnect+reconnect| SAME CID preserved, rekey works                 |║
+ * ║ | TCP drop with orphan   | SAME CID, session persists on server             |║
+ * ║                                                                              ║
+ * ║ IMPORTANT: Only Register creates a new CID. All reconnection scenarios       ║
+ * ║ (login, claim, TCP reconnect) preserve the original CID.                     ║
+ * ║                                                                              ║
+ * ║ For ConnectionManager:                                                       ║
+ * ║ - StoredSession.cid is preserved across page reloads                         ║
+ * ║ - handleSuccessfulConnection() updates currentConnectionInfo with same CID   ║
+ * ║ - claimOrphanedSession() reconnects with the SAME CID (no new CID created)   ║
+ * ║ - autoReconnect() checks for existing active session to avoid duplicate CID  ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 export class ConnectionManager {
   private static instance: ConnectionManager;

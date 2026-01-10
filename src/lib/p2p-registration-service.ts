@@ -34,10 +34,29 @@ export interface PeerRegistrationOptions {
 
 /**
  * P2P Registration Service
- * 
+ *
  * Handles automatic peer discovery and registration for P2P communication.
  * This service periodically checks for available peers and registers them
  * to enable P2P messaging.
+ *
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                        CID LIFECYCLE - CRITICAL INFO                         ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║ CID (Client ID) is PERMANENT per account. Once assigned during C2S          ║
+ * ║ registration, it NEVER changes. Login/ClaimSession preserve the same CID.   ║
+ * ║                                                                              ║
+ * ║ | Operation              | CID Behavior                                     |║
+ * ║ |------------------------|--------------------------------------------------|║
+ * ║ | Register (new account) | NEW CID assigned                                 |║
+ * ║ | Login (credentials)    | SAME CID preserved                               |║
+ * ║ | ClaimSession (orphan)  | SAME CID preserved                               |║
+ * ║                                                                              ║
+ * ║ KEY IMPLICATIONS FOR P2P:                                                    ║
+ * ║ - P2P registrations are stored by CID pairs - they persist across sessions  ║
+ * ║ - After disconnect/reconnect, server still has the peer registration        ║
+ * ║ - "Peer already registered" is NOT an error - it's expected after reconnect ║
+ * ║ - Local state may be stale after reconnect, but server state is correct     ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 export class P2PRegistrationService {
   private static instance: P2PRegistrationService;
@@ -161,10 +180,45 @@ export class P2PRegistrationService {
       }
     } else if (message.PeerRegisterFailure) {
       const requestId = message.PeerRegisterFailure.request_id;
+      const errorMsg = message.PeerRegisterFailure.message || 'Failed to register peer';
+      const peerCid = message.PeerRegisterFailure.peer_cid?.toString();
       const pending = this.pendingRequests.get(requestId);
-      if (pending) {
-        pending.reject(new Error(message.PeerRegisterFailure.message || 'Failed to register peer'));
-        this.pendingRequests.delete(requestId);
+
+      // CRITICAL FIX: "Peer already registered" is NOT an error - it means the registration
+      // already exists on the server. Treat it as success and update local state.
+      // This happens when:
+      // 1. User reconnects after disconnect - peer relationship persists on server
+      // 2. Multiple tabs try to register the same peer
+      // 3. Registration completed in background before explicit request
+      if (errorMsg.includes('already registered')) {
+        console.log(`[P2P] Peer ${peerCid} already registered on server - treating as success`);
+
+        // Update local state to reflect the existing registration
+        if (peerCid) {
+          this.outgoingRegistrations.add(peerCid);
+          const peer = this.allPeers.get(peerCid) || {
+            cid: peerCid,
+            username: `User ${peerCid.slice(0, 8)}`,
+            fullName: `User ${peerCid.slice(0, 8)}`,
+            isOnline: true,
+            isRegistered: true
+          };
+          peer.isRegistered = true;
+          this.registeredPeers.set(peerCid, peer);
+          eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true, wasAlreadyRegistered: true });
+        }
+
+        // Resolve the pending request as success (not reject!)
+        if (pending) {
+          pending.resolve({ peer_cid: peerCid, already_registered: true });
+          this.pendingRequests.delete(requestId);
+        }
+      } else {
+        // Real error - reject the promise
+        if (pending) {
+          pending.reject(new Error(errorMsg));
+          this.pendingRequests.delete(requestId);
+        }
       }
     } else if (message.PeerRegisterNotification) {
       // Handle notification when another peer registers with us

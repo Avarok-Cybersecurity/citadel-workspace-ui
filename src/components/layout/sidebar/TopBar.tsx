@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import PreferencesDialog from "@/components/connection/PreferencesDialog";
 import NotificationCenter from "@/components/notification/NotificationCenter";
 import { useWorkspace } from "@/lib/workspace-context";
+import { SettingsModal } from "@/components/SettingsModal";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
 import { connectionManager } from "@/lib/connection-manager";
@@ -42,6 +43,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [disconnectStatus, setDisconnectStatus] = useState<DisconnectStatus>("disconnecting");
   const [disconnectError, setDisconnectError] = useState<string | undefined>();
 
@@ -179,8 +181,11 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             >
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer">
-              Preferences
+            <DropdownMenuItem
+              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              onClick={() => setShowSettingsModal(true)}
+            >
+              Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-purple-800" />
             <DropdownMenuItem
@@ -221,6 +226,12 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         workspaceName={workspaceName}
         errorMessage={disconnectError}
         onComplete={handleDisconnectComplete}
+      />
+
+      {/* Settings modal */}
+      <SettingsModal
+        open={showSettingsModal}
+        onOpenChange={setShowSettingsModal}
       />
     </div>
   );

@@ -8,7 +8,6 @@ import { OfficeLayout } from "./OfficeLayout";
 import { useLocation } from "react-router-dom";
 import { useWorkspace } from "../../lib/workspace-context";
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
-import { UserRole } from "@/types/workspace-entities";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
@@ -16,6 +15,8 @@ import { FileText, MessageSquare } from "lucide-react";
 import WorkspaceService from "@/lib/workspace-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GroupChatView from "@/components/chat/GroupChatView";
+import { usePermission } from "@/hooks/usePermission";
+import { Permission } from "@/contexts/PermissionsContext";
 
 interface BaseOfficeProps {
   title: string;
@@ -44,26 +45,20 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   const { toast } = useToast();
 
   // Determine if we're in a loading state
-  const isLoading = roomId 
-    ? state.loading.rooms && !roomData 
-    : officeId 
-    ? state.loading.offices && !officeData 
+  const isLoading = roomId
+    ? state.loading.rooms && !roomData
+    : officeId
+    ? state.loading.offices && !officeData
     : false;
 
-  // Check if user can edit the MDX content
-  // For demo/showcase purposes, allow editing by default unless in a production environment
-  // In a real implementation, this would check currentUser against permissions
-  const canEditMdxContent = (): boolean => {
-    // If no officeId or officeData, we're in demo mode - allow editing
-    if (!officeId || !officeData) return true;
+  // Determine the domain ID for permission checks (room takes precedence over office)
+  const domainId = roomId || officeId;
 
-    // For now, just return true to allow editing
-    // In a production version, you would:
-    // 1. Get current user ID from auth context/state
-    // 2. Check if user is owner or has admin role
-    // 3. Check specific permission to edit MDX content
-    return true;
-  };
+  // Check if user can edit the MDX content using the permissions system
+  const { allowed: canEditMdx, reason: editDeniedReason, loading: permissionLoading } = usePermission(
+    domainId,
+    Permission.EditMdx
+  );
 
   const handleSave = async () => {
     try {
@@ -159,7 +154,8 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
     return <OfficeSkeletonLoader />;
   }
 
-  const hasEditPermission = canEditMdxContent();
+  // Use permission check result, defaulting to true if no domain ID (demo mode)
+  const hasEditPermission = !domainId || canEditMdx;
 
   // Check if chat is enabled for this office/room
   const chatEnabled = entityData?.chat_enabled ?? false;
@@ -210,6 +206,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
         onEditToggle={() => setIsEditing(!isEditing)}
         onSave={handleSave}
         canEdit={hasEditPermission}
+        editDeniedReason={editDeniedReason || undefined}
       >
         {contentView}
       </OfficeLayout>
@@ -224,6 +221,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
       onEditToggle={() => setIsEditing(!isEditing)}
       onSave={handleSave}
       canEdit={hasEditPermission}
+      editDeniedReason={editDeniedReason || undefined}
     >
       <Tabs defaultValue="content" className="w-full h-full">
         <div className="px-4 pt-4 border-b border-gray-700">

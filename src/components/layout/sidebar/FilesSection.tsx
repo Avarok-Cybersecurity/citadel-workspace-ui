@@ -117,15 +117,27 @@ export const FilesSection = () => {
     // Initial load
     loadFiles();
 
-    // Subscribe to file transfer completion events
-    const handleCompleted = () => {
+    // Subscribe to file transfer completion and state change events
+    // STATE_CHANGED ensures we catch updates even if COMPLETED is missed
+    const handleUpdate = () => {
       loadFiles();
     };
 
-    eventEmitter.on(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
+    eventEmitter.on(FILE_TRANSFER_EVENTS.COMPLETED, handleUpdate);
+    eventEmitter.on(FILE_TRANSFER_EVENTS.STATE_CHANGED, handleUpdate);
+
+    // Also refresh on window focus in case events were missed while tab was inactive
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadFiles();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      eventEmitter.off(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
+      eventEmitter.off(FILE_TRANSFER_EVENTS.COMPLETED, handleUpdate);
+      eventEmitter.off(FILE_TRANSFER_EVENTS.STATE_CHANGED, handleUpdate);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [loadFiles]);
 
