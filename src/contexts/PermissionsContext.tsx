@@ -70,7 +70,10 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setError(null);
     try {
       const result = await permissionsService.fetchPermissions(domainId);
-      syncWithService();
+      // Only sync if we got a result - avoids infinite loop when no user is logged in
+      if (result) {
+        syncWithService();
+      }
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';

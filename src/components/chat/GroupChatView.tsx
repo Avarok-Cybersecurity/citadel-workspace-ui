@@ -23,18 +23,22 @@ import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import WorkspaceService from '@/lib/workspace-service';
 import { groupMessagingManager, GroupMessageEvent } from '@/lib/group-messaging-manager';
 import { cn } from '@/lib/utils';
-import { formatTime, formatDate, getInitials, groupMessagesByDate } from './shared';
+import { getInitials, groupMessagesByDate } from './shared';
+import { GroupMessageFooter } from './GroupMessageFooter';
 
 interface GroupChatViewProps {
   groupId: string;
   currentUserId: string;
   currentUserName: string;
   rules?: string;
+  /** Total number of members in this group (for read receipts) */
+  totalMembers?: number;
 }
 
 interface MessageItemProps {
   message: GroupMessage;
   currentUserId: string;
+  totalMembers: number;
   onEdit: (messageId: string, content: string) => void;
   onDelete: (messageId: string) => void;
   onReply: (messageId: string) => void;
@@ -43,6 +47,7 @@ interface MessageItemProps {
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
   currentUserId,
+  totalMembers,
   onEdit,
   onDelete,
   onReply,
@@ -62,16 +67,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
       </Avatar>
 
       <div className={cn('flex flex-col max-w-[70%]', isOwnMessage && 'items-end')}>
-        <div className="flex items-center gap-2 mb-1">
+        <div className={cn(
+          'flex items-center gap-2 mb-1',
+          isOwnMessage && 'flex-row-reverse'
+        )}>
           <span className="text-sm font-medium text-gray-300">
             {message.sender_name}
           </span>
-          <span className="text-xs text-gray-500">
-            {formatTime(message.timestamp)}
-          </span>
-          {message.edited_at && (
-            <span className="text-xs text-gray-500 italic">(edited)</span>
-          )}
         </div>
 
         <div className={cn(
@@ -87,6 +89,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
           )}
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         </div>
+
+        {/* Read indicator footer - replaces inline time/edited display */}
+        <GroupMessageFooter
+          message={message}
+          isOwn={isOwnMessage}
+          totalMembers={totalMembers}
+        />
 
         {message.reply_count > 0 && (
           <button className="text-xs text-purple-400 hover:text-purple-300 mt-1">
@@ -135,6 +144,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   currentUserId,
   currentUserName,
   rules,
+  totalMembers = 2, // Default to 2 for basic chat
 }) => {
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -182,7 +192,15 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           break;
         case 'new_message':
           if (event.message) {
-            setMessages((prev) => [...prev, event.message!]);
+            setMessages((prev) => {
+              // Check for duplicates by message ID
+              const exists = prev.some((m) => m.id === event.message!.id);
+              if (exists) {
+                console.log('[GroupChatView] Skipping duplicate message:', event.message!.id);
+                return prev;
+              }
+              return [...prev, event.message!];
+            });
             // Scroll to bottom for new messages
             setTimeout(() => {
               messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -343,6 +361,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                     key={message.id}
                     message={message}
                     currentUserId={currentUserId}
+                    totalMembers={totalMembers}
                     onEdit={(id, content) => {
                       setEditingId(id);
                       setEditContent(content);

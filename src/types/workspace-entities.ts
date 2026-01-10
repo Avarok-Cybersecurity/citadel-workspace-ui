@@ -94,6 +94,13 @@ export enum GroupMessageType {
   System = 'System'
 }
 
+// Group message read status
+export interface GroupMessageReadBy {
+  user_id: string;
+  user_name: string;
+  read_at: number;
+}
+
 // Group message interface (matches Rust GroupMessage)
 export interface GroupMessage {
   id: string;
@@ -107,4 +114,5 @@ export interface GroupMessage {
   reply_count: number;
   mentions: string[];
   edited_at?: number;
+  read_by?: GroupMessageReadBy[];  // Users who have read this message
 }

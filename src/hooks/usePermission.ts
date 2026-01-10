@@ -5,7 +5,7 @@
  * Handles loading state and provides a reason for denied access.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
 
 interface UsePermissionResult {
@@ -48,13 +48,16 @@ export function usePermission(
   } = usePermissions();
 
   const [localLoading, setLocalLoading] = useState(false);
+  // Track domains we've attempted to fetch to avoid infinite retry loops
+  const attemptedFetchRef = useRef<Set<string>>(new Set());
 
   // Check if we need to fetch permissions for this domain
   useEffect(() => {
     if (!domainId) return;
 
-    // If permissions aren't cached for this domain, fetch them
-    if (!permissions.has(domainId)) {
+    // If permissions aren't cached for this domain and we haven't tried yet, fetch them
+    if (!permissions.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
+      attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
       fetchPermissionsForDomain(domainId).finally(() => {
         setLocalLoading(false);
@@ -107,10 +110,13 @@ export function useAnyPermission(
   } = usePermissions();
 
   const [localLoading, setLocalLoading] = useState(false);
+  // Track domains we've attempted to fetch to avoid infinite retry loops
+  const attemptedFetchRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!domainId) return;
-    if (!permissionMap.has(domainId)) {
+    if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
+      attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
       fetchPermissionsForDomain(domainId).finally(() => {
         setLocalLoading(false);
@@ -164,10 +170,13 @@ export function useAllPermissions(
   } = usePermissions();
 
   const [localLoading, setLocalLoading] = useState(false);
+  // Track domains we've attempted to fetch to avoid infinite retry loops
+  const attemptedFetchRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!domainId) return;
-    if (!permissionMap.has(domainId)) {
+    if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
+      attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
       fetchPermissionsForDomain(domainId).finally(() => {
         setLocalLoading(false);

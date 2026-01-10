@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GroupChatView from "@/components/chat/GroupChatView";
 import { usePermission } from "@/hooks/usePermission";
 import { Permission } from "@/contexts/PermissionsContext";
+import { connectionManager } from "@/lib/connection-manager";
 
 interface BaseOfficeProps {
   title: string;
@@ -161,9 +162,11 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   const chatEnabled = entityData?.chat_enabled ?? false;
   const chatChannelId = entityData?.chat_channel_id;
 
-  // Get current user info from workspace state
-  const currentUserId = state.currentUser?.id || 'unknown';
-  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || 'Unknown User';
+  // Get current user info from workspace state OR connection manager
+  // The workspace state currentUser may not be populated yet during initial render
+  const tabSession = connectionManager.getTabSelectedSession();
+  const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
+  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
   // Content view (MDX editor or rendered content)
   const contentView = isEditing ? (
@@ -223,8 +226,8 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
       canEdit={hasEditPermission}
       editDeniedReason={editDeniedReason || undefined}
     >
-      <Tabs defaultValue="content" className="w-full h-full">
-        <div className="px-4 pt-4 border-b border-gray-700">
+      <Tabs defaultValue="content" className="w-full h-full flex flex-col">
+        <div className="px-4 pt-4 border-b border-gray-700 flex-shrink-0">
           <TabsList className="bg-gray-800">
             <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
               <FileText className="h-4 w-4 mr-2" />
@@ -237,11 +240,11 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
           </TabsList>
         </div>
 
-        <TabsContent value="content" className="mt-0">
+        <TabsContent value="content" className="mt-0 flex-1 overflow-auto">
           {contentView}
         </TabsContent>
 
-        <TabsContent value="chat" className="mt-0 h-[calc(100vh-200px)]">
+        <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
           <GroupChatView
             groupId={chatChannelId}
             currentUserId={currentUserId}

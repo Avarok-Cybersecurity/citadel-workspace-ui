@@ -16,6 +16,7 @@ import { FileText, MessageSquare } from 'lucide-react';
 import { usePermission } from '@/hooks/usePermission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
+import { connectionManager } from '@/lib/connection-manager';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';
@@ -153,9 +154,11 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   const chatEnabled = room.chat_enabled ?? false;
   const chatChannelId = room.chat_channel_id;
 
-  // Get current user info from workspace state
-  const currentUserId = state.currentUser?.id || 'unknown';
-  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || 'Unknown User';
+  // Get current user info from workspace state OR connection manager
+  // The workspace state currentUser may not be populated yet during initial render
+  const tabSession = connectionManager.getTabSelectedSession();
+  const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
+  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
   // Room header component
   const roomHeader = (
@@ -275,11 +278,11 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   // If chat is enabled, show tabs
   return (
-    <div className="p-4">
+    <div className="h-full flex flex-col p-4">
       {roomHeader}
 
-      <Tabs defaultValue="content" className="w-full">
-        <TabsList className="bg-gray-800 mb-4">
+      <Tabs defaultValue="content" className="w-full flex-1 flex flex-col">
+        <TabsList className="bg-gray-800 mb-4 flex-shrink-0">
           <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
             <FileText className="h-4 w-4 mr-2" />
             Content
@@ -290,11 +293,11 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="content" className="mt-0">
+        <TabsContent value="content" className="mt-0 flex-1 overflow-auto">
           {contentView}
         </TabsContent>
 
-        <TabsContent value="chat" className="mt-0 h-[calc(100vh-280px)]">
+        <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
           <GroupChatView
             groupId={chatChannelId}
             currentUserId={currentUserId}

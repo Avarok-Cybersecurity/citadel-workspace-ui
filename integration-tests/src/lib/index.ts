@@ -129,3 +129,20 @@ export type {
 
 // Service Helpers - Backend service management
 export { restartBackendServices } from './service-helpers.js';
+
+// Group Chat Test Helpers - Parameterized multi-user group tests
+export {
+  createNUsers,
+  navigateAllToOffice,
+  navigateAllToRoom,
+  switchAllToChatTab,
+  testBidirectionalMessaging,
+  printGroupTestResults,
+  calculateAllPassed,
+} from './group-helpers.js';
+export type {
+  UserSession,
+  GroupTestConfig,
+  GroupTestResults,
+  MessageTestResult,
+} from './group-helpers.js';

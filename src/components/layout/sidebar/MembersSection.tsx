@@ -1,4 +1,4 @@
-import { Users, UserPlus, MoreVertical, Shield, User } from "lucide-react";
+import { Users, UserPlus, MoreVertical, Shield, User, Plus } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -44,6 +44,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { GroupConversationRow } from "./GroupConversationRow";
+import { useGroupConversations } from "@/hooks/useGroupConversations";
+import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 
 interface Member {
   id: string;
@@ -95,6 +98,11 @@ export const MembersSection = () => {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [registeredPeers, setRegisteredPeers] = useState<RegisteredPeer[]>([]);
   const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
+  const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
+
+  // Group conversations hook
+  const { groups: groupConversations, createGroup } = useGroupConversations();
+
   // Track if session startup is complete - skip stale cleanup until P2P reconnection finishes
   // This prevents race condition where cleanup runs before peer list is refreshed after login
   const [startupComplete, setStartupComplete] = useState(true); // Default true for initial load
@@ -574,14 +582,34 @@ export const MembersSection = () => {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {/* Direct Messages - Only peers with message history */}
-      {peersWithConversations.length > 0 && (
+      {/* Conversations - P2P Direct Messages + Group Chats */}
+      {(peersWithConversations.length > 0 || groupConversations.length > 0) && (
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
-          <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-0 ml-3">
-            DIRECT MESSAGES
-          </SidebarGroupLabel>
+          <div className="flex items-center justify-between px-3">
+            <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-0">
+              CONVERSATIONS
+            </SidebarGroupLabel>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 text-[#9b87f5] hover:text-white hover:bg-[#6E59A5]"
+                    onClick={() => setShowCreateGroupDialog(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>New Group Chat</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* P2P Direct Messages */}
               {peersWithConversations.map((conv) => (
                 <SidebarMenuItem key={conv.peerCid}>
                   <SidebarMenuButton
@@ -612,6 +640,15 @@ export const MembersSection = () => {
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+              ))}
+
+              {/* Group Conversations */}
+              {groupConversations.map((group) => (
+                <GroupConversationRow
+                  key={group.id}
+                  group={group}
+                  onClick={(g) => navigate(`/groups/${g.id}`)}
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -742,6 +779,21 @@ export const MembersSection = () => {
       <PendingRequestsModal
         isOpen={showPendingRequests}
         onClose={() => setShowPendingRequests(false)}
+      />
+
+      {/* Create Group Dialog */}
+      <CreateGroupDialog
+        open={showCreateGroupDialog}
+        onOpenChange={setShowCreateGroupDialog}
+        availablePeers={registeredPeers.map(p => ({
+          cid: p.cid,
+          username: p.username,
+          isOnline: p.isOnline,
+        }))}
+        currentUsername={state.currentUser?.username || 'User'}
+        onCreateGroup={async (name, members) => {
+          await createGroup(name, members);
+        }}
       />
     </>
   );

@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-01-10T04:16:26.563Z",
-  "user": "groupchat_user_1768015121244",
+  "timestamp": "2026-01-10T20:35:07.374Z",
+  "user": "groupchat_user_1768077207452",
   "office": "General",
   "room": "Random",
   "results": {
@@ -13,13 +13,13 @@
     "officeMessageSent": true,
     "officeMessageReceived": true,
     "officeContentTabSwitch": true,
-    "roomNavigation": false,
-    "roomChatEnabled": false,
-    "roomChatTabSwitch": false,
-    "roomMessageSent": false,
-    "roomMessageReceived": false,
-    "multipleMessagesSent": false,
-    "messagesOrdered": false,
+    "roomNavigation": true,
+    "roomChatEnabled": true,
+    "roomChatTabSwitch": true,
+    "roomMessageSent": true,
+    "roomMessageReceived": true,
+    "multipleMessagesSent": true,
+    "messagesOrdered": true,
     "uxChecks": {
       "timestamps": false,
       "rulesBanner": false,
@@ -33,14 +33,7 @@
       "category": "functional",
       "description": "Admin status indicator not visible in UI after workspace initialization",
       "screenshot": null,
-      "timestamp": "2026-01-10T03:19:50.506Z"
-    },
-    {
-      "severity": "suggestion",
-      "category": "functional",
-      "description": "Room \"Random\" chat is not enabled in config",
-      "screenshot": null,
-      "timestamp": "2026-01-10T04:16:26.562Z"
+      "timestamp": "2026-01-10T20:34:36.732Z"
     }
   ],
   "passed": true

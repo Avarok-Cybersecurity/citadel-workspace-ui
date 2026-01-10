@@ -22,6 +22,7 @@ import TestOfficeMDX from "./pages/TestOfficeMDX";
 import { IntegratedWorkspaceDemo } from "./pages/IntegratedWorkspaceDemo";
 import { FileUploadProgress } from "./components/files/FileUploadProgress";
 import { ToastTest } from "./pages/ToastTest";
+import { GroupChatPage } from "./pages/GroupChatPage";
 
 console.log("App.tsx loaded, imports completed");
 
@@ -85,6 +86,11 @@ const App = () => {
               <IntegratedWorkspaceDemo />
             } />
             <Route path="/toast-test" element={<ToastTest />} />
+            <Route path="/groups/:groupId" element={
+              <WorkspaceLoader>
+                <GroupChatPage />
+              </WorkspaceLoader>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -78,6 +78,12 @@ class GroupMessagingManagerClass {
   public handleNewMessage(groupId: string, message: GroupMessage): void {
     const current = this.getMessages(groupId);
 
+    // Check for duplicate message by ID
+    if (current.messages.some(m => m.id === message.id)) {
+      console.log('[GroupMessagingManager] Skipping duplicate message:', message.id);
+      return;
+    }
+
     // Add new message to the end (newest at bottom)
     const messages = [...current.messages, message];
 
