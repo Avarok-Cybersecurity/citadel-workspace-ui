@@ -255,7 +255,7 @@ async function runTest(): Promise<boolean> {
   }, 'investigating');
 
   // Setup browser
-  const { browser, context } = await createBrowser({ headless: false, slowMo: 100 });
+  const { browser, context } = await createBrowser({ slowMo: 100 });
 
   const results: LiveDocTestResults = {
     accountCreation: false,

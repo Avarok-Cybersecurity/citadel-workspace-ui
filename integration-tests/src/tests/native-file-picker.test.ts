@@ -283,7 +283,7 @@ async function runTest(): Promise<boolean> {
     timestamp: new Date().toISOString(),
   }, 'investigating');
 
-  const { browser, context } = await createBrowser({ headless: false, slowMo: 50 });
+  const { browser, context } = await createBrowser();
   const context2 = await browser.newContext();
 
   const results: TestResults = {

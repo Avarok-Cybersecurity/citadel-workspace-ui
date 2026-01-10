@@ -269,7 +269,7 @@ async function runTest(): Promise<boolean> {
   }, 'investigating');
 
   // Setup browser with shared context
-  const { browser, context } = await createBrowser({ headless: false, slowMo: 50 });
+  const { browser, context } = await createBrowser();
 
   const results: TestResults = {
     session1Created: false,

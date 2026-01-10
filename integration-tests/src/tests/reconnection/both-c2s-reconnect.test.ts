@@ -80,7 +80,7 @@ async function runTest(): Promise<boolean> {
       return false;
     }
 
-    const browserSetup = await createSeparateBrowsers(2, { headless: false, slowMo: 50 });
+    const browserSetup = await createSeparateBrowsers(2);
     browser1 = browserSetup.browsers[0];
     browser2 = browserSetup.browsers[1];
     page1 = browserSetup.pages[0];

@@ -73,7 +73,7 @@ async function runTest(): Promise<boolean> {
     }
 
     // Create browser with shared context
-    const browserResult = await createBrowser({ headless: false, slowMo: 50 });
+    const browserResult = await createBrowser();
     browser = browserResult.browser;
     context = browserResult.context;
     page = await context.newPage();

@@ -130,10 +130,7 @@ async function runTest(): Promise<boolean> {
   }, 'investigating');
 
   // Use SEPARATE browser processes to eliminate Chrome tab throttling
-  const { pages: [page1, page2], cleanup } = await createSeparateBrowsers(2, {
-    headless: false,
-    slowMo: 50,
-  });
+  const { pages: [page1, page2], cleanup } = await createSeparateBrowsers(2);
 
   const results: TestResults = {
     accountCreation: { user1: false, user2: false },

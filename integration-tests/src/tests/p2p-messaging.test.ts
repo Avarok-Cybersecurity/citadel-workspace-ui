@@ -132,7 +132,7 @@ async function runTest(): Promise<boolean> {
   }, 'investigating');
 
   // Setup browser with shared context (single WebSocket for both tabs)
-  const { browser, context } = await createBrowser({ headless: false, slowMo: 50 });
+  const { browser, context } = await createBrowser();
 
   const results: TestResults = {
     accountCreation: { user1: false, user2: false },

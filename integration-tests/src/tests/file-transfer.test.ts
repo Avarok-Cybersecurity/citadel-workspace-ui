@@ -674,7 +674,7 @@ async function runTest(): Promise<boolean> {
 
   // Create SEPARATE browser contexts for each user to avoid shared localStorage issues
   // This ensures each user has their own isolated session storage and tab context
-  const { browser, context } = await createBrowser({ headless: false, slowMo: 50 });
+  const { browser, context } = await createBrowser();
   const context2 = await browser.newContext(); // Separate context for Bob
 
   const results: TestResults = {

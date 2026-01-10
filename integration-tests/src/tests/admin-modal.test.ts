@@ -172,7 +172,7 @@ async function runTest(): Promise<boolean> {
   console.log('\n=== Waiting for services to be alive ===');
   await waitForServicesAlive();
 
-  const { browser, context } = await createBrowser({ headless: false, slowMo: 50 });
+  const { browser, context } = await createBrowser();
 
   const results: TestResults = {
     accountCreated: false,

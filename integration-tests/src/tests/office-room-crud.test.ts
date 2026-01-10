@@ -494,7 +494,7 @@ async function runTest(): Promise<boolean> {
 
     // Create browser with BOTH contexts upfront to avoid browser state issues
     // Creating contexts late (after many operations) can fail with "browser has been closed"
-    const setup = await createBrowser({ headless: false });
+    const setup = await createBrowser();
     browser = setup.browser;
     const adminContext = setup.context;
     const nonAdminContext = await browser.newContext();

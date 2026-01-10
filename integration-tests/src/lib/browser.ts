@@ -4,6 +4,7 @@
 
 import { chromium, Page } from 'playwright';
 import type { BrowserOptions, BrowserSetup } from './types.js';
+import { isCI } from './config.js';
 
 /**
  * Create a browser and context for testing
@@ -13,7 +14,8 @@ import type { BrowserOptions, BrowserSetup } from './types.js';
  * We clear storage to ensure a clean state for each test run.
  */
 export async function createBrowser(options: BrowserOptions = {}): Promise<BrowserSetup> {
-  const { headless = false, slowMo = 50 } = options;
+  // Default to headless in CI, visible browser locally
+  const { headless = isCI, slowMo = isCI ? 0 : 50 } = options;
 
   const browser = await chromium.launch({
     headless,
@@ -290,7 +292,8 @@ export async function createSeparateBrowsers(
   count: number,
   options: BrowserOptions = {}
 ): Promise<MultiBrowserSetup> {
-  const { headless = false, slowMo = 50 } = options;
+  // Default to headless in CI, visible browser locally
+  const { headless = isCI, slowMo = isCI ? 0 : 50 } = options;
 
   const browsers: import('playwright').Browser[] = [];
   const pages: Page[] = [];
