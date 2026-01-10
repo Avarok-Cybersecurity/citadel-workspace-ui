@@ -28,6 +28,11 @@ export function logObservation(
     status,
   };
 
+  // Ensure logs directory exists
+  if (!fs.existsSync(config.LOGS_DIR)) {
+    fs.mkdirSync(config.LOGS_DIR, { recursive: true });
+  }
+
   const logPath = path.join(config.LOGS_DIR, 'debug-observations.jsonl');
   fs.appendFileSync(logPath, JSON.stringify(entry) + '\n');
   console.log(`  [DEBUG LOG] ${phase}: ${observation}`);
