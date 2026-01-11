@@ -634,10 +634,17 @@ export const WorkspaceEventHandler: React.FC<{
       await workspaceEvents.onWorkspaceEvent('members:reload', async (connectionInfo: ConnectionInfo) => {
         console.info('Reloading members list...');
         // Trigger a fresh load of members
+        // Backend requires exactly ONE of office_id or room_id (room takes precedence)
         const params = new URLSearchParams(window.location.search);
         const officeId = params.get("officeId");
         const roomId = params.get("roomId");
-        await WorkspaceService.listMembers(officeId || undefined, roomId || undefined);
+        if (roomId) {
+          await WorkspaceService.listMembers(undefined, roomId);
+        } else if (officeId) {
+          await WorkspaceService.listMembers(officeId, undefined);
+        } else {
+          await WorkspaceService.listMembers();  // workspace-level
+        }
       });
     };
 

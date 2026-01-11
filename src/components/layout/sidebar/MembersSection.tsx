@@ -262,7 +262,12 @@ export const MembersSection = () => {
 
       setIsLoading(true);
       try {
-        await WorkspaceService.listMembers(currentOfficeId || undefined, currentRoomId || undefined);
+        // Backend requires exactly ONE of office_id or room_id (room takes precedence)
+        if (currentRoomId) {
+          await WorkspaceService.listMembers(undefined, currentRoomId);
+        } else if (currentOfficeId) {
+          await WorkspaceService.listMembers(currentOfficeId, undefined);
+        }
       } catch (error) {
         console.error("Error loading members:", error);
       } finally {
