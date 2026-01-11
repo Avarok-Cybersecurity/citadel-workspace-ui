@@ -249,6 +249,12 @@ class WebSocketService {
     const resolvedAddr = await resolveServerAddress(serverAddr);
     console.log(`[Connect] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
 
+    // Clear user-disconnected status on explicit login attempt
+    // This allows users to log back in after explicitly disconnecting
+    // userDisconnectedSessions is for AUTO-reconnect prevention, not blocking explicit login
+    const { serverAutoConnectService } = await import('./server-auto-connect-service');
+    serverAutoConnectService.clearUserDisconnected(username, resolvedAddr);
+
     // STEP 1: Check if session already exists
     console.log(`[Connect] Checking for existing session: ${username}@${resolvedAddr}`);
 
@@ -724,14 +730,14 @@ class WebSocketService {
    * Disconnect a session from the server.
    * Waits for DisconnectNotification from backend before resolving.
    * This ensures the session is fully cleaned up before the Promise resolves.
-   * @param cid - The CID of the session to disconnect
+   * @param cid - The CID of the session to disconnect (REQUIRED)
    */
-  async disconnect(cid?: string): Promise<void> {
-    await this.init(); // ensure initialized
-
+  async disconnect(cid: string): Promise<void> {
     if (!cid) {
-      return; // Nothing to disconnect
+      throw new Error('CID is required to disconnect a session');
     }
+
+    await this.init(); // ensure initialized
 
     const requestId = crypto.randomUUID();
     const request = {

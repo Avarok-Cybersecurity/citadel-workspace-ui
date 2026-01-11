@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { connectionManager } from '@/lib/connection-manager';
+import { websocketService } from '@/lib/websocket-service';
 import type {
   GroupConversation,
   GroupRole,
@@ -47,8 +47,7 @@ interface UseGroupPermissionsResult {
 export function useGroupPermissions(
   group: GroupConversation
 ): UseGroupPermissionsResult {
-  const connectionInfo = connectionManager.getConnectionInfo();
-  const currentCid = connectionInfo?.cid;
+  const currentCid = websocketService.getCurrentCid();
 
   // Find current user's member info
   const myMember = useMemo(() => {

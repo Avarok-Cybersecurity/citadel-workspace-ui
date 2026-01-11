@@ -299,6 +299,14 @@ export class ConnectionManager {
       }
     }
 
+    // Handle disconnect notifications - invalidate cache so getActiveSessions() returns fresh data
+    if (response.DisconnectNotification) {
+      console.log('ConnectionManager: Received DisconnectNotification for CID:', response.DisconnectNotification.cid);
+      // Invalidate session cache so subsequent getActiveSessions() calls don't return stale data
+      // showing the disconnected session as still active
+      this.invalidateSessionCache();
+    }
+
     // Handle connection failures
     if (response.ConnectFailure) {
       console.log('ConnectionManager: Received ConnectFailure:', response.ConnectFailure);
@@ -1056,22 +1064,27 @@ export class ConnectionManager {
 
   /**
    * Handle user logout - removes the session for a specific user
+   * @param username - The username of the session to logout
+   * @param serverAddress - The server address of the session
+   * @param cid - The CID of the session to disconnect (required for proper cleanup)
    */
-  public async handleLogout(username: string, serverAddress: string): Promise<void> {
-    console.log('ConnectionManager: handleLogout called for', username);
-    
+  public async handleLogout(username: string, serverAddress: string, cid: string): Promise<void> {
+    console.log('ConnectionManager: handleLogout called for', username, 'CID:', cid);
+
     // Remove the session from stored sessions
     this.storedSessions.sessions = this.storedSessions.sessions.filter(
       s => !(s.username === username && s.serverAddress === serverAddress)
     );
-    
+
     // Update stored sessions in LocalDB
     await this.setLocalDBValue(SESSION_STORAGE_KEY, this.storedSessions);
-    
+
     console.log('ConnectionManager: Session removed for', username);
-    
-    // Disconnect the WebSocket
-    await websocketService.disconnect();
+
+    // Disconnect the session using the provided CID
+    if (cid) {
+      await websocketService.disconnect(cid);
+    }
   }
 
   /**
@@ -1197,12 +1210,13 @@ export class ConnectionManager {
       await this.setLocalDBValue(SESSION_STORAGE_KEY, this.storedSessions);
       
       console.log('ConnectionManager: Session removed successfully');
-      
-      // If this was the current session, disconnect
-      if (this.currentConnectionInfo && 
-          this.currentConnectionInfo.serverAddress === serverAddress) {
-        await this.disconnect();
-      }
+
+      // NOTE: Do NOT disconnect here. The caller is responsible for handling disconnect
+      // if needed (e.g., OrphanSessionsNavbar already calls websocketService.disconnect(cid)
+      // with the EXPLICIT target CID before calling removeSession).
+      // Calling this.disconnect() here would disconnect currentConnectionInfo.cid which
+      // may be a DIFFERENT session than the one being removed (multiple users can share
+      // the same serverAddress).
     } catch (error) {
       console.error('ConnectionManager: Failed to remove session', error);
       throw error;

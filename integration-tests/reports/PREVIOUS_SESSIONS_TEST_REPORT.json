@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-01-11T00:49:16.136Z",
+  "timestamp": "2026-01-11T19:01:38.379Z",
   "users": {
-    "user1": "prev_sess_a_1768092372058",
-    "user2": "prev_sess_b_1768092372058",
-    "user3": "prev_sess_c_1768092372058"
+    "user1": "prev_sess_a_1768157942459",
+    "user2": "prev_sess_b_1768157942459",
+    "user3": "prev_sess_c_1768157942459"
   },
   "results": {
     "session1Created": true,
@@ -12,7 +12,7 @@
     "navbarVisible": true,
     "allSessionsInNavbar": true,
     "disconnectRemovesSession": true,
-    "reconnectAfterDisconnect": false,
+    "reconnectAfterDisconnect": true,
     "deregisterRemovesSession": true,
     "deregisterPermanent": true,
     "oneClickLoginWorks": true,
@@ -23,5 +23,5 @@
   "uxIssues": [],
   "passed": true,
   "corePassed": true,
-  "allPassed": false
+  "allPassed": true
 }

@@ -186,13 +186,9 @@ export function Login({ onNext, onCancel }: LoginProps) {
       const existingSession = activeSessions.find(session => session.username === username.trim());
 
       if (existingSession) {
-        console.log('Login: Username already has active session, redirecting seamlessly:', existingSession);
-        // Seamlessly redirect to the existing session - no error shown to user
-        await redirectToExistingSession({
-          cid: existingSession.cid,
-          username: existingSession.username,
-          server_address: existingSession.server_address
-        });
+        // Don't silently redirect - inform user they need to select or disconnect first
+        console.log('Login: User already has active session:', existingSession);
+        setError('You are already logged in. Please select the session from the top bar, or disconnect it first if you wish to login again.');
         setLoading(false);
         return;
       }
@@ -295,13 +291,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       });
       
       // Connect to the service AFTER setting up the listener
-      // First disconnect any existing connection
-      try {
-        await websocketService.disconnect();
-      } catch (e) {
-        // Ignore disconnect errors
-      }
-      
+      // Note: websocketService.connect() handles session cleanup internally if needed
       // Login uses empty server password and undefined security settings
       // (security settings were established during registration)
       await websocketService.connect(requestId, username, password, server, "", undefined);
