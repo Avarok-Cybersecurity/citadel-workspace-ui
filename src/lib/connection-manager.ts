@@ -279,6 +279,8 @@ export class ConnectionManager {
     const response = message.Response || message;
     if (response.RegisterSuccess || response.ConnectSuccess) {
       console.log('ConnectionManager: Received registration/connection success');
+      // Invalidate session cache so getActiveSessions() returns fresh data including new session
+      this.invalidateSessionCache();
       const cid = response.RegisterSuccess?.cid || response.ConnectSuccess?.cid;
       if (cid) {
         this.handleSuccessfulConnection(cid);
@@ -288,6 +290,8 @@ export class ConnectionManager {
     // Handle successful connection management (session claim, orphan mode, etc.)
     if (response.ConnectionManagementSuccess) {
       console.log('ConnectionManager: Received ConnectionManagementSuccess');
+      // Invalidate session cache so getActiveSessions() returns fresh data after session claim
+      this.invalidateSessionCache();
       const cid = response.ConnectionManagementSuccess?.cid;
       if (cid) {
         console.log('ConnectionManager: Updating connection info with claimed session CID:', cid);
