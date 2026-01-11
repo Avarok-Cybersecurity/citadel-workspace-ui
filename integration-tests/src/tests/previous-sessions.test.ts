@@ -95,6 +95,56 @@ async function sessionExistsInNavbar(page: Page, username: string): Promise<bool
 }
 
 /**
+ * Wait for all sessions to appear in navbar with retry logic.
+ * Handles CI timing issues where backend may not return all sessions immediately.
+ */
+async function waitForAllSessionsInNavbar(
+  page: Page,
+  usernames: string[],
+  maxRetries = 5
+): Promise<{ allVisible: boolean; visibleSessions: Record<string, boolean> }> {
+  console.log(`  Waiting for ${usernames.length} sessions to appear in navbar...`);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const visibleSessions: Record<string, boolean> = {};
+    let allVisible = true;
+
+    for (const username of usernames) {
+      const exists = await sessionExistsInNavbar(page, username);
+      visibleSessions[username] = exists;
+      if (!exists) {
+        allVisible = false;
+      }
+    }
+
+    const visibleCount = Object.values(visibleSessions).filter(Boolean).length;
+    console.log(`  Attempt ${attempt}/${maxRetries}: ${visibleCount}/${usernames.length} sessions visible`);
+
+    if (allVisible) {
+      console.log('  All sessions visible!');
+      return { allVisible: true, visibleSessions };
+    }
+
+    if (attempt < maxRetries) {
+      // Exponential backoff: 1s, 2s, 3s, 4s...
+      const waitTime = 1000 * attempt;
+      console.log(`  Waiting ${waitTime}ms and reloading page...`);
+      await sleep(waitTime);
+      await page.reload({ waitUntil: 'commit', timeout: 30000 });
+      await sleep(2000); // Wait for navbar to render after reload
+    }
+  }
+
+  // Final check - return what we have
+  const visibleSessions: Record<string, boolean> = {};
+  for (const username of usernames) {
+    visibleSessions[username] = await sessionExistsInNavbar(page, username);
+  }
+  const allVisible = Object.values(visibleSessions).every(Boolean);
+  return { allVisible, visibleSessions };
+}
+
+/**
  * Get the order of sessions in the navbar (returns array of usernames)
  */
 async function getSessionOrder(page: Page): Promise<string[]> {
@@ -354,10 +404,7 @@ async function runTest(): Promise<boolean> {
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
     await sleep(3000);
 
-    const count = await getSessionCount(page);
-    console.log(`  Session count in navbar: ${count}`);
-
-    // Check navbar visibility and structure
+    // Check navbar visibility and structure first
     const navbar = page.locator('[data-testid="previous-sessions-navbar"]');
     results.navbarVisible = await navbar.isVisible({ timeout: 3000 }).catch(() => false);
     console.log(`  Navbar visible: ${results.navbarVisible}`);
@@ -370,15 +417,22 @@ async function runTest(): Promise<boolean> {
     results.scrollContainerExists = await scrollContainer.isVisible({ timeout: 3000 }).catch(() => false);
     console.log(`  Scroll container exists: ${results.scrollContainerExists}`);
 
-    const user1Exists = await sessionExistsInNavbar(page, USER1);
-    const user2Exists = await sessionExistsInNavbar(page, USER2);
-    const user3Exists = await sessionExistsInNavbar(page, USER3);
+    // Use retry logic to wait for all sessions to appear
+    // This handles CI timing issues where GetSessions may not return all sessions immediately
+    const { allVisible, visibleSessions } = await waitForAllSessionsInNavbar(
+      page,
+      [USER1, USER2, USER3],
+      5 // max 5 retries with exponential backoff
+    );
 
-    console.log(`  ${USER1} in navbar: ${user1Exists}`);
-    console.log(`  ${USER2} in navbar: ${user2Exists}`);
-    console.log(`  ${USER3} in navbar: ${user3Exists}`);
+    console.log(`  ${USER1} in navbar: ${visibleSessions[USER1]}`);
+    console.log(`  ${USER2} in navbar: ${visibleSessions[USER2]}`);
+    console.log(`  ${USER3} in navbar: ${visibleSessions[USER3]}`);
 
-    results.allSessionsInNavbar = user1Exists && user2Exists && user3Exists;
+    results.allSessionsInNavbar = allVisible;
+
+    const count = await getSessionCount(page);
+    console.log(`  Final session count in navbar: ${count}`);
 
     await takeScreenshot(page, '04_all_sessions_visible');
 
