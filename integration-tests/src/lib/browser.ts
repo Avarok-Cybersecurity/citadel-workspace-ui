@@ -17,6 +17,15 @@ export async function createBrowser(options: BrowserOptions = {}): Promise<Brows
   // Default to headless in CI, visible browser locally
   const { headless = isCI, slowMo = isCI ? 0 : 50 } = options;
 
+  // CI-specific args to prevent net::ERR_INSUFFICIENT_RESOURCES
+  const ciArgs = isCI ? [
+    '--disable-dev-shm-usage',  // Use /tmp instead of /dev/shm (critical for Linux CI)
+    '--no-sandbox',             // Required for some CI environments
+    '--disable-setuid-sandbox', // Additional sandbox disable for CI
+    '--disable-gpu',            // Reduce GPU memory pressure
+    '--single-process',         // Reduce process overhead in CI
+  ] : [];
+
   const browser = await chromium.launch({
     headless,
     slowMo,
@@ -27,6 +36,8 @@ export async function createBrowser(options: BrowserOptions = {}): Promise<Brows
       '--disable-renderer-backgrounding',
       // Prevent tab throttling based on visibility
       '--disable-ipc-flooding-protection',
+      // CI-specific args
+      ...ciArgs,
     ],
   });
 
@@ -298,6 +309,15 @@ export async function createSeparateBrowsers(
   const browsers: import('playwright').Browser[] = [];
   const pages: Page[] = [];
 
+  // CI-specific args to prevent net::ERR_INSUFFICIENT_RESOURCES
+  const ciArgs = isCI ? [
+    '--disable-dev-shm-usage',
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-gpu',
+    '--single-process',
+  ] : [];
+
   for (let i = 0; i < count; i++) {
     const browser = await chromium.launch({
       headless,
@@ -308,6 +328,8 @@ export async function createSeparateBrowsers(
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
         '--disable-ipc-flooding-protection',
+        // CI-specific args
+        ...ciArgs,
       ],
     });
 
