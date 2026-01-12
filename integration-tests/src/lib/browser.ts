@@ -23,6 +23,13 @@ export async function createBrowser(options: BrowserOptions = {}): Promise<Brows
     '--no-sandbox',             // Required for some CI environments
     '--disable-setuid-sandbox', // Additional sandbox disable for CI
     '--disable-gpu',            // Reduce GPU memory pressure
+    // Additional memory reduction flags for CI
+    '--disable-extensions',     // No extensions needed in CI
+    '--disable-software-rasterizer',  // Further GPU memory reduction
+    '--js-flags=--max-old-space-size=512',  // Limit V8 heap to 512MB
+    '--renderer-process-limit=2',  // Limit renderer processes
+    '--disable-features=TranslateUI',  // Disable unused features
+    '--disable-component-update',  // No component updates needed
   ] : [];
 
   const browser = await chromium.launch({
@@ -314,6 +321,13 @@ export async function createSeparateBrowsers(
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--disable-gpu',
+    // Additional memory reduction flags for CI
+    '--disable-extensions',
+    '--disable-software-rasterizer',
+    '--js-flags=--max-old-space-size=512',
+    '--renderer-process-limit=2',
+    '--disable-features=TranslateUI',
+    '--disable-component-update',
   ] : [];
 
   for (let i = 0; i < count; i++) {
