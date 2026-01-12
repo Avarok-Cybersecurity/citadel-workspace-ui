@@ -8,6 +8,8 @@ export interface BroadcastMessage {
   timestamp: number;
   tabId: string;
   isLeader?: boolean;
+  /** Target CID for P2P notifications - used to filter broadcasts by session */
+  targetCid?: string;
 }
 
 interface PendingRequest {
@@ -148,6 +150,17 @@ export class BroadcastChannelService {
   private handleWorkspaceResponse(message: BroadcastMessage): void {
     // Forward workspace responses to the event emitter for non-leader tabs
     if (!this.isLeader && message.data) {
+      // Get this tab's current CID
+      const tabSelection = getSelectedUser();
+      const tabCid = tabSelection?.selectedCid;
+
+      // CRITICAL: Filter by target CID if present (for P2P notifications)
+      // This prevents race conditions where multiple tabs process the same notification
+      if (message.targetCid && tabCid && message.targetCid !== tabCid) {
+        console.log(`BroadcastChannelService: Skipping notification for CID ${message.targetCid.slice(0, 8)}... (we are ${tabCid.slice(0, 8)}...)`);
+        return;
+      }
+
       // Extract request_id from various response types
       const requestId = message.data.request_id ||
                         message.data.ListAllPeersResponse?.request_id ||
@@ -155,10 +168,6 @@ export class BroadcastChannelService {
                         message.data.GetSessionsResponse?.request_id ||
                         message.data.LocalDBGetKVSuccess?.request_id ||
                         message.data.LocalDBSetKVSuccess?.request_id;
-
-      // Get this tab's current CID
-      const tabSelection = getSelectedUser();
-      const tabCid = tabSelection?.selectedCid;
 
       // Forward if:
       // 1. No request_id (broadcast to all) OR
@@ -330,6 +339,10 @@ export class BroadcastChannelService {
   /**
    * Broadcast a workspace response to all tabs
    * Only the leader should call this method
+   *
+   * For P2P notifications (PeerConnectNotification, PeerRegisterNotification),
+   * extracts the target CID to enable filtering at the receiver side.
+   * This prevents race conditions where multiple tabs process the same notification.
    */
   public broadcastWorkspaceResponse(response: InternalServiceResponse): void {
     if (!this.isLeader) {
@@ -340,9 +353,20 @@ export class BroadcastChannelService {
     const responseType = Object.keys(response)[0];
     console.log(`BroadcastChannelService: Broadcasting ${responseType} as workspace-response`);
 
+    // Extract target CID for P2P notifications to enable filtering
+    // The 'cid' field in these notifications is the TARGET (who should receive it)
+    const responseAny = response as any;
+    const targetCid = responseAny.PeerConnectNotification?.cid?.toString() ||
+                      responseAny.PeerRegisterNotification?.cid?.toString();
+
+    if (targetCid) {
+      console.log(`BroadcastChannelService: P2P notification has targetCid=${targetCid.slice(0, 8)}...`);
+    }
+
     const message: BroadcastMessage = {
       type: 'workspace-response',
       data: response,
+      targetCid,  // Include target CID for filtering at receiver
       timestamp: Date.now(),
       tabId: this.tabId,
       isLeader: true

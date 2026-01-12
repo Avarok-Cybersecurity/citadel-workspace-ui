@@ -1,14 +1,18 @@
 {
-  "timestamp": "2026-01-11T19:24:20.203Z",
-  "users": {
-    "user1": "prev_sess_a_1768159298052",
-    "user2": "prev_sess_b_1768159298052",
-    "user3": "prev_sess_c_1768159298052"
-  },
+  "timestamp": "2026-01-12T01:58:40.691Z",
+  "users": [
+    "prev_sess_a_1768182965409",
+    "prev_sess_b_1768182965409",
+    "prev_sess_c_1768182965409"
+  ],
+  "sessionCount": 3,
+  "isCI": false,
   "results": {
-    "session1Created": true,
-    "session2Created": true,
-    "session3Created": true,
+    "sessionsCreated": [
+      true,
+      true,
+      true
+    ],
     "navbarVisible": true,
     "allSessionsInNavbar": true,
     "disconnectRemovesSession": true,
