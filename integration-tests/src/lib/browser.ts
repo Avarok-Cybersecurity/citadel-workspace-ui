@@ -23,7 +23,6 @@ export async function createBrowser(options: BrowserOptions = {}): Promise<Brows
     '--no-sandbox',             // Required for some CI environments
     '--disable-setuid-sandbox', // Additional sandbox disable for CI
     '--disable-gpu',            // Reduce GPU memory pressure
-    '--single-process',         // Reduce process overhead in CI
   ] : [];
 
   const browser = await chromium.launch({
@@ -315,7 +314,6 @@ export async function createSeparateBrowsers(
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--disable-gpu',
-    '--single-process',
   ] : [];
 
   for (let i = 0; i < count; i++) {
