@@ -9,14 +9,33 @@ import { takeScreenshot } from './screenshots.js';
 import { UxIssueTracker } from './ux-tracker.js';
 
 /**
+ * Options for p2pRegister function
+ */
+export interface P2PRegisterOptions {
+  uxTracker?: UxIssueTracker | null;
+  /**
+   * If true, leaves the modal open after clicking Connect.
+   * Used for testing that the "Connected" badge appears after peer accepts.
+   * Default: false (closes modal after sending request)
+   */
+  keepModalOpen?: boolean;
+}
+
+/**
  * Register a P2P connection with a peer
  */
 export async function p2pRegister(
   page: Page,
   myUsername: string,
   peerUsername: string,
-  uxTracker: UxIssueTracker | null = null
+  uxTrackerOrOptions: UxIssueTracker | P2PRegisterOptions | null = null
 ): Promise<boolean> {
+  // Handle both old (uxTracker) and new (options) signature for backwards compatibility
+  const options: P2PRegisterOptions = uxTrackerOrOptions instanceof UxIssueTracker || uxTrackerOrOptions === null
+    ? { uxTracker: uxTrackerOrOptions, keepModalOpen: false }
+    : uxTrackerOrOptions;
+  const uxTracker = options.uxTracker ?? null;
+  const keepModalOpen = options.keepModalOpen ?? false;
   console.log(`\n=== P2P Register: ${myUsername} -> ${peerUsername} ===`);
 
   const loaded = await waitForWorkspaceLoaded(page, 45000);
@@ -176,9 +195,98 @@ export async function p2pRegister(
     console.log(`  SUCCESS: Peer ${peerUsername} found and Connect clicked`);
   }
 
+  // Conditionally close modal based on keepModalOpen option
+  if (!keepModalOpen) {
+    await page.keyboard.press('Escape');
+    await sleep(500);
+  } else {
+    console.log(`  Keeping modal open for badge verification`);
+  }
+  return peerFound;
+}
+
+/**
+ * Verify that a peer shows "Connected" badge in the Peer Discovery modal.
+ * This verifies that after Bob accepts Alice's registration request,
+ * Alice's modal immediately shows "Connected" (which means "Registered" in P2P terminology -
+ * the peer relationship is now established for direct messaging).
+ *
+ * The modal must already be open (use p2pRegister with keepModalOpen: true).
+ *
+ * @param page - Playwright page with Peer Discovery modal open
+ * @param myUsername - This user's username (for logging and screenshots)
+ * @param peerUsername - The peer's username to check for "Connected" badge
+ * @param timeoutMs - Maximum time to wait for the badge to appear (default 15s)
+ * @param uxTracker - Optional UX issue tracker
+ * @returns true if "Connected" badge found for the peer
+ */
+export async function verifyConnectedBadgeInModal(
+  page: Page,
+  myUsername: string,
+  peerUsername: string,
+  timeoutMs: number = 15000,
+  uxTracker: UxIssueTracker | null = null
+): Promise<boolean> {
+  console.log(`\n=== ${myUsername}: Verifying "Connected" badge for ${peerUsername} ===`);
+
+  const startTime = Date.now();
+  const pollInterval = 500;
+
+  // The modal should already be open - verify it
+  const modal = page.locator('[role="dialog"]:has-text("Peer Discovery")');
+  if (!await modal.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log('  ERROR: Peer Discovery modal is not open');
+    if (uxTracker) {
+      uxTracker.log('critical', 'functional', 'Peer Discovery modal not open for badge verification');
+    }
+    return false;
+  }
+
+  // Look for the peer's row and check for "Connected" badge with checkmark icon
+  // The badge HTML structure: <Badge><UserCheck icon/>Connected</Badge>
+  // The Badge has class bg-blue-500/20 and text "Connected"
+  while (Date.now() - startTime < timeoutMs) {
+    // Find the peer's row in the modal
+    const peerRow = modal.locator(`div.rounded-lg:has(p.font-medium:text-is("${peerUsername}"))`).first();
+
+    if (await peerRow.isVisible({ timeout: 500 }).catch(() => false)) {
+      // Check for "Connected" badge within this peer's row
+      // The badge has: bg-blue-500/20 class, UserCheck icon (lucide-user-check), and text "Connected"
+      const connectedBadge = peerRow.locator('[class*="bg-blue-500"]:has-text("Connected"), div:has(svg.lucide-user-check):has-text("Connected")').first();
+
+      if (await connectedBadge.isVisible({ timeout: 100 }).catch(() => false)) {
+        console.log(`  SUCCESS: Found "Connected" badge for ${peerUsername}`);
+        await takeScreenshot(page, `${myUsername}_connected_badge_verified`);
+        return true;
+      }
+
+      // Also check for "Awaiting Response..." button (means badge hasn't updated yet)
+      const awaitingBtn = peerRow.locator('button:has-text("Awaiting Response")');
+      if (await awaitingBtn.isVisible({ timeout: 100 }).catch(() => false)) {
+        console.log(`  Still showing "Awaiting Response..." (waiting for PeerRegisterSuccess event)`);
+      }
+    }
+
+    await sleep(pollInterval);
+  }
+
+  console.log(`  FAIL: "Connected" badge for ${peerUsername} not found after ${timeoutMs}ms`);
+  await takeScreenshot(page, `${myUsername}_connected_badge_not_found`);
+
+  if (uxTracker) {
+    uxTracker.log('critical', 'functional', `"Connected" badge for ${peerUsername} not shown after peer accepted request`);
+  }
+
+  return false;
+}
+
+/**
+ * Close the Peer Discovery modal (helper for after verifyConnectedBadgeInModal)
+ */
+export async function closePeerDiscoveryModal(page: Page): Promise<void> {
+  console.log('  Closing Peer Discovery modal');
   await page.keyboard.press('Escape');
   await sleep(500);
-  return peerFound;
 }
 
 /**

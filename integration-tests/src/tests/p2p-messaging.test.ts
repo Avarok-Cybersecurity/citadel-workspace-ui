@@ -29,6 +29,8 @@ import {
   setupConsoleCapture,
   logObservation,
   UxIssueTracker,
+  verifyConnectedBadgeInModal,
+  closePeerDiscoveryModal,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -42,6 +44,14 @@ interface TestResults {
   };
   p2pRegistration: boolean;
   p2pAccept: boolean;
+  /**
+   * After Bob accepts Alice's registration request, Alice's Peer Discovery modal
+   * should immediately show "Connected" badge for Bob. This verifies that the
+   * PeerRegisterSuccess event correctly updates the registeredPeers state in the UI.
+   * "Connected" in this context means "Registered" - the peer relationship is
+   * established for direct P2P messaging.
+   */
+  connectedBadgeShown: boolean;
   conversationOpen: {
     user1: boolean;
     user2: boolean;
@@ -138,6 +148,7 @@ async function runTest(): Promise<boolean> {
     accountCreation: { user1: false, user2: false },
     p2pRegistration: false,
     p2pAccept: false,
+    connectedBadgeShown: false,
     conversationOpen: { user1: false, user2: false },
     messaging: {
       user1ToUser2: false,
@@ -191,7 +202,11 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 2: P2P Registration');
     console.log('─'.repeat(50));
 
-    results.p2pRegistration = await p2pRegister(page1, USER1, USER2, uxTracker);
+    // Keep modal open so we can verify the "Connected" badge after Bob accepts
+    results.p2pRegistration = await p2pRegister(page1, USER1, USER2, {
+      uxTracker,
+      keepModalOpen: true,  // Keep Alice's modal open for badge verification
+    });
 
     // ========== STEP 3: Accept P2P Request ==========
     console.log('\n' + '─'.repeat(50));
@@ -200,6 +215,28 @@ async function runTest(): Promise<boolean> {
 
     await sleep(3000);
     results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker);
+
+    // ========== STEP 3.5: Verify "Connected" Badge in Alice's Modal ==========
+    // After Bob accepts, Alice's still-open modal should show "Connected" badge
+    // This verifies that the PeerRegisterSuccess event correctly updates the UI
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 3.5: Verify "Connected" Badge');
+    console.log('─'.repeat(50));
+
+    // Give time for PeerRegisterSuccess event to propagate to Alice
+    await sleep(2000);
+
+    // Verify the badge appears in Alice's modal (should now show "Connected" for Bob)
+    results.connectedBadgeShown = await verifyConnectedBadgeInModal(
+      page1,
+      USER1,
+      USER2,
+      15000,  // 15 second timeout
+      uxTracker
+    );
+
+    // Close Alice's modal now that we've verified the badge
+    await closePeerDiscoveryModal(page1);
 
     // Wait for connection to establish
     console.log('\n  Waiting for P2P connection to establish...');
@@ -330,6 +367,7 @@ async function runTest(): Promise<boolean> {
       results.accountCreation.user1 &&
       results.accountCreation.user2 &&
       results.p2pRegistration &&
+      results.connectedBadgeShown &&  // Badge verification is now required
       results.conversationOpen.user1 &&
       results.conversationOpen.user2 &&
       results.messaging.user1ToUser2 &&
@@ -346,6 +384,10 @@ async function runTest(): Promise<boolean> {
     console.log(`  Account Creation (Bob):       ${results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
     console.log(`  P2P Registration:             ${results.p2pRegistration ? 'PASS' : 'FAIL'}`);
     console.log(`  P2P Accept:                   ${results.p2pAccept ? 'PASS' : 'SKIPPED'}`);
+    // "Connected" badge verification - after Bob accepts Alice's request, Alice's modal should
+    // immediately show "Connected" (which means "Registered" in P2P terminology - the peer
+    // relationship is established for direct messaging)
+    console.log(`  Connected Badge (Alice UI):   ${results.connectedBadgeShown ? 'PASS' : 'FAIL'}`);
     console.log(`  Open Conversation (Alice):    ${results.conversationOpen.user1 ? 'PASS' : 'FAIL'}`);
     console.log(`  Open Conversation (Bob):      ${results.conversationOpen.user2 ? 'PASS' : 'FAIL'}`);
     console.log(`  Alice -> Bob Message:         ${results.messaging.user1ToUser2 ? 'PASS' : 'FAIL'}`);

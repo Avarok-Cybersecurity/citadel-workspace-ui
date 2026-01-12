@@ -86,6 +86,36 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     };
   }, [isOpen]);
 
+  // Listen for PeerRegisterSuccess/PeerConnectSuccess to update registeredPeers state.
+  // This handles the case where Alice sends a Register request to Bob, Bob accepts,
+  // and Alice's modal should immediately show "Connected" (which means "Registered"
+  // in P2P terminology - the peer relationship is now established for direct messaging).
+  useEffect(() => {
+    const handleRegistrationSuccess = (message: any) => {
+      // Handle PeerRegisterSuccess - peer is now registered with us
+      if (message.PeerRegisterSuccess) {
+        const peerCid = message.PeerRegisterSuccess.peer_cid?.toString();
+        if (peerCid) {
+          console.log('[PeerDiscoveryModal] PeerRegisterSuccess - marking peer as connected:', peerCid);
+          setRegisteredPeers(prev => new Set([...prev, peerCid]));
+        }
+      }
+      // Handle PeerConnectSuccess - P2P channel established (also means registered)
+      if (message.PeerConnectSuccess) {
+        const peerCid = message.PeerConnectSuccess.peer_cid?.toString();
+        if (peerCid) {
+          console.log('[PeerDiscoveryModal] PeerConnectSuccess - marking peer as connected:', peerCid);
+          setRegisteredPeers(prev => new Set([...prev, peerCid]));
+        }
+      }
+    };
+
+    eventEmitter.on('websocket-message', handleRegistrationSuccess);
+    return () => {
+      eventEmitter.off('websocket-message', handleRegistrationSuccess);
+    };
+  }, []);
+
   // Set up listener for incoming registration notifications
   // Delegate to peerRegistrationStore for persistence and non-disruptive UX
   useEffect(() => {

@@ -82,7 +82,10 @@ export {
   assertSessionInOrphanNavbar,
   loginAfterDisconnect,
   reconnectViaClaimSession,
+  verifyConnectedBadgeInModal,  // Verify "Connected" badge in Peer Discovery modal
+  closePeerDiscoveryModal,      // Close Peer Discovery modal
 } from './p2p.js';
+export type { P2PRegisterOptions } from './p2p.js';
 
 // Messaging
 export { sendMessage, verifyMessageReceived, verifyMessageOrder, verifyMessagesSeen, waitForAllMessages } from './messaging.js';
