@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Debug Bridge Test</title>
+</head>
+<body>
+    <h1>WASM Debug Bridge Test</h1>
+    <button id="runTests">Run Tests</button>
+    <pre id="output"></pre>
+
+    <script type="module">
+        // Import and setup
+        import { setupWasmDebugBridge } from './src/lib/wasm-debug-bridge.ts';
+        import { formatForDebug } from './src/lib/debug-formatter.ts';
+        
+        setupWasmDebugBridge();
+        
+        const output = document.getElementById('output');
+        const originalLog = console.log;
+        
+        // Capture console logs
+        const logs = [];
+        console.log = (...args) => {
+            const msg = args.join(' ');
+            logs.push(msg);
+            output.textContent += msg + '\n';
+            originalLog.apply(console, args);
+        };
+        
+        document.getElementById('runTests').addEventListener('click', () => {
+            logs.length = 0;
+            output.textContent = '';
+            
+            console.log('=== WASM Debug Bridge Tests ===\n');
+            
+            // Test cases
+            const testCases = [
+                'hello world 123',
+                '{"key": "value"}',
+                '{"key": "value"} hello world 456',
+                'hello world 123 {"key": "value"} hello world 456',
+                'start {"key1": "value1"} middle {"key2": "value2"} end',
+                '{"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}',
+                '[1, 2, 3, 4, 5]',
+                'Complex: {"user": {"name": "John", "bytes": [255, 254, 253, 252, 251, 250, 249, 248, 247, 246]}, "status": "active"} done',
+                '{invalid json} should remain as text',
+                ''
+            ];
+            
+            testCases.forEach((testCase, i) => {
+                console.log(`\nTest ${i + 1}: "${testCase}"`);
+                console.log('Input length:', testCase.length);
+                window.wasmDebugLog(testCase);
+                console.log('---');
+            });
+            
+            console.log('\n=== Tests Complete ===');
+            console.log = originalLog;
+        });
+    </script>
+</body>
+</html>

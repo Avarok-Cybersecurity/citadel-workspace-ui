@@ -1,0 +1,154 @@
+/**
+ * GroupMessageFooter Component
+ *
+ * Displays read indicators for group messages:
+ * - Single check (gray): Message sent
+ * - Double check (amber/yellow): Some members have read (partial)
+ * - Double check (blue): All members have read
+ *
+ * Includes tooltip showing who has viewed when not all members have seen it.
+ */
+
+import { Check, CheckCheck } from 'lucide-react';
+import { GroupMessage, GroupMessageReadBy } from '@/types/workspace-entities';
+import { formatTime } from './shared';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+interface GroupMessageFooterProps {
+  message: GroupMessage;
+  isOwn: boolean;
+  /** Total number of members in the group (excluding sender) */
+  totalMembers: number;
+}
+
+type ReadStatus = 'sent' | 'partial' | 'all_read';
+
+function getReadStatus(message: GroupMessage, totalMembers: number): ReadStatus {
+  const readBy = message.read_by || [];
+  const readCount = readBy.length;
+
+  if (readCount === 0) {
+    return 'sent';
+  }
+
+  // All members (excluding sender) have read
+  if (readCount >= totalMembers - 1) {
+    return 'all_read';
+  }
+
+  return 'partial';
+}
+
+function getReadStatusIcon(status: ReadStatus) {
+  switch (status) {
+    case 'sent':
+      return <Check className="h-3 w-3 text-gray-400" data-testid="message-status-sent" />;
+    case 'partial':
+      // Amber/yellow for partial reads
+      return <CheckCheck className="h-3 w-3 text-amber-400" data-testid="message-status-partial" />;
+    case 'all_read':
+      // Blue for all read
+      return <CheckCheck className="h-3 w-3 text-sky-400" data-testid="message-status-all-read" />;
+    default:
+      return null;
+  }
+}
+
+interface ReadByTooltipContentProps {
+  readBy: GroupMessageReadBy[];
+  totalMembers: number;
+  status: ReadStatus;
+}
+
+function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipContentProps) {
+  if (status === 'all_read') {
+    return (
+      <div className="text-sm">
+        <p className="text-sky-400 font-medium">Read by everyone</p>
+        <p className="text-xs text-gray-400 mt-1">
+          {readBy.length} member{readBy.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+    );
+  }
+
+  if (status === 'partial') {
+    const unreadCount = (totalMembers - 1) - readBy.length;
+    return (
+      <div className="text-sm max-w-[200px]">
+        <p className="text-amber-400 font-medium mb-2">
+          Seen by {readBy.length} of {totalMembers - 1}
+        </p>
+        <div className="space-y-1">
+          <p className="text-xs text-gray-400">Viewed by:</p>
+          {readBy.map((reader) => (
+            <div key={reader.user_id} className="flex items-center gap-2 text-xs">
+              <span className="text-gray-300">{reader.user_name}</span>
+              <span className="text-gray-500">
+                {formatTime(reader.read_at)}
+              </span>
+            </div>
+          ))}
+        </div>
+        {unreadCount > 0 && (
+          <p className="text-xs text-gray-500 mt-2">
+            {unreadCount} member{unreadCount !== 1 ? 's' : ''} haven't seen this yet
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // Sent status
+  return (
+    <div className="text-sm">
+      <p className="text-gray-400">Message sent</p>
+      <p className="text-xs text-gray-500 mt-1">Not yet read by anyone</p>
+    </div>
+  );
+}
+
+export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessageFooterProps) {
+  const readBy = message.read_by || [];
+  const status = getReadStatus(message, totalMembers);
+  const statusIcon = getReadStatusIcon(status);
+
+  return (
+    <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+      <span className="text-xs opacity-70" data-testid="message-timestamp">
+        {formatTime(message.timestamp)}
+      </span>
+      {message.edited_at && (
+        <span className="text-xs text-gray-500 italic">(edited)</span>
+      )}
+      {isOwn && statusIcon && (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help inline-flex">
+                {statusIcon}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              className="bg-[#1C1D28] border-gray-700 p-3"
+            >
+              <ReadByTooltipContent
+                readBy={readBy}
+                totalMembers={totalMembers}
+                status={status}
+              />
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  );
+}
+
+export default GroupMessageFooter;

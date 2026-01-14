@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-01-09T15:01:47.225Z",
+  "users": {
+    "user1": "offline_alice_1767970732629",
+    "user2": "offline_bob_1767970732629"
+  },
+  "results": {
+    "accountCreation": {
+      "user1": true,
+      "user2": true
+    },
+    "p2pRegistration": true,
+    "p2pAccept": true,
+    "conversationOpen": {
+      "user1": true,
+      "user2": true
+    },
+    "initialMessaging": {
+      "user1ToUser2": true,
+      "user2ToUser1": true,
+      "user1Received": true,
+      "user2Received": true
+    },
+    "disconnection": {
+      "user2Disconnected": true,
+      "sessionOrphaned": true
+    },
+    "offlineMessages": {
+      "message1Sent": true,
+      "message2Sent": true,
+      "message3Sent": true
+    },
+    "reconnection": {
+      "user2Reconnected": true,
+      "claimSessionSuccess": true
+    },
+    "offlineDelivery": {
+      "message1Received": true,
+      "message2Received": true,
+      "message3Received": true
+    },
+    "postReconnectMessaging": {
+      "user1ToUser2": true,
+      "user2ToUser1": true,
+      "user1Received": true,
+      "user2Received": true
+    }
+  },
+  "uxIssues": [],
+  "passed": true
+}

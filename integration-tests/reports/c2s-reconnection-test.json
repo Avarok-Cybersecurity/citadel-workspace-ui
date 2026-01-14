@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-01-07T22:27:47.838Z",
+  "testName": "C2S Reconnection Test",
+  "username": "c2s_reconnect_1767824806625",
+  "results": [
+    {
+      "step": "Phase 1: Create Account",
+      "status": "PASS",
+      "notes": "Created c2s_reconnect_1767824806625"
+    },
+    {
+      "step": "Phase 2: Verify Initial Connection",
+      "status": "PASS",
+      "notes": "On workspace page: http://127.0.0.1:5173/workspace?id=root&officeId=7ff9c3b0-116e-48da-bbb6-7a2df5aac745"
+    },
+    {
+      "step": "Phase 3: Logout",
+      "status": "PASS",
+      "notes": "Successfully logged out via TopBar"
+    },
+    {
+      "step": "Phase 3: Session Not Orphaned",
+      "status": "PASS",
+      "notes": "Session correctly NOT in OrphanSessionsNavbar after explicit disconnect"
+    },
+    {
+      "step": "Phase 4: Login Again",
+      "status": "PASS",
+      "notes": "Successfully logged back in"
+    },
+    {
+      "step": "Phase 5: Verify Connection Restored",
+      "status": "PASS",
+      "notes": "Workspace loaded at: http://127.0.0.1:5173/workspace?id=root&officeId=7ff9c3b0-116e-48da-bbb6-7a2df5aac745"
+    },
+    {
+      "step": "Phase 6: No \"Session Already Connected\" Errors",
+      "status": "PASS",
+      "notes": "No session errors detected"
+    },
+    {
+      "step": "Phase 6: No Ratchet Errors",
+      "status": "PASS",
+      "notes": "No ratchet errors detected"
+    }
+  ],
+  "uxIssues": [],
+  "consoleErrors": [],
+  "passed": true
+}

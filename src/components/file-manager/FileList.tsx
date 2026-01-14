@@ -65,7 +65,7 @@ export const FileList = ({ files, type, onFileClick, onDelete }: FileListProps) 
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log('Accept file:', file.id);
+                          console.info('Accept file:', file.id);
                         }}
                         className="hover:bg-green-500 hover:text-white"
                       >
@@ -76,7 +76,7 @@ export const FileList = ({ files, type, onFileClick, onDelete }: FileListProps) 
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log('Deny file:', file.id);
+                          console.info('Deny file:', file.id);
                         }}
                         className="hover:bg-red-500 hover:text-white"
                       >

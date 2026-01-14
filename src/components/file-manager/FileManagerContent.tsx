@@ -1,20 +1,60 @@
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FilePreviewDialog } from "@/components/layout/sidebar/FilePreviewDialog";
 import { toast } from "sonner";
 import type { FileMetadata } from "@/types/files";
-import { files as sidebarFiles } from "@/components/layout/sidebar/FilesSection";
+import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer-service";
+import { eventEmitter } from "@/lib/event-emitter";
 import { FileManagerTabs } from "./FileManagerTabs";
 import { DeleteDialog } from "./DeleteDialog";
 import { ClearAllDialog } from "./ClearAllDialog";
 import { VFSBrowser } from "./VFSBrowser";
 
-const standardFiles = sidebarFiles.map(file => ({
-  ...file,
-  transferType: 'standard' as const,
-}));
+/**
+ * Format bytes to human readable size
+ */
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
 
-const mockRevfsFiles = [
+/**
+ * Format timestamp to readable date
+ */
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  return date.toLocaleString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+/**
+ * Convert FileTransfer to FileMetadata for file manager
+ */
+function mapTransferToFileMetadata(transfer: FileTransfer): FileMetadata {
+  return {
+    id: transfer.id,
+    name: transfer.fileName,
+    type: transfer.fileType || 'Unknown',
+    size: transfer.fileSize,
+    sender: {
+      name: transfer.senderCid.slice(0, 12) + '...',
+    },
+    createdAt: formatDate(transfer.updatedAt),
+    url: transfer.downloadPath,
+    transferType: 'standard' as const,
+  };
+}
+
+const mockRevfsFiles: FileMetadata[] = [
   {
     id: "revfs-1",
     name: "Secure Document.pdf",
@@ -37,12 +77,39 @@ const mockRevfsFiles = [
   }
 ];
 
-const allFiles = [...standardFiles, ...mockRevfsFiles];
-
 export const FileManagerContent = () => {
   const [selectedFile, setSelectedFile] = useState<FileMetadata | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [files, setFiles] = useState(allFiles);
+  const [files, setFiles] = useState<FileMetadata[]>(mockRevfsFiles);
+
+  /**
+   * Load files from FileTransferService
+   */
+  const loadFiles = useCallback(() => {
+    const downloads = fileTransferService.getAllTransfers()
+      .filter(t => t.state === 'complete' && t.isIncoming)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .map(mapTransferToFileMetadata);
+
+    // Combine downloaded files with REVFS mock files
+    setFiles([...downloads, ...mockRevfsFiles]);
+  }, []);
+
+  useEffect(() => {
+    // Initial load
+    loadFiles();
+
+    // Subscribe to file transfer completion events
+    const handleCompleted = () => {
+      loadFiles();
+    };
+
+    eventEmitter.on(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
+
+    return () => {
+      eventEmitter.off(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
+    };
+  }, [loadFiles]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<FileMetadata | null>(null);

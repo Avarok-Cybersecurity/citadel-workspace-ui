@@ -1,0 +1,42 @@
+{
+  "name": "cw-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Citadel Workspace",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node dist/tests/p2p-messaging.test.js",
+    "test:p2p": "npm run build && node dist/tests/p2p-messaging.test.js",
+    "test:live-doc": "npm run build && node dist/tests/live-doc-sync.test.js",
+    "test:group": "npm run build && node dist/tests/group-messaging.test.js",
+    "test:group-multiuser": "npm run build && node dist/tests/group-messaging-multiuser.test.js",
+    "test:office-chat": "npm run build && node dist/tests/group-chat/office-chat.test.js",
+    "test:room-chat": "npm run build && node dist/tests/group-chat/room-chat.test.js",
+    "test:peer-group": "npm run build && node dist/tests/group-chat/peer-group.test.js",
+    "test:all-group": "npm run test:office-chat && npm run test:room-chat && npm run test:peer-group",
+    "test:crud": "npm run build && node dist/tests/office-room-crud.test.js",
+    "test:login": "npm run build && node dist/tests/login-flow.test.js",
+    "test:prev-sessions": "npm run build && node dist/tests/previous-sessions.test.js",
+    "test:file-transfer": "npm run build && node dist/tests/file-transfer.test.js",
+    "test:offline": "npm run build && node dist/tests/offline-messaging.test.js",
+    "test:hard-disconnect": "npm run build && node dist/tests/hard-disconnect-offline.test.js",
+    "test:permissions": "npm run build && node dist/tests/permissions.test.js",
+    "test:admin-modal": "npm run build && node dist/tests/admin-modal.test.js",
+    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
