@@ -21,6 +21,7 @@ import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { mapSecuritySettings } from "@/lib/security-utils";
 import { ConnectLoadingModal, type ConnectStatus } from "./LoadingModal";
+import { safeJSONStringify } from "@/lib/storage-utils";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -110,7 +111,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         }
       };
 
-      console.info("Register Payload:", JSON.stringify(registerPayload, null, 2));
+      console.info("Register Payload:", safeJSONStringify(registerPayload, 2));
 
       // Generate request ID first to avoid race condition
       const requestId = crypto.randomUUID();
@@ -128,7 +129,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
 
         const handler = (message: any) => {
           console.log('Registration response received:', message);
-          console.log('Response content:', JSON.stringify(message, null, 2));
+          console.log('Response content:', safeJSONStringify(message, 2));
           console.log('Expected requestId:', requestId);
           
           // Handle both wrapped and unwrapped responses

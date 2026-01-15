@@ -44,6 +44,7 @@ import { eventEmitter } from './event-emitter';
 import { instanceManager } from './instance-manager';
 import { getSelectedUser } from './tab-context';
 import { P2P_CONSTANTS } from './constants';
+import { safeJSONStringify } from './storage-utils';
 
 interface ConnectionAttempt {
   attempts: number;
@@ -783,7 +784,7 @@ export class P2PAutoConnectService {
    * 1. Verify notification.cid matches our current CID (we are the TARGET)
    */
   public async handleIncomingPeerConnect(notification: any): Promise<void> {
-    console.log(`[P2P-DEBUG] handleIncomingPeerConnect RECEIVED:`, JSON.stringify(notification));
+    console.log(`[P2P-DEBUG] handleIncomingPeerConnect RECEIVED:`, safeJSONStringify(notification));
 
     // FIXED: notification.cid is TARGET (us), notification.peer_cid is INITIATOR (them)
     const targetCid = notification.cid?.toString();       // Who should accept (us)

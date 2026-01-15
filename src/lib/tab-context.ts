@@ -1,10 +1,12 @@
 /**
  * Tab Context Manager
  * Provides tab-specific storage and identification
- * 
+ *
  * This allows different browser tabs to maintain independent selected user state
  * while still sharing user data across tabs when appropriate.
  */
+
+import { bigIntReplacer } from './storage-utils';
 
 // Generate or retrieve a unique tab identifier
 export function getTabId(): string {
@@ -50,7 +52,7 @@ export function getSharedKey(key: string): string {
  */
 export function setTabData<T>(key: string, value: T): void {
   const storageKey = getTabSpecificKey(key);
-  sessionStorage.setItem(storageKey, JSON.stringify(value));
+  sessionStorage.setItem(storageKey, JSON.stringify(value, bigIntReplacer));
 }
 
 /**
@@ -90,7 +92,7 @@ export function removeTabData(key: string): void {
  */
 export function setSharedData<T>(key: string, value: T): void {
   const storageKey = getSharedKey(key);
-  localStorage.setItem(storageKey, JSON.stringify(value));
+  localStorage.setItem(storageKey, JSON.stringify(value, bigIntReplacer));
 }
 
 /**
