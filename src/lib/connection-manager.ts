@@ -27,6 +27,31 @@ import { serverAutoConnectService } from './server-auto-connect-service';
 import { SessionSecuritySettings } from './p2p-registration-service';
 
 /**
+ * Normalize BigInt CIDs in WASM responses to strings.
+ * WASM with serde-wasm-bindgen serializes u64 as JavaScript BigInt,
+ * but our TypeScript code expects string CIDs throughout.
+ */
+function normalizeCidsToString(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(normalizeCidsToString);
+
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Convert CID fields from BigInt to string
+    if ((key === 'cid' || key === 'peer_cid' || key === 'session_cid') && typeof value === 'bigint') {
+      result[key] = value.toString();
+    } else if (typeof value === 'object') {
+      result[key] = normalizeCidsToString(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
  * ConnectionManager handles persistent connection management across sessions
  * It stores credentials securely and automatically reconnects when needed
  *
@@ -284,7 +309,8 @@ export class ConnectionManager {
       this.invalidateSessionCache();
       const cid = response.RegisterSuccess?.cid || response.ConnectSuccess?.cid;
       if (cid) {
-        this.handleSuccessfulConnection(cid);
+        // Convert BigInt CID to string (WASM serializes u64 as BigInt)
+        this.handleSuccessfulConnection(cid.toString());
       }
     }
 
@@ -511,7 +537,9 @@ export class ConnectionManager {
       const response = await responsePromise;
       // PERF FIX: Removed per-response logging - this is called every 2 seconds
 
-      return response.sessions || [];
+      // Normalize BigInt CIDs to strings (WASM serializes u64 as BigInt)
+      const sessions = response.sessions || [];
+      return sessions.map(normalizeCidsToString) as ActiveSession[];
     } catch (error) {
       console.error('ConnectionManager: Failed to get active sessions', error);
       // Return empty array on error to allow initialization to continue
