@@ -930,6 +930,7 @@ class WebSocketService {
    */
   async sendMessage(message: any): Promise<void> {
     await this.init();
+    // CID conversion is now handled by WorkspaceClient.sendDirectToInternalService override
     await this.client.sendDirectToInternalService(message);
   }
 

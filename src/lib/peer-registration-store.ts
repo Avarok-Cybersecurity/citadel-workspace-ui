@@ -690,7 +690,7 @@ class PeerRegistrationStore {
     const request = {
       LocalDBSetKV: {
         request_id: requestId,
-        cid: 0, // Global storage
+        cid: 0n, // Global storage (BigInt for WASM u64)
         peer_cid: null,
         key: STORAGE_KEY,
         value: Array.from(new TextEncoder().encode(valueStr))
@@ -734,7 +734,7 @@ class PeerRegistrationStore {
     const request = {
       LocalDBGetKV: {
         request_id: requestId,
-        cid: 0, // Global storage
+        cid: 0n, // Global storage (BigInt for WASM u64)
         peer_cid: null,
         key: STORAGE_KEY
       }
@@ -797,7 +797,7 @@ class PeerRegistrationStore {
     const request = {
       LocalDBSetKV: {
         request_id: requestId,
-        cid: 0, // Global storage
+        cid: 0n, // Global storage (BigInt for WASM u64)
         peer_cid: null,
         key: OUTGOING_STORAGE_KEY,
         value: Array.from(new TextEncoder().encode(valueStr))
@@ -841,7 +841,7 @@ class PeerRegistrationStore {
     const request = {
       LocalDBGetKV: {
         request_id: requestId,
-        cid: 0, // Global storage
+        cid: 0n, // Global storage (BigInt for WASM u64)
         peer_cid: null,
         key: OUTGOING_STORAGE_KEY
       }
