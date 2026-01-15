@@ -3,13 +3,29 @@
  */
 
 /**
+ * JSON replacer that converts BigInt to string for serialization
+ * BigInt values come from WASM responses (serde-wasm-bindgen serializes u64 as BigInt)
+ */
+export function bigIntReplacer(_key: string, value: any): any {
+  return typeof value === 'bigint' ? value.toString() : value;
+}
+
+/**
+ * JSON stringify that handles BigInt values
+ * Use this instead of JSON.stringify when working with WASM response data
+ */
+export function safeJSONStringify(data: any, space?: number): string {
+  return JSON.stringify(data, bigIntReplacer, space);
+}
+
+/**
  * Save data to local storage with a specific key
  * @param key Storage key
  * @param data Data to store
  */
 export function saveToStorage<T>(key: string, data: T): void {
   try {
-    const serializedData = JSON.stringify(data);
+    const serializedData = JSON.stringify(data, bigIntReplacer);
     localStorage.setItem(key, serializedData);
   } catch (error) {
     console.error(`Error saving to storage with key '${key}':`, error);

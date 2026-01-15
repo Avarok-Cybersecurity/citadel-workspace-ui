@@ -22,6 +22,7 @@ import {
   GetSessionsResponse
 } from '@/types/session-types';
 import { formatForDebug } from './debug-formatter';
+import { safeJSONStringify } from './storage-utils';
 import { serverAutoConnectService } from './server-auto-connect-service';
 import { SessionSecuritySettings } from './p2p-registration-service';
 
@@ -915,9 +916,9 @@ export class ConnectionManager {
     console.log('  Value:', value);
     console.log('  Request ID:', requestId);
     
-    const valueStr = JSON.stringify(value);
+    const valueStr = safeJSONStringify(value);
     console.log('  Serialized value:', formatForDebug(valueStr));
-    
+
     const request = {
       LocalDBSetKV: {
         request_id: requestId,
@@ -927,9 +928,9 @@ export class ConnectionManager {
         value: Array.from(new TextEncoder().encode(valueStr))
       }
     };
-    
+
     // TODO: debug format the below text since it is very large for some types
-    console.log('  Full request:', formatForDebug(JSON.stringify(request)));
+    console.log('  Full request:', formatForDebug(safeJSONStringify(request)));
     
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(requestId, { resolve, reject });

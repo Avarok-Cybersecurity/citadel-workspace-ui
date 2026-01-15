@@ -685,7 +685,9 @@ class PeerRegistrationStore {
    */
   private async persistToLocalDB(): Promise<void> {
     const requestId = crypto.randomUUID();
-    const valueStr = JSON.stringify(this.pendingRequests);
+    // Use safeJSONStringify to handle BigInt CID values from WASM
+    const { safeJSONStringify } = await import('./storage-utils');
+    const valueStr = safeJSONStringify(this.pendingRequests);
 
     const request = {
       LocalDBSetKV: {
@@ -792,7 +794,9 @@ class PeerRegistrationStore {
    */
   private async persistOutgoingToLocalDB(): Promise<void> {
     const requestId = crypto.randomUUID();
-    const valueStr = JSON.stringify(this.outgoingRequests);
+    // Use safeJSONStringify to handle BigInt CID values from WASM
+    const { safeJSONStringify } = await import('./storage-utils');
+    const valueStr = safeJSONStringify(this.outgoingRequests);
 
     const request = {
       LocalDBSetKV: {
