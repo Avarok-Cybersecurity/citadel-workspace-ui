@@ -134,10 +134,7 @@ class WebSocketService {
     
     const clientConfig: WorkspaceClientConfig = {
       websocketUrl: this.config.websocketUrl!,
-      messageHandler: (rawMessage: InternalServiceResponse) => {
-        // With serde-wasm-bindgen and ts_rs bigint annotations, WASM returns native BigInt for u64 CID fields
-        const message = rawMessage;
-
+      messageHandler: (message: InternalServiceResponse) => {
         debugLog('websocket', 'Message received from WASM client', message);
 
         // DEBUG: Log Connect responses specifically
@@ -746,7 +743,7 @@ class WebSocketService {
     const request = {
       Disconnect: {
         request_id: requestId,
-        cid: cid
+        cid: cid // Send CID as string - Rust side will parse to u64
       }
     };
 
@@ -812,7 +809,7 @@ class WebSocketService {
     const request = {
       Deregister: {
         request_id: requestId,
-        cid: cid
+        cid: cid // Send CID as string - Rust side will parse to u64
       }
     };
 
@@ -925,12 +922,74 @@ class WebSocketService {
   }
 
   /**
+   * Convert BigInt values to strings recursively for JSON serialization
+   */
+  private convertBigIntToString(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    if (typeof obj === 'bigint') {
+      return obj.toString();
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.convertBigIntToString(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const converted: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        converted[key] = this.convertBigIntToString(value);
+      }
+      return converted;
+    }
+    
+    return obj;
+  }
+
+  /**
    * Send a direct message to the internal service
-   * With serde-wasm-bindgen + ts_rs bigint annotations, BigInt CIDs pass directly to WASM
    */
   async sendMessage(message: any): Promise<void> {
-    await this.init();
-    await this.client.sendDirectToInternalService(message);
+    await this.init(); // ensure initialized
+
+    // First convert string CIDs to BigInt where needed, then convert back for serialization
+    const processedMessage = this.convertCidFieldsToBigInt(message);
+
+    // Log after BigInt conversion
+    if (message.Message) {
+      console.log('[P2P] After convertCidFieldsToBigInt:', {
+        cid: processedMessage.Message?.cid?.toString(),
+        cidType: typeof processedMessage.Message?.cid,
+        peer_cid: processedMessage.Message?.peer_cid?.toString(),
+        peer_cidType: typeof processedMessage.Message?.peer_cid
+      });
+    }
+
+    // Convert BigInt values to strings for JSON serialization
+    const jsonSerializableMessage = this.convertBigIntToString(processedMessage);
+
+    // Log after string conversion
+    if (message.Message) {
+      console.log('[P2P] After convertBigIntToString (final to WASM):', {
+        cid: jsonSerializableMessage.Message?.cid,
+        cidType: typeof jsonSerializableMessage.Message?.cid,
+        peer_cid: jsonSerializableMessage.Message?.peer_cid,
+        peer_cidType: typeof jsonSerializableMessage.Message?.peer_cid
+      });
+    }
+
+    debugLog('websocket', 'Sending message to internal service', jsonSerializableMessage);
+
+    // CRITICAL DEBUG: Log exact JSON being sent to WASM for ALL Message requests
+    if (jsonSerializableMessage.Message) {
+      const reqId = jsonSerializableMessage.Message.request_id;
+      const peerCid = jsonSerializableMessage.Message.peer_cid;
+      console.log(`[P2P-DEBUG] REQUEST_ID=${reqId} peer_cid=${peerCid} FINAL JSON:`, JSON.stringify(jsonSerializableMessage, null, 2));
+    }
+
+    await this.client.sendDirectToInternalService(jsonSerializableMessage);
   }
 
   /**
@@ -1016,7 +1075,7 @@ class WebSocketService {
         request_id: requestId,
         management_command: {
           ClaimSession: {
-            session_cid: sessionCidString,
+            session_cid: sessionCidString, // Send as string, the server should handle conversion
             only_if_orphaned: onlyIfOrphaned
           }
         }
@@ -1137,6 +1196,7 @@ class WebSocketService {
         request_id: crypto.randomUUID(),
         management_command: {
           ReleaseSession: {
+            // Use string representation - serde will parse it as u64
             session_cid: cidString
           }
         }
@@ -1458,6 +1518,35 @@ class WebSocketService {
         reject(error);
       });
     });
+  }
+
+  /**
+   * Convert CID fields from strings to BigInt where needed by the WASM client
+   */
+  private convertCidFieldsToBigInt(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.convertCidFieldsToBigInt(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const converted: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        // Convert CID-related fields to BigInt
+        if ((key === 'cid' || key === 'peer_cid' || key === 'session_cid') && 
+            typeof value === 'string' && value !== '') {
+          converted[key] = BigInt(value);
+        } else {
+          converted[key] = this.convertCidFieldsToBigInt(value);
+        }
+      }
+      return converted;
+    }
+    
+    return obj;
   }
 }
 

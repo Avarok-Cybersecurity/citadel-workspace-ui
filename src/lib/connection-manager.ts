@@ -1105,7 +1105,7 @@ export class ConnectionManager {
         request_id: requestId,
         management_command: {
           ClaimSession: {
-            session_cid: sessionCid.toString(),
+            session_cid: sessionCid.toString(), // Keep as string to preserve full precision
             only_if_orphaned: false // Allow claiming even if not orphaned
           }
         }
