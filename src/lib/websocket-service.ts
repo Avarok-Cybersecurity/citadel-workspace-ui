@@ -1202,10 +1202,11 @@ class WebSocketService {
       throw new Error('No WebSocket client available');
     }
 
+    // Convert string CID to BigInt for WASM (serde-wasm-bindgen expects BigInt for u64)
     const request = {
       LocalDBGetKV: {
         request_id: requestId,
-        cid: cid,
+        cid: BigInt(cid),
         peer_cid: null,
         key
       }
@@ -1252,10 +1253,11 @@ class WebSocketService {
       throw new Error('No WebSocket client available');
     }
 
+    // Convert string CID to BigInt for WASM (serde-wasm-bindgen expects BigInt for u64)
     const request = {
       LocalDBSetKV: {
         request_id: requestId,
-        cid: cid,
+        cid: BigInt(cid),
         peer_cid: null,
         key,
         value

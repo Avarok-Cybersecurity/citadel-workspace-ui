@@ -921,7 +921,7 @@ export class ConnectionManager {
     const request = {
       LocalDBSetKV: {
         request_id: requestId,
-        cid: 0, // Use 0 for global storage
+        cid: 0n, // Use BigInt 0 for global storage (serde-wasm-bindgen expects BigInt for u64)
         peer_cid: null,
         key,
         value: Array.from(new TextEncoder().encode(valueStr))
@@ -975,7 +975,7 @@ export class ConnectionManager {
     const request = {
       LocalDBGetAllKV: {
         request_id: requestId,
-        cid: 0, // Use 0 for global storage
+        cid: 0n, // Use BigInt 0 for global storage (serde-wasm-bindgen expects BigInt for u64)
         peer_cid: null
       }
     };
