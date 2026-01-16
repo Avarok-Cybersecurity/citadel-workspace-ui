@@ -20,6 +20,8 @@ export const ProtocolWarning: React.FC = () => {
       
       return () => clearTimeout(timer);
     }
+    // Only timestamp matters for triggering the timer reset
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.protocolWarning?.timestamp]);
   
   if (!state.protocolWarning || !visible) {

@@ -112,7 +112,6 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     }
     // NOTE: Intentionally NOT including execute in deps to prevent infinite re-triggering
     // The executeFnRef.current always has the latest execute function
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, hasInitialized, attempt]);
 
   // Handle countdown timer for auto-retry

@@ -94,6 +94,8 @@ export const ConnectionRequests: React.FC<ConnectionRequestsProps> = ({
     return () => {
       connectionService.cleanup();
     };
+    // Mount only: connectionService/getMemberName are stable singletons
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // Get member name from the workspace state

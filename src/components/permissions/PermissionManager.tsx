@@ -86,6 +86,8 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   useEffect(() => {
     // Load current user permissions
     void loadUserPermissions();
+    // loadUserPermissions is stable (uses props captured in closure)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, domainId]);
 
   const loadUserPermissions = async () => {

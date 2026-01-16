@@ -424,6 +424,8 @@ export function P2PChat({
       // Stop typing polling when unmounting or changing peer
       messenger.stopTypingPolling(peerCid);
     };
+    // messenger is a singleton, stable across renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerCid]);
 
   // Scroll to bottom when new messages arrive
@@ -608,6 +610,8 @@ export function P2PChat({
     } catch (error) {
       console.error('Failed to create live document:', error);
     }
+    // messenger is a singleton, stable across renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerCid, currentUserCid, handleOpenDocument]);
 
   // Handle closing a document tab

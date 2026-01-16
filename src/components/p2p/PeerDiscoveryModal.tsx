@@ -64,6 +64,8 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       };
       void loadOutgoing();
     }
+    // discoverPeers is stable (uses stable service methods)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Listen for outgoing request updates

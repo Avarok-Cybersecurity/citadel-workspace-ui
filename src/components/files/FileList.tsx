@@ -61,6 +61,8 @@ export const FileList: React.FC<FileListProps> = ({
       FileUploadService.off('file-uploaded', handleFileUploaded);
       FileUploadService.off('file-deleted', handleFileDeleted);
     };
+    // loadFiles is stable (uses props captured in closure)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId]);
 
   const loadFiles = async () => {

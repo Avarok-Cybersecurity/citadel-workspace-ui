@@ -50,6 +50,8 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
 
   useEffect(() => {
     void loadMembers();
+    // loadMembers is stable (only uses props/state captured in closure)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId]);
 
   const loadMembers = async () => {

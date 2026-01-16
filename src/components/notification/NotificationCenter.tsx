@@ -67,6 +67,8 @@ const NotificationCenter = () => {
     return () => {
       unregister();
     };
+    // notificationService is a singleton, stable across renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   
   // Filter notifications based on the active tab

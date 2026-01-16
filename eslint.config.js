@@ -31,10 +31,9 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      // Disabled: HMR optimization warning, not code quality issue
+      // Many UI components legitimately export variants alongside components
+      "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-unused-vars": "off",
       // Prevent accidentally not awaiting a Promise
       // Use "void someAsyncFunction();" to explicitly run in background

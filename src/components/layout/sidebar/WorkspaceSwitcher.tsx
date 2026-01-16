@@ -150,6 +150,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
         [currentWorkspace.id]: location.pathname + location.search
       }));
     }
+    // Only currentWorkspace.id matters, not the whole object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, currentWorkspace?.id]);
 
   const handleWorkspaceChange = async (workspace: StoredWorkspace) => {

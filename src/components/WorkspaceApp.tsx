@@ -221,6 +221,8 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
       eventEmitter.off('connection-failure', handleConnectionFailure);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
     };
+    // Mount only: event handlers use refs/callbacks, services are singletons
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

@@ -85,6 +85,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       eventEmitter.off('p2p:peers-updated', handlePeersUpdated);
       eventEmitter.off('p2p:messages-loaded', handleMessagesLoaded);
     };
+    // Mount only: loadPeers/messenger are stable across renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadPeers = () => {
