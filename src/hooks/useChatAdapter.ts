@@ -114,9 +114,9 @@ export function useChatAdapter(options: UseChatAdapterOptions): UseChatAdapterRe
 
     if (options.mode === 'p2p') {
       newAdapter = createP2PMessagingAdapter(
-        options.peerCid,
+        BigInt(options.peerCid),
         options.peerName,
-        options.currentUserId,
+        BigInt(options.currentUserId),
         options.currentUserName
       );
     } else {

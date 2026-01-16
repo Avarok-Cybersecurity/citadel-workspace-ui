@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, UserPlus, UserCheck, RefreshCw, Loader2 } from 'lucide-react';
 import { websocketService } from '@/lib/websocket-service';
+import { eventEmitter } from '@/lib/event-emitter';
 import { ConnectionService } from '@/lib/connection-service';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -52,33 +53,34 @@ export const PeerTest = () => {
         }
       };
 
-      // Send request via websocket
-      await websocketService.sendInternalServiceRequest(request);
-
       // Listen for response
       const handleResponse = (message: any) => {
         if (message.ListAllPeersResponse && message.ListAllPeersResponse.request_id === requestId) {
-          const peers = message.ListAllPeersResponse.peers || [];
-          setAllPeers(peers.map((p: any) => ({
+          const peerInfo = message.ListAllPeersResponse.peer_information || {};
+          const peerList = Object.values(peerInfo) as any[];
+          setAllPeers(peerList.map((p: any) => ({
             cid: BigInt(p.cid),
             username: p.username,
             is_online: p.is_online
           })));
-          
+
           toast({
             title: "Peers Loaded",
-            description: `Found ${peers.length} peers in the workspace`,
+            description: `Found ${peerList.length} peers in the workspace`,
             className: "bg-[#343A5C] border-purple-800 text-purple-200",
           });
         }
       };
 
       // Add listener
-      websocketService.on('websocket-message', handleResponse);
+      eventEmitter.on('websocket-message', handleResponse);
+
+      // Send request via websocket
+      await websocketService.sendMessage(request);
 
       // Clean up after 5 seconds
       setTimeout(() => {
-        websocketService.off('websocket-message', handleResponse);
+        eventEmitter.off('websocket-message', handleResponse);
       }, 5000);
 
     } catch (error) {
@@ -114,33 +116,34 @@ export const PeerTest = () => {
         }
       };
 
-      // Send request via websocket
-      await websocketService.sendInternalServiceRequest(request);
-
       // Listen for response
       const handleResponse = (message: any) => {
         if (message.ListRegisteredPeersResponse && message.ListRegisteredPeersResponse.request_id === requestId) {
-          const peers = message.ListRegisteredPeersResponse.peers || [];
-          setRegisteredPeers(peers.map((p: any) => ({
+          const peerInfo = message.ListRegisteredPeersResponse.peer_information || {};
+          const peerList = Object.values(peerInfo) as any[];
+          setRegisteredPeers(peerList.map((p: any) => ({
             cid: BigInt(p.cid),
             username: p.username,
             is_online: p.is_online
           })));
-          
+
           toast({
             title: "Registered Peers Loaded",
-            description: `Found ${peers.length} registered peers`,
+            description: `Found ${peerList.length} registered peers`,
             className: "bg-[#343A5C] border-purple-800 text-purple-200",
           });
         }
       };
 
       // Add listener
-      websocketService.on('websocket-message', handleResponse);
+      eventEmitter.on('websocket-message', handleResponse);
+
+      // Send request via websocket
+      await websocketService.sendMessage(request);
 
       // Clean up after 5 seconds
       setTimeout(() => {
-        websocketService.off('websocket-message', handleResponse);
+        eventEmitter.off('websocket-message', handleResponse);
       }, 5000);
 
     } catch (error) {
@@ -189,7 +192,7 @@ export const PeerTest = () => {
       };
 
       // Send request via websocket
-      await websocketService.sendInternalServiceRequest(request);
+      await websocketService.sendMessage(request);
 
       toast({
         title: "Registration Request Sent",

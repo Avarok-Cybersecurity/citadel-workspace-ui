@@ -86,7 +86,7 @@ export function GroupChatPage() {
 
     const handleMessageReceived = (data: {
       groupId: string;
-      senderId: string;
+      senderId: bigint | string;
       senderName: string;
       content: string;
     }) => {
@@ -94,7 +94,7 @@ export function GroupChatPage() {
         const newMessage: GroupMessage = {
           id: crypto.randomUUID(),
           groupId: data.groupId,
-          senderId: data.senderId,
+          senderId: typeof data.senderId === 'bigint' ? data.senderId : BigInt(data.senderId),
           senderName: data.senderName,
           messageType: 'Text',
           content: data.content,

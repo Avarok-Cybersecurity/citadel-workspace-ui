@@ -73,7 +73,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
    * Seamlessly redirect to an existing session instead of showing an error.
    * This provides a smooth UX - user doesn't need to know the session already exists.
    */
-  const redirectToExistingSession = async (session: { cid: string; username: string; server_address: string }) => {
+  const redirectToExistingSession = async (session: { cid: bigint; username: string; server_address: string }) => {
     try {
       console.log('Login: Redirecting to existing session seamlessly:', session.username);
 
@@ -85,7 +85,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       });
 
       // Update last accessed time for ordering in Previous Sessions navbar
-      const lastAccessedKey = `session_last_accessed_${session.cid}`;
+      const lastAccessedKey = `session_last_accessed_${session.cid.toString()}`;
       localStorage.setItem(lastAccessedKey, Date.now().toString());
 
       // Try to claim the session if it's orphaned
@@ -126,8 +126,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {
-        await wasmConnectionManager.start(session.cid);
-        console.log('Login: WASM connection manager started for CID:', session.cid);
+        await wasmConnectionManager.start(session.cid.toString());
+        console.log('Login: WASM connection manager started for CID:', session.cid.toString());
       } catch (error) {
         console.error('Login: Failed to start WASM connection manager:', error);
         // Don't block navigation - P2P messaging may not be immediately needed
@@ -140,7 +140,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       // CRITICAL: Emit session:activated to trigger P2P re-establishment
       // This ensures P2P channels are established when redirecting to existing session
       eventEmitter.emit('session:activated', {
-        cid: session.cid,
+        cid: session.cid.toString(),
         username: session.username,
         serverAddress: session.server_address,
         activationType: 'claim', // Treat as claim since we're reclaiming existing session
@@ -158,7 +158,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       });
 
       // Call onNext to complete the login flow
-      onNext(session.cid);
+      onNext(session.cid.toString());
     } catch (error) {
       console.error('Login: Failed to redirect to existing session:', error);
       toast({
@@ -198,7 +198,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       
       // Set up event listener to capture connection response BEFORE sending request
       let responseReceived = false;
-      const responsePromise = new Promise<string>((resolve, reject) => {
+      const responsePromise = new Promise<bigint>((resolve, reject) => {
         const timeout = setTimeout(() => {
           if (!responseReceived) {
             eventEmitter.off('websocket-message', handler);
@@ -230,7 +230,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
             // Redirect to the existing session
             redirectToExistingSession({
-              cid: cid.toString(),
+              cid: cid as bigint,
               username: sessionUsername || username.trim(),
               server_address: server
             }).finally(() => setLoading(false));
@@ -251,10 +251,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
               // If we have a valid cid from the error (not "0"), redirect to that session
               // Otherwise, look up the session by username from active sessions
               const errorCid = response.ConnectFailure.cid;
-              if (errorCid && errorCid !== '0' && errorCid !== 0) {
+              if (errorCid && errorCid !== 0n && errorCid !== BigInt(0)) {
                 // Redirect to the existing session seamlessly
                 redirectToExistingSession({
-                  cid: errorCid.toString(),
+                  cid: errorCid as bigint,
                   username: username.trim(),
                   server_address: server
                 }).finally(() => setLoading(false));
@@ -263,10 +263,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 // CID is 0 or missing - look up session by username
                 connectionManager.getActiveSessions().then(sessions => {
                   const matchingSession = sessions.find(s => s.username === username.trim());
-                  if (matchingSession) {
+                  if (matchingSession && matchingSession.cid !== undefined) {
                     redirectToExistingSession({
                       cid: matchingSession.cid,
-                      username: matchingSession.username,
+                      username: matchingSession.username ?? username.trim(),
                       server_address: matchingSession.server_address
                     }).finally(() => setLoading(false));
                   } else {
@@ -309,7 +309,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
         server,
         "", // No server password for login flow
         getDefaultSecuritySettings(),
-        cid.toString()
+        cid
       );
 
       // Set up workspace context and loading
@@ -317,11 +317,11 @@ export function Login({ onNext, onCancel }: LoginProps) {
       setSelectedUser({
         selectedUsername: username.trim(),
         selectedServerAddress: server,
-        selectedCid: cid.toString()
+        selectedCid: cid
       });
 
       // Set the connection ID in WorkspaceService
-      WorkspaceService.setConnectionId(cid.toString());
+      WorkspaceService.setConnectionId(cid);
 
       // Trigger workspace loading
       WorkspaceService.loadWorkspace();
@@ -349,7 +349,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       });
       console.log('Login: Emitted session:activated for login');
 
-      onNext(cid);
+      onNext(cid.toString());
       
       toast({
         title: "Login successful",
@@ -392,7 +392,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       kemAlgorithm: values.kemAlgorithm,
       sigAlgorithm: values.sigAlgorithm,
       headerObfuscatorSettings: values.headerObfuscatorSettings,
-      storeCredentials: values.storeCredentials,
+      storeCredentials: values.storeCredentials ?? false,
     });
   };
 

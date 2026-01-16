@@ -16,7 +16,7 @@ import { workspaceResponseHandler } from './workspace-response-handler';
  */
 export class WorkspaceService {
   private static instance: WorkspaceService;
-  private currentCid: string | null = null;
+  private currentCid: bigint | null = null;
 
   private constructor() { }
 
@@ -34,7 +34,7 @@ export class WorkspaceService {
    * Set the current connection ID
    * @param cid Connection ID
    */
-  public setConnectionId(cid: string): void {
+  public setConnectionId(cid: bigint): void {
     this.currentCid = cid;
   }
 
@@ -67,7 +67,7 @@ export class WorkspaceService {
         if ('GetWorkspace' in tsRequest) {
           request = 'GetWorkspace';
         } else if ('CreateWorkspace' in tsRequest) {
-          const req = tsRequest.CreateWorkspace;
+          const req = tsRequest.CreateWorkspace!;
           request = {
             CreateWorkspace: {
               name: req.name,
@@ -77,7 +77,7 @@ export class WorkspaceService {
             }
           };
         } else if ('UpdateWorkspace' in tsRequest) {
-          const req = tsRequest.UpdateWorkspace;
+          const req = tsRequest.UpdateWorkspace!;
           request = {
             UpdateWorkspace: {
               name: req.name,
@@ -96,8 +96,6 @@ export class WorkspaceService {
         throw new Error('Invalid workspace protocol payload');
       }
 
-      // Convert string CID to BigInt for the WASM client
-      const cidBigInt = BigInt(this.currentCid);
       await websocketService.sendWorkspaceRequest(this.currentCid, request);
       console.info('[WorkspaceService] Request sent successfully');
 
@@ -207,14 +205,14 @@ export class WorkspaceService {
    * @param metadata Optional metadata
    */
   public async updateWorkspace(name?: string, description?: string, masterPassword?: string, metadata?: Uint8Array): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       UpdateWorkspace: {
         name,
         description,
         workspace_master_password: masterPassword,
         metadata: metadata ? Array.from(metadata) : undefined
       }
-    };
+    } as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -315,7 +313,7 @@ export class WorkspaceService {
     mdxContent?: string,
     metadata?: Uint8Array
   ): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       CreateRoom: {
         office_id: officeId,
         name,
@@ -323,7 +321,7 @@ export class WorkspaceService {
         mdx_content: mdxContent,
         metadata: metadata ? Array.from(metadata) : undefined
       }
-    };
+    } as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -354,7 +352,7 @@ export class WorkspaceService {
       metadata?: Uint8Array;
     }
   ): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       UpdateRoom: {
         room_id: roomId,
         name: updates.name,
@@ -362,7 +360,7 @@ export class WorkspaceService {
         mdx_content: updates.mdxContent,
         metadata: updates.metadata ? Array.from(updates.metadata) : undefined
       }
-    };
+    } as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -394,7 +392,7 @@ export class WorkspaceService {
     roomId?: string,
     metadata?: Uint8Array
   ): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       AddMember: {
         user_id: userId,
         office_id: officeId,
@@ -402,7 +400,7 @@ export class WorkspaceService {
         role,
         metadata: metadata ? Array.from(metadata) : undefined
       }
-    };
+    } as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -430,13 +428,13 @@ export class WorkspaceService {
     role: any, // UserRole type
     metadata?: Uint8Array
   ): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       UpdateMemberRole: {
         user_id: userId,
         role,
         metadata: metadata ? Array.from(metadata) : undefined
       }
-    };
+    } as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -454,14 +452,14 @@ export class WorkspaceService {
     permissions: any[], // Permission[] type
     operation: 'Add' | 'Set' | 'Remove'
   ): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       UpdateMemberPermissions: {
         user_id: userId,
         domain_id: domainId,
         permissions,
         operation
       }
-    };
+    } as unknown as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -477,13 +475,13 @@ export class WorkspaceService {
     officeId?: string,
     roomId?: string
   ): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       RemoveMember: {
         user_id: userId,
         office_id: officeId,
         room_id: roomId
       }
-    };
+    } as unknown as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -510,12 +508,12 @@ export class WorkspaceService {
    * @param domainId The domain ID (workspace, office, or room)
    */
   public async getUserPermissions(userId: string, domainId: string): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       GetUserPermissions: {
         user_id: userId,
         domain_id: domainId
       }
-    };
+    } as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -525,11 +523,11 @@ export class WorkspaceService {
    * @param contents The message contents (can be any subprotocol)
    */
   public async sendMessage(contents: Uint8Array): Promise<any> {
-    const requestPart: WorkspaceProtocolRequestTS = {
+    const requestPart = {
       Message: {
-        contents: Array.from(contents)
+        contents: new Uint8Array(contents)
       }
-    };
+    } as WorkspaceProtocolRequestTS;
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }

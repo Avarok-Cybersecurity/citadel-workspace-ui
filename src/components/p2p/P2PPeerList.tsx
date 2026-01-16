@@ -91,10 +91,11 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     const conversations = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
       const lastMessage = conv.messages[conv.messages.length - 1];
+      const peerCidStr = conv.peerCid.toString();
       return {
-        cid: conv.peerCid,
+        cid: peerCidStr,
         // Use stored username if available, otherwise fallback to truncated CID
-        name: conv.peerUsername || `User ${conv.peerCid.slice(0, 8)}...`,
+        name: conv.peerUsername || `User ${peerCidStr.slice(0, 8)}...`,
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
         lastMessage: lastMessage?.content,
@@ -120,7 +121,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
     setIsAddingPeer(true);
     try {
-      await messenger.autoRegisterPeer(newPeerCid);
+      await messenger.autoRegisterPeer(BigInt(newPeerCid));
       setNewPeerCid('');
       loadPeers();
     } catch (error) {
@@ -201,33 +202,35 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                   Available Peers ({availablePeers.length})
                 </div>
                 <div className="space-y-1">
-                  {availablePeers.map((peer) => (
+                  {availablePeers.map((peer) => {
+                    const peerCidStr = peer.cid.toString();
+                    return (
                     <Button
-                      key={peer.cid}
+                      key={peerCidStr}
                       variant="ghost"
                       className="w-full justify-start h-auto py-2 px-3"
                       onClick={() => {
                         if (!peer.isRegistered) {
-                          setNewPeerCid(peer.cid);
+                          setNewPeerCid(peerCidStr);
                           handleAddPeer();
                         } else {
-                          onSelectPeer(peer.cid);
+                          onSelectPeer(peerCidStr);
                         }
                       }}
                     >
                       <div className="flex items-center gap-3 w-full">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="text-xs">
-                            {peer.username?.[0] || peer.cid.slice(0, 2)}
+                            {peer.username?.[0] || peerCidStr.slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
-                        
+
                         <div className="flex-1 text-left">
                           <div className="font-medium text-sm">
-                            {peer.fullName || peer.username || `User ${peer.cid.slice(0, 8)}...`}
+                            {peer.fullName || peer.username || `User ${peerCidStr.slice(0, 8)}...`}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {peer.cid.slice(0, 16)}...
+                            {peerCidStr.slice(0, 16)}...
                           </div>
                         </div>
                         
@@ -238,7 +241,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                         )}
                       </div>
                     </Button>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="my-4 border-b" />
               </div>

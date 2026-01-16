@@ -3,6 +3,7 @@ import { useWorkspace } from '../../lib/workspace-context';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
 import { User } from '../../types/workspace-entities';
 import { MDXProvider } from '@mdx-js/react';
+import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { useToast } from '@/hooks/use-toast';
@@ -47,6 +48,14 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   const [content, setContent] = useState<string>(room?.mdx_content || '');
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isNewContent, setIsNewContent] = useState(!room?.mdx_content);
+  const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
+
+  // Load tab session asynchronously
+  useEffect(() => {
+    connectionManager.getTabSelectedSession().then(session => {
+      setTabSession(session);
+    });
+  }, []);
 
   // Fetch room data if not available
   useEffect(() => {
@@ -89,11 +98,11 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         console.info('Compiling Room MDX content...');
         const result = await evaluate(content, {
           ...runtime,
-          useMDXComponents: () => components,
+          useMDXComponents: () => components as unknown as MDXComponents,
           baseUrl: window.location.origin
         });
         console.info('Room MDX compilation successful');
-        setCompiledContent(result.default({ components }));
+        setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
         console.error('Error compiling Room MDX:', error);
       }
@@ -156,7 +165,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   // Get current user info from workspace state OR connection manager
   // The workspace state currentUser may not be populated yet during initial render
-  const tabSession = connectionManager.getTabSelectedSession();
+  // tabSession is loaded asynchronously via useEffect
   const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
   const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
@@ -233,7 +242,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         </div>
       ) : content ? (
         <div className="mb-6 prose prose-invert prose-sm md:prose-base max-w-none">
-          <MDXProvider components={components}>
+          <MDXProvider components={components as unknown as MDXComponents}>
             {compiledContent}
           </MDXProvider>
         </div>

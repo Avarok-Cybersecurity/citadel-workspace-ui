@@ -36,8 +36,9 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   // Subscribe to pending requests updates
   useEffect(() => {
-    const updateRequests = () => {
-      setPendingRequests(peerRegistrationStore.getPendingRequests());
+    const updateRequests = async () => {
+      const requests = await peerRegistrationStore.getPendingRequests();
+      setPendingRequests(requests);
     };
 
     // Initial load
@@ -143,7 +144,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                       </p>
                       <div className="flex items-center text-xs text-gray-400">
                         <span className="truncate max-w-[120px]">
-                          CID: {request.peer_cid.slice(0, 8)}...
+                          CID: {request.peer_cid.toString().slice(0, 8)}...
                         </span>
                         <span className="mx-2">•</span>
                         <Clock className="h-3 w-3 mr-1" />

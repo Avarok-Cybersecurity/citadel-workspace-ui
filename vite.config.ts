@@ -19,8 +19,74 @@ export default defineConfig(({ mode }) => {
     },
     
     build: {
+      // After splitting all vendor dependencies, the main app chunk (~1.25MB) contains:
+      // - Application code (React components, services, hooks)
+      // - WASM client bindings
+      // This size is reasonable for a complex workspace app with real-time collaboration
+      chunkSizeWarningLimit: 1300,
       rollupOptions: {
         external: ['events', 'fs', 'path', 'crypto', 'os', 'util'],
+        output: {
+          // Split vendor dependencies into separate chunks for better caching
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              // React ecosystem
+              if (id.includes('react-dom') || id.includes('react-router')) {
+                return 'vendor-react';
+              }
+              // Radix UI components
+              if (id.includes('@radix-ui')) {
+                return 'vendor-ui';
+              }
+              // Tiptap rich text editor (includes prosemirror)
+              if (id.includes('@tiptap') || id.includes('prosemirror')) {
+                return 'vendor-editor';
+              }
+              // Yjs collaboration
+              if (id.includes('/yjs/') || id.includes('y-prosemirror') || id.includes('y-protocols')) {
+                return 'vendor-yjs';
+              }
+              // Serialization and storage
+              if (id.includes('cbor-x') || id.includes('/idb/')) {
+                return 'vendor-data';
+              }
+              // Icons
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              // Date utilities
+              if (id.includes('date-fns')) {
+                return 'vendor-date';
+              }
+              // Charts
+              if (id.includes('recharts') || id.includes('d3-')) {
+                return 'vendor-charts';
+              }
+              // Animations
+              if (id.includes('framer-motion')) {
+                return 'vendor-motion';
+              }
+              // React Query
+              if (id.includes('@tanstack')) {
+                return 'vendor-query';
+              }
+              // Zod validation
+              if (id.includes('/zod/')) {
+                return 'vendor-zod';
+              }
+            }
+          },
+        },
+        onwarn(warning, warn) {
+          // Suppress mixed dynamic/static import warnings for modules using
+          // dynamic imports to avoid circular dependencies (intentional pattern)
+          if (warning.code === 'MIXED_IMPORT' ||
+              (warning.message && warning.message.includes('dynamically imported by') &&
+               warning.message.includes('but also statically imported'))) {
+            return;
+          }
+          warn(warning);
+        },
       },
     },
 

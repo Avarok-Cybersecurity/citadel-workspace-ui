@@ -173,7 +173,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                             <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Active</span>
                           </div>
                           <p className="text-sm text-gray-400">{session.server_address}</p>
-                          <p className="text-xs text-gray-500">CID: {session.cid}</p>
+                          <p className="text-xs text-gray-500">CID: {session.cid.toString()}</p>
                         </div>
                       </div>
 

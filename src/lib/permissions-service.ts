@@ -248,9 +248,8 @@ class PermissionsService {
    * Get current user ID from connection manager
    */
   private getCurrentUserId(): string | null {
-    const sessions = connectionManager.getStoredSessionsArray();
-    const activeSession = sessions.find(s => s.isActive);
-    return activeSession?.username || null;
+    const connectionInfo = connectionManager.getConnectionInfo();
+    return connectionInfo?.username || null;
   }
 
   /**

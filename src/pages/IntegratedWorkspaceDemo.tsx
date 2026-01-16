@@ -18,8 +18,10 @@ const mockWorkspaceState = {
       id: 'office1',
       name: 'Engineering Office',
       description: 'Main engineering workspace',
-      createdAt: new Date().toISOString(),
-      permissions: [],
+      ownerId: 'demo_user',
+      chat_enabled: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       mdx_content: '# Engineering Office\n\nWelcome to the engineering workspace!'
     }
   },
@@ -29,8 +31,11 @@ const mockWorkspaceState = {
       name: 'General Discussion',
       description: 'General team discussions and updates',
       officeId: 'office1',
-      createdAt: new Date().toISOString(),
-      permissions: [],
+      ownerId: 'demo_user',
+      isPrivate: false,
+      chat_enabled: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       mdx_content: '# General Discussion\n\nDiscuss team updates and general topics here.'
     }
   },
@@ -41,10 +46,13 @@ const mockWorkspaceState = {
     canInviteMembers: true
   },
   loading: {
+    workspace: false,
     offices: false,
     rooms: false,
     members: false
-  }
+  },
+  messages: { byPeer: {} },
+  typing: { peerIds: [], lastUpdated: 0 }
 };
 
 export const IntegratedWorkspaceDemo = () => {
@@ -55,7 +63,7 @@ export const IntegratedWorkspaceDemo = () => {
   useEffect(() => {
     console.log('Starting P2P registration service for demo...');
     const service = P2PRegistrationService.getInstance();
-    service.start({ pollingInterval: 5000, maxRetries: 3 }).catch(console.error);
+    service.start({ autoRegisterAll: true }).catch(console.error);
     
     return () => {
       service.stop();
@@ -63,20 +71,9 @@ export const IntegratedWorkspaceDemo = () => {
   }, []);
 
   return (
-    <WorkspaceContext.Provider 
+    <WorkspaceContext.Provider
       value={{
-        state: mockWorkspaceState,
-        // Add mock dispatch functions
-        dispatch: () => {},
-        updateOffice: () => {},
-        updateRoom: () => {},
-        updateMember: () => {},
-        removeMember: () => {},
-        updatePermissions: () => {},
-        reset: () => {},
-        updateWorkspaceId: () => {},
-        setAuthenticated: () => {},
-        setConnectionStatus: () => {}
+        state: mockWorkspaceState as any // Cast to any for demo purposes - full type match not needed
       }}
     >
       <div className="h-screen w-screen bg-[#1C1D28]">

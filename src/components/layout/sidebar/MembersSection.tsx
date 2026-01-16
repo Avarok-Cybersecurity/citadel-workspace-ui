@@ -116,8 +116,9 @@ export const MembersSection = () => {
 
   // Listen for pending peer registration requests
   useEffect(() => {
-    const updatePendingCount = () => {
-      setPendingRequestCount(peerRegistrationStore.getPendingCount());
+    const updatePendingCount = async () => {
+      const count = await peerRegistrationStore.getPendingCount();
+      setPendingRequestCount(count);
     };
 
     // Initial load
@@ -184,7 +185,7 @@ export const MembersSection = () => {
         // Use fresh data from backend if available, else cached
         const peersToUse = freshPeers.length > 0 ? freshPeers : cachedPeers;
 
-        const peerList = peersToUse.map(p => {
+        const peerList = await Promise.all(peersToUse.map(async p => {
           const cidStr = p.cid?.toString() || '';
           // Prefer username from service (has preserved names), then fallback
           const displayName = (p.username && p.username !== 'Unknown')
@@ -194,9 +195,9 @@ export const MembersSection = () => {
             cid: cidStr,
             username: displayName,
             isOnline: p2pAutoConnectService.isPeerOnline(cidStr),
-            isConnected: p2pAutoConnectService.isPeerConnected(cidStr)
+            isConnected: await p2pAutoConnectService.isPeerConnected(cidStr)
           };
-        });
+        }));
         setRegisteredPeers(peerList);
 
         // Clean up stale conversations that reference non-registered peers
@@ -294,7 +295,7 @@ export const MembersSection = () => {
 
   // Load peers with active conversations (for DIRECT MESSAGES section)
   useEffect(() => {
-    const loadConversations = () => {
+    const loadConversations = async () => {
       const messenger = P2PMessengerManager.getInstance();
       const conversations = messenger.getAllConversations();
 
@@ -302,25 +303,28 @@ export const MembersSection = () => {
       const currentCid = connectionManager.getConnectionInfo()?.cid?.toString();
 
       // Only include peers with actual messages, excluding self-conversations
-      const convPeers = conversations
+      const filteredConversations = conversations
         .filter(c => c.messages.length > 0)
-        .filter(c => c.peerCid !== currentCid)  // Exclude self-conversations
-        .map(c => {
+        .filter(c => c.peerCid.toString() !== currentCid);  // Exclude self-conversations
+
+      const convPeers = await Promise.all(filteredConversations.map(async c => {
+          const peerCidStr = c.peerCid.toString();
           // Find the username from registered peers
-          const registeredPeer = registeredPeers.find(p => p.cid === c.peerCid);
+          const registeredPeer = registeredPeers.find(p => p.cid === peerCidStr);
           // Prefer registered peer username, then a friendly "Peer" label with last 6 digits of CID
           const displayName = registeredPeer?.username ||
-            (c.peerCid ? `Peer ${c.peerCid.slice(-6)}` : 'Unknown Peer');
+            (peerCidStr ? `Peer ${peerCidStr.slice(-6)}` : 'Unknown Peer');
           return {
-            peerCid: c.peerCid,
+            peerCid: peerCidStr,
             peerUsername: displayName,
             isOnline: p2pAutoConnectService.isPeerOnline(c.peerCid),
-            isConnected: p2pAutoConnectService.isPeerConnected(c.peerCid),
+            isConnected: await p2pAutoConnectService.isPeerConnected(c.peerCid),
             unreadCount: c.unreadCount,
             lastMessageTime: c.messages[c.messages.length - 1]?.timestamp
           };
-        })
-        .sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+        }));
+
+      convPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
 
       setPeersWithConversations(convPeers);
     };
@@ -678,7 +682,7 @@ export const MembersSection = () => {
         mode="edit"
         officeId={currentOfficeId || undefined}
         roomId={currentRoomId || undefined}
-        member={selectedMember || undefined}
+        member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined}
       />
 
       <MemberManagementModal
@@ -690,7 +694,7 @@ export const MembersSection = () => {
         mode="remove"
         officeId={currentOfficeId || undefined}
         roomId={currentRoomId || undefined}
-        member={selectedMember || undefined}
+        member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined}
       />
 
       {/* All Members Dialog */}

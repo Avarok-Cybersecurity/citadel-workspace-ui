@@ -94,7 +94,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       wasmConnectionManager.stop();
 
       // Get the current session BEFORE disconnecting
-      const currentSession = connectionManager.getTabSelectedSession();
+      const currentSession = await connectionManager.getTabSelectedSession();
 
       if (!currentSession) {
         console.error('TopBar: No current session found');

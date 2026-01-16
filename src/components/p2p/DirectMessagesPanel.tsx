@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { P2PPeerList } from './P2PPeerList';
 import { P2PChat } from './P2PChat';
 import { X } from 'lucide-react';
 import { connectionManager } from '@/lib/connection-manager';
+import { StoredSession } from '@/types/session-types';
 
 interface DirectMessagesPanelProps {
   isOpen: boolean;
@@ -11,9 +12,17 @@ interface DirectMessagesPanelProps {
 
 export const DirectMessagesPanel: React.FC<DirectMessagesPanelProps> = ({ isOpen, onClose }) => {
   const [selectedPeerCid, setSelectedPeerCid] = useState<string>('demo-peer-kathy');
+  const [tabSession, setTabSession] = useState<StoredSession | null>(null);
+
+  // Load tab session asynchronously
+  useEffect(() => {
+    connectionManager.getTabSelectedSession().then(session => {
+      setTabSession(session);
+    });
+  }, []);
+
   // Use tab-specific session CID first, fallback to global connection CID
   // Convert to string for proper comparison with message.senderCid (which is a string)
-  const tabSession = connectionManager.getTabSelectedSession();
   const connectionInfo = connectionManager.getConnectionInfo();
   const rawCid = tabSession?.cid ?? connectionInfo?.cid;
   const currentUserCid = rawCid !== undefined ? String(rawCid) : undefined;
@@ -50,10 +59,10 @@ export const DirectMessagesPanel: React.FC<DirectMessagesPanelProps> = ({ isOpen
 
         {/* Chat Area */}
         <div className="flex-1">
-          <P2PChat 
-            peerCid={selectedPeerCid}
+          <P2PChat
+            peerCid={selectedPeerCid === 'demo-peer-kathy' ? 0n : BigInt(selectedPeerCid)}
             peerName={selectedPeerCid === 'demo-peer-kathy' ? 'Kathy McCooper' : undefined}
-            currentUserCid={currentUserCid}
+            currentUserCid={currentUserCid ? BigInt(currentUserCid) : undefined}
             currentUserName={currentUserName}
           />
         </div>

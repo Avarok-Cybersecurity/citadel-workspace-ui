@@ -25,10 +25,10 @@ interface FileDisplay {
   size: number;
   sender: {
     name: string;
-    avatar?: string;
+    avatar: string;
   };
   createdAt: string;
-  url?: string;
+  url: string;
 }
 
 /**
@@ -68,9 +68,10 @@ function mapTransferToDisplay(transfer: FileTransfer): FileDisplay {
     size: transfer.fileSize,
     sender: {
       name: transfer.senderCid.slice(0, 12) + '...', // Truncate CID for display
+      avatar: '', // Default empty avatar for CID-based senders
     },
     createdAt: formatDate(transfer.updatedAt),
-    url: transfer.downloadPath,
+    url: transfer.downloadPath ?? '',
   };
 }
 

@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { connectionManager } from "@/lib/connection-manager";
+import { websocketService } from '@/lib/websocket-service';
 import type {
   GroupConversation,
   GroupMember,
@@ -104,10 +105,10 @@ export function useGroupConversations(): UseGroupConversationsResult {
       const newGroup: GroupConversation = {
         id: data.groupId,
         name: data.name || data.ownerUsername,
-        ownerId: data.ownerId,
+        ownerId: BigInt(data.ownerId),
         members: [
           {
-            cid: data.ownerId,
+            cid: BigInt(data.ownerId),
             username: data.ownerUsername,
             roleId: defaultRoles[0].id, // Owner role
             joinedAt: Date.now(),
@@ -141,19 +142,20 @@ export function useGroupConversations(): UseGroupConversationsResult {
       roleId?: string;
     }) => {
       console.log('[useGroupConversations] Member joined:', data);
+      const memberCidBigint = BigInt(data.memberCid);
 
       setGroups(prev =>
         prev.map(group => {
           if (group.id !== data.groupId) return group;
 
           // Check if member already exists
-          if (group.members.some(m => m.cid === data.memberCid)) {
+          if (group.members.some(m => m.cid === memberCidBigint)) {
             return group;
           }
 
           const defaultRole = getDefaultRole(group.settings);
           const newMember: GroupMember = {
-            cid: data.memberCid,
+            cid: memberCidBigint,
             username: data.memberUsername,
             roleId: data.roleId || defaultRole?.id || group.settings.roles[2]?.id,
             joinedAt: Date.now(),
@@ -169,13 +171,14 @@ export function useGroupConversations(): UseGroupConversationsResult {
 
     const handleGroupMemberLeft = (data: { groupId: string; memberCid: string }) => {
       console.log('[useGroupConversations] Member left:', data);
+      const memberCidBigint = BigInt(data.memberCid);
 
       setGroups(prev =>
         prev.map(group => {
           if (group.id !== data.groupId) return group;
           return {
             ...group,
-            members: group.members.filter(m => m.cid !== data.memberCid),
+            members: group.members.filter(m => m.cid !== memberCidBigint),
           };
         })
       );
@@ -378,13 +381,14 @@ export function useGroupConversations(): UseGroupConversationsResult {
   // Update a member's role (local only for now - role data is stored locally)
   const updateMemberRole = useCallback(
     async (groupId: string, memberCid: string, roleId: string): Promise<void> => {
+      const memberCidBigint = BigInt(memberCid);
       setGroups(prev =>
         prev.map(group => {
           if (group.id !== groupId) return group;
           return {
             ...group,
             members: group.members.map(m =>
-              m.cid === memberCid ? { ...m, roleId } : m
+              m.cid === memberCidBigint ? { ...m, roleId } : m
             ),
           };
         })

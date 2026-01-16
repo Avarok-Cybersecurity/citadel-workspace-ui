@@ -90,7 +90,7 @@ export class REVFSManager {
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    this.currentCid = this.getCurrentCid();
+    this.currentCid = await this.getCurrentCid();
 
     // Initialize with server storage location
     if (this.currentCid) {
@@ -183,7 +183,7 @@ export class REVFSManager {
     file: File,
     virtualDirectory: string = '/'
   ): Promise<VirtualFile> {
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected');
     }
@@ -317,9 +317,9 @@ export class REVFSManager {
   // Helpers
   // ============================================================================
 
-  private getCurrentCid(): string | null {
-    const tabSelection = getSelectedUser();
-    return tabSelection?.selectedCid || null;
+  private async getCurrentCid(): Promise<string | null> {
+    const tabSelection = await getSelectedUser();
+    return tabSelection?.selectedCid?.toString() || null;
   }
 
   /**

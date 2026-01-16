@@ -20,12 +20,15 @@ export function GeneralSettingsTab() {
 
   // Load current user data on mount
   useEffect(() => {
-    const currentUser = userService.getCurrentUser();
-    if (currentUser) {
-      setDisplayName(currentUser.fullName || currentUser.username);
-      setOriginalDisplayName(currentUser.fullName || currentUser.username);
-    }
-    setIsLoading(false);
+    const loadUser = async () => {
+      const currentUser = await userService.getCurrentUser();
+      if (currentUser) {
+        setDisplayName(currentUser.fullName || currentUser.username);
+        setOriginalDisplayName(currentUser.fullName || currentUser.username);
+      }
+      setIsLoading(false);
+    };
+    loadUser();
 
     // Listen for profile updates
     // MetadataValue is a tagged enum: { type: "String", content: "..." }

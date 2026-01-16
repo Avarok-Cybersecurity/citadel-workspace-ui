@@ -14,7 +14,7 @@ import { SecuritySettingsValues } from "./SecuritySettings";
 import { SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm } from "@/types";
 import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import WorkspaceService from "@/lib/workspace-service";
-import { ConnectRequestTS, ConnectMode, UdpMode } from "@/types";
+import { ConnectMode, UdpMode } from "@/types";
 import { eventEmitter } from "@/lib/event-emitter";
 import { ConnectionManager } from "@/lib/connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";

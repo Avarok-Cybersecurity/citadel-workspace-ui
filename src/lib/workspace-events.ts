@@ -1,6 +1,7 @@
 // Workspace events for WebSocket integration
 import { Office, Room, User } from '../types/workspace-entities';
-import { websocketService, type InternalServiceResponse } from './websocket-service';
+import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+import { websocketService } from './websocket-service';
 import { listen } from './event-emitter';
 
 // Type for unlisten function
@@ -8,8 +9,8 @@ export type UnlistenFn = () => void;
 
 // Connection information coming from the backend
 export interface ConnectionInfo {
-  cid: number;
-  peer_cid?: number;
+  cid: bigint;
+  peer_cid?: bigint;
   request_id: string;
 }
 
@@ -59,7 +60,7 @@ export interface ErrorPayload {
 }
 
 export interface MessagePayload {
-  peerCid?: number;
+  peerCid?: bigint;
   contentLength: number;
   contents?: string;
   connection: ConnectionInfo;
@@ -67,7 +68,7 @@ export interface MessagePayload {
 
 // Typing indicator payload
 export interface TypingPayload {
-  peerCid: number;
+  peerCid: bigint;
   connection: ConnectionInfo;
 }
 
@@ -149,6 +150,10 @@ export class WorkspaceEvents {
   public async onWorkspaceEvent(event: 'workspace:loaded', callback: (payload: WorkspacePayload) => void): Promise<() => void>;
   public async onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
   public async onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
+  public async onWorkspaceEvent(event: 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
+  public async onWorkspaceEvent(event: 'rooms:reload', callback: (payload: { office_id?: string; connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
+  public async onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: any) => void): Promise<() => void>;
   public async onWorkspaceEvent(event: WorkspaceEventType, callback: any): Promise<() => void> {
     const unlistenFn = await listen(event, ({ payload }) => {
       callback(payload);
@@ -253,8 +258,11 @@ export class WorkspaceEvents {
   public async onMemberEvent<T>(event: 'member:updating_permissions', callback: (payload: { userId: string, domainId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: 'member:removing', callback: (payload: { userId: string, officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: 'members:loading', callback: (payload: { officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onMemberEvent<T>(event: 'member:added', callback: (payload: { member: any, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onMemberEvent<T>(event: 'member:removed', callback: (payload: { userId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: 'member:role-updated', callback: (payload: { userId: string, role: string, connection: ConnectionInfo }) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: 'user:permissions:loaded', callback: (payload: { userId: string, role: string, permissions: any[], domainId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
+  public async onMemberEvent<T>(event: WorkspaceEventType, callback: (payload: any) => void): Promise<() => void>;
   public async onMemberEvent<T>(event: WorkspaceEventType, callback: any): Promise<() => void> {
     const unlistenFn = await listen(event, ({ payload }) => {
       callback(payload);

@@ -11,30 +11,30 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/compon
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 export const components = {
-  h1: ({ children }) => (
+  h1: ({ children }: { children?: React.ReactNode }) => (
     <h1 className="text-4xl font-bold mb-4 text-white">{children}</h1>
   ),
-  h2: ({ children }) => (
+  h2: ({ children }: { children?: React.ReactNode }) => (
     <h2 className="text-2xl font-semibold mb-3 text-white">{children}</h2>
   ),
-  p: ({ children }) => (
+  p: ({ children }: { children?: React.ReactNode }) => (
     <p className="mb-4 text-gray-300">{children}</p>
   ),
-  ul: ({ children }) => (
+  ul: ({ children }: { children?: React.ReactNode }) => (
     <ul className="list-disc list-inside mb-4 text-gray-300">{children}</ul>
   ),
-  li: ({ children }) => (
+  li: ({ children }: { children?: React.ReactNode }) => (
     <li className="mb-2">{children}</li>
   ),
-  a: ({ href, children }) => (
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a href={href} className="text-purple-400 hover:text-purple-300 underline">
       {children}
     </a>
   ),
-  img: ({ src, alt }) => (
+  img: ({ src, alt }: { src?: string; alt?: string }) => (
     <img src={src} alt={alt} className="max-w-full h-auto rounded-lg shadow-lg my-4" />
   ),
-  table: ({ children, ...props }) => (
+  table: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
     <div className="my-6 w-full overflow-y-auto">
       <Table {...props} className="w-full border border-gray-800">
         {children}
@@ -43,17 +43,17 @@ export const components = {
   ),
   thead: TableHeader,
   tbody: TableBody,
-  tr: ({ children, ...props }) => (
+  tr: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
     <TableRow {...props} className="hover:bg-[#E5DEFF]/10 transition-colors">
       {children}
     </TableRow>
   ),
-  th: ({ children, ...props }) => (
+  th: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
     <TableHead {...props} className="border-b border-gray-800 bg-gray-900/50 text-white font-medium p-4">
       {children}
     </TableHead>
   ),
-  td: ({ children, ...props }) => (
+  td: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
     <TableCell {...props} className="border-b border-gray-800 text-gray-300 p-4">
       {children}
     </TableCell>
@@ -97,14 +97,16 @@ export const components = {
       </Badge>
     );
   },
-  pre: ({ children }: { children: any }) => children,
-  code: ({ children, className }: { children: string; className?: string }) => {
+  pre: ({ children }: React.DetailedHTMLProps<React.HTMLAttributes<HTMLPreElement>, HTMLPreElement>) => children,
+  code: ({ children, className }: { children?: React.ReactNode; className?: string }) => {
     const language = className ? className.replace(/language-/, '') : 'typescript';
-    
+    // Convert ReactNode to string for the Highlight component
+    const codeString = typeof children === 'string' ? children : String(children ?? '');
+
     return (
       <Highlight
         theme={themes.nightOwl}
-        code={children.trim()}
+        code={codeString.trim()}
         language={language}
       >
         {({ className, style, tokens, getLineProps, getTokenProps }) => (

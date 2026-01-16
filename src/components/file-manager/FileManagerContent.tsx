@@ -47,9 +47,10 @@ function mapTransferToFileMetadata(transfer: FileTransfer): FileMetadata {
     size: transfer.fileSize,
     sender: {
       name: transfer.senderCid.slice(0, 12) + '...',
+      avatar: '', // Default empty avatar for CID-based senders
     },
     createdAt: formatDate(transfer.updatedAt),
-    url: transfer.downloadPath,
+    url: transfer.downloadPath ?? '',
     transferType: 'standard' as const,
   };
 }

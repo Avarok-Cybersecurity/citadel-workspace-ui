@@ -9,11 +9,11 @@ export interface BroadcastMessage {
   tabId: string;
   isLeader?: boolean;
   /** Target CID for P2P notifications - used to filter broadcasts by session */
-  targetCid?: string;
+  targetCid?: bigint;
 }
 
 interface PendingRequest {
-  cid: string;
+  cid: bigint;
   insertTime: number;
 }
 
@@ -142,22 +142,22 @@ export class BroadcastChannelService {
       }
     };
 
-    this.channel.onerror = (error) => {
-      console.error('BroadcastChannelService: Channel error', error);
-    };
+    this.channel.addEventListener('messageerror', (event: MessageEvent) => {
+      console.error('BroadcastChannelService: Channel error', event);
+    });
   }
 
-  private handleWorkspaceResponse(message: BroadcastMessage): void {
+  private async handleWorkspaceResponse(message: BroadcastMessage): Promise<void> {
     // Forward workspace responses to the event emitter for non-leader tabs
     if (!this.isLeader && message.data) {
       // Get this tab's current CID
-      const tabSelection = getSelectedUser();
+      const tabSelection = await getSelectedUser();
       const tabCid = tabSelection?.selectedCid;
 
       // CRITICAL: Filter by target CID if present (for P2P notifications)
       // This prevents race conditions where multiple tabs process the same notification
       if (message.targetCid && tabCid && message.targetCid !== tabCid) {
-        console.log(`BroadcastChannelService: Skipping notification for CID ${message.targetCid.slice(0, 8)}... (we are ${tabCid.slice(0, 8)}...)`);
+        console.log(`BroadcastChannelService: Skipping notification for CID ${message.targetCid.toString().slice(0, 8)}... (we are ${tabCid.toString().slice(0, 8)}...)`);
         return;
       }
 
@@ -226,7 +226,7 @@ export class BroadcastChannelService {
     }
   }
 
-  private handleP2PNotification(message: BroadcastMessage): void {
+  private async handleP2PNotification(message: BroadcastMessage): Promise<void> {
     // Forward P2P MessageNotifications to the correct follower tab for chat processing
     // The leader broadcasts these when it receives a message meant for a different session
     console.log('[BroadcastChannel] handleP2PNotification received:', {
@@ -243,7 +243,7 @@ export class BroadcastChannelService {
       }
 
       // Check if this notification is for THIS tab's session
-      const tabSelection = getSelectedUser();
+      const tabSelection = await getSelectedUser();
       const tabCid = tabSelection?.selectedCid;
       const notificationCid = notification.cid?.toString();
       const peerCid = notification.peer_cid?.toString();
@@ -356,11 +356,11 @@ export class BroadcastChannelService {
     // Extract target CID for P2P notifications to enable filtering
     // The 'cid' field in these notifications is the TARGET (who should receive it)
     const responseAny = response as any;
-    const targetCid = responseAny.PeerConnectNotification?.cid?.toString() ||
-                      responseAny.PeerRegisterNotification?.cid?.toString();
+    const targetCid: bigint | undefined = responseAny.PeerConnectNotification?.cid ||
+                      responseAny.PeerRegisterNotification?.cid;
 
-    if (targetCid) {
-      console.log(`BroadcastChannelService: P2P notification has targetCid=${targetCid.slice(0, 8)}...`);
+    if (targetCid !== undefined) {
+      console.log(`BroadcastChannelService: P2P notification has targetCid=${targetCid.toString().slice(0, 8)}...`);
     }
 
     const message: BroadcastMessage = {
@@ -393,7 +393,7 @@ export class BroadcastChannelService {
   /**
    * Broadcast connection status updates
    */
-  public broadcastConnectionStatus(status: { isConnected: boolean; cid?: string }): void {
+  public broadcastConnectionStatus(status: { isConnected: boolean; cid?: bigint }): void {
     const message: BroadcastMessage = {
       type: 'connection-status',
       data: status,
@@ -410,7 +410,7 @@ export class BroadcastChannelService {
    * Leader should call this when receiving P2P messages via WebSocket
    * BroadcastChannel uses structured clone which supports Uint8Array directly
    */
-  public broadcastP2PRawMessage(data: { peerCid: string; message: Uint8Array }): void {
+  public broadcastP2PRawMessage(data: { peerCid: bigint; message: Uint8Array }): void {
     // Only leader broadcasts P2P messages to followers
     if (!this.isLeader) return;
 
@@ -489,7 +489,7 @@ export class BroadcastChannelService {
    * @param requestId - The unique request ID
    * @param cid - The CID that made the request
    */
-  public registerRequest(requestId: string, cid: string): void {
+  public registerRequest(requestId: string, cid: bigint): void {
     this.pendingRequests.set(requestId, { cid, insertTime: Date.now() });
     // Broadcast to all tabs so they know which CID made the request
     this.broadcast({
@@ -506,7 +506,7 @@ export class BroadcastChannelService {
    * @param tabCid - The CID of the current tab
    * @returns true if the response is for this CID
    */
-  public isResponseForThisCid(requestId: string, tabCid: string): boolean {
+  public isResponseForThisCid(requestId: string, tabCid: bigint): boolean {
     const entry = this.pendingRequests.get(requestId);
     return entry?.cid === tabCid;
   }

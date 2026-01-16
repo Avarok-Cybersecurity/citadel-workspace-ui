@@ -39,7 +39,7 @@ export class ServerAutoConnectService {
   private readonly POLL_INTERVAL = 60000;  // 1 minute check interval
   private readonly LOCALDB_KEY = 'server_auto_connect_enabled';
   private readonly USER_DISCONNECTED_KEY = 'user_disconnected_sessions';
-  private readonly GLOBAL_CID = '0';       // CID 0 for global settings
+  private readonly GLOBAL_CID = 0n;        // CID 0 for global settings
 
   private constructor() {
     this.setupEventListeners();

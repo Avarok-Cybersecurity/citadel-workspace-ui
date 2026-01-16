@@ -23,6 +23,7 @@
     "test:permissions": "npm run build && node dist/tests/permissions.test.js",
     "test:admin-modal": "npm run build && node dist/tests/admin-modal.test.js",
     "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist"
   },

@@ -14,25 +14,27 @@ vi.mock('../websocket-service', () => ({
 }));
 
 // Mock connection manager - service uses multiple connectionManager methods
+// Note: getTabSelectedSession and getSelectedCid are async (IndexedDB-backed)
 vi.mock('../connection-manager', () => ({
   connectionManager: {
     getConnectionInfo: vi.fn(),
-    getTabSelectedSession: vi.fn(() => null),
-    getSelectedCid: vi.fn(() => null),
+    getTabSelectedSession: vi.fn(() => Promise.resolve(null)),
+    getSelectedCid: vi.fn(() => Promise.resolve(null)),
   },
   ConnectionManager: {
     getInstance: vi.fn(() => ({
       getConnectionInfo: vi.fn(),
-      getTabSelectedSession: vi.fn(() => null),
-      getSelectedCid: vi.fn(() => null),
+      getTabSelectedSession: vi.fn(() => Promise.resolve(null)),
+      getSelectedCid: vi.fn(() => Promise.resolve(null)),
     }))
   }
 }));
 
 // Mock tab-context module used by p2p-registration-service
+// Note: All functions are async (IndexedDB-backed)
 vi.mock('../tab-context', () => ({
-  getSelectedUser: vi.fn(() => null),
-  setSelectedUser: vi.fn(),
+  getSelectedUser: vi.fn(() => Promise.resolve(null)),
+  setSelectedUser: vi.fn(() => Promise.resolve()),
 }));
 
 // Mock event emitter - include all exports that may be used by transitive dependencies
@@ -67,7 +69,7 @@ describe.skip('P2PRegistrationService', () => {
 
   describe('Service Management', () => {
     it('should start the service with default options', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
 
       const mockPeersResponse = {
@@ -91,7 +93,7 @@ describe.skip('P2PRegistrationService', () => {
     });
 
     it('should not start if already running', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       vi.mocked(websocketService.sendRequest).mockResolvedValue({ ListAllPeersResponse: { peers: [] } });
 
@@ -104,7 +106,7 @@ describe.skip('P2PRegistrationService', () => {
     });
 
     it('should stop the service', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       vi.mocked(websocketService.sendRequest).mockResolvedValue({ ListAllPeersResponse: { peers: [] } });
 
@@ -120,7 +122,7 @@ describe.skip('P2PRegistrationService', () => {
 
   describe('Peer Discovery', () => {
     it('should discover and categorize peers correctly', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       
       const mockPeersResponse = {
@@ -153,7 +155,7 @@ describe.skip('P2PRegistrationService', () => {
     });
 
     it('should emit peers-updated event when peers change', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       
       const mockPeersResponse = {
@@ -178,7 +180,7 @@ describe.skip('P2PRegistrationService', () => {
 
   describe('Auto Registration', () => {
     it('should auto-register all unregistered peers when autoRegisterAll is true', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       
       const mockPeersResponse = {
@@ -208,9 +210,8 @@ describe.skip('P2PRegistrationService', () => {
         .mockResolvedValueOnce(mockRegisteredResponse)
         .mockResolvedValue(mockRegisterResponse);
 
-      await p2pRegistrationService.start({ 
-        autoRegisterAll: true,
-        pollingInterval: 100 
+      await p2pRegistrationService.start({
+        autoRegisterAll: true
       });
 
       // Wait for auto-registration to occur
@@ -224,7 +225,7 @@ describe.skip('P2PRegistrationService', () => {
     });
 
     it('should handle registration failures gracefully', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       
       const mockPeersResponse = {
@@ -264,7 +265,7 @@ describe.skip('P2PRegistrationService', () => {
 
   describe('Manual Registration', () => {
     it('should register a specific peer', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       
       const mockRegisterResponse = {
@@ -277,7 +278,7 @@ describe.skip('P2PRegistrationService', () => {
       vi.mocked(websocketService.sendRequest).mockResolvedValue(mockRegisterResponse);
 
       await p2pRegistrationService.start();
-      await p2pRegistrationService.registerPeer('54321');
+      await p2pRegistrationService.registerPeer(54321n);
 
       expect(websocketService.sendRequest).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -290,7 +291,7 @@ describe.skip('P2PRegistrationService', () => {
     });
 
     it('should open P2P connection after registration if requested', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       
       const mockRegisterResponse = {
@@ -312,7 +313,7 @@ describe.skip('P2PRegistrationService', () => {
         .mockResolvedValueOnce(mockConnectResponse);
 
       await p2pRegistrationService.start();
-      await p2pRegistrationService.registerPeer('54321', { connectAfterRegister: true });
+      await p2pRegistrationService.registerPeer(54321n, { connectAfterRegister: true });
 
       const connectCalls = vi.mocked(websocketService.sendRequest).mock.calls
         .filter(call => 'PeerConnect' in call[0]);
@@ -323,7 +324,7 @@ describe.skip('P2PRegistrationService', () => {
 
   describe('Peer Status', () => {
     it('should check if a peer is registered', async () => {
-      const mockConnectionInfo = { cid: '12345' };
+      const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
       
       const mockPeersResponse = {
@@ -344,8 +345,8 @@ describe.skip('P2PRegistrationService', () => {
 
       await p2pRegistrationService.start();
 
-      expect(p2pRegistrationService.isPeerRegistered('54321')).toBe(true);
-      expect(p2pRegistrationService.isPeerRegistered('99999')).toBe(false);
+      expect(p2pRegistrationService.isPeerRegistered(54321n)).toBe(true);
+      expect(p2pRegistrationService.isPeerRegistered(99999n)).toBe(false);
     });
   });
 });

@@ -45,7 +45,7 @@ export const OfficesSection = () => {
   const currentOfficeId = new URLSearchParams(location.search).get("officeId");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedOffice, setSelectedOffice] = useState<{ id: string; name: string; description: string } | null>(null);
+  const [selectedOffice, setSelectedOffice] = useState<{ id: string; name: string; description?: string } | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<{ id: string; name: string } | null>(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminOfficeId, setAdminOfficeId] = useState<string | null>(null);

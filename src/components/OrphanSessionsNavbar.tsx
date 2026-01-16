@@ -32,7 +32,7 @@ export const OrphanSessionsNavbar = () => {
     session: ActiveSession;
     workspaceName: string;
   } | null>(null);
-  const [glowingSessionCid, setGlowingSessionCid] = useState<string | null>(null);
+  const [glowingSessionCid, setGlowingSessionCid] = useState<bigint | null>(null);
   const [notificationCounts, setNotificationCounts] = useState<Map<string, number>>(new Map());
 
   // Loading modal state for disconnect flow
@@ -94,24 +94,24 @@ export const OrphanSessionsNavbar = () => {
       // CRITICAL: Each tab should only manage its OWN session's WASM connection
       // Do NOT add ALL sessions - that causes Tab 2 to open messenger handles for Tab 1's CID
       // The WASM connection manager is set up in handleNavigate() when user explicitly selects a session
-      const tabSelection = getSelectedUser();
+      const tabSelection = await getSelectedUser();
 
       if (tabSelection?.selectedCid) {
         // Only set up WASM for this tab's selected session
         const selectedSession = sessionsWithWorkspace.find(s => s.cid === tabSelection.selectedCid);
-        if (selectedSession) {
+        if (selectedSession && selectedSession.cid !== undefined) {
           try {
-            await wasmConnectionManager.addSession(selectedSession.cid);
-            console.log('OrphanSessionsNavbar: Added THIS TAB\'s session to WASM manager:', selectedSession.cid);
+            await wasmConnectionManager.addSession(selectedSession.cid.toString());
+            console.log('OrphanSessionsNavbar: Added THIS TAB\'s session to WASM manager:', selectedSession.cid.toString());
 
             // Sync peer connections only for this tab's session
             if (selectedSession.peer_connections) {
               p2pRegistrationService.syncPeerConnectionsFromSession(selectedSession.peer_connections)
-                .then(() => console.log('OrphanSessionsNavbar: Synced peer connections for session:', selectedSession.cid))
-                .catch(err => console.error('OrphanSessionsNavbar: Failed to sync peer connections:', selectedSession.cid, err));
+                .then(() => console.log('OrphanSessionsNavbar: Synced peer connections for session:', selectedSession.cid?.toString()))
+                .catch(err => console.error('OrphanSessionsNavbar: Failed to sync peer connections:', selectedSession.cid?.toString(), err));
             }
           } catch (err) {
-            console.error('OrphanSessionsNavbar: Failed to add session to WASM manager:', selectedSession.cid, err);
+            console.error('OrphanSessionsNavbar: Failed to add session to WASM manager:', selectedSession.cid?.toString(), err);
           }
         }
       } else {
@@ -209,8 +209,8 @@ export const OrphanSessionsNavbar = () => {
 
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {
-        await wasmConnectionManager.start(session.cid);
-        console.log('OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid);
+        await wasmConnectionManager.start(session.cid!.toString());
+        console.log('OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid?.toString());
       } catch (error) {
         console.error('OrphanSessionsNavbar: Failed to start WASM connection manager:', error);
         // Don't block navigation - P2P messaging may not be immediately needed
@@ -219,7 +219,7 @@ export const OrphanSessionsNavbar = () => {
       // CRITICAL: Emit session:activated to trigger P2P reconnection
       // This ensures ILM can deliver queued messages after ClaimSession
       eventEmitter.emit('session:activated', {
-        cid: session.cid,
+        cid: session.cid!.toString(),
         username: session.username,
         serverAddress: session.server_address,
         activationType: 'claim' as const
@@ -280,7 +280,7 @@ export const OrphanSessionsNavbar = () => {
       serverAutoConnectService.markUserDisconnected(username, serverAddress);
 
       // Stop WASM connection manager if this is the current session
-      if (wasmConnectionManager.getCurrentCid() === cid) {
+      if (cid !== undefined && wasmConnectionManager.getCurrentCid() === cid.toString()) {
         wasmConnectionManager.stop();
       }
 
@@ -339,7 +339,7 @@ export const OrphanSessionsNavbar = () => {
   };
 
   // Trigger glowing effect on a session
-  const triggerGlow = (cid: string) => {
+  const triggerGlow = (cid: bigint) => {
     setGlowingSessionCid(cid);
 
     // Remove glow after 4 seconds
@@ -376,13 +376,13 @@ export const OrphanSessionsNavbar = () => {
             >
               {sessions.map((session) => (
                 <OrphanSessionIcon
-                  key={session.cid}
+                  key={session.cid?.toString()}
                   session={session}
                   workspaceName={session.workspaceName}
                   onNavigate={() => handleNavigate(session)}
                   onDisconnect={() => handleDisconnect(session)}
                   shouldGlow={glowingSessionCid === session.cid}
-                  unreadCount={notificationCounts.get(session.cid) || 0}
+                  unreadCount={notificationCounts.get(session.cid?.toString() ?? '') || 0}
                 />
               ))}
             </div>

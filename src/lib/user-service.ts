@@ -20,11 +20,11 @@ export class UserService {
   private notificationService: NotificationService;
   private userChangeHandlers: Array<(user: UserRegistrationInfo | null) => void> = [];
   private static readonly TAB_USER_KEY = 'current-user';
-  
+
   private constructor() {
     this.notificationService = NotificationService.getInstance();
   }
-  
+
   /**
    * Get the singleton instance of the user service
    */
@@ -34,7 +34,7 @@ export class UserService {
     }
     return UserService.instance;
   }
-  
+
   /**
    * Load the current user's registration information
    * @param serverAddress Server address to get registration info for
@@ -43,8 +43,8 @@ export class UserService {
   public async loadUserRegistration(serverAddress: string, cid: string): Promise<UserRegistrationInfo | null> {
     try {
       // First check if we have a tab-selected session that matches
-      const selectedSession = connectionManager.getTabSelectedSession();
-      
+      const selectedSession = await connectionManager.getTabSelectedSession();
+
       if (selectedSession && selectedSession.serverAddress === serverAddress) {
         // Use the selected session's user info
         const userInfo: UserRegistrationInfo = {
@@ -53,16 +53,16 @@ export class UserService {
           serverAddress: selectedSession.serverAddress,
           serverPassword: undefined,
         };
-        
+
         // Store in tab-specific storage
-        this.setCurrentUser(userInfo);
-        
+        await this.setCurrentUser(userInfo);
+
         // Notify all handlers of the user change
-        this.notifyUserChange();
-        
+        await this.notifyUserChange();
+
         return userInfo;
       }
-      
+
       // If no matching selected session, try to get account info via request
       const client = websocketService.getClient();
       if (!client) {
@@ -73,7 +73,7 @@ export class UserService {
       await client.sendDirectToInternalService({
         GetAccountInformation: {
           request_id: crypto.randomUUID(),
-          cid: cid,
+          cid: BigInt(cid),
         },
       });
 
@@ -85,12 +85,12 @@ export class UserService {
         serverAddress,
         serverPassword: undefined,
       };
-      
-      this.setCurrentUser(placeholderUser);
-      
+
+      await this.setCurrentUser(placeholderUser);
+
       // Notify all handlers of the user change
-      this.notifyUserChange();
-      
+      await this.notifyUserChange();
+
       return placeholderUser;
     } catch (error) {
       console.error('Error loading user registration:', error);
@@ -101,43 +101,43 @@ export class UserService {
         cid // Associate with the session
       );
     }
-    
+
     return null;
   }
-  
+
   /**
    * Get the current user's registration information (tab-specific)
    */
-  public getCurrentUser(): UserRegistrationInfo | null {
-    return getTabData<UserRegistrationInfo>(UserService.TAB_USER_KEY);
+  public async getCurrentUser(): Promise<UserRegistrationInfo | null> {
+    return await getTabData<UserRegistrationInfo>(UserService.TAB_USER_KEY);
   }
-  
+
   /**
    * Set the current user for this tab
    */
-  private setCurrentUser(user: UserRegistrationInfo): void {
-    setTabData(UserService.TAB_USER_KEY, user);
+  private async setCurrentUser(user: UserRegistrationInfo): Promise<void> {
+    await setTabData(UserService.TAB_USER_KEY, user);
   }
-  
+
   /**
    * Register a callback to be notified when the user information changes
    */
-  public onUserChange(handler: (user: UserRegistrationInfo | null) => void): void {
+  public async onUserChange(handler: (user: UserRegistrationInfo | null) => void): Promise<void> {
     // Add handler to the list
     this.userChangeHandlers.push(handler);
-    
+
     // If there's already a user loaded, notify the handler immediately
-    const currentUser = this.getCurrentUser();
+    const currentUser = await this.getCurrentUser();
     if (currentUser) {
       handler(currentUser);
     }
   }
-  
+
   /**
    * Notify all registered handlers of user changes
    */
-  private notifyUserChange(): void {
-    const currentUser = this.getCurrentUser();
+  private async notifyUserChange(): Promise<void> {
+    const currentUser = await this.getCurrentUser();
     this.userChangeHandlers.forEach(handler => {
       try {
         handler(currentUser);
@@ -146,13 +146,13 @@ export class UserService {
       }
     });
   }
-  
+
   /**
    * Clean up event listeners
    */
-  public cleanup(): void {
+  public async cleanup(): Promise<void> {
     this.userChangeHandlers = [];
-    removeTabData(UserService.TAB_USER_KEY);
+    await removeTabData(UserService.TAB_USER_KEY);
   }
 }
 

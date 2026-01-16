@@ -22,7 +22,7 @@ interface OfficeManagementModalProps {
   office?: {
     id: string;
     name: string;
-    description: string;
+    description?: string;
   };
 }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { WorkspaceProvider } from '@/lib/workspace-context';
 import { Room } from '@/components/room/Room';
+import { UserRole } from '@/types/workspace-entities';
 
 // Mock workspace state for testing
 const mockWorkspaceState = {
@@ -19,9 +20,11 @@ const mockWorkspaceState = {
       id: 'office-1',
       name: 'Engineering Office',
       description: 'Main engineering office',
+      ownerId: 'user-1',
+      chat_enabled: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       mdx_content: '',
-      metadata: {},
-      rooms: ['room-1', 'room-2'],
       members: {}
     }
   },
@@ -30,6 +33,12 @@ const mockWorkspaceState = {
       id: 'room-1',
       name: 'Frontend Development',
       description: 'Room for frontend development discussions',
+      officeId: 'office-1',
+      ownerId: 'user-1',
+      isPrivate: false,
+      chat_enabled: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       mdx_content: `# Frontend Development Room
 
 Welcome to the frontend development room! This is where we discuss all things frontend.
@@ -52,7 +61,7 @@ Welcome to the frontend development room! This is where we discuss all things fr
 // Example React component
 export const ExampleComponent = () => {
   const [count, setCount] = useState(0);
-  
+
   return (
     <div>
       <h1>Count: {count}</h1>
@@ -70,18 +79,24 @@ export const ExampleComponent = () => {
 2. Write tests for new features
 3. Follow the established code style
 4. Document complex logic`,
-      office_id: 'office-1',
-      metadata: {},
       members: {
         'user-1': {
           id: 'user-1',
+          username: 'testuser',
           displayName: 'Test User',
-          role: 'admin'
+          isOnline: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          role: UserRole.Admin
         },
         'user-2': {
           id: 'user-2',
+          username: 'janedoe',
           displayName: 'Jane Doe',
-          role: 'member'
+          isOnline: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          role: UserRole.Member
         }
       }
     },
@@ -89,22 +104,34 @@ export const ExampleComponent = () => {
       id: 'room-2',
       name: 'Backend Development',
       description: 'Room for backend development discussions',
+      officeId: 'office-1',
+      ownerId: 'user-1',
+      isPrivate: false,
+      chat_enabled: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       mdx_content: '',
-      office_id: 'office-1',
-      metadata: {},
       members: {}
     }
   },
   members: {
     'user-1': {
       id: 'user-1',
+      username: 'testuser',
       displayName: 'Test User',
-      role: 'admin'
+      isOnline: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      role: UserRole.Admin
     },
     'user-2': {
       id: 'user-2',
+      username: 'janedoe',
       displayName: 'Jane Doe',
-      role: 'member'
+      isOnline: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      role: UserRole.Member
     }
   },
   loading: {

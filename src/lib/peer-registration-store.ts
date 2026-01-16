@@ -16,10 +16,10 @@ import { getSelectedUser } from './tab-context';
 
 export interface PendingPeerRequest {
   id: string;              // UUID for this request
-  peer_cid: string;        // CID of the requesting peer
+  peer_cid: bigint;        // CID of the requesting peer
   peer_username: string;   // Username of the requesting peer
   timestamp: number;       // When request was received
-  cid: string;             // Recipient's CID (our CID)
+  cid: bigint;             // Recipient's CID (our CID)
 }
 
 /**
@@ -28,8 +28,8 @@ export interface PendingPeerRequest {
  */
 export interface OutgoingPeerRequest {
   id: string;              // UUID for this request (matches request_id sent to server)
-  fromCid: string;         // Our CID (the requester)
-  toCid: string;           // Target peer's CID
+  fromCid: bigint;         // Our CID (the requester)
+  toCid: bigint;           // Target peer's CID
   peerUsername: string;    // Target peer's username (for display)
   timestamp: number;       // When request was originally sent
   timeLastSent: number;    // When request was last (re)sent - for poll loop
@@ -158,7 +158,7 @@ class PeerRegistrationStore {
       // CRITICAL: Skip and remove if peer is already registered
       // This handles stale requests after ClaimSession/reconnection
       if (p2pRegistrationService.isPeerRegistered(request.toCid)) {
-        console.log(`PeerRegistrationStore: Removing stale request for ${request.peerUsername} (${request.toCid.slice(0, 8)}...) - already registered`);
+        console.log(`PeerRegistrationStore: Removing stale request for ${request.peerUsername} (${request.toCid.toString().slice(0, 8)}...) - already registered`);
         toRemove.push(request.id);
         continue;
       }
@@ -251,18 +251,18 @@ class PeerRegistrationStore {
    * Get current session CID
    * Priority: 1) Tab context selectedCid (set during session switch), 2) StoredSession.cid, 3) Global connection CID
    */
-  private getCurrentSessionCid(): string | null {
-    const tabSelection = getSelectedUser();
-    const tabSession = connectionManager.getTabSelectedSession();
+  private async getCurrentSessionCid(): Promise<bigint | null> {
+    const tabSelection = await getSelectedUser();
+    const tabSession = await connectionManager.getTabSelectedSession();
     const connectionInfo = connectionManager.getConnectionInfo();
-    return tabSelection?.selectedCid || tabSession?.cid?.toString() || connectionInfo?.cid?.toString() || null;
+    return tabSelection?.selectedCid || tabSession?.cid || connectionInfo?.cid || null;
   }
 
   /**
    * Get pending requests for current session (or all if no session)
    */
-  public getPendingRequests(): PendingPeerRequest[] {
-    const currentCid = this.getCurrentSessionCid();
+  public async getPendingRequests(): Promise<PendingPeerRequest[]> {
+    const currentCid = await this.getCurrentSessionCid();
     if (!currentCid) {
       return [...this.pendingRequests];
     }
@@ -272,8 +272,8 @@ class PeerRegistrationStore {
   /**
    * Get count of pending requests for current session
    */
-  public getPendingCount(): number {
-    const currentCid = this.getCurrentSessionCid();
+  public async getPendingCount(): Promise<number> {
+    const currentCid = await this.getCurrentSessionCid();
     if (!currentCid) {
       return this.pendingRequests.length;
     }
@@ -283,8 +283,8 @@ class PeerRegistrationStore {
   /**
    * Check if a request from a specific peer already exists for a target CID
    */
-  public hasRequestFromPeer(peerCid: string, targetCid?: string): boolean {
-    if (targetCid) {
+  public hasRequestFromPeer(peerCid: bigint, targetCid?: bigint): boolean {
+    if (targetCid !== undefined) {
       return this.pendingRequests.some(r => r.peer_cid === peerCid && r.cid === targetCid);
     }
     return this.pendingRequests.some(r => r.peer_cid === peerCid);
@@ -295,8 +295,8 @@ class PeerRegistrationStore {
   /**
    * Check if we have an outgoing request to a specific peer
    */
-  public hasOutgoingRequestTo(peerCid: string, fromCid?: string): boolean {
-    if (fromCid) {
+  public hasOutgoingRequestTo(peerCid: bigint, fromCid?: bigint): boolean {
+    if (fromCid !== undefined) {
       return this.outgoingRequests.some(r => r.toCid === peerCid && r.fromCid === fromCid);
     }
     return this.outgoingRequests.some(r => r.toCid === peerCid);
@@ -305,8 +305,8 @@ class PeerRegistrationStore {
   /**
    * Get all outgoing requests for current session
    */
-  public getOutgoingRequests(): OutgoingPeerRequest[] {
-    const currentCid = this.getCurrentSessionCid();
+  public async getOutgoingRequests(): Promise<OutgoingPeerRequest[]> {
+    const currentCid = await this.getCurrentSessionCid();
     if (!currentCid) {
       return [...this.outgoingRequests];
     }
@@ -316,8 +316,8 @@ class PeerRegistrationStore {
   /**
    * Get outgoing requests as a Set of target CIDs for quick lookup
    */
-  public getOutgoingRequestCids(): Set<string> {
-    const requests = this.getOutgoingRequests();
+  public async getOutgoingRequestCids(): Promise<Set<bigint>> {
+    const requests = await this.getOutgoingRequests();
     return new Set(requests.map(r => r.toCid));
   }
 
@@ -350,7 +350,7 @@ class PeerRegistrationStore {
     console.log('PeerRegistrationStore: Added outgoing request', request);
 
     await this.persistOutgoingToLocalDB();
-    this.emitOutgoingUpdate();
+    await this.emitOutgoingUpdate();
   }
 
   /**
@@ -363,16 +363,16 @@ class PeerRegistrationStore {
     if (this.outgoingRequests.length !== before) {
       console.log('PeerRegistrationStore: Removed outgoing request', requestId);
       await this.persistOutgoingToLocalDB();
-      this.emitOutgoingUpdate();
+      await this.emitOutgoingUpdate();
     }
   }
 
   /**
    * Remove an outgoing request by peer CID (when registration succeeds/fails)
    */
-  public async removeOutgoingRequestByPeer(peerCid: string, fromCid?: string): Promise<void> {
+  public async removeOutgoingRequestByPeer(peerCid: bigint, fromCid?: bigint): Promise<void> {
     const before = this.outgoingRequests.length;
-    if (fromCid) {
+    if (fromCid !== undefined) {
       this.outgoingRequests = this.outgoingRequests.filter(
         r => !(r.toCid === peerCid && r.fromCid === fromCid)
       );
@@ -381,9 +381,9 @@ class PeerRegistrationStore {
     }
 
     if (this.outgoingRequests.length !== before) {
-      console.log('PeerRegistrationStore: Removed outgoing request to peer', peerCid);
+      console.log('PeerRegistrationStore: Removed outgoing request to peer', peerCid.toString());
       await this.persistOutgoingToLocalDB();
-      this.emitOutgoingUpdate();
+      await this.emitOutgoingUpdate();
     }
   }
 
@@ -392,20 +392,20 @@ class PeerRegistrationStore {
    * Stores ALL notifications regardless of current session - filtering happens at display time
    */
   public async handleIncomingRequest(notification: {
-    cid: string;
-    peer_cid: string;
+    cid: bigint;
+    peer_cid: bigint;
     peer_username?: string;
   }): Promise<void> {
-    const peerCid = notification.peer_cid?.toString();
+    const peerCid: bigint | undefined = notification.peer_cid;
     const peerUsername = notification.peer_username || 'Unknown';
-    const notificationTargetCid = notification.cid?.toString();
+    const notificationTargetCid: bigint | undefined = notification.cid;
 
-    if (!peerCid) {
+    if (peerCid === undefined) {
       console.warn('PeerRegistrationStore: Invalid notification - missing peer_cid');
       return;
     }
 
-    if (!notificationTargetCid) {
+    if (notificationTargetCid === undefined) {
       console.warn('PeerRegistrationStore: Invalid notification - missing target cid');
       return;
     }
@@ -418,7 +418,7 @@ class PeerRegistrationStore {
 
     // Check for duplicate (same peer sending to same target)
     if (this.hasRequestFromPeer(peerCid, notificationTargetCid)) {
-      console.log('PeerRegistrationStore: Duplicate request from peer', peerCid, 'to', notificationTargetCid);
+      console.log('PeerRegistrationStore: Duplicate request from peer', peerCid.toString(), 'to', notificationTargetCid.toString());
       return;
     }
 
@@ -441,13 +441,13 @@ class PeerRegistrationStore {
     await this.persistToLocalDB();
 
     // Create notification card if this is for the currently viewed session
-    const currentCid = this.getCurrentSessionCid();
+    const currentCid = await this.getCurrentSessionCid();
     if (currentCid === notificationTargetCid) {
       this.createNotificationForRequest(request);
     }
 
     // Emit update event
-    this.emitUpdate();
+    await this.emitUpdate();
   }
 
   /**
@@ -456,12 +456,12 @@ class PeerRegistrationStore {
   private createNotificationForRequest(request: PendingPeerRequest): void {
     notificationService.addPeerRegistrationNotification(
       request.peer_username,
-      request.peer_cid,
+      request.peer_cid.toString(),
       request.id,
       () => this.acceptRequest(request.id).catch(console.error),
       () => this.declineRequest(request.id).catch(console.error),
       () => eventEmitter.emit('open-pending-requests-modal'),
-      request.cid // Recipient's CID for per-session notification badges
+      request.cid.toString() // Recipient's CID for per-session notification badges
     );
   }
 
@@ -469,12 +469,12 @@ class PeerRegistrationStore {
    * Refresh notifications for current session
    * Call this when switching sessions to show pending requests for that session
    */
-  public refreshNotificationsForCurrentSession(): void {
-    const requests = this.getPendingRequests();
+  public async refreshNotificationsForCurrentSession(): Promise<void> {
+    const requests = await this.getPendingRequests();
     for (const request of requests) {
       this.createNotificationForRequest(request);
     }
-    this.emitUpdate();
+    await this.emitUpdate();
   }
 
   /**
@@ -662,21 +662,21 @@ class PeerRegistrationStore {
   private async removeRequest(requestId: string): Promise<void> {
     this.pendingRequests = this.pendingRequests.filter(r => r.id !== requestId);
     await this.persistToLocalDB();
-    this.emitUpdate();
+    await this.emitUpdate();
   }
 
   /**
    * Remove all requests from a specific peer CID
    * Used when accepting/declining registration via p2pRegistrationService
    */
-  public async removeRequestByPeerCid(peerCid: string): Promise<void> {
+  public async removeRequestByPeerCid(peerCid: bigint): Promise<void> {
     const before = this.pendingRequests.length;
     this.pendingRequests = this.pendingRequests.filter(r => r.peer_cid !== peerCid);
 
     if (this.pendingRequests.length !== before) {
-      console.log('PeerRegistrationStore: Removed requests from peer', peerCid);
+      console.log('PeerRegistrationStore: Removed requests from peer', peerCid.toString());
       await this.persistToLocalDB();
-      this.emitUpdate();
+      await this.emitUpdate();
     }
   }
 
@@ -744,17 +744,17 @@ class PeerRegistrationStore {
 
     return new Promise((resolve) => {
       this.pendingKVRequests.set(requestId, {
-        resolve: (data: any) => {
+        resolve: async (data: any) => {
           if (data && Array.isArray(data)) {
             this.pendingRequests = data;
             console.log('PeerRegistrationStore: Loaded', data.length, 'pending requests');
             // Create notifications for current session's pending requests
-            const currentSessionRequests = this.getPendingRequests();
+            const currentSessionRequests = await this.getPendingRequests();
             console.log('PeerRegistrationStore: Creating notifications for', currentSessionRequests.length, 'requests in current session');
             for (const request of currentSessionRequests) {
               this.createNotificationForRequest(request);
             }
-            this.emitUpdate();
+            await this.emitUpdate();
           }
           resolve(undefined);
         },
@@ -853,7 +853,7 @@ class PeerRegistrationStore {
 
     return new Promise((resolve) => {
       this.pendingKVRequests.set(requestId, {
-        resolve: (data: any) => {
+        resolve: async (data: any) => {
           if (data && Array.isArray(data)) {
             // Filter out any invalid requests missing required fields (toCid, fromCid)
             const validRequests = data.filter((r: OutgoingPeerRequest) => r.toCid && r.fromCid);
@@ -863,7 +863,7 @@ class PeerRegistrationStore {
             }
             this.outgoingRequests = validRequests;
             console.log('PeerRegistrationStore: Loaded', validRequests.length, 'valid outgoing requests');
-            this.emitOutgoingUpdate();
+            await this.emitOutgoingUpdate();
           }
           resolve(undefined);
         },
@@ -971,37 +971,36 @@ class PeerRegistrationStore {
       // Handle PeerRegisterSuccess - remove from outgoing requests
       if (message.PeerRegisterSuccess) {
         const { request_id, cid, peer_cid } = message.PeerRegisterSuccess;
-        console.log('PeerRegistrationStore: PeerRegisterSuccess received', { request_id, cid, peer_cid });
+        console.log('PeerRegistrationStore: PeerRegisterSuccess received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString() });
 
         // Remove from outgoing requests by request_id or peer_cid
-        const peerCidStr = peer_cid?.toString();
-        if (peerCidStr) {
-          this.removeOutgoingRequestByPeer(peerCidStr).catch(console.error);
+        const peerCidBigInt: bigint | undefined = peer_cid;
+        if (peerCidBigInt !== undefined) {
+          this.removeOutgoingRequestByPeer(peerCidBigInt).catch(console.error);
         }
       }
 
       // Handle PeerRegisterFailure - remove from outgoing requests
       if (message.PeerRegisterFailure) {
         const { request_id, cid, peer_cid, message: errorMsg } = message.PeerRegisterFailure;
-        console.log('PeerRegistrationStore: PeerRegisterFailure received', { request_id, cid, peer_cid, errorMsg });
+        console.log('PeerRegistrationStore: PeerRegisterFailure received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString(), errorMsg });
 
         // Remove from outgoing requests by peer_cid
-        const peerCidStr = peer_cid?.toString();
-        if (peerCidStr) {
-          this.removeOutgoingRequestByPeer(peerCidStr).catch(console.error);
+        const peerCidBigInt: bigint | undefined = peer_cid;
+        if (peerCidBigInt !== undefined) {
+          this.removeOutgoingRequestByPeer(peerCidBigInt).catch(console.error);
         }
       }
 
       // Handle PeerConnectSuccess - clear pending requests for connected peer
       if (message.PeerConnectSuccess) {
-        const { peer_cid } = message.PeerConnectSuccess;
-        const peerCidStr = peer_cid?.toString();
-        if (peerCidStr) {
-          console.log(`[PeerRegistrationStore] Clearing requests for connected peer ${peerCidStr}`);
+        const peer_cid: bigint | undefined = message.PeerConnectSuccess.peer_cid;
+        if (peer_cid !== undefined) {
+          console.log(`[PeerRegistrationStore] Clearing requests for connected peer ${peer_cid.toString()}`);
 
           // Clear both incoming and outgoing requests
-          this.removeRequestByPeerCid(peerCidStr).catch(console.error);
-          this.removeOutgoingRequestByPeer(peerCidStr).catch(console.error);
+          this.removeRequestByPeerCid(peer_cid).catch(console.error);
+          this.removeOutgoingRequestByPeer(peer_cid).catch(console.error);
 
           // Emit update event to refresh UI
           eventEmitter.emit('peer-requests:updated');
@@ -1013,8 +1012,8 @@ class PeerRegistrationStore {
   /**
    * Emit update event for UI components (filtered by current session)
    */
-  private emitUpdate(): void {
-    const currentSessionRequests = this.getPendingRequests();
+  private async emitUpdate(): Promise<void> {
+    const currentSessionRequests = await this.getPendingRequests();
     eventEmitter.emit('peer-requests:updated', {
       requests: currentSessionRequests,
       count: currentSessionRequests.length
@@ -1024,8 +1023,8 @@ class PeerRegistrationStore {
   /**
    * Emit outgoing update event for UI components
    */
-  private emitOutgoingUpdate(): void {
-    const currentSessionOutgoing = this.getOutgoingRequests();
+  private async emitOutgoingUpdate(): Promise<void> {
+    const currentSessionOutgoing = await this.getOutgoingRequests();
     eventEmitter.emit('outgoing-peer-requests:updated', {
       requests: currentSessionOutgoing,
       cids: new Set(currentSessionOutgoing.map(r => r.toCid))

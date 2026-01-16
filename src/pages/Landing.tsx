@@ -94,7 +94,7 @@ export const Landing = () => {
   const handleJoinNext = (cid: string) => {
     console.info(`[Landing] handleJoinNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(cid);
+      WorkspaceService.setConnectionId(BigInt(cid));
       // Trigger loading - no need to await, WorkspaceEventHandler will handle events
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
       WorkspaceService.loadWorkspace();
@@ -118,7 +118,7 @@ export const Landing = () => {
   const handleLoginNext = (cid: string) => {
     console.info(`[Landing] handleLoginNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(cid);
+      WorkspaceService.setConnectionId(BigInt(cid));
       // Trigger loading
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
       WorkspaceService.loadWorkspace();

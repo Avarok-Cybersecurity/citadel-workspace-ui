@@ -105,9 +105,9 @@ class InstanceChannel {
       this.handleMessage(message);
     };
 
-    this.channel.onerror = (error) => {
-      console.error('[InstanceChannel] Channel error:', error);
-    };
+    this.channel.addEventListener('messageerror', (event: MessageEvent) => {
+      console.error('[InstanceChannel] Channel error:', event);
+    });
   }
 
   /**

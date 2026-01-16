@@ -35,7 +35,7 @@ interface WorkspaceEventState {
     timestamp: number;
   };
   messages: {
-    byPeer: Record<number, Array<{
+    byPeer: Record<string, Array<{
       content: string;
       timestamp: number;
       id?: string;
@@ -44,13 +44,13 @@ interface WorkspaceEventState {
     lastMessageTimestamp?: number;
   };
   typing: {
-    peerIds: number[];
+    peerIds: string[];
     lastUpdated: number;
   };
   currentUser?: {
     id: string;
     username: string;
-    fullName: string;
+    name: string;
     role?: string;
     displayName?: string;
     avatarUrl?: string; // Base64 data URL for avatar image
@@ -81,7 +81,7 @@ export const WorkspaceEventHandler: React.FC<{
     },
     needsWorkspaceInitialization: false,
     messages: {
-      byPeer: loadFromStorage<Record<number, Array<{
+      byPeer: loadFromStorage<Record<string, Array<{
         content: string;
         timestamp: number;
         id?: string;
@@ -119,16 +119,25 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       // Workspace loaded event
-      await workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
-        const workspaceMetadata = payload.workspace.metadata || [];
+      await workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
+        const rawMetadata = payload.workspace.metadata;
 
         // Parse metadata as JSON to check initialization status
         let isInitialized = false;
+        let parsedMetadata: Record<string, any> | undefined;
         try {
-          if (workspaceMetadata.length > 0) {
-            const metadataString = new TextDecoder().decode(new Uint8Array(workspaceMetadata));
-            const metadataJson = JSON.parse(metadataString);
-            isInitialized = metadataJson.initialized === true;
+          // metadata could be a Record or array-like bytes
+          if (rawMetadata && typeof rawMetadata === 'object') {
+            if (Array.isArray(rawMetadata) && rawMetadata.length > 0) {
+              // Array of bytes - decode as JSON
+              const metadataString = new TextDecoder().decode(new Uint8Array(rawMetadata as number[]));
+              parsedMetadata = JSON.parse(metadataString);
+              isInitialized = parsedMetadata?.initialized === true;
+            } else if (!Array.isArray(rawMetadata)) {
+              // Already a Record object
+              parsedMetadata = rawMetadata;
+              isInitialized = parsedMetadata?.initialized === true;
+            }
           }
         } catch (error) {
           console.warn('Failed to parse workspace metadata as JSON:', error);
@@ -136,20 +145,16 @@ export const WorkspaceEventHandler: React.FC<{
           isInitialized = false;
         }
 
-        const newState = {
-          workspace: {
-            ...payload.workspace,
-            // Process metadata for workspace logo if needed
-            metadata: workspaceMetadata
-          },
-          loading: { workspace: false },
-          needsWorkspaceInitialization: !isInitialized,
-          lastRequestId: payload.connection.request_id
-        };
-
         setState(prev => ({
           ...prev,
-          ...newState
+          workspace: {
+            id: payload.workspace.id,
+            name: payload.workspace.name,
+            metadata: parsedMetadata
+          },
+          loading: { ...prev.loading, workspace: false },
+          needsWorkspaceInitialization: !isInitialized,
+          lastRequestId: payload.connection.request_id
         }));
 
         // P2P startup is now handled by SessionStartupService
@@ -157,19 +162,23 @@ export const WorkspaceEventHandler: React.FC<{
         // This centralized approach ensures P2P works consistently for Connect, ClaimSession, and Login
 
         // Broadcast workspace state to other tabs (excluding currentUser which is tab-specific)
-        const { currentUser: excludedUser, ...stateWithoutUser } = newState;
         broadcastChannelService.broadcastStateSync({
           type: 'workspace',
-          data: stateWithoutUser
+          data: {
+            workspace: { id: payload.workspace.id, name: payload.workspace.name, metadata: parsedMetadata },
+            loading: { workspace: false },
+            needsWorkspaceInitialization: !isInitialized,
+            lastRequestId: payload.connection.request_id
+          }
         });
 
         // Try to load user information if not already loaded
         const userService = UserService;
-        const currentUser = userService.getCurrentUser();
+        const currentUser = await userService.getCurrentUser();
 
         if (currentUser) {
           // Get role from stored session (WorkspaceSwitcher uses this)
-          const storedSession = connectionManager.getTabSelectedSession();
+          const storedSession = await connectionManager.getTabSelectedSession();
           const role = storedSession?.role;
 
           setState(prev => ({
@@ -329,7 +338,7 @@ export const WorkspaceEventHandler: React.FC<{
           // Also remove all rooms belonging to this office
           const newRooms = { ...prev.rooms };
           Object.keys(newRooms).forEach(roomId => {
-            if (newRooms[roomId].office_id === payload.officeId) {
+            if (newRooms[roomId].officeId === payload.officeId) {
               delete newRooms[roomId];
             }
           });
@@ -522,13 +531,18 @@ export const WorkspaceEventHandler: React.FC<{
               updatedCurrentUser = {
                 ...prev.currentUser,
                 role: currentUserMember.role,
-                displayName: currentUserMember.displayName || prev.currentUser.fullName
+                displayName: currentUserMember.displayName || prev.currentUser.name
               };
 
-              // Persist role to stored session for WorkspaceSwitcher
-              const session = connectionManager.getTabSelectedSession();
-              if (session) {
-                connectionManager.updateSessionRole(session.username, session.serverAddress, currentUserMember.role);
+              // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
+              // Capture role before async callback to satisfy TypeScript narrowing
+              const roleToSave = currentUserMember.role;
+              if (roleToSave) {
+                connectionManager.getTabSelectedSession().then(session => {
+                  if (session) {
+                    connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
+                  }
+                });
               }
             }
           }
@@ -567,11 +581,12 @@ export const WorkspaceEventHandler: React.FC<{
               role: payload.role
             };
 
-            // Persist role to stored session for WorkspaceSwitcher
-            const session = connectionManager.getTabSelectedSession();
-            if (session) {
-              connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
-            }
+            // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
+            connectionManager.getTabSelectedSession().then(session => {
+              if (session) {
+                connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
+              }
+            });
           }
           return {
             ...prev,
@@ -607,11 +622,12 @@ export const WorkspaceEventHandler: React.FC<{
               role: payload.role
             };
 
-            // Persist role to stored session for WorkspaceSwitcher
-            const session = connectionManager.getTabSelectedSession();
-            if (session) {
-              connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
-            }
+            // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
+            connectionManager.getTabSelectedSession().then(session => {
+              if (session) {
+                connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
+              }
+            });
           }
           return {
             ...prev,
@@ -658,16 +674,16 @@ export const WorkspaceEventHandler: React.FC<{
           return;
         }
 
-        // Get peer CID with fallback
-        const peerCid = payload.peerCid || 0;
+        // Get peer CID with fallback, convert to string for object key
+        const peerCidStr = (payload.peerCid ?? 0n).toString();
 
         // Update state with new message
         setState(prev => {
           // Get existing messages for this peer or create new array
-          const peerMessages = prev.messages.byPeer[peerCid] || [];
+          const peerMessages = prev.messages.byPeer[peerCidStr] || [];
 
           // Remove peer from typing list when a message is received
-          const updatedTypingPeerIds = prev.typing.peerIds.filter(id => id !== peerCid);
+          const updatedTypingPeerIds = prev.typing.peerIds.filter(id => id !== peerCidStr);
 
           return {
             ...prev,
@@ -675,7 +691,7 @@ export const WorkspaceEventHandler: React.FC<{
               ...prev.messages,
               byPeer: {
                 ...prev.messages.byPeer,
-                [peerCid]: [
+                [peerCidStr]: [
                   ...peerMessages,
                   {
                     content: payload.contents as string,
@@ -697,14 +713,15 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       // Handle typing indicators
-      await workspaceEvents.onMessageEvent('typing:started', (payload: { peerCid: number, connection: ConnectionInfo }) => {
+      await workspaceEvents.onMessageEvent('typing:started', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
+        const peerCidStr = payload.peerCid.toString();
         setState(prev => {
           // Add peer to typing list if not already there
-          if (!prev.typing.peerIds.includes(payload.peerCid)) {
+          if (!prev.typing.peerIds.includes(peerCidStr)) {
             return {
               ...prev,
               typing: {
-                peerIds: [...prev.typing.peerIds, payload.peerCid],
+                peerIds: [...prev.typing.peerIds, peerCidStr],
                 lastUpdated: Date.now()
               },
               lastRequestId: payload.connection.request_id
@@ -714,13 +731,14 @@ export const WorkspaceEventHandler: React.FC<{
         });
       });
 
-      await workspaceEvents.onMessageEvent('typing:stopped', (payload: { peerCid: number, connection: ConnectionInfo }) => {
+      await workspaceEvents.onMessageEvent('typing:stopped', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
+        const peerCidStr = payload.peerCid.toString();
         setState(prev => {
           // Remove peer from typing list
           return {
             ...prev,
             typing: {
-              peerIds: prev.typing.peerIds.filter(id => id !== payload.peerCid),
+              peerIds: prev.typing.peerIds.filter(id => id !== peerCidStr),
               lastUpdated: Date.now()
             },
             lastRequestId: payload.connection.request_id
@@ -813,7 +831,7 @@ export const WorkspaceEventHandler: React.FC<{
           currentUser: prev.currentUser ? {
             ...prev.currentUser,
             displayName: user.name || prev.currentUser.displayName,
-            fullName: user.name || prev.currentUser.fullName,
+            name: user.name || prev.currentUser.name,
             avatarUrl: avatarUrl || prev.currentUser.avatarUrl
           } : prev.currentUser
         }));
@@ -980,41 +998,12 @@ export const WorkspaceEventHandler: React.FC<{
   }, [state.messages.byPeer]);
 
   // Function to send a message to a peer
-  // TODO: This is outdated and needs to be wrapped properly with the worspace-level subprotocol commands
+  // TODO: This is outdated and needs to be wrapped properly with the workspace-level subprotocol commands
   // via sendWorkspaceRequest from workspace-service.ts
-  const sendMessage = async (content: string, recipientId: number) => {
+  const sendMessage = async (content: string, recipientId: string) => {
     try {
-      await invoke('send_workspace_request', {
-        receiverId: recipientId.toString(),
-        content
-      });
-
-      // Optimistically add the message to our state (will be official when we get the event back)
-      setState(prev => {
-        const peerMessages = prev.messages.byPeer[recipientId] || [];
-
-        return {
-          ...prev,
-          messages: {
-            ...prev.messages,
-            byPeer: {
-              ...prev.messages.byPeer,
-              [recipientId]: [
-                ...peerMessages,
-                {
-                  content,
-                  timestamp: Date.now(),
-                  pending: true // Mark as pending until confirmed
-                }
-              ]
-            },
-            lastMessageTimestamp: Date.now()
-          },
-          lastRequestId: prev.lastRequestId
-        };
-      });
-
-      return true;
+      // TODO: Replace with proper workspace-service.ts call
+      throw new Error('sendMessage not implemented - use WorkspaceService.sendWorkspaceRequest instead');
     } catch (error) {
       console.error('Error sending message:', error);
       setState(prev => ({
@@ -1067,7 +1056,7 @@ export const WorkspaceEventHandler: React.FC<{
         workspaceId={state.workspace?.id || 'root'}
         serverAddress={connectionManager.getStoredSessionsArray()[0]?.serverAddress}
         username={state.currentUser?.username && state.currentUser.username !== 'Loading...' ? state.currentUser.username : connectionManager.getStoredSessionsArray()[0]?.username}
-        fullName={state.currentUser?.fullName && state.currentUser.fullName !== 'Loading...' ? state.currentUser.fullName : connectionManager.getStoredSessionsArray()[0]?.fullName}
+        fullName={state.currentUser?.name && state.currentUser.name !== 'Loading...' ? state.currentUser.name : connectionManager.getStoredSessionsArray()[0]?.fullName}
       />
     </>
   );

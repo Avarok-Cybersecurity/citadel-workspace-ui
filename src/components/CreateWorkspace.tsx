@@ -138,7 +138,7 @@ export const CreateWorkspace = ({
         serverAddress,
         serverPassword,
         mapSecuritySettings(securitySettings),
-        cid,
+        BigInt(cid),
       );
       
       toast({
@@ -181,7 +181,7 @@ export const CreateWorkspace = ({
     setError(null);
     
     try {
-      WorkspaceService.setConnectionId(adminCid);
+      WorkspaceService.setConnectionId(BigInt(adminCid));
       
       console.log('CreateWorkspace: Setting up workspace with CID:', adminCid);
       
@@ -208,7 +208,7 @@ export const CreateWorkspace = ({
       const metadataBytes = new TextEncoder().encode(JSON.stringify(metadata));
       
       // Update the workspace to mark it as initialized
-      await workspaceService.updateWorkspace(
+      await WorkspaceService.updateWorkspace(
         workspaceData.name,
         workspaceData.description,
         workspaceData.masterPassword,

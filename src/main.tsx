@@ -51,16 +51,18 @@ try {
   console.log("main.tsx: App rendered successfully");
 } catch (error) {
   console.error("main.tsx: Error during initialization:", error);
-  
+
   // Show error on page if React fails
   const rootElement = document.getElementById("root");
   if (rootElement) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : '';
     rootElement.innerHTML = `
       <div style="padding: 20px; color: red; font-family: monospace;">
         <h2>React Initialization Error</h2>
-        <p><strong>Error:</strong> ${error.message}</p>
+        <p><strong>Error:</strong> ${errorMessage}</p>
         <p><strong>Stack:</strong></p>
-        <pre>${error.stack}</pre>
+        <pre>${errorStack}</pre>
       </div>
     `;
   }

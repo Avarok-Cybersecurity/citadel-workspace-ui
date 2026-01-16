@@ -59,11 +59,11 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
       // Check if already connected via ConnectionManager
       const currentConnection = connectionManager.getConnectionInfo();
-      if (currentConnection?.cid && currentConnection.cid !== '0') {
+      if (currentConnection?.cid && currentConnection.cid !== 0n) {
         console.log('WorkspaceLoader: Already connected with CID:', currentConnection.cid);
 
         // Set up tab context if not already set
-        const existingSelection = getSelectedUser();
+        const existingSelection = await getSelectedUser();
         if (!existingSelection?.selectedCid) {
           // Get session info from active sessions to populate tab context
           const activeSessions = await connectionManager.getActiveSessions();
@@ -112,7 +112,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
         // CRITICAL: Only claim a session when we have an explicit CID from tab context
         // NEVER blindly pick activeSessions[0] - that steals other users' sessions!
-        const existingSelection = getSelectedUser();
+        const existingSelection = await getSelectedUser();
 
         if (!existingSelection?.selectedCid) {
           // No CID known for this tab - do NOT claim any session
@@ -160,7 +160,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
         // Start WASM connection manager for P2P messaging
         try {
-          await wasmConnectionManager.start(session.cid);
+          await wasmConnectionManager.start(session.cid.toString());
           console.log('WorkspaceLoader: WASM connection manager started for CID:', session.cid);
         } catch (error) {
           console.error('WorkspaceLoader: Failed to start WASM connection manager:', error);

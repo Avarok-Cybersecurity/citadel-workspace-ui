@@ -42,20 +42,22 @@ vi.mock('../event-emitter', () => ({
 }));
 
 // Mock connection manager
+// Note: getTabSelectedSession is async (IndexedDB-backed)
 vi.mock('../connection-manager', () => ({
   connectionManager: {
     getConnectionInfo: vi.fn(() => ({ cid: '12345' })),
-    getTabSelectedSession: vi.fn(() => null),
+    getTabSelectedSession: vi.fn(() => Promise.resolve(null)),
     getActiveSessions: vi.fn(async () => [])
   },
-  getSelectedUser: vi.fn(() => null)
+  getSelectedUser: vi.fn(() => Promise.resolve(null))
 }));
 
 // Mock p2p-auto-connect-service
+// Note: getConnectedPeers and isPeerConnected are async (IndexedDB-backed)
 vi.mock('../p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
-    getConnectedPeers: vi.fn(() => []),
-    isPeerConnected: vi.fn(() => false),
+    getConnectedPeers: vi.fn(() => Promise.resolve([])),
+    isPeerConnected: vi.fn(() => Promise.resolve(false)),
     isPeerOnline: vi.fn(() => false),
     ensurePeerConnectedInBackground: vi.fn()
   }
@@ -76,7 +78,7 @@ describe('P2P Pagination', () => {
 
   describe('Metadata Storage', () => {
     it('should store and retrieve conversation metadata', async () => {
-      const peerCid = 'test-peer-123';
+      const peerCid = 123n;
       const metadata: ConversationMetadata = {
         peerCid,
         peerUsername: 'testuser',
@@ -90,16 +92,17 @@ describe('P2P Pagination', () => {
         lastUpdated: Date.now()
       };
 
-      // Save metadata
+      // Save metadata (convert bigint to string for JSON)
       const key = `${PAGINATED_PREFIX}${peerCid}_metadata`;
-      const valueBytes = Array.from(new TextEncoder().encode(JSON.stringify(metadata)));
+      const serializable = { ...metadata, peerCid: metadata.peerCid.toString() };
+      const valueBytes = Array.from(new TextEncoder().encode(JSON.stringify(serializable)));
       localDBStore.set(key, valueBytes);
 
       // Verify retrieval
       const storedValue = localDBStore.get(key);
       expect(storedValue).toBeDefined();
       const decoded = JSON.parse(new TextDecoder().decode(new Uint8Array(storedValue!)));
-      expect(decoded.peerCid).toBe(peerCid);
+      expect(decoded.peerCid).toBe(peerCid.toString());
       expect(decoded.totalMessageCount).toBe(10);
       expect(decoded.unreadCount).toBe(2);
     });
@@ -107,7 +110,7 @@ describe('P2P Pagination', () => {
 
   describe('Message Page Storage', () => {
     it('should store and retrieve a message page', async () => {
-      const peerCid = 'test-peer-456';
+      const peerCid = 456n;
       const page: MessagePage = {
         peerCid,
         pageNumber: 0,
@@ -122,15 +125,24 @@ describe('P2P Pagination', () => {
         }
       };
 
-      // Save page
+      // Save page (serialize bigints)
       const key = `${PAGINATED_PREFIX}${peerCid}_0`;
-      const valueBytes = Array.from(new TextEncoder().encode(JSON.stringify(page)));
+      const serializable = {
+        ...page,
+        peerCid: page.peerCid.toString(),
+        messages: page.messages.map(m => ({
+          ...m,
+          senderCid: m.senderCid.toString(),
+          recipientCid: m.recipientCid.toString()
+        }))
+      };
+      const valueBytes = Array.from(new TextEncoder().encode(JSON.stringify(serializable)));
       localDBStore.set(key, valueBytes);
 
       // Verify retrieval
       const storedValue = localDBStore.get(key);
       expect(storedValue).toBeDefined();
-      const decoded = JSON.parse(new TextDecoder().decode(new Uint8Array(storedValue!))) as MessagePage;
+      const decoded = JSON.parse(new TextDecoder().decode(new Uint8Array(storedValue!)));
       expect(decoded.messages.length).toBe(3);
       expect(decoded.pageNumber).toBe(0);
     });
@@ -138,7 +150,7 @@ describe('P2P Pagination', () => {
 
   describe('Page Rotation', () => {
     it('should create new page when current page reaches 50 messages', async () => {
-      const peerCid = 'test-peer-789';
+      const peerCid = 789n;
 
       // Create a full page (50 messages)
       const fullPage: MessagePage = {
@@ -155,7 +167,12 @@ describe('P2P Pagination', () => {
 
       // Save full page
       const page0Key = `${PAGINATED_PREFIX}${peerCid}_0`;
-      localDBStore.set(page0Key, Array.from(new TextEncoder().encode(JSON.stringify(fullPage))));
+      const serializePageFn = (p: MessagePage) => ({
+        ...p,
+        peerCid: p.peerCid.toString(),
+        messages: p.messages.map(m => ({ ...m, senderCid: m.senderCid.toString(), recipientCid: m.recipientCid.toString() }))
+      });
+      localDBStore.set(page0Key, Array.from(new TextEncoder().encode(JSON.stringify(serializePageFn(fullPage)))));
 
       // Verify page is full
       const storedPage0 = JSON.parse(new TextDecoder().decode(new Uint8Array(localDBStore.get(page0Key)!))) as MessagePage;
@@ -171,8 +188,13 @@ describe('P2P Pagination', () => {
           maxTimestamp: Date.now()
         }
       };
+      const serializePage = (p: MessagePage) => ({
+        ...p,
+        peerCid: p.peerCid.toString(),
+        messages: p.messages.map(m => ({ ...m, senderCid: m.senderCid.toString(), recipientCid: m.recipientCid.toString() }))
+      });
       const page1Key = `${PAGINATED_PREFIX}${peerCid}_1`;
-      localDBStore.set(page1Key, Array.from(new TextEncoder().encode(JSON.stringify(newPage))));
+      localDBStore.set(page1Key, Array.from(new TextEncoder().encode(JSON.stringify(serializePage(newPage)))));
 
       // Update metadata
       const metadata: ConversationMetadata = {
@@ -187,7 +209,8 @@ describe('P2P Pagination', () => {
         lastUpdated: Date.now()
       };
       const metadataKey = `${PAGINATED_PREFIX}${peerCid}_metadata`;
-      localDBStore.set(metadataKey, Array.from(new TextEncoder().encode(JSON.stringify(metadata))));
+      const serializableMeta = { ...metadata, peerCid: metadata.peerCid.toString() };
+      localDBStore.set(metadataKey, Array.from(new TextEncoder().encode(JSON.stringify(serializableMeta))));
 
       // Verify both pages exist
       expect(localDBStore.has(page0Key)).toBe(true);
@@ -202,7 +225,14 @@ describe('P2P Pagination', () => {
 
   describe('Lazy Loading', () => {
     it('should load older pages by decrementing page number', async () => {
-      const peerCid = 'test-peer-lazy';
+      const peerCid = 1001n;
+
+      // Helper to serialize page for storage
+      const serializePage = (p: MessagePage) => ({
+        ...p,
+        peerCid: p.peerCid.toString(),
+        messages: p.messages.map(m => ({ ...m, senderCid: m.senderCid.toString(), recipientCid: m.recipientCid.toString() }))
+      });
 
       // Create 3 pages of messages
       for (let pageNum = 0; pageNum < 3; pageNum++) {
@@ -218,7 +248,7 @@ describe('P2P Pagination', () => {
           }
         };
         const pageKey = `${PAGINATED_PREFIX}${peerCid}_${pageNum}`;
-        localDBStore.set(pageKey, Array.from(new TextEncoder().encode(JSON.stringify(page))));
+        localDBStore.set(pageKey, Array.from(new TextEncoder().encode(JSON.stringify(serializePage(page)))));
       }
 
       // Create metadata pointing to latest page (2)
@@ -234,7 +264,8 @@ describe('P2P Pagination', () => {
         lastUpdated: Date.now()
       };
       const metadataKey = `${PAGINATED_PREFIX}${peerCid}_metadata`;
-      localDBStore.set(metadataKey, Array.from(new TextEncoder().encode(JSON.stringify(metadata))));
+      const serializableMeta = { ...metadata, peerCid: metadata.peerCid.toString() };
+      localDBStore.set(metadataKey, Array.from(new TextEncoder().encode(JSON.stringify(serializableMeta))));
 
       // Simulate loading pages from latest to oldest
       let currentPage = metadata.latestPage;
@@ -312,10 +343,10 @@ describe('P2P Pagination', () => {
 });
 
 // Helper function to create fake messages
-function createFakeMessage(peerCid: string, index: number, timestamp?: number): P2PMessage {
+function createFakeMessage(peerCid: bigint, index: number, timestamp?: number): P2PMessage {
   return {
     id: `msg-${peerCid}-${index}`,
-    senderCid: '12345', // Current user
+    senderCid: 12345n, // Current user
     recipientCid: peerCid,
     content: `Test message ${index}`,
     timestamp: timestamp || Date.now() - (100 - index) * 1000, // Older messages have earlier timestamps

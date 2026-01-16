@@ -1,9 +1,13 @@
 /**
  * P2P Command Types for peer-to-peer messaging
  * These types mirror the Rust enum structure for P2P communication
+ *
+ * Serialization: Uses CBOR (cbor-x) for native BigInt support.
+ * CIDs are stored as bigint - no string conversion needed.
+ * CBOR handles BigInt natively via CBOR tags 2/3.
  */
 
-import { encode, decode } from '@msgpack/msgpack';
+import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
 import type { MessageType } from './message-protocol';
 import type { MessagingLayer } from './messaging-layer';
 import {
@@ -31,14 +35,15 @@ export enum P2PCommandType {
 
 /**
  * Payload for MessagingLayerCommand - wraps a MessagingLayer with metadata
+ * CIDs are native bigint - bincode-ts handles serialization natively via u64.
  */
 export interface P2PMessagingLayerPayload {
   /** The serialized MessagingLayer data */
   layer: MessagingLayer;
-  /** Sender's connection ID */
-  sender_cid: string;
-  /** Recipient's connection ID */
-  recipient_cid: string;
+  /** Sender's connection ID (native bigint) */
+  sender_cid: bigint;
+  /** Recipient's connection ID (native bigint) */
+  recipient_cid: bigint;
   /** Unique message ID for acks */
   message_id: string;
   /** Message index for ordering (only relevant for Message type) */
@@ -72,8 +77,8 @@ export interface P2PFileTransferRequestPayload {
   chunk_size: number;
   total_chunks: number;
   metadata: {
-    sender_cid: string;
-    recipient_cid: string;
+    sender_cid: bigint;
+    recipient_cid: bigint;
     timestamp: number;
   };
 }
@@ -131,12 +136,13 @@ export function isFileTransferCompletePayload(payload: any): payload is P2PFileT
 // Helper functions for creating P2P commands
 
 /**
- * Create a MessagingLayerCommand with the given layer payload
+ * Create a MessagingLayerCommand with the given layer payload.
+ * CIDs are native bigint - bincode-ts handles serialization natively.
  */
 export function createMessagingLayerCommand(
   layer: MessagingLayer,
-  senderCid: string,
-  recipientCid: string,
+  senderCid: bigint,
+  recipientCid: bigint,
   index: number,
   options?: {
     messageId?: string;
@@ -152,6 +158,7 @@ export function createMessagingLayerCommand(
     type: P2PCommandType.MessagingLayerCommand,
     payload: {
       layer,
+      // Native bigint - no conversion needed
       sender_cid: senderCid,
       recipient_cid: recipientCid,
       message_id: options?.messageId ?? crypto.randomUUID(),
@@ -182,22 +189,23 @@ export function createMessageAckCommand(
   };
 }
 
-// Message serialization/deserialization using MessagePack
-// MessagePack provides direct Object ↔ Uint8Array conversion with native binary support
+// Message serialization/deserialization using CBOR (cbor-x)
+// CBOR provides native BigInt support via tags 2/3, no string conversion needed
 
 /**
- * Serialize a P2P command to Uint8Array using MessagePack.
- * More efficient than JSON: no string intermediate, native Uint8Array support.
+ * Serialize a P2P command to Uint8Array using CBOR.
+ * Native BigInt support - CIDs are serialized directly as 64-bit integers.
  */
 export function serializeP2PCommand(command: P2PCommand): Uint8Array {
-  return encode(command);
+  return cborEncode(command);
 }
 
 /**
- * Deserialize a P2P command from Uint8Array using MessagePack.
+ * Deserialize a P2P command from Uint8Array using CBOR.
+ * BigInt values are automatically restored.
  */
 export function deserializeP2PCommand(data: Uint8Array): P2PCommand {
-  return decode(data) as P2PCommand;
+  return cborDecode(data) as P2PCommand;
 }
 
 // ============================================

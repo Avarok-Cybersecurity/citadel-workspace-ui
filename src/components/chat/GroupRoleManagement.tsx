@@ -186,7 +186,7 @@ export function GroupRoleManagement({
                     <div className="w-3 h-3 rounded-full bg-gray-500" />
                   )}
                   {role.isBuiltIn && (
-                    <Lock className="h-3 w-3 text-amber-500" title="Built-in role" />
+                    <span title="Built-in role"><Lock className="h-3 w-3 text-amber-500" /></span>
                   )}
                 </div>
 

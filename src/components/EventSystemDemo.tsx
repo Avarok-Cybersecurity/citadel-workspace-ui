@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { useEventProcessor, useConnection, usePeers, useMessages } from '../lib/event-hooks';
 import { sendMessage } from '../lib/workspace-protocol';
 import { useAppStore, Message } from '../lib/event-processor';
-import { UserRoleTS } from '../types/workspace-types';
+import type { UserTS } from '../types/workspace-protocol';
 
 const EventSystemDemo: React.FC = () => {
   // Initialize the event processor
@@ -82,17 +82,11 @@ const EventSystemDemo: React.FC = () => {
     }
 
     // Add a mock peer to the state
+    // Note: Using UserTS from workspace-protocol (no email field)
     useAppStore.getState().updatePeers([{
       id: peerConnectionId,
       username: `user_${peerConnectionId.substring(0, 4)}`,
-      email: `user_${peerConnectionId.substring(0, 4)}@example.com`,
       display_name: `User ${peerConnectionId.substring(0, 4)}`,
-      role: UserRoleTS.Member,
-      permissions: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_active: new Date().toISOString(),
-      online: true
     }]);
 
     setConnectStatus(`Added peer with ID: ${peerConnectionId}`);
@@ -144,17 +138,17 @@ const EventSystemDemo: React.FC = () => {
         </div>
         
         <div className="peer-list">
-          {Object.keys(peers.peers).length === 0 ? (
+          {Object.keys(peers).length === 0 ? (
             <div className="no-peers">No peers available</div>
           ) : (
             <ul>
-              {Object.entries(peers.peers).map(([peerId, peer]) => (
-                <li 
+              {Object.entries(peers).map(([peerId, peer]) => (
+                <li
                   key={peerId}
                   className={peerId === activePeer ? 'active' : ''}
                   onClick={() => handleSelectPeer(peerId)}
                 >
-                  <span className={`status-indicator ${peer.online ? 'online' : 'offline'}`} />
+                  <span className="status-indicator online" />
                   <span className="name">{peer.display_name}</span>
                   <span className="id">({peerId.substring(0, 8)}...)</span>
                 </li>
@@ -166,7 +160,7 @@ const EventSystemDemo: React.FC = () => {
       
       {activePeer && (
         <div className="chat-panel">
-          <h2>Chat with {peers.peers[activePeer]?.display_name || activePeer}</h2>
+          <h2>Chat with {peers[activePeer]?.display_name || activePeer}</h2>
           
           <div className="messages">
             {!Array.isArray(messages) || messages.length === 0 ? (

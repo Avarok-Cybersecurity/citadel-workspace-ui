@@ -31,7 +31,7 @@ interface UseGroupPermissionsResult {
   /** Check if user can perform a specific action */
   can: (action: keyof GroupPermissions) => boolean;
   /** Check if user can manage a specific member */
-  canManageMember: (memberCid: string) => boolean;
+  canManageMember: (memberCid: bigint) => boolean;
   /** Check if user can manage a specific role */
   canManageRole: (roleId: string) => boolean;
   /** Check if user can assign a specific role */
@@ -116,7 +116,7 @@ export function useGroupPermissions(
 
   // Check if can manage a member
   const canManageMember = useCallback(
-    (memberCid: string): boolean => {
+    (memberCid: bigint): boolean => {
       if (!currentCid || memberCid === currentCid) return false; // Cannot manage self
       if (!myRole) return false;
       if (!permissions.kickMembers && !permissions.assignRoles) return false;

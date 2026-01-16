@@ -36,9 +36,9 @@ export type ChatMode = 'p2p' | 'group';
 
 interface P2PChatProps {
   // Common props
-  peerCid: string;
+  peerCid: bigint;
   peerName?: string;
-  currentUserCid?: string;
+  currentUserCid?: bigint;
   currentUserName?: string;
 
   // Group mode props
@@ -116,8 +116,8 @@ export function P2PChat({
   const activeTabIdRef = useRef(activeTabId);
   const tabsRef = useRef(tabs);
 
-  // Markdown formatting hook
-  const { applyFormat } = useMarkdownFormat(
+  // Markdown formatting hook - returns the format function directly
+  const applyFormat = useMarkdownFormat(
     inputRef,
     setInputMessage,
     () => inputMessage
@@ -146,39 +146,8 @@ export function P2PChat({
     tabsRef.current = tabs;
   }, [tabs]);
   
-  // Handle demo peer messages
-  const DEMO_MESSAGES: P2PMessage[] = peerCid === 'demo-peer-kathy' ? [
-    {
-      id: 'demo-1',
-      senderCid: 'demo-peer-kathy',
-      recipientCid: currentUserCid || 'user',
-      content: 'Hey! How\'s the project going?',
-      timestamp: Date.now() - 1000 * 60 * 5,
-      index: 1,
-      status: 'delivered',
-      message_type: 'text'
-    },
-    {
-      id: 'demo-2',
-      senderCid: currentUserCid || 'user',
-      recipientCid: 'demo-peer-kathy',
-      content: 'It\'s going great! Just finishing up the P2P messaging feature.',
-      timestamp: Date.now() - 1000 * 60 * 4,
-      index: 2,
-      status: 'delivered',
-      message_type: 'text'
-    },
-    {
-      id: 'demo-3',
-      senderCid: 'demo-peer-kathy',
-      recipientCid: currentUserCid || 'user',
-      content: 'Awesome! Let me know if you need any help.',
-      timestamp: Date.now() - 1000 * 60 * 3,
-      index: 3,
-      status: 'delivered',
-      message_type: 'text'
-    }
-  ] : [];
+  // Demo messages disabled - demo mode would require special bigint values
+  const DEMO_MESSAGES: P2PMessage[] = [];
 
   useEffect(() => {
     // Handle empty peer selection
@@ -187,15 +156,10 @@ export function P2PChat({
       return;
     }
 
-    // Load demo messages for demo peer
-    if (peerCid === 'demo-peer-kathy') {
-      setMessages(DEMO_MESSAGES);
-      setIsConnected(true);
-      setPeerPresence({ status: MessagingLayerType.Online, lastUpdate: Date.now() });
-    } else {
-      // Load existing conversation after LocalDB is ready
+    // Load existing conversation after LocalDB is ready
+    {
       const loadConversation = async () => {
-        console.log('[P2PChat] loadConversation - starting for peerCid:', peerCid?.slice(0, 12));
+        console.log('[P2PChat] loadConversation - starting for peerCid:', peerCid?.toString().slice(0, 12));
         await messenger.waitForReady();
 
         // CRITICAL: Sync connections from backend BEFORE getting conversation
@@ -259,7 +223,7 @@ export function P2PChat({
         }
 
         // Double-check with p2pAutoConnectService as additional source
-        const autoConnectConnected = p2pAutoConnectService.isPeerConnected(peerCid);
+        const autoConnectConnected = await p2pAutoConnectService.isPeerConnected(peerCid);
         if (autoConnectConnected) {
           setIsConnected(true);
           setPeerPresence({ status: MessagingLayerType.Online, lastUpdate: Date.now() });
@@ -273,9 +237,9 @@ export function P2PChat({
       console.log('[P2PChat] onMessage received:', {
         messageId: message.id?.slice(0, 8),
         messageType: message.message_type,
-        senderCid: message.senderCid?.slice(0, 12),
-        recipientCid: message.recipientCid?.slice(0, 12),
-        peerCid: peerCid?.slice(0, 12),
+        senderCid: message.senderCid?.toString().slice(0, 12),
+        recipientCid: message.recipientCid?.toString().slice(0, 12),
+        peerCid: peerCid?.toString().slice(0, 12),
         matchesSender: message.senderCid === peerCid,
         matchesRecipient: message.recipientCid === peerCid
       });
@@ -298,7 +262,7 @@ export function P2PChat({
 
         // If this is an incoming message from the peer (not our own sent message),
         // mark it as read ONLY if the tab is currently visible (user can actually see it)
-        if (message.senderCid === peerCid && peerCid !== 'demo-peer-kathy') {
+        if (message.senderCid === peerCid) {
           // Check if we're NOT on the messages tab - show notification dot
           // Use ref to get current value (fixes stale closure bug)
           if (activeTabIdRef.current !== 'messages') {
@@ -361,7 +325,7 @@ export function P2PChat({
     });
 
     // Subscribe to peer registration events (enables input when peer registers with us)
-    const unsubscribeRegistration = eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: string } }) => {
+    const unsubscribeRegistration = eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: bigint } }) => {
       if (peer.cid === peerCid) {
         setIsRegistered(true);
         // Wake up auto-connect service to check for new peers to connect to
@@ -374,7 +338,7 @@ export function P2PChat({
     // misses a message due to timing issues with React state batching or async operations.
     // The event is emitted by P2PMessengerManager after adding message to cache and notifying
     // messageListeners. Uses full message object from event to avoid cache race conditions.
-    const unsubscribeMessageReceived = eventEmitter.on('p2p:message-received', (eventData: { peerCid: string; messageId: string; message?: P2PMessage }) => {
+    const unsubscribeMessageReceived = eventEmitter.on('p2p:message-received', (eventData: { peerCid: bigint; messageId: string; message?: P2PMessage }) => {
       const { peerCid: messagePeerCid, messageId, message: eventMessage } = eventData;
       if (messagePeerCid === peerCid) {
         // Check if this message is already in our state - if not, add it
@@ -398,14 +362,18 @@ export function P2PChat({
     });
 
     // Check initial connection status from multiple sources
-    const initialConnected = messenger.isConnected(peerCid) || p2pAutoConnectService.isPeerConnected(peerCid);
-    setIsConnected(initialConnected);
+    const checkInitialConnection = async () => {
+      const syncConnected = messenger.isConnected(peerCid);
+      const autoConnected = await p2pAutoConnectService.isPeerConnected(peerCid);
+      setIsConnected(syncConnected || autoConnected);
+    };
+    checkInitialConnection();
 
     // Check initial registration status
     setIsRegistered(p2pRegistrationService.isPeerRegistered(peerCid));
 
     // Mark messages as read when conversation is viewed (only if tab is visible)
-    if (peerCid !== 'demo-peer-kathy' && document.visibilityState === 'visible') {
+    if (document.visibilityState === 'visible') {
       messenger.markMessagesAsRead(peerCid).catch(error => {
         console.error('Failed to mark messages as read:', error);
       });
@@ -434,7 +402,7 @@ export function P2PChat({
 
     // Listen for tab visibility changes - mark messages as read when tab becomes visible
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && peerCid !== 'demo-peer-kathy') {
+      if (document.visibilityState === 'visible') {
         messenger.markMessagesAsRead(peerCid).catch(error => {
           console.error('Failed to mark messages as read on visibility change:', error);
         });
@@ -521,9 +489,9 @@ export function P2PChat({
   // Mark notifications as read when viewing a conversation
   // This auto-decrements the notification bell count
   useEffect(() => {
-    if (peerCid && peerCid !== 'demo-peer-kathy' && activeTabId === 'messages') {
+    if (peerCid && activeTabId === 'messages') {
       // Mark message notifications from this peer as read
-      notificationService.markMessageNotificationsAsReadBySender(peerCid);
+      notificationService.markMessageNotificationsAsReadBySender(peerCid.toString());
     }
   }, [peerCid, activeTabId]);
 
@@ -623,8 +591,8 @@ export function P2PChat({
     if (!currentUserCid) return;
 
     try {
-      // Create document in store
-      const metadata = await liveDocumentStore.createDocument(title, peerCid);
+      // Create document in store (peerCid is the peer, creatorCid is the current user)
+      const metadata = await liveDocumentStore.createDocument(title, peerCid.toString(), currentUserCid?.toString() || '');
 
       // Send a live document message to the peer
       await messenger.sendMessage(peerCid, `Created live document: ${title}`, {
@@ -662,7 +630,7 @@ export function P2PChat({
 
   // Start typing polling when input is focused
   const handleInputFocus = useCallback(() => {
-    if (peerCid && peerCid !== 'demo-peer-kathy') {
+    if (peerCid) {
       messenger.startTypingPolling(peerCid, () => inputMessageRef.current);
     }
   }, [peerCid, messenger]);
@@ -687,7 +655,7 @@ export function P2PChat({
   // File transfer handlers
   const handleSendFile = useCallback(async (file: File, mode: FileTransferMode) => {
     try {
-      await fileTransferService.sendFile(peerCid, file, mode);
+      await fileTransferService.sendFile(peerCid.toString(), file, mode);
       toast({
         title: 'File Sent',
         description: `Sending ${file.name} to ${peerName}`,
@@ -850,9 +818,9 @@ export function P2PChat({
           <LiveDocumentView
             documentId={activeTab.documentId}
             documentTitle={activeTab.title}
-            peerCid={peerCid}
+            peerCid={peerCid.toString()}
             peerName={peerName}
-            currentUserCid={currentUserCid || ''}
+            currentUserCid={currentUserCid?.toString() || ''}
             currentUserName={currentUserName}
           />
         ) : (
@@ -872,11 +840,11 @@ export function P2PChat({
                   </div>
                 )}
                 {/* DEBUG: Log messages array at render time */}
-                {console.log('[P2PChat] Render - messages:', {
+                {(() => { console.log('[P2PChat] Render - messages:', {
                   count: messages.length,
                   types: messages.map(m => m.message_type),
-                  peerCid: peerCid?.slice(0, 12)
-                })}
+                  peerCid: peerCid?.toString().slice(0, 12)
+                }); return null; })()}
                 {messages.map((message) => {
                   const isOwn = message.senderCid === currentUserCid;
                   // DEBUG: Log to understand isOwn calculation
@@ -1007,14 +975,14 @@ export function P2PChat({
         isOpen={showFileModal}
         onClose={() => setShowFileModal(false)}
         onSendFile={handleSendFile}
-        peerCid={peerCid}
+        peerCid={peerCid.toString()}
       />
 
       {/* Chat Settings Modal */}
       <ChatSettingsPanel
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        peerCid={peerCid}
+        peerCid={peerCid.toString()}
         peerName={peerName}
       />
     </div>

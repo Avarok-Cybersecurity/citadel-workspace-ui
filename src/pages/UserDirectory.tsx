@@ -370,9 +370,9 @@ export const UserDirectory = () => {
                   )}
                   <CardDescription className="text-gray-400 flex items-center justify-center">
                     <Clock className="h-3.5 w-3.5 mr-1.5" />
-                    {selectedUser.isOnline 
-                      ? 'Online now' 
-                      : `Last active ${formatRelativeTime(selectedUser.lastActive)}`
+                    {selectedUser.isOnline
+                      ? 'Online now'
+                      : `Last active ${formatRelativeTime(selectedUser.lastActive ?? Date.now())}`
                     }
                   </CardDescription>
                 </div>

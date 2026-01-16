@@ -25,22 +25,26 @@ const NotificationTest = () => {
   const handleCreateNotification = () => {
     switch (type) {
       case NotificationType.MESSAGE:
-        notificationService.addMessageNotification(
+        notificationService.addNotification({
+          type: NotificationType.MESSAGE,
           title,
           content,
-          userId,
-          `msg-${Date.now()}`,
-          { timestamp: Date.now() }
-        );
+          senderId: userId,
+          sourceId: `msg-${Date.now()}`,
+          priority: NotificationPriority.NORMAL,
+          data: { timestamp: Date.now() }
+        });
         break;
-      
-      case NotificationType.CONNECTION_REQUEST:
-        notificationService.addConnectionRequestNotification(
+
+      case NotificationType.PEER_REGISTRATION:
+        notificationService.addNotification({
+          type: NotificationType.PEER_REGISTRATION,
           title,
           content,
-          userId,
-          `req-${Date.now()}`,
-          [
+          senderId: userId,
+          sourceId: `req-${Date.now()}`,
+          priority: NotificationPriority.NORMAL,
+          actionButtons: [
             {
               id: 'accept',
               label: 'Accept',
@@ -54,16 +58,17 @@ const NotificationTest = () => {
               onClick: () => alert('Connection request rejected!')
             }
           ]
-        );
+        });
         break;
-      
+
       case NotificationType.SYSTEM:
       default:
-        notificationService.addSystemNotification(
+        notificationService.addNotification({
+          type: NotificationType.SYSTEM,
           title,
           content,
           priority
-        );
+        });
         break;
     }
   };
@@ -130,7 +135,7 @@ const NotificationTest = () => {
                   <SelectContent className="bg-[#343A5C] text-white border-purple-800">
                     <SelectItem value={NotificationType.SYSTEM}>System</SelectItem>
                     <SelectItem value={NotificationType.MESSAGE}>Message</SelectItem>
-                    <SelectItem value={NotificationType.CONNECTION_REQUEST}>Connection Request</SelectItem>
+                    <SelectItem value={NotificationType.PEER_REGISTRATION}>Connection Request</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -151,7 +156,7 @@ const NotificationTest = () => {
                 </div>
               )}
               
-              {(type === NotificationType.MESSAGE || type === NotificationType.CONNECTION_REQUEST) && (
+              {(type === NotificationType.MESSAGE || type === NotificationType.PEER_REGISTRATION) && (
                 <div className="space-y-2">
                   <Label htmlFor="userId">User ID</Label>
                   <Input 

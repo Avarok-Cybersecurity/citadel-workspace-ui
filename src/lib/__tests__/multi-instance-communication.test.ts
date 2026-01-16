@@ -117,8 +117,8 @@ describe('Multi-Instance Communication Architecture', () => {
       instanceManager.setCid(null);
       expect(instanceManager.cid).toBeNull();
 
-      instanceManager.setCid('123456789');
-      expect(instanceManager.cid).toBe('123456789');
+      instanceManager.setCid(123456789n);
+      expect(instanceManager.cid).toBe(123456789n);
 
       instanceManager.setCid(null);
       expect(instanceManager.cid).toBeNull();
@@ -138,14 +138,14 @@ describe('Multi-Instance Communication Architecture', () => {
     });
 
     it('should register and unregister instances', () => {
-      instanceManager.registerInstance('instance-2', 'cid-456');
-      instanceManager.registerInstance('instance-3', 'cid-789');
+      instanceManager.registerInstance('instance-2', 456n);
+      instanceManager.registerInstance('instance-3', 789n);
 
-      expect(instanceManager.findInstanceByCid('cid-456')).toBe('instance-2');
-      expect(instanceManager.findInstanceByCid('cid-789')).toBe('instance-3');
+      expect(instanceManager.findInstanceByCid(456n)).toBe('instance-2');
+      expect(instanceManager.findInstanceByCid(789n)).toBe('instance-3');
 
       instanceManager.unregisterInstance('instance-2');
-      expect(instanceManager.findInstanceByCid('cid-456')).toBeNull();
+      expect(instanceManager.findInstanceByCid(456n)).toBeNull();
     });
   });
 
@@ -219,12 +219,12 @@ describe('Multi-Instance Communication Architecture', () => {
       // This tests that connection-manager.ts correctly returns early
       // when getSelectedUser() returns null
 
-      // Mock getSelectedUser to return null (no tab-specific selection)
+      // Mock getSelectedUser to return Promise<null> (no tab-specific selection)
       const tabContext = await import('../tab-context');
-      vi.spyOn(tabContext, 'getSelectedUser').mockReturnValue(null);
+      vi.spyOn(tabContext, 'getSelectedUser').mockResolvedValue(null);
 
       // Verify that autoReconnect would return early
-      expect(tabContext.getSelectedUser()).toBeNull();
+      expect(await tabContext.getSelectedUser()).toBeNull();
 
       vi.restoreAllMocks();
     });
@@ -238,26 +238,26 @@ describe('Multi-Instance Communication Architecture', () => {
       expect(instanceManager.cid).toBeNull();
 
       // Set CID
-      instanceManager.setCid('12345');
-      expect(instanceManager.cid).toBe('12345');
+      instanceManager.setCid(12345n);
+      expect(instanceManager.cid).toBe(12345n);
 
       // Setting a new CID should replace the old one (not add)
-      instanceManager.setCid('67890');
-      expect(instanceManager.cid).toBe('67890');
+      instanceManager.setCid(67890n);
+      expect(instanceManager.cid).toBe(67890n);
 
       // Only one CID at a time
-      expect(typeof instanceManager.cid).toBe('string');
+      expect(typeof instanceManager.cid).toBe('bigint');
     });
 
     it('should find instance by CID', () => {
-      instanceManager.registerInstance('tab-1', 'cid-111');
-      instanceManager.registerInstance('tab-2', 'cid-222');
-      instanceManager.registerInstance('tab-3', 'cid-333');
+      instanceManager.registerInstance('tab-1', 111n);
+      instanceManager.registerInstance('tab-2', 222n);
+      instanceManager.registerInstance('tab-3', 333n);
 
-      expect(instanceManager.findInstanceByCid('cid-111')).toBe('tab-1');
-      expect(instanceManager.findInstanceByCid('cid-222')).toBe('tab-2');
-      expect(instanceManager.findInstanceByCid('cid-333')).toBe('tab-3');
-      expect(instanceManager.findInstanceByCid('cid-999')).toBeNull();
+      expect(instanceManager.findInstanceByCid(111n)).toBe('tab-1');
+      expect(instanceManager.findInstanceByCid(222n)).toBe('tab-2');
+      expect(instanceManager.findInstanceByCid(333n)).toBe('tab-3');
+      expect(instanceManager.findInstanceByCid(999n)).toBeNull();
     });
   });
 
@@ -286,16 +286,16 @@ describe('Multi-Instance Communication Architecture', () => {
   describe('Message Routing', () => {
     it('should route messages by CID to correct instance', () => {
       // Register instances with their CIDs
-      instanceManager.registerInstance('tab-1', 'user1-cid');
-      instanceManager.registerInstance('tab-2', 'user2-cid');
-      instanceManager.registerInstance('tab-3', 'user3-cid');
+      instanceManager.registerInstance('tab-1', 1001n);
+      instanceManager.registerInstance('tab-2', 2002n);
+      instanceManager.registerInstance('tab-3', 3003n);
 
       // Message for user2 should go to tab-2
-      const targetInstance = instanceManager.findInstanceByCid('user2-cid');
+      const targetInstance = instanceManager.findInstanceByCid(2002n);
       expect(targetInstance).toBe('tab-2');
 
       // Message for unknown CID returns null
-      const unknownTarget = instanceManager.findInstanceByCid('unknown-cid');
+      const unknownTarget = instanceManager.findInstanceByCid(9999n);
       expect(unknownTarget).toBeNull();
     });
   });
@@ -355,11 +355,11 @@ describe('Integration: Tab Isolation', () => {
 
     const tabContext = await import('../tab-context');
 
-    // Simulate Tab 2 with no selection
-    vi.spyOn(tabContext, 'getSelectedUser').mockReturnValue(null);
+    // Simulate Tab 2 with no selection (returns Promise<null>)
+    vi.spyOn(tabContext, 'getSelectedUser').mockResolvedValue(null);
 
     // Tab 2 has no selection, so autoReconnect should return early
-    const selection = tabContext.getSelectedUser();
+    const selection = await tabContext.getSelectedUser();
     expect(selection).toBeNull();
 
     // In the real implementation, connection-manager.autoReconnect()
@@ -375,10 +375,10 @@ describe('Integration: Tab Isolation', () => {
     instanceManager.setCid(null);
 
     // Simulate Tab 1 owning CID 111
-    instanceManager.setCid('111');
+    instanceManager.setCid(111n);
 
     // Verify Tab 1 only owns CID 111
-    expect(instanceManager.cid).toBe('111');
+    expect(instanceManager.cid).toBe(111n);
 
     // Other CIDs (222, 333) are owned by other tabs
     // Tab 1 should NOT open WASM handles for them

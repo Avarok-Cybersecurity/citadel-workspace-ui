@@ -1,31 +1,163 @@
 /**
- * Utility functions for working with local storage in a type-safe way
+ * Storage utilities using IndexedDB for native BigInt support.
+ *
+ * IndexedDB uses the Structured Clone algorithm which handles BigInt natively.
+ * No JSON.stringify/parse, no revivers/replacers - data is stored as-is.
  */
 
+import { openDB, IDBPDatabase, DBSchema } from 'idb';
+
+// ============================================================================
+// Database Schema
+// ============================================================================
+
 /**
- * JSON replacer that converts BigInt to string for serialization
- * BigInt values come from WASM responses (serde-wasm-bindgen serializes u64 as BigInt)
+ * Schema for the Citadel IndexedDB database.
+ * All stores use string keys and support any value type (Structured Clone handles BigInt).
  */
-export function bigIntReplacer(_key: string, value: any): any {
-  return typeof value === 'bigint' ? value.toString() : value;
+interface CitadelDBSchema extends DBSchema {
+  /** Key-value store for general data (replaces localStorage) */
+  keyValue: {
+    key: string;
+    value: unknown;
+  };
+  /** Session data store */
+  sessions: {
+    key: string;
+    value: unknown;
+  };
+  /** Message/conversation data store */
+  messages: {
+    key: string;
+    value: unknown;
+  };
+  /** Peer registration data store */
+  peers: {
+    key: string;
+    value: unknown;
+  };
+  /** Tab context data store (replaces sessionStorage) */
+  tabContext: {
+    key: string;
+    value: unknown;
+  };
+  /** Instance management data store */
+  instances: {
+    key: string;
+    value: unknown;
+  };
+}
+
+const DB_NAME = 'citadel-workspace';
+const DB_VERSION = 1;
+
+let dbPromise: Promise<IDBPDatabase<CitadelDBSchema>> | null = null;
+
+/**
+ * Get or create the IndexedDB database instance.
+ * Uses a singleton pattern for efficiency.
+ */
+export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
+  if (!dbPromise) {
+    dbPromise = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        // Create all object stores
+        if (!db.objectStoreNames.contains('keyValue')) {
+          db.createObjectStore('keyValue');
+        }
+        if (!db.objectStoreNames.contains('sessions')) {
+          db.createObjectStore('sessions');
+        }
+        if (!db.objectStoreNames.contains('messages')) {
+          db.createObjectStore('messages');
+        }
+        if (!db.objectStoreNames.contains('peers')) {
+          db.createObjectStore('peers');
+        }
+        if (!db.objectStoreNames.contains('tabContext')) {
+          db.createObjectStore('tabContext');
+        }
+        if (!db.objectStoreNames.contains('instances')) {
+          db.createObjectStore('instances');
+        }
+      },
+    });
+  }
+  return dbPromise;
+}
+
+// ============================================================================
+// Generic IndexedDB Operations
+// ============================================================================
+
+type StoreName = 'keyValue' | 'sessions' | 'messages' | 'peers' | 'tabContext' | 'instances';
+
+/**
+ * Put a value into an IndexedDB store.
+ * BigInt values are preserved via Structured Clone.
+ */
+export async function dbPut<S extends StoreName>(store: S, key: string, value: unknown): Promise<void> {
+  const db = await getDB();
+  await db.put(store, value, key);
 }
 
 /**
- * JSON stringify that handles BigInt values
- * Use this instead of JSON.stringify when working with WASM response data
+ * Get a value from an IndexedDB store.
+ * BigInt values are automatically restored.
  */
-export function safeJSONStringify(data: any, space?: number): string {
-  return JSON.stringify(data, bigIntReplacer, space);
+export async function dbGet<T>(store: StoreName, key: string): Promise<T | undefined> {
+  const db = await getDB();
+  const result = await db.get(store, key);
+  return result as T | undefined;
 }
 
 /**
- * Save data to local storage with a specific key
- * @param key Storage key
- * @param data Data to store
+ * Delete a value from an IndexedDB store.
+ */
+export async function dbDelete(store: StoreName, key: string): Promise<void> {
+  const db = await getDB();
+  await db.delete(store, key);
+}
+
+/**
+ * Get all values from an IndexedDB store.
+ */
+export async function dbGetAll<T>(store: StoreName): Promise<T[]> {
+  const db = await getDB();
+  const result = await db.getAll(store);
+  return result as T[];
+}
+
+/**
+ * Get all keys from an IndexedDB store.
+ */
+export async function dbGetAllKeys(store: StoreName): Promise<string[]> {
+  const db = await getDB();
+  const result = await db.getAllKeys(store);
+  return result as string[];
+}
+
+/**
+ * Clear all values from an IndexedDB store.
+ */
+export async function dbClear(store: StoreName): Promise<void> {
+  const db = await getDB();
+  await db.clear(store);
+}
+
+// ============================================================================
+// Synchronous Fallback (for legacy callers during migration)
+// These use localStorage but will be deprecated
+// ============================================================================
+
+/**
+ * @deprecated Use dbPut for new code. This is for backward compatibility.
+ * Save data to localStorage (synchronous fallback).
+ * Note: BigInt values will be converted to strings.
  */
 export function saveToStorage<T>(key: string, data: T): void {
   try {
-    const serializedData = JSON.stringify(data, bigIntReplacer);
+    const serializedData = JSON.stringify(data, bigIntToString);
     localStorage.setItem(key, serializedData);
   } catch (error) {
     console.error(`Error saving to storage with key '${key}':`, error);
@@ -33,10 +165,9 @@ export function saveToStorage<T>(key: string, data: T): void {
 }
 
 /**
- * Load data from local storage by key
- * @param key Storage key
- * @param defaultValue Default value if nothing is found
- * @returns Stored data or default value
+ * @deprecated Use dbGet for new code. This is for backward compatibility.
+ * Load data from localStorage (synchronous fallback).
+ * Note: BigInt values stored as strings will be restored.
  */
 export function loadFromStorage<T>(key: string, defaultValue: T): T {
   try {
@@ -44,7 +175,7 @@ export function loadFromStorage<T>(key: string, defaultValue: T): T {
     if (serializedData === null) {
       return defaultValue;
     }
-    return JSON.parse(serializedData) as T;
+    return JSON.parse(serializedData, stringToBigInt) as T;
   } catch (error) {
     console.error(`Error loading from storage with key '${key}':`, error);
     return defaultValue;
@@ -52,8 +183,8 @@ export function loadFromStorage<T>(key: string, defaultValue: T): T {
 }
 
 /**
- * Clear a specific item from local storage
- * @param key Storage key to clear
+ * @deprecated Use dbDelete for new code. This is for backward compatibility.
+ * Clear a specific item from localStorage.
  */
 export function clearFromStorage(key: string): void {
   try {
@@ -64,8 +195,8 @@ export function clearFromStorage(key: string): void {
 }
 
 /**
- * Clear all local storage items that match a prefix
- * @param prefix Storage key prefix to match
+ * @deprecated Use dbClear for new code. This is for backward compatibility.
+ * Clear all localStorage items that match a prefix.
  */
 export function clearStorageWithPrefix(prefix: string): void {
   try {
@@ -75,4 +206,44 @@ export function clearStorageWithPrefix(prefix: string): void {
   } catch (error) {
     console.error(`Error clearing storage with prefix '${prefix}':`, error);
   }
+}
+
+// ============================================================================
+// JSON Helpers for Logging (BigInt → String for display only)
+// ============================================================================
+
+/**
+ * JSON replacer that converts BigInt to string for display/logging.
+ * Use this ONLY for logging purposes, not for storage.
+ */
+function bigIntToString(_key: string, value: unknown): unknown {
+  return typeof value === 'bigint' ? value.toString() : value;
+}
+
+/**
+ * JSON reviver that converts known CID fields back to BigInt.
+ * @deprecated Only used for legacy localStorage fallback.
+ */
+function stringToBigInt(key: string, value: unknown): unknown {
+  const cidKeys = ['cid', 'peer_cid', 'session_cid', 'selectedCid', 'fromCid', 'toCid', 'ownerId', 'senderId', 'peerCid', 'targetCid'];
+  if (
+    cidKeys.includes(key) &&
+    typeof value === 'string' &&
+    /^\d+$/.test(value)
+  ) {
+    try {
+      return BigInt(value);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
+/**
+ * JSON stringify that handles BigInt values for logging/display.
+ * Converts BigInt to string representation.
+ */
+export function safeJSONStringify(data: unknown, space?: number): string {
+  return JSON.stringify(data, bigIntToString, space);
 }

@@ -63,7 +63,7 @@ const PAGINATED_PREFIX = 'msgs_with_peer_';
  * Metadata for a conversation stored at `msgs_with_peer_{CID}_metadata`
  */
 export interface ConversationMetadata {
-  peerCid: string;
+  peerCid: bigint;
   peerUsername?: string;
   totalMessageCount: number;
   oldestMessageTimestamp: number;
@@ -79,7 +79,7 @@ export interface ConversationMetadata {
  * A page of messages stored at `msgs_with_peer_{CID}_{page}`
  */
 export interface MessagePage {
-  peerCid: string;
+  peerCid: bigint;
   pageNumber: number;
   messages: P2PMessage[];  // Sorted by timestamp ascending
   pageTimestamps: {
@@ -91,8 +91,8 @@ export interface MessagePage {
 export interface P2PMessage {
   id: string;
   content: string;
-  senderCid: string;
-  recipientCid: string;
+  senderCid: bigint;
+  recipientCid: bigint;
   timestamp: number;
   index: number;
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -126,7 +126,7 @@ export interface PeerPresence {
 }
 
 export interface P2PConversation {
-  peerCid: string;
+  peerCid: bigint;
   peerUsername?: string;  // Store the peer's username for display
   messages: P2PMessage[];
   lastMessageIndex: number;
@@ -137,7 +137,7 @@ export interface P2PConversation {
 }
 
 interface MessageCache {
-  conversations: Map<string, P2PConversation>;
+  conversations: Map<bigint, P2PConversation>;
   messageQueue: P2PMessage[];
   maxQueueSize: number;
   maxMessagesPerConversation: number;
@@ -147,30 +147,30 @@ export class P2PMessengerManager {
   private static instance: P2PMessengerManager;
   private cache: MessageCache;
   private dbPrefix = 'p2p_messages';
-  private connections: Map<string, boolean> = new Map(); // peerCid -> isConnected
+  private connections: Map<bigint, boolean> = new Map(); // peerCid -> isConnected
   private messageListeners: ((message: P2PMessage) => void)[] = [];
   private messageStatusListeners: ((messageId: string, status: P2PMessage['status']) => void)[] = [];
-  private typingListeners: ((peerCid: string, isTyping: boolean) => void)[] = [];
-  private connectionListeners: ((peerCid: string, connected: boolean) => void)[] = [];
-  private presenceListeners: ((peerCid: string, presence: PeerPresence) => void)[] = [];
+  private typingListeners: ((peerCid: bigint, isTyping: boolean) => void)[] = [];
+  private connectionListeners: ((peerCid: bigint, connected: boolean) => void)[] = [];
+  private presenceListeners: ((peerCid: bigint, presence: PeerPresence) => void)[] = [];
 
   // Initialization state tracking for LocalDB load
   private initPromise: Promise<void> | null = null;
   private isReady = false;
 
   // Peer ready state tracking for CheckState/CheckStateResponse handshake
-  private peerReadyState: Map<string, boolean> = new Map();  // peer CID -> is ready
-  private pendingCheckStates: Map<string, { resolve: () => void; reject: (e: Error) => void }> = new Map();
+  private peerReadyState: Map<bigint, boolean> = new Map();  // peer CID -> is ready
+  private pendingCheckStates: Map<bigint, { resolve: () => void; reject: (e: Error) => void }> = new Map();
 
   // CheckState timeout - reduced for better UX with background tabs
   // The intersession layer manager handles reliability, so CheckState is optional optimization
   private readonly CHECKSTATE_TIMEOUT = 3000;  // 3 seconds (was 10s)
 
   // Queue for pending CheckState responses when tab is hidden
-  private pendingCheckStateResponses: string[] = [];
+  private pendingCheckStateResponses: bigint[] = [];
 
   // Typing polling state - managed per peer
-  private typingPollingState: Map<string, {
+  private typingPollingState: Map<bigint, {
     intervalId: NodeJS.Timeout | null;
     lastText: string;
     lastSentTyping: number;
@@ -183,7 +183,7 @@ export class P2PMessengerManager {
   };
 
   // Track active conversation to suppress notifications
-  private activeConversationPeerCid: string | null = null;
+  private activeConversationPeerCid: bigint | null = null;
 
   // Track whether cached messages were loaded successfully
   private cachedMessagesLoaded = false;
@@ -254,7 +254,7 @@ export class P2PMessengerManager {
   public async syncConnectionsFromBackend(): Promise<void> {
     try {
       const activeSessions = await connectionManager.getActiveSessions();
-      const currentCid = this.getCurrentCid();
+      const currentCid = await this.getCurrentCid();
 
       if (!currentCid) {
         console.log('[P2P] syncConnectionsFromBackend: No current CID, skipping');
@@ -262,7 +262,7 @@ export class P2PMessengerManager {
       }
 
       // Find the session matching our current CID
-      const mySession = activeSessions.find(s => s.cid?.toString() === currentCid);
+      const mySession = activeSessions.find(s => s.cid === currentCid);
       if (!mySession) {
         console.log('[P2P] syncConnectionsFromBackend: No session found for current CID');
         return;
@@ -273,11 +273,12 @@ export class P2PMessengerManager {
         const peerCids = Object.keys(mySession.peer_connections);
         console.log(`[P2P] syncConnectionsFromBackend: Found ${peerCids.length} peer connections in backend`);
 
-        for (const peerCid of peerCids) {
+        for (const peerCidStr of peerCids) {
+          const peerCid = BigInt(peerCidStr);
           // Update local connections map
           if (!this.connections.get(peerCid)) {
             this.connections.set(peerCid, true);
-            console.log(`[P2P] syncConnectionsFromBackend: Synced connection for peer ${peerCid.slice(0, 8)}...`);
+            console.log(`[P2P] syncConnectionsFromBackend: Synced connection for peer ${peerCidStr.slice(0, 8)}...`);
           }
 
           // Update presence to Online for connected peers
@@ -286,11 +287,11 @@ export class P2PMessengerManager {
       }
 
       // Also sync from p2pAutoConnectService which tracks connected peers
-      const connectedPeers = p2pAutoConnectService.getConnectedPeers();
+      const connectedPeers = await p2pAutoConnectService.getConnectedPeers();
       for (const peerCid of connectedPeers) {
         if (!this.connections.get(peerCid)) {
           this.connections.set(peerCid, true);
-          console.log(`[P2P] syncConnectionsFromBackend: Synced from auto-connect service ${peerCid.slice(0, 8)}...`);
+          console.log(`[P2P] syncConnectionsFromBackend: Synced from auto-connect service ${peerCid.toString().slice(0, 8)}...`);
         }
         this.updatePeerPresenceOnConnect(peerCid);
       }
@@ -304,7 +305,7 @@ export class P2PMessengerManager {
    * Set or update the username for a peer.
    * Call this when we learn the peer's username (e.g., from registration events).
    */
-  public setPeerUsername(peerCid: string, username: string): void {
+  public setPeerUsername(peerCid: bigint, username: string): void {
     const conversation = this.cache.conversations.get(peerCid);
     if (conversation) {
       conversation.peerUsername = username;
@@ -315,20 +316,20 @@ export class P2PMessengerManager {
     }
   }
 
-  private getCurrentCid(): string | null {
+  private async getCurrentCid(): Promise<bigint | null> {
     // Priority: 1) Tab context selectedCid (set during session switch),
     // 2) StoredSession.cid, 3) Global connection CID
     // This ensures P2P requests use the current tab's selected session CID
-    const tabSelection = getSelectedUser();
+    const tabSelection = await getSelectedUser();
     if (tabSelection?.selectedCid) {
       return tabSelection.selectedCid;
     }
-    const tabSession = connectionManager.getTabSelectedSession();
+    const tabSession = await connectionManager.getTabSelectedSession();
     if (tabSession?.cid) {
       return tabSession.cid;
     }
     const connectionInfo = connectionManager.getConnectionInfo();
-    return connectionInfo?.cid || null;
+    return connectionInfo?.cid ?? null;
   }
 
   private setupEventListeners() {
@@ -336,7 +337,7 @@ export class P2PMessengerManager {
     eventEmitter.on('websocket-message', this.handleWebSocketMessage.bind(this));
 
     // Listen for connection changes
-    eventEmitter.on('p2p-connection-established', ({ peerCid }: { peerCid: string }) => {
+    eventEmitter.on('p2p-connection-established', ({ peerCid }: { peerCid: bigint }) => {
       this.connections.set(peerCid, true);
       this.connectionListeners.forEach(listener => listener(peerCid, true));
 
@@ -344,13 +345,13 @@ export class P2PMessengerManager {
       // This eliminates CheckState timeout warnings for the first message after connection.
       // CheckState was always optional (ILM handles reliability), but this prevents log noise.
       this.peerReadyState.set(peerCid, true);
-      console.log(`[P2P] Marked peer ${peerCid.slice(0, 8)}... as ready (connection established)`);
+      console.log(`[P2P] Marked peer ${peerCid.toString().slice(0, 8)}... as ready (connection established)`);
 
       // Update peer's presence to Online when connection is established
       this.updatePeerPresenceOnConnect(peerCid);
     });
 
-    eventEmitter.on('p2p-connection-lost', ({ peerCid }: { peerCid: string }) => {
+    eventEmitter.on('p2p-connection-lost', ({ peerCid }: { peerCid: bigint }) => {
       this.connections.set(peerCid, false);
       this.connectionListeners.forEach(listener => listener(peerCid, false));
       // Clear ready state when peer disconnects - next message will trigger new CheckState handshake
@@ -361,7 +362,7 @@ export class P2PMessengerManager {
     });
 
     // Listen for peer registration events to store usernames
-    eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: string; username: string } }) => {
+    eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: bigint; username: string } }) => {
       if (peer.cid && peer.username) {
         this.setPeerUsername(peer.cid, peer.username);
       }
@@ -406,28 +407,33 @@ export class P2PMessengerManager {
       const { message: rawMessage, peer_cid, cid } = notification;
 
       // Check if this is a P2P message (peer_cid is non-zero and different from our CID)
-      const currentCid = this.getCurrentCid();
-      const peerCidStr = peer_cid?.toString();
-      const notificationCidStr = cid?.toString();
+      const currentCid = await this.getCurrentCid();
+      // peer_cid and cid come from backend as bigint
+      const peerCidBigint: bigint | undefined = peer_cid !== undefined && peer_cid !== null
+        ? (typeof peer_cid === 'bigint' ? peer_cid : BigInt(peer_cid))
+        : undefined;
+      const notificationCidBigint: bigint | undefined = cid !== undefined && cid !== null
+        ? (typeof cid === 'bigint' ? cid : BigInt(cid))
+        : undefined;
 
       console.log('[P2P] handleWebSocketMessage checking MessageNotification:', {
-        peer_cid: peerCidStr,
-        notification_cid: notificationCidStr,
-        currentCid,
-        isP2P: peerCidStr && peerCidStr !== '0',
+        peer_cid: peerCidBigint?.toString(),
+        notification_cid: notificationCidBigint?.toString(),
+        currentCid: currentCid?.toString(),
+        isP2P: peerCidBigint !== undefined && peerCidBigint !== 0n,
         rawMessageLength: rawMessage?.length || 0,
         rawPeerCidType: typeof peer_cid,
         rawCidType: typeof cid
       });
 
       // Skip if no peer_cid or peer_cid is 0 (from server)
-      if (!peerCidStr || peerCidStr === '0') {
+      if (peerCidBigint === undefined || peerCidBigint === 0n) {
         console.log('[P2P] Skipping: no peer_cid or peer_cid is 0');
         return;
       }
 
       // Self-message check: Skip if sender is the same as recipient
-      if (peerCidStr === notificationCidStr) {
+      if (peerCidBigint === notificationCidBigint) {
         console.log('[P2P] Skipping: peer_cid equals notification_cid (self-message)');
         return;
       }
@@ -450,8 +456,8 @@ export class P2PMessengerManager {
         // STEP 2: Broadcast raw message for Yjs sync BEFORE session check
         // All tabs need to receive Yjs updates regardless of which session they own
         // BroadcastChannel uses structured clone which supports Uint8Array directly
-        const rawMessageData = { peerCid: peerCidStr, message: contentBytes };
-        eventEmitter.emit('p2p:raw-message', rawMessageData);
+        const rawMessageData = { peerCid: peerCidBigint, message: contentBytes };
+        eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
 
         // Broadcast to follower tabs so their YjsP2PProvider instances can receive updates
         BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
@@ -471,14 +477,14 @@ export class P2PMessengerManager {
         // 3. AND peer_cid equals notification.cid (indicating WE sent this message)
         //
         // If peer_cid differs from notification.cid, it's an incoming P2P message - process it.
-        const isOwnOutgoingEcho = peerCidStr === currentCid;
-        if (isOwnOutgoingEcho && notificationCidStr !== currentCid) {
+        const isOwnOutgoingEcho = peerCidBigint === currentCid;
+        if (isOwnOutgoingEcho && notificationCidBigint !== currentCid) {
           // This is an echo of OUR outgoing message but notification.cid doesn't match
           // This can happen in multi-tab when another tab sent the message
           console.log('[P2P] Outgoing echo for different session, broadcasting to follower tabs', {
-            notification_cid: notificationCidStr,
-            currentCid,
-            peer_cid: peerCidStr
+            notification_cid: notificationCidBigint?.toString(),
+            currentCid: currentCid?.toString(),
+            peer_cid: peerCidBigint.toString()
           });
           BroadcastChannelService.getInstance().broadcastP2PNotification({
             notification,
@@ -509,13 +515,13 @@ export class P2PMessengerManager {
         // - We MUST filter by notification.cid === currentCid to route to correct tab
         // - Processing messages where CID doesn't match would cause WRONG tab to handle them
         //
-        const isForDifferentSession = notificationCidStr && notificationCidStr !== currentCid;
+        const isForDifferentSession = notificationCidBigint !== undefined && notificationCidBigint !== currentCid;
         if (isForDifferentSession) {
           console.log('[P2P] Message for different session, broadcasting to follower tabs', {
-            notification_cid: notificationCidStr,
-            currentCid,
-            peer_cid: peerCidStr,
-            weAreSender: peerCidStr === currentCid
+            notification_cid: notificationCidBigint.toString(),
+            currentCid: currentCid?.toString(),
+            peer_cid: peerCidBigint.toString(),
+            weAreSender: peerCidBigint === currentCid
           });
           BroadcastChannelService.getInstance().broadcastP2PNotification({
             notification,
@@ -526,20 +532,20 @@ export class P2PMessengerManager {
           return;
         }
 
-        console.log('P2P MessageNotification received from peer:', peerCidStr, 'for session:', notificationCidStr);
+        console.log('P2P MessageNotification received from peer:', peerCidBigint.toString(), 'for session:', notificationCidBigint?.toString());
 
         // STEP 4: Verify sender is registered
-        const isAlreadyConnected = this.isConnected(peerCidStr);
-        const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(peerCidStr);
+        const isAlreadyConnected = this.isConnected(peerCidBigint);
+        const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(peerCidBigint);
 
         if (!isAlreadyRegistered && !isAlreadyConnected) {
-          console.error(`[P2P] Received message from unregistered peer ${peerCidStr} - protocol violation`);
+          console.error(`[P2P] Received message from unregistered peer ${peerCidBigint.toString()} - protocol violation`);
           // Still process the message but log the violation
         }
 
         // STEP 5: Process the P2P command using MessagePack deserialization
         const command = deserializeP2PCommand(contentBytes);
-        await this.handleP2PCommand(command, peerCidStr, notificationCidStr);
+        await this.handleP2PCommand(command, peerCidBigint, notificationCidBigint);
       } catch (error) {
         console.error('Failed to deserialize P2P command:', error);
       }
@@ -562,14 +568,15 @@ export class P2PMessengerManager {
           return;
         }
         const command = deserializeP2PCommand(messageBytes);
-        await this.handleP2PCommand(command, peer_cid?.toString());
+        const peerCidBigint = typeof peer_cid === 'bigint' ? peer_cid : BigInt(peer_cid);
+        await this.handleP2PCommand(command, peerCidBigint);
       } catch (error) {
         console.error('Failed to deserialize P2P command:', error);
       }
     }
   }
 
-  private async handleP2PCommand(command: P2PCommand, peerCid: string, recipientCid?: string) {
+  private async handleP2PCommand(command: P2PCommand, peerCid: bigint, recipientCid?: bigint) {
     // Note: Session filtering is already performed in handleWebSocketMessage():
     // - Self-echo check at line 334 (peer_cid !== notification.cid)
     // - Session ownership check at line 374 (notification.cid === currentCid)
@@ -579,7 +586,7 @@ export class P2PMessengerManager {
     console.log('[P2P] handleP2PCommand received:', {
       type: command.type,
       typeValue: P2PCommandType[command.type] || command.type,
-      peerCid: peerCid?.slice(0, 12),
+      peerCid: peerCid?.toString().slice(0, 12),
       hasPayload: !!command.payload,
       payloadKeys: command.payload ? Object.keys(command.payload) : []
     });
@@ -607,7 +614,7 @@ export class P2PMessengerManager {
     }
   }
 
-  private async handleMessagingLayerCommand(payload: P2PMessagingLayerPayload, peerCid: string, recipientCid?: string) {
+  private async handleMessagingLayerCommand(payload: P2PMessagingLayerPayload, peerCid: bigint, recipientCid?: bigint) {
     const { layer } = payload;
 
     // OPTIMIZATION: Any P2P message received means the peer is online and ready.
@@ -616,7 +623,7 @@ export class P2PMessengerManager {
     if (!this.peerReadyState.get(peerCid)) {
       this.peerReadyState.set(peerCid, true);
       // Only log for first-time ready marking to reduce noise
-      console.log(`[P2P] Marked peer ${peerCid.slice(0, 8)}... as ready (received ${layer.type})`);
+      console.log(`[P2P] Marked peer ${peerCid.toString().slice(0, 8)}... as ready (received ${layer.type})`);
     }
 
     switch (layer.type) {
@@ -680,10 +687,11 @@ export class P2PMessengerManager {
       case MessagingLayerType.FileTransferChunk:
         // Delegate to FileTransferService via event
         console.log('[P2P] Received file transfer message:', layer.type, 'from:', peerCid);
+        const effectiveRecipientCid = recipientCid || await this.getCurrentCid();
         eventEmitter.emit('p2p:file-transfer-message', {
           layer,
           senderCid: peerCid,
-          recipientCid: recipientCid || this.getCurrentCid()
+          recipientCid: effectiveRecipientCid
         });
         // Also add to conversation history for display in chat
         await this.handleFileTransferMessage(payload, peerCid, recipientCid);
@@ -694,7 +702,7 @@ export class P2PMessengerManager {
   /**
    * Handle incoming file transfer messages - stores in conversation history
    */
-  private async handleFileTransferMessage(payload: P2PMessagingLayerPayload, peerCid: string, recipientCid?: string) {
+  private async handleFileTransferMessage(payload: P2PMessagingLayerPayload, peerCid: bigint, recipientCid?: bigint) {
     const layer = payload.layer;
 
     // Only store request messages as visible chat messages (not progress/response updates)
@@ -705,8 +713,8 @@ export class P2PMessengerManager {
     const message: P2PMessage = {
       id: payload.message_id,
       content: `File transfer: ${layer.file_name}`,
-      senderCid: payload.sender_cid,
-      recipientCid: payload.recipient_cid,
+      senderCid: BigInt(payload.sender_cid),
+      recipientCid: BigInt(payload.recipient_cid),
       timestamp: layer.timestamp,
       index: payload.index,
       status: 'delivered',
@@ -727,11 +735,11 @@ export class P2PMessengerManager {
     conversation.messages.push(message);
     conversation.lastMessageIndex = Math.max(conversation.lastMessageIndex, payload.index);
 
-    console.log(`[P2P] Stored file transfer message in conversation with ${peerCid.slice(0, 8)}...`, {
+    console.log(`[P2P] Stored file transfer message in conversation with ${peerCid.toString().slice(0, 8)}...`, {
       messageId: message.id,
       messageType: message.message_type,
-      senderCid: message.senderCid,
-      recipientCid: message.recipientCid,
+      senderCid: message.senderCid?.toString(),
+      recipientCid: message.recipientCid?.toString(),
       totalMessages: conversation.messages.length
     });
 
@@ -742,7 +750,7 @@ export class P2PMessengerManager {
     // Also emit event for other components (like notifications)
     // Include full message object for redundant UI updates
     eventEmitter.emit('p2p:message-received', {
-      peerCid,
+      peerCid: peerCid.toString(),
       messageId: message.id,
       text: message.content,
       timestamp: message.timestamp,
@@ -758,7 +766,7 @@ export class P2PMessengerManager {
    * Called by FileTransferService when transfer state changes
    */
   public updateFileTransferState(
-    peerCid: string,
+    peerCid: bigint,
     transferId: string,
     updates: {
       transfer_state?: P2PMessage['transfer_state'];
@@ -787,8 +795,8 @@ export class P2PMessengerManager {
   /**
    * Send CheckStateResponse to a peer - always responds Ready
    */
-  private async sendCheckStateResponse(peerCid: string) {
-    const currentCid = this.getCurrentCid();
+  private async sendCheckStateResponse(peerCid: bigint) {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) return;
 
     const response = createCheckStateResponse();
@@ -808,7 +816,7 @@ export class P2PMessengerManager {
     }
   }
 
-  private async handleIncomingMessage(payload: P2PMessagingLayerPayload, peerCid: string, recipientCid?: string) {
+  private async handleIncomingMessage(payload: P2PMessagingLayerPayload, peerCid: bigint, recipientCid?: bigint) {
     // layer is guaranteed to be Message type when called from handleMessagingLayerCommand
     const layer = payload.layer;
     if (!isMessage(layer)) return;
@@ -816,8 +824,8 @@ export class P2PMessengerManager {
     const message: P2PMessage = {
       id: payload.message_id,
       content: layer.contents,
-      senderCid: payload.sender_cid,
-      recipientCid: payload.recipient_cid,
+      senderCid: BigInt(payload.sender_cid),
+      recipientCid: BigInt(payload.recipient_cid),
       timestamp: layer.timestamp,
       index: payload.index,
       status: 'delivered',
@@ -855,7 +863,7 @@ export class P2PMessengerManager {
       // Include full message object so backup listeners can use it directly
       // without fetching from cache (prevents race conditions)
       eventEmitter.emit('p2p:message-received', {
-        peerCid,
+        peerCid: peerCid.toString(),
         messageId: message.id,
         text: message.content,
         timestamp: message.timestamp,
@@ -865,15 +873,15 @@ export class P2PMessengerManager {
       // Show notification if chat not open
       if (this.shouldShowNotification(peerCid)) {
         const conversation = this.cache.conversations.get(peerCid);
-        const peerUsername = conversation?.peerUsername || `Peer ${peerCid.slice(0, 8)}`;
+        const peerUsername = conversation?.peerUsername || `Peer ${peerCid.toString().slice(0, 8)}`;
 
         notificationService.addMessageNotification(
           `New message from ${peerUsername}`,
           message.content.substring(0, 100), // Preview first 100 chars
-          peerCid,        // senderId - the peer who sent the message
+          peerCid.toString(),        // senderId - the peer who sent the message
           message.id,     // messageId
-          recipientCid,   // recipientCid - the session receiving this message
-          { peerCid, onOpen: () => eventEmitter.emit('p2p:open-conversation', { peerCid }) }
+          recipientCid?.toString(),   // recipientCid - the session receiving this message
+          { peerCid: peerCid.toString(), onOpen: () => eventEmitter.emit('p2p:open-conversation', { peerCid: peerCid.toString() }) }
         );
       }
     } else {
@@ -891,12 +899,12 @@ export class P2PMessengerManager {
     // Update message status in all conversations
     let statusUpdated = false;
     let newStatus: P2PMessage['status'] = 'sent';
-    const updatedMessages: Array<{ peerCid: string; messageId: string; status: P2PMessage['status']; error?: string }> = [];
+    const updatedMessages: Array<{ peerCid: bigint; messageId: string; status: P2PMessage['status']; error?: string }> = [];
 
     // Debug: Log all conversations and message IDs
     console.log('[P2P] handleMessageAck searching for message in', this.cache.conversations.size, 'conversations');
     this.cache.conversations.forEach((conv, peerCid) => {
-      console.log(`[P2P] handleMessageAck conversation ${peerCid.slice(0, 8)}: ${conv.messages.length} messages, IDs:`,
+      console.log(`[P2P] handleMessageAck conversation ${peerCid.toString().slice(0, 8)}: ${conv.messages.length} messages, IDs:`,
         conv.messages.map(m => m.id.slice(0, 8)));
     });
 
@@ -961,7 +969,7 @@ export class P2PMessengerManager {
    * Handle incoming typing indicator from peer.
    * Typing indicator is displayed for TYPING_DISPLAY_DURATION_MS then clears.
    */
-  private handleTypingIndicator(peerCid: string) {
+  private handleTypingIndicator(peerCid: bigint) {
     const timestamp = Date.now();
     const conversation = this.getOrCreateConversation(peerCid);
     conversation.typing = true;
@@ -983,7 +991,7 @@ export class P2PMessengerManager {
   /**
    * Handle incoming presence update from peer
    */
-  private handlePresenceUpdate(peerCid: string, presence: PeerPresence) {
+  private handlePresenceUpdate(peerCid: bigint, presence: PeerPresence) {
     const conversation = this.getOrCreateConversation(peerCid);
     conversation.presence = presence;
 
@@ -992,7 +1000,7 @@ export class P2PMessengerManager {
   }
 
   public async sendMessage(
-    recipientCid: string,
+    recipientCid: bigint,
     content: string,
     options?: {
       replyTo?: string;
@@ -1004,7 +1012,7 @@ export class P2PMessengerManager {
     }
   ): Promise<P2PMessage> {
     // CRITICAL DEBUG: Log entry to sendMessage
-    console.log(`[P2P] *** sendMessage ENTRY *** recipientCid=${recipientCid?.slice(0, 8)}..., content="${content.slice(0, 20)}..."`);
+    console.log(`[P2P] *** sendMessage ENTRY *** recipientCid=${recipientCid?.toString().slice(0, 8)}..., content="${content.slice(0, 20)}..."`);
 
     const { replyTo, mentions, attachments, messageType = 'text', documentId, documentTitle } = options || {};
 
@@ -1012,42 +1020,42 @@ export class P2PMessengerManager {
     // Skip registration if already connected - connection implies registration was successful
     // NOTE: With Single Source of Truth architecture, p2pAutoConnectService is the authoritative source
     // for peer connection state. WASM ILM calls JavaScript to get current peers.
-    const isAlreadyConnected = p2pAutoConnectService.isPeerConnected(recipientCid) || this.isConnected(recipientCid);
+    const isAlreadyConnected = await p2pAutoConnectService.isPeerConnected(recipientCid) || this.isConnected(recipientCid);
     const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(recipientCid);
 
     if (!isAlreadyRegistered && !isAlreadyConnected) {
-      console.log(`Peer ${recipientCid} not registered and not connected, registering now...`);
+      console.log(`Peer ${recipientCid.toString()} not registered and not connected, registering now...`);
       try {
         // Use connectAfterRegister: false to avoid timeout issues
         // We'll establish the P2P connection explicitly via openP2PConnection
         await p2pRegistrationService.registerPeer(recipientCid, {
           connectAfterRegister: false
         });
-        console.log(`Successfully registered peer ${recipientCid}`);
+        console.log(`Successfully registered peer ${recipientCid.toString()}`);
       } catch (error) {
-        console.error(`Failed to register peer ${recipientCid}:`, error);
+        console.error(`Failed to register peer ${recipientCid.toString()}:`, error);
         throw new Error(`Failed to register peer for P2P communication: ${error}`);
       }
     } else {
-      console.log(`Peer ${recipientCid} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);
+      console.log(`Peer ${recipientCid.toString()} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);
     }
 
     // Ensure P2P connection is being established in background (non-blocking)
     // This starts PeerConnect if not already connected, without blocking message sending
-    p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
+    const _ = p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
 
     // Try to ensure peer is ready (non-blocking - proceed regardless of CheckState result)
     // The intersession layer manager in WASM handles message reliability
     const peerReady = await this.tryEnsurePeerReady(recipientCid);
     if (!peerReady) {
-      console.log(`[P2P] Sending to ${recipientCid} without CheckState confirmation (transport handles delivery)`);
+      console.log(`[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
     }
 
     const conversation = this.getOrCreateConversation(recipientCid);
     const index = conversation.lastMessageIndex + 1;
 
     // Get current CID from connection
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
@@ -1091,7 +1099,7 @@ export class P2PMessengerManager {
     // Send via P2P connection
     // NOTE: With Single Source of Truth architecture, WASM ILM now correctly knows which peers
     // are connected via the JavaScript callback. ILM handles offline queueing internally.
-    console.log(`[P2P] Sending message ${messageId} to ${recipientCid.slice(0, 8)}... (content: "${content.slice(0, 30)}${content.length > 30 ? '...' : ''}")`);
+    console.log(`[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}... (content: "${content.slice(0, 30)}${content.length > 30 ? '...' : ''}")`);
     const sendStartTime = Date.now();
     try {
       await this.sendP2PCommand(recipientCid, command);
@@ -1116,7 +1124,7 @@ export class P2PMessengerManager {
    * Retry sending a failed message.
    * Looks up the message by ID, resets status to pending, and re-sends.
    */
-  public async resendMessage(peerCid: string, messageId: string): Promise<void> {
+  public async resendMessage(peerCid: bigint, messageId: string): Promise<void> {
     const conversation = this.cache.conversations.get(peerCid);
     if (!conversation) {
       throw new Error(`Conversation with ${peerCid} not found`);
@@ -1150,7 +1158,7 @@ export class P2PMessengerManager {
       console.log(`[P2P] Resending to ${peerCid} without CheckState confirmation`);
     }
 
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) {
       message.status = 'failed';
       message.error = 'Not connected to server';
@@ -1196,8 +1204,8 @@ export class P2PMessengerManager {
    * Send a raw MessagingLayer message to a peer.
    * Used by FileTransferService for file transfer messages.
    */
-  public async sendRawMessage(recipientCid: string, layer: MessagingLayer): Promise<void> {
-    const currentCid = this.getCurrentCid();
+  public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
@@ -1214,7 +1222,7 @@ export class P2PMessengerManager {
     );
 
     await this.sendP2PCommand(recipientCid, command);
-    console.log(`[P2P] Sent raw message type=${layer.type} to ${recipientCid.slice(0, 8)}...`);
+    console.log(`[P2P] Sent raw message type=${layer.type} to ${recipientCid.toString().slice(0, 8)}...`);
   }
 
   /**
@@ -1222,7 +1230,7 @@ export class P2PMessengerManager {
    * Call this when the user focuses on the input field.
    * The polling will check every TYPING_POLL_INTERVAL_MS if text changed.
    */
-  public startTypingPolling(recipientCid: string, getCurrentText: () => string) {
+  public startTypingPolling(recipientCid: bigint, getCurrentText: () => string) {
     // Stop any existing polling for this peer
     this.stopTypingPolling(recipientCid);
 
@@ -1251,7 +1259,7 @@ export class P2PMessengerManager {
    * Stop typing polling for a peer conversation.
    * Call this when the user blurs the input field or sends a message.
    */
-  public stopTypingPolling(recipientCid: string) {
+  public stopTypingPolling(recipientCid: bigint) {
     const state = this.typingPollingState.get(recipientCid);
     if (state?.intervalId) {
       clearInterval(state.intervalId);
@@ -1262,8 +1270,8 @@ export class P2PMessengerManager {
   /**
    * Internal method to send a typing indicator
    */
-  private async sendTypingIndicatorInternal(recipientCid: string) {
-    const currentCid = this.getCurrentCid();
+  private async sendTypingIndicatorInternal(recipientCid: bigint) {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) return;
 
     const layer = createTyping();
@@ -1285,13 +1293,13 @@ export class P2PMessengerManager {
   /**
    * Send presence update to a specific peer
    */
-  public async sendPresenceUpdate(recipientCid: string, presence: MessagingLayer) {
+  public async sendPresenceUpdate(recipientCid: bigint, presence: MessagingLayer) {
     if (!isPresenceUpdate(presence)) {
       console.error('Invalid presence layer type');
       return;
     }
 
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) return;
 
     const conversation = this.getOrCreateConversation(recipientCid);
@@ -1310,7 +1318,7 @@ export class P2PMessengerManager {
    */
   public async broadcastPresence(presence: MessagingLayer) {
     const connectedPeers = Array.from(this.connections.entries())
-      .filter(([_, connected]) => connected)
+      .filter(([, connected]) => connected)
       .map(([peerCid]) => peerCid);
 
     for (const peerCid of connectedPeers) {
@@ -1348,7 +1356,7 @@ export class P2PMessengerManager {
    * Update peer's presence to Online when P2P connection is established.
    * Also broadcasts our own Online presence to the peer.
    */
-  private updatePeerPresenceOnConnect(peerCid: string): void {
+  private updatePeerPresenceOnConnect(peerCid: bigint): void {
     const conversation = this.cache.conversations.get(peerCid);
     if (conversation) {
       const newPresence = {
@@ -1356,14 +1364,14 @@ export class P2PMessengerManager {
         lastUpdate: Date.now()
       };
       conversation.presence = newPresence;
-      console.log(`[P2P] Updated presence to Online for peer: ${peerCid.slice(0, 8)}...`);
+      console.log(`[P2P] Updated presence to Online for peer: ${peerCid.toString().slice(0, 8)}...`);
 
       // Notify presence listeners so UI can update
       this.presenceListeners.forEach(listener => listener(peerCid, newPresence));
 
       // Emit presence update event so UI can refresh (for external listeners)
       eventEmitter.emit('p2p:presence-updated', {
-        peerCid,
+        peerCid: peerCid.toString(),
         presence: newPresence
       });
     }
@@ -1377,7 +1385,7 @@ export class P2PMessengerManager {
   /**
    * Update peer's presence to Offline when P2P connection is lost.
    */
-  private updatePeerPresenceOnDisconnect(peerCid: string): void {
+  private updatePeerPresenceOnDisconnect(peerCid: bigint): void {
     const conversation = this.cache.conversations.get(peerCid);
     if (conversation) {
       const newPresence = {
@@ -1385,14 +1393,14 @@ export class P2PMessengerManager {
         lastUpdate: Date.now()
       };
       conversation.presence = newPresence;
-      console.log(`[P2P] Updated presence to Offline for peer: ${peerCid.slice(0, 8)}...`);
+      console.log(`[P2P] Updated presence to Offline for peer: ${peerCid.toString().slice(0, 8)}...`);
 
       // Notify presence listeners so UI can update
       this.presenceListeners.forEach(listener => listener(peerCid, newPresence));
 
       // Emit presence update event so UI can refresh (for external listeners)
       eventEmitter.emit('p2p:presence-updated', {
-        peerCid,
+        peerCid: peerCid.toString(),
         presence: newPresence
       });
     }
@@ -1406,7 +1414,7 @@ export class P2PMessengerManager {
    * @param timeout - Max time to wait (default 10 seconds)
    * @throws Error if peer doesn't respond within timeout
    */
-  public async ensurePeerReady(peerCid: string, timeout = 10000): Promise<void> {
+  public async ensurePeerReady(peerCid: bigint, timeout = 10000): Promise<void> {
     // If already confirmed ready, skip handshake
     if (this.peerReadyState.get(peerCid)) {
       console.log('[P2P] Peer already marked as ready:', peerCid);
@@ -1415,7 +1423,7 @@ export class P2PMessengerManager {
 
     console.log('[P2P] Initiating CheckState handshake with peer:', peerCid);
 
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
@@ -1463,7 +1471,7 @@ export class P2PMessengerManager {
    * Returns true if peer confirmed ready, false if timeout (proceed anyway).
    * The intersession layer manager in WASM handles reliability, so CheckState is optional.
    */
-  private async tryEnsurePeerReady(peerCid: string): Promise<boolean> {
+  private async tryEnsurePeerReady(peerCid: bigint): Promise<boolean> {
     try {
       await this.ensurePeerReady(peerCid, this.CHECKSTATE_TIMEOUT);
       return true;
@@ -1479,7 +1487,7 @@ export class P2PMessengerManager {
   /**
    * Clear ready state for a peer (e.g., when they disconnect)
    */
-  public clearPeerReadyState(peerCid: string) {
+  public clearPeerReadyState(peerCid: bigint) {
     this.peerReadyState.delete(peerCid);
     const pending = this.pendingCheckStates.get(peerCid);
     if (pending) {
@@ -1491,11 +1499,11 @@ export class P2PMessengerManager {
   /**
    * Check if a peer is marked as ready (has passed CheckState handshake)
    */
-  public isPeerReady(peerCid: string): boolean {
+  public isPeerReady(peerCid: bigint): boolean {
     return this.peerReadyState.get(peerCid) || false;
   }
 
-  public async markMessagesAsRead(peerCid: string, messageIds?: string[]) {
+  public async markMessagesAsRead(peerCid: bigint, messageIds?: string[]) {
     const conversation = this.cache.conversations.get(peerCid);
     if (!conversation) return;
 
@@ -1530,18 +1538,18 @@ export class P2PMessengerManager {
     eventEmitter.emit('conversation-updated', { peerCid, conversation });
   }
 
-  private async sendMessageAck(messageId: string, ackType: "delivered" | "read" | "failed", peerCid: string, senderCid?: string) {
+  private async sendMessageAck(messageId: string, ackType: "delivered" | "read" | "failed", peerCid: bigint, senderCid?: bigint) {
     console.log('[P2P] sendMessageAck:', {
       ack_type: ackType,
       message_id: messageId.slice(0, 8),
-      to_peer: peerCid.slice(0, 10),
+      to_peer: peerCid.toString().slice(0, 10),
     });
     const command = createMessageAckCommand(messageId, ackType);
     await this.sendP2PCommand(peerCid, command, senderCid);
   }
 
-  private async sendP2PCommand(peerCid: string, command: P2PCommand, senderCid?: string) {
-    const currentCid = senderCid || this.getCurrentCid();
+  private async sendP2PCommand(peerCid: bigint, command: P2PCommand, senderCid?: bigint) {
+    const currentCid = senderCid || await this.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
@@ -1551,7 +1559,7 @@ export class P2PMessengerManager {
 
     // Debug: Log the command type being sent
     const commandType = Object.keys(command)[0] || 'unknown';
-    console.log(`[P2P] *** sendP2PCommand *** ${commandType} from ${currentCid.slice(0, 8)}... to ${peerCid.slice(0, 8)}... (${messageBytes.length} bytes)`);
+    console.log(`[P2P] *** sendP2PCommand *** ${commandType} from ${currentCid.toString().slice(0, 8)}... to ${peerCid.toString().slice(0, 8)}... (${messageBytes.length} bytes)`);
 
     // Ensure the messenger (ILM layer) is open before sending
     await websocketService.ensureMessengerOpen(currentCid);
@@ -1562,12 +1570,12 @@ export class P2PMessengerManager {
     // - Guaranteed delivery with ACKs
     // - Automatic retry on reconnection
     // The ILM uses wasmtimer for WASM-compatible timing.
-    console.log(`[P2P] *** Calling websocketService.sendP2PMessageReliable(${currentCid.slice(0, 8)}..., ${peerCid.slice(0, 8)}..., ...)`);
+    console.log(`[P2P] *** Calling websocketService.sendP2PMessageReliable(${currentCid.toString().slice(0, 8)}..., ${peerCid.toString().slice(0, 8)}..., ...)`);
     await websocketService.sendP2PMessageReliable(currentCid, peerCid, messageBytes);
     console.log(`[P2P] *** websocketService.sendP2PMessageReliable completed successfully ***`);
   }
 
-  private getOrCreateConversation(peerCid: string, peerUsername?: string): P2PConversation {
+  private getOrCreateConversation(peerCid: bigint, peerUsername?: string): P2PConversation {
     let conversation = this.cache.conversations.get(peerCid);
     if (!conversation) {
       // Check multiple sources for connection status to determine initial presence
@@ -1577,7 +1585,7 @@ export class P2PMessengerManager {
       const isOnlineRegistration = p2pAutoConnectService.isPeerOnline(peerCid);
       const isOnline = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
 
-      console.log(`[P2P] getOrCreateConversation for ${peerCid.slice(0, 8)}...: ` +
+      console.log(`[P2P] getOrCreateConversation for ${peerCid.toString().slice(0, 8)}...: ` +
         `local=${isConnectedLocal}, autoConnect=${isConnectedAutoConnect}, registration=${isOnlineRegistration} → ${isOnline ? 'Online' : 'Offline'}`);
 
       conversation = {
@@ -1605,7 +1613,7 @@ export class P2PMessengerManager {
    * Add a message to a conversation. Returns true if message was newly added,
    * false if it was a duplicate (already existed).
    */
-  private async addMessageToConversation(peerCid: string, message: P2PMessage): Promise<boolean> {
+  private async addMessageToConversation(peerCid: bigint, message: P2PMessage): Promise<boolean> {
     const conversation = this.getOrCreateConversation(peerCid);
 
     // Check for duplicate - return false if message already exists
@@ -1671,7 +1679,7 @@ export class P2PMessengerManager {
   private async deleteOldFormat(): Promise<void> {
     try {
       const key = `${this.dbPrefix}_conversations`;
-      await websocketService.sendLocalDBDelete('0', key);
+      await websocketService.sendLocalDBDelete(0n, key);
       console.log('[P2P] Deleted old monolithic format');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1689,7 +1697,7 @@ export class P2PMessengerManager {
   private async loadAllMetadata(): Promise<void> {
     try {
       // Get all keys from LocalDB that match our metadata pattern
-      const allKeys = await websocketService.sendLocalDBListKeys('0', `${PAGINATED_PREFIX}`);
+      const allKeys = await websocketService.sendLocalDBListKeys(0n, `${PAGINATED_PREFIX}`);
 
       if (!allKeys || allKeys.length === 0) {
         console.log('[P2P] No paginated conversations found (fresh install)');
@@ -1739,8 +1747,8 @@ export class P2PMessengerManager {
   /**
    * Load metadata for a specific peer.
    */
-  private async loadMetadata(peerCid: string): Promise<ConversationMetadata | null> {
-    const key = `${PAGINATED_PREFIX}${peerCid}_metadata`;
+  private async loadMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
+    const key = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
     return this.loadMetadataByKey(key);
   }
 
@@ -1749,7 +1757,7 @@ export class P2PMessengerManager {
    */
   private async loadMetadataByKey(key: string): Promise<ConversationMetadata | null> {
     try {
-      const response = await websocketService.sendLocalDBGet('0', key);
+      const response = await websocketService.sendLocalDBGet(0n, key);
       if (response?.value) {
         const rawValue = response.value;
         let valueStr: string;
@@ -1760,7 +1768,12 @@ export class P2PMessengerManager {
         } else {
           return null;
         }
-        return JSON.parse(valueStr) as ConversationMetadata;
+        const parsed = JSON.parse(valueStr);
+        // Convert peerCid from string to bigint (JSON doesn't support bigint)
+        return {
+          ...parsed,
+          peerCid: typeof parsed.peerCid === 'string' ? BigInt(parsed.peerCid) : parsed.peerCid
+        } as ConversationMetadata;
       }
       return null;
     } catch {
@@ -1771,11 +1784,13 @@ export class P2PMessengerManager {
   /**
    * Save metadata for a peer.
    */
-  private async saveMetadata(peerCid: string, metadata: ConversationMetadata): Promise<void> {
-    const key = `${PAGINATED_PREFIX}${peerCid}_metadata`;
-    const valueStr = JSON.stringify(metadata);
+  private async saveMetadata(peerCid: bigint, metadata: ConversationMetadata): Promise<void> {
+    const key = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
+    // Convert bigint peerCid to string for JSON serialization
+    const serializableMetadata = { ...metadata, peerCid: metadata.peerCid.toString() };
+    const valueStr = JSON.stringify(serializableMetadata);
     const valueBytes = Array.from(new TextEncoder().encode(valueStr));
-    await websocketService.sendLocalDBSet('0', key, valueBytes);
+    await websocketService.sendLocalDBSet(0n, key, valueBytes);
   }
 
   /**
@@ -1784,10 +1799,10 @@ export class P2PMessengerManager {
    * @param pageNumber Page number (0 = oldest, higher = newer)
    * @returns MessagePage or null if not found
    */
-  public async loadMessagePage(peerCid: string, pageNumber: number): Promise<MessagePage | null> {
-    const key = `${PAGINATED_PREFIX}${peerCid}_${pageNumber}`;
+  public async loadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> {
+    const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNumber}`;
     try {
-      const response = await websocketService.sendLocalDBGet('0', key);
+      const response = await websocketService.sendLocalDBGet(0n, key);
       if (response?.value) {
         const rawValue = response.value;
         let valueStr: string;
@@ -1798,7 +1813,17 @@ export class P2PMessengerManager {
         } else {
           return null;
         }
-        return JSON.parse(valueStr) as MessagePage;
+        const parsed = JSON.parse(valueStr);
+        // Convert bigint fields from string (JSON doesn't support bigint)
+        return {
+          ...parsed,
+          peerCid: typeof parsed.peerCid === 'string' ? BigInt(parsed.peerCid) : parsed.peerCid,
+          messages: parsed.messages.map((m: P2PMessage & { senderCid: string | bigint; recipientCid: string | bigint }) => ({
+            ...m,
+            senderCid: typeof m.senderCid === 'string' ? BigInt(m.senderCid) : m.senderCid,
+            recipientCid: typeof m.recipientCid === 'string' ? BigInt(m.recipientCid) : m.recipientCid
+          }))
+        } as MessagePage;
       }
       return null;
     } catch {
@@ -1809,18 +1834,28 @@ export class P2PMessengerManager {
   /**
    * Save a page of messages for a peer.
    */
-  private async saveMessagePage(peerCid: string, pageNumber: number, page: MessagePage): Promise<void> {
-    const key = `${PAGINATED_PREFIX}${peerCid}_${pageNumber}`;
-    const valueStr = JSON.stringify(page);
+  private async saveMessagePage(peerCid: bigint, pageNumber: number, page: MessagePage): Promise<void> {
+    const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNumber}`;
+    // Convert bigint fields to strings for JSON serialization
+    const serializablePage = {
+      ...page,
+      peerCid: page.peerCid.toString(),
+      messages: page.messages.map(m => ({
+        ...m,
+        senderCid: m.senderCid.toString(),
+        recipientCid: m.recipientCid.toString()
+      }))
+    };
+    const valueStr = JSON.stringify(serializablePage);
     const valueBytes = Array.from(new TextEncoder().encode(valueStr));
-    await websocketService.sendLocalDBSet('0', key, valueBytes);
+    await websocketService.sendLocalDBSet(0n, key, valueBytes);
   }
 
   /**
    * Append a message to the latest page, creating a new page if needed.
    * This is the main method for persisting new messages.
    */
-  private async appendMessageToPage(peerCid: string, message: P2PMessage): Promise<void> {
+  private async appendMessageToPage(peerCid: bigint, message: P2PMessage): Promise<void> {
     // Load or create metadata
     let metadata = await this.loadMetadata(peerCid);
     const isNewConversation = !metadata;
@@ -1870,7 +1905,7 @@ export class P2PMessengerManager {
           maxTimestamp: message.timestamp
         }
       };
-      console.log(`[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.slice(0, 8)}...`);
+      console.log(`[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.toString().slice(0, 8)}...`);
     }
 
     // Add message to current page
@@ -1889,7 +1924,7 @@ export class P2PMessengerManager {
     metadata.lastUpdated = Date.now();
 
     // Update unread count for incoming messages
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (message.senderCid !== currentCid && message.status === 'delivered') {
       metadata.unreadCount++;
     }
@@ -1905,7 +1940,7 @@ export class P2PMessengerManager {
    * Load the most recent messages for a conversation (latest page).
    * Call this when opening a chat to populate the UI.
    */
-  public async loadLatestMessages(peerCid: string): Promise<P2PMessage[]> {
+  public async loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]> {
     const metadata = await this.loadMetadata(peerCid);
     if (!metadata) return [];
 
@@ -1916,14 +1951,14 @@ export class P2PMessengerManager {
   /**
    * Get conversation metadata for a peer.
    */
-  public async getConversationMetadata(peerCid: string): Promise<ConversationMetadata | null> {
+  public async getConversationMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
     return this.loadMetadata(peerCid);
   }
 
   /**
    * Update unread count and persist to metadata.
    */
-  public async updateUnreadCount(peerCid: string, unreadCount: number): Promise<void> {
+  public async updateUnreadCount(peerCid: bigint, unreadCount: number): Promise<void> {
     const metadata = await this.loadMetadata(peerCid);
     if (metadata) {
       metadata.unreadCount = unreadCount;
@@ -1942,7 +1977,7 @@ export class P2PMessengerManager {
    * Update a message's status in its persisted page.
    * Searches all pages to find the message and update it.
    */
-  public async updateMessageInPages(peerCid: string, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
+  public async updateMessageInPages(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
     const metadata = await this.loadMetadata(peerCid);
     if (!metadata) return false;
 
@@ -1966,7 +2001,7 @@ export class P2PMessengerManager {
   /**
    * Update peer username in metadata.
    */
-  public async updatePeerUsernameInMetadata(peerCid: string, username: string): Promise<void> {
+  public async updatePeerUsernameInMetadata(peerCid: bigint, username: string): Promise<void> {
     const metadata = await this.loadMetadata(peerCid);
     if (metadata) {
       metadata.peerUsername = username;
@@ -1978,27 +2013,27 @@ export class P2PMessengerManager {
   /**
    * Delete all pages and metadata for a conversation.
    */
-  public async deleteConversationPages(peerCid: string): Promise<void> {
+  public async deleteConversationPages(peerCid: bigint): Promise<void> {
     const metadata = await this.loadMetadata(peerCid);
     if (!metadata) return;
 
     // Delete all message pages
     const deletePromises: Promise<void>[] = [];
     for (let pageNum = 0; pageNum <= metadata.latestPage; pageNum++) {
-      const key = `${PAGINATED_PREFIX}${peerCid}_${pageNum}`;
-      deletePromises.push(websocketService.sendLocalDBDelete('0', key));
+      const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNum}`;
+      deletePromises.push(websocketService.sendLocalDBDelete(0n, key));
     }
 
     // Delete metadata
-    const metadataKey = `${PAGINATED_PREFIX}${peerCid}_metadata`;
-    deletePromises.push(websocketService.sendLocalDBDelete('0', metadataKey));
+    const metadataKey = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
+    deletePromises.push(websocketService.sendLocalDBDelete(0n, metadataKey));
 
     await Promise.all(deletePromises);
-    console.log(`[P2P] Deleted ${metadata.latestPage + 1} pages + metadata for peer ${peerCid.slice(0, 8)}...`);
+    console.log(`[P2P] Deleted ${metadata.latestPage + 1} pages + metadata for peer ${peerCid.toString().slice(0, 8)}...`);
   }
 
   // Public API methods
-  public getConversation(peerCid: string): P2PConversation | undefined {
+  public getConversation(peerCid: bigint): P2PConversation | undefined {
     return this.cache.conversations.get(peerCid);
   }
 
@@ -2014,15 +2049,15 @@ export class P2PMessengerManager {
    * @param validPeerCids - Set of CIDs for peers currently registered on the server
    * @returns Number of stale conversations removed
    */
-  public async cleanupStaleConversations(validPeerCids: Set<string>): Promise<number> {
-    const staleCids: string[] = [];
-    const currentCid = this.getCurrentCid();
+  public async cleanupStaleConversations(validPeerCids: Set<bigint>): Promise<number> {
+    const staleCids: bigint[] = [];
+    const currentCid = await this.getCurrentCid();
 
     for (const [peerCid] of this.cache.conversations.entries()) {
       // Skip self-conversations (shouldn't exist, but LocalDB is shared between browsers)
       // This prevents cleaning up another user's conversation data
       if (currentCid && peerCid === currentCid) {
-        console.log(`[P2P] Skipping self-conversation cleanup for CID: ${peerCid.slice(0, 8)}...`);
+        console.log(`[P2P] Skipping self-conversation cleanup for CID: ${peerCid.toString().slice(0, 8)}...`);
         continue;
       }
       if (!validPeerCids.has(peerCid)) {
@@ -2031,7 +2066,7 @@ export class P2PMessengerManager {
     }
 
     for (const cid of staleCids) {
-      console.log(`[P2P] Removing stale conversation for peer: ${cid.slice(0, 8)}...`);
+      console.log(`[P2P] Removing stale conversation for peer: ${cid.toString().slice(0, 8)}...`);
       this.cache.conversations.delete(cid);
     }
 
@@ -2049,11 +2084,11 @@ export class P2PMessengerManager {
     return this.cache.messageQueue.slice(-limit);
   }
 
-  public isConnected(peerCid: string): boolean {
+  public isConnected(peerCid: bigint): boolean {
     return this.connections.get(peerCid) || false;
   }
 
-  public markAsRead(peerCid: string) {
+  public markAsRead(peerCid: bigint) {
     const conversation = this.cache.conversations.get(peerCid);
     if (conversation) {
       conversation.unreadCount = 0;
@@ -2080,21 +2115,21 @@ export class P2PMessengerManager {
     };
   }
 
-  public onTyping(listener: (peerCid: string, isTyping: boolean) => void) {
+  public onTyping(listener: (peerCid: bigint, isTyping: boolean) => void) {
     this.typingListeners.push(listener);
     return () => {
       this.typingListeners = this.typingListeners.filter(l => l !== listener);
     };
   }
 
-  public onConnectionChange(listener: (peerCid: string, connected: boolean) => void) {
+  public onConnectionChange(listener: (peerCid: bigint, connected: boolean) => void) {
     this.connectionListeners.push(listener);
     return () => {
       this.connectionListeners = this.connectionListeners.filter(l => l !== listener);
     };
   }
 
-  public onPresenceChange(listener: (peerCid: string, presence: PeerPresence) => void) {
+  public onPresenceChange(listener: (peerCid: bigint, presence: PeerPresence) => void) {
     this.presenceListeners.push(listener);
     return () => {
       this.presenceListeners = this.presenceListeners.filter(l => l !== listener);
@@ -2102,8 +2137,8 @@ export class P2PMessengerManager {
   }
 
   // Auto-registration support
-  public async autoRegisterPeer(peerCid: string): Promise<void> {
-    const currentCid = this.getCurrentCid();
+  public async autoRegisterPeer(peerCid: bigint): Promise<void> {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
@@ -2115,18 +2150,18 @@ export class P2PMessengerManager {
    * This is used when we receive a message and need to register back,
    * ensuring we use the correct CID (from the notification) in multi-tab scenarios.
    */
-  public async autoRegisterPeerWithCid(peerCid: string, ownCid: string | null | undefined): Promise<void> {
+  public async autoRegisterPeerWithCid(peerCid: bigint, ownCid: bigint | null | undefined): Promise<void> {
     if (!ownCid) {
       throw new Error('No CID provided for registration');
     }
 
-    console.log(`[P2P] Auto-registering with peer ${peerCid} using CID ${ownCid}`);
+    console.log(`[P2P] Auto-registering with peer ${peerCid.toString()} using CID ${ownCid.toString()}`);
 
     const request = {
       PeerRegister: {
         request_id: crypto.randomUUID(),
-        cid: ownCid, // Use the provided CID (from notification recipient)
-        peer_cid: peerCid, // The peer we're registering with
+        cid: ownCid.toString(), // Use the provided CID (from notification recipient), convert to string for wire format
+        peer_cid: peerCid.toString(), // The peer we're registering with, convert to string for wire format
         session_security_settings: {
           security_level: 'Standard',
           secrecy_mode: 'BestEffort',
@@ -2148,8 +2183,8 @@ export class P2PMessengerManager {
     // This allows the UI to update before the server response
     const peer = {
       cid: peerCid,
-      username: `User ${peerCid.slice(0, 8)}`,
-      fullName: `User ${peerCid.slice(0, 8)}`,
+      username: `User ${peerCid.toString().slice(0, 8)}`,
+      fullName: `User ${peerCid.toString().slice(0, 8)}`,
       isOnline: true,
       isRegistered: true
     };
@@ -2157,13 +2192,13 @@ export class P2PMessengerManager {
     // Emit event so UI updates immediately
     eventEmitter.emit('p2p:peer-registered', { peer });
 
-    console.log(`[P2P] Auto-registration request sent for peer ${peerCid}`);
+    console.log(`[P2P] Auto-registration request sent for peer ${peerCid.toString()}`);
   }
 
   /**
    * Check if notification should be shown for incoming message
    */
-  private shouldShowNotification(peerCid: string): boolean {
+  private shouldShowNotification(peerCid: bigint): boolean {
     // Don't notify if chat is currently open with this peer
     if (this.activeConversationPeerCid === peerCid) {
       return false;
@@ -2174,7 +2209,7 @@ export class P2PMessengerManager {
   /**
    * Set active conversation peer (call when user opens chat)
    */
-  public setActiveConversation(peerCid: string | null): void {
+  public setActiveConversation(peerCid: bigint | null): void {
     this.activeConversationPeerCid = peerCid;
   }
 }

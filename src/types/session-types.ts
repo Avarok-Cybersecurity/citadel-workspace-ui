@@ -14,7 +14,7 @@ export interface StoredSession {
   serverPassword: string;
   fullName: string;
   lastConnected: number;
-  cid?: string; // Store the CID for claiming orphaned sessions
+  cid?: bigint; // Store the CID for claiming orphaned sessions
   role?: string; // User's role in the workspace (Admin, Owner, Member, Guest)
   sessionSecuritySettings: SessionSecuritySettings
 }
@@ -31,7 +31,7 @@ export interface StoredSessions {
  * Connection info returned after successful connection
  */
 export interface ConnectionInfo {
-  cid: string;
+  cid: bigint;
   username: string;
   serverAddress: string;
   fullName: string;
@@ -49,23 +49,23 @@ export interface LocalDBKVPair {
  * LocalDB request types
  */
 export interface LocalDBSetKVRequest {
-  cid: string;
-  peer_cid?: string;
+  cid: bigint;
+  peer_cid?: bigint;
   key: string;
   value: any;
   request_id: string;
 }
 
 export interface LocalDBGetKVRequest {
-  cid: string;
-  peer_cid?: string;
+  cid: bigint;
+  peer_cid?: bigint;
   key: string;
   request_id: string;
 }
 
 export interface LocalDBGetAllKVRequest {
-  cid: string;
-  peer_cid?: string;
+  cid: bigint;
+  peer_cid?: bigint;
   request_id: string;
 }
 
@@ -73,23 +73,23 @@ export interface LocalDBGetAllKVRequest {
  * LocalDB response types
  */
 export interface LocalDBSetKVSuccess {
-  cid: string;
-  peer_cid?: string;
+  cid: bigint;
+  peer_cid?: bigint;
   key: string;
   request_id: string;
 }
 
 export interface LocalDBGetKVSuccess {
-  cid: string;
-  peer_cid?: string;
+  cid: bigint;
+  peer_cid?: bigint;
   key: string;
   value: any;
   request_id: string;
 }
 
 export interface LocalDBGetAllKVSuccess {
-  cid: string;
-  peer_cid?: string;
+  cid: bigint;
+  peer_cid?: bigint;
   map: { [key: string]: any };
   request_id: string;
 }
@@ -104,8 +104,8 @@ export const ACTIVE_SESSION_KEY = 'citadel_active_session';
  * Peer connection information within a session
  */
 export interface PeerSessionInformation {
-  cid: string;
-  peer_cid: string;
+  cid: bigint;
+  peer_cid: bigint;
   peer_username: string;
 }
 
@@ -113,11 +113,11 @@ export interface PeerSessionInformation {
  * Active session info from internal service
  */
 export interface ActiveSession {
-  cid: string;
+  cid: bigint;
   username: string;
   server_address: string;
   full_name?: string;
-  /** Peers this session is connected to (peer_cid -> PeerSessionInformation) */
+  /** Peers this session is connected to (peer_cid as string key -> PeerSessionInformation) */
   peer_connections?: Record<string, PeerSessionInformation>;
 }
 

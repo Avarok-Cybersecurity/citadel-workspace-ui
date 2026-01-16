@@ -77,13 +77,13 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
         setMembers(memberList);
       } else {
         // Fallback to workspace members from state
-        if (state.workspace?.members) {
-          const memberList: MemberData[] = Object.values(state.workspace.members).map((m: any) => ({
-            userId: m.userId || m.id,
+        if (state.members && Object.keys(state.members).length > 0) {
+          const memberList: MemberData[] = Object.values(state.members).map((m) => ({
+            userId: m.id,
             username: m.username,
-            name: m.name,
+            name: m.displayName,
             avatarUrl: m.avatarUrl,
-            role: (m.role as UserRole) || 'Member',
+            role: (m.role ?? 'Member') as UserRole,
           }));
           setMembers(memberList);
         }

@@ -27,7 +27,7 @@ interface StoredWorkspace {
   serverAddress: string;
   workspaceName?: string;
   isActive: boolean;
-  cid?: string;
+  cid?: bigint;
   fullName?: string;
   role?: string;
 }
@@ -60,26 +60,26 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
   // Load stored sessions and track current workspace
   useEffect(() => {
-    const loadStoredWorkspaces = () => {
+    const loadStoredWorkspaces = async () => {
       const storedSessions = connectionManager.getStoredSessions();
       const connectionService = ConnectionService.getInstance();
-      const tabSelectedUser = getSelectedUser();
-      
+      const tabSelectedUser = await getSelectedUser();
+
       // Get current connection status
-      let currentCid = null;
+      let currentCid: bigint | null = null;
       connectionService.onConnectionChange((connection) => {
         if (connection?.cid) {
           currentCid = connection.cid;
         }
       });
-      
+
       // Ensure storedSessions has the expected structure
       if (!storedSessions || !storedSessions.sessions || !Array.isArray(storedSessions.sessions)) {
         console.warn('No stored sessions found or invalid format');
         setAvailableWorkspaces([]);
         return;
       }
-      
+
       // Convert stored sessions to workspace objects
       const workspaces: StoredWorkspace[] = storedSessions.sessions.map((session, index) => ({
         id: `${session.serverAddress}-${session.username}`,
@@ -91,33 +91,33 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
         fullName: session.fullName,
         role: session.role || 'Member' // Use stored role or default to Member
       }));
-      
+
       setAvailableWorkspaces(workspaces);
-      
+
       // Set current workspace based on tab-specific selected user
       let activeWorkspace: StoredWorkspace | undefined;
-      
+
       if (tabSelectedUser && tabSelectedUser.selectedUsername && tabSelectedUser.selectedServerAddress) {
         // Find workspace matching the tab's selected user
-        activeWorkspace = workspaces.find(w => 
-          w.username === tabSelectedUser.selectedUsername && 
+        activeWorkspace = workspaces.find(w =>
+          w.username === tabSelectedUser.selectedUsername &&
           w.serverAddress === tabSelectedUser.selectedServerAddress
         );
         console.log('WorkspaceSwitcher: Using tab-selected user:', tabSelectedUser.selectedUsername);
       }
-      
+
       // Fall back to the workspace with active connection if no tab selection
       if (!activeWorkspace) {
         activeWorkspace = workspaces.find(w => w.isActive);
       }
-      
+
       if (activeWorkspace) {
         setCurrentWorkspace(activeWorkspace);
       }
     };
-    
+
     loadStoredWorkspaces();
-    
+
     // Also listen for connection changes
     const connectionService = ConnectionService.getInstance();
     connectionService.onConnectionChange(() => {
@@ -400,7 +400,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
                     <span className="text-xs text-gray-400 group-hover:text-gray-600 flex items-center gap-1">
                       @{workspace.username} · {workspace.role || 'Member'}
                       {(workspace.role === 'Admin' || workspace.role === 'admin' || workspace.role === 'Owner' || workspace.role === 'owner') && (
-                        <Shield className="w-3 h-3 text-amber-400" title="Administrator" />
+                        <span title="Administrator"><Shield className="w-3 h-3 text-amber-400" /></span>
                       )}
                     </span>
                   </div>

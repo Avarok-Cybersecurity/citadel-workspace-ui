@@ -47,20 +47,9 @@ export const MemberProfile: React.FC<MemberProfileProps> = ({
     ]
   };
   
-  // Fetch member data if not available
-  useEffect(() => {
-    const fetchMemberData = async () => {
-      if (!member && !isLoading) {
-        try {
-          await invoke('get_member', { userId });
-        } catch (error) {
-          console.error('Failed to load member:', error);
-        }
-      }
-    };
-    
-    fetchMemberData();
-  }, [userId, member, isLoading]);
+  // Note: Member data comes from workspace state. If member is not found,
+  // we show a skeleton loader. Additional fetching would be handled by
+  // the workspace context if needed.
   
   // Show skeleton loader while loading
   if (isLoading || !member) {

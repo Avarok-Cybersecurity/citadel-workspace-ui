@@ -53,7 +53,7 @@ class LiveDocumentStore {
     if (this.initialized) return;
 
     try {
-      const response = await websocketService.sendLocalDBGet('0', DOCUMENTS_INDEX_KEY);
+      const response = await websocketService.sendLocalDBGet(0n, DOCUMENTS_INDEX_KEY);
       if (response?.value) {
         const indexData = this.decodeValue(response.value);
         const index: string[] = JSON.parse(indexData);
@@ -130,7 +130,7 @@ class LiveDocumentStore {
     const valueStr = JSON.stringify(doc);
     const valueBytes = Array.from(new TextEncoder().encode(valueStr));
 
-    await websocketService.sendLocalDBSet('0', key, valueBytes);
+    await websocketService.sendLocalDBSet(0n, key, valueBytes);
 
     // Update cache
     this.documentsCache.set(docId, doc);
@@ -218,7 +218,7 @@ class LiveDocumentStore {
 
     try {
       const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
-      const response = await websocketService.sendLocalDBGet('0', key);
+      const response = await websocketService.sendLocalDBGet(0n, key);
 
       if (response?.value) {
         const valueStr = this.decodeValue(response.value);
@@ -299,7 +299,7 @@ class LiveDocumentStore {
 
     // Delete from LocalDB
     const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
-    await websocketService.sendLocalDBSet('0', key, []); // Set to empty to "delete"
+    await websocketService.sendLocalDBSet(0n, key, []); // Set to empty to "delete"
 
     await this.updateIndex();
   }
@@ -312,7 +312,7 @@ class LiveDocumentStore {
     const valueStr = JSON.stringify(docIds);
     const valueBytes = Array.from(new TextEncoder().encode(valueStr));
 
-    await websocketService.sendLocalDBSet('0', DOCUMENTS_INDEX_KEY, valueBytes);
+    await websocketService.sendLocalDBSet(0n, DOCUMENTS_INDEX_KEY, valueBytes);
   }
 
   /**

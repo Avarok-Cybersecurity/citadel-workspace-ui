@@ -263,7 +263,7 @@ class WasmConnectionManager {
     }
 
     try {
-      const wasOpened = await websocketService.ensureMessengerOpen(cid);
+      const wasOpened = await websocketService.ensureMessengerOpen(BigInt(cid));
       if (wasOpened) {
         debugLog('wasm-connection-manager', 'Messenger reopened for session', { cid });
       }

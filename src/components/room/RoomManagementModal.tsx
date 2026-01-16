@@ -22,7 +22,7 @@ interface RoomManagementModalProps {
   room?: {
     id: string;
     name: string;
-    description: string;
+    description?: string;
   };
 }
 

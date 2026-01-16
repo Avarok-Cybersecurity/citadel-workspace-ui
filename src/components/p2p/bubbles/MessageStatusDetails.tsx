@@ -95,14 +95,14 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps) {
       />
       <Row
         label="From"
-        value={truncateCid(message.senderCid)}
-        fullValue={message.senderCid}
+        value={truncateCid(message.senderCid.toString())}
+        fullValue={message.senderCid.toString()}
         copyable
       />
       <Row
         label="To"
-        value={truncateCid(message.recipientCid)}
-        fullValue={message.recipientCid}
+        value={truncateCid(message.recipientCid.toString())}
+        fullValue={message.recipientCid.toString()}
         copyable
       />
       {message.error && (

@@ -42,6 +42,14 @@ class WebSocketService {
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
 
+  /** Get the client, throwing if not initialized */
+  private get assertClient(): WorkspaceClient {
+    if (!this.client) {
+      throw new Error('WebSocket client not initialized. Call init() first.');
+    }
+    return this.client;
+  }
+
   constructor(config: WebSocketServiceConfig = {}) {
     this.config = {
       websocketUrl: config.websocketUrl || 'ws://localhost:12345',
@@ -226,8 +234,8 @@ class WebSocketService {
       });
 
       // Listen for session release requests (from instance-channel when last tab with a CID closes)
-      eventEmitter.on('session:release-request', ({ cid }: { cid: string }) => {
-        debugLog('websocket', `Session release requested for CID ${cid}`);
+      eventEmitter.on('session:release-request', ({ cid }: { cid: bigint }) => {
+        debugLog('websocket', `Session release requested for CID ${cid.toString()}`);
         this.releaseSession(cid);
       });
 
@@ -280,19 +288,19 @@ class WebSocketService {
           s => s.username === username && s.serverAddress === resolvedAddr
         );
 
-        const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid.toString();
+        const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid;
 
         if (isOrphaned) {
           // STEP 3a: Session is orphaned → Claim it
           console.log(`[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
-          await this.claimSession(existingSession.cid.toString(), false);
+          await this.claimSession(existingSession.cid, false);
           return; // Early return - session claimed successfully
         } else {
           // STEP 3b: Session exists but NOT orphaned → Disconnect then Connect
           console.warn(`[Connect] Session exists but not orphaned - disconnecting first`);
           // disconnect() now waits for DisconnectNotification signal before resolving
           // No artificial delay needed - backend confirmed cleanup via signal
-          await this.disconnect(existingSession.cid.toString());
+          await this.disconnect(existingSession.cid);
           // Fall through to connect
         }
       }
@@ -341,7 +349,7 @@ class WebSocketService {
 
     // Send directly to internal service without using the problematic waitForResponse pattern
     try {
-      await this.client.sendDirectToInternalService(connectRequest);
+      await this.assertClient.sendDirectToInternalService(connectRequest);
       console.log(`[Connect] Connect request sent successfully for ${username}`);
     } catch (sendError) {
       console.error(`[Connect] FAILED to send Connect request:`, sendError);
@@ -385,39 +393,37 @@ class WebSocketService {
     };
     
     // Send directly to internal service without using the problematic waitForResponse pattern
-    await this.client.sendDirectToInternalService(registerRequest);
+    await this.assertClient.sendDirectToInternalService(registerRequest);
   }
 
 
-  async sendWorkspaceRequest(cid: string, request: any): Promise<void> {
+  async sendWorkspaceRequest(cid: bigint, request: any): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (!cid) {
+    if (cid === undefined || cid === null) {
       throw new Error('CID is required to send workspace request');
     }
 
     // Use WorkspaceClient's sendWorkspaceRequest method
-    // Convert string CID to BigInt for the WASM client
-    const cidBigInt = BigInt(cid);
-    await this.client.sendWorkspaceRequest(cidBigInt, request);
+    await this.assertClient.sendWorkspaceRequest(cid, request);
   }
 
-  async sendP2PMessage(cid: string, targetCid: string, message: string): Promise<void> {
+  async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (!cid) {
+    if (cid === undefined || cid === null) {
       throw new Error('CID is required to send P2P message');
     }
 
-    if (!targetCid) {
+    if (targetCid === undefined || targetCid === null) {
       throw new Error('Target CID (peer_cid) is required to send P2P message');
     }
 
     // Log the exact values being used
     console.log('[P2P] sendP2PMessage called with:', {
-      cid: cid,
+      cid: cid.toString(),
       cidType: typeof cid,
-      targetCid: targetCid,
+      targetCid: targetCid.toString(),
       targetCidType: typeof targetCid,
       messageLength: message.length
     });
@@ -427,8 +433,8 @@ class WebSocketService {
       Message: {
         request_id: crypto.randomUUID(),
         message: Array.from(new TextEncoder().encode(message)),
-        cid: cid, // sender CID as string - will be converted to BigInt by sendMessage
-        peer_cid: targetCid, // recipient CID as string - will be converted to BigInt by sendMessage
+        cid: cid,
+        peer_cid: targetCid,
         security_level: 'Standard'
       }
     };
@@ -437,16 +443,16 @@ class WebSocketService {
       typeof value === 'bigint' ? value.toString() : value
     ));
 
-    debugLog('websocket', 'Sending P2P message', { cid, targetCid, messageLength: message.length });
+    debugLog('websocket', 'Sending P2P message', { cid: cid.toString(), targetCid: targetCid.toString(), messageLength: message.length });
 
     // Use sendMessage which handles BigInt conversion properly
     await this.sendMessage(messageRequest);
   }
 
-  async openP2PConnection(cid: string, targetCid: string): Promise<void> {
+  async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (!cid) {
+    if (cid === undefined || cid === null) {
       throw new Error('CID is required to open P2P connection');
     }
 
@@ -454,15 +460,15 @@ class WebSocketService {
       throw new Error('Cannot open P2P connection to self');
     }
 
-    debugLog('websocket', 'Opening P2P connection', { cid, targetCid });
+    debugLog('websocket', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
 
     // Send PeerConnect request to establish P2P channel
     const requestId = crypto.randomUUID();
     const peerConnectRequest = {
       PeerConnect: {
         request_id: requestId,
-        cid: cid, // our CID - will be converted to BigInt by sendMessage
-        peer_cid: targetCid, // peer CID - will be converted to BigInt by sendMessage
+        cid: cid,
+        peer_cid: targetCid,
         udp_mode: 'Disabled',
         session_security_settings: {
           security_level: 'Standard',
@@ -488,7 +494,7 @@ class WebSocketService {
         if ('PeerConnectSuccess' in message && message.PeerConnectSuccess.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'P2P connection established', { targetCid });
+          debugLog('websocket', 'P2P connection established', { targetCid: targetCid.toString() });
           resolve();
         } else if ('PeerConnectFailure' in message && message.PeerConnectFailure.request_id === requestId) {
           clearTimeout(timeout);
@@ -517,14 +523,14 @@ class WebSocketService {
    * @param peerCid - The peer who initiated the connection
    * @param notification - The original PeerConnectNotification (for session_security_settings and udp_mode)
    */
-  async acceptPeerConnect(cid: string, peerCid: string, notification: any): Promise<void> {
+  async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: any): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (!cid || !peerCid) {
+    if (cid === undefined || cid === null || peerCid === undefined || peerCid === null) {
       throw new Error('CID and peerCid are required to accept P2P connection');
     }
 
-    debugLog('websocket', 'Accepting P2P connection', { cid, peerCid });
+    debugLog('websocket', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
 
     const requestId = crypto.randomUUID();
     const acceptRequest = {
@@ -593,25 +599,25 @@ class WebSocketService {
    * @param localCid - Our session CID
    * @param peerCid - The peer to disconnect from
    */
-  async disconnectP2P(localCid: string, peerCid: string): Promise<void> {
+  async disconnectP2P(localCid: bigint, peerCid: bigint): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (!localCid) {
+    if (localCid === undefined || localCid === null) {
       throw new Error('Local CID is required to disconnect P2P');
     }
 
-    if (!peerCid) {
+    if (peerCid === undefined || peerCid === null) {
       throw new Error('Peer CID is required to disconnect P2P');
     }
 
-    debugLog('websocket', 'Disconnecting P2P connection', { localCid, peerCid });
+    debugLog('websocket', 'Disconnecting P2P connection', { localCid: localCid.toString(), peerCid: peerCid.toString() });
 
     const requestId = crypto.randomUUID();
     const peerDisconnectRequest = {
       PeerDisconnect: {
         request_id: requestId,
-        cid: localCid, // our CID - will be converted to BigInt by sendMessage
-        peer_cid: peerCid // peer CID - will be converted to BigInt by sendMessage
+        cid: localCid,
+        peer_cid: peerCid
       }
     };
 
@@ -627,17 +633,17 @@ class WebSocketService {
         if ('PeerDisconnectSuccess' in message && message.PeerDisconnectSuccess.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'P2P disconnect successful', { peerCid });
+          debugLog('websocket', 'P2P disconnect successful', { peerCid: peerCid.toString() });
           resolve();
         }
         // Also accept DisconnectNotification with matching peer_cid (peer-initiated disconnect)
         else if ('DisconnectNotification' in message) {
           const notification = message.DisconnectNotification;
           if (notification.request_id === requestId ||
-              notification.peer_cid?.toString() === peerCid) {
+              notification.peer_cid === peerCid) {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
-            debugLog('websocket', 'P2P disconnect notification received', { peerCid });
+            debugLog('websocket', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
             resolve();
           }
         }
@@ -670,18 +676,19 @@ class WebSocketService {
    * To establish a P2P connection, use openP2PConnection() which sends PeerConnect.
    * @param cid - The CID to open the messenger for
    */
-  async openMessengerFor(cid: string): Promise<void> {
+  async openMessengerFor(cid: bigint): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (!cid) {
+    if (cid === undefined || cid === null) {
       throw new Error('CID is required to open messenger');
     }
 
-    debugLog('websocket', 'Opening messenger handle for CID', { cid });
+    debugLog('websocket', 'Opening messenger handle for CID', { cid: cid.toString() });
 
     // Call the WorkspaceClient's openMessengerFor which directly calls WASM's open_messenger_for
     // This creates a messenger.multiplex(cid) handle for ISM routing
-    await this.client.openMessengerFor(cid);
+    // Convert bigint to string for WASM client
+    await this.assertClient.openMessengerFor(cid.toString());
   }
 
   /**
@@ -690,14 +697,15 @@ class WebSocketService {
    * Use this for polling to maintain messenger handles across leader/follower tab transitions.
    * @param cid - The CID to ensure messenger is open for
    */
-  async ensureMessengerOpen(cid: string): Promise<boolean> {
+  async ensureMessengerOpen(cid: bigint): Promise<boolean> {
     await this.init(); // ensure initialized
 
-    if (!cid) {
+    if (cid === undefined || cid === null) {
       throw new Error('CID is required');
     }
 
-    return await this.client.ensureMessengerOpen(cid);
+    // Convert bigint to string for WASM client
+    return await this.assertClient.ensureMessengerOpen(cid.toString());
   }
 
   /**
@@ -709,24 +717,25 @@ class WebSocketService {
    * @param securityLevel - Optional security level: 'Standard', 'Reinforced', 'High', or 'Extreme'
    */
   async sendP2PMessageReliable(
-    localCid: string,
-    peerCid: string,
+    localCid: bigint,
+    peerCid: bigint,
     message: Uint8Array,
     securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
   ): Promise<void> {
     await this.init(); // ensure initialized
 
-    if (!localCid) {
+    if (localCid === undefined || localCid === null) {
       throw new Error('Local CID is required to send reliable P2P message');
     }
 
-    if (!peerCid) {
+    if (peerCid === undefined || peerCid === null) {
       throw new Error('Peer CID is required to send reliable P2P message');
     }
 
-    debugLog('websocket', 'Sending reliable P2P message', { localCid, peerCid, messageLength: message.length, securityLevel });
+    debugLog('websocket', 'Sending reliable P2P message', { localCid: localCid.toString(), peerCid: peerCid.toString(), messageLength: message.length, securityLevel });
 
-    await this.client.sendP2PMessageReliable(localCid, peerCid, message, securityLevel);
+    // Convert bigints to strings for WASM client
+    await this.assertClient.sendP2PMessageReliable(localCid.toString(), peerCid.toString(), message, securityLevel);
   }
 
   /**
@@ -735,8 +744,8 @@ class WebSocketService {
    * This ensures the session is fully cleaned up before the Promise resolves.
    * @param cid - The CID of the session to disconnect (REQUIRED)
    */
-  async disconnect(cid: string): Promise<void> {
-    if (!cid) {
+  async disconnect(cid: bigint): Promise<void> {
+    if (cid === undefined || cid === null) {
       throw new Error('CID is required to disconnect a session');
     }
 
@@ -767,10 +776,10 @@ class WebSocketService {
           const notification = response.DisconnectNotification;
           // Match by request_id if present, otherwise match by cid
           if (notification.request_id === requestId ||
-              (notification.request_id === null && notification.cid?.toString() === cid)) {
+              (notification.request_id === null && notification.cid === cid)) {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
-            debugLog('websocket', 'Disconnect successful for CID:', cid);
+            debugLog('websocket', 'Disconnect successful for CID:', cid.toString());
             resolve();
           }
         }
@@ -779,7 +788,7 @@ class WebSocketService {
         if ('DisconnectFailure' in response) {
           const failure = response.DisconnectFailure;
           if (failure.request_id === requestId ||
-              (failure.request_id === null && failure.cid?.toString() === cid)) {
+              (failure.request_id === null && failure.cid === cid)) {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
             errorLog('Disconnect failed:', failure.message);
@@ -791,7 +800,7 @@ class WebSocketService {
       eventEmitter.on('websocket-message', handler);
 
       // Send the request
-      this.client.sendDirectToInternalService(request).catch(error => {
+      this.assertClient.sendDirectToInternalService(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handler);
         errorLog('Error sending disconnect request:', error);
@@ -805,7 +814,7 @@ class WebSocketService {
    * This is different from disconnect which only ends the session.
    * Use this for complete cleanup between test runs.
    */
-  async deregister(cid: string): Promise<void> {
+  async deregister(cid: bigint): Promise<void> {
     await this.init(); // ensure initialized
 
     const requestId = crypto.randomUUID();
@@ -831,7 +840,7 @@ class WebSocketService {
         if ('DeregisterSuccess' in response && response.DeregisterSuccess.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'Deregister successful for CID:', cid);
+          debugLog('websocket', 'Deregister successful for CID:', cid.toString());
           resolve();
         }
 
@@ -845,7 +854,7 @@ class WebSocketService {
       eventEmitter.on('websocket-message', handler);
 
       // Send the request
-      this.client.sendDirectToInternalService(request).catch(error => {
+      this.assertClient.sendDirectToInternalService(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handler);
         reject(error);
@@ -931,7 +940,7 @@ class WebSocketService {
   async sendMessage(message: any): Promise<void> {
     await this.init();
     // CID conversion is now handled by WorkspaceClient.sendDirectToInternalService override
-    await this.client.sendDirectToInternalService(message);
+    await this.assertClient.sendDirectToInternalService(message);
   }
 
   /**
@@ -982,7 +991,7 @@ class WebSocketService {
       eventEmitter.on('websocket-message', handler);
       
       // Send the request - ConnectionManagement is already a top-level request, no need to wrap in Request
-      this.client.sendDirectToInternalService(request).catch(error => {
+      this.assertClient.sendDirectToInternalService(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handler);
         reject(error);
@@ -1009,22 +1018,22 @@ class WebSocketService {
     await this.init(); // ensure initialized
     
     const requestId = crypto.randomUUID();
-    // Convert to string for logging
-    const sessionCidString = sessionCid.toString();
-    
+    // Ensure sessionCid is bigint
+    const sessionCidBigInt = typeof sessionCid === 'string' ? BigInt(sessionCid) : sessionCid;
+
     const request = {
       ConnectionManagement: {
         request_id: requestId,
         management_command: {
           ClaimSession: {
-            session_cid: sessionCidString,
+            session_cid: sessionCidBigInt,
             only_if_orphaned: onlyIfOrphaned
           }
         }
       }
     };
-    
-    debugLog('websocket', 'Sending ClaimSession request with CID: ' + sessionCidString);
+
+    debugLog('websocket', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
     
     // Set up event listener for response
     return new Promise((resolve, reject) => {
@@ -1052,9 +1061,9 @@ class WebSocketService {
       };
       
       eventEmitter.on('websocket-message', handler);
-      
+
       // Send the request - ConnectionManagement is already a top-level request, no need to wrap in Request
-      this.client.sendDirectToInternalService(request).catch(error => {
+      this.assertClient.sendDirectToInternalService(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handler);
         reject(error);
@@ -1108,9 +1117,9 @@ class WebSocketService {
       };
       
       eventEmitter.on('websocket-message', handler);
-      
+
       // Send the request - ConnectionManagement is already a top-level request, no need to wrap in Request
-      this.client.sendDirectToInternalService(request).catch(error => {
+      this.assertClient.sendDirectToInternalService(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handler);
         reject(error);
@@ -1124,27 +1133,24 @@ class WebSocketService {
    * This is a fire-and-forget operation since it's called during beforeunload.
    * @param sessionCid The CID of the session to release
    */
-  releaseSession(sessionCid: string | bigint): void {
+  releaseSession(sessionCid: bigint): void {
     if (!this.client) {
       console.warn('[WebSocketService] Cannot release session - client not initialized');
       return;
     }
-
-    // Convert to string to avoid BigInt JSON serialization issues
-    const cidString = sessionCid.toString();
 
     const request = {
       ConnectionManagement: {
         request_id: crypto.randomUUID(),
         management_command: {
           ReleaseSession: {
-            session_cid: cidString
+            session_cid: sessionCid
           }
         }
       }
     };
 
-    debugLog('websocket', `Releasing session ${cidString}`);
+    debugLog('websocket', `Releasing session ${sessionCid.toString()}`);
 
     // Fire-and-forget - don't await since tab may be closing
     this.client.sendDirectToInternalService(request).catch(error => {
@@ -1177,13 +1183,13 @@ class WebSocketService {
    */
   async sendRequest(request: any): Promise<any> {
     await this.init();
-    return this.client.sendDirectToInternalService(request);
+    return this.assertClient.sendDirectToInternalService(request);
   }
 
   /**
    * Get current connection info including CID
    */
-  async getConnectionInfo(): Promise<{ cid: string } | null> {
+  async getConnectionInfo(): Promise<{ cid: bigint } | null> {
     return connectionManager.getConnectionInfo();
   }
 
@@ -1195,7 +1201,7 @@ class WebSocketService {
    * @param key - The storage key
    * @returns The stored value or null if not found
    */
-  async sendLocalDBGet(cid: string, key: string): Promise<{ value: number[] } | null> {
+  async sendLocalDBGet(cid: bigint, key: string): Promise<{ value: number[] } | null> {
     const requestId = crypto.randomUUID();
     const client = this.getClient();
 
@@ -1203,11 +1209,10 @@ class WebSocketService {
       throw new Error('No WebSocket client available');
     }
 
-    // Convert string CID to BigInt for WASM (serde-wasm-bindgen expects BigInt for u64)
     const request = {
       LocalDBGetKV: {
         request_id: requestId,
-        cid: BigInt(cid),
+        cid: cid,
         peer_cid: null,
         key
       }
@@ -1246,7 +1251,7 @@ class WebSocketService {
    * @param key - The storage key
    * @param value - The value as a byte array
    */
-  async sendLocalDBSet(cid: string, key: string, value: number[]): Promise<void> {
+  async sendLocalDBSet(cid: bigint, key: string, value: number[]): Promise<void> {
     const requestId = crypto.randomUUID();
     const client = this.getClient();
 
@@ -1254,11 +1259,10 @@ class WebSocketService {
       throw new Error('No WebSocket client available');
     }
 
-    // Convert string CID to BigInt for WASM (serde-wasm-bindgen expects BigInt for u64)
     const request = {
       LocalDBSetKV: {
         request_id: requestId,
-        cid: BigInt(cid),
+        cid: cid,
         peer_cid: null,
         key,
         value
@@ -1297,7 +1301,7 @@ class WebSocketService {
    * @param cid - The user's CID for scoped storage
    * @param key - The storage key to delete
    */
-  async sendLocalDBDelete(cid: string, key: string): Promise<void> {
+  async sendLocalDBDelete(cid: bigint, key: string): Promise<void> {
     const requestId = crypto.randomUUID();
     const client = this.getClient();
 
@@ -1347,7 +1351,7 @@ class WebSocketService {
    * @param prefix - Optional prefix to filter keys
    * @returns Array of keys matching the prefix
    */
-  async sendLocalDBListKeys(cid: string, prefix?: string): Promise<string[]> {
+  async sendLocalDBListKeys(cid: bigint, prefix?: string): Promise<string[]> {
     const requestId = crypto.randomUUID();
     const client = this.getClient();
 
@@ -1407,7 +1411,7 @@ class WebSocketService {
    * @returns The selected file's path, name, and size
    */
   async pickFile(
-    cid: string,
+    cid: bigint,
     title?: string,
     allowedExtensions?: string[]
   ): Promise<{ file_path: string; file_name: string; file_size: bigint }> {

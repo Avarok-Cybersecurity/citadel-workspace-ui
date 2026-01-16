@@ -71,8 +71,8 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             const request: WorkspaceProtocolRequestTS = {
                 UpdateWorkspace: {
                     workspace_master_password: masterPassword,
-                    name: null,
-                    description: null,
+                    name: undefined,
+                    description: undefined,
                     metadata: metadataArray
                 }
             };

@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
+import { connectionManager } from './connection-manager';
 
 export interface MessageRequest {
   cid: string;
@@ -108,19 +109,14 @@ export class MessagingService {
     };
 
     try {
-      const client = websocketService.getClient();
-      const cid = websocketService.getCid();
-      
-      if (!client || !cid) {
+      const cid = connectionManager.getConnectionInfo()?.cid;
+
+      if (!cid) {
         throw new Error('Not connected to workspace');
       }
 
-      // Send P2P message using the WebSocket client
-      await client.sendP2PMessage(recipientId, content, {
-        cid: cid,
-        peerCid: recipientId,
-        securityLevel: securityLevel === 0 ? 'Standard' : 'High'
-      });
+      // Send P2P message using websocketService
+      await websocketService.sendP2PMessage(cid, BigInt(recipientId), content);
 
       // Update message status
       const sentMessage: Message = {

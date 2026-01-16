@@ -1,6 +1,7 @@
 import React from 'react';
 import { WorkspaceProvider } from '@/lib/workspace-context';
 import { BaseOffice } from '@/components/office/BaseOffice';
+import { UserRole } from '@/types/workspace-entities';
 
 // Mock workspace state for testing
 const mockWorkspaceState = {
@@ -19,6 +20,10 @@ const mockWorkspaceState = {
       id: 'office-1',
       name: 'Engineering Office',
       description: 'Main engineering office',
+      ownerId: 'user-1',
+      chat_enabled: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       mdx_content: `# Engineering Office
 
 Welcome to the Engineering Office! This is the central hub for all engineering activities.
@@ -57,13 +62,15 @@ We build reliable, scalable, and innovative solutions that empower our users and
 - [Engineering Wiki](https://wiki.example.com)
 - [Code Standards](https://standards.example.com)
 - [Architecture Docs](https://arch.example.com)`,
-      metadata: {},
-      rooms: ['room-1', 'room-2'],
       members: {
         'user-1': {
           id: 'user-1',
+          username: 'testuser',
           displayName: 'Test User',
-          role: 'admin'
+          isOnline: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          role: UserRole.Admin
         }
       }
     }
@@ -72,8 +79,12 @@ We build reliable, scalable, and innovative solutions that empower our users and
   members: {
     'user-1': {
       id: 'user-1',
+      username: 'testuser',
       displayName: 'Test User',
-      role: 'admin'
+      isOnline: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      role: UserRole.Admin
     }
   },
   loading: {

@@ -66,7 +66,7 @@ export const RoomsSection = () => {
   const currentRoomId = params.get("roomId");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedRoom, setSelectedRoom] = useState<{ id: string; name: string; description: string } | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<{ id: string; name: string; description?: string } | null>(null);
   const [roomToDelete, setRoomToDelete] = useState<{ id: string; name: string } | null>(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminRoomId, setAdminRoomId] = useState<string | null>(null);
@@ -141,8 +141,8 @@ export const RoomsSection = () => {
   };
 
   // Get rooms for current office
-  const rooms = currentOfficeId 
-    ? Object.values(state.rooms).filter(room => room.office_id === currentOfficeId)
+  const rooms = currentOfficeId
+    ? Object.values(state.rooms).filter(room => room.officeId === currentOfficeId)
     : [];
   const isLoading = state.loading.rooms;
 

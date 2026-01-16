@@ -39,15 +39,11 @@ export async function sendMessage(cid: string, peerCid: string, message: string)
     Request: requestPayload
   };
   
-  // TODO: Determine correct security_level_str source
-  const securityLevel = "0"; // Placeholder
-  
-  await invoke('send_workspace_request', {
-    cidStr: cid, 
-    securityLevelStr: securityLevel,
-    payload: payload // Pass the structured payload object directly
-    // Removed peerCid and message as they are inside the payload now
-  });
+  // Note: This legacy function used Tauri's invoke which is no longer available.
+  // Use websocketService.sendP2PMessage() or WorkspaceService methods instead.
+  // This function is kept for reference but will throw if called.
+  console.warn('workspace-protocol.sendMessage is deprecated - use WorkspaceService instead');
+  throw new Error('workspace-protocol.sendMessage is deprecated - use WorkspaceService.sendP2PMessage or similar');
 }
 
 /**

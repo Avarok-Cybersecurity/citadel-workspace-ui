@@ -32,7 +32,7 @@ export class TypedEventEmitter<T> {
 export class EventEmitter {
   private listeners: Map<string, Set<EventHandler>> = new Map();
 
-  emit<T = any>(event: string, payload: T): void {
+  emit<T = any>(event: string, payload?: T): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
       handlers.forEach(handler => {

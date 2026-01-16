@@ -18,26 +18,26 @@ const INSTANCE_ID_KEY = 'citadel-instance-id';
 
 export interface InstanceState {
   instanceId: string;
-  cid: string | null;
+  cid: bigint | null;
   isLeader: boolean;
   leaderId: string | null;
 }
 
 export interface InstanceInfo {
   instanceId: string;
-  cid: string | null;
+  cid: bigint | null;
 }
 
 class InstanceManager {
   private static instance: InstanceManager;
 
   private _instanceId: string;
-  private _cid: string | null = null;
+  private _cid: bigint | null = null;
   private _isLeader: boolean = false;
   private _leaderId: string | null = null;
 
   // Map of instanceId → CID for all known instances
-  private knownInstances: Map<string, string | null> = new Map();
+  private knownInstances: Map<string, bigint | null> = new Map();
 
   private constructor() {
     this._instanceId = this.getOrCreateInstanceId();
@@ -82,9 +82,9 @@ class InstanceManager {
     });
 
     // Listen for instance registry updates
-    eventEmitter.on('instance:registry-update', (data: { instanceId: string; cid: string | null }) => {
+    eventEmitter.on('instance:registry-update', (data: { instanceId: string; cid: bigint | null }) => {
       this.knownInstances.set(data.instanceId, data.cid);
-      console.log(`[InstanceManager] Registry updated: ${data.instanceId} → ${data.cid}`);
+      console.log(`[InstanceManager] Registry updated: ${data.instanceId} → ${data.cid?.toString()}`);
     });
 
     // Listen for instance disconnection
@@ -100,7 +100,7 @@ class InstanceManager {
     return this._instanceId;
   }
 
-  get cid(): string | null {
+  get cid(): bigint | null {
     return this._cid;
   }
 
@@ -130,12 +130,12 @@ class InstanceManager {
    * Set the CID this instance owns
    * Called after successful login or session claim
    */
-  setCid(cid: string | null): void {
+  setCid(cid: bigint | null): void {
     const previousCid = this._cid;
     this._cid = cid;
     this.knownInstances.set(this._instanceId, cid);
 
-    console.log(`[InstanceManager] CID changed: ${previousCid} → ${cid}`);
+    console.log(`[InstanceManager] CID changed: ${previousCid?.toString()} → ${cid?.toString()}`);
 
     // Emit state change
     eventEmitter.emit('instance:state-changed', this.getState());
@@ -163,9 +163,9 @@ class InstanceManager {
   /**
    * Register another instance's CID mapping
    */
-  registerInstance(instanceId: string, cid: string | null): void {
+  registerInstance(instanceId: string, cid: bigint | null): void {
     this.knownInstances.set(instanceId, cid);
-    console.log(`[InstanceManager] Registered instance: ${instanceId} → ${cid}`);
+    console.log(`[InstanceManager] Registered instance: ${instanceId} → ${cid?.toString()}`);
   }
 
   /**
@@ -179,7 +179,7 @@ class InstanceManager {
   /**
    * Find which instance owns a specific CID
    */
-  findInstanceByCid(cid: string): string | null {
+  findInstanceByCid(cid: bigint): string | null {
     for (const [instanceId, instanceCid] of this.knownInstances) {
       if (instanceCid === cid) {
         return instanceId;
@@ -201,7 +201,7 @@ class InstanceManager {
   /**
    * Check if this instance owns a specific CID
    */
-  ownsCid(cid: string): boolean {
+  ownsCid(cid: bigint): boolean {
     return this._cid === cid;
   }
 

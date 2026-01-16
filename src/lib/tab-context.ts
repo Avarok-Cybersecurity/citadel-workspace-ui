@@ -1,156 +1,118 @@
 /**
  * Tab Context Manager
- * Provides tab-specific storage and identification
+ * Provides tab-specific storage and identification using IndexedDB.
  *
- * This allows different browser tabs to maintain independent selected user state
- * while still sharing user data across tabs when appropriate.
+ * IndexedDB uses Structured Clone which handles BigInt natively.
+ * No JSON serialization or revivers needed.
+ *
+ * All functions are async - callers must await.
  */
 
-import { bigIntReplacer } from './storage-utils';
+import { dbPut, dbGet, dbDelete } from './storage-utils';
 
 // Generate or retrieve a unique tab identifier
+// Note: Tab ID is a simple string, so sessionStorage is fine for this
 export function getTabId(): string {
-  // Check if we already have a tab ID in sessionStorage
   let tabId = sessionStorage.getItem('citadel-tab-id');
-  
+
   if (!tabId) {
-    // Generate a new unique tab ID
     tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     sessionStorage.setItem('citadel-tab-id', tabId);
   }
-  
+
   return tabId;
 }
 
-// Storage key prefixes for tab-specific data
-const TAB_PREFIX = 'citadel-tab-';
-const SHARED_PREFIX = 'citadel-shared-';
+// Storage key prefixes
+const TAB_PREFIX = 'tab-';
+const SHARED_PREFIX = 'shared-';
 
-/**
- * Get tab-specific storage key
- * @param key The base key
- * @returns A tab-specific storage key
- */
 export function getTabSpecificKey(key: string): string {
-  const tabId = getTabId();
-  return `${TAB_PREFIX}${tabId}-${key}`;
+  return `${TAB_PREFIX}${getTabId()}-${key}`;
 }
 
-/**
- * Get shared storage key (accessible across tabs)
- * @param key The base key
- * @returns A shared storage key
- */
 export function getSharedKey(key: string): string {
   return `${SHARED_PREFIX}${key}`;
 }
 
 /**
- * Store tab-specific data
- * @param key The storage key
- * @param value The value to store
+ * Store tab-specific data in IndexedDB.
+ * BigInt values are preserved via Structured Clone.
  */
-export function setTabData<T>(key: string, value: T): void {
+export async function setTabData<T>(key: string, value: T): Promise<void> {
   const storageKey = getTabSpecificKey(key);
-  sessionStorage.setItem(storageKey, JSON.stringify(value, bigIntReplacer));
+  await dbPut('tabContext', storageKey, value);
 }
 
 /**
- * Retrieve tab-specific data
- * @param key The storage key
- * @returns The stored value or null
+ * Retrieve tab-specific data from IndexedDB.
+ * BigInt values are automatically restored.
  */
-export function getTabData<T>(key: string): T | null {
+export async function getTabData<T>(key: string): Promise<T | null> {
   const storageKey = getTabSpecificKey(key);
-  const data = sessionStorage.getItem(storageKey);
-  
-  if (data) {
-    try {
-      return JSON.parse(data);
-    } catch (error) {
-      console.error('Failed to parse tab data:', error);
-      return null;
-    }
-  }
-  
-  return null;
+  const data = await dbGet<T>('tabContext', storageKey);
+  return data ?? null;
 }
 
 /**
- * Remove tab-specific data
- * @param key The storage key
+ * Remove tab-specific data from IndexedDB.
  */
-export function removeTabData(key: string): void {
+export async function removeTabData(key: string): Promise<void> {
   const storageKey = getTabSpecificKey(key);
-  sessionStorage.removeItem(storageKey);
+  await dbDelete('tabContext', storageKey);
 }
 
 /**
- * Store shared data (accessible across tabs)
- * @param key The storage key
- * @param value The value to store
+ * Store shared data (accessible across tabs) in IndexedDB.
+ * BigInt values are preserved via Structured Clone.
  */
-export function setSharedData<T>(key: string, value: T): void {
+export async function setSharedData<T>(key: string, value: T): Promise<void> {
   const storageKey = getSharedKey(key);
-  localStorage.setItem(storageKey, JSON.stringify(value, bigIntReplacer));
+  await dbPut('keyValue', storageKey, value);
 }
 
 /**
- * Retrieve shared data
- * @param key The storage key
- * @returns The stored value or null
+ * Retrieve shared data from IndexedDB.
+ * BigInt values are automatically restored.
  */
-export function getSharedData<T>(key: string): T | null {
+export async function getSharedData<T>(key: string): Promise<T | null> {
   const storageKey = getSharedKey(key);
-  const data = localStorage.getItem(storageKey);
-  
-  if (data) {
-    try {
-      return JSON.parse(data);
-    } catch (error) {
-      console.error('Failed to parse shared data:', error);
-      return null;
-    }
-  }
-  
-  return null;
+  const data = await dbGet<T>('keyValue', storageKey);
+  return data ?? null;
 }
 
 /**
- * Remove shared data
- * @param key The storage key
+ * Remove shared data from IndexedDB.
  */
-export function removeSharedData(key: string): void {
+export async function removeSharedData(key: string): Promise<void> {
   const storageKey = getSharedKey(key);
-  localStorage.removeItem(storageKey);
+  await dbDelete('keyValue', storageKey);
 }
 
 // Tab context interface for managing selected user
 export interface TabUserContext {
   selectedUsername?: string;
   selectedServerAddress?: string;
-  selectedCid?: string;
+  selectedCid?: bigint;
 }
 
 /**
- * Get the currently selected user for this tab
- * @returns The selected user context or null
+ * Get the currently selected user for this tab.
  */
-export function getSelectedUser(): TabUserContext | null {
+export async function getSelectedUser(): Promise<TabUserContext | null> {
   return getTabData<TabUserContext>('selected-user');
 }
 
 /**
- * Set the selected user for this tab
- * @param user The user context to select
+ * Set the selected user for this tab.
  */
-export function setSelectedUser(user: TabUserContext): void {
-  setTabData('selected-user', user);
+export async function setSelectedUser(user: TabUserContext): Promise<void> {
+  await setTabData('selected-user', user);
 }
 
 /**
- * Clear the selected user for this tab
+ * Clear the selected user for this tab.
  */
-export function clearSelectedUser(): void {
-  removeTabData('selected-user');
+export async function clearSelectedUser(): Promise<void> {
+  await removeTabData('selected-user');
 }

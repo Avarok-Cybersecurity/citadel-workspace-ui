@@ -499,12 +499,14 @@ export class ConnectionService {
       request.recipientId === 'current-user') {
 
       // Create a notification for the connection request
-      this.notificationService.addConnectionRequestNotification(
-        'New Connection Request',
-        request.message || `User ${request.requesterId} wants to connect with you`,
-        request.requesterId,
-        request.id,
-        [
+      this.notificationService.addNotification({
+        type: NotificationType.PEER_REGISTRATION,
+        title: 'New Connection Request',
+        content: request.message || `User ${request.requesterId} wants to connect with you`,
+        senderId: request.requesterId,
+        sourceId: request.id,
+        priority: NotificationPriority.NORMAL,
+        actionButtons: [
           {
             id: 'accept',
             label: 'Accept',
@@ -518,7 +520,7 @@ export class ConnectionService {
             onClick: () => this.rejectConnectionRequest(request.id)
           }
         ]
-      );
+      });
 
       // Check if auto-accept is enabled for registrations
       const preferences = this.getUserPreferences();

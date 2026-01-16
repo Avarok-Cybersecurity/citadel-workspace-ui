@@ -165,7 +165,7 @@ export class FileTransferService {
    * @returns Transfer ID
    */
   async sendFile(recipientCid: string, file: File, mode: FileTransferMode): Promise<string> {
-    const senderCid = this.getCurrentCid();
+    const senderCid = await this.getCurrentCid();
     if (!senderCid) {
       throw new Error('No active session');
     }
@@ -195,7 +195,7 @@ export class FileTransferService {
       mode,
       state: mode === 'async' ? 'uploading' : 'pending',
       progress: 0,
-      senderCid,
+      senderCid: senderCid.toString(),
       recipientCid,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -253,7 +253,7 @@ export class FileTransferService {
 
     // Send cancel message to peer
     const cancelMsg = createFileTransferCancel(transferId, 'Sender cancelled transfer');
-    await p2pMessengerManager.sendRawMessage(transfer.recipientCid, cancelMsg);
+    await p2pMessengerManager.sendRawMessage(BigInt(transfer.recipientCid), cancelMsg);
 
     // Update local state
     transfer.state = 'cancelled';
@@ -287,7 +287,7 @@ export class FileTransferService {
 
     // Send accept response
     const responseMsg = createFileTransferResponse(transferId, true);
-    await p2pMessengerManager.sendRawMessage(transfer.senderCid, responseMsg);
+    await p2pMessengerManager.sendRawMessage(BigInt(transfer.senderCid), responseMsg);
 
     // Update state
     transfer.state = 'transferring';
@@ -318,7 +318,7 @@ export class FileTransferService {
 
     // Send decline response
     const responseMsg = createFileTransferResponse(transferId, false, reason);
-    await p2pMessengerManager.sendRawMessage(transfer.senderCid, responseMsg);
+    await p2pMessengerManager.sendRawMessage(BigInt(transfer.senderCid), responseMsg);
 
     // Update state
     transfer.state = 'declined';
@@ -510,7 +510,7 @@ export class FileTransferService {
   }
 
   private async handleTransferRequest(data: FileTransferRequestData & { type: MessagingLayerType.FileTransferRequest }, senderCid: string): Promise<void> {
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) return;
 
     // Create incoming transfer record
@@ -524,7 +524,7 @@ export class FileTransferService {
       state: data.transfer_mode === 'async' ? 'staged' : 'pending',
       progress: 0,
       senderCid,
-      recipientCid: currentCid,
+      recipientCid: currentCid.toString(),
       virtualPath: data.virtual_path,
       createdAt: data.timestamp,
       updatedAt: Date.now(),
@@ -729,7 +729,7 @@ export class FileTransferService {
           base64Data
         );
 
-        await p2pMessengerManager.sendRawMessage(transfer.recipientCid, chunkMsg);
+        await p2pMessengerManager.sendRawMessage(BigInt(transfer.recipientCid), chunkMsg);
 
         // Update progress
         const percentage = Math.round(((i + 1) / totalChunks) * 100);
@@ -748,7 +748,7 @@ export class FileTransferService {
       if (finalTransfer && finalTransfer.state !== 'cancelled') {
         // Send completion message
         const completeMsg = createFileTransferComplete(transfer.id, true);
-        await p2pMessengerManager.sendRawMessage(transfer.recipientCid, completeMsg);
+        await p2pMessengerManager.sendRawMessage(BigInt(transfer.recipientCid), completeMsg);
 
         finalTransfer.state = 'complete';
         finalTransfer.progress = 100;
@@ -787,10 +787,10 @@ export class FileTransferService {
       }
 
       // Convert base64 chunks back to binary and concatenate
-      const binaryChunks: Uint8Array[] = [];
+      const binaryChunks: BlobPart[] = [];
       for (const chunk of chunks) {
         const binary = this.base64ToBinary(chunk.data);
-        binaryChunks.push(binary);
+        binaryChunks.push(binary as BlobPart);
       }
 
       // Create Blob from all chunks
@@ -909,7 +909,7 @@ export class FileTransferService {
     title?: string,
     allowedExtensions?: string[]
   ): Promise<string> {
-    const senderCid = this.getCurrentCid();
+    const senderCid = await this.getCurrentCid();
     if (!senderCid) {
       throw new Error('No active session');
     }
@@ -941,7 +941,7 @@ export class FileTransferService {
       mode: 'p2p', // Protocol-level P2P transfer
       state: 'transferring',
       progress: 0,
-      senderCid,
+      senderCid: senderCid.toString(),
       recipientCid,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -955,7 +955,7 @@ export class FileTransferService {
     // Step 3: Send file using real SendFile protocol
     try {
       await this.sendFileViaProtocol(
-        senderCid,
+        senderCid.toString(),
         recipientCid,
         fileInfo.file_path,
         transferId
@@ -1068,7 +1068,7 @@ export class FileTransferService {
 
   private async uploadToServer(file: File, transferId: string, recipientCid: string): Promise<string> {
     // Use existing SendFile InternalServiceRequest
-    const cid = this.getCurrentCid();
+    const cid = await this.getCurrentCid();
     if (!cid) throw new Error('No active session');
 
     // TODO: Implement actual SendFile request via websocketService
@@ -1118,7 +1118,7 @@ export class FileTransferService {
       }
     );
 
-    await p2pMessengerManager.sendRawMessage(transfer.recipientCid, requestMsg);
+    await p2pMessengerManager.sendRawMessage(BigInt(transfer.recipientCid), requestMsg);
   }
 
   private emitStateChange(transfer: FileTransfer): void {
@@ -1127,14 +1127,14 @@ export class FileTransferService {
     // Directly update the message in P2PMessengerManager so UI can refresh
     // Determine the peer CID (the other party in the transfer)
     const peerCid = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
-    p2pMessengerManager.updateFileTransferState(peerCid, transfer.id, {
+    p2pMessengerManager.updateFileTransferState(BigInt(peerCid), transfer.id, {
       transfer_state: transfer.state,
       transfer_progress: transfer.progress,
     });
   }
 
-  private getCurrentCid(): string | null {
-    const tabSelection = getSelectedUser();
+  private async getCurrentCid(): Promise<bigint | null> {
+    const tabSelection = await getSelectedUser();
     if (tabSelection?.selectedCid) {
       return tabSelection.selectedCid;
     }

@@ -27,31 +27,6 @@ import { serverAutoConnectService } from './server-auto-connect-service';
 import { SessionSecuritySettings } from './p2p-registration-service';
 
 /**
- * Normalize BigInt CIDs in WASM responses to strings.
- * WASM with serde-wasm-bindgen serializes u64 as JavaScript BigInt,
- * but our TypeScript code expects string CIDs throughout.
- */
-function normalizeCidsToString(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'bigint') return obj.toString();
-  if (typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(normalizeCidsToString);
-
-  const result: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    // Convert CID fields from BigInt to string
-    if ((key === 'cid' || key === 'peer_cid' || key === 'session_cid') && typeof value === 'bigint') {
-      result[key] = value.toString();
-    } else if (typeof value === 'object') {
-      result[key] = normalizeCidsToString(value);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-/**
  * ConnectionManager handles persistent connection management across sessions
  * It stores credentials securely and automatically reconnects when needed
  *
@@ -86,7 +61,7 @@ export class ConnectionManager {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
   private isLeader = false;
-  private currentConnectionInfo: ConnectionInfo | null = null;
+  private currentConnectionInfo: { cid: bigint; username?: string; serverAddress?: string; fullName?: string } | null = null;
   private readyPromise: Promise<void> | null = null;
   private readyResolve: (() => void) | null = null;
 
@@ -228,13 +203,13 @@ export class ConnectionManager {
   /**
    * Handle WebSocket messages for LocalDB and connection responses
    */
-  private handleWebSocketMessage(message: any): void {
+  private async handleWebSocketMessage(message: any): Promise<void> {
     // PERF FIX: Removed per-message logging that was causing UI freezes
     // Only log specific message types that need debugging, not every message
 
     // @human-review: Add logging for messages received for non-selected users
     // Check if this message is for the tab's selected user
-    const tabSelection = getSelectedUser();
+    const tabSelection = await getSelectedUser();
     if (message.cid && tabSelection && tabSelection.selectedCid) {
       if (message.cid !== tabSelection.selectedCid) {
         // Rate-limited debug logging for cross-CID messages
@@ -309,8 +284,8 @@ export class ConnectionManager {
       this.invalidateSessionCache();
       const cid = response.RegisterSuccess?.cid || response.ConnectSuccess?.cid;
       if (cid) {
-        // Convert BigInt CID to string (WASM serializes u64 as BigInt)
-        this.handleSuccessfulConnection(cid.toString());
+        // WASM serializes u64 as BigInt - pass directly
+        this.handleSuccessfulConnection(cid);
       }
     }
 
@@ -322,7 +297,7 @@ export class ConnectionManager {
       const cid = response.ConnectionManagementSuccess?.cid;
       if (cid) {
         console.log('ConnectionManager: Updating connection info with claimed session CID:', cid);
-        this.handleSuccessfulConnection(cid.toString(), false);
+        this.handleSuccessfulConnection(cid, false);
       }
     }
 
@@ -392,14 +367,14 @@ export class ConnectionManager {
   /**
    * Handle successful connection by updating connection service
    */
-  private async handleSuccessfulConnection(cid: string, shouldUpdateStoredSession: boolean = true): Promise<void> {
+  private async handleSuccessfulConnection(cid: bigint, shouldUpdateStoredSession: boolean = true): Promise<void> {
     // Store current connection info
     this.currentConnectionInfo = { cid };
-    console.log('ConnectionManager: Handling successful connection', cid);
+    console.log('ConnectionManager: Handling successful connection', cid.toString());
 
     // Update instance manager with the CID this tab/instance owns
     instanceManager.setCid(cid);
-    console.log('ConnectionManager: Set instanceManager CID to', cid);
+    console.log('ConnectionManager: Set instanceManager CID to', cid.toString());
 
     // Announce updated CID to other instances so leader knows which CID this instance owns
     instanceChannel.announcePresence();
@@ -410,19 +385,19 @@ export class ConnectionManager {
       cid,
       isConnected: true
     });
-    
+
     // Broadcast connection status to other tabs
     broadcastChannelService.broadcastConnectionStatus({
       isConnected: true,
       cid
     });
-    
+
     // Update workspace service with the connection ID
     WorkspaceService.setConnectionId(cid);
-    
+
     // Reset reconnect attempts
     this.reconnectAttempts = 0;
-    
+
     // Update stored session with CID if needed
     if (shouldUpdateStoredSession && this.storedSessions.sessions.length > 0) {
       const activeIndex = this.storedSessions.activeSessionIndex ?? 0;
@@ -431,7 +406,7 @@ export class ConnectionManager {
         session.cid = cid;
         session.lastConnected = Date.now();
         await this.storeSession(session);
-        console.log('ConnectionManager: Updated stored session with CID:', cid);
+        console.log('ConnectionManager: Updated stored session with CID:', cid.toString());
 
         // Notify auto-connect service of successful authentication
         eventEmitter.emit('auth:success', { cid, username: session.username });
@@ -537,9 +512,8 @@ export class ConnectionManager {
       const response = await responsePromise;
       // PERF FIX: Removed per-response logging - this is called every 2 seconds
 
-      // Normalize BigInt CIDs to strings (WASM serializes u64 as BigInt)
-      const sessions = response.sessions || [];
-      return sessions.map(normalizeCidsToString) as ActiveSession[];
+      // WASM returns sessions with BigInt CIDs, which is what we use throughout
+      return response.sessions || [];
     } catch (error) {
       console.error('ConnectionManager: Failed to get active sessions', error);
       // Return empty array on error to allow initialization to continue
@@ -638,19 +612,19 @@ export class ConnectionManager {
   /**
    * Get the active session index for the current tab
    */
-  private getTabActiveSessionIndex(): number {
+  private async getTabActiveSessionIndex(): Promise<number> {
     // First check tab-specific selection
-    const tabSelection = getSelectedUser();
+    const tabSelection = await getSelectedUser();
     if (tabSelection && tabSelection.selectedUsername && tabSelection.selectedServerAddress) {
       const index = this.storedSessions.sessions.findIndex(
-        s => s.username === tabSelection.selectedUsername && 
+        s => s.username === tabSelection.selectedUsername &&
              s.serverAddress === tabSelection.selectedServerAddress
       );
       if (index >= 0) {
         return index;
       }
     }
-    
+
     // Fall back to the shared active session index
     return this.storedSessions.activeSessionIndex ?? 0;
   }
@@ -670,7 +644,7 @@ export class ConnectionManager {
     }
 
     // Get the tab-specific selected user to determine which session to reconnect
-    const tabSelection = getSelectedUser();
+    const tabSelection = await getSelectedUser();
     let session: StoredSession | undefined;
 
     if (tabSelection && tabSelection.selectedUsername && tabSelection.selectedServerAddress) {
@@ -710,21 +684,21 @@ export class ConnectionManager {
 
     if (alreadyActiveSession) {
       console.log('ConnectionManager: Session already active in backend, skipping Connect to prevent ratchet reset');
-      console.log('ConnectionManager: Active session CID:', alreadyActiveSession.cid);
+      console.log('ConnectionManager: Active session CID:', alreadyActiveSession.cid.toString());
 
       // Just update connection info without calling Connect
-      await this.handleSuccessfulConnection(alreadyActiveSession.cid.toString(), false);
+      await this.handleSuccessfulConnection(alreadyActiveSession.cid, false);
 
       // Update currentConnectionInfo with full session data for disconnect() support
       this.currentConnectionInfo = {
-        cid: alreadyActiveSession.cid.toString(),
+        cid: alreadyActiveSession.cid,
         username: session.username,
         serverAddress: session.serverAddress,
         fullName: session.fullName
       };
 
       // Update stored session with CID
-      session.cid = alreadyActiveSession.cid.toString();
+      session.cid = alreadyActiveSession.cid;
       session.lastConnected = Date.now();
       await this.storeSession(session);
 
@@ -884,7 +858,7 @@ export class ConnectionManager {
     console.log('ConnectionManager: Reconnecting to stored sessions');
 
     // First disconnect current connection
-    const currentSession = this.getTabSelectedSession();
+    const currentSession = await this.getTabSelectedSession();
     if (currentSession?.cid) {
       console.log('ConnectionManager: Disconnecting current session CID:', currentSession.cid);
       await websocketService.disconnect(currentSession.cid);
@@ -1039,7 +1013,7 @@ export class ConnectionManager {
     serverAddress: string,
     serverPassword: string,
     securitySettings: SessionSecuritySettings,
-    cid?: string
+    cid?: bigint
   ): Promise<void> {
     console.log('ConnectionManager: handleAuthSuccess called');
     console.log('  Username:', username);
@@ -1065,9 +1039,9 @@ export class ConnectionManager {
     
     try {
       await this.storeSession(session);
-      
+
       // Set this user as the selected user for this tab
-      setSelectedUser({
+      await setSelectedUser({
         selectedUsername: username,
         selectedServerAddress: serverAddress,
         selectedCid: cid
@@ -1077,12 +1051,14 @@ export class ConnectionManager {
       // properly call markUserDisconnected() with username and serverAddress.
       // This is critical for preventing ServerAutoConnect from attempting to
       // reconnect a session that the user explicitly signed out from.
-      this.currentConnectionInfo = {
-        cid: cid || '',
-        username,
-        serverAddress,
-        fullName
-      };
+      if (cid !== undefined) {
+        this.currentConnectionInfo = {
+          cid,
+          username,
+          serverAddress,
+          fullName
+        };
+      }
 
       console.log('ConnectionManager: handleAuthSuccess completed successfully');
     } catch (error) {
@@ -1097,7 +1073,7 @@ export class ConnectionManager {
    * @param serverAddress - The server address of the session
    * @param cid - The CID of the session to disconnect (required for proper cleanup)
    */
-  public async handleLogout(username: string, serverAddress: string, cid: string): Promise<void> {
+  public async handleLogout(username: string, serverAddress: string, cid: bigint): Promise<void> {
     console.log('ConnectionManager: handleLogout called for', username, 'CID:', cid);
 
     // Remove the session from stored sessions
@@ -1172,11 +1148,11 @@ export class ConnectionManager {
 
       // Update connection service with the claimed CID
       // Pass false to avoid updating the stored session again (we already have the CID)
-      await this.handleSuccessfulConnection(sessionCid.toString(), false);
+      await this.handleSuccessfulConnection(sessionCid, false);
 
       // Update currentConnectionInfo with full session data for disconnect() support
       this.currentConnectionInfo = {
-        cid: sessionCid.toString(),
+        cid: sessionCid,
         username: session.username,
         serverAddress: session.serverAddress,
         fullName: session.fullName
@@ -1195,23 +1171,23 @@ export class ConnectionManager {
   /**
    * Get current connection info including CID
    */
-  public getConnectionInfo(): ConnectionInfo | null {
+  public getConnectionInfo(): { cid: bigint; username?: string; serverAddress?: string; fullName?: string } | null {
     return this.currentConnectionInfo;
   }
 
   /**
    * Get the currently selected session for this tab
    */
-  public getTabSelectedSession(): StoredSession | null {
-    const tabSelection = getSelectedUser();
+  public async getTabSelectedSession(): Promise<StoredSession | null> {
+    const tabSelection = await getSelectedUser();
     if (!tabSelection || !tabSelection.selectedUsername || !tabSelection.selectedServerAddress) {
       // No tab-specific selection, use the active index
-      const activeIndex = this.getTabActiveSessionIndex();
+      const activeIndex = await this.getTabActiveSessionIndex();
       return this.storedSessions.sessions[activeIndex] || null;
     }
-    
+
     return this.storedSessions.sessions.find(
-      s => s.username === tabSelection.selectedUsername && 
+      s => s.username === tabSelection.selectedUsername &&
            s.serverAddress === tabSelection.selectedServerAddress
     ) || null;
   }
@@ -1329,14 +1305,14 @@ export class ConnectionManager {
     }
     
     console.log(`ConnectionManager: Switching account to ${username}@${serverAddress} for this tab`);
-    
+
     // Update tab-specific selected user BEFORE disconnecting
-    setSelectedUser({
+    await setSelectedUser({
       selectedUsername: username,
       selectedServerAddress: serverAddress,
       selectedCid: session.cid
     });
-    
+
     // Disconnect current session only if we're the leader
     // Followers should just update their selected user without disconnecting
     if (this.isLeader) {

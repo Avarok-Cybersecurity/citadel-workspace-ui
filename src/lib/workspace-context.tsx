@@ -6,6 +6,7 @@ export interface WorkspaceState {
   workspace?: {
     id: string;
     name: string;
+    description?: string;
     metadata?: Record<string, any>;
   };
   currentUser?: {
@@ -32,7 +33,7 @@ export interface WorkspaceState {
     timestamp: number;
   };
   messages: {
-    byPeer: Record<number, Array<{
+    byPeer: Record<string, Array<{
       content: string;
       timestamp: number;
       id?: string;
@@ -41,7 +42,7 @@ export interface WorkspaceState {
     lastMessageTimestamp?: number;
   };
   typing: {
-    peerIds: number[];
+    peerIds: string[];
     lastUpdated: number;
   };
   lastRequestId?: string;
@@ -72,7 +73,7 @@ const initialState: WorkspaceState = {
 // Create the context
 export const WorkspaceContext = createContext<{
   state: WorkspaceState;
-  sendMessage?: (content: string, recipientId: number) => Promise<boolean>;
+  sendMessage?: (content: string, recipientId: string) => Promise<boolean>;
 }>({
   state: initialState
 });
@@ -84,7 +85,7 @@ export const useWorkspace = () => useContext(WorkspaceContext);
 export interface WorkspaceProviderProps {
   children: React.ReactNode;
   state: WorkspaceState;
-  sendMessage?: (content: string, recipientId: number) => Promise<boolean>;
+  sendMessage?: (content: string, recipientId: string) => Promise<boolean>;
 }
 
 export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({

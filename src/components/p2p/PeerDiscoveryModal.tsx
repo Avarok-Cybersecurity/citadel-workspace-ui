@@ -33,28 +33,46 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   const [incomingRequests, setIncomingRequests] = useState<Map<string, PendingPeerRequest>>(new Map());
   const [loading, setLoading] = useState(false);
   const [acceptingPeerCid, setAcceptingPeerCid] = useState<string | null>(null);
+  const [currentCid, setCurrentCid] = useState<bigint | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string>('Unknown');
   const { toast } = useToast();
   const { state } = useWorkspace();
-  
-  // Get current connection CID and username from tab-specific session
-  // Priority: 1) Tab context selectedCid/selectedUsername (set during session switch), 2) StoredSession, 3) Global connection
-  const tabSelection = getSelectedUser();
-  const tabSession = connectionManager.getTabSelectedSession();
-  const currentCid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
-  const currentUsername = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
+
+  // Load current connection info asynchronously
+  useEffect(() => {
+    const loadConnectionInfo = async () => {
+      // Priority: 1) Tab context selectedCid/selectedUsername (set during session switch), 2) StoredSession, 3) Global connection
+      const tabSelection = await getSelectedUser();
+      const tabSession = await connectionManager.getTabSelectedSession();
+      const cid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
+      const username = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
+      setCurrentCid(cid);
+      setCurrentUsername(username);
+    };
+    loadConnectionInfo();
+  }, [state.currentUser?.username]);
 
   useEffect(() => {
     if (isOpen) {
       discoverPeers();
-      // Load initial outgoing requests
-      setOutgoingRequests(peerRegistrationStore.getOutgoingRequestCids());
+      // Load initial outgoing requests - convert bigint CIDs to strings
+      const loadOutgoing = async () => {
+        const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
+        const stringCids = new Set<string>();
+        bigintCids.forEach(cid => stringCids.add(cid.toString()));
+        setOutgoingRequests(stringCids);
+      };
+      loadOutgoing();
     }
   }, [isOpen]);
 
   // Listen for outgoing request updates
   useEffect(() => {
-    const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<string> }) => {
-      setOutgoingRequests(data.cids);
+    const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<bigint> }) => {
+      // Convert bigint CIDs to strings for state
+      const stringCids = new Set<string>();
+      data.cids.forEach(cid => stringCids.add(cid.toString()));
+      setOutgoingRequests(stringCids);
     };
 
     eventEmitter.on('outgoing-peer-requests:updated', handleOutgoingUpdate);
@@ -65,11 +83,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   // Listen for incoming pending requests (for "Accept Request" button)
   useEffect(() => {
-    const updateIncomingRequests = () => {
-      const pending = peerRegistrationStore.getPendingRequests();
+    const updateIncomingRequests = async () => {
+      const pending = await peerRegistrationStore.getPendingRequests();
       const incomingMap = new Map<string, PendingPeerRequest>();
       pending.forEach(req => {
-        incomingMap.set(req.peer_cid, req);
+        // Convert bigint peer_cid to string for Map key
+        incomingMap.set(req.peer_cid.toString(), req);
       });
       setIncomingRequests(incomingMap);
     };
@@ -146,7 +165,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     try {
       const requestId = crypto.randomUUID();
       // Register request for cross-tab response routing
-      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+      broadcastChannelService.registerRequest(requestId, currentCid);
 
       // Create request for listing all peers
       const request = {
@@ -318,7 +337,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     try {
       const requestId = crypto.randomUUID();
       // Register request for cross-tab response routing
-      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+      broadcastChannelService.registerRequest(requestId, currentCid);
 
       const request = {
         ListRegisteredPeers: {
@@ -370,7 +389,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
    * Uses the same logic as PendingRequestsModal's handleAccept.
    */
   const acceptIncomingRequest = async (request: PendingPeerRequest) => {
-    setAcceptingPeerCid(request.peer_cid);
+    setAcceptingPeerCid(request.peer_cid.toString());
     try {
       await peerRegistrationStore.acceptRequest(request.id);
       // Toast removed - modal already shows success state
@@ -401,13 +420,13 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     try {
       const requestId = crypto.randomUUID();
       // Register request for cross-tab response routing
-      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+      broadcastChannelService.registerRequest(requestId, currentCid);
 
       const request = {
         PeerRegister: {
           request_id: requestId,
           cid: currentCid,
-          peer_cid: peerCid,
+          peer_cid: BigInt(peerCid),
           session_security_settings: {
             security_level: "Standard",
             secrecy_mode: "BestEffort",
@@ -427,8 +446,8 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       const now = Date.now();
       await peerRegistrationStore.addOutgoingRequest({
         id: requestId,
-        fromCid: currentCid.toString(),
-        toCid: peerCid,
+        fromCid: currentCid,
+        toCid: BigInt(peerCid),
         peerUsername: peerUsername,
         timestamp: now,
         timeLastSent: now
@@ -494,7 +513,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                 <Signal className="h-4 w-4 text-green-400" />
                 <span className="text-sm">You are connected as: <strong>{currentUsername}</strong></span>
               </div>
-              <span className="text-xs text-gray-400">CID: {currentCid}</span>
+              <span className="text-xs text-gray-400">CID: {currentCid?.toString()}</span>
             </div>
           </div>
 

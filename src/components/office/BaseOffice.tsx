@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
+import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
@@ -43,7 +44,15 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
+  const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
   const { toast } = useToast();
+
+  // Load tab session asynchronously
+  useEffect(() => {
+    connectionManager.getTabSelectedSession().then(session => {
+      setTabSession(session);
+    });
+  }, []);
 
   // Determine if we're in a loading state
   const isLoading = roomId
@@ -121,11 +130,11 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
         console.info('Compiling MDX content...');
         const result = await evaluate(content, {
           ...runtime,
-          useMDXComponents: () => components,
+          useMDXComponents: () => components as unknown as MDXComponents,
           baseUrl: window.location.origin
         });
         console.info('MDX compilation successful');
-        setCompiledContent(result.default({ components }));
+        setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
         console.error('Error compiling MDX:', error);
       }
@@ -164,7 +173,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
 
   // Get current user info from workspace state OR connection manager
   // The workspace state currentUser may not be populated yet during initial render
-  const tabSession = connectionManager.getTabSelectedSession();
+  // tabSession is loaded asynchronously via useEffect
   const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
   const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
@@ -194,7 +203,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
     </div>
   ) : (
     <div className="px-4 pt-6 pb-2 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-none">
-      <MDXProvider components={components}>
+      <MDXProvider components={components as unknown as MDXComponents}>
         {compiledContent}
       </MDXProvider>
     </div>

@@ -91,7 +91,7 @@ class InstanceInboundRouter {
 
     // Find target instance
     if (targetCid) {
-      const targetInstance = instanceManager.findInstanceByCid(targetCid);
+      const targetInstance = instanceManager.findInstanceByCid(BigInt(targetCid));
 
       if (targetInstance) {
         // Forward to specific instance

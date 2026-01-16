@@ -73,7 +73,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
     let lastProcessedCid: string | null = null;
 
     // Connection change listener - load workspace data when user connects
-    connectionService.onConnectionChange((connection) => {
+    connectionService.onConnectionChange(async (connection) => {
       // CID 0 is the service connection, not a user session - skip it
       const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
@@ -88,7 +88,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         // CRITICAL: Only process connection updates for THIS tab's session
         // In multi-tab scenarios, BroadcastChannel sends connection-status for ALL sessions
         // Each tab must only respond to updates for its own selected user
-        const tabSelection = getSelectedUser();
+        const tabSelection = await getSelectedUser();
         if (tabSelection?.selectedCid && tabSelection.selectedCid !== cidString) {
           console.log(`WorkspaceApp: Ignoring connection update for CID ${cidString} (tab has CID ${tabSelection.selectedCid})`);
           return;
@@ -246,7 +246,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
               const result = await websocketService.claimSession(orphanSessionCid, true);
               
               if (result.cid) {
-                connectionService.updateConnectionStatus({
+                ConnectionService.getInstance().updateConnectionStatus({
                   cid: result.cid,
                   isConnected: true
                 });
