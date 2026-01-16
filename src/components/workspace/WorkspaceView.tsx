@@ -27,7 +27,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }
       setTabSelection(selection);
       setTabSession(session);
     };
-    loadTabInfo();
+    void loadTabInfo();
   }, []);
   
   // Parse query parameters for P2P chat

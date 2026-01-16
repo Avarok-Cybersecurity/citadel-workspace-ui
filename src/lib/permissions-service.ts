@@ -216,7 +216,7 @@ class PermissionsService {
       const currentUser = this.getCurrentUserId();
       if (payload.userId === currentUser) {
         // Refetch permissions to get the updated set
-        this.fetchPermissions(payload.domainId, true);
+        void this.fetchPermissions(payload.domainId, true);
         eventEmitter.emit('permissions:updated', { domainId: payload.domainId });
       }
     };

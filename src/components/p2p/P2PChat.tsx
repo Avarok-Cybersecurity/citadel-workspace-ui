@@ -229,7 +229,7 @@ export function P2PChat({
           setPeerPresence({ status: MessagingLayerType.Online, lastUpdate: Date.now() });
         }
       };
-      loadConversation();
+      void loadConversation();
     }
 
     // Subscribe to new messages
@@ -367,7 +367,7 @@ export function P2PChat({
       const autoConnected = await p2pAutoConnectService.isPeerConnected(peerCid);
       setIsConnected(syncConnected || autoConnected);
     };
-    checkInitialConnection();
+    void checkInitialConnection();
 
     // Check initial registration status
     setIsRegistered(p2pRegistrationService.isPeerRegistered(peerCid));
@@ -543,7 +543,7 @@ export function P2PChat({
     const target = event.currentTarget;
     // Trigger load when scrolled to top (with small threshold)
     if (target.scrollTop < 100 && hasMorePages && !isLoadingMore) {
-      loadOlderMessages();
+      void loadOlderMessages();
     }
   }, [hasMorePages, isLoadingMore, loadOlderMessages]);
 
@@ -908,7 +908,7 @@ export function P2PChat({
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    handleSendMessage();
+                    void handleSendMessage();
                   }}
                   className="flex gap-2"
                 >

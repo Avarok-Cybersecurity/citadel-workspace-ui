@@ -182,7 +182,7 @@ export class P2PAutoConnectService {
           // We registered with them first, they just registered back
           // Mutual registration is complete - trigger PeerConnect!
           console.log(`P2PAutoConnect: Mutual registration complete with ${peerCid.toString().slice(0, 8)}... (they registered back), initiating immediate connection`);
-          this.connectToPeer(peerCid).catch((err) => {
+          void this.connectToPeer(peerCid).catch((err) => {
             console.error(`P2PAutoConnect: Failed to connect after mutual registration ${peerCid.toString().slice(0, 8)}...:`, err);
           });
         } else {
@@ -195,7 +195,7 @@ export class P2PAutoConnectService {
       // For OUTGOING registrations (we registered with them), try to connect immediately
       // This may fail if mutual registration isn't complete yet, but will retry
       console.log(`P2PAutoConnect: Outgoing registration to ${peerCid.toString().slice(0, 8)}... confirmed, initiating immediate connection`);
-      this.connectToPeer(peerCid).catch((err) => {
+      void this.connectToPeer(peerCid).catch((err) => {
         console.error(`P2PAutoConnect: Failed to connect to newly registered peer ${peerCid.toString().slice(0, 8)}...:`, err);
       });
     });
@@ -1077,7 +1077,7 @@ export class P2PAutoConnectService {
     }
 
     // Start background connection attempt
-    this.ensurePeerConnectedInBackground(peerCid);
+    void this.ensurePeerConnectedInBackground(peerCid);
 
     // Wait for connection event or timeout
     return new Promise((resolve) => {

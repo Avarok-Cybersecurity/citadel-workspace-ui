@@ -28,7 +28,7 @@ export function GeneralSettingsTab() {
       }
       setIsLoading(false);
     };
-    loadUser();
+    void loadUser();
 
     // Listen for profile updates
     // MetadataValue is a tagged enum: { type: "String", content: "..." }

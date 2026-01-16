@@ -56,7 +56,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       loadPeers();
       loadAvailablePeers();
     };
-    initPeers();
+    void initPeers();
 
     // Subscribe to message updates
     const unsubscribeMessage = messenger.onMessage(() => {
@@ -173,7 +173,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleAddPeer();
+              void handleAddPeer();
             }}
             className="flex gap-2"
           >
@@ -212,7 +212,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                       onClick={() => {
                         if (!peer.isRegistered) {
                           setNewPeerCid(peerCidStr);
-                          handleAddPeer();
+                          void handleAddPeer();
                         } else {
                           onSelectPeer(peerCidStr);
                         }

@@ -102,7 +102,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
       setHasInitialized(true);
       // Start the first connection attempt using ref to avoid dependency on changing callback
       if (executeFnRef.current) {
-        executeFnRef.current();
+        void executeFnRef.current();
       }
     }
 
@@ -139,7 +139,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
 
         // Use the ref to call retry (avoids dependency on changing callback reference)
         if (retryFnRef.current) {
-          retryFnRef.current().finally(() => {
+          void retryFnRef.current().finally(() => {
             retryInProgressRef.current = false;
           });
         }
@@ -172,7 +172,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     // Use ref for consistency with auto-retry path to avoid race conditions
     if (retryFnRef.current && !retryInProgressRef.current) {
       retryInProgressRef.current = true;
-      retryFnRef.current().finally(() => {
+      void retryFnRef.current().finally(() => {
         retryInProgressRef.current = false;
       });
     }

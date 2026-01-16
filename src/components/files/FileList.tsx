@@ -41,7 +41,7 @@ export const FileList: React.FC<FileListProps> = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    loadFiles();
+    void loadFiles();
 
     // Listen for file upload events
     const handleFileUploaded = (file: FileMetadata) => {

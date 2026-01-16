@@ -113,7 +113,7 @@ export function AdminModal({
       }
     };
 
-    loadEntity();
+    void loadEntity();
   }, [isOpen, entityType, entityId, state.workspace, state.offices, state.rooms]);
 
   const handleOpenChange = (open: boolean) => {

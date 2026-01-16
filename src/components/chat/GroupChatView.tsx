@@ -177,7 +177,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       }
     };
 
-    loadMessages();
+    void loadMessages();
   }, [groupId, toast]);
 
   // Subscribe to group message events
@@ -307,9 +307,9 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (editingId) {
-        handleEditMessage();
+        void handleEditMessage();
       } else {
-        handleSendMessage();
+        void handleSendMessage();
       }
     }
   };

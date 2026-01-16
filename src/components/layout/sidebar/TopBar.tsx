@@ -73,7 +73,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     wasmConnectionManager.stop();
 
     // Just navigate to landing page, keep session active
-    clearSelectedUser();
+    void clearSelectedUser();
     navigate('/');
 
     toast({
@@ -115,7 +115,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
 
       // Clear tab-specific user selection
-      clearSelectedUser();
+      void clearSelectedUser();
 
       // Show ready status briefly before navigating
       setDisconnectStatus("ready");

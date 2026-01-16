@@ -107,7 +107,7 @@ export const CreateWorkspace = ({
       // TODO: DNS resolution on the serverAddress to allow domain name inputs
       
       // Start registration with our pre-generated request ID
-      websocketService.register(
+      void websocketService.register(
         requestId,
         adminData.username,
         adminData.password,
@@ -131,7 +131,7 @@ export const CreateWorkspace = ({
       setAdminCid(cid);
 
       // Store the session for persistence using shared mapping helper (DRY)
-      connectionManager.handleAuthSuccess(
+      void connectionManager.handleAuthSuccess(
         adminData.username,
         adminData.password,
         adminData.fullName,

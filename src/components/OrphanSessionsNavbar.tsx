@@ -126,13 +126,13 @@ export const OrphanSessionsNavbar = () => {
 
   useEffect(() => {
     // Try to load immediately (will return empty if WebSocket not connected yet)
-    loadActiveSessions();
+    void loadActiveSessions();
 
     // Also listen for WebSocket connection success to reload sessions
     // This handles the case where component mounts before WebSocket is ready
     const unsubscribe = eventEmitter.on('on-ws-connection-success', () => {
       console.log('OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
-      loadActiveSessions();
+      void loadActiveSessions();
     });
 
     return () => {
@@ -192,7 +192,7 @@ export const OrphanSessionsNavbar = () => {
       }
 
       // Update tab context to track which workspace this tab is viewing
-      setSelectedUser({
+      void setSelectedUser({
         selectedUsername: session.username,
         selectedServerAddress: session.server_address,
         selectedCid: session.cid
@@ -227,8 +227,8 @@ export const OrphanSessionsNavbar = () => {
       console.log('OrphanSessionsNavbar: Emitted session:activated for ClaimSession');
 
       // Trigger workspace loading
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      void WorkspaceService.loadWorkspace();
+      void WorkspaceService.listOffices();
 
       // Navigate to the office page immediately
       navigate(getWorkspacePath());

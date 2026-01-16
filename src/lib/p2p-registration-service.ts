@@ -64,7 +64,7 @@ export class P2PRegistrationService {
   private registeredPeers = new Map<bigint, Peer>();
   private allPeers = new Map<bigint, Peer>();
   private pollingInterval: NodeJS.Timeout | null = null;
-  private pendingRequests = new Map<string, { resolve: Function; reject: Function }>();
+  private pendingRequests = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   // Track outgoing registrations separately (peers WE registered with, not who registered with us)
   private outgoingRegistrations = new Set<bigint>();
   // Guard to prevent concurrent checkAndRegisterPeers calls (prevents UI freezing from stacked operations)
@@ -123,7 +123,7 @@ export class P2PRegistrationService {
     eventEmitter.on('connection:status-changed', ({ isConnected }: { isConnected: boolean }) => {
       if (isConnected && this.isRunning) {
         // Resume auto-registration when connection is restored
-        this.checkAndRegisterPeers();
+        void this.checkAndRegisterPeers();
       }
     });
   }
@@ -313,7 +313,7 @@ export class P2PRegistrationService {
 
     // Start polling
     this.pollingInterval = setInterval(() => {
-      this.checkAndRegisterPeers(options);
+      void this.checkAndRegisterPeers(options);
     }, this.POLLING_INTERVAL);
 
     eventEmitter.emit('p2p:registration-service-started');

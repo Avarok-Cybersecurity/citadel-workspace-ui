@@ -58,7 +58,7 @@ export function FileManagerPanel({ isOpen, onClose }: FileManagerPanelProps) {
   // Load storage locations on mount
   useEffect(() => {
     if (isOpen) {
-      revfsManager.initialize();
+      void revfsManager.initialize();
       setStorageLocations(revfsManager.getStorageLocations());
     }
   }, [isOpen]);

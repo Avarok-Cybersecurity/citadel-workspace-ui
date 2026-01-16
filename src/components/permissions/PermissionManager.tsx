@@ -85,7 +85,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
 
   useEffect(() => {
     // Load current user permissions
-    loadUserPermissions();
+    void loadUserPermissions();
   }, [userId, domainId]);
 
   const loadUserPermissions = async () => {

@@ -16,7 +16,7 @@ export const DirectMessagesPanel: React.FC<DirectMessagesPanelProps> = ({ isOpen
 
   // Load tab session asynchronously
   useEffect(() => {
-    connectionManager.getTabSelectedSession().then(session => {
+    void connectionManager.getTabSelectedSession().then(session => {
       setTabSession(session);
     });
   }, []);

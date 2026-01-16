@@ -49,7 +49,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
 
   // Load tab session asynchronously
   useEffect(() => {
-    connectionManager.getTabSelectedSession().then(session => {
+    void connectionManager.getTabSelectedSession().then(session => {
       setTabSession(session);
     });
   }, []);
@@ -140,7 +140,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
       }
     };
 
-    compileContent();
+    void compileContent();
   }, [content]);
 
   // Handle template selection

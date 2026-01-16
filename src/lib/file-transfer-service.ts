@@ -298,7 +298,7 @@ export class FileTransferService {
 
     // For async mode, initiate download from server
     if (transfer.mode === 'async' && transfer.virtualPath) {
-      this.downloadFromServer(transfer);
+      void this.downloadFromServer(transfer);
     }
     // For P2P mode, sender will start streaming after receiving accept
   }
@@ -577,7 +577,7 @@ export class FileTransferService {
         if (file) {
           // Stream file in chunks
           console.log('FileTransferService: Starting streamFileToRecipient');
-          this.streamFileToRecipient(transfer, file);
+          void this.streamFileToRecipient(transfer, file);
         } else {
           console.error('FileTransferService: File not found for transfer', transfer.id);
           transfer.state = 'error';
@@ -1031,7 +1031,7 @@ export class FileTransferService {
       eventEmitter.on('websocket-message', handleMessage);
 
       // Send the request
-      websocketService.sendMessage(request).catch(error => {
+      void websocketService.sendMessage(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
         reject(error);
@@ -1094,7 +1094,7 @@ export class FileTransferService {
       transfer.state = 'complete';
       transfer.progress = 100;
       transfer.updatedAt = Date.now();
-      this.saveTransfer(transfer);
+      void this.saveTransfer(transfer);
       this.emitStateChange(transfer);
       eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, transfer);
     }, 1000);
@@ -1216,7 +1216,7 @@ export const fileTransferService = FileTransferService.getInstance();
 
 // Auto-initialize the service to set up message handlers
 // This ensures file transfer messages are properly handled
-fileTransferService.initialize().catch(err => {
+void fileTransferService.initialize().catch(err => {
   console.error('FileTransferService: Auto-initialization failed:', err);
 });
 

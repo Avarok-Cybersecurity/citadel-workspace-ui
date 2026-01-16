@@ -56,7 +56,7 @@ export const Landing = () => {
       }
     };
 
-    checkOrphanSessions();
+    void checkOrphanSessions();
   }, [navigate]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
@@ -80,7 +80,7 @@ export const Landing = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    checkForServers();
+    void checkForServers();
   }, [checkForServers]);
 
   const handleServerNext = () => setCurrentStep('security');
@@ -97,8 +97,8 @@ export const Landing = () => {
       WorkspaceService.setConnectionId(BigInt(cid));
       // Trigger loading - no need to await, WorkspaceEventHandler will handle events
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices(); // Also trigger office loading
+      void WorkspaceService.loadWorkspace();
+      void WorkspaceService.listOffices(); // Also trigger office loading
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
@@ -121,8 +121,8 @@ export const Landing = () => {
       WorkspaceService.setConnectionId(BigInt(cid));
       // Trigger loading
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      void WorkspaceService.loadWorkspace();
+      void WorkspaceService.listOffices();
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {

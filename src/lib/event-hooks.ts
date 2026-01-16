@@ -22,9 +22,9 @@ export function useEventProcessor(): void {
         console.error('Failed to initialize event processor:', error);
       }
     };
-    
-    initialize();
-    
+
+    void initialize();
+
     // Clean up on component unmount
     return () => {
       eventProcessor.cleanup().catch(error => {

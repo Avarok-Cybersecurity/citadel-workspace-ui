@@ -252,7 +252,7 @@ export class ServerAutoConnectService {
       return;
     }
 
-    this.reconnectToDisconnectedSessions().catch((err) => {
+    void this.reconnectToDisconnectedSessions().catch((err) => {
       console.error('ServerAutoConnect: Poll failed:', err);
     });
   }
@@ -382,7 +382,7 @@ export class ServerAutoConnectService {
     this.reconnectAttempts.set(sessionKey, attempt);
 
     // Attempt immediately for first try
-    this.attemptReconnect(sessionKey, session);
+    void this.attemptReconnect(sessionKey, session);
   }
 
   /**
@@ -420,7 +420,7 @@ export class ServerAutoConnectService {
 
       // Schedule retry
       attempt.timeout = setTimeout(() => {
-        this.attemptReconnect(sessionKey, session);
+        void this.attemptReconnect(sessionKey, session);
       }, delay);
 
       this.reconnectAttempts.set(sessionKey, attempt);
@@ -443,7 +443,7 @@ export class ServerAutoConnectService {
       if (this.userDisconnectedSessions.has(sessionKey)) {
         this.userDisconnectedSessions.delete(sessionKey);
         // Persist to LocalDB (fire-and-forget to avoid blocking)
-        this.persistUserDisconnectedSessions();
+        void this.persistUserDisconnectedSessions();
       }
       console.log(`ServerAutoConnect: Connection successful for ${username}`);
     }
@@ -484,7 +484,7 @@ export class ServerAutoConnectService {
     this.userDisconnectedSessions.add(sessionKey);
     this.cancelRetry(sessionKey);
     // Persist to LocalDB (fire-and-forget to avoid blocking)
-    this.persistUserDisconnectedSessions();
+    void this.persistUserDisconnectedSessions();
     console.log(`ServerAutoConnect: Marked ${username} as user-disconnected (won't auto-reconnect, persisted to LocalDB)`);
   }
 
@@ -496,7 +496,7 @@ export class ServerAutoConnectService {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.delete(sessionKey);
     // Persist to LocalDB (fire-and-forget to avoid blocking)
-    this.persistUserDisconnectedSessions();
+    void this.persistUserDisconnectedSessions();
     console.log(`ServerAutoConnect: Cleared user-disconnected status for ${username} (persisted to LocalDB)`);
   }
 

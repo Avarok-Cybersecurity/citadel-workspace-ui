@@ -196,7 +196,7 @@ function RoomPermissionSection({
   const role = getRole(roomId);
 
   useEffect(() => {
-    fetchPermissionsForDomain(roomId);
+    void fetchPermissionsForDomain(roomId);
   }, [roomId, fetchPermissionsForDomain]);
 
   return (
@@ -232,7 +232,7 @@ function OfficePermissionSection({
   const role = getRole(officeId);
 
   useEffect(() => {
-    fetchPermissionsForDomain(officeId);
+    void fetchPermissionsForDomain(officeId);
   }, [officeId, fetchPermissionsForDomain]);
 
   return (
@@ -290,7 +290,7 @@ export function PermissionsSettingsTab() {
   // Fetch workspace permissions on mount
   useEffect(() => {
     if (workspaceId) {
-      fetchPermissionsForDomain(workspaceId);
+      void fetchPermissionsForDomain(workspaceId);
     }
   }, [workspaceId, fetchPermissionsForDomain]);
 

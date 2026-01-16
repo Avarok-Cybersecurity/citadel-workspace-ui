@@ -49,7 +49,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
           console.error('Failed to load active sessions:', error);
         }
       };
-      loadActiveSessions();
+      void loadActiveSessions();
       // Also refresh stored sessions
       setStoredSessions(connectionManager.getStoredSessionsArray());
     }

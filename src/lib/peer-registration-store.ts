@@ -106,7 +106,7 @@ class PeerRegistrationStore {
 
     console.log('PeerRegistrationStore: Starting outgoing request poll loop (interval:', OUTGOING_POLL_INTERVAL_MS, 'ms)');
     this.pollIntervalId = setInterval(() => {
-      this.pollAndResend().catch(err => {
+      void this.pollAndResend().catch(err => {
         console.error('PeerRegistrationStore: Poll loop error:', err);
       });
     }, OUTGOING_POLL_INTERVAL_MS);
@@ -907,7 +907,7 @@ class PeerRegistrationStore {
       console.log('PeerRegistrationStore: Session switched, refreshing notifications');
       // Delay slightly to ensure connectionManager has updated
       setTimeout(() => {
-        this.refreshNotificationsForCurrentSession();
+        void this.refreshNotificationsForCurrentSession();
       }, 100);
     });
 

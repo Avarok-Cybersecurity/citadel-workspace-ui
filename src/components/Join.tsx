@@ -141,7 +141,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             eventEmitter.off('websocket-message', handler);
             // Store the session for persistence with the CID
             const connectionManager = ConnectionManager.getInstance();
-            connectionManager.handleAuthSuccess(
+            void connectionManager.handleAuthSuccess(
               formData.username,
               formData.password,
               formData.fullName,
@@ -183,7 +183,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 eventEmitter.off('websocket-message', handler);
                 // Store the session for persistence with the CID
                 const connectionManager = ConnectionManager.getInstance();
-                connectionManager.handleAuthSuccess(
+                void connectionManager.handleAuthSuccess(
                   formData.username,
                   formData.password,
                   formData.fullName,

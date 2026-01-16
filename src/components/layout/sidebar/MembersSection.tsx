@@ -122,7 +122,7 @@ export const MembersSection = () => {
     };
 
     // Initial load
-    updatePendingCount();
+    void updatePendingCount();
 
     // Listen for updates
     eventEmitter.on('peer-requests:updated', updatePendingCount);
@@ -221,17 +221,17 @@ export const MembersSection = () => {
       }
     };
 
-    loadRegisteredPeers();
+    void loadRegisteredPeers();
 
     // Listen for new registrations, acceptance, and connection changes
-    const handlePeerRegistered = () => loadRegisteredPeers();
-    const handleRegistrationAccepted = () => loadRegisteredPeers();
-    const handleConnectionChange = () => loadRegisteredPeers();
-    const handlePeersUpdated = () => loadRegisteredPeers();
+    const handlePeerRegistered = () => void loadRegisteredPeers();
+    const handleRegistrationAccepted = () => void loadRegisteredPeers();
+    const handleConnectionChange = () => void loadRegisteredPeers();
+    const handlePeersUpdated = () => void loadRegisteredPeers();
     // Re-run after startup completes to do cleanup with correct peer list
     const handleStartupComplete = () => {
       console.log('[MembersSection] Startup complete - reloading peers for cleanup');
-      loadRegisteredPeers();
+      void loadRegisteredPeers();
     };
 
     eventEmitter.on('p2p:peer-registered', handlePeerRegistered);
@@ -276,7 +276,7 @@ export const MembersSection = () => {
       }
     };
 
-    loadMembers();
+    void loadMembers();
   }, [currentOfficeId, currentRoomId]);
 
   // Listen for members loaded event
@@ -288,7 +288,7 @@ export const MembersSection = () => {
     };
 
     // Subscribe to members loaded event using workspace-events
-    workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
+    void workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
 
     // No cleanup needed as workspace-events handles it internally
   }, []);
@@ -329,10 +329,10 @@ export const MembersSection = () => {
       setPeersWithConversations(convPeers);
     };
 
-    loadConversations();
+    void loadConversations();
 
     // Listen for new messages and conversation updates
-    const handleMessageUpdate = () => loadConversations();
+    const handleMessageUpdate = () => void loadConversations();
     eventEmitter.on('p2p:message-received', handleMessageUpdate);
     eventEmitter.on('p2p:message-sent', handleMessageUpdate);
     eventEmitter.on('p2p:conversation-updated', handleMessageUpdate);

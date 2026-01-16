@@ -202,8 +202,8 @@ export const PeerTest = () => {
 
       // Refresh lists after a delay
       setTimeout(() => {
-        listAllPeers();
-        listRegisteredPeers();
+        void listAllPeers();
+        void listRegisteredPeers();
       }, 2000);
 
     } catch (error) {

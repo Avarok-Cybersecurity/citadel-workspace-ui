@@ -511,13 +511,13 @@ export class ConnectionService {
             id: 'accept',
             label: 'Accept',
             variant: 'default',
-            onClick: () => this.acceptConnectionRequest(request.id)
+            onClick: () => void this.acceptConnectionRequest(request.id)
           },
           {
             id: 'reject',
             label: 'Reject',
             variant: 'destructive',
-            onClick: () => this.rejectConnectionRequest(request.id)
+            onClick: () => void this.rejectConnectionRequest(request.id)
           }
         ]
       });
@@ -527,7 +527,7 @@ export class ConnectionService {
       if (preferences.autoAcceptRegistrations) {
         // Auto-accept the request
         setTimeout(() => {
-          this.acceptConnectionRequest(request.id);
+          void this.acceptConnectionRequest(request.id);
         }, 1000);
       }
 
@@ -551,7 +551,7 @@ export class ConnectionService {
         request.recipientId // Associate with the recipient's session
       );
 
-      this.acceptConnectionRequest(request.id);
+      void this.acceptConnectionRequest(request.id);
     }
   }
 }

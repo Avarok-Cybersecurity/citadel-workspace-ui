@@ -52,7 +52,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   // Load tab session asynchronously
   useEffect(() => {
-    connectionManager.getTabSelectedSession().then(session => {
+    void connectionManager.getTabSelectedSession().then(session => {
       setTabSession(session);
     });
   }, []);
@@ -70,7 +70,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       }
     };
 
-    fetchRoomData();
+    void fetchRoomData();
   }, [roomId, room, isLoading, officeId]);
 
   // Update content when room data changes
@@ -108,7 +108,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       }
     };
 
-    compileContent();
+    void compileContent();
   }, [content]);
 
   // Handle saving MDX content

@@ -116,12 +116,12 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       }
     };
 
-    loadStoredWorkspaces();
+    void loadStoredWorkspaces();
 
     // Also listen for connection changes
     const connectionService = ConnectionService.getInstance();
     connectionService.onConnectionChange(() => {
-      loadStoredWorkspaces();
+      void loadStoredWorkspaces();
     });
   }, [state.workspace]);
   
@@ -207,7 +207,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       }
 
       // Update tab context with new workspace session
-      setSelectedUser({
+      void setSelectedUser({
         selectedUsername: workspace.username,
         selectedServerAddress: workspace.serverAddress,
         selectedCid: targetSession.cid
@@ -217,8 +217,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       WorkspaceService.setConnectionId(targetSession.cid);
 
       // Trigger workspace loading
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      void WorkspaceService.loadWorkspace();
+      void WorkspaceService.listOffices();
 
       // Show success notification
       toast({

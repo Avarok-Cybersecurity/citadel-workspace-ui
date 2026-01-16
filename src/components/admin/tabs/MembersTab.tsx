@@ -49,7 +49,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    loadMembers();
+    void loadMembers();
   }, [entityType, entityId]);
 
   const loadMembers = async () => {

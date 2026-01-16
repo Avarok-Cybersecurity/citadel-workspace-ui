@@ -55,7 +55,7 @@ export class NotificationService {
   private unlisten: (() => void) | null = null;
 
   private constructor() {
-    this.setupEventListeners();
+    void this.setupEventListeners();
   }
 
   public static getInstance(): NotificationService {

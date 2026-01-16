@@ -138,7 +138,7 @@ class SessionStartupService {
       // establish bidirectional channels.
       if (event.activationType === 'claim' || event.activationType === 'login') {
         console.log(`[ILM-TRACE] SessionStartup: Resetting connection state for ${event.activationType}`);
-        p2pAutoConnectService.resetConnectionState();
+        void p2pAutoConnectService.resetConnectionState();
       }
 
       // 1. Start P2P registration service (idempotent - won't restart if already running)

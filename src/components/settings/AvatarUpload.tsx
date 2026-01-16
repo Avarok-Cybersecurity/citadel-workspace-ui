@@ -49,7 +49,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
 
     const file = e.dataTransfer.files[0];
     if (file) {
-      handleFile(file);
+      void handleFile(file);
     }
   }, [disabled, handleFile]);
 
@@ -76,7 +76,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      handleFile(file);
+      void handleFile(file);
     }
     // Reset input so the same file can be selected again
     e.target.value = '';

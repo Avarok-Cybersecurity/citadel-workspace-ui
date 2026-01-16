@@ -119,7 +119,7 @@ export class BroadcastChannelService {
 
       switch (message.type) {
         case 'workspace-response':
-          this.handleWorkspaceResponse(message);
+          void this.handleWorkspaceResponse(message);
           break;
         case 'leader-election':
           this.handleLeaderElection(message);
@@ -137,7 +137,7 @@ export class BroadcastChannelService {
           this.handleP2PRawMessage(message);
           break;
         case 'p2p-notification':
-          this.handleP2PNotification(message);
+          void this.handleP2PNotification(message);
           break;
       }
     };

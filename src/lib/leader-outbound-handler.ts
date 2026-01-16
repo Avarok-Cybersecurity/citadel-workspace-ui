@@ -74,7 +74,7 @@ class LeaderOutboundHandler {
   private setupEventListeners(): void {
     // Listen for outbound requests from InstanceChannel
     eventEmitter.on('channel:outbound-request', (request: OutboundRequest) => {
-      this.handleOutboundRequest(request);
+      void this.handleOutboundRequest(request);
     });
 
     // Listen for leader status changes

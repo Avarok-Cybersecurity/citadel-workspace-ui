@@ -148,7 +148,7 @@ export function useChatAdapter(options: UseChatAdapterOptions): UseChatAdapterRe
       }
     };
 
-    init();
+    void init();
 
     // Subscribe to events
     const unsubscribe = newAdapter.subscribe((event: ChatMessageEvent) => {

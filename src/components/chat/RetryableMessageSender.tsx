@@ -86,7 +86,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
 
     // If there's text and the user is typing
     if (inputValue.length > 0) {
-      handleTypingStarted();
+      void handleTypingStarted();
     } else if (isTyping) {
       // If the input is cleared, stop typing immediately
       setIsTyping(false);

@@ -538,9 +538,9 @@ export const WorkspaceEventHandler: React.FC<{
               // Capture role before async callback to satisfy TypeScript narrowing
               const roleToSave = currentUserMember.role;
               if (roleToSave) {
-                connectionManager.getTabSelectedSession().then(session => {
+                void connectionManager.getTabSelectedSession().then(session => {
                   if (session) {
-                    connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
+                    void connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
                   }
                 });
               }
@@ -582,9 +582,9 @@ export const WorkspaceEventHandler: React.FC<{
             };
 
             // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
-            connectionManager.getTabSelectedSession().then(session => {
+            void connectionManager.getTabSelectedSession().then(session => {
               if (session) {
-                connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
+                void connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }
             });
           }
@@ -623,9 +623,9 @@ export const WorkspaceEventHandler: React.FC<{
             };
 
             // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
-            connectionManager.getTabSelectedSession().then(session => {
+            void connectionManager.getTabSelectedSession().then(session => {
               if (session) {
-                connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
+                void connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }
             });
           }
@@ -981,11 +981,11 @@ export const WorkspaceEventHandler: React.FC<{
       console.info('Workspace event listeners initialized');
     };
 
-    initializeEvents();
+    void initializeEvents();
 
     // Clean up all listeners when component unmounts
     return () => {
-      workspaceEvents.cleanupAllListeners();
+      void workspaceEvents.cleanupAllListeners();
       p2pRegistrationService.stop();
       // Clean up eventEmitter listeners
       eventEmitterCleanups.forEach(cleanup => cleanup());

@@ -28,13 +28,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   // Check for dev mode
   const urlParams = new URLSearchParams(window.location.search);
   const isDevMode = urlParams.get('dev') === 'true';
-  
-  // In dev mode, skip all loading checks
-  if (isDevMode) {
-    console.log('Dev mode: Bypassing workspace loader');
-    return <>{children}</>;
-  }
-  
+
   // Check if workspace is still loading
   const isLoading =
     !state.workspace ||
@@ -69,7 +63,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
           const activeSessions = await connectionManager.getActiveSessions();
           const session = activeSessions.find(s => s.cid === currentConnection.cid);
           if (session) {
-            setSelectedUser({
+            void setSelectedUser({
               selectedUsername: session.username,
               selectedServerAddress: session.server_address,
               selectedCid: session.cid
@@ -82,8 +76,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
         // Trigger workspace loading (this is what was missing!)
         console.log('WorkspaceLoader: Triggering workspace loading for existing connection');
-        WorkspaceService.loadWorkspace();
-        WorkspaceService.listOffices();
+        void WorkspaceService.loadWorkspace();
+        void WorkspaceService.listOffices();
 
         setHasConnection(true);
         return;
@@ -128,7 +122,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         if (!session) {
           // Selected session no longer exists in backend - clear stale tab context
           console.log('WorkspaceLoader: Selected session no longer active, clearing tab context');
-          clearSelectedUser();
+          void clearSelectedUser();
           setIsAutoClaimingSession(false);
           return;
         }
@@ -149,7 +143,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         }
 
         // Set up tab context
-        setSelectedUser({
+        void setSelectedUser({
           selectedUsername: session.username,
           selectedServerAddress: session.server_address,
           selectedCid: session.cid
@@ -168,8 +162,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         }
 
         // Trigger workspace loading
-        WorkspaceService.loadWorkspace();
-        WorkspaceService.listOffices();
+        void WorkspaceService.loadWorkspace();
+        void WorkspaceService.listOffices();
 
         setHasConnection(true);
         console.log('WorkspaceLoader: Auto-claim complete, workspace loading initiated');
@@ -180,7 +174,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
       }
     };
 
-    autoClaimSession();
+    void autoClaimSession();
   }, [isDevMode]);
 
   useEffect(() => {
@@ -216,7 +210,13 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
       navigate('/connect');
     }
   }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode]);
-  
+
+  // In dev mode, skip all loading checks
+  if (isDevMode) {
+    console.log('Dev mode: Bypassing workspace loader');
+    return <>{children}</>;
+  }
+
   if (isLoading || isAutoClaimingSession) {
     const loadingMessage = isAutoClaimingSession
       ? 'Connecting to session...'

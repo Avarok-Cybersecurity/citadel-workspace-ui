@@ -1150,7 +1150,7 @@ export class P2PMessengerManager {
     this.messageStatusListeners.forEach(listener => listener(messageId, 'pending'));
 
     // Ensure P2P connection is being established in background (non-blocking)
-    p2pAutoConnectService.ensurePeerConnectedInBackground(peerCid);
+    void p2pAutoConnectService.ensurePeerConnectedInBackground(peerCid);
 
     // Try to ensure peer is ready (non-blocking)
     const peerReady = await this.tryEnsurePeerReady(peerCid);
@@ -1211,7 +1211,7 @@ export class P2PMessengerManager {
     }
 
     // Ensure P2P connection is being established in background (non-blocking)
-    p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
+    void p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
 
     const conversation = this.getOrCreateConversation(recipientCid);
     const command = createMessagingLayerCommand(
@@ -1247,7 +1247,7 @@ export class P2PMessengerManager {
 
       // Only send typing indicator if text actually changed and is non-empty
       if (textChanged && currentText.length > 0) {
-        this.sendTypingIndicatorInternal(recipientCid);
+        void this.sendTypingIndicatorInternal(recipientCid);
         state.lastSentTyping = Date.now();
       }
     }, TYPING_POLL_INTERVAL_MS);

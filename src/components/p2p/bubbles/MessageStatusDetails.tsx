@@ -55,7 +55,7 @@ interface RowProps {
 
 function Row({ label, value, valueClassName = 'text-gray-200', copyable, fullValue }: RowProps) {
   const handleCopy = () => {
-    navigator.clipboard.writeText(fullValue || value);
+    void navigator.clipboard.writeText(fullValue || value);
   };
 
   return (

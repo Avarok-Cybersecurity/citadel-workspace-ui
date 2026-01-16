@@ -40,7 +40,7 @@ export const PreferencesDialog = () => {
     };
 
     if (open) {
-      loadPreferences();
+      void loadPreferences();
     }
   }, [open]);
 

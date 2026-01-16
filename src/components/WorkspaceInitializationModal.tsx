@@ -93,15 +93,15 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 };
                 
                 // Listen for workspace response
-                workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
+                void workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
                     cleanup();
                     resolve();
                 }).then(unsub => {
                     unsubscribeWorkspace = unsub;
                 });
-                
+
                 // Also listen for errors
-                workspaceEvents.onOperationEvent('operation:error', (error) => {
+                void workspaceEvents.onOperationEvent('operation:error', (error) => {
                     cleanup();
                     reject(new Error(error.message || 'Failed to initialize workspace'));
                 }).then(unsub => {

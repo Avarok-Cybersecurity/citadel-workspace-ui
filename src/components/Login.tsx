@@ -115,7 +115,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       }
 
       // Update tab context to track which workspace this tab is viewing
-      setSelectedUser({
+      void setSelectedUser({
         selectedUsername: session.username,
         selectedServerAddress: session.server_address,
         selectedCid: session.cid
@@ -134,8 +134,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
       }
 
       // Trigger workspace loading
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      void WorkspaceService.loadWorkspace();
+      void WorkspaceService.listOffices();
 
       // CRITICAL: Emit session:activated to trigger P2P re-establishment
       // This ensures P2P channels are established when redirecting to existing session
@@ -229,7 +229,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
             console.log(`Login: SessionAlreadyActive - ${message}`);
 
             // Redirect to the existing session
-            redirectToExistingSession({
+            void redirectToExistingSession({
               cid: cid as bigint,
               username: sessionUsername || username.trim(),
               server_address: server
@@ -253,7 +253,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
               const errorCid = response.ConnectFailure.cid;
               if (errorCid && errorCid !== 0n && errorCid !== BigInt(0)) {
                 // Redirect to the existing session seamlessly
-                redirectToExistingSession({
+                void redirectToExistingSession({
                   cid: errorCid as bigint,
                   username: username.trim(),
                   server_address: server
@@ -261,10 +261,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 return;
               } else {
                 // CID is 0 or missing - look up session by username
-                connectionManager.getActiveSessions().then(sessions => {
+                void connectionManager.getActiveSessions().then(sessions => {
                   const matchingSession = sessions.find(s => s.username === username.trim());
                   if (matchingSession && matchingSession.cid !== undefined) {
-                    redirectToExistingSession({
+                    void redirectToExistingSession({
                       cid: matchingSession.cid,
                       username: matchingSession.username ?? username.trim(),
                       server_address: matchingSession.server_address
@@ -314,7 +314,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
       // Set up workspace context and loading
       // Update tab context to track which workspace this tab is viewing
-      setSelectedUser({
+      void setSelectedUser({
         selectedUsername: username.trim(),
         selectedServerAddress: server,
         selectedCid: cid
@@ -324,8 +324,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
       WorkspaceService.setConnectionId(cid);
 
       // Trigger workspace loading
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      void WorkspaceService.loadWorkspace();
+      void WorkspaceService.listOffices();
 
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {

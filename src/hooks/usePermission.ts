@@ -59,7 +59,7 @@ export function usePermission(
     if (!permissions.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
       attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
-      fetchPermissionsForDomain(domainId).finally(() => {
+      void fetchPermissionsForDomain(domainId).finally(() => {
         setLocalLoading(false);
       });
     }
@@ -118,7 +118,7 @@ export function useAnyPermission(
     if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
       attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
-      fetchPermissionsForDomain(domainId).finally(() => {
+      void fetchPermissionsForDomain(domainId).finally(() => {
         setLocalLoading(false);
       });
     }
@@ -178,7 +178,7 @@ export function useAllPermissions(
     if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
       attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
-      fetchPermissionsForDomain(domainId).finally(() => {
+      void fetchPermissionsForDomain(domainId).finally(() => {
         setLocalLoading(false);
       });
     }

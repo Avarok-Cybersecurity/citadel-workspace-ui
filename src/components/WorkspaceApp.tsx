@@ -58,8 +58,8 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         // User will see connection error when they try to connect
       }
     };
-    
-    initializeServices();
+
+    void initializeServices();
     
     // Initialize required services to ensure they're instantiated
     // This will set up their event listeners and notification handlers
@@ -213,10 +213,10 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Clean up event listeners when component unmounts
     return () => {
-      messagingService.cleanup();
-      connectionService.cleanup();
-      WorkspaceService.cleanup();
-      userService.cleanup();
+      void messagingService.cleanup();
+      void connectionService.cleanup();
+      void WorkspaceService.cleanup();
+      void userService.cleanup();
       healthCheckService.stopHealthChecks();
       eventEmitter.off('connection-failure', handleConnectionFailure);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);

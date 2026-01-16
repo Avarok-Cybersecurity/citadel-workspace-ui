@@ -39,7 +39,7 @@ export const Connect = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    fetchServers();
+    void fetchServers();
   }, [fetchServers]);
 
   const handleConnect = async () => {

@@ -170,12 +170,12 @@ export class ConnectionManager {
   private setupEventListeners(): void {
     // Listen for successful connections
     eventEmitter.on('websocket-message', (message: any) => {
-      this.handleWebSocketMessage(message);
+      void this.handleWebSocketMessage(message);
     });
-    
+
     // Listen for broadcast messages from other tabs
     eventEmitter.on('broadcast-workspace-response', (message: any) => {
-      this.handleWebSocketMessage(message);
+      void this.handleWebSocketMessage(message);
     });
   }
 
@@ -190,7 +190,7 @@ export class ConnectionManager {
       if (isLeader) {
         // We just became the leader, attempt to establish connection
         console.log('ConnectionManager: Became leader, attempting to establish connection');
-        this.attemptLeaderConnection();
+        void this.attemptLeaderConnection();
       } else {
         // We're no longer the leader
         console.log('ConnectionManager: No longer the leader');
@@ -285,7 +285,7 @@ export class ConnectionManager {
       const cid = response.RegisterSuccess?.cid || response.ConnectSuccess?.cid;
       if (cid) {
         // WASM serializes u64 as BigInt - pass directly
-        this.handleSuccessfulConnection(cid);
+        void this.handleSuccessfulConnection(cid);
       }
     }
 
@@ -297,7 +297,7 @@ export class ConnectionManager {
       const cid = response.ConnectionManagementSuccess?.cid;
       if (cid) {
         console.log('ConnectionManager: Updating connection info with claimed session CID:', cid);
-        this.handleSuccessfulConnection(cid, false);
+        void this.handleSuccessfulConnection(cid, false);
       }
     }
 
