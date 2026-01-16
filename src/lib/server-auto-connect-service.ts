@@ -66,7 +66,12 @@ export class ServerAutoConnectService {
       this.isInitialized = true;
       console.log(`ServerAutoConnect: Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ${this.userDisconnectedSessions.size})`);
     } catch (error) {
-      console.warn('ServerAutoConnect: Failed to load settings, using defaults:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Key not found')) {
+        console.debug('ServerAutoConnect: No stored settings found, using defaults');
+      } else {
+        console.warn('ServerAutoConnect: Failed to load settings, using defaults:', error);
+      }
       this.isEnabled = true; // Default to enabled
       this.isInitialized = true;
     }
@@ -92,7 +97,12 @@ export class ServerAutoConnectService {
         }
       }
     } catch (error) {
-      console.warn('ServerAutoConnect: Failed to load user disconnected sessions:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Key not found')) {
+        console.debug('ServerAutoConnect: No disconnected sessions found, using empty set');
+      } else {
+        console.warn('ServerAutoConnect: Failed to load user disconnected sessions:', error);
+      }
       // Keep empty set as default
     }
   }
@@ -173,7 +183,12 @@ export class ServerAutoConnectService {
         return decoded === 'true';
       }
     } catch (error) {
-      console.warn('ServerAutoConnect: Failed to load enabled setting:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Key not found')) {
+        console.debug('ServerAutoConnect: No enabled setting found, using default: true');
+      } else {
+        console.warn('ServerAutoConnect: Failed to load enabled setting:', error);
+      }
     }
 
     return true; // Default: enabled
