@@ -49,11 +49,20 @@ export class WorkspaceResponseHandler {
         }
       }
 
-      // Extract the message array from notification (field is 'message' not 'contents')
-      if (notification.message && Array.isArray(notification.message)) {
+      // Extract the message bytes from notification
+      // The message field is a number[] array (serialized as Vec<u8> from Rust)
+      if (notification.message) {
         try {
-          // Convert array of numbers to Uint8Array
-          const contentBytes = new Uint8Array(notification.message);
+          // Convert message to Uint8Array
+          let contentBytes: Uint8Array;
+          if (notification.message instanceof Uint8Array) {
+            contentBytes = notification.message;
+          } else if (Array.isArray(notification.message)) {
+            contentBytes = new Uint8Array(notification.message);
+          } else {
+            debugLog('workspace', 'Unknown message format', { type: typeof notification.message });
+            return;
+          }
           // Decode bytes to string
           const contentStr = new TextDecoder().decode(contentBytes);
 
@@ -157,6 +166,7 @@ export class WorkspaceResponseHandler {
       });
     } else if ('Workspace' in response) {
       // Handle workspace loaded response
+      debugLog('workspace', 'Emitting workspace:loaded', { name: response.Workspace.name });
       eventEmitter.emit('workspace:loaded', {
         workspace: {
           id: response.Workspace.id,
