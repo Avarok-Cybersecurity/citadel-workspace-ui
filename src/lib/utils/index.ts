@@ -32,3 +32,12 @@ export {
   createDeferred,
   type RetryOptions
 } from './retry-utils';
+
+// Event listener management
+export { EventListenerManager } from './event-listener-manager';
+
+// Polling service base classes
+export {
+  PollingService,
+  EventListenerPollingService
+} from './polling-service';
