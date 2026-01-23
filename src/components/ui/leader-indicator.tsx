@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Wifi, WifiOff } from 'lucide-react';
-import { eventEmitter } from '@/lib/event-emitter';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
+import { useEventListener } from '@/hooks';
 import {
   Tooltip,
   TooltipContent,
@@ -13,25 +13,19 @@ export const LeaderIndicator: React.FC = () => {
   const [isLeader, setIsLeader] = useState(false);
   const [tabId, setTabId] = useState('');
 
+  // Get initial state
   useEffect(() => {
-    // Get initial state
     setIsLeader(broadcastChannelService.getIsLeader());
     setTabId(broadcastChannelService.getTabId());
-
-    // Listen for leader changes
-    const handleLeaderChange = ({ isLeader: newIsLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
-      setIsLeader(newIsLeader);
-      if (newIsLeader) {
-        setTabId(leaderId);
-      }
-    };
-
-    eventEmitter.on('leader-changed', handleLeaderChange);
-
-    return () => {
-      eventEmitter.off('leader-changed', handleLeaderChange);
-    };
   }, []);
+
+  // Listen for leader changes
+  useEventListener<{ isLeader: boolean; leaderId: string }>('leader-changed', ({ isLeader: newIsLeader, leaderId }) => {
+    setIsLeader(newIsLeader);
+    if (newIsLeader) {
+      setTabId(leaderId);
+    }
+  });
 
   return (
     <TooltipProvider>

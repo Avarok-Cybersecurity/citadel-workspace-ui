@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { connectionManager } from "@/lib/connection-manager";
 import { websocketService } from "@/lib/websocket-service";
@@ -7,13 +7,12 @@ import type { ActiveSession } from "@/types/session-types";
 import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal, type DisconnectAction } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal, type DisconnectStatus } from "./LoadingModal";
-import { useToast } from "@/hooks/use-toast";
+import { useToast, useEventListener } from "@/hooks";
 import { setSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { instanceManager, instanceChannel } from "@/lib/multi-instance";
 import { p2pRegistrationService } from "@/lib/p2p-registration-service";
-import { notificationService, UnreadCountChange } from "@/lib/notification-service";
-import { eventEmitter } from "@/lib/event-emitter";
+import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
 
@@ -123,39 +122,31 @@ export const OrphanSessionsNavbar = () => {
     }
   };
 
+  // Initial load of sessions
   useEffect(() => {
     // Try to load immediately (will return empty if WebSocket not connected yet)
-    (async () => {
-      await loadActiveSessions();
-    })().catch(console.error);
+    loadActiveSessions().catch(console.error);
+    // Initialize notification counts
+    setNotificationCounts(notificationService.getUnreadCountsByCid());
+  }, []);
 
-    // Also listen for WebSocket connection success to reload sessions
-    // This handles the case where component mounts before WebSocket is ready
-    const unsubscribe = eventEmitter.on('on-ws-connection-success', async () => {
-      console.log('OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
-      await loadActiveSessions();
-    });
+  // Handle WebSocket connection success to reload sessions
+  // This handles the case where component mounts before WebSocket is ready
+  const handleWsConnectionSuccess = useCallback(async () => {
+    console.log('OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
+    await loadActiveSessions();
+  }, []);
 
-    return () => {
-      unsubscribe();
-    };
+  // Listen for WebSocket connection success
+  useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
+
+  // Handle notification count changes
+  const handleUnreadCountChanged = useCallback((change: UnreadCountChange) => {
+    setNotificationCounts(new Map(change.byCid));
   }, []);
 
   // Subscribe to notification count changes
-  useEffect(() => {
-    const updateCounts = (change: UnreadCountChange) => {
-      setNotificationCounts(new Map(change.byCid));
-    };
-
-    eventEmitter.on('unread-count-changed', updateCounts);
-
-    // Initialize with current counts
-    setNotificationCounts(notificationService.getUnreadCountsByCid());
-
-    return () => {
-      eventEmitter.off('unread-count-changed', updateCounts);
-    };
-  }, []);
+  useEventListener<UnreadCountChange>('unread-count-changed', handleUnreadCountChanged);
 
   const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
     try {

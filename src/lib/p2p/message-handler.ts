@@ -22,6 +22,7 @@ import {
 import { eventEmitter } from '../event-emitter';
 import { BroadcastChannelService } from '../broadcast-channel-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
+import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
 import { MessageAckHandler } from './message-ack-handler';
@@ -96,8 +97,10 @@ export class MessageHandler {
           return;
         }
         const command = deserializeP2PCommand(messageBytes);
-        const peerCidBigint = typeof peer_cid === 'bigint' ? peer_cid : BigInt(peer_cid as string | number);
-        await this.handleP2PCommand(command, peerCidBigint);
+        const peerCidBigint = ensureBigIntOrNull(peer_cid);
+        if (peerCidBigint !== null) {
+          await this.handleP2PCommand(command, peerCidBigint);
+        }
       } catch (error) {
         console.error('Failed to deserialize P2P command:', error);
       }
@@ -112,12 +115,8 @@ export class MessageHandler {
     const { message: rawMessage, peer_cid, cid } = notification;
 
     const currentCid = await this.config.getCurrentCid();
-    const peerCidBigint: bigint | undefined = peer_cid !== undefined && peer_cid !== null
-      ? (typeof peer_cid === 'bigint' ? peer_cid : BigInt(peer_cid as string | number))
-      : undefined;
-    const notificationCidBigint: bigint | undefined = cid !== undefined && cid !== null
-      ? (typeof cid === 'bigint' ? cid : BigInt(cid as string | number))
-      : undefined;
+    const peerCidBigint = ensureBigIntOrNull(peer_cid) ?? undefined;
+    const notificationCidBigint = ensureBigIntOrNull(cid) ?? undefined;
 
     console.log('[P2P] handleWebSocketMessage checking MessageNotification:', {
       peer_cid: peerCidBigint?.toString(),

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,6 @@ import { PermissionManagerModal } from "@/components/permissions/PermissionManag
 import { PeerDiscoveryModal } from "@/components/p2p/PeerDiscoveryModal";
 import { PendingRequestsModal } from "@/components/p2p/PendingRequestsModal";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
-import { eventEmitter } from "@/lib/event-emitter";
 import {
   Dialog,
   DialogContent,
@@ -48,9 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { GroupConversationRow } from "./GroupConversationRow";
 import { PeerListRow } from "./PeerListRow";
-import { useGroupConversations } from '@/hooks/use-group-conversations';
-import { useRegisteredPeers } from '@/hooks/use-registered-peers';
-import { useConversationPeers } from '@/hooks/use-conversation-peers';
+import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 
 interface Member {
@@ -101,23 +98,26 @@ export const MembersSection = () => {
   const conversationPeerCids = new Set(peersWithConversations.map(c => c.peerCid));
   const filteredRegisteredPeers = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
 
-  // Pending request count
-  useEffect(() => {
-    const updatePendingCount = async () => {
-      const count = await peerRegistrationStore.getPendingCount();
-      setPendingRequestCount(count);
-    };
-    (async () => { await updatePendingCount(); })().catch(console.error);
-    eventEmitter.on('peer-requests:updated', updatePendingCount);
-    return () => { eventEmitter.off('peer-requests:updated', updatePendingCount); };
+  // Load pending request count
+  const updatePendingCount = useCallback(async () => {
+    const count = await peerRegistrationStore.getPendingCount();
+    setPendingRequestCount(count);
   }, []);
 
-  // Listen for notification card clicks
+  // Initial load
   useEffect(() => {
-    const openModal = () => setShowPendingRequests(true);
-    eventEmitter.on('open-pending-requests-modal', openModal);
-    return () => { eventEmitter.off('open-pending-requests-modal', openModal); };
-  }, []);
+    updatePendingCount().catch(console.error);
+  }, [updatePendingCount]);
+
+  // Listen for pending request updates
+  useEventListener('peer-requests:updated', () => {
+    updatePendingCount().catch(console.error);
+  });
+
+  // Listen for notification card clicks
+  useEventListener('open-pending-requests-modal', () => {
+    setShowPendingRequests(true);
+  });
 
   // Load members when location changes
   useEffect(() => {

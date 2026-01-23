@@ -13,7 +13,7 @@ import { FilePreviewDialog } from "./FilePreviewDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer-service";
-import { eventEmitter } from "@/lib/event-emitter";
+import { useEventListeners } from "@/hooks";
 
 /**
  * File display type for sidebar rendering
@@ -114,30 +114,26 @@ export const FilesSection = () => {
     setFiles(downloads.map(mapTransferToDisplay));
   }, []);
 
+  // Initial load
   useEffect(() => {
-    // Initial load
     loadFiles();
+  }, [loadFiles]);
 
-    // Subscribe to file transfer completion and state change events
-    // STATE_CHANGED ensures we catch updates even if COMPLETED is missed
-    const handleUpdate = () => {
-      loadFiles();
-    };
+  // Subscribe to file transfer completion and state change events
+  useEventListeners(
+    [FILE_TRANSFER_EVENTS.COMPLETED, FILE_TRANSFER_EVENTS.STATE_CHANGED],
+    loadFiles
+  );
 
-    eventEmitter.on(FILE_TRANSFER_EVENTS.COMPLETED, handleUpdate);
-    eventEmitter.on(FILE_TRANSFER_EVENTS.STATE_CHANGED, handleUpdate);
-
-    // Also refresh on window focus in case events were missed while tab was inactive
+  // Also refresh on window focus in case events were missed while tab was inactive
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadFiles();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
-      eventEmitter.off(FILE_TRANSFER_EVENTS.COMPLETED, handleUpdate);
-      eventEmitter.off(FILE_TRANSFER_EVENTS.STATE_CHANGED, handleUpdate);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [loadFiles]);

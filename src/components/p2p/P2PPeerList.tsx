@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService, type Peer } from '@/lib/p2p-registration-service';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UserPlus, MessageCircle, Circle, Users, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { eventEmitter } from '@/lib/event-emitter';
-import type { P2PConversation } from '@/lib/p2p';
+import { useEventListener } from '@/hooks';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
@@ -46,6 +44,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     }
   ];
 
+  // Initialize peers on mount
   useEffect(() => {
     // Wait for LocalDB to load before loading peers
     const initPeers = async () => {
@@ -56,38 +55,35 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       loadPeers();
       loadAvailablePeers();
     };
-    (async () => {
-      await initPeers();
-    })().catch(console.error);
+    initPeers().catch(console.error);
 
-    // Subscribe to message updates
+    // Subscribe to message updates (uses messenger's internal event system)
     const unsubscribeMessage = messenger.onMessage(() => {
       loadPeers();
     });
 
-    // Subscribe to connection changes
+    // Subscribe to connection changes (uses messenger's internal event system)
     const unsubscribeConnection = messenger.onConnectionChange(() => {
       loadPeers();
     });
 
-    // Subscribe to peer updates from registration service
-    const handlePeersUpdated = (data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
-      setAvailablePeers(data.allPeers);
-      loadPeers();
-    };
-    eventEmitter.on('p2p:peers-updated', handlePeersUpdated);
-
-    // Also listen for messages-loaded event in case init completes after mount
-    const handleMessagesLoaded = () => loadPeers();
-    eventEmitter.on('p2p:messages-loaded', handleMessagesLoaded);
-
     return () => {
       unsubscribeMessage();
       unsubscribeConnection();
-      eventEmitter.off('p2p:peers-updated', handlePeersUpdated);
-      eventEmitter.off('p2p:messages-loaded', handleMessagesLoaded);
     };
   }, []);
+
+  // Handle peer updates from registration service
+  const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
+    setAvailablePeers(data.allPeers);
+    loadPeers();
+  }, []);
+
+  // Listen for peer updates
+  useEventListener<{ allPeers: Peer[]; registeredPeers: Peer[] }>('p2p:peers-updated', handlePeersUpdated);
+
+  // Listen for messages-loaded event in case init completes after mount
+  useEventListener('p2p:messages-loaded', loadPeers);
 
   const loadPeers = () => {
     const conversations = messenger.getAllConversations();

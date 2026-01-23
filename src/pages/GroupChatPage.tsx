@@ -18,6 +18,7 @@ import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation, GroupSettings, GroupMessage } from '@/types/group';
 import { websocketService } from '@/lib/websocket-service';
 import { eventEmitter } from '@/lib/event-emitter';
+import { ensureBigInt } from '@/lib/utils';
 import { Send, Loader2 } from 'lucide-react';
 
 // ============================================================================
@@ -94,7 +95,7 @@ export function GroupChatPage() {
         const newMessage: GroupMessage = {
           id: crypto.randomUUID(),
           groupId: data.groupId,
-          senderId: typeof data.senderId === 'bigint' ? data.senderId : BigInt(data.senderId),
+          senderId: ensureBigInt(data.senderId),
           senderName: data.senderName,
           messageType: 'Text',
           content: data.content,

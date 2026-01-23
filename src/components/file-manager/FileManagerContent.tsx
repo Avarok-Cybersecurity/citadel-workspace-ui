@@ -4,7 +4,7 @@ import { FilePreviewDialog } from "@/components/layout/sidebar/FilePreviewDialog
 import { toast } from "sonner";
 import type { FileMetadata } from "@/types/files";
 import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer-service";
-import { eventEmitter } from "@/lib/event-emitter";
+import { useEventListener } from "@/hooks";
 import { FileManagerTabs } from "./FileManagerTabs";
 import { DeleteDialog } from "./DeleteDialog";
 import { ClearAllDialog } from "./ClearAllDialog";
@@ -96,21 +96,13 @@ export const FileManagerContent = () => {
     setFiles([...downloads, ...mockRevfsFiles]);
   }, []);
 
+  // Initial load
   useEffect(() => {
-    // Initial load
     loadFiles();
-
-    // Subscribe to file transfer completion events
-    const handleCompleted = () => {
-      loadFiles();
-    };
-
-    eventEmitter.on(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
-
-    return () => {
-      eventEmitter.off(FILE_TRANSFER_EVENTS.COMPLETED, handleCompleted);
-    };
   }, [loadFiles]);
+
+  // Subscribe to file transfer completion events
+  useEventListener(FILE_TRANSFER_EVENTS.COMPLETED, loadFiles);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<FileMetadata | null>(null);

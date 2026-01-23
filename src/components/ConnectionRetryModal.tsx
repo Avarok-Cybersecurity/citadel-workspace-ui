@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, RefreshCw, X } from "lucide-react";
-import { useRetry } from "@/hooks/use-retry";
+import { useRetry, useEventListener } from "@/hooks";
 import { websocketService } from "@/lib/websocket-service";
-import { eventEmitter } from "@/lib/event-emitter";
 import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 
@@ -161,16 +160,8 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   }, [isOpen, attempt, maxRetries, isLoading]);
 
   // Listen for successful connection events
-  useEffect(() => {
-    const handleConnectionSuccess = () => {
-      onClose();
-    };
-
-    const unsubscribe = eventEmitter.on('connection-success', handleConnectionSuccess);
-    
-    return () => {
-      unsubscribe();
-    };
+  useEventListener('connection-success', () => {
+    onClose();
   }, [onClose]);
 
   const handleManualRetry = () => {

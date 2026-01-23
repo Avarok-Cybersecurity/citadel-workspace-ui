@@ -46,6 +46,7 @@ import { broadcastChannelService } from './broadcast-channel-service';
 import { getSelectedUser } from './tab-context';
 import { P2P_CONSTANTS } from './constants';
 import { safeJSONStringify } from './storage-utils';
+import { ensureBigInt, ensureBigIntPair } from './utils';
 
 interface ConnectionAttempt {
   attempts: number;
@@ -399,8 +400,7 @@ export class P2PAutoConnectService {
 
     // CRITICAL: Ensure CIDs are actually BigInt (WebSocket messages may send strings/numbers)
     // Without this, Map keys could be mixed types causing lookup failures
-    const localCidBigInt = typeof localCid === 'bigint' ? localCid : BigInt(localCid);
-    const peerCidBigInt = typeof peerCid === 'bigint' ? peerCid : BigInt(peerCid);
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
 
     // ILM-DIAG: Log type information for debugging
     console.log(`[ILM-DIAG] setPeerConnectedLocal: INPUT localCid type=${typeof localCid}, peerCid type=${typeof peerCid}`);
@@ -444,8 +444,7 @@ export class P2PAutoConnectService {
    */
   public setPeerDisconnected(localCid: bigint, peerCid: bigint): void {
     // CRITICAL: Ensure CIDs are BigInt for Map operations
-    const localCidBigInt = typeof localCid === 'bigint' ? localCid : BigInt(localCid);
-    const peerCidBigInt = typeof peerCid === 'bigint' ? peerCid : BigInt(peerCid);
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
 
     // Remove forward direction: localCid → peerCid
     const localPeerMap = this.connectedPeers.get(localCidBigInt);
@@ -474,7 +473,7 @@ export class P2PAutoConnectService {
    */
   public getPeersForSession(localCid: bigint): bigint[] {
     // CRITICAL: Ensure localCid is BigInt for Map lookup (defensive)
-    const localCidBigInt = typeof localCid === 'bigint' ? localCid : BigInt(localCid);
+    const localCidBigInt = ensureBigInt(localCid);
 
     const peerMap = this.connectedPeers.get(localCidBigInt);
     if (!peerMap) {
@@ -495,8 +494,7 @@ export class P2PAutoConnectService {
    */
   public isPeerConnectedForSession(localCid: bigint, peerCid: bigint): boolean {
     // CRITICAL: Ensure CIDs are BigInt for Map lookup
-    const localCidBigInt = typeof localCid === 'bigint' ? localCid : BigInt(localCid);
-    const peerCidBigInt = typeof peerCid === 'bigint' ? peerCid : BigInt(peerCid);
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
 
     const peerMap = this.connectedPeers.get(localCidBigInt);
     return peerMap?.has(peerCidBigInt) ?? false;
@@ -508,8 +506,7 @@ export class P2PAutoConnectService {
    * Used to check connection age for distinguishing fresh vs stale connections.
    */
   public getPeerConnectionInfo(localCid: bigint, peerCid: bigint): PeerConnectionInfo | null {
-    const localCidBigInt = typeof localCid === 'bigint' ? localCid : BigInt(localCid);
-    const peerCidBigInt = typeof peerCid === 'bigint' ? peerCid : BigInt(peerCid);
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
 
     const peerMap = this.connectedPeers.get(localCidBigInt);
     return peerMap?.get(peerCidBigInt) ?? null;
@@ -578,7 +575,7 @@ export class P2PAutoConnectService {
   public async refreshFromBackend(localCid: bigint): Promise<void> {
     try {
       // CRITICAL: Ensure localCid is BigInt
-      const localCidBigInt = typeof localCid === 'bigint' ? localCid : BigInt(localCid);
+      const localCidBigInt = ensureBigInt(localCid);
 
       const sessions = await connectionManager.getActiveSessions();
       const mySession = sessions.find(s => s.cid === localCidBigInt);
