@@ -207,7 +207,7 @@ class PermissionsService {
     eventEmitter.on('user:permissions:loaded', handlePermissionsLoaded);
 
     // Listen for permission update notifications (when admin changes permissions)
-    const handlePermissionsUpdated = (payload: {
+    const handlePermissionsUpdated = async (payload: {
       userId: string;
       domainId: string;
       permissions: string[];
@@ -216,7 +216,7 @@ class PermissionsService {
       const currentUser = this.getCurrentUserId();
       if (payload.userId === currentUser) {
         // Refetch permissions to get the updated set
-        void this.fetchPermissions(payload.domainId, true);
+        await this.fetchPermissions(payload.domainId, true);
         eventEmitter.emit('permissions:updated', { domainId: payload.domainId });
       }
     };

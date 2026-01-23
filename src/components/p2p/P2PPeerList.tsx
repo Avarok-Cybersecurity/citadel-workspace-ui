@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { P2PMessengerManager } from '@/lib/p2p-messenger-manager';
+import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService, type Peer } from '@/lib/p2p-registration-service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { UserPlus, MessageCircle, Circle, Users, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { eventEmitter } from '@/lib/event-emitter';
-import type { P2PConversation } from '@/lib/p2p-messenger-manager';
+import type { P2PConversation } from '@/lib/p2p';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
@@ -56,7 +56,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       loadPeers();
       loadAvailablePeers();
     };
-    void initPeers();
+    (async () => {
+      await initPeers();
+    })().catch(console.error);
 
     // Subscribe to message updates
     const unsubscribeMessage = messenger.onMessage(() => {
@@ -85,8 +87,6 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       eventEmitter.off('p2p:peers-updated', handlePeersUpdated);
       eventEmitter.off('p2p:messages-loaded', handleMessagesLoaded);
     };
-    // Mount only: loadPeers/messenger are stable across renders
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadPeers = () => {
@@ -175,7 +175,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void handleAddPeer();
+              (async () => {
+                await handleAddPeer();
+              })().catch(console.error);
             }}
             className="flex gap-2"
           >
@@ -214,7 +216,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                       onClick={() => {
                         if (!peer.isRegistered) {
                           setNewPeerCid(peerCidStr);
-                          void handleAddPeer();
+                          (async () => {
+                            await handleAddPeer();
+                          })().catch(console.error);
                         } else {
                           onSelectPeer(peerCidStr);
                         }

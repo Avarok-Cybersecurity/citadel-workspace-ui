@@ -1,0 +1,83 @@
+/**
+ * File Picker Operations
+ *
+ * Handles native file picker dialog operations via the internal service.
+ */
+
+import { eventEmitter } from '../event-emitter';
+import { debugLog } from '../debug-config';
+
+export interface FilePickerConfig {
+  init: () => Promise<void>;
+  sendRequest: (request: unknown, requestId?: string) => Promise<void>;
+}
+
+export interface FilePickerResult {
+  file_path: string;
+  file_name: string;
+  file_size: bigint;
+}
+
+export class FilePicker {
+  private readonly config: FilePickerConfig;
+
+  constructor(config: FilePickerConfig) {
+    this.config = config;
+  }
+
+  async pickFile(
+    cid: bigint,
+    title?: string,
+    allowedExtensions?: string[]
+  ): Promise<FilePickerResult> {
+    await this.config.init();
+
+    const requestId = crypto.randomUUID();
+    const request = {
+      PickFile: {
+        request_id: requestId,
+        cid: cid,
+        title: title || null,
+        allowed_extensions: allowedExtensions || null
+      }
+    };
+
+    debugLog('websocket', 'Sending PickFile request', request);
+
+    return new Promise((resolve, reject) => {
+      // Longer timeout for file picker - user interaction can take time
+      const timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(new Error('File picker timed out'));
+      }, 120000); // 2 minute timeout
+
+      const handleMessage = (message: Record<string, unknown>) => {
+        const msg = message as {
+          PickFileSuccess?: { request_id: string; file_path: string; file_name: string; file_size: bigint };
+          PickFileFailure?: { request_id: string; message?: string };
+        };
+        if (msg.PickFileSuccess?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          resolve({
+            file_path: msg.PickFileSuccess.file_path,
+            file_name: msg.PickFileSuccess.file_name,
+            file_size: msg.PickFileSuccess.file_size
+          });
+        } else if (msg.PickFileFailure?.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          reject(new Error(msg.PickFileFailure.message || 'File picker failed'));
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+
+      this.config.sendRequest(request, requestId).catch(error => {
+        clearTimeout(timeout);
+        eventEmitter.off('websocket-message', handleMessage);
+        reject(error);
+      });
+    });
+  }
+}

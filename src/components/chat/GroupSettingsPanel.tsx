@@ -29,7 +29,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import type { GroupConversation, GroupSettings as GroupSettingsType } from '@/types/group';
-import { useGroupPermissions } from '@/hooks/useGroupPermissions';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { GroupMemberManagement } from './GroupMemberManagement';
 import { GroupRoleManagement } from './GroupRoleManagement';
 

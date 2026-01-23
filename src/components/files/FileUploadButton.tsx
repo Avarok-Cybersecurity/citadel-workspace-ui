@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FileUploadService, FileUploadRequest } from '@/lib/file-upload-service';
+import { fileUploadService, FileUploadRequest } from '@/lib/file-upload-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileUploadButtonProps {
@@ -57,7 +57,7 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
 
       try {
         // Start upload
-        const response = await FileUploadService.uploadFile(request);
+        const response = await fileUploadService.uploadFile(request);
         
         if (response.success && response.fileId) {
           toast({

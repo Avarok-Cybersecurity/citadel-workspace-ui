@@ -35,7 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { GroupConversation, GroupMemberWithRole, GroupRole } from '@/types/group';
-import { useGroupPermissions } from '@/hooks/useGroupPermissions';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 
 // ============================================================================
 // Types

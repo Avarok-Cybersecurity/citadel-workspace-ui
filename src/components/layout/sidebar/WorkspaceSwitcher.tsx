@@ -13,7 +13,7 @@ import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
 import { getWorkspaceLogo, getWorkspaceInitials } from "@/lib/workspace-metadata-service";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from "@/lib/connection-manager";
 import { ConnectionService } from "@/lib/connection-service";
 import { websocketService } from "@/lib/websocket-service";
@@ -116,12 +116,14 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       }
     };
 
-    void loadStoredWorkspaces();
+    (async () => {
+      await loadStoredWorkspaces();
+    })().catch(console.error);
 
     // Also listen for connection changes
     const connectionService = ConnectionService.getInstance();
-    connectionService.onConnectionChange(() => {
-      void loadStoredWorkspaces();
+    connectionService.onConnectionChange(async () => {
+      await loadStoredWorkspaces();
     });
   }, [state.workspace]);
   
@@ -150,8 +152,6 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
         [currentWorkspace.id]: location.pathname + location.search
       }));
     }
-    // Only currentWorkspace.id matters, not the whole object
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, currentWorkspace?.id]);
 
   const handleWorkspaceChange = async (workspace: StoredWorkspace) => {
@@ -209,7 +209,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       }
 
       // Update tab context with new workspace session
-      void setSelectedUser({
+      await setSelectedUser({
         selectedUsername: workspace.username,
         selectedServerAddress: workspace.serverAddress,
         selectedCid: targetSession.cid
@@ -219,8 +219,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       WorkspaceService.setConnectionId(targetSession.cid);
 
       // Trigger workspace loading
-      void WorkspaceService.loadWorkspace();
-      void WorkspaceService.listOffices();
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices();
 
       // Show success notification
       toast({

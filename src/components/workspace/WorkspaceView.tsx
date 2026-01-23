@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
 import { getDefaultOfficeContent, getDefaultRoomContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from '@/lib/connection-manager';
 import { StoredSession } from '@/types/session-types';
 import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
@@ -27,7 +27,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }
       setTabSelection(selection);
       setTabSession(session);
     };
-    void loadTabInfo();
+    (async () => {
+      await loadTabInfo();
+    })().catch(console.error);
   }, []);
   
   // Parse query parameters for P2P chat

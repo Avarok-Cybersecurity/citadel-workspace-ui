@@ -59,13 +59,17 @@ export class HealthCheckService {
    */
   public startHealthChecks(intervalMs: number = 30000): void {
     this.stopHealthChecks();
-
+    
     // Initial check
-    void this.checkHealth();
+    (async () => {
+      await this.checkHealth();
+    })().catch(console.error);
 
     // Periodic checks
     this.checkInterval = setInterval(() => {
-      void this.checkHealth();
+      (async () => {
+        await this.checkHealth();
+      })().catch(console.error);
     }, intervalMs);
   }
   

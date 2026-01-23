@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import {

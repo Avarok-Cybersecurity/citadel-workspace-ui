@@ -31,6 +31,8 @@ import {
   UxIssueTracker,
   verifyConnectedBadgeInModal,
   closePeerDiscoveryModal,
+  restartBackendServices,
+  waitForWorkspaceLoaded,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -131,7 +133,11 @@ async function runTest(): Promise<boolean> {
   ensureScreenshotsDir();
   const uxTracker = new UxIssueTracker();
 
-  // Wait for services
+  // Restart backend services to clear stale sessions from previous test runs
+  // Both internal-service AND server persist user data in-memory
+  await restartBackendServices();
+
+  // Wait for services (restartBackendServices already calls this, but kept for safety)
   await waitForServicesAlive();
 
   // Log the test start
@@ -175,8 +181,10 @@ async function runTest(): Promise<boolean> {
     const page2 = await context.newPage();
 
     // Setup console capture - include ILM for InterSession Layer Messaging diagnostics
-    setupConsoleCapture(page1, 'Alice', ['P2P', 'error', 'Error', 'ILM', 'ism']);
-    setupConsoleCapture(page2, 'Bob', ['P2P', 'error', 'Error', 'ILM', 'ism']);
+    // Add 'Workspace' to capture workspace loading logs for debugging
+    // Add 'WASM' to capture WASM-side debug logs for HashMap serialization tracing
+    setupConsoleCapture(page1, 'Alice', ['P2P', 'error', 'Error', 'ILM', 'ism', 'Workspace', 'workspace', 'WASM']);
+    setupConsoleCapture(page2, 'Bob', ['P2P', 'error', 'Error', 'ILM', 'ism', 'Workspace', 'workspace', 'WASM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));
@@ -188,10 +196,28 @@ async function runTest(): Promise<boolean> {
       uxTracker,
     });
 
+    // CRITICAL: Verify Alice's workspace is visible before proceeding
+    // This ensures the connection is fully established and workspace data loaded
+    console.log('\n  Verifying Alice workspace is visible...');
+    const aliceWorkspaceLoaded = await waitForWorkspaceLoaded(page1, 60000);
+    if (!aliceWorkspaceLoaded) {
+      throw new Error('Alice workspace failed to load - account creation incomplete');
+    }
+    console.log('  ✓ Alice workspace loaded successfully');
+
     results.accountCreation.user2 = await createAccount(page2, USER2, {
       isFirstUser: false,
       uxTracker,
     });
+
+    // CRITICAL: Verify Bob's workspace is visible before proceeding
+    // This ensures Bob's connection is fully established (follower tab got responses)
+    console.log('\n  Verifying Bob workspace is visible...');
+    const bobWorkspaceLoaded = await waitForWorkspaceLoaded(page2, 60000);
+    if (!bobWorkspaceLoaded) {
+      throw new Error('Bob workspace failed to load - account creation incomplete');
+    }
+    console.log('  ✓ Bob workspace loaded successfully');
 
     // Wait for sessions to be fully established in Citadel SDK session manager
     console.log('\n  Waiting 10s for sessions to be fully established...');

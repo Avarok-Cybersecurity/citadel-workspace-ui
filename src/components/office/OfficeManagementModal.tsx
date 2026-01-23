@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import WorkspaceService from "@/lib/workspace-service";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface OfficeManagementModalProps {
   isOpen: boolean;

@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
-import { useGroupConversations } from '@/hooks/useGroupConversations';
+import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation, GroupSettings, GroupMessage } from '@/types/group';
 import { websocketService } from '@/lib/websocket-service';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -198,7 +198,9 @@ export function GroupChatPage() {
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        void handleSendMessage();
+        (async () => {
+          await handleSendMessage();
+        })().catch(console.error);
       }
     },
     [handleSendMessage]

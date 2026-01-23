@@ -10,8 +10,7 @@ import { DisconnectLoadingModal, type DisconnectStatus } from "./LoadingModal";
 import { useToast } from "@/hooks/use-toast";
 import { setSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
-import { instanceManager } from "@/lib/instance-manager";
-import { instanceChannel } from "@/lib/instance-channel";
+import { instanceManager, instanceChannel } from "@/lib/multi-instance";
 import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { notificationService, UnreadCountChange } from "@/lib/notification-service";
 import { eventEmitter } from "@/lib/event-emitter";
@@ -126,13 +125,15 @@ export const OrphanSessionsNavbar = () => {
 
   useEffect(() => {
     // Try to load immediately (will return empty if WebSocket not connected yet)
-    void loadActiveSessions();
+    (async () => {
+      await loadActiveSessions();
+    })().catch(console.error);
 
     // Also listen for WebSocket connection success to reload sessions
     // This handles the case where component mounts before WebSocket is ready
-    const unsubscribe = eventEmitter.on('on-ws-connection-success', () => {
+    const unsubscribe = eventEmitter.on('on-ws-connection-success', async () => {
       console.log('OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
-      void loadActiveSessions();
+      await loadActiveSessions();
     });
 
     return () => {
@@ -192,7 +193,7 @@ export const OrphanSessionsNavbar = () => {
       }
 
       // Update tab context to track which workspace this tab is viewing
-      void setSelectedUser({
+      await setSelectedUser({
         selectedUsername: session.username,
         selectedServerAddress: session.server_address,
         selectedCid: session.cid
@@ -227,8 +228,8 @@ export const OrphanSessionsNavbar = () => {
       console.log('OrphanSessionsNavbar: Emitted session:activated for ClaimSession');
 
       // Trigger workspace loading
-      void WorkspaceService.loadWorkspace();
-      void WorkspaceService.listOffices();
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices();
 
       // Navigate to the office page immediately
       navigate(getWorkspacePath());
@@ -277,7 +278,7 @@ export const OrphanSessionsNavbar = () => {
 
       // Mark as user-disconnected BEFORE disconnecting to prevent auto-reconnect race
       // This respects user intent - if they explicitly disconnect, don't auto-reconnect
-      serverAutoConnectService.markUserDisconnected(username, serverAddress);
+      await serverAutoConnectService.markUserDisconnected(username, serverAddress);
 
       // Stop WASM connection manager if this is the current session
       if (cid !== undefined && wasmConnectionManager.getCurrentCid() === cid.toString()) {

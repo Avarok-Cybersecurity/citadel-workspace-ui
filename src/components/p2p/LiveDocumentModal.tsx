@@ -44,7 +44,9 @@ export function LiveDocumentModal({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && title.trim()) {
-      void handleCreate();
+      (async () => {
+        await handleCreate();
+      })().catch(console.error);
     }
   };
 

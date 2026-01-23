@@ -49,7 +49,9 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
           console.error('Failed to load active sessions:', error);
         }
       };
-      void loadActiveSessions();
+      (async () => {
+        await loadActiveSessions();
+      })().catch(console.error);
       // Also refresh stored sessions
       setStoredSessions(connectionManager.getStoredSessionsArray());
     }

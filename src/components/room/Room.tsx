@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useWorkspace } from '../../lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
 import { User } from '../../types/workspace-entities';
 import { MDXProvider } from '@mdx-js/react';
@@ -14,7 +14,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
 import { FileText, MessageSquare } from 'lucide-react';
-import { usePermission } from '@/hooks/usePermission';
+import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
 import { connectionManager } from '@/lib/connection-manager';
@@ -52,9 +52,10 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   // Load tab session asynchronously
   useEffect(() => {
-    void connectionManager.getTabSelectedSession().then(session => {
+    (async () => {
+      const session = await connectionManager.getTabSelectedSession();
       setTabSession(session);
-    });
+    })().catch(console.error);
   }, []);
 
   // Fetch room data if not available
@@ -70,7 +71,9 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       }
     };
 
-    void fetchRoomData();
+    (async () => {
+      await fetchRoomData();
+    })().catch(console.error);
   }, [roomId, room, isLoading, officeId]);
 
   // Update content when room data changes
@@ -108,7 +111,9 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       }
     };
 
-    void compileContent();
+    (async () => {
+      await compileContent();
+    })().catch(console.error);
   }, [content]);
 
   // Handle saving MDX content

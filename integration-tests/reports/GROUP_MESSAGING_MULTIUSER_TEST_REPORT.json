@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-01-10T20:37:41.542Z",
+  "timestamp": "2026-01-16T22:21:28.923Z",
   "users": {
-    "user1": "grp_alice_1768077330879",
-    "user2": "grp_bob_1768077330879"
+    "user1": "grp_alice_1768601840819",
+    "user2": "grp_bob_1768601840819"
   },
   "office": "General",
   "room": "Random",
@@ -12,34 +12,34 @@
       "user2": true
     },
     "officeNavigation": {
-      "user1": true,
-      "user2": true
+      "user1": false,
+      "user2": false
     },
-    "officeChatEnabled": true,
+    "officeChatEnabled": false,
     "officeChatTab": {
-      "user1": true,
-      "user2": true
+      "user1": false,
+      "user2": false
     },
     "officeMessaging": {
-      "user1Sent": true,
-      "user2Received": true,
-      "user2Sent": true,
-      "user1Received": true
+      "user1Sent": false,
+      "user2Received": false,
+      "user2Sent": false,
+      "user1Received": false
     },
     "roomNavigation": {
-      "user1": true,
-      "user2": true
+      "user1": false,
+      "user2": false
     },
-    "roomChatEnabled": true,
+    "roomChatEnabled": false,
     "roomChatTab": {
-      "user1": true,
-      "user2": true
+      "user1": false,
+      "user2": false
     },
     "roomMessaging": {
-      "user1Sent": true,
-      "user2Received": true,
-      "user2Sent": true,
-      "user1Received": true
+      "user1Sent": false,
+      "user2Received": false,
+      "user2Sent": false,
+      "user1Received": false
     }
   },
   "uxIssues": [],

@@ -12,7 +12,9 @@ export function ConnectionsSettingsTab() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void loadSettings();
+    (async () => {
+      await loadSettings();
+    })().catch(console.error);
   }, []);
 
   const loadSettings = async () => {

@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
 import { Plus, MoreVertical, Star, Settings } from "lucide-react";
 import { useState } from "react";

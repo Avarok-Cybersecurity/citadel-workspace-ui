@@ -44,18 +44,21 @@ export async function restartBackendServices(options: {
   const startTime = Date.now();
 
   try {
-    // Use docker compose restart to fully restart containers
-    // This clears the in-memory state (unlike tilt trigger which hot-reloads)
+    // Use docker compose restart to restart containers WITHOUT rebuilding
+    // This clears the in-memory state while keeping the existing container images
+    // NOTE: tilt trigger rebuilds containers which can cause test failures
     console.log('\n  Restarting server container...');
     execSync('docker compose restart server', {
       stdio: 'inherit',
       cwd: getWorkspaceRoot(),
+      timeout: 60000,
     });
 
     console.log('  Restarting internal-service container...');
     execSync('docker compose restart internal-service', {
       stdio: 'inherit',
       cwd: getWorkspaceRoot(),
+      timeout: 60000,
     });
 
     // Wait for services to restart

@@ -56,7 +56,9 @@ export const Landing = () => {
       }
     };
 
-    void checkOrphanSessions();
+    (async () => {
+      await checkOrphanSessions();
+    })().catch(console.error);
   }, [navigate]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
@@ -80,7 +82,9 @@ export const Landing = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    void checkForServers();
+    (async () => {
+      await checkForServers();
+    })().catch(console.error);
   }, [checkForServers]);
 
   const handleServerNext = () => setCurrentStep('security');
@@ -91,14 +95,14 @@ export const Landing = () => {
     }
   };
   const handleSecurityBack = () => setCurrentStep('server');
-  const handleJoinNext = (cid: string) => {
+  const handleJoinNext = async (cid: string) => {
     console.info(`[Landing] handleJoinNext called with cid: ${cid}`);
     try {
       WorkspaceService.setConnectionId(BigInt(cid));
-      // Trigger loading - no need to await, WorkspaceEventHandler will handle events
+      // Trigger loading - await to ensure operations complete before navigation
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      void WorkspaceService.loadWorkspace();
-      void WorkspaceService.listOffices(); // Also trigger office loading
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices(); // Also trigger office loading
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
@@ -115,14 +119,14 @@ export const Landing = () => {
     // Allow login flow - username-specific conflict check happens in Login.tsx
     setCurrentStep('login');
   };
-  const handleLoginNext = (cid: string) => {
+  const handleLoginNext = async (cid: string) => {
     console.info(`[Landing] handleLoginNext called with cid: ${cid}`);
     try {
       WorkspaceService.setConnectionId(BigInt(cid));
-      // Trigger loading
+      // Trigger loading - await to ensure operations complete before navigation
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      void WorkspaceService.loadWorkspace();
-      void WorkspaceService.listOffices();
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices();
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {

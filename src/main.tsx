@@ -1,15 +1,16 @@
 import { createRoot } from 'react-dom/client'
-// Import fixed App
 import App from './App.tsx'
-// import TestApp from './TestApp.tsx'
 import './index.css'
-
-// Initialize tab notification service (updates tab title and favicon with unread count)
-import './lib/tab-notification-service'
 
 // Initialize WASM peer bridge (provides peer connection state to WASM ILM via JS callback)
 import { initWasmPeerBridge } from './lib/wasm-peer-bridge'
 initWasmPeerBridge();
+
+// Initialize instance inbound router (routes WebSocket responses to correct instance)
+// Must be imported early to set up event listeners before any messages are processed
+console.log('[Main] About to import instance-inbound-router...');
+import { instanceInboundRouter } from './lib/multi-instance';
+console.log('[Main] instance-inbound-router imported, active:', instanceInboundRouter.isRouterActive());
 
 console.log("main.tsx starting");
 

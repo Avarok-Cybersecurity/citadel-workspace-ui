@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { UserSearch, UserData } from '@/components/user/UserSearch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';

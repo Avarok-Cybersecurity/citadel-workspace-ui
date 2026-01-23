@@ -35,9 +35,9 @@ import {
 } from './chat-messaging-adapter';
 import {
   P2PMessengerManager,
-  P2PMessage,
   p2pMessengerManager,
-} from './p2p-messenger-manager';
+} from './p2p';
+import type { P2PMessage } from './p2p';
 import type { MessageType } from '@/types/message-protocol';
 
 /**

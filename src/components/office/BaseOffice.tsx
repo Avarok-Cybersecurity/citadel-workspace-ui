@@ -7,7 +7,7 @@ import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
 import { useLocation } from "react-router-dom";
-import { useWorkspace } from "../../lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
@@ -16,7 +16,7 @@ import { FileText, MessageSquare } from "lucide-react";
 import WorkspaceService from "@/lib/workspace-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GroupChatView from "@/components/chat/GroupChatView";
-import { usePermission } from "@/hooks/usePermission";
+import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection-manager";
 
@@ -49,9 +49,10 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
 
   // Load tab session asynchronously
   useEffect(() => {
-    void connectionManager.getTabSelectedSession().then(session => {
+    (async () => {
+      const session = await connectionManager.getTabSelectedSession();
       setTabSession(session);
-    });
+    })().catch(console.error);
   }, []);
 
   // Determine if we're in a loading state
@@ -140,7 +141,9 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
       }
     };
 
-    void compileContent();
+    (async () => {
+      await compileContent();
+    })().catch(console.error);
   }, [content]);
 
   // Handle template selection

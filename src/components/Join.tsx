@@ -128,9 +128,12 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         }, 10000); // Increased timeout
 
         const handler = (message: any) => {
-          console.log('Registration response received:', message);
-          console.log('Response content:', safeJSONStringify(message, 2));
-          console.log('Expected requestId:', requestId);
+          console.log('[ILM-TRACE] Join: Registration response received');
+          console.log('[ILM-TRACE] Join: Response type:', Object.keys(message)[0]);
+          console.log('[ILM-TRACE] Join: Expected requestId:', requestId);
+          const msgRequestId = message.ConnectSuccess?.request_id || message.Response?.ConnectSuccess?.request_id;
+          console.log('[ILM-TRACE] Join: Message requestId:', msgRequestId);
+          console.log('[ILM-TRACE] Join: requestId match:', msgRequestId === requestId);
           
           // Handle both wrapped and unwrapped responses
           // Try direct access first (for messages from internal service)
@@ -140,17 +143,28 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
             // Store the session for persistence with the CID
+            // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
+            // BEFORE resolving. This prevents race condition where WorkspaceApp's
+            // onConnectionChange fires before tab context is set.
+            console.log('[ILM-TRACE] Join: ConnectSuccess matched! CID:', message.ConnectSuccess.cid?.toString());
             const connectionManager = ConnectionManager.getInstance();
-            void connectionManager.handleAuthSuccess(
-              formData.username,
-              formData.password,
-              formData.fullName,
-              serverData.serverAddress,
-              serverData.password || "", // Server password from ServerConnect step
-              mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-              message.ConnectSuccess.cid
-            );
-            resolve({ cid: message.ConnectSuccess.cid });
+            (async () => {
+              console.log('[ILM-TRACE] Join: Calling handleAuthSuccess...');
+              await connectionManager.handleAuthSuccess(
+                formData.username,
+                formData.password,
+                formData.fullName,
+                serverData.serverAddress,
+                serverData.password || "", // Server password from ServerConnect step
+                mapSecuritySettings(securitySettings), // Map camelCase to snake_case
+                message.ConnectSuccess.cid
+              );
+              console.log('[ILM-TRACE] Join: handleAuthSuccess completed, resolving promise');
+              resolve({ cid: message.ConnectSuccess.cid });
+            })().catch(err => {
+              console.error('[ILM-TRACE] Join: handleAuthSuccess failed:', err);
+              reject(err);
+            });
           } else if (message.RegisterFailure && message.RegisterFailure.request_id === requestId) {
             resolved = true;
             clearTimeout(timeout);
@@ -175,6 +189,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             // Also check wrapped format (Response.RegisterSuccess)
             const response = message.Response || message;
             if (response !== message) {
+              console.log('[ILM-TRACE] Join: Checking wrapped format...');
               // It was wrapped, check again
               // Since connect_after_register is true, we'll receive ConnectSuccess
               if (response.ConnectSuccess && response.ConnectSuccess.request_id === requestId) {
@@ -182,17 +197,28 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 clearTimeout(timeout);
                 eventEmitter.off('websocket-message', handler);
                 // Store the session for persistence with the CID
+                // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
+                // BEFORE resolving. This prevents race condition where WorkspaceApp's
+                // onConnectionChange fires before tab context is set.
+                console.log('[ILM-TRACE] Join: Wrapped ConnectSuccess matched! CID:', response.ConnectSuccess.cid?.toString());
                 const connectionManager = ConnectionManager.getInstance();
-                void connectionManager.handleAuthSuccess(
-                  formData.username,
-                  formData.password,
-                  formData.fullName,
-                  serverData.serverAddress,
-                  serverData.password || "", // Server password from ServerConnect step
-                  mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-                  response.ConnectSuccess.cid
-                );
-                resolve({ cid: response.ConnectSuccess.cid });
+                (async () => {
+                  console.log('[ILM-TRACE] Join: Calling handleAuthSuccess (wrapped format)...');
+                  await connectionManager.handleAuthSuccess(
+                    formData.username,
+                    formData.password,
+                    formData.fullName,
+                    serverData.serverAddress,
+                    serverData.password || "", // Server password from ServerConnect step
+                    mapSecuritySettings(securitySettings), // Map camelCase to snake_case
+                    response.ConnectSuccess.cid
+                  );
+                  console.log('[ILM-TRACE] Join: handleAuthSuccess completed (wrapped), resolving promise');
+                  resolve({ cid: response.ConnectSuccess.cid });
+                })().catch(err => {
+                  console.error('[ILM-TRACE] Join: handleAuthSuccess failed (wrapped):', err);
+                  reject(err);
+                });
               } else if (response.RegisterFailure && response.RegisterFailure.request_id === requestId) {
                 resolved = true;
                 clearTimeout(timeout);

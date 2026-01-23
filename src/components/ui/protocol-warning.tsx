@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './alert';
 import { Button } from './button';
-import { useWorkspace } from '../../lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export const ProtocolWarning: React.FC = () => {
   const { state } = useWorkspace();
@@ -20,8 +20,6 @@ export const ProtocolWarning: React.FC = () => {
       
       return () => clearTimeout(timer);
     }
-    // Only timestamp matters for triggering the timer reset
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.protocolWarning?.timestamp]);
   
   if (!state.protocolWarning || !visible) {

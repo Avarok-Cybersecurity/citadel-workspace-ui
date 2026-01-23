@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import PreferencesDialog from "@/components/connection/PreferencesDialog";
 import NotificationCenter from "@/components/notification/NotificationCenter";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal } from "@/components/SettingsModal";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
@@ -73,7 +73,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     wasmConnectionManager.stop();
 
     // Just navigate to landing page, keep session active
-    void clearSelectedUser();
+    (async () => {
+      await clearSelectedUser();
+    })().catch(console.error);
     navigate('/');
 
     toast({
@@ -115,7 +117,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
 
       // Clear tab-specific user selection
-      void clearSelectedUser();
+      await clearSelectedUser();
 
       // Show ready status briefly before navigating
       setDisconnectStatus("ready");

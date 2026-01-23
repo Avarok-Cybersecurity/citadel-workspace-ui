@@ -4,6 +4,7 @@ import { connectionManager } from './connection-manager';
 import { getSelectedUser } from './tab-context';
 import { peerRegistrationStore } from './peer-registration-store';
 import { broadcastChannelService } from './broadcast-channel-service';
+import { instanceManager } from './multi-instance';
 import type {
   InternalServiceRequest,
   InternalServiceResponse
@@ -64,9 +65,11 @@ export class P2PRegistrationService {
   private registeredPeers = new Map<bigint, Peer>();
   private allPeers = new Map<bigint, Peer>();
   private pollingInterval: NodeJS.Timeout | null = null;
-  private pendingRequests = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  private pendingRequests = new Map<string, { resolve: Function; reject: Function }>();
   // Track outgoing registrations separately (peers WE registered with, not who registered with us)
   private outgoingRegistrations = new Set<bigint>();
+  // Track incoming registrations (peers who registered WITH us)
+  private incomingRegistrations = new Set<bigint>();
   // Guard to prevent concurrent checkAndRegisterPeers calls (prevents UI freezing from stacked operations)
   private isCheckingPeers = false;
 
@@ -89,20 +92,58 @@ export class P2PRegistrationService {
 
   /**
    * Get current CID with proper priority for multi-tab support:
-   * 1) Tab context selectedCid (set during session switch)
-   * 2) Tab session CID
-   * 3) Global connection CID (fallback)
+   * 1) InstanceManager CID (FIRST - synchronous, set by handleSuccessfulConnection)
+   * 2) Tab context selectedCid (IndexedDB - may hang on follower tabs)
+   * 3) Tab session CID (IndexedDB - may hang on follower tabs)
+   * 4) Global connection CID (legacy fallback)
+   *
+   * CRITICAL: InstanceManager.cid is checked FIRST because:
+   * - It's set synchronously in handleSuccessfulConnection (no async delays)
+   * - IndexedDB reads can hang indefinitely on follower tabs due to contention
+   * - For multi-tab scenarios, instanceManager is the reliable source of truth
    */
   private async getCurrentCid(): Promise<bigint | null> {
-    const tabSelection = await getSelectedUser();
-    if (tabSelection?.selectedCid) {
-      return tabSelection.selectedCid;
+    // 1) InstanceManager CID FIRST (bypasses IndexedDB, synchronous)
+    // This is the most reliable source for follower tabs
+    const instanceCid = instanceManager.cid;
+    console.log(`[P2P] getCurrentCid: instanceManager.cid=${instanceCid?.toString() ?? 'null'}`);
+    if (instanceCid) {
+      console.log(`[P2P] getCurrentCid: Using instanceManager.cid (primary): ${instanceCid}`);
+      return instanceCid;
     }
-    const tabSession = await connectionManager.getTabSelectedSession();
-    if (tabSession?.cid) {
-      return tabSession.cid;
+
+    // 2) Tab context from IndexedDB (only if instanceManager doesn't have CID yet)
+    // This helps during initial load before connection is established
+    try {
+      const tabSelectionPromise = getSelectedUser();
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
+      const tabSelection = await Promise.race([tabSelectionPromise, timeout]);
+      console.log(`[P2P] getCurrentCid: tabSelection=${JSON.stringify(tabSelection ? { selectedCid: tabSelection.selectedCid?.toString() } : null)}`);
+      if (tabSelection?.selectedCid) {
+        console.log(`[P2P] getCurrentCid: Using tabSelection.selectedCid: ${tabSelection.selectedCid}`);
+        return tabSelection.selectedCid;
+      }
+    } catch (e) {
+      console.warn('[P2P] getCurrentCid: getSelectedUser failed:', e);
     }
+
+    // 3) Tab session from stored sessions (with timeout to prevent hangs)
+    try {
+      const tabSessionPromise = connectionManager.getTabSelectedSession();
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
+      const tabSession = await Promise.race([tabSessionPromise, timeout]);
+      console.log(`[P2P] getCurrentCid: tabSession=${tabSession ? { cid: tabSession.cid?.toString() } : null}`);
+      if (tabSession?.cid) {
+        console.log(`[P2P] getCurrentCid: Using tabSession.cid: ${tabSession.cid}`);
+        return tabSession.cid;
+      }
+    } catch (e) {
+      console.warn('[P2P] getCurrentCid: getTabSelectedSession failed:', e);
+    }
+
+    // 4) Legacy global connection CID
     const connectionInfo = connectionManager.getConnectionInfo();
+    console.log(`[P2P] getCurrentCid: connectionInfo=${connectionInfo ? { cid: connectionInfo.cid?.toString() } : null}`);
     return connectionInfo?.cid || null;
   }
 
@@ -120,12 +161,64 @@ export class P2PRegistrationService {
     });
 
     // Listen for connection status changes
-    eventEmitter.on('connection:status-changed', ({ isConnected }: { isConnected: boolean }) => {
+    eventEmitter.on('connection:status-changed', async ({ isConnected }: { isConnected: boolean }) => {
       if (isConnected && this.isRunning) {
         // Resume auto-registration when connection is restored
-        void this.checkAndRegisterPeers();
+        await this.checkAndRegisterPeers();
       }
     });
+
+    // Listen for registeredPeers updates from leader (for follower tabs)
+    // This allows follower tabs to have synchronized registeredPeers state
+    // so the sidebar shows peers registered by the leader
+    eventEmitter.on('broadcast-state-sync', (data: any) => {
+      if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
+        const { peerCid, peerUsername, isOutgoing, isIncoming } = data;
+        if (peerCid !== undefined) {
+          const peerCidBigInt = BigInt(peerCid);
+          console.log(`[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername})`);
+          // Store locally without re-broadcasting (we're a follower)
+          this.setPeerRegisteredLocal(peerCidBigInt, peerUsername || '', isOutgoing, isIncoming);
+          // Emit event to trigger sidebar refresh on follower tabs
+          const peer: Peer = {
+            cid: peerCidBigInt,
+            username: peerUsername || `User ${peerCidBigInt.toString().slice(0, 8)}`,
+            fullName: peerUsername || `User ${peerCidBigInt.toString().slice(0, 8)}`,
+            isOnline: true,
+            isRegistered: true
+          };
+          eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing, isIncoming, fromBroadcast: true });
+        }
+      }
+    });
+  }
+
+  /**
+   * Set a peer as registered locally without broadcasting (used by followers).
+   */
+  private setPeerRegisteredLocal(peerCid: bigint, peerUsername: string, isOutgoing?: boolean, isIncoming?: boolean): void {
+    const peer: Peer = this.allPeers.get(peerCid) || {
+      cid: peerCid,
+      username: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
+      fullName: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
+      isOnline: true,
+      isRegistered: true
+    };
+    peer.isRegistered = true;
+    if (peerUsername && peerUsername !== 'Unknown' && !peerUsername.startsWith('User ')) {
+      peer.username = peerUsername;
+      peer.fullName = peerUsername;
+    }
+    this.registeredPeers.set(peerCid, peer);
+    if (!this.allPeers.has(peerCid)) {
+      this.allPeers.set(peerCid, peer);
+    }
+    if (isOutgoing) {
+      this.outgoingRegistrations.add(peerCid);
+    }
+    if (isIncoming) {
+      this.incomingRegistrations.add(peerCid);
+    }
   }
 
   private handleWebSocketMessage(message: any): void {
@@ -167,15 +260,42 @@ export class P2PRegistrationService {
 
       // Update peer registration status
       const peerCid: bigint | undefined = message.PeerRegisterSuccess.peer_cid;
+      const peerUsername: string | undefined = message.PeerRegisterSuccess.peer_username;
       if (peerCid !== undefined) {
         // Track this as an OUTGOING registration (WE registered with them)
         this.outgoingRegistrations.add(peerCid);
 
-        const peer = this.allPeers.get(peerCid);
-        if (peer) {
-          peer.isRegistered = true;
-          this.registeredPeers.set(peerCid, peer);
-          eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true });
+        // CRITICAL FIX: Create peer if not in allPeers, similar to "already registered" handler
+        // This ensures registeredPeers is populated even if allPeers hasn't been updated yet
+        const peer = this.allPeers.get(peerCid) || {
+          cid: peerCid,
+          username: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
+          fullName: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
+          isOnline: true,
+          isRegistered: true
+        };
+        peer.isRegistered = true;
+        // Update username if we got it from the response (backend provides peer_username)
+        if (peerUsername && (peer.username === 'Unknown' || peer.username.startsWith('User '))) {
+          peer.username = peerUsername;
+          peer.fullName = peerUsername;
+        }
+        this.registeredPeers.set(peerCid, peer);
+        // Also add to allPeers if not present
+        if (!this.allPeers.has(peerCid)) {
+          this.allPeers.set(peerCid, peer);
+        }
+        eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true });
+
+        // Broadcast to followers so their sidebar shows the registered peer
+        if (instanceManager.isLeader) {
+          console.log(`[P2P-SYNC] Leader broadcasting registeredPeers update to followers: ${peerCid.toString().slice(0, 8)}...`);
+          broadcastChannelService.broadcastStateSync({
+            type: 'registered-peer-update',
+            peerCid: peerCid.toString(),
+            peerUsername: peer.username,
+            isOutgoing: true,
+          });
         }
       }
     } else if (message.PeerRegisterFailure) {
@@ -206,6 +326,17 @@ export class P2PRegistrationService {
           peer.isRegistered = true;
           this.registeredPeers.set(peerCid, peer);
           eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true, wasAlreadyRegistered: true });
+
+          // Broadcast to followers so their sidebar shows the registered peer
+          if (instanceManager.isLeader) {
+            console.log(`[P2P-SYNC] Leader broadcasting registeredPeers (already registered) to followers: ${peerCid.toString().slice(0, 8)}...`);
+            broadcastChannelService.broadcastStateSync({
+              type: 'registered-peer-update',
+              peerCid: peerCid.toString(),
+              peerUsername: peer.username,
+              isOutgoing: true,
+            });
+          }
         }
 
         // Resolve the pending request as success (not reject!)
@@ -251,6 +382,17 @@ export class P2PRegistrationService {
         // 2. Emit event so UI updates (enables input field)
         eventEmitter.emit('p2p:peer-registered', { peer, isIncoming: true });
 
+        // 2.5. Broadcast to followers so their sidebar shows the registered peer
+        if (instanceManager.isLeader) {
+          console.log(`[P2P-SYNC] Leader broadcasting registeredPeers (notification) to followers: ${peerCid.toString().slice(0, 8)}...`);
+          broadcastChannelService.broadcastStateSync({
+            type: 'registered-peer-update',
+            peerCid: peerCid.toString(),
+            peerUsername: peer.username,
+            isIncoming: true,
+          });
+        }
+
         // 3. Check auto-accept setting to determine how to handle the registration
         // CRITICAL: Use notificationCid (recipient's CID from notification) instead of getCurrentCid()
         // This ensures correct behavior in multi-tab scenarios
@@ -272,7 +414,9 @@ export class P2PRegistrationService {
    * This ensures correct behavior in multi-tab scenarios where getCurrentCid() might return wrong tab's CID
    */
   private async handleIncomingRegistrationWithCid(notificationCid: bigint, peerCid: bigint, peerUsername?: string): Promise<void> {
-    const autoAccept = await this.getAutoAcceptSetting();
+    // CRITICAL: Pass notificationCid to getAutoAcceptSetting instead of letting it fetch via getCurrentCid()
+    // getCurrentCid() uses getSelectedUser() which can hang if IndexedDB is in a bad state
+    const autoAccept = await this.getAutoAcceptSetting(notificationCid);
 
     if (autoAccept) {
       // Auto-accept: Register back automatically
@@ -283,11 +427,19 @@ export class P2PRegistrationService {
       // Use the notification's cid (recipient's CID) instead of getCurrentCid()
       // This is critical for multi-tab scenarios where getCurrentCid() might return wrong tab's CID
       console.log(`[P2P] Adding registration from ${peerUsername || peerCid.toString()} to pending requests (recipient: ${notificationCid.toString()})`);
-      await peerRegistrationStore.handleIncomingRequest({
-        cid: notificationCid,
-        peer_cid: peerCid,
-        peer_username: peerUsername
-      });
+      console.log('[P2P] DEBUG: peerRegistrationStore exists:', !!peerRegistrationStore);
+      console.log('[P2P] DEBUG: handleIncomingRequest type:', typeof peerRegistrationStore?.handleIncomingRequest);
+      try {
+        await peerRegistrationStore.handleIncomingRequest({
+          cid: notificationCid,
+          peer_cid: peerCid,
+          peer_username: peerUsername
+        });
+        console.log('[P2P] DEBUG: handleIncomingRequest completed successfully');
+      } catch (error) {
+        console.error('[P2P] DEBUG: handleIncomingRequest threw error:', error);
+        throw error;
+      }
     }
   }
 
@@ -313,7 +465,9 @@ export class P2PRegistrationService {
 
     // Start polling
     this.pollingInterval = setInterval(() => {
-      void this.checkAndRegisterPeers(options);
+      (async () => {
+        await this.checkAndRegisterPeers(options);
+      })().catch(console.error);
     }, this.POLLING_INTERVAL);
 
     eventEmitter.emit('p2p:registration-service-started');
@@ -450,10 +604,13 @@ export class P2PRegistrationService {
    * List currently registered peers (single attempt)
    */
   public async listRegisteredPeers(): Promise<any[]> {
+    console.log('[P2P] listRegisteredPeers: called');
     // Use getCurrentCid() for proper multi-tab support
     const currentCid = await this.getCurrentCid();
+    console.log(`[P2P] listRegisteredPeers: currentCid=${currentCid?.toString() ?? 'null'}`);
     // CID 0 is the service connection, not a user session - skip P2P requests
     if (!currentCid || currentCid === 0n) {
+      console.warn('[P2P] listRegisteredPeers: No active user session, CID is null or 0');
       throw new Error('No active user session (CID 0 is service connection)');
     }
 
@@ -484,11 +641,33 @@ export class P2PRegistrationService {
     await websocketService.sendMessage(request);
     const response = await responsePromise;
 
-    // Convert Record<string, PeerInformation> to array
-    // Key is the peer CID, value.cid is incorrectly the current user's CID
-    // Also check for peer_username field as alternative to username
-    const peers = response.peers || {};
-    return Object.entries(peers).map(([peerCid, peerInfo]: [string, any]) => ({
+    // DEBUG: Log the raw response to understand the structure (use P2P prefix to match test filter)
+    console.log('[P2P-ListRegisteredPeers] Raw response:', JSON.stringify(response, (k, v) => typeof v === 'bigint' ? v.toString() : v));
+    console.log('[P2P-ListRegisteredPeers] response.peers type:', typeof response.peers);
+    console.log('[P2P-ListRegisteredPeers] response.peers instanceof Map:', response.peers instanceof Map);
+    console.log('[P2P-ListRegisteredPeers] response.peers keys:', response.peers ? Object.keys(response.peers) : 'N/A');
+
+    // Convert peers to array - handle both Map and Object formats
+    // Rust HashMap<u64, T> may deserialize as Map with BigInt keys or as Object with string keys
+    let peersArray: Array<[string, any]> = [];
+
+    if (response.peers instanceof Map) {
+      // Map with BigInt keys - iterate using Map's forEach
+      console.log('[P2P-ListRegisteredPeers] Processing as Map with', response.peers.size, 'entries');
+      response.peers.forEach((peerInfo: any, peerCid: any) => {
+        peersArray.push([peerCid.toString(), peerInfo]);
+      });
+    } else if (response.peers && typeof response.peers === 'object') {
+      // Regular object with string keys
+      console.log('[P2P-ListRegisteredPeers] Processing as Object with', Object.keys(response.peers).length, 'keys');
+      peersArray = Object.entries(response.peers);
+    } else {
+      console.log('[P2P-ListRegisteredPeers] response.peers is null/undefined/not-object');
+    }
+
+    console.log('[P2P-ListRegisteredPeers] Converted peers array length:', peersArray.length);
+
+    return peersArray.map(([peerCid, peerInfo]: [string, any]) => ({
       ...peerInfo,
       cid: peerCid,  // Override with the CORRECT peer CID from the key
       // Normalize username - backend may send as username or peer_username
@@ -755,11 +934,15 @@ export class P2PRegistrationService {
 
   /**
    * Get auto-accept setting from LocalDB
+   * @param cidOverride - Optional CID to use instead of fetching via getCurrentCid().
+   *                      Use this in notification handlers where the target CID is already known
+   *                      to avoid IndexedDB operations that could hang.
    * @returns true if auto-accept is enabled, false otherwise (default: false)
    */
-  public async getAutoAcceptSetting(): Promise<boolean> {
+  public async getAutoAcceptSetting(cidOverride?: bigint): Promise<boolean> {
     try {
-      const currentCid = await this.getCurrentCid();
+      // Use provided CID if available, otherwise fetch (can hang if IndexedDB is in bad state)
+      const currentCid = cidOverride ?? await this.getCurrentCid();
       if (!currentCid || currentCid === 0n) {
         return false;
       }

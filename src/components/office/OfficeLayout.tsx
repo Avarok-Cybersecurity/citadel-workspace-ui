@@ -3,7 +3,7 @@ import { MessageSquare, Search, Settings, Share2, Files } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { officeRooms } from "../layout/sidebar/RoomsSection";
 import { FileUploadButton } from "@/components/files/FileUploadButton";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 

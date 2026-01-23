@@ -12,7 +12,7 @@ import { GeneralTab } from './tabs/GeneralTab';
 import { MembersTab } from './tabs/MembersTab';
 import { ChatSettingsTab } from './tabs/ChatSettingsTab';
 import { AdminModalProps, AdminEntityType, EntityData } from './types';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 
 function getEntityIcon(entityType: AdminEntityType) {
@@ -113,7 +113,9 @@ export function AdminModal({
       }
     };
 
-    void loadEntity();
+    (async () => {
+      await loadEntity();
+    })().catch(console.error);
   }, [isOpen, entityType, entityId, state.workspace, state.offices, state.rooms]);
 
   const handleOpenChange = (open: boolean) => {

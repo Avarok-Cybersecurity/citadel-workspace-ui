@@ -83,9 +83,8 @@ export class EventEmitter {
   }
 }
 
-// Create a global event emitter instance
-export const globalEventEmitter = new EventEmitter();
-export const eventEmitter = globalEventEmitter; // Alias for compatibility
+// Global event emitter singleton
+export const eventEmitter = new EventEmitter();
 
 export async function listen<T = any>(
   event: string,
@@ -94,10 +93,10 @@ export async function listen<T = any>(
   const wrappedHandler = (payload: T) => {
     handler({ payload });
   };
-  
-  return globalEventEmitter.on(event, wrappedHandler);
+
+  return eventEmitter.on(event, wrappedHandler);
 }
 
 export async function emit<T = any>(event: string, payload: T): Promise<void> {
-  globalEventEmitter.emit(event, payload);
+  eventEmitter.emit(event, payload);
 }

@@ -39,7 +39,9 @@ export const Connect = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    void fetchServers();
+    (async () => {
+      await fetchServers();
+    })().catch(console.error);
   }, [fetchServers]);
 
   const handleConnect = async () => {

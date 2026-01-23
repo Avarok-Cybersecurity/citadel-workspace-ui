@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './alert';
 import { Button } from './button';
-import { useWorkspace } from '../../lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export const ErrorDisplay: React.FC = () => {
   const { state } = useWorkspace();

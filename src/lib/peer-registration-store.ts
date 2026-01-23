@@ -8,7 +8,7 @@
 import { eventEmitter } from './event-emitter';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection-manager';
-import { instanceManager } from './instance-manager';
+import { instanceManager } from './multi-instance';
 import { notificationService } from './notification-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { p2pRegistrationService } from './p2p-registration-service';
@@ -106,7 +106,7 @@ class PeerRegistrationStore {
 
     console.log('PeerRegistrationStore: Starting outgoing request poll loop (interval:', OUTGOING_POLL_INTERVAL_MS, 'ms)');
     this.pollIntervalId = setInterval(() => {
-      void this.pollAndResend().catch(err => {
+      this.pollAndResend().catch(err => {
         console.error('PeerRegistrationStore: Poll loop error:', err);
       });
     }, OUTGOING_POLL_INTERVAL_MS);
@@ -252,10 +252,24 @@ class PeerRegistrationStore {
    * Priority: 1) Tab context selectedCid (set during session switch), 2) StoredSession.cid, 3) Global connection CID
    */
   private async getCurrentSessionCid(): Promise<bigint | null> {
+    // CRITICAL: Try synchronous sources first to avoid IndexedDB hangs
+    // instanceManager.cid is synchronous and updated when the session connects
+    const instanceCid = instanceManager.cid;
+    if (instanceCid) {
+      return instanceCid;
+    }
+
+    // Fallback to connectionInfo (also synchronous)
+    const connectionInfo = connectionManager.getConnectionInfo();
+    if (connectionInfo?.cid) {
+      return connectionInfo.cid;
+    }
+
+    // Last resort: async methods (can hang if IndexedDB is in bad state)
+    // These are kept for edge cases but should rarely be needed
     const tabSelection = await getSelectedUser();
     const tabSession = await connectionManager.getTabSelectedSession();
-    const connectionInfo = connectionManager.getConnectionInfo();
-    return tabSelection?.selectedCid || tabSession?.cid || connectionInfo?.cid || null;
+    return tabSelection?.selectedCid || tabSession?.cid || null;
   }
 
   /**
@@ -274,10 +288,14 @@ class PeerRegistrationStore {
    */
   public async getPendingCount(): Promise<number> {
     const currentCid = await this.getCurrentSessionCid();
+    const allCount = this.pendingRequests.length;
     if (!currentCid) {
-      return this.pendingRequests.length;
+      console.log(`[P2P] PeerRegistrationStore getPendingCount: no currentCid, returning allCount=${allCount}`);
+      return allCount;
     }
-    return this.pendingRequests.filter(r => r.cid === currentCid).length;
+    const filteredCount = this.pendingRequests.filter(r => r.cid === currentCid).length;
+    console.log(`[P2P] PeerRegistrationStore getPendingCount: currentCid=${currentCid.toString()}, allCount=${allCount}, filteredCount=${filteredCount}`);
+    return filteredCount;
   }
 
   /**
@@ -396,6 +414,11 @@ class PeerRegistrationStore {
     peer_cid: bigint;
     peer_username?: string;
   }): Promise<void> {
+    console.log('[P2P] [PeerRegistrationStore] handleIncomingRequest ENTERED with:', {
+      cid: notification.cid?.toString(),
+      peer_cid: notification.peer_cid?.toString(),
+      peer_username: notification.peer_username
+    });
     const peerCid: bigint | undefined = notification.peer_cid;
     const peerUsername = notification.peer_username || 'Unknown';
     const notificationTargetCid: bigint | undefined = notification.cid;
@@ -435,7 +458,7 @@ class PeerRegistrationStore {
     };
 
     this.pendingRequests.push(request);
-    console.log('PeerRegistrationStore: Added pending request', request);
+    console.log('[P2P] PeerRegistrationStore: Added pending request', request);
 
     // Persist to LocalDB
     await this.persistToLocalDB();
@@ -907,7 +930,9 @@ class PeerRegistrationStore {
       console.log('PeerRegistrationStore: Session switched, refreshing notifications');
       // Delay slightly to ensure connectionManager has updated
       setTimeout(() => {
-        void this.refreshNotificationsForCurrentSession();
+        (async () => {
+          await this.refreshNotificationsForCurrentSession();
+        })().catch(console.error);
       }, 100);
     });
 
@@ -1013,7 +1038,11 @@ class PeerRegistrationStore {
    * Emit update event for UI components (filtered by current session)
    */
   private async emitUpdate(): Promise<void> {
+    const currentCid = await this.getCurrentSessionCid();
     const currentSessionRequests = await this.getPendingRequests();
+    console.log(`[P2P] PeerRegistrationStore emitUpdate: currentCid=${currentCid?.toString()}, pendingRequests.length=${this.pendingRequests.length}, filteredCount=${currentSessionRequests.length}`);
+    console.log(`[P2P] PeerRegistrationStore emitUpdate: pending request CIDs: [${this.pendingRequests.map(r => r.cid.toString()).join(', ')}]`);
+    console.log(`[P2P] PeerRegistrationStore emitting peer-requests:updated event with count=${currentSessionRequests.length}`);
     eventEmitter.emit('peer-requests:updated', {
       requests: currentSessionRequests,
       count: currentSessionRequests.length

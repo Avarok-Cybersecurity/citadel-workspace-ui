@@ -3,7 +3,7 @@ import { MarkdownBubble } from './MarkdownBubble';
 import { LiveDocumentBubble } from './LiveDocumentBubble';
 import { FileTransferBubble } from './FileTransferBubble';
 import { getBubbleContainerStyles } from './types';
-import type { P2PMessage } from '@/lib/p2p-messenger-manager';
+import type { P2PMessage } from '@/lib/p2p';
 
 interface MessageBubbleProps {
   message: P2PMessage;

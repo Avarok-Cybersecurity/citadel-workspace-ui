@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePermissions, Permission, PERMISSION_CATEGORIES } from '@/contexts/PermissionsContext';
 import type { UserRole } from '@/lib/permissions-service';
 import { cn } from '@/lib/utils';
@@ -196,7 +196,9 @@ function RoomPermissionSection({
   const role = getRole(roomId);
 
   useEffect(() => {
-    void fetchPermissionsForDomain(roomId);
+    (async () => {
+      await fetchPermissionsForDomain(roomId);
+    })().catch(console.error);
   }, [roomId, fetchPermissionsForDomain]);
 
   return (
@@ -232,7 +234,9 @@ function OfficePermissionSection({
   const role = getRole(officeId);
 
   useEffect(() => {
-    void fetchPermissionsForDomain(officeId);
+    (async () => {
+      await fetchPermissionsForDomain(officeId);
+    })().catch(console.error);
   }, [officeId, fetchPermissionsForDomain]);
 
   return (
@@ -290,7 +294,9 @@ export function PermissionsSettingsTab() {
   // Fetch workspace permissions on mount
   useEffect(() => {
     if (workspaceId) {
-      void fetchPermissionsForDomain(workspaceId);
+      (async () => {
+        await fetchPermissionsForDomain(workspaceId);
+      })().catch(console.error);
     }
   }, [workspaceId, fetchPermissionsForDomain]);
 

@@ -30,21 +30,19 @@ export default defineConfig(({ mode }) => {
           // Split vendor dependencies into separate chunks for better caching
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              // React ecosystem
-              if (id.includes('react-dom') || id.includes('react-router')) {
+              // React DOM only (react-router may import components that use the editor, so let it fall to default)
+              if (id.includes('react-dom') && !id.includes('react-router')) {
                 return 'vendor-react';
               }
               // Radix UI components
               if (id.includes('@radix-ui')) {
                 return 'vendor-ui';
               }
-              // Tiptap rich text editor (includes prosemirror)
-              if (id.includes('@tiptap') || id.includes('prosemirror')) {
-                return 'vendor-editor';
-              }
-              // Yjs collaboration
-              if (id.includes('/yjs/') || id.includes('y-prosemirror') || id.includes('y-protocols')) {
-                return 'vendor-yjs';
+              // Rich text editor + Yjs collaboration (combined to avoid circular chunk dependencies)
+              // y-prosemirror bridges yjs and prosemirror, @tiptap's collaboration uses yjs
+              if (id.includes('@tiptap') || id.includes('prosemirror') ||
+                  id.includes('/yjs/') || id.includes('y-prosemirror') || id.includes('y-protocols')) {
+                return 'vendor-collab';
               }
               // Serialization and storage
               if (id.includes('cbor-x') || id.includes('/idb/')) {
@@ -144,7 +142,8 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         // Explicit alias for WASM client to ensure proper resolution
-        "citadel-internal-service-wasm-client": path.resolve(__dirname, "./node_modules/citadel-internal-service-wasm-client"),
+        // Points to root node_modules since npm workspaces hoists dependencies
+        "citadel-internal-service-wasm-client": path.resolve(__dirname, "../node_modules/citadel-internal-service-wasm-client"),
       },
     },
 

@@ -102,7 +102,9 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
       setHasInitialized(true);
       // Start the first connection attempt using ref to avoid dependency on changing callback
       if (executeFnRef.current) {
-        void executeFnRef.current();
+        (async () => {
+          await executeFnRef.current!();
+        })().catch(console.error);
       }
     }
 
@@ -112,6 +114,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     }
     // NOTE: Intentionally NOT including execute in deps to prevent infinite re-triggering
     // The executeFnRef.current always has the latest execute function
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, hasInitialized, attempt]);
 
   // Handle countdown timer for auto-retry
@@ -138,9 +141,13 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
 
         // Use the ref to call retry (avoids dependency on changing callback reference)
         if (retryFnRef.current) {
-          void retryFnRef.current().finally(() => {
-            retryInProgressRef.current = false;
-          });
+          (async () => {
+            try {
+              await retryFnRef.current!();
+            } finally {
+              retryInProgressRef.current = false;
+            }
+          })().catch(console.error);
         }
       }
     };
@@ -171,9 +178,13 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     // Use ref for consistency with auto-retry path to avoid race conditions
     if (retryFnRef.current && !retryInProgressRef.current) {
       retryInProgressRef.current = true;
-      void retryFnRef.current().finally(() => {
-        retryInProgressRef.current = false;
-      });
+      (async () => {
+        try {
+          await retryFnRef.current!();
+        } finally {
+          retryInProgressRef.current = false;
+        }
+      })().catch(console.error);
     }
   };
 

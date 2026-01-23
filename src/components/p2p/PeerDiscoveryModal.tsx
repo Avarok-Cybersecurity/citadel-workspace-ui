@@ -8,7 +8,7 @@ import { websocketService } from '@/lib/websocket-service';
 import { connectionManager } from '@/lib/connection-manager';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser } from '@/lib/tab-context';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
@@ -49,12 +49,16 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       setCurrentCid(cid);
       setCurrentUsername(username);
     };
-    void loadConnectionInfo();
+    (async () => {
+      await loadConnectionInfo();
+    })().catch(console.error);
   }, [state.currentUser?.username]);
 
   useEffect(() => {
     if (isOpen) {
-      void discoverPeers();
+      (async () => {
+        await discoverPeers();
+      })().catch(console.error);
       // Load initial outgoing requests - convert bigint CIDs to strings
       const loadOutgoing = async () => {
         const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
@@ -62,10 +66,10 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         bigintCids.forEach(cid => stringCids.add(cid.toString()));
         setOutgoingRequests(stringCids);
       };
-      void loadOutgoing();
+      (async () => {
+        await loadOutgoing();
+      })().catch(console.error);
     }
-    // discoverPeers is stable (uses stable service methods)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Listen for outgoing request updates
@@ -97,7 +101,9 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
     // Initial load when modal opens
     if (isOpen) {
-      void updateIncomingRequests();
+      (async () => {
+        await updateIncomingRequests();
+      })().catch(console.error);
     }
 
     // Listen for updates
@@ -140,10 +146,10 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // Set up listener for incoming registration notifications
   // Delegate to peerRegistrationStore for persistence and non-disruptive UX
   useEffect(() => {
-    const handleIncomingRegistration = (message: any) => {
+    const handleIncomingRegistration = async (message: any) => {
       if (message.PeerRegisterNotification) {
         // Delegate to store - handles persistence, deduplication, and UI updates via badge
-        void peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification);
+        await peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification);
       }
     };
 
@@ -396,7 +402,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       await peerRegistrationStore.acceptRequest(request.id);
       // Toast removed - modal already shows success state
       // Refresh the registered peers list
-      void loadRegisteredPeers();
+      await loadRegisteredPeers();
     } catch (error) {
       toast({
         title: 'Failed to Accept',

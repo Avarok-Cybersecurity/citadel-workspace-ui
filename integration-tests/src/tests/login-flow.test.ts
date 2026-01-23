@@ -64,9 +64,9 @@ async function disconnectSession(page: Page, username: string, _uxTracker: UxIss
     // Wait for OrphanSessionsNavbar to load and show sessions
     await sleep(2000);
 
-    // Find the session icon by looking for a button with title containing the username
-    // OrphanSessionIcon uses title="${session.full_name || session.username} - ${workspaceName}"
-    const sessionIcon = page.locator(`button[title*="${username}"]`).first();
+    // Find the session icon by data-testid (most reliable way to target specific session)
+    // OrphanSessionIcon has data-testid="session-icon-{username}"
+    const sessionIcon = page.locator(`[data-testid="session-icon-${username}"]`);
 
     if (await sessionIcon.isVisible({ timeout: 5000 }).catch(() => false)) {
       console.log('  Found session icon, hovering to reveal disconnect button...');
@@ -76,15 +76,16 @@ async function disconnectSession(page: Page, username: string, _uxTracker: UxIss
       await sleep(500);
 
       // Click the disconnect button (the X button in the corner)
-      // It has title="Disconnect from workspace"
-      const disconnectBtn = page.locator('button[title="Disconnect from workspace"]').first();
+      // IMPORTANT: Use data-testid to target the SPECIFIC session's disconnect button
+      // This prevents accidentally disconnecting a different orphan session from previous test runs
+      const disconnectBtn = page.locator(`[data-testid="disconnect-button-${username}"]`);
 
       if (await disconnectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await disconnectBtn.click();
         await sleep(1000);
 
-        // Handle the disconnect confirmation modal
-        const confirmBtn = page.locator('button:has-text("Disconnect Only")');
+        // Handle the disconnect confirmation modal - click "Disconnect" to fully disconnect
+        const confirmBtn = page.locator('button:has-text("Disconnect")').first();
         if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
           await confirmBtn.click();
           await sleep(2000);
@@ -94,20 +95,20 @@ async function disconnectSession(page: Page, username: string, _uxTracker: UxIss
       }
     }
 
-    // Alternative: Try to find any session icon if specific one not found
-    // The OrphanSessionsNavbar has a container with the class "relative group"
-    const anySessionIcon = page.locator('.relative.group button').first();
-    if (await anySessionIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log('  Found any session icon, hovering to reveal disconnect button...');
-      await anySessionIcon.hover();
+    // Alternative: Try to find the session by data-testid container
+    // Each OrphanSessionIcon has data-testid="session-icon-{username}"
+    const sessionContainer = page.locator(`[data-testid="session-icon-${username}"]`);
+    if (await sessionContainer.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log('  Found session container by data-testid, hovering to reveal disconnect button...');
+      await sessionContainer.hover();
       await sleep(500);
 
-      const disconnectBtn = page.locator('button[title="Disconnect from workspace"]').first();
+      const disconnectBtn = page.locator(`[data-testid="disconnect-button-${username}"]`);
       if (await disconnectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await disconnectBtn.click();
         await sleep(1000);
 
-        const confirmBtn = page.locator('button:has-text("Disconnect Only")');
+        const confirmBtn = page.locator('button:has-text("Disconnect")').first();
         if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
           await confirmBtn.click();
           await sleep(2000);
@@ -122,25 +123,41 @@ async function disconnectSession(page: Page, username: string, _uxTracker: UxIss
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
     await sleep(3000);
 
-    // Try again after navigating to landing
-    const sessionIconOnLanding = page.locator(`button[title*="${username}"]`).first();
+    // Try again after navigating to landing - use specific data-testid selectors
+    const sessionIconOnLanding = page.locator(`[data-testid="session-icon-${username}"]`);
     if (await sessionIconOnLanding.isVisible({ timeout: 5000 }).catch(() => false)) {
       console.log('  Found session icon on landing page, disconnecting...');
       await sessionIconOnLanding.hover();
       await sleep(500);
 
-      const disconnectBtn = page.locator('button[title="Disconnect from workspace"]').first();
+      // Use data-testid to target the SPECIFIC session's disconnect button
+      const disconnectBtn = page.locator(`[data-testid="disconnect-button-${username}"]`);
       if (await disconnectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log('  Clicking X button to open disconnect modal...');
         await disconnectBtn.click();
-        await sleep(1000);
+        await sleep(2000); // Wait longer for modal to render
 
-        const confirmBtn = page.locator('button:has-text("Disconnect Only")');
+        // Take screenshot to see what's on screen
+        await page.screenshot({ path: 'screenshots/disconnect_modal_state.png' });
+
+        // Debug: List all buttons with "Disconnect" text
+        const allDisconnectBtns = await page.locator('button:has-text("Disconnect")').all();
+        console.log(`  Found ${allDisconnectBtns.length} buttons with "Disconnect" text`);
+
+        // Look for the modal's Disconnect button specifically - it's yellow/outline styled
+        const confirmBtn = page.locator('button:has-text("Disconnect")').first();
         if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+          console.log('  Found Disconnect button, clicking...');
           await confirmBtn.click();
-          await sleep(2000);
+          console.log('  Waiting for disconnect to complete...');
+          await sleep(5000); // Wait longer for disconnect to process
           console.log('  Session disconnected successfully');
           return true;
+        } else {
+          console.log('  ERROR: Disconnect button not visible in modal');
         }
+      } else {
+        console.log('  ERROR: X button not visible');
       }
     }
 
@@ -342,8 +359,8 @@ async function runTest(): Promise<boolean> {
   try {
     const page = await context.newPage();
 
-    // Setup console capture
-    setupConsoleCapture(page, 'LoginTest', ['error', 'Error', 'Login', 'Connect', 'Disconnect']);
+    // Setup console capture - include workspace debugging keywords
+    setupConsoleCapture(page, 'LoginTest', ['error', 'Error', 'Login', 'Connect', 'Disconnect', 'WorkspaceService', 'WorkspaceLoader', 'workspace:', 'WorkspaceResponseHandler', 'MessageNotification']);
 
     // ========== STEP 1: Register new account ==========
     console.log('\n' + '─'.repeat(50));
@@ -371,8 +388,15 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 2: Disconnect Session (First Time)');
     console.log('─'.repeat(50));
 
+    // Close any modals that might be blocking (e.g., workspace init modal)
+    await closeAnyModals(page);
+
     results.disconnect1 = await disconnectSession(page, USERNAME, uxTracker);
     await takeScreenshot(page, '02_disconnected_1');
+
+    if (!results.disconnect1) {
+      throw new Error('Disconnect (1st) failed - aborting test');
+    }
 
     // After disconnect, we should be on the landing page or still on office
     // Navigate to landing explicitly to ensure clean state
@@ -388,11 +412,17 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
     await takeScreenshot(page, '03_logged_in_1');
 
-    if (results.login1) {
-      await closeAnyModals(page);
-      await checkForErrors(page, 'login 1', uxTracker);
-      results.workspaceLoad1 = await verifyWorkspaceLoaded(page, USERNAME);
-      await takeScreenshot(page, '04_workspace_loaded_1');
+    if (!results.login1) {
+      throw new Error('Login (1st) failed - aborting test');
+    }
+
+    await closeAnyModals(page);
+    await checkForErrors(page, 'login 1', uxTracker);
+    results.workspaceLoad1 = await verifyWorkspaceLoaded(page, USERNAME);
+    await takeScreenshot(page, '04_workspace_loaded_1');
+
+    if (!results.workspaceLoad1) {
+      throw new Error('Workspace Load (1st) failed - aborting test');
     }
 
     // Wait for workspace to stabilize
@@ -403,8 +433,15 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 4: Disconnect Session (Second Time)');
     console.log('─'.repeat(50));
 
+    // Close any modals that might be blocking
+    await closeAnyModals(page);
+
     results.disconnect2 = await disconnectSession(page, USERNAME, uxTracker);
     await takeScreenshot(page, '05_disconnected_2');
+
+    if (!results.disconnect2) {
+      throw new Error('Disconnect (2nd) failed - aborting test');
+    }
 
     // Navigate to landing explicitly
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
@@ -419,11 +456,17 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
     await takeScreenshot(page, '06_logged_in_2');
 
-    if (results.login2) {
-      await closeAnyModals(page);
-      await checkForErrors(page, 'login 2', uxTracker);
-      results.workspaceLoad2 = await verifyWorkspaceLoaded(page, USERNAME);
-      await takeScreenshot(page, '07_workspace_loaded_2');
+    if (!results.login2) {
+      throw new Error('Login (2nd) failed - aborting test');
+    }
+
+    await closeAnyModals(page);
+    await checkForErrors(page, 'login 2', uxTracker);
+    results.workspaceLoad2 = await verifyWorkspaceLoaded(page, USERNAME);
+    await takeScreenshot(page, '07_workspace_loaded_2');
+
+    if (!results.workspaceLoad2) {
+      throw new Error('Workspace Load (2nd) failed - aborting test');
     }
 
     // ========== RESULTS ==========

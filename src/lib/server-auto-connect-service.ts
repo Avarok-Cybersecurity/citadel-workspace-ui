@@ -10,7 +10,7 @@
 
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
-import { instanceManager } from './instance-manager';
+import { instanceManager } from './multi-instance';
 import { getSelectedUser } from './tab-context';
 import type { StoredSession, StoredSessions, ActiveSession } from '@/types/session-types';
 import { v4 as uuidv4 } from 'uuid';
@@ -66,12 +66,7 @@ export class ServerAutoConnectService {
       this.isInitialized = true;
       console.log(`ServerAutoConnect: Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ${this.userDisconnectedSessions.size})`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Key not found')) {
-        console.debug('ServerAutoConnect: No stored settings found, using defaults');
-      } else {
-        console.warn('ServerAutoConnect: Failed to load settings, using defaults:', error);
-      }
+      console.warn('ServerAutoConnect: Failed to load settings, using defaults:', error);
       this.isEnabled = true; // Default to enabled
       this.isInitialized = true;
     }
@@ -97,12 +92,7 @@ export class ServerAutoConnectService {
         }
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Key not found')) {
-        console.debug('ServerAutoConnect: No disconnected sessions found, using empty set');
-      } else {
-        console.warn('ServerAutoConnect: Failed to load user disconnected sessions:', error);
-      }
+      console.warn('ServerAutoConnect: Failed to load user disconnected sessions:', error);
       // Keep empty set as default
     }
   }
@@ -140,9 +130,9 @@ export class ServerAutoConnectService {
     });
 
     // Handle connection success/failure from websocket messages
-    eventEmitter.on('websocket-message', (message: any) => {
+    eventEmitter.on('websocket-message', async (message: any) => {
       if (message.ConnectSuccess) {
-        this.handleConnectionSuccess(message.ConnectSuccess);
+        await this.handleConnectionSuccess(message.ConnectSuccess);
       }
       if (message.ConnectFailure) {
         this.handleConnectionFailure(message.ConnectFailure);
@@ -183,12 +173,7 @@ export class ServerAutoConnectService {
         return decoded === 'true';
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Key not found')) {
-        console.debug('ServerAutoConnect: No enabled setting found, using default: true');
-      } else {
-        console.warn('ServerAutoConnect: Failed to load enabled setting:', error);
-      }
+      console.warn('ServerAutoConnect: Failed to load enabled setting:', error);
     }
 
     return true; // Default: enabled
@@ -252,7 +237,7 @@ export class ServerAutoConnectService {
       return;
     }
 
-    void this.reconnectToDisconnectedSessions().catch((err) => {
+    this.reconnectToDisconnectedSessions().catch((err) => {
       console.error('ServerAutoConnect: Poll failed:', err);
     });
   }
@@ -382,7 +367,9 @@ export class ServerAutoConnectService {
     this.reconnectAttempts.set(sessionKey, attempt);
 
     // Attempt immediately for first try
-    void this.attemptReconnect(sessionKey, session);
+    (async () => {
+      await this.attemptReconnect(sessionKey, session);
+    })().catch(console.error);
   }
 
   /**
@@ -420,7 +407,9 @@ export class ServerAutoConnectService {
 
       // Schedule retry
       attempt.timeout = setTimeout(() => {
-        void this.attemptReconnect(sessionKey, session);
+        (async () => {
+          await this.attemptReconnect(sessionKey, session);
+        })().catch(console.error);
       }, delay);
 
       this.reconnectAttempts.set(sessionKey, attempt);
@@ -430,7 +419,7 @@ export class ServerAutoConnectService {
   /**
    * Handle successful connection
    */
-  private handleConnectionSuccess(connectSuccess: any): void {
+  private async handleConnectionSuccess(connectSuccess: any): Promise<void> {
     const cid = connectSuccess.cid?.toString();
     const username = connectSuccess.username;
     const serverAddress = connectSuccess.server_addr;
@@ -442,8 +431,8 @@ export class ServerAutoConnectService {
       // Clear user-disconnected status since user is now connected
       if (this.userDisconnectedSessions.has(sessionKey)) {
         this.userDisconnectedSessions.delete(sessionKey);
-        // Persist to LocalDB (fire-and-forget to avoid blocking)
-        void this.persistUserDisconnectedSessions();
+        // Persist to LocalDB
+        await this.persistUserDisconnectedSessions();
       }
       console.log(`ServerAutoConnect: Connection successful for ${username}`);
     }
@@ -479,12 +468,12 @@ export class ServerAutoConnectService {
    * Call this when user explicitly disconnects via UI.
    * Respects user intent - if they disconnected, don't auto-reconnect.
    */
-  public markUserDisconnected(username: string, serverAddress: string): void {
+  public async markUserDisconnected(username: string, serverAddress: string): Promise<void> {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.add(sessionKey);
     this.cancelRetry(sessionKey);
-    // Persist to LocalDB (fire-and-forget to avoid blocking)
-    void this.persistUserDisconnectedSessions();
+    // Persist to LocalDB
+    await this.persistUserDisconnectedSessions();
     console.log(`ServerAutoConnect: Marked ${username} as user-disconnected (won't auto-reconnect, persisted to LocalDB)`);
   }
 
@@ -492,11 +481,11 @@ export class ServerAutoConnectService {
    * Clear user-disconnected status for a session.
    * Called when user successfully logs in manually.
    */
-  public clearUserDisconnected(username: string, serverAddress: string): void {
+  public async clearUserDisconnected(username: string, serverAddress: string): Promise<void> {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.delete(sessionKey);
-    // Persist to LocalDB (fire-and-forget to avoid blocking)
-    void this.persistUserDisconnectedSessions();
+    // Persist to LocalDB
+    await this.persistUserDisconnectedSessions();
     console.log(`ServerAutoConnect: Cleared user-disconnected status for ${username} (persisted to LocalDB)`);
   }
 

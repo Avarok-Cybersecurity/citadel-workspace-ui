@@ -49,7 +49,9 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
 
     const file = e.dataTransfer.files[0];
     if (file) {
-      void handleFile(file);
+      (async () => {
+        await handleFile(file);
+      })().catch(console.error);
     }
   }, [disabled, handleFile]);
 
@@ -76,7 +78,9 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      void handleFile(file);
+      (async () => {
+        await handleFile(file);
+      })().catch(console.error);
     }
     // Reset input so the same file can be selected again
     e.target.value = '';

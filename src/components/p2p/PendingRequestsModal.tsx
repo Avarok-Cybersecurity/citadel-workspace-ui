@@ -42,7 +42,9 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     };
 
     // Initial load
-    void updateRequests();
+    (async () => {
+      await updateRequests();
+    })().catch(console.error);
 
     // Listen for updates
     eventEmitter.on('peer-requests:updated', updateRequests);

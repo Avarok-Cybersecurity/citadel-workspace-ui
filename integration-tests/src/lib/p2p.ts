@@ -302,47 +302,69 @@ export async function acceptP2PRequest(
   await waitForWorkspaceLoaded(page, 30000);
   await sleep(3000); // Give more time for P2P notification to arrive
 
-  // Look for pending request badge - Badge component has title attribute and bg-red-500 class
-  // The Badge is NOT a button, it's a div/span from shadcn/ui
-  let badge = page.locator('[title*="pending connection request"]').first();
-
-  if (!await badge.isVisible({ timeout: 3000 }).catch(() => false)) {
-    console.log('  Badge by title not found, trying bg-red-500 class...');
-    // Fallback: look for any element with bg-red-500 class (the badge color)
-    badge = page.locator('.bg-red-500').first();
-  }
+  // Look for pending request badge using specific selector
+  // The badge is in the sidebar with data-testid="pending-requests-badge"
+  // We MUST find and click this specific badge to open the Pending Requests modal
+  const badgeSelector = '[data-testid="pending-requests-badge"]';
+  console.log(`  Looking for badge with selector: ${badgeSelector}`);
 
   // Wait longer for the badge to appear - P2P registration notification may take time
-  const MAX_WAIT_ATTEMPTS = 10;
+  const MAX_WAIT_ATTEMPTS = 20;
   for (let i = 0; i < MAX_WAIT_ATTEMPTS; i++) {
-    if (await badge.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log(`  Found pending request badge (attempt ${i + 1})`);
+    const badge = page.locator(badgeSelector).first();
+    const isVisible = await badge.isVisible({ timeout: 1000 }).catch(() => false);
+
+    if (isVisible) {
+      console.log(`  ✓ Found pending request badge (attempt ${i + 1})`);
+      await takeScreenshot(page, `${username}_found_badge`);
+
+      // Click the badge to open the Pending Requests modal
+      console.log(`  Clicking badge to open modal...`);
       await badge.click();
       await sleep(2000);
 
-      await takeScreenshot(page, `${username}_pending_requests`);
+      await takeScreenshot(page, `${username}_pending_requests_modal`);
 
-      const acceptBtn = page.locator('button:has-text("Accept")');
-      if (await acceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await acceptBtn.click();
-        await sleep(3000);
-        console.log(`  P2P request accepted`);
+      // Wait for modal to open - look for the "Pending Connection Requests" title
+      const modalTitle = page.locator('text="Pending Connection Requests"');
+      if (await modalTitle.isVisible({ timeout: 3000 }).catch(() => false)) {
+        console.log(`  ✓ Modal opened successfully`);
 
-        await page.keyboard.press('Escape');
-        await sleep(500);
-        return true;
-      } else {
-        if (uxTracker) {
-          uxTracker.log('major', 'functional', 'Accept button not found in pending requests modal');
+        // Find and click the Accept button
+        const acceptBtn = page.locator('button:has-text("Accept")').first();
+        if (await acceptBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+          console.log(`  ✓ Found Accept button, clicking...`);
+          await acceptBtn.click();
+          await sleep(3000);
+          console.log(`  ✓ P2P request accepted!`);
+
+          await takeScreenshot(page, `${username}_after_accept`);
+          await page.keyboard.press('Escape');
+          await sleep(500);
+          return true;
+        } else {
+          console.log(`  ✗ Accept button not found in modal`);
+          await takeScreenshot(page, `${username}_no_accept_button`);
+          if (uxTracker) {
+            uxTracker.log('major', 'functional', 'Accept button not found in pending requests modal');
+          }
         }
-        break;
+      } else {
+        console.log(`  ✗ Modal did not open after clicking badge`);
+        await takeScreenshot(page, `${username}_modal_not_opened`);
       }
+
+      // Close any open modals and continue
+      await page.keyboard.press('Escape');
+      await sleep(500);
     }
+
     console.log(`  Waiting for pending request badge... (${i + 1}/${MAX_WAIT_ATTEMPTS})`);
     await sleep(2000);
   }
 
-  console.log(`  No pending P2P request badge found after ${MAX_WAIT_ATTEMPTS} attempts`);
+  console.log(`  ✗ No pending P2P request badge found after ${MAX_WAIT_ATTEMPTS} attempts`);
+  await takeScreenshot(page, `${username}_no_badge_found`);
   await closeAnyModals(page);
   return false;
 }
@@ -396,41 +418,64 @@ export async function openConversation(
 
   // Wait for peer to appear in sidebar
   for (let attempt = 0; attempt < 15; attempt++) {
-    // Look in DIRECT MESSAGES section
-    const dmSection = page.locator('text="DIRECT MESSAGES"').locator('..').locator('..');
-    const peerInDM = dmSection.locator(`text="${peerUsername}"`).first();
+    // FIXED: Use SidebarGroup ancestor for section-relative search
+    // The header and peer list are siblings within SidebarGroup, not parent-child
+    // So we need to find the SidebarGroup containing the section header, then search within it
 
-    if (await peerInDM.isVisible({ timeout: 1000 }).catch(() => false)) {
-      console.log(`  Found ${peerUsername} in DIRECT MESSAGES`);
-      await peerInDM.click();
+    // Strategy 1: Look in sidebar for the peer username directly (most reliable)
+    // The peer is rendered in a SidebarMenuButton with the username as text
+    const sidebarPeer = page.locator(`[data-sidebar="menu-button"]:has-text("${peerUsername}")`).first();
+    if (await sidebarPeer.isVisible({ timeout: 1000 }).catch(() => false)) {
+      console.log(`  Found ${peerUsername} in sidebar via menu-button`);
+      await sidebarPeer.click();
       await sleep(2000);
-      // Wait for P2PChat component to fully mount by checking for the message input
       await waitForChatReady(page, peerUsername);
       await takeScreenshot(page, `${username}_conversation_opened`);
       return true;
     }
 
-    // Also check WORKSPACE MEMBERS section
-    const wsSection = page.locator('text="WORKSPACE MEMBERS"').locator('..').locator('..');
-    const peerInWS = wsSection.locator(`text="${peerUsername}"`).first();
-
-    if (await peerInWS.isVisible({ timeout: 500 }).catch(() => false)) {
-      console.log(`  Found ${peerUsername} in WORKSPACE MEMBERS`);
-      await peerInWS.click();
+    // Strategy 2: Look in CONNECTED PEERS section using proper ancestor traversal
+    // Go up to SidebarGroup (data-sidebar="group") which contains both header and content
+    const connectedPeersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("CONNECTED PEERS"))');
+    const peerInConnected = connectedPeersGroup.locator(`text="${peerUsername}"`).first();
+    if (await peerInConnected.isVisible({ timeout: 500 }).catch(() => false)) {
+      console.log(`  Found ${peerUsername} in CONNECTED PEERS section`);
+      await peerInConnected.click();
       await sleep(2000);
-      // Wait for P2PChat component to fully mount by checking for the message input
       await waitForChatReady(page, peerUsername);
       await takeScreenshot(page, `${username}_conversation_opened`);
       return true;
     }
 
-    // Try button match
+    // Strategy 3: Look in WORKSPACE MEMBERS section
+    const workspaceMembersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("WORKSPACE MEMBERS"))');
+    const peerInWorkspace = workspaceMembersGroup.locator(`text="${peerUsername}"`).first();
+    if (await peerInWorkspace.isVisible({ timeout: 500 }).catch(() => false)) {
+      console.log(`  Found ${peerUsername} in WORKSPACE MEMBERS section`);
+      await peerInWorkspace.click();
+      await sleep(2000);
+      await waitForChatReady(page, peerUsername);
+      await takeScreenshot(page, `${username}_conversation_opened`);
+      return true;
+    }
+
+    // Strategy 4: Try button match anywhere in the page
     const peerBtn = page.locator(`button:has-text("${peerUsername}")`).first();
     if (await peerBtn.isVisible({ timeout: 500 }).catch(() => false)) {
       console.log(`  Found ${peerUsername} via button`);
       await peerBtn.click();
       await sleep(2000);
-      // Wait for P2PChat component to fully mount by checking for the message input
+      await waitForChatReady(page, peerUsername);
+      await takeScreenshot(page, `${username}_conversation_opened`);
+      return true;
+    }
+
+    // Strategy 5: Just look for any element with the peer's username text
+    const peerText = page.locator(`text="${peerUsername}"`).first();
+    if (await peerText.isVisible({ timeout: 500 }).catch(() => false)) {
+      console.log(`  Found ${peerUsername} via text match`);
+      await peerText.click();
+      await sleep(2000);
       await waitForChatReady(page, peerUsername);
       await takeScreenshot(page, `${username}_conversation_opened`);
       return true;
@@ -548,8 +593,8 @@ export async function connectP2P(
     // Wait for connection to establish
     await sleep(3000);
 
-    // Verify peer in sidebar (DIRECT MESSAGES section)
-    const dmSection = page.locator('text="DIRECT MESSAGES"').locator('..').locator('..');
+    // Verify peer in sidebar (CONNECTED PEERS section)
+    const dmSection = page.locator('text="CONNECTED PEERS"').locator('..').locator('..');
     const peerInSidebar = dmSection.locator(`text="${peerUsername}"`).first();
 
     const peerVisible = await peerInSidebar.isVisible({ timeout: 5000 }).catch(() => false);

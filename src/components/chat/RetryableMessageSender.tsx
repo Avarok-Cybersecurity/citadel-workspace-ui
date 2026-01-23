@@ -3,7 +3,7 @@ import { Send, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useRetry } from '../../hooks/use-retry';
-import { useWorkspace } from '../../lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Alert, AlertDescription } from '../ui/alert';
 import { MessagingService } from '../../lib/messaging-service';
 
@@ -86,7 +86,9 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
 
     // If there's text and the user is typing
     if (inputValue.length > 0) {
-      void handleTypingStarted();
+      (async () => {
+        await handleTypingStarted();
+      })().catch(console.error);
     } else if (isTyping) {
       // If the input is cleared, stop typing immediately
       setIsTyping(false);

@@ -1,39 +1,28 @@
-import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
-import { eventEmitter } from './event-emitter';
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { broadcastChannelService } from './broadcast-channel-service';
+import { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { connectionManager } from './connection-manager';
 import { debugLog, errorLog } from './debug-config';
-import { normalizeHeaderObfuscatorSettings } from './security-utils';
-import { resolveServerAddress } from './address-resolver';
 
 // New multi-instance architecture imports
-import { instanceManager } from './instance-manager';
-import { instanceChannel } from './instance-channel';
-import { leaderOutboundHandler } from './leader-outbound-handler';
-import { instanceInboundRouter } from './instance-inbound-router';
+import { instanceManager, instanceChannel, instanceInboundRouter } from './multi-instance';
+
+// Extracted modules
+import {
+  LocalDBOperations,
+  SessionManagement,
+  FilePicker,
+  P2POperations,
+  MessengerOperations,
+  DisconnectOperations,
+  AuthOperations,
+  WebSocketInitialization,
+  WorkspaceOperations,
+  GLOBAL_INIT_KEY
+} from './websocket';
 
 export interface WebSocketServiceConfig {
   websocketUrl?: string;
-  messageHandler?: (message: any) => void;
+  messageHandler?: (message: unknown) => void;
   errorHandler?: (error: Error) => void;
-}
-
-// Helper function to convert string to byte array
-function stringToByteArray(str: string): number[] {
-  return Array.from(new TextEncoder().encode(str));
-}
-
-// Global state to prevent multiple WASM client initializations
-const GLOBAL_INIT_KEY = '__citadel_wasm_client_init__';
-declare global {
-  interface Window {
-    [GLOBAL_INIT_KEY]?: {
-      promise: Promise<void>;
-      initialized: boolean;
-      client: WorkspaceClient | null;
-    };
-  }
 }
 
 class WebSocketService {
@@ -41,6 +30,17 @@ class WebSocketService {
   private config: WebSocketServiceConfig;
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
+
+  // Extracted modules
+  private readonly localDB: LocalDBOperations;
+  private readonly sessionMgmt: SessionManagement;
+  private readonly filePicker: FilePicker;
+  private readonly p2pOps: P2POperations;
+  private readonly messengerOps: MessengerOperations;
+  private readonly disconnectOps: DisconnectOperations;
+  private readonly authOps: AuthOperations;
+  private readonly initOps: WebSocketInitialization;
+  private readonly workspaceOps: WorkspaceOperations;
 
   /** Get the client, throwing if not initialized */
   private get assertClient(): WorkspaceClient {
@@ -56,13 +56,79 @@ class WebSocketService {
       messageHandler: config.messageHandler,
       errorHandler: config.errorHandler,
     };
+
+    // Initialize extracted modules with dependency injection
+    const moduleConfig = {
+      init: () => this.init(),
+      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req, reqId),
+      getClient: () => this.client,
+    };
+
+    this.localDB = new LocalDBOperations(moduleConfig);
+    this.sessionMgmt = new SessionManagement(moduleConfig);
+    this.filePicker = new FilePicker(moduleConfig);
+
+    // P2P operations config
+    const p2pConfig = {
+      init: () => this.init(),
+      sendMessage: (msg: unknown) => this.sendMessage(msg),
+      isLeader: () => instanceManager.isLeader,
+    };
+    this.p2pOps = new P2POperations(p2pConfig);
+
+    // Messenger operations config
+    const messengerConfig = {
+      init: () => this.init(),
+      getClient: () => this.client,
+    };
+    this.messengerOps = new MessengerOperations(messengerConfig);
+
+    // Disconnect operations config
+    const disconnectConfig = {
+      init: () => this.init(),
+      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req, reqId),
+    };
+    this.disconnectOps = new DisconnectOperations(disconnectConfig);
+
+    // Auth operations config
+    const authConfig = {
+      init: () => this.init(),
+      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req, reqId),
+      claimSession: (cid: bigint, onlyIfOrphaned: boolean) => this.claimSession(cid, onlyIfOrphaned),
+      disconnect: (cid: bigint) => this.disconnect(cid),
+    };
+    this.authOps = new AuthOperations(authConfig);
+
+    // Initialization operations config
+    const initConfig = {
+      websocketUrl: this.config.websocketUrl!,
+      messageHandler: this.config.messageHandler,
+      errorHandler: this.config.errorHandler,
+      onClientCreated: (client: WorkspaceClient) => {
+        this.client = client;
+        this.isInitialized = true;
+      },
+      onClientReset: () => {
+        this.client = null;
+        this.isInitialized = false;
+        this.initializationPromise = null;
+      },
+      releaseSession: (cid: bigint) => this.releaseSession(cid),
+    };
+    this.initOps = new WebSocketInitialization(initConfig);
+
+    // Workspace operations config
+    const workspaceConfig = {
+      init: () => this.init(),
+      getClient: () => this.client,
+    };
+    this.workspaceOps = new WorkspaceOperations(workspaceConfig);
   }
 
   async init(): Promise<void> {
     // Check global state first - silent return if already initialized (normal path)
     if (window[GLOBAL_INIT_KEY]?.initialized) {
       this.isInitialized = true;
-      // Retrieve the shared client instance
       if (window[GLOBAL_INIT_KEY].client) {
         this.client = window[GLOBAL_INIT_KEY].client;
       }
@@ -72,30 +138,6 @@ class WebSocketService {
     if (this.isInitialized) {
       debugLog('websocket', 'Service already initialized');
       return;
-    }
-
-    // Check global initialization promise
-    if (window[GLOBAL_INIT_KEY]?.promise) {
-      debugLog('websocket', 'Service initialization already in progress globally, waiting...');
-      try {
-        await window[GLOBAL_INIT_KEY].promise;
-        this.isInitialized = true;
-        // Retrieve the shared client instance
-        if (window[GLOBAL_INIT_KEY]?.client) {
-          this.client = window[GLOBAL_INIT_KEY].client;
-        }
-        return;
-      } catch (error) {
-        errorLog('Global initialization failed:', error);
-        // Clear the global state to allow retry
-        window[GLOBAL_INIT_KEY] = undefined;
-        
-        // Emit connection-failure event
-        const errorMessage = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
-        eventEmitter.emit('connection-failure', { error: errorMessage });
-        
-        throw error;
-      }
     }
 
     // Prevent concurrent initialization attempts
@@ -114,406 +156,74 @@ class WebSocketService {
 
     try {
       await this.initializationPromise;
-      // Mark as initialized globally
       if (window[GLOBAL_INIT_KEY]) {
         window[GLOBAL_INIT_KEY].initialized = true;
       }
     } catch (error) {
-      // Clear global state on error
       window[GLOBAL_INIT_KEY] = undefined;
-      
-      // Emit connection-failure event
-      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
-      eventEmitter.emit('connection-failure', { error: errorMessage });
-      
       throw error;
-    } finally {
-      // Keep the promise to prevent re-initialization
-      // this.initializationPromise = null;
     }
   }
 
   private async _doInit(): Promise<void> {
     debugLog('websocket', 'WASM client initialization starting...');
-    
+
     // Set up WASM debug bridge before initializing client
     const { setupWasmDebugBridge } = await import('./wasm-debug-bridge');
     setupWasmDebugBridge();
-    
-    const clientConfig: WorkspaceClientConfig = {
-      websocketUrl: this.config.websocketUrl!,
-      messageHandler: (rawMessage: InternalServiceResponse) => {
-        // With serde-wasm-bindgen and ts_rs bigint annotations, WASM returns native BigInt for u64 CID fields
-        const message = rawMessage;
 
-        debugLog('websocket', 'Message received from WASM client', message);
+    // Wait for leader election to settle
+    debugLog('websocket', 'Waiting for leader election to settle...');
+    await this.initOps.waitForLeaderElection();
 
-        // DEBUG: Log Connect responses specifically
-        const resp = (message as any).Response || message;
-        if ('ConnectSuccess' in resp) {
-          console.log('[WS-MSG] ConnectSuccess received:', resp.ConnectSuccess);
-        } else if ('ConnectFailure' in resp) {
-          console.log('[WS-MSG] ConnectFailure received:', resp.ConnectFailure);
-        }
+    const isLeader = instanceManager.isLeader;
+    debugLog('websocket', `Leader election complete. This tab is ${isLeader ? 'LEADER' : 'FOLLOWER'}`);
 
-        // NEW: Route inbound messages through instance inbound router
-        // The router will forward to the correct instance based on CID
-        if (instanceManager.isLeader) {
-          instanceInboundRouter.routeMessage(message);
-        }
-
-        // Legacy: Broadcast the message to other tabs if we're the leader
-        // This is being replaced by instanceInboundRouter but kept for compatibility
-        if (broadcastChannelService.getIsLeader()) {
-          broadcastChannelService.broadcastWorkspaceResponse(message);
-        }
-
-        // Forward the response to the handler
-        if (this.config.messageHandler) {
-          this.config.messageHandler(message);
-        }
-
-        // Also emit events for compatibility
-        eventEmitter.emit('websocket-message', message);
-      },
-      errorHandler: this.config.errorHandler,
-    };
-
-    try {
-      debugLog('websocket', 'Creating WorkspaceClient with config', clientConfig);
-      this.client = new WorkspaceClient(clientConfig);
-      await this.client.init();
+    if (!isLeader) {
+      this.initOps.initializeAsFollower();
       this.isInitialized = true;
-
-      // Notify all listeners that WebSocket connection is ready
-      // Services can now safely use WebSocket for their initialization
-      eventEmitter.emit('on-ws-connection-success');
-
-      // Store client in global state for sharing across instances
-      if (window[GLOBAL_INIT_KEY]) {
-        window[GLOBAL_INIT_KEY].client = this.client;
-      }
-
-      // NEW: Register the direct send function with leader outbound handler
-      // This allows the handler to send messages when this instance is leader
-      leaderOutboundHandler.setWebSocketSendFunction(async (message: any) => {
-        if (this.client) {
-          await this.client.sendDirectToInternalService(message);
-        }
-      });
-      debugLog('websocket', 'Registered send function with leader outbound handler');
-
-      // Listen for WebSocket disconnection to stop the message processing loop
-      // This prevents the UI from freezing when the WebSocket dies
-      // Also reset initialization state to allow re-initialization on next connect
-      eventEmitter.on('websocket-disconnected', async () => {
-        debugLog('websocket', 'WebSocket disconnected event received, stopping message processing and resetting state');
-        if (this.client) {
-          this.client.stopMessageProcessing();
-          // CRITICAL: Call close() to reset WASM internal state
-          // This ensures is_initialized() returns false, allowing init() to succeed on reconnect
-          // Without this, the WASM module's workspace_state remains Some(...) and init() fails
-          // with "Already initialized" error when user tries to login again
-          try {
-            await this.client.close();
-            debugLog('websocket', 'WASM client closed successfully');
-          } catch (closeError) {
-            // Ignore errors during close - the connection is already dead
-            debugLog('websocket', 'WASM client close error (ignored):', closeError);
-          }
-          this.client = null;
-        }
-        // Reset initialization state to allow re-initialization
-        // This is critical for scenarios like sign-out + re-login where the WebSocket
-        // closes but the page stays open (no page reload)
-        this.isInitialized = false;
-        this.initializationPromise = null;
-        // Clear global state to allow full re-initialization
-        window[GLOBAL_INIT_KEY] = undefined;
-        debugLog('websocket', 'WebSocket service state reset after disconnection');
-      });
-
-      // Listen for session release requests (from instance-channel when last tab with a CID closes)
-      eventEmitter.on('session:release-request', ({ cid }: { cid: bigint }) => {
-        debugLog('websocket', `Session release requested for CID ${cid.toString()}`);
-        this.releaseSession(cid);
-      });
-
-      debugLog('websocket', 'WASM client initialization completed successfully');
-    } catch (error) {
-      errorLog('Error initializing WorkspaceClient:', error);
       this.client = null;
-      this.isInitialized = false;
-
-      // Emit connection-failure event for UI to handle
-      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
-      eventEmitter.emit('connection-failure', { error: errorMessage });
-
-      throw error;
+      return;
     }
+
+    // LEADER: Create the WebSocket connection
+    this.client = await this.initOps.createWebSocketAsLeader();
+    this.isInitialized = true;
   }
 
-  async connect(requestId: string, username: string, password: string, serverAddr: string, serverPassword?: string, sessionSecuritySettings?: any): Promise<void> {
-    await this.init(); // ensure initialized
-
-    // Resolve hostname to IP if needed (DNS resolution)
-    const resolvedAddr = await resolveServerAddress(serverAddr);
-    console.log(`[Connect] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
-
-    // Clear user-disconnected status on explicit login attempt
-    // This allows users to log back in after explicitly disconnecting
-    // userDisconnectedSessions is for AUTO-reconnect prevention, not blocking explicit login
-    const { serverAutoConnectService } = await import('./server-auto-connect-service');
-    serverAutoConnectService.clearUserDisconnected(username, resolvedAddr);
-
-    // STEP 1: Check if session already exists
-    console.log(`[Connect] Checking for existing session: ${username}@${resolvedAddr}`);
-
-    try {
-      const { connectionManager } = await import('./connection-manager');
-      const activeSessions = await connectionManager.getActiveSessions();
-
-      const existingSession = activeSessions.find(
-        s => s.username === username && s.server_address === resolvedAddr
-      );
-
-      if (existingSession) {
-        console.log(`[Connect] Found existing session CID ${existingSession.cid}`);
-
-        // STEP 2: Check if session is orphaned
-        // Heuristic: Session is likely orphaned if it exists in GetSessions
-        // but we don't have a stored CID for it, OR if workspace load fails
-        const { connectionManager: cm } = await import('./connection-manager');
-        const storedSession = cm.getStoredSessions().sessions.find(
-          s => s.username === username && s.serverAddress === resolvedAddr
-        );
-
-        const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid;
-
-        if (isOrphaned) {
-          // STEP 3a: Session is orphaned → Claim it
-          console.log(`[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
-          await this.claimSession(existingSession.cid, false);
-          return; // Early return - session claimed successfully
-        } else {
-          // STEP 3b: Session exists but NOT orphaned → Disconnect then Connect
-          console.warn(`[Connect] Session exists but not orphaned - disconnecting first`);
-          // disconnect() now waits for DisconnectNotification signal before resolving
-          // No artificial delay needed - backend confirmed cleanup via signal
-          await this.disconnect(existingSession.cid);
-          // Fall through to connect
-        }
-      }
-    } catch (error) {
-      // If GetSessions or session check fails, log and continue with Connect
-      console.warn(`[Connect] Session check failed, proceeding with Connect:`, error);
-    }
-
-    // STEP 4: No existing session OR after disconnect → Proceed with Connect
-    console.log(`[Connect] Proceeding with new connection for ${username}`);
-
-    // Create proper connect options for WorkspaceClient
-    // TODO: use @avarok/citadel-protocol-types to inform the combinations below for:
-    // UdpMode, ConnectMode, SessionSecuritySettings (SecurityLevel, Secrecy Mode, Crypto Params (Encryption algorithm, kem algorithm, sig algorithm)), header obfuscation settings
-    // These type all should exist inside that package ready to be slotted inside the UI components for anywhere they're required, not just connect.
-    const connectOptions = {
-      request_id: requestId,
-      server_addr: resolvedAddr,
-      username,
-      password: stringToByteArray(password),
-      connect_mode: { Standard: { force_login: true } } as any,
-      udp_mode: "Disabled" as any,
-      keep_alive_timeout: null,
-      // Use provided session security settings or defaults
-      session_security_settings: {
-        security_level: sessionSecuritySettings?.securityLevel || "Standard",
-        secrecy_mode: sessionSecuritySettings?.secrecyMode || "BestEffort",
-        header_obfuscator_settings: normalizeHeaderObfuscatorSettings(sessionSecuritySettings?.headerObfuscatorSettings),
-        crypto_params: {
-          encryption_algorithm: sessionSecuritySettings?.encryptionAlgorithm || "AES_GCM_256",
-          kem_algorithm: sessionSecuritySettings?.kemAlgorithm || "Kyber",
-          sig_algorithm: sessionSecuritySettings?.sigAlgorithm || "None"
-        },
-      },
-      server_password: serverPassword || null
-    };
-
-    // Send connect request directly to avoid the waitForResponse handler replacement issue
-    const connectRequest = {
-      Connect: connectOptions
-    };
-
-    // DEBUG: Log the connect request being sent
-    console.log(`[Connect] Sending Connect request with request_id: ${requestId}`);
-    console.log(`[Connect] WebSocket client initialized: ${this.isInitialized}, client exists: ${!!this.client}`);
-
-    // Send directly to internal service without using the problematic waitForResponse pattern
-    try {
-      await this.assertClient.sendDirectToInternalService(connectRequest);
-      console.log(`[Connect] Connect request sent successfully for ${username}`);
-    } catch (sendError) {
-      console.error(`[Connect] FAILED to send Connect request:`, sendError);
-      throw sendError;
-    }
+  async connect(
+    requestId: string,
+    username: string,
+    password: string,
+    serverAddr: string,
+    serverPassword?: string,
+    sessionSecuritySettings?: Record<string, unknown>
+  ): Promise<void> {
+    return this.authOps.connect(requestId, username, password, serverAddr, serverPassword, sessionSecuritySettings);
   }
 
-  async register(requestId: string, username: string, password: string, fullName: string, server_addr: string, server_password?: string, sessionSecuritySettings?: any): Promise<void> {
-    await this.init(); // ensure initialized
-
-    // Resolve hostname to IP if needed (DNS resolution)
-    const resolvedAddr = await resolveServerAddress(server_addr);
-    console.log(`[Register] Resolved address: ${server_addr} -> ${resolvedAddr}`);
-
-    const registerOptions = {
-      request_id: requestId,
-      server_addr: resolvedAddr,
-      full_name: fullName,
-      username,
-      proposed_password: stringToByteArray(password),
-      connect_after_register: true, // Establish connection immediately after registration
-      // Use provided session security settings or defaults
-      session_security_settings: {
-        security_level: sessionSecuritySettings?.securityLevel || "Standard",
-        secrecy_mode: sessionSecuritySettings?.secrecyMode || "BestEffort",
-        header_obfuscator_settings: normalizeHeaderObfuscatorSettings(sessionSecuritySettings?.headerObfuscatorSettings),
-        crypto_params: {
-          encryption_algorithm: sessionSecuritySettings?.encryptionAlgorithm || "AES_GCM_256",
-          kem_algorithm: sessionSecuritySettings?.kemAlgorithm || "Kyber",
-          sig_algorithm: sessionSecuritySettings?.sigAlgorithm || "None"
-        },
-      },
-      server_password: server_password || null
-    };
-
-    debugLog('websocket', 'Sending register options to WASM client', registerOptions);
-    
-    // Send register request directly to avoid the waitForResponse handler replacement issue
-    const registerRequest = {
-      Register: registerOptions
-    };
-    
-    // Send directly to internal service without using the problematic waitForResponse pattern
-    await this.assertClient.sendDirectToInternalService(registerRequest);
+  async register(
+    requestId: string,
+    username: string,
+    password: string,
+    fullName: string,
+    serverAddr: string,
+    serverPassword?: string,
+    sessionSecuritySettings?: Record<string, unknown>
+  ): Promise<void> {
+    return this.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings);
   }
 
-
-  async sendWorkspaceRequest(cid: bigint, request: any): Promise<void> {
-    await this.init(); // ensure initialized
-
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required to send workspace request');
-    }
-
-    // Use WorkspaceClient's sendWorkspaceRequest method
-    await this.assertClient.sendWorkspaceRequest(cid, request);
+  async sendWorkspaceRequest(cid: bigint, request: unknown): Promise<void> {
+    return this.workspaceOps.sendWorkspaceRequest(cid, request);
   }
 
   async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> {
-    await this.init(); // ensure initialized
-
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required to send P2P message');
-    }
-
-    if (targetCid === undefined || targetCid === null) {
-      throw new Error('Target CID (peer_cid) is required to send P2P message');
-    }
-
-    // Log the exact values being used
-    console.log('[P2P] sendP2PMessage called with:', {
-      cid: cid.toString(),
-      cidType: typeof cid,
-      targetCid: targetCid.toString(),
-      targetCidType: typeof targetCid,
-      messageLength: message.length
-    });
-
-    // Create InternalServiceRequest::Message with peer_cid to route to P2P channel
-    const messageRequest = {
-      Message: {
-        request_id: crypto.randomUUID(),
-        message: Array.from(new TextEncoder().encode(message)),
-        cid: cid,
-        peer_cid: targetCid,
-        security_level: 'Standard'
-      }
-    };
-
-    console.log('[P2P] messageRequest before conversion:', JSON.stringify(messageRequest, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    ));
-
-    debugLog('websocket', 'Sending P2P message', { cid: cid.toString(), targetCid: targetCid.toString(), messageLength: message.length });
-
-    // Use sendMessage which handles BigInt conversion properly
-    await this.sendMessage(messageRequest);
+    return this.p2pOps.sendP2PMessage(cid, targetCid, message);
   }
 
   async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> {
-    await this.init(); // ensure initialized
-
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required to open P2P connection');
-    }
-
-    if (cid === targetCid) {
-      throw new Error('Cannot open P2P connection to self');
-    }
-
-    debugLog('websocket', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
-
-    // Send PeerConnect request to establish P2P channel
-    const requestId = crypto.randomUUID();
-    const peerConnectRequest = {
-      PeerConnect: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: targetCid,
-        udp_mode: 'Disabled',
-        session_security_settings: {
-          security_level: 'Standard',
-          secrecy_mode: 'BestEffort',
-          crypto_params: {
-            encryption_algorithm: 'AES_GCM_256',
-            kem_algorithm: 'Kyber',
-            sig_algorithm: 'None'
-          },
-          header_obfuscator_settings: 'Disabled'
-        }
-      }
-    };
-
-    // Send the request and wait for success/failure
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('PeerConnect request timed out'));
-      }, 30000);
-
-      const handler = (message: any) => {
-        if ('PeerConnectSuccess' in message && message.PeerConnectSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'P2P connection established', { targetCid: targetCid.toString() });
-          resolve();
-        } else if ('PeerConnectFailure' in message && message.PeerConnectFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          const error = message.PeerConnectFailure.message || 'PeerConnect failed';
-          errorLog('P2P connection failed:', error);
-          reject(new Error(error));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      // Send the request
-      this.sendMessage(peerConnectRequest).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
-    });
+    return this.p2pOps.openP2PConnection(cid, targetCid);
   }
 
   /**
@@ -523,73 +233,8 @@ class WebSocketService {
    * @param peerCid - The peer who initiated the connection
    * @param notification - The original PeerConnectNotification (for session_security_settings and udp_mode)
    */
-  async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: any): Promise<void> {
-    await this.init(); // ensure initialized
-
-    if (cid === undefined || cid === null || peerCid === undefined || peerCid === null) {
-      throw new Error('CID and peerCid are required to accept P2P connection');
-    }
-
-    debugLog('websocket', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
-
-    const requestId = crypto.randomUUID();
-    const acceptRequest = {
-      PeerConnectAccept: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: peerCid,
-        accept: true,
-        udp_mode: notification?.udp_mode || 'Disabled',
-        session_security_settings: notification?.session_security_settings || {
-          security_level: 'Standard',
-          secrecy_mode: 'BestEffort',
-          crypto_params: {
-            encryption_algorithm: 'AES_GCM_256',
-            kem_algorithm: 'Kyber',
-            sig_algorithm: 'None'
-          },
-          header_obfuscator_settings: 'Disabled'
-        },
-        peer_session_password: null
-      }
-    };
-
-    // Send the request and wait for success/failure (with shorter timeout since it should be fast)
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        // Don't reject on timeout - this is a best-effort accept
-        console.warn('PeerConnectAccept timed out - continuing with PeerConnect fallback');
-        resolve();
-      }, 10000);
-
-      const handler = (message: any) => {
-        if ('PeerConnectAcceptSuccess' in message && message.PeerConnectAcceptSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'P2P connection accept sent', { peerCid });
-          resolve();
-        } else if ('PeerConnectAcceptFailure' in message && message.PeerConnectAcceptFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          const error = message.PeerConnectAcceptFailure.message || 'PeerConnectAccept failed';
-          // Don't reject - we'll fall back to PeerConnect
-          console.warn('PeerConnectAccept failed:', error, '- will use PeerConnect fallback');
-          resolve();
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      // Send the request
-      this.sendMessage(acceptRequest).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        // Don't reject - we'll fall back to PeerConnect
-        console.warn('Failed to send PeerConnectAccept:', error);
-        resolve();
-      });
-    });
+  async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> {
+    return this.p2pOps.acceptPeerConnect(cid, peerCid, notification);
   }
 
   /**
@@ -600,112 +245,26 @@ class WebSocketService {
    * @param peerCid - The peer to disconnect from
    */
   async disconnectP2P(localCid: bigint, peerCid: bigint): Promise<void> {
-    await this.init(); // ensure initialized
-
-    if (localCid === undefined || localCid === null) {
-      throw new Error('Local CID is required to disconnect P2P');
-    }
-
-    if (peerCid === undefined || peerCid === null) {
-      throw new Error('Peer CID is required to disconnect P2P');
-    }
-
-    debugLog('websocket', 'Disconnecting P2P connection', { localCid: localCid.toString(), peerCid: peerCid.toString() });
-
-    const requestId = crypto.randomUUID();
-    const peerDisconnectRequest = {
-      PeerDisconnect: {
-        request_id: requestId,
-        cid: localCid,
-        peer_cid: peerCid
-      }
-    };
-
-    // Send the request and wait for success/failure
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('PeerDisconnect request timed out'));
-      }, 10000);
-
-      const handler = (message: any) => {
-        // Check for PeerDisconnectSuccess with matching request_id
-        if ('PeerDisconnectSuccess' in message && message.PeerDisconnectSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'P2P disconnect successful', { peerCid: peerCid.toString() });
-          resolve();
-        }
-        // Also accept DisconnectNotification with matching peer_cid (peer-initiated disconnect)
-        else if ('DisconnectNotification' in message) {
-          const notification = message.DisconnectNotification;
-          if (notification.request_id === requestId ||
-              notification.peer_cid === peerCid) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            debugLog('websocket', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
-            resolve();
-          }
-        }
-        // Check for PeerDisconnectFailure with matching request_id
-        else if ('PeerDisconnectFailure' in message && message.PeerDisconnectFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          const error = message.PeerDisconnectFailure.message || 'PeerDisconnect failed';
-          errorLog('P2P disconnect failed:', error);
-          reject(new Error(error));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      // Send the request
-      this.sendMessage(peerDisconnectRequest).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
-    });
+    return this.p2pOps.disconnectP2P(localCid, peerCid);
   }
 
   /**
    * Open a messenger handle for the given CID.
    * Creates an ISM (InterSession Messaging) channel for reliable-ordered messaging.
-   * Must be called once at login and maintained via polling (ensureMessengerOpen).
    * NOTE: This does NOT establish a P2P connection - it only creates a local messaging handle.
-   * To establish a P2P connection, use openP2PConnection() which sends PeerConnect.
    * @param cid - The CID to open the messenger for
    */
   async openMessengerFor(cid: bigint): Promise<void> {
-    await this.init(); // ensure initialized
-
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required to open messenger');
-    }
-
-    debugLog('websocket', 'Opening messenger handle for CID', { cid: cid.toString() });
-
-    // Call the WorkspaceClient's openMessengerFor which directly calls WASM's open_messenger_for
-    // This creates a messenger.multiplex(cid) handle for ISM routing
-    // Convert bigint to string for WASM client
-    await this.assertClient.openMessengerFor(cid.toString());
+    return this.messengerOps.openMessengerFor(cid);
   }
 
   /**
    * Ensures a messenger handle is open for the given CID.
    * Returns true if the messenger was just opened, false if already open.
-   * Use this for polling to maintain messenger handles across leader/follower tab transitions.
    * @param cid - The CID to ensure messenger is open for
    */
   async ensureMessengerOpen(cid: bigint): Promise<boolean> {
-    await this.init(); // ensure initialized
-
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required');
-    }
-
-    // Convert bigint to string for WASM client
-    return await this.assertClient.ensureMessengerOpen(cid.toString());
+    return this.messengerOps.ensureMessengerOpen(cid);
   }
 
   /**
@@ -722,144 +281,24 @@ class WebSocketService {
     message: Uint8Array,
     securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
   ): Promise<void> {
-    await this.init(); // ensure initialized
-
-    if (localCid === undefined || localCid === null) {
-      throw new Error('Local CID is required to send reliable P2P message');
-    }
-
-    if (peerCid === undefined || peerCid === null) {
-      throw new Error('Peer CID is required to send reliable P2P message');
-    }
-
-    debugLog('websocket', 'Sending reliable P2P message', { localCid: localCid.toString(), peerCid: peerCid.toString(), messageLength: message.length, securityLevel });
-
-    // Convert bigints to strings for WASM client
-    await this.assertClient.sendP2PMessageReliable(localCid.toString(), peerCid.toString(), message, securityLevel);
+    return this.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel);
   }
 
   /**
    * Disconnect a session from the server.
    * Waits for DisconnectNotification from backend before resolving.
-   * This ensures the session is fully cleaned up before the Promise resolves.
    * @param cid - The CID of the session to disconnect (REQUIRED)
    */
   async disconnect(cid: bigint): Promise<void> {
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required to disconnect a session');
-    }
-
-    await this.init(); // ensure initialized
-
-    const requestId = crypto.randomUUID();
-    const request = {
-      Disconnect: {
-        request_id: requestId,
-        cid: cid
-      }
-    };
-
-    debugLog('websocket', 'Sending Disconnect request', request);
-
-    // Wait for DisconnectNotification or DisconnectFailure response
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('Disconnect request timed out'));
-      }, 30000); // 30 second timeout
-
-      const handler = (message: any) => {
-        const response = message.Response || message;
-
-        // Check for DisconnectNotification with matching request_id
-        if ('DisconnectNotification' in response) {
-          const notification = response.DisconnectNotification;
-          // Match by request_id if present, otherwise match by cid
-          if (notification.request_id === requestId ||
-              (notification.request_id === null && notification.cid === cid)) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            debugLog('websocket', 'Disconnect successful for CID:', cid.toString());
-            resolve();
-          }
-        }
-
-        // Check for DisconnectFailure with matching request_id
-        if ('DisconnectFailure' in response) {
-          const failure = response.DisconnectFailure;
-          if (failure.request_id === requestId ||
-              (failure.request_id === null && failure.cid === cid)) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            errorLog('Disconnect failed:', failure.message);
-            reject(new Error(failure.message || 'Failed to disconnect'));
-          }
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      // Send the request
-      this.assertClient.sendDirectToInternalService(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        errorLog('Error sending disconnect request:', error);
-        reject(error);
-      });
-    });
+    return this.disconnectOps.disconnect(cid);
   }
 
   /**
    * Deregister from the server - permanently removes the account
    * This is different from disconnect which only ends the session.
-   * Use this for complete cleanup between test runs.
    */
   async deregister(cid: bigint): Promise<void> {
-    await this.init(); // ensure initialized
-
-    const requestId = crypto.randomUUID();
-    const request = {
-      Deregister: {
-        request_id: requestId,
-        cid: cid
-      }
-    };
-
-    debugLog('websocket', 'Sending Deregister request', request);
-
-    // Set up event listener for response
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('Deregister request timed out'));
-      }, 30000); // 30 second timeout
-
-      const handler = (message: any) => {
-        const response = message.Response || message;
-
-        if ('DeregisterSuccess' in response && response.DeregisterSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'Deregister successful for CID:', cid.toString());
-          resolve();
-        }
-
-        if ('DeregisterFailure' in response && response.DeregisterFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(response.DeregisterFailure.message || 'Failed to deregister'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      // Send the request
-      this.assertClient.sendDirectToInternalService(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
-    });
+    return this.disconnectOps.deregister(cid);
   }
 
   async disconnectAndClose(): Promise<void> {
@@ -934,228 +373,76 @@ class WebSocketService {
   }
 
   /**
+   * SINGLE-WEBSOCKET ARCHITECTURE: Send a request to the internal service.
+   * - Leader: Sends directly via WebSocket
+   * - Follower: Proxies through leader via BroadcastChannel
+   *
+   * This is the core send method that all other methods should use.
+   */
+  private async _sendRequest(request: any, requestId?: string): Promise<void> {
+    await this.init();
+
+    // DEBUG: Log leadership decision
+    const messageType = Object.keys(request)[0] || 'unknown';
+    console.log(`[ILM-TRACE] _sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
+
+    if (instanceManager.isLeader) {
+      // LEADER: Send directly via WebSocket
+      if (!this.client) {
+        console.error(`[ILM-TRACE] ERROR: Leader without client! Cannot send ${messageType}`);
+        throw new Error('WebSocket client not available (leader without client)');
+      }
+      console.log(`[ILM-TRACE] [Leader] Sending ${messageType} directly`);
+      await this.client.sendDirectToInternalService(request);
+    } else {
+      // FOLLOWER: Proxy through leader via InstanceChannel
+      console.log(`[ILM-TRACE] [Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
+      const id = requestId || crypto.randomUUID();
+
+      // Register the request with instance inbound router for response routing
+      // NOTE: This is on the FOLLOWER side - the LEADER also needs to register via channel:outbound-request event
+      instanceInboundRouter.registerPendingRequest(id, instanceManager.instanceId);
+
+      // Send to leader - this returns when ACK is received
+      const result = await instanceChannel.sendToLeader(request, id);
+
+      if (result.status === 'error') {
+        console.error(`[ILM-TRACE] [Follower] Proxy FAILED for ${messageType}: ${result.error}`);
+        throw new Error(`Leader failed to send request: ${result.error}`);
+      }
+
+      console.log(`[ILM-TRACE] [Follower] Request ${messageType} proxied successfully`);
+    }
+  }
+
+  /**
    * Send a direct message to the internal service
    * With serde-wasm-bindgen + ts_rs bigint annotations, BigInt CIDs pass directly to WASM
    */
   async sendMessage(message: any): Promise<void> {
-    await this.init();
-    // CID conversion is now handled by WorkspaceClient.sendDirectToInternalService override
-    await this.assertClient.sendDirectToInternalService(message);
+    await this._sendRequest(message);
   }
 
-  /**
-   * Enable orphan mode for the current connection
-   * When enabled, sessions will persist even when the TCP connection drops
-   */
-  async setOrphanMode(enabled: boolean): Promise<any> {
-    await this.init(); // ensure initialized
-    
-    const requestId = crypto.randomUUID();
-    const request = {
-      ConnectionManagement: {
-        request_id: requestId,
-        management_command: {
-          SetConnectionOrphan: {
-            allow_orphan_sessions: enabled
-          }
-        }
-      }
-    };
-    
-    debugLog('websocket', 'Sending SetConnectionOrphan request', request);
-    
-    // Set up event listener for response
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('SetConnectionOrphan request timed out'));
-      }, 3000); // Reduced from 10s to 3s - fail fast, don't block UI
-      
-      const handler = (message: any) => {
-        const response = message.Response || message;
-        
-        if ('ConnectionManagementSuccess' in response && response.ConnectionManagementSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          resolve({
-            success: true,
-            message: response.ConnectionManagementSuccess.message
-          });
-        } else if ('ConnectionManagementFailure' in response && response.ConnectionManagementFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(response.ConnectionManagementFailure.error || 'Failed to set orphan mode'));
-        }
-      };
-      
-      eventEmitter.on('websocket-message', handler);
-      
-      // Send the request - ConnectionManagement is already a top-level request, no need to wrap in Request
-      this.assertClient.sendDirectToInternalService(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
-    });
+  // ============== Session Management (delegated) ==============
+
+  async setOrphanMode(enabled: boolean): Promise<unknown> {
+    return this.sessionMgmt.setOrphanMode(enabled);
   }
 
-  /**
-   * Non-blocking version of setOrphanMode for initialization
-   * Fire-and-forget - don't wait for response, don't block UI
-   */
   setOrphanModeNonBlocking(enabled: boolean): void {
-    this.setOrphanMode(enabled).catch(err => {
-      console.warn('[WebSocketService] setOrphanMode failed (non-blocking):', err.message);
-    });
+    this.sessionMgmt.setOrphanModeNonBlocking(enabled);
   }
 
-  /**
-   * Claim an existing session (take over from another connection)
-   * @param sessionCid The CID of the session to claim
-   * @param onlyIfOrphaned If true, only claim if the session is orphaned
-   */
-  async claimSession(sessionCid: string | bigint, onlyIfOrphaned: boolean = false): Promise<any> {
-    await this.init(); // ensure initialized
-    
-    const requestId = crypto.randomUUID();
-    // Ensure sessionCid is bigint
-    const sessionCidBigInt = typeof sessionCid === 'string' ? BigInt(sessionCid) : sessionCid;
-
-    const request = {
-      ConnectionManagement: {
-        request_id: requestId,
-        management_command: {
-          ClaimSession: {
-            session_cid: sessionCidBigInt,
-            only_if_orphaned: onlyIfOrphaned
-          }
-        }
-      }
-    };
-
-    debugLog('websocket', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
-    
-    // Set up event listener for response
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('ClaimSession request timed out'));
-      }, 10000);
-      
-      const handler = (message: any) => {
-        const response = message.Response || message;
-        
-        if ('ConnectionManagementSuccess' in response && response.ConnectionManagementSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          resolve({
-            success: true,
-            message: response.ConnectionManagementSuccess.message,
-            cid: response.ConnectionManagementSuccess.cid
-          });
-        } else if ('ConnectionManagementFailure' in response && response.ConnectionManagementFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(response.ConnectionManagementFailure.error || 'Failed to claim session'));
-        }
-      };
-      
-      eventEmitter.on('websocket-message', handler);
-
-      // Send the request - ConnectionManagement is already a top-level request, no need to wrap in Request
-      this.assertClient.sendDirectToInternalService(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
-    });
+  async claimSession(sessionCid: string | bigint, onlyIfOrphaned: boolean = false): Promise<unknown> {
+    return this.sessionMgmt.claimSession(sessionCid, onlyIfOrphaned);
   }
 
-  /**
-   * Disconnect orphan sessions
-   * @param sessionCid Optional - if provided, disconnect specific session. If null, disconnect all orphan sessions.
-   */
-  async disconnectOrphan(sessionCid?: string | bigint | null): Promise<any> {
-    await this.init(); // ensure initialized
-    
-    const requestId = crypto.randomUUID();
-    const request = {
-      ConnectionManagement: {
-        request_id: requestId,
-        management_command: {
-          DisconnectOrphan: {
-            session_cid: sessionCid ? BigInt(sessionCid) : null
-          }
-        }
-      }
-    };
-    
-    debugLog('websocket', 'Sending DisconnectOrphan request', request);
-    
-    // Set up event listener for response
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('DisconnectOrphan request timed out'));
-      }, 10000);
-      
-      const handler = (message: any) => {
-        const response = message.Response || message;
-        
-        if ('ConnectionManagementSuccess' in response && response.ConnectionManagementSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          resolve({
-            success: true,
-            message: response.ConnectionManagementSuccess.message
-          });
-        } else if ('ConnectionManagementFailure' in response && response.ConnectionManagementFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(response.ConnectionManagementFailure.error || 'Failed to disconnect orphan'));
-        }
-      };
-      
-      eventEmitter.on('websocket-message', handler);
-
-      // Send the request - ConnectionManagement is already a top-level request, no need to wrap in Request
-      this.assertClient.sendDirectToInternalService(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
-    });
+  async disconnectOrphan(sessionCid?: string | bigint | null): Promise<unknown> {
+    return this.sessionMgmt.disconnectOrphan(sessionCid);
   }
 
-  /**
-   * Release a session, marking it as orphaned for immediate reclaiming.
-   * Called when the last browser tab with this CID closes.
-   * This is a fire-and-forget operation since it's called during beforeunload.
-   * @param sessionCid The CID of the session to release
-   */
   releaseSession(sessionCid: bigint): void {
-    if (!this.client) {
-      console.warn('[WebSocketService] Cannot release session - client not initialized');
-      return;
-    }
-
-    const request = {
-      ConnectionManagement: {
-        request_id: crypto.randomUUID(),
-        management_command: {
-          ReleaseSession: {
-            session_cid: sessionCid
-          }
-        }
-      }
-    };
-
-    debugLog('websocket', `Releasing session ${sessionCid.toString()}`);
-
-    // Fire-and-forget - don't await since tab may be closing
-    this.client.sendDirectToInternalService(request).catch(error => {
-      console.error('[WebSocketService] Failed to release session:', error);
-    });
+    this.sessionMgmt.releaseSession(sessionCid);
   }
 
   /**
@@ -1180,10 +467,11 @@ class WebSocketService {
 
   /**
    * Send a raw request using the InternalServiceRequest format
+   * SINGLE-WEBSOCKET ARCHITECTURE: Uses _sendRequest which handles leader/follower
    */
   async sendRequest(request: any): Promise<any> {
     await this.init();
-    return this.assertClient.sendDirectToInternalService(request);
+    return this._sendRequest(request);
   }
 
   /**
@@ -1193,278 +481,32 @@ class WebSocketService {
     return connectionManager.getConnectionInfo();
   }
 
-  // ============== LocalDB Methods ==============
+  // ============== LocalDB Methods (delegated) ==============
 
-  /**
-   * Get a value from LocalDB
-   * @param cid - The user's CID for scoped storage
-   * @param key - The storage key
-   * @returns The stored value or null if not found
-   */
   async sendLocalDBGet(cid: bigint, key: string): Promise<{ value: number[] } | null> {
-    const requestId = crypto.randomUUID();
-    const client = this.getClient();
-
-    if (!client) {
-      throw new Error('No WebSocket client available');
-    }
-
-    const request = {
-      LocalDBGetKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null,
-        key
-      }
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBGetKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: any) => {
-        if (message.LocalDBGetKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve({ value: message.LocalDBGetKVSuccess.value });
-        } else if (message.LocalDBGetKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(message.LocalDBGetKVFailure.message || 'LocalDB get failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-      client.sendDirectToInternalService(request as any).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
-    });
+    return this.localDB.get(cid, key);
   }
 
-  /**
-   * Set a value in LocalDB
-   * @param cid - The user's CID for scoped storage
-   * @param key - The storage key
-   * @param value - The value as a byte array
-   */
   async sendLocalDBSet(cid: bigint, key: string, value: number[]): Promise<void> {
-    const requestId = crypto.randomUUID();
-    const client = this.getClient();
-
-    if (!client) {
-      throw new Error('No WebSocket client available');
-    }
-
-    const request = {
-      LocalDBSetKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null,
-        key,
-        value
-      }
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBSetKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: any) => {
-        if (message.LocalDBSetKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve();
-        } else if (message.LocalDBSetKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(message.LocalDBSetKVFailure.message || 'LocalDB set failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-      client.sendDirectToInternalService(request as any).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
-    });
+    return this.localDB.set(cid, key, value);
   }
 
-  /**
-   * Delete a key from LocalDB
-   * @param cid - The user's CID for scoped storage
-   * @param key - The storage key to delete
-   */
   async sendLocalDBDelete(cid: bigint, key: string): Promise<void> {
-    const requestId = crypto.randomUUID();
-    const client = this.getClient();
-
-    if (!client) {
-      throw new Error('No WebSocket client available');
-    }
-
-    const request = {
-      LocalDBDeleteKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null,
-        key
-      }
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBDeleteKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: any) => {
-        if (message.LocalDBDeleteKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve();
-        } else if (message.LocalDBDeleteKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(message.LocalDBDeleteKVFailure.message || 'LocalDB delete failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-      client.sendDirectToInternalService(request as any).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
-    });
+    return this.localDB.delete(cid, key);
   }
 
-  /**
-   * Get all keys from LocalDB matching a prefix
-   * @param cid - The user's CID for scoped storage
-   * @param prefix - Optional prefix to filter keys
-   * @returns Array of keys matching the prefix
-   */
   async sendLocalDBListKeys(cid: bigint, prefix?: string): Promise<string[]> {
-    const requestId = crypto.randomUUID();
-    const client = this.getClient();
-
-    if (!client) {
-      throw new Error('No WebSocket client available');
-    }
-
-    const request = {
-      LocalDBGetAllKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null
-      }
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBGetAllKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: any) => {
-        if (message.LocalDBGetAllKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          // Extract keys from the map and filter by prefix
-          const map = message.LocalDBGetAllKVSuccess.map || {};
-          let keys = Object.keys(map);
-          if (prefix) {
-            keys = keys.filter(k => k.startsWith(prefix));
-          }
-          resolve(keys);
-        } else if (message.LocalDBGetAllKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(message.LocalDBGetAllKVFailure.message || 'LocalDB get all failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-      client.sendDirectToInternalService(request as any).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
-    });
+    return this.localDB.listKeys(cid, prefix);
   }
 
-  // ============== File Picker ==============
+  // ============== File Picker (delegated) ==============
 
-  /**
-   * Open a native file picker dialog to select a file.
-   * This requires the internal-service to be running natively (not in browser sandbox).
-   * @param cid - The user's CID
-   * @param title - Optional title for the file picker dialog
-   * @param allowedExtensions - Optional list of allowed file extensions (e.g., ["pdf", "txt"])
-   * @returns The selected file's path, name, and size
-   */
   async pickFile(
     cid: bigint,
     title?: string,
     allowedExtensions?: string[]
   ): Promise<{ file_path: string; file_name: string; file_size: bigint }> {
-    await this.init(); // ensure initialized
-
-    const requestId = crypto.randomUUID();
-    const client = this.getClient();
-
-    if (!client) {
-      throw new Error('No WebSocket client available');
-    }
-
-    const request = {
-      PickFile: {
-        request_id: requestId,
-        cid: cid,
-        title: title || null,
-        allowed_extensions: allowedExtensions || null
-      }
-    };
-
-    debugLog('websocket', 'Sending PickFile request', request);
-
-    return new Promise((resolve, reject) => {
-      // Longer timeout for file picker - user interaction can take time
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('File picker timed out'));
-      }, 120000); // 2 minute timeout
-
-      const handleMessage = (message: any) => {
-        if (message.PickFileSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve({
-            file_path: message.PickFileSuccess.file_path,
-            file_name: message.PickFileSuccess.file_name,
-            file_size: message.PickFileSuccess.file_size
-          });
-        } else if (message.PickFileFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(message.PickFileFailure.message || 'File picker failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-      client.sendDirectToInternalService(request as any).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
-    });
+    return this.filePicker.pickFile(cid, title, allowedExtensions);
   }
 }
 

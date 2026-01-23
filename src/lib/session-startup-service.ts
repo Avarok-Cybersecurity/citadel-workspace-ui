@@ -39,6 +39,7 @@
 import { eventEmitter } from './event-emitter';
 import { p2pRegistrationService } from './p2p-registration-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
+import { wasmConnectionManager } from './wasm-connection-manager';
 
 export interface SessionActivatedEvent {
   cid: string;
@@ -138,7 +139,19 @@ class SessionStartupService {
       // establish bidirectional channels.
       if (event.activationType === 'claim' || event.activationType === 'login') {
         console.log(`[ILM-TRACE] SessionStartup: Resetting connection state for ${event.activationType}`);
-        void p2pAutoConnectService.resetConnectionState();
+        await p2pAutoConnectService.resetConnectionState();
+      }
+
+      // 0.5. CRITICAL: Start WASM connection manager to open ILM messenger handle
+      // This MUST happen before P2P operations so that the ILM layer is ready
+      // to send and receive messages. Without this, ACKs are never sent for
+      // inbound messages, causing outbound messages to block waiting for ACKs.
+      try {
+        await wasmConnectionManager.start(event.cid);
+        console.log('SessionStartup: WASM connection manager started for CID:', event.cid.slice(0, 8) + '...');
+      } catch (error) {
+        console.error('SessionStartup: Failed to start WASM connection manager:', error);
+        // Don't fail the entire startup - P2P may still work without ILM
       }
 
       // 1. Start P2P registration service (idempotent - won't restart if already running)

@@ -13,7 +13,8 @@
 
 import { eventEmitter } from './event-emitter';
 import { websocketService } from './websocket-service';
-import { p2pMessengerManager, type P2PMessage } from './p2p-messenger-manager';
+import { p2pMessengerManager } from './p2p';
+import type { P2PMessage } from './p2p';
 import { getSelectedUser } from './tab-context';
 import {
   MessagingLayerType,
@@ -298,7 +299,7 @@ export class FileTransferService {
 
     // For async mode, initiate download from server
     if (transfer.mode === 'async' && transfer.virtualPath) {
-      void this.downloadFromServer(transfer);
+      await this.downloadFromServer(transfer);
     }
     // For P2P mode, sender will start streaming after receiving accept
   }
@@ -577,7 +578,7 @@ export class FileTransferService {
         if (file) {
           // Stream file in chunks
           console.log('FileTransferService: Starting streamFileToRecipient');
-          void this.streamFileToRecipient(transfer, file);
+          await this.streamFileToRecipient(transfer, file);
         } else {
           console.error('FileTransferService: File not found for transfer', transfer.id);
           transfer.state = 'error';
@@ -1031,7 +1032,7 @@ export class FileTransferService {
       eventEmitter.on('websocket-message', handleMessage);
 
       // Send the request
-      void websocketService.sendMessage(request).catch(error => {
+      websocketService.sendMessage(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
         reject(error);
@@ -1091,12 +1092,14 @@ export class FileTransferService {
 
     // For now, simulate completion
     setTimeout(() => {
-      transfer.state = 'complete';
-      transfer.progress = 100;
-      transfer.updatedAt = Date.now();
-      void this.saveTransfer(transfer);
-      this.emitStateChange(transfer);
-      eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, transfer);
+      (async () => {
+        transfer.state = 'complete';
+        transfer.progress = 100;
+        transfer.updatedAt = Date.now();
+        await this.saveTransfer(transfer);
+        this.emitStateChange(transfer);
+        eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, transfer);
+      })().catch(console.error);
     }, 1000);
   }
 
@@ -1216,7 +1219,7 @@ export const fileTransferService = FileTransferService.getInstance();
 
 // Auto-initialize the service to set up message handlers
 // This ensures file transfer messages are properly handled
-void fileTransferService.initialize().catch(err => {
+fileTransferService.initialize().catch(err => {
   console.error('FileTransferService: Auto-initialization failed:', err);
 });
 

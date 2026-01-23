@@ -1,5 +1,5 @@
 import { Check, CheckCheck, Clock, RefreshCw, XCircle } from 'lucide-react';
-import type { P2PMessage } from '@/lib/p2p-messenger-manager';
+import type { P2PMessage } from '@/lib/p2p';
 import { formatTime } from '@/components/chat/shared';
 import {
   Tooltip,

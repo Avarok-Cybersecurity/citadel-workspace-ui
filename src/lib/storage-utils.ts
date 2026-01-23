@@ -119,32 +119,6 @@ export async function dbDelete(store: StoreName, key: string): Promise<void> {
   await db.delete(store, key);
 }
 
-/**
- * Get all values from an IndexedDB store.
- */
-export async function dbGetAll<T>(store: StoreName): Promise<T[]> {
-  const db = await getDB();
-  const result = await db.getAll(store);
-  return result as T[];
-}
-
-/**
- * Get all keys from an IndexedDB store.
- */
-export async function dbGetAllKeys(store: StoreName): Promise<string[]> {
-  const db = await getDB();
-  const result = await db.getAllKeys(store);
-  return result as string[];
-}
-
-/**
- * Clear all values from an IndexedDB store.
- */
-export async function dbClear(store: StoreName): Promise<void> {
-  const db = await getDB();
-  await db.clear(store);
-}
-
 // ============================================================================
 // Synchronous Fallback (for legacy callers during migration)
 // These use localStorage but will be deprecated
@@ -179,32 +153,6 @@ export function loadFromStorage<T>(key: string, defaultValue: T): T {
   } catch (error) {
     console.error(`Error loading from storage with key '${key}':`, error);
     return defaultValue;
-  }
-}
-
-/**
- * @deprecated Use dbDelete for new code. This is for backward compatibility.
- * Clear a specific item from localStorage.
- */
-export function clearFromStorage(key: string): void {
-  try {
-    localStorage.removeItem(key);
-  } catch (error) {
-    console.error(`Error clearing storage with key '${key}':`, error);
-  }
-}
-
-/**
- * @deprecated Use dbClear for new code. This is for backward compatibility.
- * Clear all localStorage items that match a prefix.
- */
-export function clearStorageWithPrefix(prefix: string): void {
-  try {
-    Object.keys(localStorage)
-      .filter(key => key.startsWith(prefix))
-      .forEach(key => localStorage.removeItem(key));
-  } catch (error) {
-    console.error(`Error clearing storage with prefix '${prefix}':`, error);
   }
 }
 

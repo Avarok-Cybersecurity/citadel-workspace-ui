@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "./layout/AppLayout";
 import { WorkspaceView } from "./workspace/WorkspaceView";
 import { FileManagerContent } from "./file-manager/FileManagerContent";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { eventEmitter } from "@/lib/event-emitter";
 
 export const Office = () => {

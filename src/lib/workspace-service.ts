@@ -48,10 +48,9 @@ export class WorkspaceService {
       throw new Error('No active connection available. Please connect first.');
     }
 
-    const client = websocketService.getClient();
-    if (!client) {
-      throw new Error('WebSocket client not initialized');
-    }
+    // NOTE: Don't check websocketService.getClient() here!
+    // Follower tabs don't have a WebSocket client - they proxy through the leader.
+    // websocketService.sendWorkspaceRequest() handles this routing automatically.
 
     try {
       console.info('[WorkspaceService] Sending payload:', payload);
@@ -115,15 +114,18 @@ export class WorkspaceService {
    * This will trigger a workspace:loaded event when complete
    */
   public async loadWorkspace(): Promise<any> {
+    console.log('[WorkspaceService] loadWorkspace called with CID:', this.currentCid?.toString());
+
     // Emit loading event
     workspaceResponseHandler.emitLoadingEvent('workspace:loading');
-    
+
     // Use GetWorkspace variant to load workspace with metadata
     const requestPart: WorkspaceProtocolRequestTS = {
       GetWorkspace: null
     };
     // Construct the full payload expected by the Rust command (PascalCase 'Request')
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    console.log('[WorkspaceService] Sending GetWorkspace request');
     return this.sendWorkspaceRequest(payload);
   }
 

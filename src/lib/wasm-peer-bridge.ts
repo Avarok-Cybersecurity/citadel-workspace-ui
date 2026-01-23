@@ -101,10 +101,3 @@ export function initWasmPeerBridge(): void {
     console.warn('[WasmPeerBridge] Window not available - skipping initialization');
   }
 }
-
-/**
- * Check if the WASM Peer Bridge is initialized.
- */
-export function isWasmPeerBridgeInitialized(): boolean {
-  return typeof window !== 'undefined' && typeof window.__citadel_get_peers_for_session === 'function';
-}

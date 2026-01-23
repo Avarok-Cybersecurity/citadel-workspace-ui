@@ -21,8 +21,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { GroupRole, GroupConversation, GroupSettings } from '@/types/group';
-import { useGroupRoles } from '@/hooks/useGroupRoles';
-import { useGroupPermissions } from '@/hooks/useGroupPermissions';
+import { useGroupRoles } from '@/hooks/use-group-roles';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { GroupRoleEditor } from './GroupRoleEditor';
 
 // ============================================================================

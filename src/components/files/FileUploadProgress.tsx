@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, CheckCircle, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { FileUploadService, UploadProgress } from '@/lib/file-upload-service';
+import { fileUploadService, UploadProgress } from '@/lib/file-upload-service';
 
 interface FileUploadProgressProps {
   className?: string;
@@ -13,7 +13,7 @@ export const FileUploadProgress: React.FC<FileUploadProgressProps> = ({ classNam
 
   useEffect(() => {
     // Get initial active uploads
-    setUploads(FileUploadService.getActiveUploads());
+    setUploads(fileUploadService.getActiveUploads());
 
     // Listen for upload progress updates
     const handleProgress = (progress: UploadProgress) => {
@@ -35,15 +35,15 @@ export const FileUploadProgress: React.FC<FileUploadProgressProps> = ({ classNam
       }
     };
 
-    FileUploadService.on('upload-progress', handleProgress);
+    fileUploadService.on('upload-progress', handleProgress);
 
     return () => {
-      FileUploadService.off('upload-progress', handleProgress);
+      fileUploadService.off('upload-progress', handleProgress);
     };
   }, []);
 
   const handleCancel = (fileId: string) => {
-    FileUploadService.cancelUpload(fileId);
+    fileUploadService.cancelUpload(fileId);
   };
 
   if (uploads.length === 0) {

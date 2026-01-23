@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { PermissionManagerModal } from "@/components/permissions/PermissionManagerModal";
 import {
   Dialog,

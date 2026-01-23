@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import WorkspaceService from "@/lib/workspace-service";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface MemberManagementModalProps {
   isOpen: boolean;

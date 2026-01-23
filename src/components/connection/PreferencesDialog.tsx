@@ -40,7 +40,9 @@ export const PreferencesDialog = () => {
     };
 
     if (open) {
-      void loadPreferences();
+      (async () => {
+        await loadPreferences();
+      })().catch(console.error);
     }
   }, [open]);
 

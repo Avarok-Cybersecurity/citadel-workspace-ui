@@ -117,29 +117,31 @@ export class BroadcastChannelService {
 
       console.log(`BroadcastChannelService: Received message from ${message.tabId}:`, message.type);
 
-      switch (message.type) {
-        case 'workspace-response':
-          void this.handleWorkspaceResponse(message);
-          break;
-        case 'leader-election':
-          this.handleLeaderElection(message);
-          break;
-        case 'state-sync':
-          this.handleStateSync(message);
-          break;
-        case 'connection-status':
-          this.handleConnectionStatus(message);
-          break;
-        case 'register-request':
-          this.handleRegisterRequest(message);
-          break;
-        case 'p2p-raw-message':
-          this.handleP2PRawMessage(message);
-          break;
-        case 'p2p-notification':
-          void this.handleP2PNotification(message);
-          break;
-      }
+      (async () => {
+        switch (message.type) {
+          case 'workspace-response':
+            await this.handleWorkspaceResponse(message);
+            break;
+          case 'leader-election':
+            this.handleLeaderElection(message);
+            break;
+          case 'state-sync':
+            this.handleStateSync(message);
+            break;
+          case 'connection-status':
+            this.handleConnectionStatus(message);
+            break;
+          case 'register-request':
+            this.handleRegisterRequest(message);
+            break;
+          case 'p2p-raw-message':
+            this.handleP2PRawMessage(message);
+            break;
+          case 'p2p-notification':
+            await this.handleP2PNotification(message);
+            break;
+        }
+      })().catch(console.error);
     };
 
     this.channel.addEventListener('messageerror', (event: MessageEvent) => {
@@ -248,19 +250,24 @@ export class BroadcastChannelService {
       const notificationCid = notification.cid?.toString();
       const peerCid = notification.peer_cid?.toString();
 
+      // CRITICAL FIX: Convert tabCid (bigint) to string for comparison
+      // Without this, the comparison "string === bigint" always returns false
+      // because JavaScript strict equality doesn't coerce types
+      const tabCidStr = tabCid?.toString();
+
       console.log('[BroadcastChannel] handleP2PNotification checking session match:', {
         notificationCid,
         peerCid,
-        tabCid,
+        tabCidStr,
         hasMessageBytes: !!messageBytes,
         messageLength: notification.message?.length || 0,
-        isMatch: tabCid && notificationCid === tabCid
+        isMatch: tabCidStr && notificationCid === tabCidStr
       });
 
-      if (tabCid && notificationCid === tabCid) {
+      if (tabCidStr && notificationCid === tabCidStr) {
         console.log('[BroadcastChannel] Forwarding P2P notification for our session', {
           notificationCid,
-          tabCid,
+          tabCidStr,
           peerCid
         });
         // Emit as websocket-message so handleWebSocketMessage processes it
@@ -268,8 +275,8 @@ export class BroadcastChannelService {
       } else {
         console.log('[BroadcastChannel] P2P notification NOT for our session, ignoring', {
           notificationCid,
-          tabCid,
-          reason: !tabCid ? 'no tabCid selected' : 'CID mismatch'
+          tabCidStr,
+          reason: !tabCidStr ? 'no tabCid selected' : 'CID mismatch'
         });
       }
     } else if (this.isLeader) {
@@ -278,34 +285,13 @@ export class BroadcastChannelService {
   }
 
   private startLeaderElection(): void {
-    // Announce ourselves
-    this.broadcastLeaderClaim();
-
-    // Start heartbeat if we think we're the leader
-    this.leaderCheckInterval = window.setInterval(() => {
-      const now = Date.now();
-
-      if (this.isLeader) {
-        // Only send heartbeat if tab is visible (reduce unnecessary broadcasts)
-        if (typeof document === 'undefined' || !document.hidden) {
-          this.broadcastLeaderClaim();
-        }
-      } else {
-        // Check if the current leader is still alive
-        if (now - this.lastLeaderHeartbeat > this.LEADER_TIMEOUT) {
-          console.log('BroadcastChannelService: Leader timeout, claiming leadership');
-          this.becomeLeader();
-        }
-      }
-    }, this.HEARTBEAT_INTERVAL);
-
-    // Initially try to become leader after a short delay
-    setTimeout(() => {
-      if (!this.lastLeaderHeartbeat) {
-        console.log('BroadcastChannelService: No leader detected, claiming leadership');
-        this.becomeLeader();
-      }
-    }, 500);
+    // DISABLED: BroadcastChannelService no longer does its own leader election.
+    // InstanceChannel is the sole source of truth for leadership.
+    // This service follows InstanceChannel's decisions via setupLeaderSync().
+    //
+    // This eliminates the dual leader election race condition where both services
+    // would independently claim leadership with different timing, causing flip-flopping.
+    console.log('BroadcastChannelService: Leader election delegated to InstanceChannel');
   }
 
   private broadcastLeaderClaim(): void {
@@ -355,9 +341,14 @@ export class BroadcastChannelService {
 
     // Extract target CID for P2P notifications to enable filtering
     // The 'cid' field in these notifications is the TARGET (who should receive it)
+    // CRITICAL: Must include MessageNotification to prevent duplicate delivery!
+    // Without this, MessageNotification is delivered TWICE to follower tabs:
+    // 1. Via InstanceChannel routing (correct path)
+    // 2. Via this legacy broadcast (without CID filtering → ALL tabs receive it)
     const responseAny = response as any;
     const targetCid: bigint | undefined = responseAny.PeerConnectNotification?.cid ||
-                      responseAny.PeerRegisterNotification?.cid;
+                      responseAny.PeerRegisterNotification?.cid ||
+                      responseAny.MessageNotification?.cid;
 
     if (targetCid !== undefined) {
       console.log(`BroadcastChannelService: P2P notification has targetCid=${targetCid.toString().slice(0, 8)}...`);

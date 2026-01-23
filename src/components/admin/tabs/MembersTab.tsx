@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps, MemberData, UserRole, USER_ROLES } from '../types';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { PermissionManager } from '@/components/permissions/PermissionManager';
 import { Loader2, UserMinus, Shield } from 'lucide-react';
@@ -49,8 +49,9 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    void loadMembers();
-    // loadMembers is stable (only uses props/state captured in closure)
+    (async () => {
+      await loadMembers();
+    })().catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId]);
 

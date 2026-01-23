@@ -6,8 +6,7 @@ import { broadcastChannelService } from './broadcast-channel-service';
 import { healthCheckService } from './health-check';
 import { getTabData, setTabData, removeTabData, setSelectedUser, getSelectedUser, clearSelectedUser } from './tab-context';
 import { peerRegistrationStore } from './peer-registration-store';
-import { instanceManager } from './instance-manager';
-import { instanceChannel } from './instance-channel';
+import { instanceManager, instanceChannel } from './multi-instance';
 // Remove static import to avoid conflict with dynamic import in websocket-service
 // import { parseAndFormatMixedContent } from './wasm-debug-bridge';
 import { 
@@ -73,6 +72,10 @@ export class ConnectionManager {
 
   // Concurrency guard to prevent duplicate connection attempts
   private connectionAttempts: Set<string> = new Set();
+
+  // Store unsubscribe functions to properly clean up our own listeners
+  // (without affecting other services' listeners for the same events)
+  private static cleanupFunctions: (() => void)[] = [];
 
   private constructor() {
     // Create a promise that resolves when initialization is complete
@@ -166,31 +169,47 @@ export class ConnectionManager {
 
   /**
    * Setup event listeners for WebSocket responses
+   *
+   * CRITICAL: On page reload/HMR, the eventEmitter module persists but ConnectionManager
+   * is recreated. Old event listeners from the previous instance would still be attached,
+   * causing duplicate event handling. We MUST clean up OUR OWN listeners before adding new ones,
+   * without affecting other services' listeners for the same events.
    */
   private setupEventListeners(): void {
-    // Listen for successful connections
-    eventEmitter.on('websocket-message', (message: any) => {
-      void this.handleWebSocketMessage(message);
-    });
+    // CRITICAL: Clean up only OUR OWN stale listeners from previous instances
+    // Use stored unsubscribe functions - don't call eventEmitter.off() which would
+    // remove ALL listeners (including from other services like p2p-registration-service)
+    for (const cleanup of ConnectionManager.cleanupFunctions) {
+      cleanup();
+    }
+    ConnectionManager.cleanupFunctions = [];
 
-    // Listen for broadcast messages from other tabs
-    eventEmitter.on('broadcast-workspace-response', (message: any) => {
-      void this.handleWebSocketMessage(message);
+    // Listen for successful connections - store unsubscribe function
+    const wsUnsubscribe = eventEmitter.on('websocket-message', async (message: any) => {
+      await this.handleWebSocketMessage(message);
     });
+    ConnectionManager.cleanupFunctions.push(wsUnsubscribe);
+
+    // Listen for broadcast messages from other tabs - store unsubscribe function
+    const broadcastUnsubscribe = eventEmitter.on('broadcast-workspace-response', async (message: any) => {
+      await this.handleWebSocketMessage(message);
+    });
+    ConnectionManager.cleanupFunctions.push(broadcastUnsubscribe);
   }
 
   /**
    * Setup leader election handling
    */
   private setupLeaderElection(): void {
-    eventEmitter.on('leader-changed', ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
+    // Store unsubscribe function - don't use eventEmitter.off() which removes all listeners
+    const leaderUnsubscribe = eventEmitter.on('leader-changed', async ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
       console.log(`ConnectionManager: Leader changed - isLeader: ${isLeader}, leaderId: ${leaderId}`);
       this.isLeader = isLeader;
-      
+
       if (isLeader) {
         // We just became the leader, attempt to establish connection
         console.log('ConnectionManager: Became leader, attempting to establish connection');
-        void this.attemptLeaderConnection();
+        await this.attemptLeaderConnection();
       } else {
         // We're no longer the leader
         console.log('ConnectionManager: No longer the leader');
@@ -198,24 +217,18 @@ export class ConnectionManager {
         // But for now, let's keep it to allow the leader to handle disconnection
       }
     });
+    ConnectionManager.cleanupFunctions.push(leaderUnsubscribe);
   }
 
   /**
    * Handle WebSocket messages for LocalDB and connection responses
    */
   private async handleWebSocketMessage(message: any): Promise<void> {
-    // PERF FIX: Removed per-message logging that was causing UI freezes
-    // Only log specific message types that need debugging, not every message
-
-    // @human-review: Add logging for messages received for non-selected users
-    // Check if this message is for the tab's selected user
-    const tabSelection = await getSelectedUser();
-    if (message.cid && tabSelection && tabSelection.selectedCid) {
-      if (message.cid !== tabSelection.selectedCid) {
-        // Rate-limited debug logging for cross-CID messages
-        // console.log(`ConnectionManager: DEBUG - Message received for CID ${message.cid} but tab has CID ${tabSelection.selectedCid} selected`);
-      }
-    }
+    // NOTE: Removed blocking getSelectedUser() call here.
+    // The tab selection check was only for debugging cross-CID messages.
+    // The call was blocking indefinitely when IndexedDB is in a bad state
+    // (e.g., after clearBrowserStorage times out with pending delete operations).
+    // Message processing should not depend on IndexedDB for routing decisions.
     
     // Handle LocalDB responses
     if (message.LocalDBSetKVSuccess) {
@@ -251,7 +264,6 @@ export class ConnectionManager {
         this.pendingRequests.delete(requestId);
       }
     } else if (message.GetSessionsResponse) {
-      console.log('ConnectionManager: Received GetSessionsResponse');
       const requestId = message.GetSessionsResponse.request_id;
       const pending = this.pendingRequests.get(requestId);
       if (pending) {
@@ -279,13 +291,19 @@ export class ConnectionManager {
     // Handle successful registration/connection
     const response = message.Response || message;
     if (response.RegisterSuccess || response.ConnectSuccess) {
-      console.log('ConnectionManager: Received registration/connection success');
+      const cid = response.RegisterSuccess?.cid || response.ConnectSuccess?.cid;
+      console.log(`[ILM-TRACE] ConnectionManager: Received registration/connection success, CID=${cid?.toString()}`);
       // Invalidate session cache so getActiveSessions() returns fresh data including new session
       this.invalidateSessionCache();
-      const cid = response.RegisterSuccess?.cid || response.ConnectSuccess?.cid;
       if (cid) {
         // WASM serializes u64 as BigInt - pass directly
-        void this.handleSuccessfulConnection(cid);
+        console.log(`[ILM-TRACE] ConnectionManager: Calling handleSuccessfulConnection for CID=${cid.toString()}`);
+        // CRITICAL: Pass shouldUpdateStoredSession=false to prevent session CID corruption
+        // in multi-tab scenarios. The handleAuthMessage doesn't know which username this
+        // response is for, so using activeSessionIndex would update the wrong session.
+        // Instead, Join.tsx's handleAuthSuccess (which knows the username) will call
+        // storeSession() with the correct CID after this.
+        await this.handleSuccessfulConnection(cid, false);
       }
     }
 
@@ -297,7 +315,7 @@ export class ConnectionManager {
       const cid = response.ConnectionManagementSuccess?.cid;
       if (cid) {
         console.log('ConnectionManager: Updating connection info with claimed session CID:', cid);
-        void this.handleSuccessfulConnection(cid, false);
+        await this.handleSuccessfulConnection(cid, false);
       }
     }
 
@@ -366,11 +384,16 @@ export class ConnectionManager {
 
   /**
    * Handle successful connection by updating connection service
+   *
+   * @param cid - The connection ID assigned by the server
+   * @param shouldUpdateStoredSession - If false, skip session storage and connection status
+   *   notifications. Used for register/connect responses where handleAuthSuccess will
+   *   handle these with proper userContext to avoid WorkspaceApp deduplication issues.
    */
   private async handleSuccessfulConnection(cid: bigint, shouldUpdateStoredSession: boolean = true): Promise<void> {
     // Store current connection info
     this.currentConnectionInfo = { cid };
-    console.log('ConnectionManager: Handling successful connection', cid.toString());
+    console.log('ConnectionManager: Handling successful connection', cid.toString(), 'shouldUpdateStoredSession:', shouldUpdateStoredSession);
 
     // Update instance manager with the CID this tab/instance owns
     instanceManager.setCid(cid);
@@ -379,7 +402,35 @@ export class ConnectionManager {
     // Announce updated CID to other instances so leader knows which CID this instance owns
     instanceChannel.announcePresence();
 
-    // Update connection service
+    // Reset reconnect attempts
+    this.reconnectAttempts = 0;
+
+    // If shouldUpdateStoredSession is false, skip the rest - handleAuthSuccess will do it
+    // with proper userContext to avoid WorkspaceApp deduplication issues
+    if (!shouldUpdateStoredSession) {
+      console.log('ConnectionManager: Skipping connection notifications - handleAuthSuccess will handle them');
+      return;
+    }
+
+    // CRITICAL: Update stored session with CID BEFORE notifying handlers
+    // This ensures WorkspaceApp can find the session by CID when onConnectionChange fires
+    let sessionUsername: string | undefined;
+    if (this.storedSessions.sessions.length > 0) {
+      const activeIndex = this.storedSessions.activeSessionIndex ?? 0;
+      const session = this.storedSessions.sessions[activeIndex];
+      if (session) {
+        session.cid = cid;
+        session.lastConnected = Date.now();
+        sessionUsername = session.username;
+        await this.storeSession(session);
+        console.log('ConnectionManager: Updated stored session with CID:', cid.toString());
+      }
+    }
+
+    // Update workspace service with the connection ID
+    WorkspaceService.setConnectionId(cid);
+
+    // NOW notify handlers - stored session CID is already set
     const connectionService = ConnectionService.getInstance();
     connectionService.updateConnectionStatus({
       cid,
@@ -392,25 +443,9 @@ export class ConnectionManager {
       cid
     });
 
-    // Update workspace service with the connection ID
-    WorkspaceService.setConnectionId(cid);
-
-    // Reset reconnect attempts
-    this.reconnectAttempts = 0;
-
-    // Update stored session with CID if needed
-    if (shouldUpdateStoredSession && this.storedSessions.sessions.length > 0) {
-      const activeIndex = this.storedSessions.activeSessionIndex ?? 0;
-      const session = this.storedSessions.sessions[activeIndex];
-      if (session) {
-        session.cid = cid;
-        session.lastConnected = Date.now();
-        await this.storeSession(session);
-        console.log('ConnectionManager: Updated stored session with CID:', cid.toString());
-
-        // Notify auto-connect service of successful authentication
-        eventEmitter.emit('auth:success', { cid, username: session.username });
-      }
+    // Notify auto-connect service of successful authentication (after stored session is updated)
+    if (sessionUsername) {
+      eventEmitter.emit('auth:success', { cid, username: sessionUsername });
     }
   }
 
@@ -908,99 +943,48 @@ export class ConnectionManager {
   }
 
   /**
-   * Send LocalDBSetKV request
+   * Send LocalDBSetKV request via websocketService
+   * SINGLE-WEBSOCKET ARCHITECTURE: Uses websocketService which handles leader/follower
    */
   private async setLocalDBValue(key: string, value: any): Promise<void> {
-    const requestId = crypto.randomUUID();
-    
     console.log('ConnectionManager: Sending LocalDBSetKV request');
     console.log('  Key:', key);
-    console.log('  Value:', value);
-    console.log('  Request ID:', requestId);
-    
+
     const valueStr = safeJSONStringify(value);
     console.log('  Serialized value:', formatForDebug(valueStr));
 
-    const request = {
-      LocalDBSetKV: {
-        request_id: requestId,
-        cid: 0n, // Use BigInt 0 for global storage (serde-wasm-bindgen expects BigInt for u64)
-        peer_cid: null,
-        key,
-        value: Array.from(new TextEncoder().encode(valueStr))
-      }
-    };
+    // Convert to byte array for LocalDB storage
+    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
 
-    // TODO: debug format the below text since it is very large for some types
-    console.log('  Full request:', formatForDebug(safeJSONStringify(request)));
-    
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
-      
-      const client = websocketService.getClient();
-      if (!client) {
-        console.error('ConnectionManager: No WebSocket client available');
-        this.pendingRequests.delete(requestId);
-        reject(new Error('No WebSocket client available'));
-        return;
-      }
-      
-      console.log('ConnectionManager: Sending request to internal service...');
-      
-      // Send directly to internal service without wrapping in Request
-      client.sendDirectToInternalService(request as any)
-        .then(() => {
-          console.log('ConnectionManager: LocalDBSetKV request sent successfully');
-        })
-        .catch(error => {
-          console.error('ConnectionManager: Failed to send LocalDBSetKV request:', error);
-          this.pendingRequests.delete(requestId);
-          reject(error);
-        });
-      
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        if (this.pendingRequests.has(requestId)) {
-          console.error('ConnectionManager: LocalDBSetKV request timed out');
-          this.pendingRequests.delete(requestId);
-          reject(new Error('LocalDBSetKV request timed out'));
-        }
-      }, 5000);
-    });
+    // Use websocketService.sendLocalDBSet which handles leader/follower via BroadcastChannel
+    await websocketService.sendLocalDBSet(0n, key, valueBytes);
+
+    console.log('ConnectionManager: LocalDBSetKV request completed successfully');
   }
 
   /**
-   * Send LocalDBGetAllKV request
+   * Get all LocalDB values (returns mock structure for backward compatibility)
+   * SINGLE-WEBSOCKET ARCHITECTURE: Uses websocketService which handles leader/follower
    */
-  private async getAllLocalDBValues(): Promise<any> {
-    const requestId = crypto.randomUUID();
-    
-    const request = {
-      LocalDBGetAllKV: {
-        request_id: requestId,
-        cid: 0n, // Use BigInt 0 for global storage (serde-wasm-bindgen expects BigInt for u64)
-        peer_cid: null
+  private async getAllLocalDBValues(): Promise<{ map: { [key: string]: number[] } } | null> {
+    try {
+      // Get the session storage value using websocketService
+      const result = await websocketService.sendLocalDBGet(0n, SESSION_STORAGE_KEY);
+
+      if (result && result.value) {
+        // Return in the expected format with a map structure
+        return {
+          map: {
+            [SESSION_STORAGE_KEY]: result.value
+          }
+        };
       }
-    };
-    
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
-      
-      // Send directly to internal service without wrapping in Request
-      websocketService.getClient()?.sendDirectToInternalService(request as any)
-        .catch(error => {
-          this.pendingRequests.delete(requestId);
-          reject(error);
-        });
-      
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        if (this.pendingRequests.has(requestId)) {
-          this.pendingRequests.delete(requestId);
-          resolve(null); // Resolve with null on timeout to continue
-        }
-      }, 5000);
-    });
+
+      return null;
+    } catch (error) {
+      console.log('ConnectionManager: getAllLocalDBValues failed (may be first run):', error);
+      return null;
+    }
   }
 
   /**
@@ -1041,11 +1025,30 @@ export class ConnectionManager {
       await this.storeSession(session);
 
       // Set this user as the selected user for this tab
-      await setSelectedUser({
-        selectedUsername: username,
-        selectedServerAddress: serverAddress,
-        selectedCid: cid
-      });
+      // Use timeout to prevent indefinite hanging if IndexedDB is blocked
+      console.log('[ILM-TRACE] handleAuthSuccess: setting tab context for CID:', cid?.toString());
+      const setUserTimeout = 3000; // 3 second timeout
+      try {
+        await Promise.race([
+          setSelectedUser({
+            selectedUsername: username,
+            selectedServerAddress: serverAddress,
+            selectedCid: cid
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('setSelectedUser timeout')), setUserTimeout)
+          )
+        ]);
+        console.log('[ILM-TRACE] handleAuthSuccess: tab context set successfully');
+      } catch (err: any) {
+        if (err.message === 'setSelectedUser timeout') {
+          console.warn('[ILM-TRACE] handleAuthSuccess: setSelectedUser timed out after', setUserTimeout, 'ms - continuing anyway');
+          // Continue with the rest of handleAuthSuccess even if setSelectedUser hangs
+          // The workspace loading will still work via the session store
+        } else {
+          throw err;
+        }
+      }
 
       // Update currentConnectionInfo with full session data so disconnect() can
       // properly call markUserDisconnected() with username and serverAddress.
@@ -1058,9 +1061,30 @@ export class ConnectionManager {
           serverAddress,
           fullName
         };
+
+        // Update workspace service with the connection ID
+        // This was previously done in handleSuccessfulConnection, but is now here
+        // since handleSuccessfulConnection returns early for register/connect responses
+        WorkspaceService.setConnectionId(cid);
+
+        // CRITICAL: Trigger connection status update with FULL user context.
+        // This bypasses IndexedDB entirely - WorkspaceApp reads the context directly
+        // from this event instead of calling getSelectedUser() which may time out.
+        console.log('[ILM-TRACE] handleAuthSuccess: triggering connection status update for CID:', cid.toString());
+        const connectionService = ConnectionService.getInstance();
+        connectionService.updateConnectionStatus({
+          cid,
+          isConnected: true,
+          // Pass user context directly to avoid IndexedDB dependency
+          userContext: {
+            username,
+            serverAddress,
+            selectedCid: cid
+          }
+        });
       }
 
-      console.log('ConnectionManager: handleAuthSuccess completed successfully');
+      console.log('[ILM-TRACE] handleAuthSuccess: completed successfully');
     } catch (error) {
       console.error('ConnectionManager: handleAuthSuccess failed:', error);
       throw error;
@@ -1094,78 +1118,32 @@ export class ConnectionManager {
 
   /**
    * Claim an orphaned session
+   * SINGLE-WEBSOCKET ARCHITECTURE: Uses websocketService.claimSession which handles leader/follower
    */
   private async claimOrphanedSession(session: StoredSession, sessionCid: bigint): Promise<void> {
-    console.log('ConnectionManager: Attempting to claim session with CID:', sessionCid);
-    console.log('ConnectionManager: CID type:', typeof sessionCid);
-    console.log('ConnectionManager: CID toString:', sessionCid.toString());
-    
-    const requestId = crypto.randomUUID();
-    
-    // Create the ConnectionManagement request with ClaimSession command
+    console.log('ConnectionManager: Attempting to claim session with CID:', sessionCid.toString());
+
+    // Use websocketService.claimSession which handles leader/follower via BroadcastChannel
     // Set only_if_orphaned to false to allow claiming any session we don't own
-    // Keep session_cid as string since it's a u64 that might exceed JavaScript's Number.MAX_SAFE_INTEGER
-    const request = {
-      ConnectionManagement: {
-        request_id: requestId,
-        management_command: {
-          ClaimSession: {
-            session_cid: sessionCid.toString(),
-            only_if_orphaned: false // Allow claiming even if not orphaned
-          }
-        }
-      }
+    const response = await websocketService.claimSession(sessionCid, false);
+
+    console.log('ConnectionManager: Successfully claimed orphaned session', response);
+
+    // Update connection service with the claimed CID
+    // Pass false to avoid updating the stored session again (we already have the CID)
+    await this.handleSuccessfulConnection(sessionCid, false);
+
+    // Update currentConnectionInfo with full session data for disconnect() support
+    this.currentConnectionInfo = {
+      cid: sessionCid,
+      username: session.username,
+      serverAddress: session.serverAddress,
+      fullName: session.fullName
     };
-    
-    console.log('ConnectionManager: Sending ClaimSession request:', JSON.stringify(request));
-    
-    // Create promise for response
-    const responsePromise = new Promise<any>((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
-      
-      // Set timeout
-      setTimeout(() => {
-        if (this.pendingRequests.has(requestId)) {
-          this.pendingRequests.delete(requestId);
-          reject(new Error('ClaimSession request timed out'));
-        }
-      }, 10000);
-    });
-    
-    // Send request
-    const client = websocketService.getClient();
-    if (!client) {
-      throw new Error('No WebSocket client available');
-    }
-    
-    await client.sendDirectToInternalService(request as any);
-    
-    // Wait for response
-    const response = await responsePromise;
-    
-    if (response.ConnectionManagementSuccess) {
-      console.log('ConnectionManager: Successfully claimed orphaned session');
 
-      // Update connection service with the claimed CID
-      // Pass false to avoid updating the stored session again (we already have the CID)
-      await this.handleSuccessfulConnection(sessionCid, false);
-
-      // Update currentConnectionInfo with full session data for disconnect() support
-      this.currentConnectionInfo = {
-        cid: sessionCid,
-        username: session.username,
-        serverAddress: session.serverAddress,
-        fullName: session.fullName
-      };
-
-      // Update last connected time
-      session.lastConnected = Date.now();
-      await this.storeSession(session);
-    } else if (response.ConnectionManagementFailure) {
-      throw new Error(`Failed to claim session: ${response.ConnectionManagementFailure.error}`);
-    } else {
-      throw new Error('Unexpected response from ClaimSession');
-    }
+    // Update last connected time
+    session.lastConnected = Date.now();
+    await this.storeSession(session);
   }
 
   /**
@@ -1264,7 +1242,7 @@ export class ConnectionManager {
         // This respects user intent - if they explicitly sign out, don't auto-reconnect.
         const { username, serverAddress } = this.currentConnectionInfo;
         if (username && serverAddress) {
-          serverAutoConnectService.markUserDisconnected(username, serverAddress);
+          await serverAutoConnectService.markUserDisconnected(username, serverAddress);
         }
 
         await websocketService.disconnect(this.currentConnectionInfo.cid);

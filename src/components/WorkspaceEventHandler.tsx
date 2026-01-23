@@ -1,23 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { workspaceEvents, type OfficePayload, type RoomPayload, type ErrorPayload, type ConnectionInfo, type ProtocolWarningPayload, type MessagePayload } from '../lib/workspace-events';
-import { Office, Room, User } from '../types/workspace-entities';
-import { WorkspaceProvider, WorkspaceState } from '../lib/workspace-context';
+import { workspaceEvents, type ErrorPayload, type ConnectionInfo, type ProtocolWarningPayload, type MessagePayload } from '../lib/workspace-events';
+import { Office, Room } from '../types/workspace-entities';
+import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
-import UserService from '../lib/user-service';
-import { getWorkspaceLogo } from '../lib/workspace-metadata-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
-import { eventEmitter } from '../lib/event-emitter';
-import { broadcastChannelService } from '../lib/broadcast-channel-service';
 import { connectionManager } from '../lib/connection-manager';
 // P2P startup is now centralized in SessionStartupService, but we still need stop() for cleanup
 import { p2pRegistrationService } from '../lib/p2p-registration-service';
 
-interface WorkspaceEventState {
+// Import extracted hooks
+import {
+  useWorkspaceEventSetup,
+  useOfficeEventSetup,
+  useRoomEventSetup,
+  useMemberEventSetup,
+  useEventEmitterSetup,
+} from './hooks';
+
+export interface WorkspaceEventState {
   workspace?: {
     id: string;
     name: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   };
   offices: Record<string, Office>;
   rooms: Record<string, Room>;
@@ -53,15 +58,15 @@ interface WorkspaceEventState {
     name: string;
     role?: string;
     displayName?: string;
-    avatarUrl?: string; // Base64 data URL for avatar image
+    avatarUrl?: string;
   };
-  lastRequestId?: string; // Track the last request ID for correlation
+  lastRequestId?: string;
 }
 
 /**
  * Component that handles workspace events and provides a central place
  * for managing workspace state updates.
- * 
+ *
  * This component doesn't render anything visible but acts as an event manager
  * to update application state based on events from the Rust backend.
  */
@@ -106,565 +111,15 @@ export const WorkspaceEventHandler: React.FC<{
     }
   }, [state.needsWorkspaceInitialization, showInitModal, initModalDismissed]);
 
+  // Use extracted hooks for event setup
+  useWorkspaceEventSetup({ setState });
+  useOfficeEventSetup({ setState });
+  useRoomEventSetup({ setState });
+  useMemberEventSetup({ setState });
+  useEventEmitterSetup({ setState });
+
+  // Set up remaining event listeners (messages, errors, protocol warnings)
   useEffect(() => {
-    // Set up event listeners for workspace
-    const setupWorkspaceListeners = async () => {
-      // Loading state
-      await workspaceEvents.onWorkspaceEvent('workspace:loading', (connectionInfo: ConnectionInfo) => {
-        setState(prev => ({
-          ...prev,
-          loading: { ...prev.loading, workspace: true },
-          lastRequestId: connectionInfo.request_id
-        }));
-      });
-
-      // Workspace loaded event
-      await workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
-        const rawMetadata = payload.workspace.metadata;
-
-        // Parse metadata as JSON to check initialization status
-        let isInitialized = false;
-        let parsedMetadata: Record<string, any> | undefined;
-        try {
-          // metadata could be a Record or array-like bytes
-          if (rawMetadata && typeof rawMetadata === 'object') {
-            if (Array.isArray(rawMetadata) && rawMetadata.length > 0) {
-              // Array of bytes - decode as JSON
-              const metadataString = new TextDecoder().decode(new Uint8Array(rawMetadata as number[]));
-              parsedMetadata = JSON.parse(metadataString);
-              isInitialized = parsedMetadata?.initialized === true;
-            } else if (!Array.isArray(rawMetadata)) {
-              // Already a Record object
-              parsedMetadata = rawMetadata;
-              isInitialized = parsedMetadata?.initialized === true;
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to parse workspace metadata as JSON:', error);
-          // If metadata can't be parsed, assume not initialized
-          isInitialized = false;
-        }
-
-        setState(prev => ({
-          ...prev,
-          workspace: {
-            id: payload.workspace.id,
-            name: payload.workspace.name,
-            metadata: parsedMetadata
-          },
-          loading: { ...prev.loading, workspace: false },
-          needsWorkspaceInitialization: !isInitialized,
-          lastRequestId: payload.connection.request_id
-        }));
-
-        // P2P startup is now handled by SessionStartupService
-        // It listens for 'session:activated' events emitted from WorkspaceApp and OrphanSessionsNavbar
-        // This centralized approach ensures P2P works consistently for Connect, ClaimSession, and Login
-
-        // Broadcast workspace state to other tabs (excluding currentUser which is tab-specific)
-        broadcastChannelService.broadcastStateSync({
-          type: 'workspace',
-          data: {
-            workspace: { id: payload.workspace.id, name: payload.workspace.name, metadata: parsedMetadata },
-            loading: { workspace: false },
-            needsWorkspaceInitialization: !isInitialized,
-            lastRequestId: payload.connection.request_id
-          }
-        });
-
-        // Try to load user information if not already loaded
-        const userService = UserService;
-        const currentUser = await userService.getCurrentUser();
-
-        if (currentUser) {
-          // Get role from stored session (WorkspaceSwitcher uses this)
-          const storedSession = await connectionManager.getTabSelectedSession();
-          const role = storedSession?.role;
-
-          setState(prev => ({
-            ...prev,
-            currentUser: {
-              id: currentUser.username,
-              username: currentUser.username,
-              name: currentUser.fullName || currentUser.username,
-              role: role // Include role for admin indicators (golden border)
-            }
-          }));
-
-          // Fetch workspace-level members to update currentUser role (for admin golden border)
-          // This is needed because MembersSection only loads members when inside an office/room
-          // On first login, storedSession.role may be undefined until members:loaded fires
-          if (!role) {
-            WorkspaceService.listMembers().catch(err => {
-              console.warn('Failed to fetch workspace members for role update:', err);
-            });
-          }
-        }
-      });
-
-      // Workspace not initialized event
-      await workspaceEvents.onWorkspaceEvent('workspace:not-initialized', () => {
-        setState(prev => ({
-          ...prev,
-          needsWorkspaceInitialization: true,
-          loading: { ...prev.loading, workspace: false }
-        }));
-      });
-    };
-
-    // Set up event listeners for offices
-    const setupOfficeListeners = async () => {
-      // Loading states
-      await workspaceEvents.onOfficeEvent('offices:loading', (connectionInfo: ConnectionInfo) => {
-        setState(prev => ({
-          ...prev,
-          loading: { ...prev.loading, offices: true },
-          lastRequestId: connectionInfo.request_id
-        }));
-      });
-
-      await workspaceEvents.onOfficeEvent('office:loading', (payload) => {
-        console.info(`Loading office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Data loaded events
-      await workspaceEvents.onOfficeEvent('offices:loaded', (payload) => {
-        const officesMap: Record<string, Office> = {};
-        payload.offices.forEach(office => {
-          officesMap[office.id] = office;
-        });
-
-        setState(prev => ({
-          ...prev,
-          offices: officesMap,
-          loading: { ...prev.loading, offices: false },
-          lastRequestId: payload.connection.request_id
-        }));
-
-        // Broadcast offices state to other tabs
-        broadcastChannelService.broadcastStateSync({
-          type: 'offices',
-          data: officesMap
-        });
-
-        // After offices are loaded, load rooms for each office
-        if (payload.offices.length > 0) {
-          console.info(`Loading rooms for ${payload.offices.length} offices`);
-          payload.offices.forEach(office => {
-            WorkspaceService.listRooms(office.id)
-              .then(() => {
-                console.info(`Rooms loading initiated for office: ${office.id}`);
-              })
-              .catch(error => {
-                console.error(`Error loading rooms for office ${office.id}:`, error);
-              });
-          });
-        }
-      });
-
-      await workspaceEvents.onOfficeEvent('office:loaded', (payload: OfficePayload) => {
-        setState(prev => ({
-          ...prev,
-          offices: {
-            ...prev.offices,
-            [payload.office.id]: payload.office
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Creation and update events
-      await workspaceEvents.onOfficeEvent('office:creating', (connectionInfo: ConnectionInfo) => {
-        console.info('Creating new office...', connectionInfo.request_id);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: connectionInfo.request_id
-        }));
-      });
-
-      await workspaceEvents.onOfficeEvent('office:updating', (payload) => {
-        console.info(`Updating office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      await workspaceEvents.onOfficeEvent('office:deleting', (payload) => {
-        console.info(`Deleting office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Office created event
-      await workspaceEvents.onOfficeEvent('office:created', (payload: any) => {
-        console.info('Office created:', payload.office);
-        setState(prev => ({
-          ...prev,
-          offices: {
-            ...prev.offices,
-            [payload.office.id]: payload.office
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Office updated event
-      await workspaceEvents.onOfficeEvent('office:updated', (payload: any) => {
-        console.info('Office updated:', payload.office);
-        setState(prev => ({
-          ...prev,
-          offices: {
-            ...prev.offices,
-            [payload.office.id]: payload.office
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Office deleted event
-      await workspaceEvents.onOfficeEvent('office:deleted', (payload: any) => {
-        console.info('Office deleted:', payload.officeId);
-        setState(prev => {
-          const newOffices = { ...prev.offices };
-          delete newOffices[payload.officeId];
-          
-          // Also remove all rooms belonging to this office
-          const newRooms = { ...prev.rooms };
-          Object.keys(newRooms).forEach(roomId => {
-            if (newRooms[roomId].officeId === payload.officeId) {
-              delete newRooms[roomId];
-            }
-          });
-          
-          return {
-            ...prev,
-            offices: newOffices,
-            rooms: newRooms,
-            lastRequestId: payload.connection.request_id
-          };
-        });
-      });
-
-      // Offices reload event
-      await workspaceEvents.onWorkspaceEvent('offices:reload', async (connectionInfo: ConnectionInfo) => {
-        console.info('Reloading offices list...');
-        // Trigger a fresh load of offices
-        await WorkspaceService.listOffices();
-      });
-    };
-
-    // Set up event listeners for rooms
-    const setupRoomListeners = async () => {
-      // Loading states
-      await workspaceEvents.onRoomEvent('rooms:loading', (payload) => {
-        setState(prev => ({
-          ...prev,
-          loading: { ...prev.loading, rooms: true },
-          lastRequestId: payload.connection.request_id
-        }));
-        console.info(`Loading rooms for office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
-      });
-
-      await workspaceEvents.onRoomEvent('room:loading', (payload) => {
-        console.info(`Loading room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Data loaded events
-      await workspaceEvents.onRoomEvent('rooms:loaded', (payload) => {
-        const roomsMap: Record<string, Room> = {};
-        payload.rooms.forEach(room => {
-          roomsMap[room.id] = room;
-        });
-
-        setState(prev => {
-          const newRooms = {
-            ...prev.rooms,
-            ...roomsMap
-          };
-          
-          // Broadcast rooms state to other tabs
-          broadcastChannelService.broadcastStateSync({
-            type: 'rooms',
-            data: newRooms
-          });
-          
-          return {
-            ...prev,
-            rooms: newRooms,
-            loading: { ...prev.loading, rooms: false },
-            lastRequestId: payload.connection.request_id
-          };
-        });
-      });
-
-      await workspaceEvents.onRoomEvent('room:loaded', (payload: RoomPayload) => {
-        setState(prev => ({
-          ...prev,
-          rooms: {
-            ...prev.rooms,
-            [payload.room.id]: payload.room
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Creation and update events
-      await workspaceEvents.onRoomEvent('room:creating', (payload) => {
-        console.info(`Creating new room in office: ${payload.office_id}, request ID: ${payload.connection.request_id}`);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      await workspaceEvents.onRoomEvent('room:updating', (payload) => {
-        console.info(`Updating room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      await workspaceEvents.onRoomEvent('room:deleting', (payload) => {
-        console.info(`Deleting room: ${payload.room_id}, request ID: ${payload.connection.request_id}`);
-
-        // Remove room from state
-        setState(prev => {
-          const newRooms = { ...prev.rooms };
-          delete newRooms[payload.room_id];
-          return {
-            ...prev,
-            rooms: newRooms,
-            lastRequestId: payload.connection.request_id
-          };
-        });
-      });
-
-      // Room created event
-      await workspaceEvents.onRoomEvent('room:created', (payload: any) => {
-        console.info('Room created:', payload.room);
-        setState(prev => ({
-          ...prev,
-          rooms: {
-            ...prev.rooms,
-            [payload.room.id]: payload.room
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Room updated event
-      await workspaceEvents.onRoomEvent('room:updated', (payload: any) => {
-        console.info('Room updated:', payload.room);
-        setState(prev => ({
-          ...prev,
-          rooms: {
-            ...prev.rooms,
-            [payload.room.id]: payload.room
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Room deleted event
-      await workspaceEvents.onRoomEvent('room:deleted', (payload: any) => {
-        console.info('Room deleted:', payload.roomId);
-        setState(prev => {
-          const newRooms = { ...prev.rooms };
-          delete newRooms[payload.roomId];
-          return {
-            ...prev,
-            rooms: newRooms,
-            lastRequestId: payload.connection.request_id
-          };
-        });
-      });
-
-      // Rooms reload event
-      await workspaceEvents.onWorkspaceEvent('rooms:reload', async (payload: any) => {
-        console.info('Reloading rooms list...');
-        // Trigger a fresh load of rooms for the office
-        if (payload && payload.office_id) {
-          await WorkspaceService.listRooms(payload.office_id);
-        }
-      });
-    };
-
-    // Set up event listeners for members
-    const setupMemberListeners = async () => {
-      // Member events
-      await workspaceEvents.onMemberEvent('members:loading', (payload) => {
-        setState(prev => ({
-          ...prev,
-          loading: { ...prev.loading, members: true },
-          lastRequestId: payload.connection.request_id
-        }));
-
-        if (payload.officeId) {
-          console.info(`Loading members for office: ${payload.officeId}, request ID: ${payload.connection.request_id}`);
-        } else if (payload.roomId) {
-          console.info(`Loading members for room: ${payload.roomId}, request ID: ${payload.connection.request_id}`);
-        }
-      });
-
-      await workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
-        setState(prev => {
-          // Try to find the current user in the members list and update their role
-          let updatedCurrentUser = prev.currentUser;
-          if (prev.currentUser && payload.members) {
-            const currentUserMember = payload.members.find(
-              (m: any) => m.username === prev.currentUser?.username
-            );
-            if (currentUserMember && currentUserMember.role) {
-              console.info(`Updating current user role to: ${currentUserMember.role}`);
-              updatedCurrentUser = {
-                ...prev.currentUser,
-                role: currentUserMember.role,
-                displayName: currentUserMember.displayName || prev.currentUser.name
-              };
-
-              // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
-              // Capture role before async callback to satisfy TypeScript narrowing
-              const roleToSave = currentUserMember.role;
-              if (roleToSave) {
-                void connectionManager.getTabSelectedSession().then(session => {
-                  if (session) {
-                    void connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
-                  }
-                });
-              }
-            }
-          }
-
-          return {
-            ...prev,
-            currentUser: updatedCurrentUser,
-            loading: { ...prev.loading, members: false },
-            lastRequestId: payload.connection.request_id
-          };
-        });
-
-        // Don't re-emit the same event - it causes an infinite loop
-        // The MembersSection will receive the event directly from workspace-events
-      });
-
-      // Member added event
-      await workspaceEvents.onMemberEvent('member:added', (payload: any) => {
-        console.info('Member added:', payload.member);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Member role updated event
-      await workspaceEvents.onMemberEvent('member:role-updated', (payload: any) => {
-        console.info('Member role updated:', payload.userId, payload.role);
-        setState(prev => {
-          // Update currentUser's role if it matches
-          let updatedCurrentUser = prev.currentUser;
-          if (prev.currentUser && (prev.currentUser.username === payload.userId || prev.currentUser.id === payload.userId)) {
-            console.info(`Updating current user role to: ${payload.role}`);
-            updatedCurrentUser = {
-              ...prev.currentUser,
-              role: payload.role
-            };
-
-            // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
-            void connectionManager.getTabSelectedSession().then(session => {
-              if (session) {
-                void connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
-              }
-            });
-          }
-          return {
-            ...prev,
-            currentUser: updatedCurrentUser,
-            lastRequestId: payload.connection.request_id
-          };
-        });
-      });
-
-      // User permissions loaded event - updates currentUser's role
-      await workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: any) => {
-        console.info('User permissions loaded:', payload.userId, payload.role);
-        setState(prev => {
-          // Update currentUser's role if it matches
-          let updatedCurrentUser = prev.currentUser;
-
-          // Check against currentUser username/id OR the stored session username
-          const storedSession = connectionManager.getStoredSessionsArray()[0];
-          const isCurrentUser = prev.currentUser && (
-            prev.currentUser.username === payload.userId ||
-            prev.currentUser.id === payload.userId ||
-            // Also match if currentUser has placeholder "Loading..." but payload matches stored session
-            (prev.currentUser.username === 'Loading...' && storedSession?.username === payload.userId)
-          );
-
-          if (isCurrentUser && prev.currentUser) {
-            console.info(`Updating current user role from permissions to: ${payload.role}`);
-            updatedCurrentUser = {
-              ...prev.currentUser,
-              // Also update username if it was 'Loading...'
-              username: prev.currentUser.username === 'Loading...' ? payload.userId : prev.currentUser.username,
-              id: prev.currentUser.id === 'Loading...' ? payload.userId : prev.currentUser.id,
-              role: payload.role
-            };
-
-            // Persist role to stored session for WorkspaceSwitcher (async, fire-and-forget)
-            void connectionManager.getTabSelectedSession().then(session => {
-              if (session) {
-                void connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
-              }
-            });
-          }
-          return {
-            ...prev,
-            currentUser: updatedCurrentUser,
-            lastRequestId: payload.connection?.request_id
-          };
-        });
-      });
-
-      // Member removed event
-      await workspaceEvents.onMemberEvent('member:removed', (payload: any) => {
-        console.info('Member removed:', payload.userId);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-
-      // Members reload event
-      await workspaceEvents.onWorkspaceEvent('members:reload', async (connectionInfo: ConnectionInfo) => {
-        console.info('Reloading members list...');
-        // Trigger a fresh load of members
-        // Backend requires exactly ONE of office_id or room_id (room takes precedence)
-        const params = new URLSearchParams(window.location.search);
-        const officeId = params.get("officeId");
-        const roomId = params.get("roomId");
-        if (roomId) {
-          await WorkspaceService.listMembers(undefined, roomId);
-        } else if (officeId) {
-          await WorkspaceService.listMembers(officeId, undefined);
-        } else {
-          await WorkspaceService.listMembers();  // workspace-level
-        }
-      });
-    };
-
-    // Set up event listeners for messages
     const setupMessageListeners = async () => {
       await workspaceEvents.onMessageEvent('message:received', (payload: MessagePayload) => {
         console.info(`Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
@@ -674,15 +129,10 @@ export const WorkspaceEventHandler: React.FC<{
           return;
         }
 
-        // Get peer CID with fallback, convert to string for object key
         const peerCidStr = (payload.peerCid ?? 0n).toString();
 
-        // Update state with new message
         setState(prev => {
-          // Get existing messages for this peer or create new array
           const peerMessages = prev.messages.byPeer[peerCidStr] || [];
-
-          // Remove peer from typing list when a message is received
           const updatedTypingPeerIds = prev.typing.peerIds.filter(id => id !== peerCidStr);
 
           return {
@@ -712,11 +162,9 @@ export const WorkspaceEventHandler: React.FC<{
         });
       });
 
-      // Handle typing indicators
       await workspaceEvents.onMessageEvent('typing:started', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
         const peerCidStr = payload.peerCid.toString();
         setState(prev => {
-          // Add peer to typing list if not already there
           if (!prev.typing.peerIds.includes(peerCidStr)) {
             return {
               ...prev,
@@ -733,21 +181,17 @@ export const WorkspaceEventHandler: React.FC<{
 
       await workspaceEvents.onMessageEvent('typing:stopped', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
         const peerCidStr = payload.peerCid.toString();
-        setState(prev => {
-          // Remove peer from typing list
-          return {
-            ...prev,
-            typing: {
-              peerIds: prev.typing.peerIds.filter(id => id !== peerCidStr),
-              lastUpdated: Date.now()
-            },
-            lastRequestId: payload.connection.request_id
-          };
-        });
+        setState(prev => ({
+          ...prev,
+          typing: {
+            peerIds: prev.typing.peerIds.filter(id => id !== peerCidStr),
+            lastUpdated: Date.now()
+          },
+          lastRequestId: payload.connection.request_id
+        }));
       });
     };
 
-    // Set up error handling
     const setupErrorHandling = async () => {
       await workspaceEvents.onOperationEvent('operation:error', (payload: ErrorPayload) => {
         setState(prev => ({
@@ -778,7 +222,6 @@ export const WorkspaceEventHandler: React.FC<{
       });
     };
 
-    // Set up protocol warning handling
     const setupProtocolWarningHandling = async () => {
       await workspaceEvents.onProtocolEvent('protocol:warning', (payload: ProtocolWarningPayload) => {
         console.warn(`Protocol warning: ${payload.message}`, {
@@ -796,199 +239,28 @@ export const WorkspaceEventHandler: React.FC<{
           lastRequestId: payload.connection.request_id
         }));
 
-        // Reset warning after 10 seconds
         setTimeout(() => {
           setState(prev => ({ ...prev, protocolWarning: undefined }));
         }, 10000);
       });
     };
 
-    // Setup user profile update listener - returns cleanup function
-    const setupUserProfileListener = (): (() => void) => {
-      const handler = (data: { user: any; connection: any }) => {
-        console.log('WorkspaceEventHandler: Received user profile update', data);
-
-        const user = data.user;
-        // Extract avatar from metadata if present
-        // MetadataValue is a tagged enum: { type: "String", content: "..." }
-        let avatarUrl: string | undefined;
-        if (user.metadata?.avatar) {
-          const avatar = user.metadata.avatar;
-          // Handle tagged enum format: { type: "String", content: "data:..." }
-          const avatarData = typeof avatar === 'string'
-            ? avatar
-            : avatar?.content || avatar?.String;
-          if (avatarData) {
-            // Convert base64 to data URL if not already
-            avatarUrl = avatarData.startsWith('data:')
-              ? avatarData
-              : `data:image/webp;base64,${avatarData}`;
-          }
-        }
-
-        setState(prev => ({
-          ...prev,
-          currentUser: prev.currentUser ? {
-            ...prev.currentUser,
-            displayName: user.name || prev.currentUser.displayName,
-            name: user.name || prev.currentUser.name,
-            avatarUrl: avatarUrl || prev.currentUser.avatarUrl
-          } : prev.currentUser
-        }));
-      };
-
-      eventEmitter.on('user:profile-updated', handler);
-      return () => eventEmitter.off('user:profile-updated', handler);
-    };
-
-    // Setup content broadcast listeners (for real-time updates from other clients) - returns cleanup function
-    const setupContentBroadcastListeners = (): (() => void) => {
-      // Office content update broadcast handler
-      const officeContentHandler = (data: {
-        officeId: string;
-        mdxContent: string;
-        updatedBy: string;
-        timestamp: number;
-        connection: any;
-      }) => {
-        console.log('WorkspaceEventHandler: Received office content update broadcast', {
-          officeId: data.officeId,
-          updatedBy: data.updatedBy,
-          timestamp: data.timestamp
-        });
-
-        setState(prev => {
-          const existingOffice = prev.offices[data.officeId];
-          if (!existingOffice) {
-            console.warn('Received content update for unknown office:', data.officeId);
-            return prev;
-          }
-
-          return {
-            ...prev,
-            offices: {
-              ...prev.offices,
-              [data.officeId]: {
-                ...existingOffice,
-                mdx_content: data.mdxContent
-              }
-            }
-          };
-        });
-      };
-
-      // Room content update broadcast handler
-      const roomContentHandler = (data: {
-        roomId: string;
-        officeId: string;
-        mdxContent: string;
-        updatedBy: string;
-        timestamp: number;
-        connection: any;
-      }) => {
-        console.log('WorkspaceEventHandler: Received room content update broadcast', {
-          roomId: data.roomId,
-          officeId: data.officeId,
-          updatedBy: data.updatedBy,
-          timestamp: data.timestamp
-        });
-
-        setState(prev => {
-          const existingRoom = prev.rooms[data.roomId];
-          if (!existingRoom) {
-            console.warn('Received content update for unknown room:', data.roomId);
-            return prev;
-          }
-
-          return {
-            ...prev,
-            rooms: {
-              ...prev.rooms,
-              [data.roomId]: {
-                ...existingRoom,
-                mdx_content: data.mdxContent
-              }
-            }
-          };
-        });
-      };
-
-      eventEmitter.on('office:content-updated', officeContentHandler);
-      eventEmitter.on('room:content-updated', roomContentHandler);
-
-      return () => {
-        eventEmitter.off('office:content-updated', officeContentHandler);
-        eventEmitter.off('room:content-updated', roomContentHandler);
-      };
-    };
-
-    // Setup broadcast state sync listener - returns cleanup function
-    const setupBroadcastSync = (): (() => void) => {
-      const handler = (data: any) => {
-        console.log('WorkspaceEventHandler: Received broadcast state sync', data);
-
-        if (data.type === 'workspace') {
-          // When receiving workspace state, preserve our tab's currentUser
-          const { currentUser: receivedUser, ...receivedData } = data.data;
-          setState(prev => ({
-            ...prev,
-            ...receivedData,
-            // Keep our tab's currentUser
-            currentUser: prev.currentUser
-          }));
-        } else if (data.type === 'offices') {
-          setState(prev => ({
-            ...prev,
-            offices: data.data
-          }));
-        } else if (data.type === 'rooms') {
-          setState(prev => ({
-            ...prev,
-            rooms: data.data
-          }));
-        } else if (data.type === 'members') {
-          setState(prev => ({
-            ...prev,
-            members: data.data
-          }));
-        }
-      };
-
-      eventEmitter.on('broadcast-state-sync', handler);
-      return () => eventEmitter.off('broadcast-state-sync', handler);
-    };
-
-    // Store cleanup functions for eventEmitter listeners
-    let eventEmitterCleanups: (() => void)[] = [];
-
-    // Initialize all event listeners
     const initializeEvents = async () => {
-      await setupWorkspaceListeners();
-      await setupOfficeListeners();
-      await setupRoomListeners();
-      await setupMemberListeners();
+      await setupMessageListeners();
       await setupErrorHandling();
       await setupProtocolWarningHandling();
-      await setupMessageListeners();
-
-      // Collect cleanup functions from eventEmitter-based setup functions
-      eventEmitterCleanups = [
-        setupBroadcastSync(),
-        setupUserProfileListener(),
-        setupContentBroadcastListeners()
-      ];
-
       console.info('Workspace event listeners initialized');
     };
 
-    void initializeEvents();
+    (async () => {
+      await initializeEvents();
+    })().catch(console.error);
 
-    // Clean up all listeners when component unmounts
     return () => {
-      void workspaceEvents.cleanupAllListeners();
+      (async () => {
+        await workspaceEvents.cleanupAllListeners();
+      })().catch(console.error);
       p2pRegistrationService.stop();
-      // Clean up eventEmitter listeners
-      eventEmitterCleanups.forEach(cleanup => cleanup());
     };
   }, []);
 
@@ -998,11 +270,8 @@ export const WorkspaceEventHandler: React.FC<{
   }, [state.messages.byPeer]);
 
   // Function to send a message to a peer
-  // TODO: This is outdated and needs to be wrapped properly with the workspace-level subprotocol commands
-  // via sendWorkspaceRequest from workspace-service.ts
-  const sendMessage = async (content: string, recipientId: string) => {
+  const sendMessage = async (_content: string, _recipientId: string) => {
     try {
-      // TODO: Replace with proper workspace-service.ts call
       throw new Error('sendMessage not implemented - use WorkspaceService.sendWorkspaceRequest instead');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -1021,7 +290,6 @@ export const WorkspaceEventHandler: React.FC<{
     }
   }, [state, onStateChange]);
 
-  // Wrap children with the WorkspaceProvider to make state available to all descendants
   const handleWorkspaceInitialized = () => {
     setShowInitModal(false);
     setState(prev => ({
@@ -1030,7 +298,6 @@ export const WorkspaceEventHandler: React.FC<{
       error: undefined
     }));
 
-    // Reload workspace after initialization
     WorkspaceService.loadWorkspace()
       .then(() => {
         console.info('Workspace reloaded after initialization');
@@ -1049,7 +316,7 @@ export const WorkspaceEventHandler: React.FC<{
         isOpen={showInitModal}
         onClose={() => {
           setShowInitModal(false);
-          setInitModalDismissed(true);  // Prevent modal from reappearing after cancel
+          setInitModalDismissed(true);
         }}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}

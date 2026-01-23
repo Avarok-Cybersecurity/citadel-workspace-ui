@@ -169,7 +169,9 @@ export class ConnectionService {
 
       // For demo purposes, we'll auto-accept P2P connections
       setTimeout(() => {
-        this.autoAcceptConnection(request);
+        (async () => {
+          await this.autoAcceptConnection(request);
+        })().catch(console.error);
       }, 1000);
 
     } catch (error) {
@@ -467,11 +469,13 @@ export class ConnectionService {
    * @param connection The new connection information
    */
   public updateConnectionStatus(connection: any): void {
+    console.log(`[ILM-TRACE] ConnectionService.updateConnectionStatus: cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, handlers=${this.connectionChangeHandlers.length}`);
     this.currentConnection = connection;
 
     // Notify all registered handlers
     this.connectionChangeHandlers.forEach(handler => {
       try {
+        console.log(`[ILM-TRACE] ConnectionService: Calling handler`);
         handler(connection);
       } catch (error) {
         console.error('Error in connection change handler:', error);
@@ -511,13 +515,13 @@ export class ConnectionService {
             id: 'accept',
             label: 'Accept',
             variant: 'default',
-            onClick: () => void this.acceptConnectionRequest(request.id)
+            onClick: () => this.acceptConnectionRequest(request.id)
           },
           {
             id: 'reject',
             label: 'Reject',
             variant: 'destructive',
-            onClick: () => void this.rejectConnectionRequest(request.id)
+            onClick: () => this.rejectConnectionRequest(request.id)
           }
         ]
       });
@@ -527,7 +531,9 @@ export class ConnectionService {
       if (preferences.autoAcceptRegistrations) {
         // Auto-accept the request
         setTimeout(() => {
-          void this.acceptConnectionRequest(request.id);
+          (async () => {
+            await this.acceptConnectionRequest(request.id);
+          })().catch(console.error);
         }, 1000);
       }
 
@@ -541,7 +547,7 @@ export class ConnectionService {
   /**
    * Auto-accept P2P connection requests (these are always auto-accepted)
    */
-  private autoAcceptConnection(request: ConnectionRequest): void {
+  private async autoAcceptConnection(request: ConnectionRequest): Promise<void> {
     if (request.type === ConnectionType.P2P_CONNECTION) {
       // Show notification but auto-accept
       this.notificationService.addSystemNotification(
@@ -551,7 +557,7 @@ export class ConnectionService {
         request.recipientId // Associate with the recipient's session
       );
 
-      void this.acceptConnectionRequest(request.id);
+      await this.acceptConnectionRequest(request.id);
     }
   }
 }
