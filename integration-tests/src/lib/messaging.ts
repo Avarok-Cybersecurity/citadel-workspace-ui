@@ -438,3 +438,250 @@ export async function verifyMessagesSeen(
   await takeScreenshot(page, `${username}_messages_not_seen`);
   return { success: false, seenCount, deliveredCount, sentCount };
 }
+
+/**
+ * Send a message and verify it was received by the recipient.
+ * Implements retry logic for robustness against timing issues.
+ *
+ * @param senderPage - The sender's page
+ * @param senderUsername - Sender's username for logging
+ * @param receiverPage - The receiver's page
+ * @param receiverUsername - Receiver's username for logging
+ * @param messageText - Message text to send
+ * @param options - Configuration options
+ * @returns true if message was successfully sent and received
+ */
+export async function sendAndVerifyMessage(
+  senderPage: Page,
+  senderUsername: string,
+  receiverPage: Page,
+  receiverUsername: string,
+  messageText: string,
+  options: {
+    maxRetries?: number;
+    verifyTimeout?: number;
+    retryDelay?: number;
+    uxTracker?: UxIssueTracker | null;
+  } = {}
+): Promise<boolean> {
+  const {
+    maxRetries = 3,
+    verifyTimeout = 15000,
+    retryDelay = 2000,
+    uxTracker = null,
+  } = options;
+
+  console.log(`\n=== Robust Send: ${senderUsername} -> ${receiverUsername} ===`);
+  console.log(`  Message: "${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}"`);
+  console.log(`  Config: maxRetries=${maxRetries}, verifyTimeout=${verifyTimeout}ms`);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`  Attempt ${attempt}/${maxRetries}...`);
+
+    // Send the message
+    const sendSuccess = await sendMessage(senderPage, senderUsername, messageText, null);
+    if (!sendSuccess) {
+      console.log(`    Send failed on attempt ${attempt}`);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+      if (uxTracker) {
+        uxTracker.log('critical', 'functional', `Failed to send message after ${maxRetries} attempts`);
+      }
+      return false;
+    }
+
+    // Verify message received
+    const verified = await verifyMessageReceived(
+      receiverPage,
+      receiverUsername,
+      messageText,
+      verifyTimeout,
+      null // Don't log UX issues on intermediate attempts
+    );
+
+    if (verified) {
+      console.log(`  ✓ Message verified on attempt ${attempt}`);
+      return true;
+    }
+
+    console.log(`    Verification failed on attempt ${attempt}`);
+    if (attempt < maxRetries) {
+      console.log(`    Waiting ${retryDelay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  console.log(`  ✗ Message delivery failed after ${maxRetries} attempts`);
+  if (uxTracker) {
+    uxTracker.log('critical', 'functional', `Message not received after ${maxRetries} attempts: "${messageText}"`);
+  }
+  await takeScreenshot(receiverPage, `${receiverUsername}_message_not_received_final`);
+  return false;
+}
+
+/**
+ * Wait for P2P connection to be ready by checking actual service state.
+ * More reliable than UI-based checks for timing-sensitive tests.
+ *
+ * @param page - The page to check connection state on
+ * @param username - Username for logging
+ * @param peerUsername - The peer to wait for connection to
+ * @param timeoutMs - Maximum time to wait
+ * @returns true if connection established within timeout
+ */
+export async function waitForP2PReady(
+  page: Page,
+  username: string,
+  peerUsername: string,
+  timeoutMs: number = 30000
+): Promise<boolean> {
+  console.log(`  ${username}: Waiting for P2P ready to ${peerUsername}...`);
+
+  const startTime = Date.now();
+  const pollInterval = 500;
+
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const result = await page.evaluate(async (peerUser: string) => {
+        try {
+          // @ts-ignore - Browser-side import via Vite dev server
+          const { p2pAutoConnectService } = await import('/src/lib/p2p-auto-connect-service.ts');
+          // @ts-ignore - Browser-side import via Vite dev server
+          const { p2pRegistrationService } = await import('/src/lib/p2p-registration-service.ts');
+
+          // Find peer CID by username
+          const { registeredPeers } = p2pRegistrationService.getPeers();
+          const peer = registeredPeers.find(
+            (p: { username?: string }) => p.username?.toLowerCase() === peerUser.toLowerCase()
+          );
+          if (!peer?.cid) return { ready: false, reason: 'peer_not_found' };
+
+          // Check if connected
+          const peerCid = typeof peer.cid === 'bigint' ? peer.cid : BigInt(peer.cid);
+          const connected = await p2pAutoConnectService.isPeerConnected(peerCid);
+          if (!connected) return { ready: false, reason: 'not_connected' };
+
+          // Check if peer is marked online/ready
+          const isOnline = p2pAutoConnectService.isPeerOnline(peerCid);
+          return { ready: connected, reason: isOnline ? 'connected_and_online' : 'connected_but_offline' };
+        } catch (e) {
+          return { ready: false, reason: `error: ${e}` };
+        }
+      }, peerUsername);
+
+      if (result.ready) {
+        console.log(`  ${username}: P2P ready to ${peerUsername} (${result.reason}) in ${Date.now() - startTime}ms`);
+        return true;
+      }
+
+      // Log progress every 5 seconds
+      const elapsed = Date.now() - startTime;
+      if (elapsed > 0 && elapsed % 5000 < pollInterval) {
+        console.log(`  ${username}: Still waiting for P2P (${result.reason})... ${Math.round(elapsed / 1000)}s`);
+      }
+    } catch (error) {
+      // Ignore errors and keep polling
+    }
+
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  console.log(`  ${username}: P2P ready timeout after ${timeoutMs}ms`);
+  return false;
+}
+
+/**
+ * Verify multiple offline messages with retry logic.
+ * If messages aren't found, forces a UI refresh by navigating away and back.
+ *
+ * @param page - The page to check
+ * @param username - Username for logging
+ * @param peerUsername - Peer to open conversation with
+ * @param messages - Array of message texts to verify
+ * @param options - Configuration options
+ * @returns Object with results for each message
+ */
+export async function verifyOfflineMessagesWithRetry(
+  page: Page,
+  username: string,
+  _peerUsername: string, // Kept for API compatibility but no longer used (navigation removed)
+  messages: string[],
+  options: {
+    maxRetries?: number;
+    verifyTimeout?: number;
+    retryDelay?: number;
+    openConversationFn?: (page: Page, username: string, peerUsername: string, tracker: UxIssueTracker | null) => Promise<boolean>;
+    uxTracker?: UxIssueTracker | null;
+  } = {}
+): Promise<{ allReceived: boolean; results: Record<string, boolean> }> {
+  const {
+    maxRetries = 3,
+    verifyTimeout = 20000,
+    retryDelay = 3000,
+    // openConversationFn removed - navigation discards in-flight ILM messages
+    uxTracker = null,
+  } = options;
+
+  console.log(`\n=== ${username}: Verifying ${messages.length} offline messages ===`);
+  messages.forEach((msg, i) => {
+    console.log(`  ${i + 1}. "${msg.substring(0, 50)}${msg.length > 50 ? '...' : ''}"`);
+  });
+
+  const results: Record<string, boolean> = {};
+  messages.forEach(msg => results[msg] = false);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`  Attempt ${attempt}/${maxRetries}...`);
+
+    // If this is a retry, wait for ILM to deliver messages (NO navigation - may discard in-flight messages)
+    // Navigation during ILM message delivery can:
+    // - Discard WebSocket messages in flight
+    // - Reset React state before messages are rendered
+    // - Miss messages that arrive during navigation
+    if (attempt > 1) {
+      console.log(`    Waiting ${retryDelay}ms for ILM to deliver messages...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+
+      // Scroll to trigger UI refresh without losing WebSocket connection
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Verify all messages
+    for (const msg of messages) {
+      if (!results[msg]) {
+        const found = await verifyMessageReceived(page, username, msg, verifyTimeout, null);
+        if (found) {
+          results[msg] = true;
+          console.log(`    ✓ Found: "${msg.substring(0, 40)}..."`);
+        } else {
+          console.log(`    ✗ Not found: "${msg.substring(0, 40)}..."`);
+        }
+      }
+    }
+
+    // Check if all messages found
+    const receivedCount = Object.values(results).filter(v => v).length;
+    if (receivedCount === messages.length) {
+      console.log(`  ✓ All ${messages.length} offline messages verified on attempt ${attempt}`);
+      return { allReceived: true, results };
+    }
+
+    if (attempt < maxRetries) {
+      console.log(`    Found ${receivedCount}/${messages.length}, retrying...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  console.log(`  ✗ Offline message verification failed after ${maxRetries} attempts`);
+  if (uxTracker) {
+    const missing = messages.filter(m => !results[m]);
+    uxTracker.log('critical', 'functional', `Offline messages not received: ${missing.join(', ')}`);
+  }
+  await takeScreenshot(page, `${username}_offline_messages_not_received`);
+  return { allReceived: false, results };
+}

@@ -19,9 +19,9 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal } from "@/components/SettingsModal";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
 import { useNavigate } from "react-router-dom";
-import { clearSelectedUser } from "@/lib/tab-context";
+import { clearSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { useState } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
@@ -105,10 +105,25 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         return;
       }
 
-      console.log('TopBar: Fully signing out user', currentSession.username);
+      // Also get the CID from tab context (more reliable source)
+      const tabSelection = await getSelectedUser();
+      const cid = tabSelection?.selectedCid ?? currentSession.cid;
 
-      // Full disconnect via WebSocket
-      await connectionManager.disconnect();
+      if (!cid) {
+        console.error('TopBar: No CID found for session');
+        setDisconnectStatus("error");
+        setDisconnectError("No active session CID found");
+        return;
+      }
+
+      console.log('TopBar: Fully signing out user', currentSession.username, 'CID:', cid.toString());
+
+      // Full disconnect via WebSocket - pass the session info explicitly
+      await connectionManager.disconnect({
+        cid,
+        username: currentSession.username,
+        serverAddress: currentSession.serverAddress,
+      });
 
       // Update status to cleaning
       setDisconnectStatus("cleaning");

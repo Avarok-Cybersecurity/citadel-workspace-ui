@@ -18,10 +18,11 @@
 
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
+import { PollingService } from '../utils/polling-service';
 
 export interface QueuedMessage {
   requestId: string;
-  payload: any;
+  payload: unknown;
   instanceId: string;
   timestamp: number;
   retryCount: number;
@@ -31,23 +32,19 @@ export interface QueuedMessage {
 export interface AckResult {
   status: 'processed' | 'error';
   error?: string;
-  data?: any; // Optional data returned from leader (e.g., ensureMessengerOpen result)
+  data?: unknown;
 }
 
-class OutboundQueue {
-  private static instance: OutboundQueue;
+const ACK_TIMEOUT_MS = 5000;
+const MAX_RETRIES = 3;
+const CHECK_INTERVAL_MS = 1000;
 
+class OutboundQueue extends PollingService {
+  private static instance: OutboundQueue;
   private queue: Map<string, QueuedMessage> = new Map();
 
-  // Configuration
-  private readonly ACK_TIMEOUT_MS = 5000; // 5 seconds
-  private readonly MAX_RETRIES = 3;
-  private readonly CHECK_INTERVAL_MS = 1000; // Check for timeouts every second
-
-  private checkInterval: ReturnType<typeof setInterval> | null = null;
-  private isRunning = false;
-
   private constructor() {
+    super();
     this.setupEventListeners();
   }
 
@@ -58,8 +55,15 @@ class OutboundQueue {
     return OutboundQueue.instance;
   }
 
+  protected getPollingIntervalMs(): number {
+    return CHECK_INTERVAL_MS;
+  }
+
+  protected async poll(): Promise<void> {
+    this.checkTimeouts();
+  }
+
   private setupEventListeners(): void {
-    // Listen for leader changes to retry pending messages
     eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
       if (data.leaderId) {
         this.onLeaderChange(data.leaderId);
@@ -69,16 +73,9 @@ class OutboundQueue {
 
   /**
    * Start the timeout checker
-   * Call this when the instance is ready to send messages
    */
   start(): void {
-    if (this.isRunning) return;
-
-    this.isRunning = true;
-    this.checkInterval = setInterval(() => {
-      this.checkTimeouts();
-    }, this.CHECK_INTERVAL_MS);
-
+    this.startPolling();
     console.log('[OutboundQueue] Started timeout checker');
   }
 
@@ -86,20 +83,14 @@ class OutboundQueue {
    * Stop the timeout checker
    */
   stop(): void {
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = null;
-    }
-    this.isRunning = false;
-
+    this.stopPolling();
     console.log('[OutboundQueue] Stopped timeout checker');
   }
 
   /**
    * Enqueue a message for sending
-   * Returns the requestId for tracking
    */
-  enqueue(payload: any, requestId?: string): string {
+  enqueue(payload: unknown, requestId?: string): string {
     const id = requestId || crypto.randomUUID();
 
     const message: QueuedMessage = {
@@ -111,7 +102,6 @@ class OutboundQueue {
     };
 
     this.queue.set(id, message);
-
     console.log(`[OutboundQueue] Enqueued message: ${id} (queue size: ${this.queue.size})`);
 
     return id;
@@ -119,7 +109,6 @@ class OutboundQueue {
 
   /**
    * Acknowledge a message (remove from queue)
-   * Called when leader sends ACK
    */
   acknowledge(requestId: string, result: AckResult): void {
     const message = this.queue.get(requestId);
@@ -129,7 +118,6 @@ class OutboundQueue {
       return;
     }
 
-    // Clear timeout if set
     if (message.timeoutId) {
       clearTimeout(message.timeoutId);
     }
@@ -149,16 +137,10 @@ class OutboundQueue {
     }
   }
 
-  /**
-   * Get a message by requestId
-   */
   get(requestId: string): QueuedMessage | undefined {
     return this.queue.get(requestId);
   }
 
-  /**
-   * Remove a message from queue (without ACK)
-   */
   remove(requestId: string): void {
     const message = this.queue.get(requestId);
     if (message?.timeoutId) {
@@ -167,68 +149,49 @@ class OutboundQueue {
     this.queue.delete(requestId);
   }
 
-  /**
-   * Get all pending messages
-   */
   getPending(): QueuedMessage[] {
     return Array.from(this.queue.values());
   }
 
-  /**
-   * Get messages that have timed out
-   */
   getTimedOut(): QueuedMessage[] {
     const now = Date.now();
     return Array.from(this.queue.values()).filter(
-      (msg) => now - msg.timestamp > this.ACK_TIMEOUT_MS
+      (msg) => now - msg.timestamp > ACK_TIMEOUT_MS
     );
   }
 
-  /**
-   * Check for timed out messages and handle retries
-   */
   private checkTimeouts(): void {
     const now = Date.now();
 
     for (const [requestId, message] of this.queue) {
       const elapsed = now - message.timestamp;
 
-      if (elapsed > this.ACK_TIMEOUT_MS) {
+      if (elapsed > ACK_TIMEOUT_MS) {
         this.handleTimeout(requestId, message);
       }
     }
   }
 
-  /**
-   * Handle a timed out message
-   */
   private handleTimeout(requestId: string, message: QueuedMessage): void {
-    if (message.retryCount >= this.MAX_RETRIES) {
-      // Max retries exceeded
-      console.error(
-        `[OutboundQueue] Max retries exceeded for ${requestId}, giving up`
-      );
+    if (message.retryCount >= MAX_RETRIES) {
+      console.error(`[OutboundQueue] Max retries exceeded for ${requestId}, giving up`);
 
       this.queue.delete(requestId);
 
       eventEmitter.emit('outbound-failed', {
         requestId,
-        error: `Max retries (${this.MAX_RETRIES}) exceeded`,
+        error: `Max retries (${MAX_RETRIES}) exceeded`,
         payload: message.payload,
       });
 
       return;
     }
 
-    // Retry the message
     message.retryCount++;
-    message.timestamp = Date.now(); // Reset timestamp for next timeout
+    message.timestamp = Date.now();
 
-    console.log(
-      `[OutboundQueue] Retrying ${requestId} (attempt ${message.retryCount}/${this.MAX_RETRIES})`
-    );
+    console.log(`[OutboundQueue] Retrying ${requestId} (attempt ${message.retryCount}/${MAX_RETRIES})`);
 
-    // Emit event to trigger re-send via InstanceChannel
     eventEmitter.emit('outbound-retry', {
       requestId,
       payload: message.payload,
@@ -236,19 +199,12 @@ class OutboundQueue {
     });
   }
 
-  /**
-   * Handle leader change - retry all pending messages to new leader
-   */
   onLeaderChange(newLeaderId: string): void {
     if (this.queue.size === 0) return;
 
-    console.log(
-      `[OutboundQueue] Leader changed to ${newLeaderId}, retrying ${this.queue.size} pending messages`
-    );
+    console.log(`[OutboundQueue] Leader changed to ${newLeaderId}, retrying ${this.queue.size} pending messages`);
 
     for (const [requestId, message] of this.queue) {
-      // Don't count leader change as a retry (reset retry count)
-      // But do update timestamp to reset timeout
       message.timestamp = Date.now();
 
       eventEmitter.emit('outbound-retry', {
@@ -260,9 +216,6 @@ class OutboundQueue {
     }
   }
 
-  /**
-   * Get queue statistics
-   */
   getStats(): { size: number; oldestMs: number | null } {
     const now = Date.now();
     let oldestMs: number | null = null;
@@ -274,15 +227,9 @@ class OutboundQueue {
       }
     }
 
-    return {
-      size: this.queue.size,
-      oldestMs,
-    };
+    return { size: this.queue.size, oldestMs };
   }
 
-  /**
-   * Clear all pending messages
-   */
   clear(): void {
     for (const message of this.queue.values()) {
       if (message.timeoutId) {
@@ -293,17 +240,11 @@ class OutboundQueue {
     console.log('[OutboundQueue] Cleared all pending messages');
   }
 
-  /**
-   * Cleanup
-   */
   destroy(): void {
     this.stop();
     this.clear();
   }
 }
 
-// Export singleton instance
 export const outboundQueue = OutboundQueue.getInstance();
-
-// Also export class for testing
 export { OutboundQueue };

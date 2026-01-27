@@ -22,6 +22,7 @@ import {
 import { eventEmitter } from '../event-emitter';
 import { BroadcastChannelService } from '../broadcast-channel-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
+import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
@@ -118,10 +119,21 @@ export class MessageHandler {
     const peerCidBigint = ensureBigIntOrNull(peer_cid) ?? undefined;
     const notificationCidBigint = ensureBigIntOrNull(cid) ?? undefined;
 
+    // CRITICAL FIX: If currentCid is null but we received a valid notification CID,
+    // use notificationCidBigint as the effective CID. This handles the race condition
+    // where messages arrive before instanceManager.setCid() is called after ClaimSession.
+    // The notification CID comes from the server and is authoritative.
+    const effectiveCid = currentCid ?? notificationCidBigint;
+
+    if (!currentCid && notificationCidBigint) {
+      console.log('[P2P] WARNING: currentCid is null, using notification CID as fallback:', notificationCidBigint?.toString());
+    }
+
     console.log('[P2P] handleWebSocketMessage checking MessageNotification:', {
       peer_cid: peerCidBigint?.toString(),
       notification_cid: notificationCidBigint?.toString(),
       currentCid: currentCid?.toString(),
+      effectiveCid: effectiveCid?.toString(),
       isP2P: peerCidBigint !== undefined && peerCidBigint !== 0n,
     });
 
@@ -155,9 +167,9 @@ export class MessageHandler {
       eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
       BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
 
-      // Multi-tab session routing
-      const isOwnOutgoingEcho = peerCidBigint === currentCid;
-      if (isOwnOutgoingEcho && notificationCidBigint !== currentCid) {
+      // Multi-tab session routing (using effectiveCid to handle ClaimSession race condition)
+      const isOwnOutgoingEcho = peerCidBigint === effectiveCid;
+      if (isOwnOutgoingEcho && notificationCidBigint !== effectiveCid) {
         console.log('[P2P] Outgoing echo for different session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({
           notification,
@@ -166,7 +178,7 @@ export class MessageHandler {
         return;
       }
 
-      const isForDifferentSession = notificationCidBigint !== undefined && notificationCidBigint !== currentCid;
+      const isForDifferentSession = notificationCidBigint !== undefined && notificationCidBigint !== effectiveCid;
       if (isForDifferentSession) {
         console.log('[P2P] Message for different session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({
@@ -235,6 +247,12 @@ export class MessageHandler {
 
     // Any P2P message received means the peer is online and ready
     this.config.markPeerReady(peerCid);
+
+    // CRITICAL: Mark channel as "ready" for p2pAutoConnectService.
+    // This proves bidirectional message flow works (we received a message).
+    // Tests can wait for the 'p2p:channel-ready' event to know when
+    // messaging is truly operational, not just "connected".
+    p2pAutoConnectService.markChannelReady(peerCid);
 
     switch (layer.type) {
       case MessagingLayerType.Message:
@@ -327,7 +345,7 @@ export class MessageHandler {
       this.config.notifyMessageListeners(message);
 
       eventEmitter.emit('p2p:message-received', {
-        peerCid: peerCid.toString(),
+        peerCid,  // Keep as bigint for consistent typing (useP2PMessages hook expects bigint)
         messageId: message.id,
         text: message.content,
         timestamp: message.timestamp,

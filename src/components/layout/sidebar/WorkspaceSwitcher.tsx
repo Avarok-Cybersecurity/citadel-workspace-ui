@@ -14,7 +14,7 @@ import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
 import { getWorkspaceLogo, getWorkspaceInitials } from "@/lib/workspace-metadata-service";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
@@ -393,7 +393,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
                   disabled={isSwitching}
                 >
                   <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#6E59A5] text-white text-sm font-semibold">
-                    {workspace.fullName ? workspace.fullName.charAt(0).toUpperCase() : workspace.username.charAt(0).toUpperCase()}
+                    {(workspace.fullName || workspace.username || '?').charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1">
                     <span className="font-semibold block group-hover:text-[#1C1D28]">

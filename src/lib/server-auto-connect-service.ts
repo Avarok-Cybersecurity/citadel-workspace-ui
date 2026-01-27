@@ -9,11 +9,10 @@
  */
 
 import { websocketService } from './websocket-service';
-import { eventEmitter } from './event-emitter';
 import { instanceManager } from './multi-instance';
-import { getSelectedUser } from './tab-context';
-import type { StoredSession, StoredSessions, ActiveSession } from '@/types/session-types';
+import type { StoredSession, ActiveSession } from '@/types/session-types';
 import { v4 as uuidv4 } from 'uuid';
+import { EventListenerPollingService } from './utils/polling-service';
 
 interface ConnectionAttempt {
   sessionKey: string;
@@ -22,27 +21,36 @@ interface ConnectionAttempt {
   lastError?: string;
 }
 
-export class ServerAutoConnectService {
+const BASE_DELAY = 5000;
+const MAX_DELAY = 300000;
+const POLL_INTERVAL_MS = 60000;
+const LOCALDB_KEY = 'server_auto_connect_enabled';
+const USER_DISCONNECTED_KEY = 'user_disconnected_sessions';
+const GLOBAL_CID = 0n;
+
+export class ServerAutoConnectService extends EventListenerPollingService {
   private static instance: ServerAutoConnectService;
 
-  // Connection state tracking
   private reconnectAttempts = new Map<string, ConnectionAttempt>();
   private activeSessionKeys = new Set<string>();
-  private userDisconnectedSessions = new Set<string>(); // Track user-initiated disconnects
-  private pollingInterval: NodeJS.Timeout | null = null;
-  private isEnabled = true; // Default: ON
+  private userDisconnectedSessions = new Set<string>();
+  private isEnabled = true;
   private isInitialized = false;
 
-  // Backoff configuration (matching p2p-auto-connect-service)
-  private readonly BASE_DELAY = 5000;      // 5 seconds
-  private readonly MAX_DELAY = 300000;     // 5 minutes
-  private readonly POLL_INTERVAL = 60000;  // 1 minute check interval
-  private readonly LOCALDB_KEY = 'server_auto_connect_enabled';
-  private readonly USER_DISCONNECTED_KEY = 'user_disconnected_sessions';
-  private readonly GLOBAL_CID = 0n;        // CID 0 for global settings
-
   private constructor() {
+    super();
     this.setupEventListeners();
+  }
+
+  protected getPollingIntervalMs(): number {
+    return POLL_INTERVAL_MS;
+  }
+
+  protected async poll(): Promise<void> {
+    if (!this.isEnabled || !instanceManager.isLeader) {
+      return;
+    }
+    await this.reconnectToDisconnectedSessions();
   }
 
   public static getInstance(): ServerAutoConnectService {
@@ -79,8 +87,8 @@ export class ServerAutoConnectService {
   private async loadUserDisconnectedSessions(): Promise<void> {
     try {
       const result = await websocketService.sendLocalDBGet(
-        this.GLOBAL_CID,
-        this.USER_DISCONNECTED_KEY
+        GLOBAL_CID,
+        USER_DISCONNECTED_KEY
       );
 
       if (result?.value) {
@@ -104,33 +112,34 @@ export class ServerAutoConnectService {
     try {
       const sessions = Array.from(this.userDisconnectedSessions);
       const value = Array.from(new TextEncoder().encode(JSON.stringify(sessions)));
-      await websocketService.sendLocalDBSet(this.GLOBAL_CID, this.USER_DISCONNECTED_KEY, value);
+      await websocketService.sendLocalDBSet(GLOBAL_CID, USER_DISCONNECTED_KEY, value);
     } catch (error) {
       console.warn('ServerAutoConnect: Failed to persist user disconnected sessions:', error);
     }
   }
 
   /**
-   * Setup event listeners for connection lifecycle events
+   * Setup event listeners for connection lifecycle events.
+   * Uses EventListenerManager's listen() for automatic cleanup.
    */
-  private setupEventListeners(): void {
+  protected setupEventListeners(): void {
     // Start polling when user logs in successfully
     // Add delay to let the new session be fully established before polling
     // This prevents race conditions where poll() sees stale cache without the new session
-    eventEmitter.on('auth:success', () => {
+    this.listen('auth:success', () => {
       console.log('ServerAutoConnect: Auth success detected, starting polling after delay');
       setTimeout(() => this.startPolling(), 3000);
     });
 
     // Stop polling on logout (reuse existing event)
-    eventEmitter.on('p2p:registration-service-stopped', () => {
+    this.listen('p2p:registration-service-stopped', () => {
       console.log('ServerAutoConnect: Logout detected, stopping polling');
       this.stopPolling();
       this.cancelAllRetries();
     });
 
     // Handle connection success/failure from websocket messages
-    eventEmitter.on('websocket-message', async (message: any) => {
+    this.listen<any>('websocket-message', async (message) => {
       if (message.ConnectSuccess) {
         await this.handleConnectionSuccess(message.ConnectSuccess);
       }
@@ -144,7 +153,7 @@ export class ServerAutoConnectService {
 
     // Start/stop polling based on leader status
     // Only leader tab should poll to prevent duplicate connect requests from multiple tabs
-    eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
+    this.listen<{ isLeader: boolean; leaderId: string }>('instance:leader-changed', (data) => {
       console.log(`ServerAutoConnect: Leader changed - isLeader: ${data.isLeader}`);
       if (data.isLeader) {
         // Became leader, start polling if enabled
@@ -159,13 +168,12 @@ export class ServerAutoConnectService {
 
   /**
    * Load enabled setting from LocalDB
-   * Uses CID 0 for global settings
    */
   private async loadEnabledSetting(): Promise<boolean> {
     try {
       const result = await websocketService.sendLocalDBGet(
-        this.GLOBAL_CID,
-        this.LOCALDB_KEY
+        GLOBAL_CID,
+        LOCALDB_KEY
       );
 
       if (result?.value) {
@@ -197,7 +205,7 @@ export class ServerAutoConnectService {
 
     try {
       const value = Array.from(new TextEncoder().encode(String(enabled)));
-      await websocketService.sendLocalDBSet(this.GLOBAL_CID, this.LOCALDB_KEY, value);
+      await websocketService.sendLocalDBSet(GLOBAL_CID, LOCALDB_KEY, value);
       console.log(`ServerAutoConnect: Setting saved (enabled: ${enabled})`);
 
       // Start or stop polling based on new setting
@@ -222,22 +230,20 @@ export class ServerAutoConnectService {
 
   /**
    * Trigger an immediate poll to reconnect disconnected sessions.
-   * Call this when a relevant event occurs.
    * Only runs on leader tab to prevent duplicate connect requests.
    */
-  public poll(): void {
+  public triggerReconnect(): void {
     if (!this.isEnabled) {
       console.log('ServerAutoConnect: Poll skipped (disabled)');
       return;
     }
 
-    // Only leader tab should poll to prevent duplicate connect requests from multiple tabs
     if (!instanceManager.isLeader) {
       console.log('ServerAutoConnect: Poll skipped (not leader tab)');
       return;
     }
 
-    this.reconnectToDisconnectedSessions().catch((err) => {
+    this.triggerPoll().catch((err) => {
       console.error('ServerAutoConnect: Poll failed:', err);
     });
   }
@@ -246,42 +252,28 @@ export class ServerAutoConnectService {
    * Start periodic background polling for auto-reconnection.
    * Only runs on leader tab to prevent duplicate connect requests.
    */
-  public startPolling(): void {
+  public override startPolling(): void {
     if (!this.isEnabled) {
       console.log('ServerAutoConnect: Polling not started (disabled)');
       return;
     }
 
-    // Only leader tab should poll to prevent duplicate connect requests from multiple tabs
     if (!instanceManager.isLeader) {
       console.log('ServerAutoConnect: Polling not started (not leader tab)');
       return;
     }
 
-    if (this.pollingInterval) {
-      return; // Already polling
-    }
-
-    console.log(`ServerAutoConnect: Starting background polling (interval: ${this.POLL_INTERVAL / 1000}s)`);
-
-    // Run immediately on start
-    this.poll();
-
-    // Then run periodically
-    this.pollingInterval = setInterval(() => {
-      this.poll();
-    }, this.POLL_INTERVAL);
+    console.log(`ServerAutoConnect: Starting background polling (interval: ${POLL_INTERVAL_MS / 1000}s)`);
+    this.triggerReconnect();
+    super.startPolling();
   }
 
   /**
    * Stop periodic background polling.
    */
-  public stopPolling(): void {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-      console.log('ServerAutoConnect: Stopped background polling');
-    }
+  public override stopPolling(): void {
+    super.stopPolling();
+    console.log('ServerAutoConnect: Stopped background polling');
   }
 
   /**
@@ -289,7 +281,7 @@ export class ServerAutoConnectService {
    */
   private async reconnectToDisconnectedSessions(): Promise<void> {
     // Import connectionManager dynamically to avoid circular dependency
-    const { connectionManager } = await import('./connection-manager');
+    const { connectionManager } = await import('./connection');
 
     // Get stored sessions
     const storedSessions = connectionManager.getStoredSessions();
@@ -388,15 +380,13 @@ export class ServerAutoConnectService {
         uuidv4(),
         session.username,
         session.password,
-        session.serverAddress,
-        session.serverPassword,
         session.sessionSecuritySettings
       );
 
       // Success will be handled by event listener
     } catch (error) {
       // Calculate exponential backoff
-      const delay = Math.min(this.BASE_DELAY * Math.pow(2, attempt.attempts), this.MAX_DELAY);
+      const delay = Math.min(BASE_DELAY * Math.pow(2, attempt.attempts), MAX_DELAY);
       attempt.attempts++;
       attempt.lastError = error instanceof Error ? error.message : String(error);
 
@@ -458,8 +448,7 @@ export class ServerAutoConnectService {
     // The reconnect will happen on next poll
 
     if (this.isEnabled) {
-      // Trigger immediate poll to attempt reconnection
-      setTimeout(() => this.poll(), 1000);
+      setTimeout(() => this.triggerReconnect(), 1000);
     }
   }
 

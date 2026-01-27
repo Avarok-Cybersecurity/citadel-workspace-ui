@@ -10,7 +10,7 @@ import WorkspaceService from "@/lib/workspace-service";
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { listKnownServers } from "@/lib/server-utils";
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
-import { ConnectionManager } from "@/lib/connection-manager";
+import { ConnectionManager } from "@/lib/connection";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
 import { LoginConflictModal } from "@/components/LoginConflictModal";
 import { SettingsModal } from "@/components/SettingsModal";

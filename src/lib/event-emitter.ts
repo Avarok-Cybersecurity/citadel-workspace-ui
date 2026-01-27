@@ -49,7 +49,7 @@ export class EventEmitter {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    
+
     const handlers = this.listeners.get(event)!;
     handlers.add(handler);
 
@@ -60,6 +60,15 @@ export class EventEmitter {
         this.listeners.delete(event);
       }
     };
+  }
+
+  once<T = any>(event: string, handler: EventHandler<T>): () => void {
+    const wrappedHandler: EventHandler<T> = (payload) => {
+      unsubscribe();
+      handler(payload);
+    };
+    const unsubscribe = this.on(event, wrappedHandler);
+    return unsubscribe;
   }
 
   off(event: string, handler?: EventHandler): void {
@@ -85,18 +94,3 @@ export class EventEmitter {
 
 // Global event emitter singleton
 export const eventEmitter = new EventEmitter();
-
-export async function listen<T = any>(
-  event: string,
-  handler: (event: { payload: T }) => void
-): Promise<() => void> {
-  const wrappedHandler = (payload: T) => {
-    handler({ payload });
-  };
-
-  return eventEmitter.on(event, wrappedHandler);
-}
-
-export async function emit<T = any>(event: string, payload: T): Promise<void> {
-  eventEmitter.emit(event, payload);
-}

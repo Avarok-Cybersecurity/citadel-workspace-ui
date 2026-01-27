@@ -17,7 +17,7 @@ import { FileText, MessageSquare } from 'lucide-react';
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';

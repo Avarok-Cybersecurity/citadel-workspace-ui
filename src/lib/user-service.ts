@@ -1,7 +1,7 @@
 import NotificationService, { NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { getTabData, setTabData, removeTabData } from './tab-context';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
 
 // Interface for user registration information
 export interface UserRegistrationInfo {

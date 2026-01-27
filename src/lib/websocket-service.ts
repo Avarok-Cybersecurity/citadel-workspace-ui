@@ -1,5 +1,5 @@
 import { WorkspaceClient } from 'citadel-workspace-client-ts';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
 import { debugLog, errorLog } from './debug-config';
 
 // New multi-instance architecture imports
@@ -195,11 +195,9 @@ class WebSocketService {
     requestId: string,
     username: string,
     password: string,
-    serverAddr: string,
-    serverPassword?: string,
     sessionSecuritySettings?: Record<string, unknown>
   ): Promise<void> {
-    return this.authOps.connect(requestId, username, password, serverAddr, serverPassword, sessionSecuritySettings);
+    return this.authOps.connect(requestId, username, password, sessionSecuritySettings);
   }
 
   async register(

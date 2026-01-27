@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { FilePreviewDialog } from "@/components/layout/sidebar/FilePreviewDialog";
 import { toast } from "sonner";
 import type { FileMetadata } from "@/types/files";
-import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer-service";
+import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer";
 import { useEventListener } from "@/hooks";
 import { FileManagerTabs } from "./FileManagerTabs";
 import { DeleteDialog } from "./DeleteDialog";

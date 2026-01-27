@@ -5,7 +5,7 @@ import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
-import { connectionManager } from '../lib/connection-manager';
+import { connectionManager } from '../lib/connection';
 // P2P startup is now centralized in SessionStartupService, but we still need stop() for cleanup
 import { p2pRegistrationService } from '../lib/p2p-registration-service';
 

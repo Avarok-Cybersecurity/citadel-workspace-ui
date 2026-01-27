@@ -13,7 +13,7 @@
 import { Page } from 'playwright';
 import {
   sleep,
-  createBrowser,
+  createSeparateBrowsers,
   ensureScreenshotsDir,
   createAccount,
   p2pRegister,
@@ -147,8 +147,13 @@ async function runTest(): Promise<boolean> {
     timestamp: new Date().toISOString(),
   }, 'investigating');
 
-  // Setup browser with shared context (single WebSocket for both tabs)
-  const { browser, context } = await createBrowser();
+  // Setup SEPARATE browser instances for each user
+  // This gives each user their own WebSocket connection, avoiding ILM cross-user issues
+  // The ILM (Inter-session Layer Messaging) was designed for one user with multiple tabs,
+  // NOT multiple different users sharing one WebSocket
+  const { pages, cleanup } = await createSeparateBrowsers(2);
+  const page1 = pages[0];
+  const page2 = pages[1];
 
   const results: TestResults = {
     accountCreation: { user1: false, user2: false },
@@ -177,9 +182,6 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    const page1 = await context.newPage();
-    const page2 = await context.newPage();
-
     // Setup console capture - include ILM for InterSession Layer Messaging diagnostics
     // Add 'Workspace' to capture workspace loading logs for debugging
     // Add 'WASM' to capture WASM-side debug logs for HashMap serialization tracing
@@ -476,7 +478,7 @@ async function runTest(): Promise<boolean> {
     }, 'failed');
     throw error;
   } finally {
-    await browser.close();
+    await cleanup();
   }
 }
 

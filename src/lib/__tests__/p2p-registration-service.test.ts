@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { eventEmitter } from '../event-emitter';
 import { websocketService } from '../websocket-service';
-import { connectionManager } from '../connection-manager';
+import { connectionManager } from '../connection';
 
 // Mock websocket service - service now uses sendMessage instead of sendRequest
 vi.mock('../websocket-service', () => ({
@@ -15,7 +15,7 @@ vi.mock('../websocket-service', () => ({
 
 // Mock connection manager - service uses multiple connectionManager methods
 // Note: getTabSelectedSession and getSelectedCid are async (IndexedDB-backed)
-vi.mock('../connection-manager', () => ({
+vi.mock('../connection', () => ({
   connectionManager: {
     getConnectionInfo: vi.fn(),
     getTabSelectedSession: vi.fn(() => Promise.resolve(null)),

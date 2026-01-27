@@ -24,6 +24,22 @@
  * - P2P registration persists (stored on server)
  * - P2PAutoConnect automatically reconnects to registered peers
  * - ILM delivers queued messages using the preserved CID
+ *
+ * KNOWN ISSUE (2026-01-24):
+ * P2P reconnection after explicit logout/login fails at the Citadel SDK level.
+ * Symptoms:
+ * - After login, Bob's SDK queries (ListAllPeers, ListRegisteredPeers) time out
+ * - Bob's PeerConnect request times out after 30 seconds even though:
+ *   - Alice receives PeerConnectNotification
+ *   - Alice successfully sends PeerConnectAccept
+ *   - Alice gets PeerConnectAcceptSuccess
+ * - The SDK's connect_to_peer_custom doesn't complete the handshake
+ *
+ * This is different from ClaimSession (test:offline) where the session is
+ * preserved during orphan mode and P2P reconnection works correctly.
+ *
+ * Root cause appears to be at Citadel SDK/server level - Bob's new session
+ * after explicit logout isn't properly initialized for P2P operations.
  */
 
 import {

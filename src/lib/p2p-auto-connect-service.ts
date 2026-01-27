@@ -39,7 +39,7 @@
 
 import { websocketService } from './websocket-service';
 import { p2pRegistrationService } from './p2p-registration-service';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
 import { eventEmitter } from './event-emitter';
 import { instanceManager } from './multi-instance';
 import { broadcastChannelService } from './broadcast-channel-service';
@@ -70,6 +70,15 @@ export class P2PAutoConnectService {
   // Connection state tracking
   private connectionAttempts = new Map<bigint, ConnectionAttempt>();
   private onlinePeers = new Set<bigint>();
+
+  /**
+   * Channels that have proven bidirectional message flow.
+   * A channel is "ready" when we receive the first P2P message from the peer,
+   * proving the channel is established and messages can flow in both directions.
+   * This is more reliable than just checking "connected" status.
+   * Reset on session reconnection (ClaimSession/Login).
+   */
+  private readyChannels = new Set<bigint>();
 
   /**
    * SINGLE SOURCE OF TRUTH for peer connections.
@@ -667,6 +676,40 @@ export class P2PAutoConnectService {
   }
 
   /**
+   * Check if a peer's P2P channel is READY for messaging.
+   * Channel is ready when we've received at least one P2P message from the peer,
+   * proving bidirectional message flow works.
+   *
+   * This is MORE RELIABLE than isPeerConnected() because:
+   * - Connected only means the Map entry exists (protocol handshake done)
+   * - Ready means we've proven messages actually flow through the channel
+   *
+   * @param peerCid - The peer CID to check
+   * @returns true if we've received a message from this peer (channel proven ready)
+   */
+  public isChannelReady(peerCid: bigint): boolean {
+    return this.readyChannels.has(peerCid);
+  }
+
+  /**
+   * Mark a peer's P2P channel as READY for messaging.
+   * Called when we receive the first P2P message from a peer, proving the
+   * channel is bidirectionally established.
+   *
+   * Emits 'p2p:channel-ready' event for tests and other consumers that need
+   * to wait for actual message flow capability.
+   *
+   * @param peerCid - The peer CID to mark as ready
+   */
+  public markChannelReady(peerCid: bigint): void {
+    if (!this.readyChannels.has(peerCid)) {
+      this.readyChannels.add(peerCid);
+      console.log(`[P2P] Channel ready for peer ${peerCid.toString().slice(0, 8)}... (message received)`);
+      eventEmitter.emit('p2p:channel-ready', { peerCid });
+    }
+  }
+
+  /**
    * Check if a peer is currently connected (legacy API using current CID)
    */
   public async isPeerConnected(peerCid: bigint): Promise<boolean> {
@@ -756,8 +799,13 @@ export class P2PAutoConnectService {
    *
    * Only runs on leader tab to prevent duplicate P2P connect requests.
    */
-  public async connectToPeer(peerCid: bigint): Promise<void> {
-    console.log(`[ILM-TRACE] connectToPeer: START peerCid=${peerCid?.toString().slice(0, 8)}`);
+  public async connectToPeer(peerCid: bigint, forceInitiator: boolean = false): Promise<void> {
+    console.log(`[ILM-TRACE] connectToPeer: START peerCid=${peerCid?.toString().slice(0, 8)}, forceInitiator=${forceInitiator}`);
+
+    // DETERMINISTIC FIX: forceInitiator passed as parameter to avoid race condition.
+    // The flag is captured synchronously at call site before async execution begins.
+    // Previous bug: this.forceInitiatorMode was read here but reset before we executed.
+    const shouldForceInitiator = forceInitiator;
 
     // Only leader tab should initiate P2P connections to prevent duplicate requests from multiple tabs
     if (!instanceManager.isLeader) {
@@ -784,7 +832,8 @@ export class P2PAutoConnectService {
     // FORCE INITIATOR MODE: After ClaimSession, the reconnecting user must ALWAYS
     // initiate PeerConnect because the peer doesn't know they've reconnected.
     // This bypasses the deterministic CID check for reconnection scenarios.
-    if (this.forceInitiatorMode) {
+    // NOTE: Using captured shouldForceInitiator (captured before any await)
+    if (shouldForceInitiator) {
       console.log(`P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
     } else if (currentCid < peerCid) {
       // We have the lower CID - we are NOT the initiator
@@ -821,11 +870,13 @@ export class P2PAutoConnectService {
 
     // OPTIMIZATION: Use cached online status (non-blocking) - skip if definitely offline
     // If cache says offline, defer; if cache stale or online, try optimistically
+    // EXCEPTION: FORCE INITIATOR MODE bypasses this check - after ClaimSession reconnection,
+    // the peer might be online but our cache is stale. We must try the connection.
     const isOnline = this.isPeerOnline(peerCid);
     const cacheAge = Date.now() - this.lastOnlineStatusRefresh;
     const cacheValid = cacheAge < this.ONLINE_STATUS_CACHE_TTL;
 
-    if (cacheValid && !isOnline) {
+    if (cacheValid && !isOnline && !shouldForceInitiator) {
       // Cache is fresh and says peer is offline - defer
       console.log(`P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... offline (cached), scheduling next check in ${this.POLL_INTERVAL / 1000}s`);
       console.log('[ILM-TRACE] connectToPeer: DEFERRED - peer offline (cached)');
@@ -924,14 +975,19 @@ export class P2PAutoConnectService {
       }
     }
 
+    // CRITICAL: Capture forceInitiatorMode SYNCHRONOUSLY before launching async calls.
+    // This fixes the race condition where the flag was reset before connectToPeer() bodies executed.
+    const shouldForceInitiator = this.forceInitiatorMode;
+
     // Launch connections in parallel (each handles its own retries)
-    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: launching connections to ${registeredPeers.length} peers`);
+    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: launching connections to ${registeredPeers.length} peers, forceInitiator=${shouldForceInitiator}`);
     for (const peer of registeredPeers) {
       const peerCid = peer.cid;
       console.log(`[ILM-TRACE] Peer: cid=${peerCid?.toString().slice(0, 8)}, currentCid=${currentCid?.toString().slice(0, 8)}, skip=${peerCid === currentCid}`);
       if (peerCid && peerCid !== currentCid) {
         // Don't await - let each run independently
-        this.connectToPeer(peerCid).catch((err) => {
+        // Pass forceInitiator explicitly to avoid race condition with flag reset
+        this.connectToPeer(peerCid, shouldForceInitiator).catch((err) => {
           console.error(`P2PAutoConnect: Failed to initiate connection to ${peerCid}:`, err);
         });
       }
@@ -1156,6 +1212,20 @@ export class P2PAutoConnectService {
     }
     this.pendingConnections.clear();
     this.cancelAllRetries();
+
+    // CRITICAL: Invalidate peer online status cache
+    // After ClaimSession, the cached online status is stale - peers that were
+    // marked offline before the TCP drop may now be online. By clearing the
+    // cache, we force a fresh query on the next connection attempt.
+    this.onlinePeers.clear();
+    this.lastOnlineStatusRefresh = 0;
+    console.log('[ILM-TRACE] P2PAutoConnect: Cleared peer online status cache for reconnection');
+
+    // CRITICAL: Clear channel ready state on reconnection
+    // After ClaimSession/Login, channels need to be re-proven as "ready"
+    // (receiving a message proves bidirectional flow works)
+    this.readyChannels.clear();
+    console.log('[ILM-TRACE] P2PAutoConnect: Cleared channel ready state for reconnection');
 
     // CRITICAL: Force initiator mode after ClaimSession
     // The reconnecting user must ALWAYS initiate PeerConnect because the peer

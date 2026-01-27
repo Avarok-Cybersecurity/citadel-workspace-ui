@@ -4,7 +4,7 @@ import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
 import { getDefaultOfficeContent, getDefaultRoomContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import { StoredSession } from '@/types/session-types';
 import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
 

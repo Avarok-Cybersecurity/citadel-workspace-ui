@@ -1,15 +1,13 @@
 {
-  "timestamp": "2026-01-12T01:58:40.691Z",
+  "timestamp": "2026-01-27T01:05:21.961Z",
   "users": [
-    "prev_sess_a_1768182965409",
-    "prev_sess_b_1768182965409",
-    "prev_sess_c_1768182965409"
+    "prev_sess_a_1769475839536",
+    "prev_sess_b_1769475839536"
   ],
-  "sessionCount": 3,
-  "isCI": false,
+  "sessionCount": 2,
+  "isCI": true,
   "results": {
     "sessionsCreated": [
-      true,
       true,
       true
     ],

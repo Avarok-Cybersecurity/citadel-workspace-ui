@@ -5,8 +5,7 @@
  * Handles events from the Rust backend, processes them, and updates UI state.
  */
 
-import { listen } from './event-emitter';
-import type { UnlistenFn } from './workspace-events';
+import { eventEmitter } from './event-emitter';
 import { create } from 'zustand';
 import { generateRequestId } from './workspace-protocol';
 
@@ -222,6 +221,8 @@ export const useAppStore = create<AppState>((set) => ({
  * 
  * Implemented as a singleton to ensure only one instance exists.
  */
+type UnlistenFn = () => void;
+
 export class EventProcessor {
   private static instance: EventProcessor;
   private unlisteners: UnlistenFn[] = [];
@@ -243,27 +244,25 @@ export class EventProcessor {
 
   /**
    * Initialize event listeners
-   * @returns Promise that resolves when all listeners are set up
    */
-  public async initialize(): Promise<void> {
+  public initialize(): void {
     if (this.initialized) {
       console.info('Event processor already initialized');
       return;
     }
 
     // Clean up any existing listeners
-    await this.cleanup();
+    this.cleanup();
 
     // Set up listeners for all event types
-    const unlisten = await Promise.all([
-      this.setupConnectionListeners(),
-      this.setupPeerListeners(),
-      this.setupMessageListeners(),
-      this.setupWorkspaceListeners(),
-      this.setupErrorListeners(),
-    ]);
+    this.unlisteners = [
+      ...this.setupConnectionListeners(),
+      ...this.setupPeerListeners(),
+      ...this.setupMessageListeners(),
+      ...this.setupWorkspaceListeners(),
+      ...this.setupErrorListeners(),
+    ];
 
-    this.unlisteners = unlisten.flat();
     this.initialized = true;
 
     console.info('Event processor initialized with all listeners');
@@ -272,7 +271,7 @@ export class EventProcessor {
   /**
    * Clean up all event listeners
    */
-  public async cleanup(): Promise<void> {
+  public cleanup(): void {
     for (const unlisten of this.unlisteners) {
       unlisten();
     }
@@ -284,9 +283,9 @@ export class EventProcessor {
   /**
    * Set up connection event listeners
    */
-  private async setupConnectionListeners(): Promise<UnlistenFn[]> {
-    const connectionStatusUnlisten = await listen('connection-status-changed', (event) => {
-      const { connected, cid } = event.payload as { connected: boolean, cid?: string };
+  private setupConnectionListeners(): UnlistenFn[] {
+    const connectionStatusUnlisten = eventEmitter.on('connection-status-changed', (payload: { connected: boolean, cid?: string }) => {
+      const { connected, cid } = payload;
       useAppStore.getState().setConnected(connected, cid);
       console.info(`Connection status changed: connected=${connected}, cid=${cid}`);
     });
@@ -297,15 +296,15 @@ export class EventProcessor {
   /**
    * Set up peer event listeners
    */
-  private async setupPeerListeners(): Promise<UnlistenFn[]> {
-    const peerStatusUnlisten = await listen('peer-online', (event) => {
-      const { peer } = event.payload as { peer: UserTS };
+  private setupPeerListeners(): UnlistenFn[] {
+    const peerStatusUnlisten = eventEmitter.on('peer-online', (payload: { peer: UserTS }) => {
+      const { peer } = payload;
       useAppStore.getState().updatePeers([peer]);
       console.info(`Peer online: ${peer.id}`);
     });
 
-    const peerOfflineUnlisten = await listen('peer-offline', (event) => {
-      const { peer_cid } = event.payload as { peer_cid: string };
+    const peerOfflineUnlisten = eventEmitter.on('peer-offline', (payload: { peer_cid: string }) => {
+      const { peer_cid } = payload;
       const peerState = useAppStore.getState().peers;
 
       if (peerState.peers[peer_cid]) {
@@ -325,12 +324,12 @@ export class EventProcessor {
   /**
    * Set up message event listeners
    */
-  private async setupMessageListeners(): Promise<UnlistenFn[]> {
-    const messageReceivedUnlisten = await listen('message:received', (event) => {
-      const { connection, contents } = event.payload as {
-        connection: { cid: string, peer_cid: string, request_id?: string },
-        contents: string
-      };
+  private setupMessageListeners(): UnlistenFn[] {
+    const messageReceivedUnlisten = eventEmitter.on('message:received', (payload: {
+      connection: { cid: string, peer_cid: string, request_id?: string },
+      contents: string
+    }) => {
+      const { connection, contents } = payload;
 
       // Decode contents from base64 if necessary or parse as needed
       let contentBytes: Uint8Array;
@@ -360,32 +359,32 @@ export class EventProcessor {
   /**
    * Set up workspace event listeners
    */
-  private async setupWorkspaceListeners(): Promise<UnlistenFn[]> {
-    const officeLoadedUnlisten = await listen('office:loaded', (event) => {
-      const { office, connection } = event.payload as {
-        office: OfficeTS,
-        connection: { cid: string, peer_cid?: string, request_id?: string }
-      };
+  private setupWorkspaceListeners(): UnlistenFn[] {
+    const officeLoadedUnlisten = eventEmitter.on('office:loaded', (payload: {
+      office: OfficeTS,
+      connection: { cid: string, peer_cid?: string, request_id?: string }
+    }) => {
+      const { office } = payload;
 
       useAppStore.getState().updateOffices([office]);
       console.info(`Office loaded: ${office.id}`);
     });
 
-    const officesLoadedUnlisten = await listen('offices:loaded', (event) => {
-      const { offices, connection } = event.payload as {
-        offices: OfficeTS[],
-        connection: { cid: string, peer_cid?: string, request_id?: string }
-      };
+    const officesLoadedUnlisten = eventEmitter.on('offices:loaded', (payload: {
+      offices: OfficeTS[],
+      connection: { cid: string, peer_cid?: string, request_id?: string }
+    }) => {
+      const { offices } = payload;
 
       useAppStore.getState().updateOffices(offices);
       console.info(`${offices.length} offices loaded`);
     });
 
-    const roomLoadedUnlisten = await listen('room:loaded', (event) => {
-      const { room, connection } = event.payload as {
-        room: RoomTS,
-        connection: { cid: string, peer_cid?: string, request_id?: string }
-      };
+    const roomLoadedUnlisten = eventEmitter.on('room:loaded', (payload: {
+      room: RoomTS,
+      connection: { cid: string, peer_cid?: string, request_id?: string }
+    }) => {
+      const { room } = payload;
 
       const officeId = room.office_id;
       const existingRooms = useAppStore.getState().workspace.rooms[officeId] || [];
@@ -403,11 +402,11 @@ export class EventProcessor {
       console.info(`Room loaded: ${room.id} in office ${officeId}`);
     });
 
-    const roomsLoadedUnlisten = await listen('rooms:loaded', (event) => {
-      const { rooms, connection } = event.payload as {
-        rooms: RoomTS[],
-        connection: { cid: string, peer_cid?: string, request_id?: string }
-      };
+    const roomsLoadedUnlisten = eventEmitter.on('rooms:loaded', (payload: {
+      rooms: RoomTS[],
+      connection: { cid: string, peer_cid?: string, request_id?: string }
+    }) => {
+      const { rooms } = payload;
 
       // Group rooms by office ID
       const roomsByOffice: Record<string, RoomTS[]> = {};
@@ -428,12 +427,12 @@ export class EventProcessor {
       console.info(`${rooms.length} rooms loaded across ${Object.keys(roomsByOffice).length} offices`);
     });
 
-    const membersLoadedUnlisten = await listen('members:loaded', (event) => {
-      const { members, domain_id, connection } = event.payload as {
-        members: UserTS[],
-        domain_id: string, // office_id or room_id
-        connection: { cid: string, peer_cid?: string, request_id?: string }
-      };
+    const membersLoadedUnlisten = eventEmitter.on('members:loaded', (payload: {
+      members: UserTS[],
+      domain_id: string, // office_id or room_id
+      connection: { cid: string, peer_cid?: string, request_id?: string }
+    }) => {
+      const { members, domain_id } = payload;
 
       useAppStore.getState().updateMembers(domain_id, members);
       console.info(`${members.length} members loaded for domain ${domain_id}`);
@@ -451,23 +450,23 @@ export class EventProcessor {
   /**
    * Set up error event listeners
    */
-  private async setupErrorListeners(): Promise<UnlistenFn[]> {
-    const operationErrorUnlisten = await listen('operation:error', (event) => {
-      const { message, connection } = event.payload as {
-        message: string,
-        connection: { cid: string, peer_cid?: string, request_id?: string }
-      };
+  private setupErrorListeners(): UnlistenFn[] {
+    const operationErrorUnlisten = eventEmitter.on('operation:error', (payload: {
+      message: string,
+      connection: { cid: string, peer_cid?: string, request_id?: string }
+    }) => {
+      const { message } = payload;
 
       useAppStore.getState().setConnectionError(message);
 
       console.error(`Operation error: ${message}`);
     });
 
-    const protocolWarningUnlisten = await listen('protocol:warning', (event) => {
-      const { message, connection } = event.payload as {
-        message: string,
-        connection: { cid: string, peer_cid?: string, request_id?: string }
-      };
+    const protocolWarningUnlisten = eventEmitter.on('protocol:warning', (payload: {
+      message: string,
+      connection: { cid: string, peer_cid?: string, request_id?: string }
+    }) => {
+      const { message } = payload;
 
       // Log warning but don't update error state
       console.warn(`Protocol warning: ${message}`);

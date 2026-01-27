@@ -166,7 +166,7 @@ export function GroupChatPage() {
 
     setIsSending(true);
     try {
-      const connectionInfo = (await import("./../lib/connection-manager")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
+      const connectionInfo = (await import("./../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
       if (!cid) throw new Error('Not connected');
 
       // TODO: Send via backend GroupMessage API

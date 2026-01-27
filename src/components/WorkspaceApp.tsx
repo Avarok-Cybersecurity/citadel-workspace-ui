@@ -10,7 +10,7 @@ import { ConnectionService } from '@/lib/connection-service';
 import WorkspaceService from '@/lib/workspace-service';
 import UserService from '@/lib/user-service';
 import { websocketService } from '@/lib/websocket-service';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';

@@ -1,5 +1,6 @@
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
+import { PollingService } from './utils/polling-service';
 
 export interface ServiceHealth {
   isHealthy: boolean;
@@ -7,39 +8,48 @@ export interface ServiceHealth {
   error?: string;
 }
 
-export class HealthCheckService {
+const DEFAULT_INTERVAL_MS = 30000;
+
+class HealthCheckService extends PollingService {
   private static instance: HealthCheckService;
-  private checkInterval: NodeJS.Timeout | null = null;
   private health: ServiceHealth = {
     isHealthy: false,
     lastCheck: 0
   };
-  
-  private constructor() {}
-  
+  private intervalMs: number = DEFAULT_INTERVAL_MS;
+
+  private constructor() {
+    super();
+  }
+
   public static getInstance(): HealthCheckService {
     if (!HealthCheckService.instance) {
       HealthCheckService.instance = new HealthCheckService();
     }
     return HealthCheckService.instance;
   }
-  
+
+  protected getPollingIntervalMs(): number {
+    return this.intervalMs;
+  }
+
+  protected async poll(): Promise<void> {
+    await this.checkHealth();
+  }
+
   /**
    * Perform a health check by attempting to connect to the WebSocket
    */
   public async checkHealth(): Promise<ServiceHealth> {
     try {
-      // Try to initialize WebSocket connection
       const isConnected = await websocketService.isConnected();
-      
+
       this.health = {
         isHealthy: isConnected,
         lastCheck: Date.now()
       };
-      
-      // Emit health status
+
       eventEmitter.emit('service-health', this.health);
-      
       return this.health;
     } catch (error) {
       this.health = {
@@ -47,66 +57,56 @@ export class HealthCheckService {
         lastCheck: Date.now(),
         error: error instanceof Error ? error.message : 'Unknown error'
       };
-      
+
       eventEmitter.emit('service-health', this.health);
-      
       return this.health;
     }
   }
-  
+
   /**
    * Start periodic health checks
    */
-  public startHealthChecks(intervalMs: number = 30000): void {
-    this.stopHealthChecks();
-    
-    // Initial check
-    (async () => {
-      await this.checkHealth();
-    })().catch(console.error);
+  public startHealthChecks(intervalMs: number = DEFAULT_INTERVAL_MS): void {
+    this.intervalMs = intervalMs;
+    this.stopPolling();
 
-    // Periodic checks
-    this.checkInterval = setInterval(() => {
-      (async () => {
-        await this.checkHealth();
-      })().catch(console.error);
-    }, intervalMs);
+    // Initial check
+    this.checkHealth().catch(console.error);
+
+    // Start periodic checks via base class
+    this.startPolling();
   }
-  
+
   /**
    * Stop periodic health checks
    */
   public stopHealthChecks(): void {
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = null;
-    }
+    this.stopPolling();
   }
-  
+
   /**
    * Get current health status without performing a check
    */
   public getHealth(): ServiceHealth {
     return this.health;
   }
-  
+
   /**
    * Wait for service to be healthy with timeout
    */
   public async waitForHealthy(timeoutMs: number = 30000): Promise<void> {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < timeoutMs) {
       const health = await this.checkHealth();
-      
+
       if (health.isHealthy) {
         return;
       }
-      
-      // Wait a bit before next check
+
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
+
     throw new Error(`Service did not become healthy within ${timeoutMs}ms`);
   }
 }

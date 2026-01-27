@@ -1,6 +1,8 @@
 import { eventEmitter } from './event-emitter';
 import { getSelectedUser } from './tab-context';
+import { instanceManager } from './multi-instance';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+import { PollingService } from './utils/polling-service';
 
 export interface BroadcastMessage {
   type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message' | 'p2p-notification';
@@ -23,30 +25,42 @@ interface LeaderElectionMessage {
   priority: number;
 }
 
+const CHANNEL_NAME = 'citadel-workspace-sync';
+const REQUEST_EXPIRY_MS = 30 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 60000;
+
 /**
  * BroadcastChannelService handles cross-tab communication for workspace state synchronization
  * Uses the BroadcastChannel API to share WebSocket messages and coordinate leader election
  */
-export class BroadcastChannelService {
+export class BroadcastChannelService extends PollingService {
   private static instance: BroadcastChannelService;
   private channel: BroadcastChannel | null = null;
   private tabId: string;
   private isLeader: boolean = false;
   private leaderCheckInterval: number | null = null;
   private lastLeaderHeartbeat: number = 0;
-  private readonly CHANNEL_NAME = 'citadel-workspace-sync';
-  private readonly HEARTBEAT_INTERVAL = 2000; // 2 seconds
-  private readonly LEADER_TIMEOUT = 5000; // 5 seconds
-  private readonly REQUEST_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
-
-  // Map of request_id → { cid, insertTime } for response routing
   private pendingRequests = new Map<string, PendingRequest>();
-  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   private constructor() {
+    super();
     this.tabId = this.generateTabId();
     this.initialize();
     this.setupLeaderSync();
+  }
+
+  protected getPollingIntervalMs(): number {
+    return CLEANUP_INTERVAL_MS;
+  }
+
+  protected async poll(): Promise<void> {
+    const now = Date.now();
+    for (const [requestId, entry] of this.pendingRequests) {
+      if (now - entry.insertTime > REQUEST_EXPIRY_MS) {
+        this.pendingRequests.delete(requestId);
+        console.log(`BroadcastChannelService: Cleaned up expired request ${requestId}`);
+      }
+    }
   }
 
   /**
@@ -73,37 +87,20 @@ export class BroadcastChannelService {
   }
 
   private initialize(): void {
-    // Check if BroadcastChannel is supported
     if (typeof BroadcastChannel === 'undefined') {
       console.warn('BroadcastChannel API not supported in this browser');
       return;
     }
 
     try {
-      this.channel = new BroadcastChannel(this.CHANNEL_NAME);
+      this.channel = new BroadcastChannel(CHANNEL_NAME);
       this.setupMessageHandler();
       this.startLeaderElection();
-      this.startCleanupInterval();
+      this.startPolling();
       console.log(`BroadcastChannelService: Initialized with tabId ${this.tabId}`);
     } catch (error) {
       console.error('BroadcastChannelService: Failed to initialize', error);
     }
-  }
-
-  /**
-   * Start periodic cleanup of expired pending requests (older than 30 minutes)
-   */
-  private startCleanupInterval(): void {
-    if (this.cleanupInterval) return;
-    this.cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      for (const [requestId, entry] of this.pendingRequests) {
-        if (now - entry.insertTime > this.REQUEST_EXPIRY_MS) {
-          this.pendingRequests.delete(requestId);
-          console.log(`BroadcastChannelService: Cleaned up expired request ${requestId}`);
-        }
-      }
-    }, 60000); // Check every minute
   }
 
   private setupMessageHandler(): void {
@@ -246,7 +243,9 @@ export class BroadcastChannelService {
 
       // Check if this notification is for THIS tab's session
       const tabSelection = await getSelectedUser();
-      const tabCid = tabSelection?.selectedCid;
+      // CRITICAL FIX: Fallback to instanceManager.cid if tab selection is stale after ClaimSession
+      // After reconnection, IndexedDB may not be updated yet, but instanceManager tracks the active CID
+      const tabCid = tabSelection?.selectedCid ?? instanceManager.cid;
       const notificationCid = notification.cid?.toString();
       const peerCid = notification.peer_cid?.toString();
 
@@ -518,10 +517,7 @@ export class BroadcastChannelService {
       clearInterval(this.leaderCheckInterval);
     }
 
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
+    this.stopPolling();
 
     if (this.channel) {
       this.channel.close();

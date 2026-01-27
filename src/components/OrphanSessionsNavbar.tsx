@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
 import type { ActiveSession } from "@/types/session-types";
@@ -15,6 +15,7 @@ import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
+import { eventEmitter } from "@/lib/event-emitter";
 
 interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;

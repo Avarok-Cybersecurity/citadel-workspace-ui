@@ -7,7 +7,7 @@
 
 import { eventEmitter } from './event-emitter';
 import { websocketService } from './websocket-service';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
 import { instanceManager } from './multi-instance';
 import { notificationService } from './notification-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';

@@ -35,6 +35,10 @@ export class WorkspaceService {
    * @param cid Connection ID
    */
   public setConnectionId(cid: bigint): void {
+    console.log('[WorkspaceService] setConnectionId called:', {
+      newCid: cid.toString(),
+      oldCid: this.currentCid?.toString() ?? 'null',
+    });
     this.currentCid = cid;
   }
 

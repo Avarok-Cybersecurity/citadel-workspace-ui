@@ -1,8 +1,6 @@
 // Workspace events for WebSocket integration
 import { Office, Room, User } from '../types/workspace-entities';
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { websocketService } from './websocket-service';
-import { listen } from './event-emitter';
+import { eventEmitter } from './event-emitter';
 
 // Type for unlisten function
 export type UnlistenFn = () => void;
@@ -147,17 +145,15 @@ export class WorkspaceEvents {
    * @param callback Callback function to be called when event is received
    * @returns A function to unsubscribe from the event
    */
-  public async onWorkspaceEvent(event: 'workspace:loaded', callback: (payload: WorkspacePayload) => void): Promise<() => void>;
-  public async onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
-  public async onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
-  public async onWorkspaceEvent(event: 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
-  public async onWorkspaceEvent(event: 'rooms:reload', callback: (payload: { office_id?: string; connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
-  public async onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: any) => void): Promise<() => void>;
-  public async onWorkspaceEvent(event: WorkspaceEventType, callback: any): Promise<() => void> {
-    const unlistenFn = await listen(event, ({ payload }) => {
-      callback(payload);
-    });
+  public onWorkspaceEvent(event: 'workspace:loaded', callback: (payload: WorkspacePayload) => void): () => void;
+  public onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onWorkspaceEvent(event: 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onWorkspaceEvent(event: 'rooms:reload', callback: (payload: { office_id?: string; connection: ConnectionInfo }) => void): () => void;
+  public onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
+  public onWorkspaceEvent(event: WorkspaceEventType, callback: any): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
 
     // Store the unlisten function
     if (!this.listeners.has(event)) {
@@ -182,16 +178,14 @@ export class WorkspaceEvents {
    * @param callback Callback function to be called when event is received
    * @returns A function to unsubscribe from the event
    */
-  public async onOfficeEvent<T>(event: 'office:loaded', callback: (payload: OfficePayload) => void): Promise<() => void>;
-  public async onOfficeEvent<T>(event: 'offices:loaded', callback: (payload: OfficesPayload) => void): Promise<() => void>;
-  public async onOfficeEvent<T>(event: 'office:creating' | 'offices:loading' | 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
-  public async onOfficeEvent<T>(event: 'office:loading' | 'office:updating' | 'office:deleting', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onOfficeEvent<T>(event: 'office:created' | 'office:updated', callback: (payload: { office: Office, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onOfficeEvent<T>(event: 'office:deleted', callback: (payload: { officeId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onOfficeEvent<T>(event: WorkspaceEventType, callback: any): Promise<() => void> {
-    const unlistenFn = await listen(event, ({ payload }) => {
-      callback(payload);
-    });
+  public onOfficeEvent<T>(event: 'office:loaded', callback: (payload: OfficePayload) => void): () => void;
+  public onOfficeEvent<T>(event: 'offices:loaded', callback: (payload: OfficesPayload) => void): () => void;
+  public onOfficeEvent<T>(event: 'office:creating' | 'offices:loading' | 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onOfficeEvent<T>(event: 'office:loading' | 'office:updating' | 'office:deleting', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): () => void;
+  public onOfficeEvent<T>(event: 'office:created' | 'office:updated', callback: (payload: { office: Office, connection: ConnectionInfo }) => void): () => void;
+  public onOfficeEvent<T>(event: 'office:deleted', callback: (payload: { officeId: string, connection: ConnectionInfo }) => void): () => void;
+  public onOfficeEvent<T>(event: WorkspaceEventType, callback: any): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
 
     // Store the unlisten function
     if (!this.listeners.has(event)) {
@@ -216,17 +210,15 @@ export class WorkspaceEvents {
    * @param callback Callback function to be called when event is received
    * @returns A function to unsubscribe from the event
    */
-  public async onRoomEvent<T>(event: 'room:loaded', callback: (payload: RoomPayload) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: 'rooms:loaded', callback: (payload: RoomsPayload) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: 'room:creating', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: 'room:loading' | 'room:updating' | 'room:deleting', callback: (payload: { room_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: 'rooms:loading' | 'rooms:reload', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: 'room:created' | 'room:updated', callback: (payload: { room: Room, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: 'room:deleted', callback: (payload: { roomId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onRoomEvent<T>(event: WorkspaceEventType, callback: any): Promise<() => void> {
-    const unlistenFn = await listen(event, ({ payload }) => {
-      callback(payload);
-    });
+  public onRoomEvent<T>(event: 'room:loaded', callback: (payload: RoomPayload) => void): () => void;
+  public onRoomEvent<T>(event: 'rooms:loaded', callback: (payload: RoomsPayload) => void): () => void;
+  public onRoomEvent<T>(event: 'room:creating', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): () => void;
+  public onRoomEvent<T>(event: 'room:loading' | 'room:updating' | 'room:deleting', callback: (payload: { room_id: string, connection: ConnectionInfo }) => void): () => void;
+  public onRoomEvent<T>(event: 'rooms:loading' | 'rooms:reload', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): () => void;
+  public onRoomEvent<T>(event: 'room:created' | 'room:updated', callback: (payload: { room: Room, connection: ConnectionInfo }) => void): () => void;
+  public onRoomEvent<T>(event: 'room:deleted', callback: (payload: { roomId: string, connection: ConnectionInfo }) => void): () => void;
+  public onRoomEvent<T>(event: WorkspaceEventType, callback: any): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
 
     // Store the unlisten function
     if (!this.listeners.has(event)) {
@@ -251,22 +243,20 @@ export class WorkspaceEvents {
    * @param callback Callback function to be called when event is received
    * @returns A function to unsubscribe from the event
    */
-  public async onMemberEvent<T>(event: 'member:loaded', callback: (payload: MemberPayload) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'members:loaded', callback: (payload: MembersPayload) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'member:adding', callback: (payload: { user_id: string, office_id?: string, room_id?: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'member:loading' | 'member:updating_role', callback: (payload: { user_id: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'member:updating_permissions', callback: (payload: { userId: string, domainId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'member:removing', callback: (payload: { userId: string, officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'members:loading', callback: (payload: { officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'member:added', callback: (payload: { member: any, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'member:removed', callback: (payload: { userId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'member:role-updated', callback: (payload: { userId: string, role: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: 'user:permissions:loaded', callback: (payload: { userId: string, role: string, permissions: any[], domainId: string, connection: ConnectionInfo }) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: WorkspaceEventType, callback: (payload: any) => void): Promise<() => void>;
-  public async onMemberEvent<T>(event: WorkspaceEventType, callback: any): Promise<() => void> {
-    const unlistenFn = await listen(event, ({ payload }) => {
-      callback(payload);
-    });
+  public onMemberEvent<T>(event: 'member:loaded', callback: (payload: MemberPayload) => void): () => void;
+  public onMemberEvent<T>(event: 'members:loaded', callback: (payload: MembersPayload) => void): () => void;
+  public onMemberEvent<T>(event: 'member:adding', callback: (payload: { user_id: string, office_id?: string, room_id?: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:loading' | 'member:updating_role', callback: (payload: { user_id: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:updating_permissions', callback: (payload: { userId: string, domainId: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:removing', callback: (payload: { userId: string, officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'members:loading', callback: (payload: { officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:added', callback: (payload: { member: any, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:removed', callback: (payload: { userId: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:role-updated', callback: (payload: { userId: string, role: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'user:permissions:loaded', callback: (payload: { userId: string, role: string, permissions: any[], domainId: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
+  public onMemberEvent<T>(event: WorkspaceEventType, callback: any): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
 
     // Store the unlisten function
     if (!this.listeners.has(event)) {
@@ -291,12 +281,10 @@ export class WorkspaceEvents {
    * @param callback Callback function to be called when event is received
    * @returns A function to unsubscribe from the event
    */
-  public async onMessageEvent(event: 'message:received', callback: (payload: MessagePayload) => void): Promise<() => void>;
-  public async onMessageEvent(event: 'typing:started' | 'typing:stopped', callback: (payload: TypingPayload) => void): Promise<() => void>;
-  public async onMessageEvent(event: WorkspaceEventType, callback: any): Promise<() => void> {
-    const unlistenFn = await listen(event, ({ payload }) => {
-      callback(payload);
-    });
+  public onMessageEvent(event: 'message:received', callback: (payload: MessagePayload) => void): () => void;
+  public onMessageEvent(event: 'typing:started' | 'typing:stopped', callback: (payload: TypingPayload) => void): () => void;
+  public onMessageEvent(event: WorkspaceEventType, callback: any): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
 
     // Store the unlisten function
     if (!this.listeners.has(event)) {
@@ -321,12 +309,10 @@ export class WorkspaceEvents {
    * @param callback Callback function to be called when event is received
    * @returns A function to unsubscribe from the event
    */
-  public async onOperationEvent(event: 'operation:success', callback: (connectionInfo: ConnectionInfo) => void): Promise<() => void>;
-  public async onOperationEvent(event: 'operation:error', callback: (payload: ErrorPayload) => void): Promise<() => void>;
-  public async onOperationEvent(event: WorkspaceEventType, callback: any): Promise<() => void> {
-    const unlistenFn = await listen(event, ({ payload }) => {
-      callback(payload);
-    });
+  public onOperationEvent(event: 'operation:success', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onOperationEvent(event: 'operation:error', callback: (payload: ErrorPayload) => void): () => void;
+  public onOperationEvent(event: WorkspaceEventType, callback: any): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
 
     // Store the unlisten function
     if (!this.listeners.has(event)) {
@@ -351,10 +337,8 @@ export class WorkspaceEvents {
    * @param callback Callback function to be called when event is received
    * @returns A function to unsubscribe from the event
    */
-  public async onProtocolEvent(event: 'protocol:warning', callback: (payload: ProtocolWarningPayload) => void): Promise<() => void> {
-    const unlistenFn = await listen(event, ({ payload }) => {
-      callback(payload as ProtocolWarningPayload);
-    });
+  public onProtocolEvent(event: 'protocol:warning', callback: (payload: ProtocolWarningPayload) => void): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
 
     // Store the unlisten function
     if (!this.listeners.has(event)) {
@@ -376,10 +360,10 @@ export class WorkspaceEvents {
   /**
    * Clean up all event listeners
    */
-  public async cleanupAllListeners(): Promise<void> {
+  public cleanupAllListeners(): void {
     for (const [, listeners] of this.listeners.entries()) {
       for (const unlisten of listeners) {
-        await unlisten();
+        unlisten();
       }
     }
     this.listeners.clear();

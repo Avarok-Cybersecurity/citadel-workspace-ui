@@ -22,7 +22,13 @@
     "test:hard-disconnect": "npm run build && node dist/tests/hard-disconnect-offline.test.js",
     "test:permissions": "npm run build && node dist/tests/permissions.test.js",
     "test:admin-modal": "npm run build && node dist/tests/admin-modal.test.js",
+    "test:directory": "npm run build && node dist/tests/user-directory.test.js",
+    "test:files": "npm run build && node dist/tests/file-manager.test.js",
+    "test:notifications": "npm run build && node dist/tests/notification-center.test.js",
+    "test:settings": "npm run build && node dist/tests/settings-modal.test.js",
+    "test:workspace-init": "npm run build && node dist/tests/workspace-init.test.js",
     "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
+    "test:ui": "npm run test:directory && npm run test:files && npm run test:notifications && npm run test:settings && npm run test:workspace-init",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "clean": "rm -rf dist"

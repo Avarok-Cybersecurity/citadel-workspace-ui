@@ -121,8 +121,6 @@ export class ConnectionService {
     };
 
     try {
-      // await invoke('send_p2p_registration_request', { request });
-
       console.info(`Sending P2P registration request to ${recipientId}`);
 
       // Store the request locally
@@ -160,8 +158,6 @@ export class ConnectionService {
     };
 
     try {
-      // await invoke('send_p2p_connection_request', { request });
-
       console.info(`Initiating P2P connection with ${recipientId}`);
 
       // Store the request locally
@@ -194,8 +190,6 @@ export class ConnectionService {
     }
 
     try {
-      // await invoke('accept_p2p_request', { requestId });
-
       console.info(`Accepting connection request ${requestId}`);
 
       // Update the request status
@@ -238,8 +232,6 @@ export class ConnectionService {
     }
 
     try {
-      // await invoke('reject_p2p_request', { requestId });
-
       console.info(`Rejecting connection request ${requestId}`);
 
       // Update the request status
@@ -271,8 +263,6 @@ export class ConnectionService {
     }
 
     try {
-      // await invoke('cancel_p2p_request', { requestId });
-
       console.info(`Canceling connection request ${requestId}`);
 
       // Update the request status

@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useToast } from "@/components/ui/use-toast";
 import { websocketService } from "@/lib/websocket-service";
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
 import { getDefaultSecuritySettings } from "@/lib/security-utils";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
@@ -193,6 +193,18 @@ export function Login({ onNext, onCancel }: LoginProps) {
         return;
       }
 
+      // Look up stored session to get server address (stored during registration)
+      // If no stored session exists (e.g., after Sign out), use the form input server address
+      const storedSessions = connectionManager.getStoredSessions();
+      const storedSession = storedSessions.sessions.find(s => s.username === username.trim());
+      const serverAddress = storedSession?.serverAddress || server.trim() || '';
+
+      if (!serverAddress) {
+        console.warn('Login: No stored session and no server address provided - connection may fail');
+      } else if (!storedSession) {
+        console.log('Login: Using form server address:', serverAddress);
+      }
+
       // Generate request ID first to avoid race condition
       const requestId = crypto.randomUUID();
       
@@ -234,7 +246,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 await redirectToExistingSession({
                   cid: cid as bigint,
                   username: sessionUsername || username.trim(),
-                  server_address: server
+                  server_address: serverAddress
                 });
               } finally {
                 setLoading(false);
@@ -264,7 +276,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     await redirectToExistingSession({
                       cid: errorCid as bigint,
                       username: username.trim(),
-                      server_address: server
+                      server_address: serverAddress
                     });
                   } finally {
                     setLoading(false);
@@ -311,9 +323,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
       
       // Connect to the service AFTER setting up the listener
       // Note: websocketService.connect() handles session cleanup internally if needed
-      // Login uses empty server password and undefined security settings
-      // (security settings were established during registration)
-      await websocketService.connect(requestId, username, password, server, "", undefined);
+      // Server address is NOT needed - the Citadel protocol stores it from registration
+      await websocketService.connect(requestId, username, password, undefined);
 
       // Wait for the response
       const cid = await responsePromise;
@@ -321,21 +332,21 @@ export function Login({ onNext, onCancel }: LoginProps) {
       // If we get here, the connection was successful
       // Store the session for auto-reconnect
       // Use default security settings for session storage (actual settings were set during registration)
-      await connectionManager.handleAuthSuccess(
+      await connectionManager.handleAuthSuccess({
         username,
         password,
-        username, // Use username as display name for login
-        server,
-        "", // No server password for login flow
-        getDefaultSecuritySettings(),
+        fullName: username, // Use username as display name for login
+        serverAddress,
+        serverPassword: "", // No server password for login flow
+        securitySettings: getDefaultSecuritySettings(),
         cid
-      );
+      });
 
       // Set up workspace context and loading
       // Update tab context to track which workspace this tab is viewing
       await setSelectedUser({
         selectedUsername: username.trim(),
-        selectedServerAddress: server,
+        selectedServerAddress: serverAddress,
         selectedCid: cid
       });
 
@@ -363,7 +374,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       eventEmitter.emit('session:activated', {
         cid: cid.toString(),
         username: username.trim(),
-        serverAddress: server,
+        serverAddress: serverAddress,
         activationType: 'login',
       });
       console.log('Login: Emitted session:activated for login');

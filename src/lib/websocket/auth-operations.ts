@@ -33,49 +33,32 @@ export class AuthOperations {
     requestId: string,
     username: string,
     password: string,
-    serverAddr: string,
-    serverPassword?: string,
     sessionSecuritySettings?: Record<string, unknown>
   ): Promise<void> {
     await this.config.init();
 
-    // Resolve hostname to IP if needed (DNS resolution)
-    const resolvedAddr = await resolveServerAddress(serverAddr);
-    console.log(`[Connect] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
+    // Server address is NOT needed for login - the Citadel protocol stores it from registration
+    console.log(`[Connect] Connecting user: ${username}`);
 
-    // Clear user-disconnected status on explicit login attempt
-    const { serverAutoConnectService } = await import('../server-auto-connect-service');
-    await serverAutoConnectService.clearUserDisconnected(username, resolvedAddr);
-
-    // STEP 1: Check if session already exists
-    console.log(`[Connect] Checking for existing session: ${username}@${resolvedAddr}`);
-
+    // Check if session already exists
     try {
-      const { connectionManager } = await import('../connection-manager');
+      const { connectionManager } = await import('../connection');
       const activeSessions = await connectionManager.getActiveSessions();
-
-      const existingSession = activeSessions.find(
-        s => s.username === username && s.server_address === resolvedAddr
-      );
+      const existingSession = activeSessions.find(s => s.username === username);
 
       if (existingSession) {
         console.log(`[Connect] Found existing session CID ${existingSession.cid}`);
 
-        // STEP 2: Check if session is orphaned
-        const { connectionManager: cm } = await import('../connection-manager');
-        const storedSession = cm.getStoredSessions().sessions.find(
-          s => s.username === username && s.serverAddress === resolvedAddr
-        );
-
+        // Check if session is orphaned
+        const { connectionManager: cm } = await import('../connection');
+        const storedSession = cm.getStoredSessions().sessions.find(s => s.username === username);
         const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid;
 
         if (isOrphaned) {
-          // STEP 3a: Session is orphaned → Claim it
           console.log(`[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
           await this.config.claimSession(existingSession.cid, false);
           return;
         } else {
-          // STEP 3b: Session exists but NOT orphaned → Disconnect then Connect
           console.warn(`[Connect] Session exists but not orphaned - disconnecting first`);
           await this.config.disconnect(existingSession.cid);
         }
@@ -84,12 +67,11 @@ export class AuthOperations {
       console.warn(`[Connect] Session check failed, proceeding with Connect:`, error);
     }
 
-    // STEP 4: No existing session OR after disconnect → Proceed with Connect
+    // Proceed with Connect request
     console.log(`[Connect] Proceeding with new connection for ${username}`);
 
     const connectOptions = {
       request_id: requestId,
-      server_addr: resolvedAddr,
       username,
       password: stringToByteArray(password),
       connect_mode: { Standard: { force_login: true } },
@@ -107,7 +89,6 @@ export class AuthOperations {
           sig_algorithm: (sessionSecuritySettings?.sigAlgorithm as string) || "None"
         },
       },
-      server_password: serverPassword || null
     };
 
     const connectRequest = { Connect: connectOptions };

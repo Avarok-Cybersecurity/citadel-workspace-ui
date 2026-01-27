@@ -6,7 +6,7 @@
  */
 
 import { useCallback } from 'react';
-import { fileTransferService } from '@/lib/file-transfer-service';
+import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
 import type { FileTransferMode } from '@/types/messaging-layer';
 

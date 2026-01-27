@@ -1,6 +1,6 @@
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
 import { getSelectedUser } from './tab-context';
 import { peerRegistrationStore } from './peer-registration-store';
 import { broadcastChannelService } from './broadcast-channel-service';
@@ -669,7 +669,7 @@ export class P2PRegistrationService {
 
     return peersArray.map(([peerCid, peerInfo]: [string, any]) => ({
       ...peerInfo,
-      cid: peerCid,  // Override with the CORRECT peer CID from the key
+      cid: BigInt(peerCid),  // Convert string key to BigInt (canonical CID type per CLAUDE.md)
       // Normalize username - backend may send as username or peer_username
       username: peerInfo.username || peerInfo.peer_username || peerInfo.name || null
     }));

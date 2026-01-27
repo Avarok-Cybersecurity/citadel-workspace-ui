@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ConnectionService } from '@/lib/connection-service';
-import { ConnectionManager } from '@/lib/connection-manager';
+import { ConnectionManager } from '@/lib/connection';
 import { websocketService } from '@/lib/websocket-service';
 import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import WorkspaceService from '@/lib/workspace-service';
@@ -59,6 +59,12 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
       // Check if already connected via ConnectionManager
       const currentConnection = connectionManager.getConnectionInfo();
+      console.log('WorkspaceLoader: getConnectionInfo() returned:', {
+        hasConnection: !!currentConnection,
+        cid: currentConnection?.cid?.toString() ?? 'none',
+        username: currentConnection?.username ?? 'none',
+      });
+
       if (currentConnection?.cid && currentConnection.cid !== 0n) {
         console.log('WorkspaceLoader: Already connected with CID:', currentConnection.cid);
 
@@ -113,6 +119,11 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         // CRITICAL: Only claim a session when we have an explicit CID from tab context
         // NEVER blindly pick activeSessions[0] - that steals other users' sessions!
         const existingSelection = await getSelectedUser();
+        console.log('WorkspaceLoader: Tab context getSelectedUser() returned:', {
+          hasSelection: !!existingSelection,
+          selectedCid: existingSelection?.selectedCid?.toString() ?? 'none',
+          selectedUsername: existingSelection?.selectedUsername ?? 'none',
+        });
 
         if (!existingSelection?.selectedCid) {
           // No CID known for this tab - do NOT claim any session

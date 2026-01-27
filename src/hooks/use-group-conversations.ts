@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
 import { websocketService } from '@/lib/websocket-service';
 import type {
   GroupConversation,
@@ -240,7 +240,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
     ): Promise<string> => {
       try {
         const requestId = crypto.randomUUID();
-        const connectionInfo = (await import("./../lib/connection-manager")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
+        const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
 
         if (!cid) {
           throw new Error('Not connected to server');
@@ -279,7 +279,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const invitePeer = useCallback(
     async (groupId: string, peerCid: string, roleId?: string): Promise<void> => {
       try {
-        const connectionInfo = (await import("./../lib/connection-manager")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
+        const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
         if (!cid) {
           throw new Error('Not connected to server');
         }
@@ -316,7 +316,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   // Leave a group
   const leaveGroup = useCallback(async (groupId: string): Promise<void> => {
     try {
-      const connectionInfo = (await import("./../lib/connection-manager")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
+      const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
       if (!cid) {
         throw new Error('Not connected to server');
       }
@@ -349,7 +349,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const kickMember = useCallback(
     async (groupId: string, memberCid: string): Promise<void> => {
       try {
-        const connectionInfo = (await import("./../lib/connection-manager")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
+        const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
         if (!cid) {
           throw new Error('Not connected to server');
         }
@@ -418,7 +418,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const refresh = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
-      const connectionInfo = (await import("./../lib/connection-manager")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
+      const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
       if (!cid) {
         throw new Error('Not connected to server');
       }

@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
 
 export interface MessageRequest {
   cid: string;

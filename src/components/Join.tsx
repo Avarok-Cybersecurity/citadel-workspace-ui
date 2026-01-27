@@ -16,7 +16,7 @@ import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import WorkspaceService from "@/lib/workspace-service";
 import { ConnectMode, UdpMode } from "@/types";
 import { eventEmitter } from "@/lib/event-emitter";
-import { ConnectionManager } from "@/lib/connection-manager";
+import { ConnectionManager } from "@/lib/connection";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { mapSecuritySettings } from "@/lib/security-utils";
@@ -150,15 +150,15 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             const connectionManager = ConnectionManager.getInstance();
             (async () => {
               console.log('[ILM-TRACE] Join: Calling handleAuthSuccess...');
-              await connectionManager.handleAuthSuccess(
-                formData.username,
-                formData.password,
-                formData.fullName,
-                serverData.serverAddress,
-                serverData.password || "", // Server password from ServerConnect step
-                mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-                message.ConnectSuccess.cid
-              );
+              await connectionManager.handleAuthSuccess({
+                username: formData.username,
+                password: formData.password,
+                fullName: formData.fullName,
+                serverAddress: serverData.serverAddress,
+                serverPassword: serverData.password || "", // Server password from ServerConnect step
+                securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
+                cid: message.ConnectSuccess.cid
+              });
               console.log('[ILM-TRACE] Join: handleAuthSuccess completed, resolving promise');
               resolve({ cid: message.ConnectSuccess.cid });
             })().catch(err => {
@@ -204,15 +204,15 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 const connectionManager = ConnectionManager.getInstance();
                 (async () => {
                   console.log('[ILM-TRACE] Join: Calling handleAuthSuccess (wrapped format)...');
-                  await connectionManager.handleAuthSuccess(
-                    formData.username,
-                    formData.password,
-                    formData.fullName,
-                    serverData.serverAddress,
-                    serverData.password || "", // Server password from ServerConnect step
-                    mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-                    response.ConnectSuccess.cid
-                  );
+                  await connectionManager.handleAuthSuccess({
+                    username: formData.username,
+                    password: formData.password,
+                    fullName: formData.fullName,
+                    serverAddress: serverData.serverAddress,
+                    serverPassword: serverData.password || "", // Server password from ServerConnect step
+                    securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
+                    cid: response.ConnectSuccess.cid
+                  });
                   console.log('[ILM-TRACE] Join: handleAuthSuccess completed (wrapped), resolving promise');
                   resolve({ cid: response.ConnectSuccess.cid });
                 })().catch(err => {

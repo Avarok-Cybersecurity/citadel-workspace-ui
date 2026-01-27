@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 

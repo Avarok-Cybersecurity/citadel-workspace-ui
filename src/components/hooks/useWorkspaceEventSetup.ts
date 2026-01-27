@@ -8,7 +8,7 @@
 import { useEffect } from 'react';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import UserService from '@/lib/user-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 

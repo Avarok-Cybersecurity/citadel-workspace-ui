@@ -14,12 +14,12 @@ import { MessagingLayerType, createOnline } from '@/types/messaging-layer';
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { MessageType } from '@/types/message-protocol';
 import { websocketService } from '../websocket-service';
-import { eventEmitter } from '../event-emitter';
-import { connectionManager } from '../connection-manager';
+import { connectionManager } from '../connection';
 import { getSelectedUser } from '../tab-context';
 import { instanceManager } from '../multi-instance';
 import { notificationService } from '../notification-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
+import { EventListenerManager } from '../utils/event-listener-manager';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
@@ -32,7 +32,7 @@ import { ConversationManager } from './conversation-manager';
 
 const CHECKSTATE_TIMEOUT = 3000;
 
-export class P2PMessengerManager {
+export class P2PMessengerManager extends EventListenerManager {
   private static instance: P2PMessengerManager;
 
   private messageListeners: ((message: P2PMessage) => void)[] = [];
@@ -51,6 +51,7 @@ export class P2PMessengerManager {
   private readonly messageSender: MessageSender;
 
   private constructor() {
+    super();
     // Initialize conversation manager first
     this.conversationManager = new ConversationManager({
       getCurrentCid: () => this.getCurrentCid(),
@@ -112,7 +113,7 @@ export class P2PMessengerManager {
     if (websocketService.isConnected()) {
       this.initPromise = this.loadCachedMessages().then(() => {
         this.isReady = true;
-        eventEmitter.emit('p2p:messages-loaded');
+        this.emit('p2p:messages-loaded');
       });
     }
   }
@@ -129,19 +130,19 @@ export class P2PMessengerManager {
     if (this.initPromise) await this.initPromise;
   }
 
-  private setupEventListeners(): void {
+  protected setupEventListeners(): void {
     // WebSocket connection
-    eventEmitter.on('on-ws-connection-success', async () => {
+    this.listen('on-ws-connection-success', async () => {
       if (this.cachedMessagesLoaded) return;
       console.log('[P2P] WebSocket connected, loading cached messages...');
       await this.loadCachedMessages();
       if (this.cachedMessagesLoaded) {
         this.isReady = true;
-        eventEmitter.emit('p2p:messages-loaded');
+        this.emit('p2p:messages-loaded');
       }
     });
 
-    // Visibility for CheckState flush
+    // Visibility for CheckState flush (not managed by EventListenerManager)
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
@@ -151,19 +152,19 @@ export class P2PMessengerManager {
     }
 
     // WebSocket messages
-    eventEmitter.on('websocket-message', (response: InternalServiceResponse) => {
+    this.listen<InternalServiceResponse>('websocket-message', (response) => {
       void this.messageHandler.handleWebSocketMessage(response);
     });
 
     // P2P connection changes
-    eventEmitter.on('p2p-connection-established', ({ peerCid }: { peerCid: bigint }) => {
+    this.listen<{ peerCid: bigint }>('p2p-connection-established', ({ peerCid }) => {
       this.conversationManager.setConnection(peerCid, true);
       this.connectionListeners.forEach(listener => listener(peerCid, true));
       this.checkStateManager.markPeerReady(peerCid);
       this.updatePeerPresenceOnConnect(peerCid);
     });
 
-    eventEmitter.on('p2p-connection-lost', ({ peerCid }: { peerCid: bigint }) => {
+    this.listen<{ peerCid: bigint }>('p2p-connection-lost', ({ peerCid }) => {
       this.conversationManager.setConnection(peerCid, false);
       this.connectionListeners.forEach(listener => listener(peerCid, false));
       this.checkStateManager.clearPeerReadyState(peerCid);
@@ -171,7 +172,7 @@ export class P2PMessengerManager {
     });
 
     // Peer registration
-    eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: bigint; username: string } }) => {
+    this.listen<{ peer: { cid: bigint; username: string } }>('p2p:peer-registered', ({ peer }) => {
       if (peer.cid && peer.username) {
         this.conversationManager.setPeerUsername(peer.cid, peer.username);
       }
@@ -209,7 +210,7 @@ export class P2PMessengerManager {
       const newPresence = { status: MessagingLayerType.Online as const, lastUpdate: Date.now() };
       conversation.presence = newPresence;
       this.presenceManager.notifyPresenceChange(peerCid, newPresence);
-      eventEmitter.emit('p2p:presence-updated', { peerCid: peerCid.toString(), presence: newPresence });
+      this.emit('p2p:presence-updated', { peerCid: peerCid.toString(), presence: newPresence });
     }
     void this.presenceManager.broadcastOnlineToNewPeer(peerCid);
   }
@@ -220,7 +221,7 @@ export class P2PMessengerManager {
       const newPresence = { status: MessagingLayerType.Offline as const, lastUpdate: Date.now() };
       conversation.presence = newPresence;
       this.presenceManager.notifyPresenceChange(peerCid, newPresence);
-      eventEmitter.emit('p2p:presence-updated', { peerCid: peerCid.toString(), presence: newPresence });
+      this.emit('p2p:presence-updated', { peerCid: peerCid.toString(), presence: newPresence });
     }
   }
 
@@ -268,7 +269,7 @@ export class P2PMessengerManager {
       messagePaginationStore.updateUnreadCount(peerCid, newUnreadCount)
     ]);
 
-    eventEmitter.emit('conversation-updated', { peerCid, conversation });
+    this.emit('conversation-updated', { peerCid, conversation });
   }
 
   // ===== Public API: Presence =====
@@ -355,7 +356,7 @@ export class P2PMessengerManager {
     if (!message) return;
     if (updates.transfer_state !== undefined) message.transfer_state = updates.transfer_state;
     if (updates.transfer_progress !== undefined) message.transfer_progress = updates.transfer_progress;
-    eventEmitter.emit('p2p:message-updated', message);
+    this.emit('p2p:message-updated', message);
   }
 
   public markAsRead(peerCid: bigint): void { void this.markMessagesAsRead(peerCid); }
@@ -385,7 +386,7 @@ export class P2PMessengerManager {
       }
     };
     await websocketService.sendMessage(request);
-    eventEmitter.emit('p2p:peer-registered', {
+    this.emit('p2p:peer-registered', {
       peer: { cid: peerCid, username: `User ${peerCid.toString().slice(0, 8)}`, fullName: `User ${peerCid.toString().slice(0, 8)}`, isOnline: true, isRegistered: true }
     });
   }

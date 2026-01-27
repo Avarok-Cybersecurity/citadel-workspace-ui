@@ -73,8 +73,10 @@ export {
   p2pRegister,
   acceptP2PRequest,
   openConversation,
-  connectP2P,        // NEW: Explicitly connect to registered P2P peer
-  disconnectP2P,     // NEW: Disconnect from P2P peer (C2S stays active)
+  connectP2P,        // Explicitly connect to registered P2P peer
+  disconnectP2P,     // Disconnect from P2P peer (C2S stays active)
+  waitForP2PConnection, // Wait for P2P connection to be established (Map check only)
+  waitForP2PChannelReady, // Wait for P2P channel READY (proven bidirectional message flow)
   disconnectViaNavbar,
   disconnectViaTopBar,
   disconnectViaTcpDrop,
@@ -88,7 +90,7 @@ export {
 export type { P2PRegisterOptions } from './p2p.js';
 
 // Messaging
-export { sendMessage, verifyMessageReceived, verifyMessageOrder, verifyMessagesSeen, waitForAllMessages } from './messaging.js';
+export { sendMessage, verifyMessageReceived, verifyMessageOrder, verifyMessagesSeen, waitForAllMessages, sendAndVerifyMessage, waitForP2PReady, verifyOfflineMessagesWithRetry } from './messaging.js';
 
 // Live Documents
 export {

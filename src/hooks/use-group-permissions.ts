@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import type {
   GroupConversation,
   GroupRole,

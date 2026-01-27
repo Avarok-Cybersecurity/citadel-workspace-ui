@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { P2PMessengerManager } from '@/lib/p2p';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import type { RegisteredPeer } from './use-registered-peers';
 
 export interface ConversationPeer {

@@ -12,7 +12,7 @@ import {
 import { FilePreviewDialog } from "./FilePreviewDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
-import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer-service";
+import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer";
 import { useEventListeners } from "@/hooks";
 
 /**

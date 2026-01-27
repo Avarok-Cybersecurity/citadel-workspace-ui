@@ -63,7 +63,7 @@ export class FileTransferMessageHandler {
     this.config.notifyMessageListeners(message);
 
     eventEmitter.emit('p2p:message-received', {
-      peerCid: peerCid.toString(),
+      peerCid,  // Keep as bigint for consistent typing (useP2PMessages hook expects bigint)
       messageId: message.id,
       text: message.content,
       timestamp: message.timestamp,
