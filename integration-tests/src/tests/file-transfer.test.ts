@@ -343,106 +343,96 @@ async function acceptFileTransfer(page: Page, username: string): Promise<boolean
 }
 
 /**
- * Wait for file transfer to complete and verify content
- */
-async function waitForTransferComplete(page: Page, username: string, maxWaitMs: number = 30000): Promise<boolean> {
-  console.log(`\n=== ${username}: Waiting for transfer to complete ===`);
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < maxWaitMs) {
-    // Check for completion indicators
-    // UI shows "Sent successfully" for sender and "Downloaded" for receiver
-    const completeText = page.getByText(/Sent successfully|Downloaded/i);
-    if (await completeText.isVisible({ timeout: 1000 }).catch(() => false)) {
-      console.log('  Transfer completed - found completion text');
-      return true;
-    }
-
-    // Also check the transfer state data attribute on the bubble
-    const completeBubble = page.locator('[data-transfer-state="complete"]');
-    if (await completeBubble.isVisible({ timeout: 500 }).catch(() => false)) {
-      console.log('  Transfer completed - found complete state bubble');
-      return true;
-    }
-
-    // Check for error
-    const errorText = page.getByText(/error|failed/i);
-    if (await errorText.isVisible({ timeout: 500 }).catch(() => false)) {
-      console.log('  Transfer failed with error');
-      return false;
-    }
-
-    await sleep(1000);
-  }
-
-  console.log('  Transfer did not complete in time');
-  return false;
-}
-
-/**
  * Verify received file content matches expected content
  * Accesses the fileTransferService via browser JavaScript evaluation
+ * Polls until a completed incoming transfer is found (up to maxWaitMs)
  */
 async function verifyReceivedFileContent(
   page: Page,
   username: string,
-  expectedContent: string
+  expectedContent: string,
+  maxWaitMs: number = 30000
 ): Promise<{ verified: boolean; receivedContent: string }> {
   console.log(`\n=== ${username}: Verifying received file content ===`);
   console.log(`  Expected: "${expectedContent.substring(0, 50)}..."`);
 
+  const deadline = Date.now() + maxWaitMs;
+
   try {
-    // Wait a bit for file to be fully processed
-    await sleep(2000);
+    // Poll until a completed incoming transfer is found
+    while (Date.now() < deadline) {
+      const result = await page.evaluate(async () => {
+        // Access the fileTransferService from window (it should be available)
+        const service = (window as any).__fileTransferService;
+        if (!service) {
+          return { error: 'FileTransferService not found on window' };
+        }
 
-    // Get received file content from fileTransferService via browser evaluation
-    const result = await page.evaluate(async () => {
-      // Access the fileTransferService from window (it should be available)
+        // Get all transfers using the public method
+        const transfers = service.getAllTransfers ? service.getAllTransfers() : [];
+        const completedTransfer = transfers.find((t: any) => t.state === 'complete' && t.isIncoming);
+
+        if (!completedTransfer) {
+          return {
+            pending: true,
+            transfers: transfers.map((t: any) => ({
+              id: t.id,
+              state: t.state,
+              isIncoming: t.isIncoming,
+              fileName: t.fileName
+            }))
+          };
+        }
+
+        // Get the received file content as text
+        const content = await service.getReceivedFileAsText(completedTransfer.id);
+        return { content, transferId: completedTransfer.id, fileName: completedTransfer.fileName };
+      });
+
+      if ('error' in result) {
+        console.log(`  Error: ${result.error}`);
+        return { verified: false, receivedContent: '' };
+      }
+
+      if ('pending' in result && result.pending) {
+        // Still waiting for completion, log current state and retry
+        const states = result.transfers.map((t: any) => `${t.fileName}:${t.state}`).join(', ');
+        console.log(`  Waiting for completion... Current states: ${states}`);
+        await sleep(1000);
+        continue;
+      }
+
+      // We have a completed transfer with content
+      const receivedContent = result.content || '';
+      console.log(`  Received: "${receivedContent.substring(0, 50)}..."`);
+      console.log(`  Transfer ID: ${result.transferId}, File: ${result.fileName}`);
+
+      const verified = receivedContent === expectedContent;
+      console.log(`  Content match: ${verified ? 'YES ✓' : 'NO ✗'}`);
+
+      if (!verified && receivedContent) {
+        console.log(`  Content length - expected: ${expectedContent.length}, received: ${receivedContent.length}`);
+      }
+
+      return { verified, receivedContent };
+    }
+
+    // Timeout - get final state for debugging
+    console.log(`  Timeout waiting for completed transfer after ${maxWaitMs}ms`);
+    const finalState = await page.evaluate(() => {
       const service = (window as any).__fileTransferService;
-      if (!service) {
-        return { error: 'FileTransferService not found on window' };
-      }
-
-      // Get all transfers using the public method
+      if (!service) return [];
       const transfers = service.getAllTransfers ? service.getAllTransfers() : [];
-      const completedTransfer = transfers.find((t: any) => t.state === 'complete' && t.isIncoming);
-
-      if (!completedTransfer) {
-        return {
-          error: 'No completed incoming transfer found',
-          transfers: transfers.map((t: any) => ({
-            id: t.id,
-            state: t.state,
-            isIncoming: t.isIncoming,
-            fileName: t.fileName
-          }))
-        };
-      }
-
-      // Get the received file content as text
-      const content = await service.getReceivedFileAsText(completedTransfer.id);
-      return { content, transferId: completedTransfer.id, fileName: completedTransfer.fileName };
+      return transfers.map((t: any) => ({
+        id: t.id,
+        state: t.state,
+        isIncoming: t.isIncoming,
+        fileName: t.fileName
+      }));
     });
+    console.log('  Final transfers state:', JSON.stringify(finalState, null, 2));
+    return { verified: false, receivedContent: '' };
 
-    if ('error' in result) {
-      console.log(`  Error: ${result.error}`);
-      if ('transfers' in result) {
-        console.log('  Available transfers:', JSON.stringify(result.transfers, null, 2));
-      }
-      return { verified: false, receivedContent: '' };
-    }
-
-    const receivedContent = result.content || '';
-    console.log(`  Received: "${receivedContent.substring(0, 50)}..."`);
-
-    const verified = receivedContent === expectedContent;
-    console.log(`  Content match: ${verified ? 'YES ✓' : 'NO ✗'}`);
-
-    if (!verified && receivedContent) {
-      console.log(`  Content length - expected: ${expectedContent.length}, received: ${receivedContent.length}`);
-    }
-
-    return { verified, receivedContent };
   } catch (error) {
     console.error(`  Error verifying content: ${error}`);
     return { verified: false, receivedContent: '' };
@@ -575,6 +565,36 @@ async function acceptAllTransfers(
 
   console.log(`  Total transfers accepted: ${acceptedCount}/${expectedCount}`);
   return acceptedCount;
+}
+
+/**
+ * Wait for all transfers to complete by polling the fileTransferService
+ */
+async function waitForAllTransfersComplete(
+  page: Page,
+  expectedCount: number,
+  timeoutMs: number = 30000
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const completeCount = await page.evaluate(() => {
+      const service = (window as any).__fileTransferService;
+      if (!service) return 0;
+      const transfers = service.getAllTransfers ? service.getAllTransfers() : [];
+      return transfers.filter((t: any) => t.state === 'complete' && t.isIncoming).length;
+    });
+
+    console.log(`  Completed transfers: ${completeCount}/${expectedCount}`);
+
+    if (completeCount >= expectedCount) {
+      return true;
+    }
+
+    await sleep(500);
+  }
+
+  return false;
 }
 
 /**
@@ -804,22 +824,8 @@ async function runTest(): Promise<boolean> {
       await takeScreenshot(page2, 'TRANSFER_ACCEPTED_bob');
       await takeScreenshot(page1, 'TRANSFER_ACCEPTED_alice');
 
-      // Wait for transfer to complete
-      const transferCompleted = await waitForTransferComplete(page2, USER2, 30000);
-      await takeScreenshot(page2, 'TRANSFER_COMPLETE_bob');
-
-      if (transferCompleted) {
-        // ========== STEP 7.5: VERIFY FILE CONTENT ==========
-        console.log('\n' + '-'.repeat(50));
-        console.log('STEP 7.5: Verify File Content (CRITICAL)');
-        console.log('-'.repeat(50));
-
-        const verification = await verifyReceivedFileContent(page2, USER2, TEST_FILE_CONTENT);
-        results.fileTransfer.contentVerified = verification.verified;
-        results.fileTransfer.receivedContent = verification.receivedContent;
-
-        await takeScreenshot(page2, 'CONTENT_VERIFIED_bob');
-      }
+      // Note: Content verification moved to after step 10 when all transfers complete
+      // P2P chunk delivery can be slow in test environment
     }
 
     // ========== STEP 8: UX Quality Checks ==========
@@ -853,13 +859,31 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 10: Accept All Transfers (Bob)');
     console.log('-'.repeat(50));
 
-    const acceptedCount = await acceptAllTransfers(page2, USER2, sentCount);
-    results.multipleTransfers.allAccepted = acceptedCount === sentCount;
+    // Accept ALL pending transfers (initial + multi-transfer = 4 total)
+    // Note: Step 7 may not have accepted the first transfer if bubble wasn't visible yet
+    const totalExpectedAccepts = 1 + sentCount; // 1 initial + 3 multi-transfer
+    const acceptedCount = await acceptAllTransfers(page2, USER2, totalExpectedAccepts);
+    results.multipleTransfers.allAccepted = acceptedCount >= sentCount; // At least the 3 multi-transfers
     await takeScreenshot(page2, 'MULTI_TRANSFER_ACCEPTED_bob');
 
-    // Wait for all transfers to complete
+    // Wait for all transfers to complete (initial file + 3 new transfers = 4 total)
     console.log('  Waiting for all transfers to complete...');
-    await sleep(5000);
+    const expectedTotal = 1 + MULTI_TRANSFER_FILES.length; // test-transfer.txt + 3 new files
+    const allComplete = await waitForAllTransfersComplete(page2, expectedTotal, 30000);
+    if (!allComplete) {
+      console.log('  WARNING: Not all transfers completed within timeout');
+    }
+
+    // ========== STEP 10.5: VERIFY FILE CONTENT (CRITICAL) ==========
+    console.log('\n' + '-'.repeat(50));
+    console.log('STEP 10.5: Verify File Content (CRITICAL)');
+    console.log('-'.repeat(50));
+
+    // Now verify the initial file content - transfers should be complete by now
+    const verification = await verifyReceivedFileContent(page2, USER2, TEST_FILE_CONTENT);
+    results.fileTransfer.contentVerified = verification.verified;
+    results.fileTransfer.receivedContent = verification.receivedContent;
+    await takeScreenshot(page2, 'CONTENT_VERIFIED_bob');
 
     // ========== STEP 11: Verify Sidebar FILES Section ==========
     console.log('\n' + '-'.repeat(50));

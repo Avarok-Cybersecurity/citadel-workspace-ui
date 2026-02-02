@@ -671,6 +671,20 @@ export class WorkspaceService {
     return this.sendWorkspaceRequest(payload);
   }
 
+  // ========== Server Capabilities Methods ==========
+
+  /**
+   * Get server file transfer and storage capabilities
+   * Returns configuration for RE-VFS storage, file transfers, etc.
+   */
+  public async getServerCapabilities(): Promise<any> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetServerCapabilities: null
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
   /**
    * Cleanup resources
    */

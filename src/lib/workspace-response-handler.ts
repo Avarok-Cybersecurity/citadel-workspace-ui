@@ -452,6 +452,18 @@ export class WorkspaceResponseHandler {
         user,
         connection: connectionInfo
       });
+    // ========== Server Capabilities Response ==========
+    } else if ('ServerCapabilities' in response) {
+      // Handle server capabilities response
+      const capabilities = response.ServerCapabilities;
+      debugLog('workspace', 'ServerCapabilities received', capabilities);
+      eventEmitter.emit('server:capabilities:loaded', {
+        allowServerFileTransfer: capabilities.allow_server_file_transfer,
+        allowServerRevfsStorage: capabilities.allow_server_revfs_storage,
+        maxFileTransferSizeMb: Number(capabilities.max_file_transfer_size_mb),
+        revfsStorageQuotaMb: Number(capabilities.revfs_storage_quota_mb),
+        connection: connectionInfo
+      });
     } else {
       // Log unhandled response types for debugging
       debugLog('workspace', 'Unhandled response type:', response);

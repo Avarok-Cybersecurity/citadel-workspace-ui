@@ -168,6 +168,9 @@ export interface WorkspaceProtocolRequestTS {
     name?: string;
     avatar_data?: string; // Base64-encoded WebP image
   };
+
+  // Server capabilities query
+  GetServerCapabilities?: null;
 }
 
 // Group message type enum
@@ -258,12 +261,28 @@ export type WorkspaceProtocolResponseTS =
   | { GroupMessageDeleted: { group_id: string; message_id: string; deleted_by: string } }
   | { GroupMessage: GroupMessageTS }
   // User profile responses
-  | { UserProfileUpdated: UserTS };
+  | { UserProfileUpdated: UserTS }
+  // Server capabilities response
+  | { ServerCapabilities: ServerCapabilitiesTS };
 
 export enum UpdateOperationTS {
   Add = 'add',
   Remove = 'remove',
   Set = 'set'
+}
+
+/**
+ * Server file transfer and storage capabilities
+ */
+export interface ServerCapabilitiesTS {
+  /** Whether server-mediated file transfers are enabled */
+  allow_server_file_transfer: boolean;
+  /** Whether RE-VFS (server-side encrypted storage) is enabled */
+  allow_server_revfs_storage: boolean;
+  /** Maximum file size for transfers (in megabytes) */
+  max_file_transfer_size_mb: bigint;
+  /** RE-VFS storage quota per user (in megabytes) */
+  revfs_storage_quota_mb: bigint;
 }
 
 /**

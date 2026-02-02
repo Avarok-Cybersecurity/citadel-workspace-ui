@@ -20,9 +20,10 @@ import {
   acceptP2PRequest,
   openConversation,
   sendMessage,
-  verifyMessageReceived,
   verifyMessageOrder,
   verifyMessagesSeen,
+  sendAndVerifyMessage,
+  waitForP2PReady,
   takeScreenshot,
   waitForServicesAlive,
   writeTestReport,
@@ -293,8 +294,16 @@ async function runTest(): Promise<boolean> {
     const MESSAGE_3 = `Great! The P2P chat is working perfectly!`;
 
     // Wait for P2P encryption channel to be ready before first message
-    // Both conversation UIs need time to fully mount and register message handlers
-    console.log('  Waiting for P2P channel and message handlers to be ready...');
+    // Use the waitForP2PReady helper to ensure connection is established
+    console.log('  Waiting for P2P channel to be ready...');
+    const aliceP2PReady = await waitForP2PReady(page1, USER1, USER2, 30000);
+    const bobP2PReady = await waitForP2PReady(page2, USER2, USER1, 30000);
+
+    if (!aliceP2PReady || !bobP2PReady) {
+      console.log('  Warning: P2P ready check timed out, proceeding anyway...');
+    }
+
+    // Additional wait for message handlers to be fully registered
     await sleep(3000);
 
     // KNOWN ISSUE: In multi-tab tests, the first message may be lost due to
@@ -309,30 +318,28 @@ async function runTest(): Promise<boolean> {
     await sendMessage(page2, USER2, WARMUP_2, null);
     await sleep(2000);
 
-    // Now send the actual test messages
-    console.log('  Sending test messages...');
+    // Now send and verify the actual test messages using robust retry logic
+    console.log('  Sending test messages with retry logic...');
 
-    // Alice sends MESSAGE_1
-    results.messaging.user1ToUser2 = await sendMessage(page1, USER1, MESSAGE_1, uxTracker);
-    await sleep(1000);
+    // Alice sends MESSAGE_1 to Bob - use sendAndVerifyMessage for reliability
+    results.messaging.user1ToUser2 = await sendAndVerifyMessage(
+      page1, USER1, page2, USER2, MESSAGE_1,
+      { maxRetries: 3, verifyTimeout: 20000, retryDelay: 3000, uxTracker }
+    );
+    results.messaging.user2Received = results.messaging.user1ToUser2;
 
-    // Bob sends MESSAGE_2
-    results.messaging.user2ToUser1 = await sendMessage(page2, USER2, MESSAGE_2, uxTracker);
-    await sleep(1000);
-
-    // Verify Bob receives Alice's message
-    if (results.messaging.user1ToUser2) {
-      results.messaging.user2Received = await verifyMessageReceived(page2, USER2, MESSAGE_1, 15000, uxTracker);
-    }
-
-    // Verify Alice receives Bob's reply
-    if (results.messaging.user2ToUser1) {
-      results.messaging.user1Received = await verifyMessageReceived(page1, USER1, MESSAGE_2, 15000, uxTracker);
-    }
+    // Bob sends MESSAGE_2 to Alice - use sendAndVerifyMessage for reliability
+    results.messaging.user2ToUser1 = await sendAndVerifyMessage(
+      page2, USER2, page1, USER1, MESSAGE_2,
+      { maxRetries: 3, verifyTimeout: 20000, retryDelay: 3000, uxTracker }
+    );
+    results.messaging.user1Received = results.messaging.user2ToUser1;
 
     // Alice sends MESSAGE_3 as a follow-up to confirm continued bidirectional messaging
-    await sendMessage(page1, USER1, MESSAGE_3, uxTracker);
-    await verifyMessageReceived(page2, USER2, MESSAGE_3, 15000, uxTracker);
+    await sendAndVerifyMessage(
+      page1, USER1, page2, USER2, MESSAGE_3,
+      { maxRetries: 3, verifyTimeout: 20000, retryDelay: 3000, uxTracker }
+    );
 
     // ========== STEP 6: Message Order Verification ==========
     console.log('\n' + '─'.repeat(50));

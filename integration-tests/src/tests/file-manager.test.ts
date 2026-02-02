@@ -1,21 +1,26 @@
 /**
  * File Manager Integration Test
  *
- * Tests the File Manager UI functionality:
- * 1. Navigate to File Manager (?section=files)
- * 2. Verify page structure (title, tabs)
- * 3. Test tab switching (Standard Files, RE-VFS Files)
- * 4. Test file list display
- * 5. Test Clear All functionality
- * 6. Test file click/preview (if files exist)
+ * Comprehensive tests for the File Manager (RE-VFS) UI:
+ * 1. Create two accounts and P2P register
+ * 2. Navigate to File Manager (?section=files)
+ * 3. Verify "No Peers Connected" state (before P2P setup)
+ * 4. Verify tree loading after P2P connection
+ * 5. Verify default folders (Sent Files, Received Files)
+ * 6. Folder operations: create, navigate, sync, delete
+ * 7. Context menu operations
+ * 8. Breadcrumb navigation
+ * 9. Peer synchronization verification
  */
 
 import { Page } from 'playwright';
 import {
   sleep,
-  createBrowser,
+  createSeparateBrowsers,
   ensureScreenshotsDir,
   createAccount,
+  p2pRegister,
+  acceptP2PRequest,
   takeScreenshot,
   waitForServicesAlive,
   writeTestReport,
@@ -26,37 +31,39 @@ import {
   closeAnyModals,
   restartBackendServices,
 } from '../lib/index.js';
-import { config } from '../lib/config.js';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface TestResults {
-  // Account creation
-  accountCreated: boolean;
-
-  // Navigation
-  navigatedToFileManager: boolean;
-
-  // Page structure
-  pageTitleVisible: boolean;
-  tabsVisible: boolean;
-
-  // Tab functionality
-  standardTabWorks: boolean;
-  revfsTabWorks: boolean;
-
-  // File list
-  fileListContainerVisible: boolean;
-  clearAllButtonVisible: boolean;
-
-  // Clear All dialog
-  clearAllDialogOpens: boolean;
-  clearAllDialogCloses: boolean;
-
-  // Mock file display (RE-VFS has mock files)
-  mockFilesVisible: boolean;
+  accountCreation: { alice: boolean; bob: boolean };
+  noPeersState: boolean;
+  p2pSetup: { registered: boolean; accepted: boolean };
+  navigation: { aliceToFileManager: boolean; bobToFileManager: boolean };
+  treeLoading: { aliceTreeLoaded: boolean; bobTreeLoaded: boolean };
+  defaultFolders: { aliceSeesFolders: boolean; bobSeesFolders: boolean };
+  folderOperations: {
+    createFolder: boolean;
+    navigateIntoFolder: boolean;
+    breadcrumbNavigation: boolean;
+    syncFolder: boolean;
+    deleteFolder: boolean;
+    peerSeesChanges: boolean;
+  };
+  fileOperations: {
+    uploadFile: boolean;
+    fileVisible: boolean;
+    peerSeesFile: boolean;
+    deleteFile: boolean;
+    fileRemoved: boolean;
+    peerSeesFileRemoved: boolean;
+  };
+  contextMenu: {
+    openContextMenu: boolean;
+    hasNewFolder: boolean;
+    hasDelete: boolean;
+  };
 }
 
 // ============================================================================
@@ -64,258 +71,587 @@ interface TestResults {
 // ============================================================================
 
 const timestamp = Date.now();
-const USERNAME = `filemgr_${timestamp}`;
-const PASSWORD = config.DEFAULT_PASSWORD;
+const ALICE = `fm_alice_${timestamp}`;
+const BOB = `fm_bob_${timestamp}`;
+const TEST_FOLDER = 'test-folder';
+const TEST_FILE_NAME = 'test-document.txt';
+const TEST_FILE_CONTENT = 'Hello, RE-VFS! This is a test file.';
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 /**
- * Navigate to the File Manager page
+ * Navigate to File Manager section
  */
-async function navigateToFileManager(page: Page): Promise<boolean> {
-  console.log('\n=== Navigating to File Manager ===');
-
+async function navigateToFileManager(page: Page, label: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Navigating to File Manager ===`);
   try {
-    // First ensure we're in the workspace
     const loaded = await waitForWorkspaceLoaded(page, 30000);
     if (!loaded) {
       console.log('  Workspace not fully loaded');
       return false;
     }
 
-    // Navigate to file manager via URL parameter
-    const currentUrl = page.url();
-    const baseUrl = currentUrl.split('?')[0];
-    await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
-    await sleep(3000);
+    // Click the File Manager sidebar button
+    const filesBtn = page.locator('[data-testid="file-manager-button"]');
+    if (await filesBtn.isVisible().catch(() => false)) {
+      await filesBtn.click();
+      console.log('  Clicked File Manager sidebar button');
+    } else {
+      // Fallback: navigate via URL
+      const currentUrl = page.url();
+      const baseUrl = currentUrl.split('?')[0];
+      await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
+      console.log('  Navigated via URL (fallback)');
+    }
+    await sleep(2000);
+    return true;
+  } catch (error) {
+    console.error(`  Error navigating: ${error}`);
+    return false;
+  }
+}
 
-    // Verify we're on the file manager page
-    const title = page.locator('h1:has-text("File Manager")');
-    if (await title.isVisible({ timeout: 10000 }).catch(() => false)) {
-      console.log('  Successfully navigated to File Manager');
+/**
+ * Check if "No Peers Connected" state is shown
+ */
+async function checkNoPeersState(page: Page, label: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Checking "No Peers Connected" state ===`);
+  try {
+    const heading = page.locator('h2:has-text("No Peers Connected")');
+    const visible = await heading.isVisible({ timeout: 30000 }).catch(() => false);
+    console.log(`  "No Peers Connected" visible: ${visible}`);
+    return visible;
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Wait for VFS tree to load (Sent Files becomes visible)
+ */
+async function waitForTreeLoaded(page: Page, label: string, timeoutMs = 30000): Promise<boolean> {
+  console.log(`\n=== ${label}: Waiting for VFS tree to load ===`);
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (await page.getByText('Sent Files', { exact: true }).first().isVisible().catch(() => false)) {
+      console.log('  Tree loaded: true');
       return true;
     }
 
-    // Alternative: try clicking "Files" in sidebar
-    console.log('  Direct navigation may have failed, trying sidebar...');
-    const sidebarLink = page.locator('button:has-text("Files"), a:has-text("Files")').first();
-    if (await sidebarLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await sidebarLink.click();
-      await sleep(2000);
-      return await title.isVisible({ timeout: 5000 }).catch(() => false);
-    }
-
-    console.log('  Could not navigate to file manager');
-    return false;
-  } catch (error) {
-    console.error('  Error navigating to file manager:', error);
-    return false;
-  }
-}
-
-/**
- * Verify page structure elements
- */
-async function verifyPageStructure(page: Page): Promise<{
-  title: boolean;
-  tabs: boolean;
-}> {
-  console.log('\n=== Verifying Page Structure ===');
-
-  const results = {
-    title: false,
-    tabs: false,
-  };
-
-  // Check page title
-  const title = page.locator('h1:has-text("File Manager")');
-  results.title = await title.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`  Page title visible: ${results.title}`);
-
-  // Check tabs (Standard Files, RE-VFS Files)
-  const standardTab = page.locator('button[role="tab"]:has-text("Standard Files")');
-  const revfsTab = page.locator('button[role="tab"]:has-text("RE-VFS Files")');
-
-  const tabsVisible = await Promise.all([
-    standardTab.isVisible({ timeout: 3000 }).catch(() => false),
-    revfsTab.isVisible({ timeout: 3000 }).catch(() => false),
-  ]);
-  results.tabs = tabsVisible.every(Boolean);
-  console.log(`  Tabs visible: ${results.tabs} (Standard: ${tabsVisible[0]}, RE-VFS: ${tabsVisible[1]})`);
-
-  return results;
-}
-
-/**
- * Test tab switching functionality
- */
-async function testTabSwitching(page: Page): Promise<{
-  standardTab: boolean;
-  revfsTab: boolean;
-}> {
-  console.log('\n=== Testing Tab Switching ===');
-
-  const results = {
-    standardTab: false,
-    revfsTab: false,
-  };
-
-  // Click "Standard Files" tab
-  const standardTab = page.locator('button[role="tab"]:has-text("Standard Files")');
-  if (await standardTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await standardTab.click();
-    await sleep(500);
-    const isActive = await standardTab.getAttribute('data-state');
-    results.standardTab = isActive === 'active';
-    console.log(`  Standard Files tab works: ${results.standardTab}`);
-  }
-
-  // Click "RE-VFS Files" tab
-  const revfsTab = page.locator('button[role="tab"]:has-text("RE-VFS Files")');
-  if (await revfsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await revfsTab.click();
-    await sleep(500);
-    const isActive = await revfsTab.getAttribute('data-state');
-    results.revfsTab = isActive === 'active';
-    console.log(`  RE-VFS Files tab works: ${results.revfsTab}`);
-  }
-
-  // Go back to Standard tab for subsequent tests
-  await standardTab.click();
-  await sleep(500);
-
-  return results;
-}
-
-/**
- * Verify file list container and Clear All button
- */
-async function verifyFileListElements(page: Page): Promise<{
-  listContainer: boolean;
-  clearAllButton: boolean;
-}> {
-  console.log('\n=== Verifying File List Elements ===');
-
-  const results = {
-    listContainer: false,
-    clearAllButton: false,
-  };
-
-  // Check for scroll area / file list container
-  // The file list is inside a ScrollArea component with h-[600px]
-  const scrollArea = page.locator('[class*="ScrollArea"], [data-radix-scroll-area-viewport]').first();
-  results.listContainer = await scrollArea.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`  File list container visible: ${results.listContainer}`);
-
-  // Check for Clear All button
-  const clearAllButton = page.locator('button:has-text("Clear All")');
-  results.clearAllButton = await clearAllButton.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`  Clear All button visible: ${results.clearAllButton}`);
-
-  return results;
-}
-
-/**
- * Test Clear All dialog functionality
- */
-async function testClearAllDialog(page: Page): Promise<{
-  dialogOpens: boolean;
-  dialogCloses: boolean;
-}> {
-  console.log('\n=== Testing Clear All Dialog ===');
-
-  const results = {
-    dialogOpens: false,
-    dialogCloses: false,
-  };
-
-  const clearAllButton = page.locator('button:has-text("Clear All")');
-  if (!(await clearAllButton.isVisible({ timeout: 3000 }).catch(() => false))) {
-    console.log('  Clear All button not found');
-    return results;
-  }
-
-  // Click Clear All button
-  await clearAllButton.click();
-  await sleep(1000);
-
-  // Check if confirmation dialog opened
-  // The ClearAllDialog should show a dialog with "Clear All" in the title or content
-  const dialogContent = page.locator('[role="dialog"], [data-radix-dialog-content]');
-  results.dialogOpens = await dialogContent.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`  Dialog opens: ${results.dialogOpens}`);
-
-  if (results.dialogOpens) {
-    // Close the dialog by clicking Cancel or pressing Escape
-    const cancelButton = page.locator('button:has-text("Cancel")');
-    if (await cancelButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await cancelButton.click({ force: true });
-      await sleep(1000);
-    } else {
-      await page.keyboard.press('Escape');
-      await sleep(1000);
-    }
-
-    // Wait for dialog animation to complete
-    await sleep(500);
-
-    // Verify dialog closed by checking for the overlay
-    const overlay = page.locator('[data-state="open"][aria-hidden="true"]');
-    results.dialogCloses = !(await overlay.isVisible({ timeout: 1000 }).catch(() => false));
-    console.log(`  Dialog closes: ${results.dialogCloses}`);
-
-    // If dialog didn't close, try pressing Escape again
-    if (!results.dialogCloses) {
-      console.log('  Dialog still open, pressing Escape...');
-      await page.keyboard.press('Escape');
-      await sleep(1000);
-      results.dialogCloses = !(await overlay.isVisible({ timeout: 1000 }).catch(() => false));
-    }
-  }
-
-  return results;
-}
-
-/**
- * Check if mock files are visible (RE-VFS tab has mock files)
- */
-async function checkMockFilesVisible(page: Page): Promise<boolean> {
-  console.log('\n=== Checking for Mock Files ===');
-
-  try {
-    // First ensure no dialogs are blocking
-    await page.keyboard.press('Escape');
-    await sleep(500);
-
-    // Switch to RE-VFS tab which has mock files - use force click to bypass any remaining overlays
-    const revfsTab = page.locator('button[role="tab"]:has-text("RE-VFS Files")');
-    if (await revfsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await revfsTab.click({ force: true });
-      await sleep(1000);
-    } else {
-      console.log('  RE-VFS tab not visible');
+    if (await page.locator('text="File System Error"').isVisible().catch(() => false)) {
+      console.log('  Error: File System Error displayed');
       return false;
     }
 
-    // Look for the mock file "Secure Document.pdf"
-    const mockFile = page.locator('text="Secure Document.pdf"');
-    const visible = await mockFile.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Mock files visible: ${visible}`);
-
-    // Switch back to Standard tab
-    const standardTab = page.locator('button[role="tab"]:has-text("Standard Files")');
-    if (await standardTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await standardTab.click({ force: true });
-      await sleep(500);
+    const noPeers = await page.getByText('No Peers Connected').isVisible().catch(() => false);
+    const loading = await page.getByText('Loading file system').isVisible().catch(() => false);
+    if (noPeers || loading) {
+      console.log(`  Waiting... noPeers=${noPeers} loading=${loading}`);
     }
+    await sleep(1000);
+  }
 
+  console.log('  Tree not loaded (timeout)');
+  return false;
+}
+
+/**
+ * Verify default folders exist
+ */
+async function verifyDefaultFolders(page: Page, label: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Verifying default folders ===`);
+  const hasSent = await page.getByText('Sent Files', { exact: true }).first()
+    .isVisible({ timeout: 5000 }).catch(() => false);
+  const hasReceived = await page.getByText('Received Files', { exact: true }).first()
+    .isVisible({ timeout: 5000 }).catch(() => false);
+  console.log(`  Sent Files: ${hasSent}, Received Files: ${hasReceived}`);
+  return hasSent && hasReceived;
+}
+
+/**
+ * Create a folder using the toolbar button
+ */
+async function createFolderViaToolbar(page: Page, label: string, folderName: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Creating folder "${folderName}" ===`);
+  try {
+    page.once('dialog', async dialog => {
+      console.log(`  Dialog: "${dialog.message()}"`);
+      await dialog.accept(folderName);
+    });
+
+    // Click New Folder button (FolderPlus icon)
+    const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') }).first();
+    if (await newFolderBtn.isVisible().catch(() => false)) {
+      await newFolderBtn.click();
+    } else {
+      // Fallback: first button in toolbar
+      await page.locator('.flex.items-center.gap-1 button').first().click();
+    }
+    await sleep(2000);
+
+    const visible = await page.getByText(folderName, { exact: true }).first()
+      .isVisible({ timeout: 5000 }).catch(() => false);
+    console.log(`  Folder "${folderName}" visible: ${visible}`);
     return visible;
   } catch (error) {
-    console.log(`  Error checking mock files: ${error}`);
+    console.error(`  Error: ${error}`);
     return false;
   }
+}
+
+/**
+ * Navigate into a folder by clicking it
+ */
+async function navigateIntoFolder(page: Page, label: string, folderName: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Navigating into folder "${folderName}" ===`);
+  try {
+    const folderItem = page.getByText(folderName, { exact: true }).first();
+    if (await folderItem.isVisible().catch(() => false)) {
+      await folderItem.click();
+      await sleep(1000);
+      // Check breadcrumb shows folder
+      const breadcrumbVisible = await page.locator(`button:has-text("${folderName}")`).isVisible({ timeout: 3000 }).catch(() => false);
+      console.log(`  Breadcrumb shows folder: ${breadcrumbVisible}`);
+      return breadcrumbVisible;
+    }
+    return false;
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Navigate back to root via breadcrumb
+ */
+async function navigateViaBreadcrumb(page: Page, label: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Navigating via breadcrumb to Root ===`);
+  try {
+    const rootBtn = page.locator('button:has-text("Root")').first();
+    if (await rootBtn.isVisible().catch(() => false)) {
+      await rootBtn.click();
+      await sleep(1000);
+      const sentFiles = await page.getByText('Sent Files', { exact: true }).first()
+        .isVisible({ timeout: 3000 }).catch(() => false);
+      console.log(`  Back at root: ${sentFiles}`);
+      return sentFiles;
+    }
+    return false;
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Click Sync button
+ */
+async function clickSyncButton(page: Page, label: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Clicking Sync button ===`);
+  try {
+    const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') }).first();
+    if (await syncBtn.isVisible().catch(() => false)) {
+      await syncBtn.click();
+      await sleep(2000);
+      console.log('  Sync clicked');
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Open context menu on a folder
+ */
+async function openContextMenu(page: Page, label: string, folderName: string): Promise<{ opened: boolean; hasNewFolder: boolean; hasDelete: boolean }> {
+  console.log(`\n=== ${label}: Opening context menu on "${folderName}" ===`);
+  try {
+    // Find the folder in the tree view - look for the tree item container, not just text
+    const folderItem = page.locator(`[data-testid="tree-item-${folderName}"], .truncate:has-text("${folderName}")`).first();
+
+    // Fallback to text if specific locator not found
+    const targetElement = await folderItem.isVisible().catch(() => false)
+      ? folderItem
+      : page.getByText(folderName, { exact: true }).first();
+
+    if (await targetElement.isVisible().catch(() => false)) {
+      console.log(`  Found folder element, right-clicking...`);
+
+      // Get the bounding box and right-click in the center
+      const box = await targetElement.boundingBox();
+      if (box) {
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+      } else {
+        await targetElement.click({ button: 'right' });
+      }
+
+      // Wait for context menu portal to render
+      await sleep(1500);
+
+      // Debug: Check what menus are visible
+      const menuContent = await page.locator('[role="menu"]').count();
+      const contextMenuContent = await page.locator('[data-radix-menu-content]').count();
+      console.log(`  Menu elements found: role=menu: ${menuContent}, radix-menu-content: ${contextMenuContent}`);
+
+      // Context menu uses radix-ui, items are rendered in a portal
+      // Look for menu items by role or by containing text
+      const hasNewFolder = await page.locator('[role="menuitem"]:has-text("New Folder")').isVisible({ timeout: 3000 }).catch(() => false);
+      const hasDeleteFolder = await page.locator('[role="menuitem"]:has-text("Delete Folder")').isVisible({ timeout: 1000 }).catch(() => false);
+      const hasDelete = await page.locator('[role="menuitem"]:has-text("Delete")').first().isVisible({ timeout: 1000 }).catch(() => false);
+
+      console.log(`  New Folder: ${hasNewFolder}, Delete Folder: ${hasDeleteFolder}, Delete: ${hasDelete}`);
+      await page.keyboard.press('Escape');
+      await sleep(300);
+      return { opened: menuContent > 0 || contextMenuContent > 0, hasNewFolder, hasDelete: hasDeleteFolder || hasDelete };
+    }
+    console.log(`  Folder element not found`);
+    return { opened: false, hasNewFolder: false, hasDelete: false };
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return { opened: false, hasNewFolder: false, hasDelete: false };
+  }
+}
+
+/**
+ * Delete a folder via context menu
+ */
+async function deleteFolderViaContextMenu(page: Page, label: string, folderName: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Deleting folder "${folderName}" ===`);
+  try {
+    // Wait a bit to ensure any previous menus are fully closed
+    await sleep(500);
+
+    // Find the folder in the tree view - use same approach as openContextMenu
+    const folderItem = page.locator(`[data-testid="tree-item-${folderName}"], .truncate:has-text("${folderName}")`).first();
+    const targetElement = await folderItem.isVisible().catch(() => false)
+      ? folderItem
+      : page.getByText(folderName, { exact: true }).first();
+
+    if (!await targetElement.isVisible().catch(() => false)) {
+      console.log(`  Folder not found`);
+      return false;
+    }
+    console.log(`  Found folder element`);
+
+    // Set up dialog handler before triggering the context menu
+    page.once('dialog', async dialog => {
+      console.log(`  Confirm dialog: "${dialog.message()}"`);
+      await dialog.accept();
+    });
+
+    // Get the bounding box and right-click in the center for more reliable context menu
+    const box = await targetElement.boundingBox();
+    if (box) {
+      console.log(`  Right-clicking at (${box.x + box.width / 2}, ${box.y + box.height / 2})`);
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+    } else {
+      console.log(`  Using fallback click`);
+      await targetElement.click({ button: 'right' });
+    }
+
+    // Wait for context menu portal to render
+    await sleep(1500);
+
+    // Debug: Check what menus are visible
+    const menuCount = await page.locator('[role="menu"]').count();
+    const radixMenuCount = await page.locator('[data-radix-menu-content]').count();
+    console.log(`  Menu elements found: role=menu: ${menuCount}, radix: ${radixMenuCount}`);
+
+    // Context menu uses radix-ui, items are rendered in a portal with role="menuitem"
+    let deleteOption = page.locator('[role="menuitem"]:has-text("Delete Folder")');
+    if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // Fallback to "Delete" if "Delete Folder" not found
+      deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
+    }
+    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+      console.log('  Found delete option, clicking...');
+      await deleteOption.click();
+
+      // Wait for deletion to process and UI to update
+      // Check specifically in the tree view (not breadcrumb) for the folder
+      // The tree items are inside the scrollable tree container
+      for (let check = 1; check <= 5; check++) {
+        await sleep(1000);
+        // Check if folder exists in tree view specifically (truncate class is used for tree item names)
+        const inTree = await page.locator(`.truncate:has-text("${folderName}")`).first()
+          .isVisible({ timeout: 1000 }).catch(() => false);
+        // Also check generic location but prefer tree check
+        const anywhereVisible = await page.getByText(folderName, { exact: true }).first()
+          .isVisible({ timeout: 500 }).catch(() => false);
+        console.log(`  Check ${check}: In tree: ${inTree}, Anywhere: ${anywhereVisible}`);
+        if (!inTree) {
+          console.log(`  Folder deleted from tree: true`);
+          return true;
+        }
+      }
+      console.log(`  Folder deleted: false (still visible in tree after retries)`);
+      return false;
+    }
+    console.log('  Delete option not found in context menu');
+
+    // Try to escape any open menu
+    await page.keyboard.press('Escape');
+    return false;
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Verify peer sees folder changes after sync (with retry)
+ */
+async function verifyPeerSeesChanges(page: Page, label: string, folderName: string, shouldExist: boolean): Promise<boolean> {
+  console.log(`\n=== ${label}: Sync and check folder "${folderName}" (expect ${shouldExist ? 'present' : 'absent'}) ===`);
+
+  // Try multiple sync attempts with increasing wait times
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await clickSyncButton(page, label);
+    // Wait longer for sync response to be processed
+    await sleep(3000 + attempt * 1000);
+
+    const visible = await page.getByText(folderName, { exact: true }).first()
+      .isVisible({ timeout: 5000 }).catch(() => false);
+    const result = shouldExist ? visible : !visible;
+
+    console.log(`  Attempt ${attempt}: Folder visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
+
+    if (result) {
+      return true;
+    }
+
+    if (attempt < 3) {
+      console.log(`  Retrying sync...`);
+    }
+  }
+
+  const finalVisible = await page.getByText(folderName, { exact: true }).first()
+    .isVisible({ timeout: 2000 }).catch(() => false);
+  const finalResult = shouldExist ? finalVisible : !finalVisible;
+  console.log(`  Final result: Folder visible: ${finalVisible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${finalResult ? 'PASS' : 'FAIL'}`);
+  return finalResult;
+}
+
+// ============================================================================
+// File Operation Helper Functions
+// ============================================================================
+
+/**
+ * Upload a file via the toolbar Upload button
+ * Uses Playwright's file chooser API to handle the hidden file input
+ */
+async function uploadFileViaToolbar(
+  page: Page,
+  label: string,
+  fileName: string,
+  content: string,
+  targetDir: string = '/'
+): Promise<boolean> {
+  console.log(`\n=== ${label}: Uploading file "${fileName}" to "${targetDir}" ===`);
+  try {
+    // Ensure we're at the correct directory
+    if (targetDir === '/') {
+      // Explicitly navigate to root to ensure currentPath state is reset
+      const rootBtn = page.locator('button:has-text("Root")').first();
+      if (await rootBtn.isVisible().catch(() => false)) {
+        await rootBtn.click();
+        // Wait longer for React state to propagate
+        await sleep(2000);
+        console.log('  Navigated to root via breadcrumb');
+        // Verify we're at root by checking that default folders are visible at top level
+        const atRoot = await page.getByText('Sent Files', { exact: true }).first()
+          .isVisible({ timeout: 3000 }).catch(() => false);
+        console.log(`  Confirmed at root: ${atRoot}`);
+      }
+    } else {
+      // Navigate to target directory
+      const targetFolder = targetDir.replace(/^\//, '');
+      const folderItem = page.getByText(targetFolder, { exact: true }).first();
+      if (await folderItem.isVisible().catch(() => false)) {
+        await folderItem.click();
+        await sleep(1000);
+        console.log(`  Navigated to ${targetDir}`);
+      }
+    }
+
+    // Set up file chooser handler
+    const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
+
+    // Click Upload button (Upload icon in toolbar)
+    const uploadBtn = page.locator('button').filter({ has: page.locator('svg.lucide-upload') }).first();
+    if (await uploadBtn.isVisible().catch(() => false)) {
+      await uploadBtn.click();
+      console.log('  Clicked Upload button');
+    } else {
+      console.log('  Upload button not found');
+      return false;
+    }
+
+    // Wait for file chooser and set the file
+    const fileChooser = await fileChooserPromise;
+
+    // Create a temporary file buffer
+    const buffer = Buffer.from(content, 'utf-8');
+    await fileChooser.setFiles({
+      name: fileName,
+      mimeType: 'text/plain',
+      buffer,
+    });
+    console.log(`  Set file: ${fileName} (${buffer.length} bytes)`);
+
+    // Wait for upload to process
+    await sleep(3000);
+
+    // Check if file appears in the UI
+    const fileVisible = await page.getByText(fileName, { exact: true }).first()
+      .isVisible({ timeout: 5000 }).catch(() => false);
+    console.log(`  File "${fileName}" visible: ${fileVisible}`);
+
+    // Navigate back to root if we navigated away
+    if (targetDir !== '/') {
+      const rootBtn = page.locator('button:has-text("Root")').first();
+      if (await rootBtn.isVisible().catch(() => false)) {
+        await rootBtn.click();
+        await sleep(1000);
+      }
+    }
+
+    return fileVisible;
+  } catch (error) {
+    console.error(`  Error uploading file: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Verify a file is visible in the current view
+ */
+async function verifyFileVisible(page: Page, label: string, fileName: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Verifying file "${fileName}" is visible ===`);
+  try {
+    // Look for file in tree or content grid
+    const visible = await page.getByText(fileName, { exact: true }).first()
+      .isVisible({ timeout: 5000 }).catch(() => false);
+    console.log(`  File visible: ${visible}`);
+    return visible;
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Delete a file via context menu
+ */
+async function deleteFileViaContextMenu(page: Page, label: string, fileName: string): Promise<boolean> {
+  console.log(`\n=== ${label}: Deleting file "${fileName}" ===`);
+  try {
+    await sleep(500);
+
+    // Find the file in the tree or content grid
+    const fileItem = page.locator(`.truncate:has-text("${fileName}")`).first();
+    const targetElement = await fileItem.isVisible().catch(() => false)
+      ? fileItem
+      : page.getByText(fileName, { exact: true }).first();
+
+    if (!await targetElement.isVisible().catch(() => false)) {
+      console.log(`  File not found`);
+      return false;
+    }
+    console.log(`  Found file element`);
+
+    // Set up dialog handler for confirmation
+    page.once('dialog', async dialog => {
+      console.log(`  Confirm dialog: "${dialog.message()}"`);
+      await dialog.accept();
+    });
+
+    // Right-click on file
+    const box = await targetElement.boundingBox();
+    if (box) {
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+    } else {
+      await targetElement.click({ button: 'right' });
+    }
+
+    await sleep(1500);
+
+    // Click Delete option in context menu
+    let deleteOption = page.locator('[role="menuitem"]:has-text("Delete File")');
+    if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+      deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
+    }
+
+    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+      console.log('  Found delete option, clicking...');
+      await deleteOption.click();
+
+      // Wait and verify deletion
+      for (let check = 1; check <= 5; check++) {
+        await sleep(1000);
+        const stillVisible = await page.locator(`.truncate:has-text("${fileName}")`).first()
+          .isVisible({ timeout: 500 }).catch(() => false);
+        console.log(`  Check ${check}: File visible: ${stillVisible}`);
+        if (!stillVisible) {
+          console.log(`  File deleted: true`);
+          return true;
+        }
+      }
+      console.log(`  File deleted: false (still visible after retries)`);
+      return false;
+    }
+
+    console.log('  Delete option not found');
+    await page.keyboard.press('Escape');
+    return false;
+  } catch (error) {
+    console.error(`  Error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Verify peer sees file changes after sync
+ */
+async function verifyPeerSeesFile(
+  page: Page,
+  label: string,
+  fileName: string,
+  shouldExist: boolean
+): Promise<boolean> {
+  console.log(`\n=== ${label}: Sync and check file "${fileName}" (expect ${shouldExist ? 'present' : 'absent'}) ===`);
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await clickSyncButton(page, label);
+    await sleep(3000 + attempt * 1000);
+
+    const visible = await page.getByText(fileName, { exact: true }).first()
+      .isVisible({ timeout: 5000 }).catch(() => false);
+    const result = shouldExist ? visible : !visible;
+
+    console.log(`  Attempt ${attempt}: File visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
+
+    if (result) {
+      return true;
+    }
+
+    if (attempt < 3) {
+      console.log(`  Retrying sync...`);
+    }
+  }
+
+  const finalVisible = await page.getByText(fileName, { exact: true }).first()
+    .isVisible({ timeout: 2000 }).catch(() => false);
+  const finalResult = shouldExist ? finalVisible : !finalVisible;
+  console.log(`  Final result: File visible: ${finalVisible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${finalResult ? 'PASS' : 'FAIL'}`);
+  return finalResult;
 }
 
 // ============================================================================
@@ -326,143 +662,252 @@ async function runTest(): Promise<boolean> {
   console.log('='.repeat(60));
   console.log('FILE MANAGER INTEGRATION TEST');
   console.log('='.repeat(60));
-  console.log(`Username: ${USERNAME}`);
+  console.log(`User 1 (Alice): ${ALICE}`);
+  console.log(`User 2 (Bob): ${BOB}`);
   console.log('');
 
-  // Initialize
   ensureScreenshotsDir();
   const uxTracker = new UxIssueTracker();
 
-  // Restart backend for clean state
   await restartBackendServices();
   await waitForServicesAlive();
 
-  // Log the test start
   logObservation('test-start', 'File Manager Test Started', {
-    username: USERNAME,
+    alice: ALICE,
+    bob: BOB,
     timestamp: new Date().toISOString(),
   }, 'investigating');
 
-  // Setup browser
-  const { browser, context } = await createBrowser();
+  const { pages, cleanup } = await createSeparateBrowsers(2);
+  const page1 = pages[0];
+  const page2 = pages[1];
 
   const results: TestResults = {
-    accountCreated: false,
-    navigatedToFileManager: false,
-    pageTitleVisible: false,
-    tabsVisible: false,
-    standardTabWorks: false,
-    revfsTabWorks: false,
-    fileListContainerVisible: false,
-    clearAllButtonVisible: false,
-    clearAllDialogOpens: false,
-    clearAllDialogCloses: false,
-    mockFilesVisible: false,
+    accountCreation: { alice: false, bob: false },
+    noPeersState: false,
+    p2pSetup: { registered: false, accepted: false },
+    navigation: { aliceToFileManager: false, bobToFileManager: false },
+    treeLoading: { aliceTreeLoaded: false, bobTreeLoaded: false },
+    defaultFolders: { aliceSeesFolders: false, bobSeesFolders: false },
+    folderOperations: {
+      createFolder: false,
+      navigateIntoFolder: false,
+      breadcrumbNavigation: false,
+      syncFolder: false,
+      deleteFolder: false,
+      peerSeesChanges: false,
+    },
+    fileOperations: {
+      uploadFile: false,
+      fileVisible: false,
+      peerSeesFile: false,
+      deleteFile: false,
+      fileRemoved: false,
+      peerSeesFileRemoved: false,
+    },
+    contextMenu: {
+      openContextMenu: false,
+      hasNewFolder: false,
+      hasDelete: false,
+    },
   };
 
   try {
-    // ========== STEP 1: Create Account ==========
+    setupConsoleCapture(page1, 'Alice', ['error', 'Error', 'revfs', 'RE-VFS']);
+    setupConsoleCapture(page2, 'Bob', ['error', 'Error', 'revfs', 'RE-VFS']);
+
+    // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 1: Create Account');
+    console.log('STEP 1: Account Creation');
     console.log('─'.repeat(50));
 
-    const page = await context.newPage();
-    setupConsoleCapture(page, 'FileManager', ['error', 'Error', 'FileManager', 'file']);
+    results.accountCreation.alice = await createAccount(page1, ALICE, { isFirstUser: true, uxTracker });
+    await takeScreenshot(page1, '01_alice_created');
 
-    results.accountCreated = await createAccount(page, USERNAME, {
-      isFirstUser: true,
-      password: PASSWORD,
-      uxTracker,
-    });
+    results.accountCreation.bob = await createAccount(page2, BOB, { isFirstUser: false, uxTracker });
+    await takeScreenshot(page2, '01_bob_created');
 
-    await takeScreenshot(page, '01_account_created');
+    console.log('\n  Waiting 5s for sessions to establish...');
+    await sleep(5000);
 
-    if (!results.accountCreated) {
-      throw new Error('Account creation failed');
+    // ========== STEP 2: File Manager - No Peers State (BEFORE any P2P activity) ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 2: File Manager - No Peers State');
+    console.log('─'.repeat(50));
+
+    // Check Alice's File Manager before any P2P registration - should show "No Peers Connected"
+    results.navigation.aliceToFileManager = await navigateToFileManager(page1, 'Alice');
+    results.noPeersState = await checkNoPeersState(page1, 'Alice');
+    await takeScreenshot(page1, '02_no_peers_state');
+
+    // Navigate Alice back to workspace for P2P registration
+    console.log('\n  Navigating Alice back to workspace...');
+    const workspaceBtn = page1.locator('[data-testid="workspace-button"], [data-testid="sidebar-workspace"], button:has-text("Workspace")');
+    if (await workspaceBtn.first().isVisible().catch(() => false)) {
+      await workspaceBtn.first().click();
+      console.log('  Clicked Workspace sidebar button');
+    } else {
+      await page1.goBack();
+      console.log('  Used goBack() to return to workspace');
     }
+    await sleep(2000);
+    await waitForWorkspaceLoaded(page1, 30000);
+
+    // ========== STEP 3: P2P Registration ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 3: P2P Registration');
+    console.log('─'.repeat(50));
+
+    await closeAnyModals(page1);
+    results.p2pSetup.registered = await p2pRegister(page1, ALICE, BOB, { uxTracker });
+    await takeScreenshot(page1, '03_p2p_registered');
+
+    // CRITICAL: Close any modals that might be blocking (Peer Discovery modal)
+    console.log('  Closing any modals after P2P registration...');
+    await closeAnyModals(page1);
+    await sleep(1000);
+
+    // ========== STEP 4: Accept P2P Request ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 4: Accept P2P Request');
+    console.log('─'.repeat(50));
 
     await sleep(3000);
+    results.p2pSetup.accepted = await acceptP2PRequest(page2, BOB, uxTracker);
+    await takeScreenshot(page2, '04_p2p_accepted');
 
-    // Close any modals
-    await closeAnyModals(page);
+    // CRITICAL: Close any modals that might be blocking (Pending Requests modal)
+    console.log('  Closing any modals after P2P acceptance...');
+    await closeAnyModals(page2);
+    await sleep(1000);
 
-    // ========== STEP 2: Navigate to File Manager ==========
+    console.log('\n  Waiting 5s for P2P connection...');
+    await sleep(5000);
+
+    // ========== STEP 5: File Manager - Tree Loading ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 2: Navigate to File Manager');
+    console.log('STEP 5: File Manager - Tree Loading');
     console.log('─'.repeat(50));
 
-    results.navigatedToFileManager = await navigateToFileManager(page);
-    await takeScreenshot(page, '02_file_manager_page');
+    // Alice needs to navigate to File Manager (should now show tree since P2P is connected)
+    // Close any remaining modals first
+    await closeAnyModals(page1);
+    results.navigation.aliceToFileManager = await navigateToFileManager(page1, 'Alice');
+    results.treeLoading.aliceTreeLoaded = await waitForTreeLoaded(page1, 'Alice', 30000);
+    await takeScreenshot(page1, '05_alice_tree_loaded');
 
-    if (!results.navigatedToFileManager) {
-      console.log('  WARNING: Could not navigate to file manager');
-      uxTracker.log('major', 'functional', 'File Manager page not accessible');
-    }
+    // Bob needs to go to File Manager (should now show tree since P2P is connected)
+    results.navigation.bobToFileManager = await navigateToFileManager(page2, 'Bob');
+    results.treeLoading.bobTreeLoaded = await waitForTreeLoaded(page2, 'Bob', 30000);
+    await takeScreenshot(page2, '05_bob_tree_loaded');
 
-    // ========== STEP 3: Verify Page Structure ==========
+    // ========== STEP 6: Verify Default Folders ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 3: Verify Page Structure');
+    console.log('STEP 6: Verify Default Folders');
     console.log('─'.repeat(50));
 
-    if (results.navigatedToFileManager) {
-      const structure = await verifyPageStructure(page);
-      results.pageTitleVisible = structure.title;
-      results.tabsVisible = structure.tabs;
+    results.defaultFolders.aliceSeesFolders = await verifyDefaultFolders(page1, 'Alice');
+    results.defaultFolders.bobSeesFolders = await verifyDefaultFolders(page2, 'Bob');
 
-      await takeScreenshot(page, '03_page_structure');
-    }
-
-    // ========== STEP 4: Test Tab Switching ==========
+    // ========== STEP 7: Folder Operations ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 4: Test Tab Switching');
+    console.log('STEP 7: Folder Operations');
     console.log('─'.repeat(50));
 
-    if (results.tabsVisible) {
-      const tabResults = await testTabSwitching(page);
-      results.standardTabWorks = tabResults.standardTab;
-      results.revfsTabWorks = tabResults.revfsTab;
+    results.folderOperations.createFolder = await createFolderViaToolbar(page1, 'Alice', TEST_FOLDER);
+    await takeScreenshot(page1, '07_folder_created');
 
-      await takeScreenshot(page, '04_tabs_tested');
+    if (results.folderOperations.createFolder) {
+      results.folderOperations.navigateIntoFolder = await navigateIntoFolder(page1, 'Alice', TEST_FOLDER);
+      await takeScreenshot(page1, '07_in_folder');
     }
 
-    // ========== STEP 5: Verify File List Elements ==========
+    results.folderOperations.breadcrumbNavigation = await navigateViaBreadcrumb(page1, 'Alice');
+    await takeScreenshot(page1, '07_breadcrumb');
+
+    results.folderOperations.syncFolder = await clickSyncButton(page1, 'Alice');
+    results.folderOperations.peerSeesChanges = await verifyPeerSeesChanges(page2, 'Bob', TEST_FOLDER, true);
+    await takeScreenshot(page2, '07_bob_sees_folder');
+
+    // ========== STEP 8: Context Menu ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 5: Verify File List Elements');
+    console.log('STEP 8: Context Menu');
     console.log('─'.repeat(50));
 
-    if (results.navigatedToFileManager) {
-      const listResults = await verifyFileListElements(page);
-      results.fileListContainerVisible = listResults.listContainer;
-      results.clearAllButtonVisible = listResults.clearAllButton;
+    const contextResult = await openContextMenu(page1, 'Alice', TEST_FOLDER);
+    results.contextMenu.openContextMenu = contextResult.opened;
+    results.contextMenu.hasNewFolder = contextResult.hasNewFolder;
+    results.contextMenu.hasDelete = contextResult.hasDelete;
+    await takeScreenshot(page1, '08_context_menu');
 
-      await takeScreenshot(page, '05_file_list');
-    }
-
-    // ========== STEP 6: Test Clear All Dialog ==========
+    // ========== STEP 9: File Operations - Upload ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 6: Test Clear All Dialog');
+    console.log('STEP 9: File Operations - Upload');
     console.log('─'.repeat(50));
 
-    if (results.clearAllButtonVisible) {
-      const dialogResults = await testClearAllDialog(page);
-      results.clearAllDialogOpens = dialogResults.dialogOpens;
-      results.clearAllDialogCloses = dialogResults.dialogCloses;
-
-      await takeScreenshot(page, '06_clear_all_dialog');
+    // Navigate to test-folder to ensure we're in a known directory for file upload
+    // (Due to React state timing, we explicitly navigate to the target folder)
+    const folderForUpload = await page1.getByText(TEST_FOLDER, { exact: true }).first();
+    if (await folderForUpload.isVisible().catch(() => false)) {
+      await folderForUpload.click();
+      await sleep(1000);
+      console.log(`  Navigated into ${TEST_FOLDER} for file upload`);
     }
 
-    // ========== STEP 7: Check Mock Files ==========
+    // Upload file to current directory (test-folder)
+    results.fileOperations.uploadFile = await uploadFileViaToolbar(
+      page1,
+      'Alice',
+      TEST_FILE_NAME,
+      TEST_FILE_CONTENT,
+      `/${TEST_FOLDER}`
+    );
+    await takeScreenshot(page1, '09_file_uploaded');
+
+    // Verify file is visible on Alice's side
+    results.fileOperations.fileVisible = await verifyFileVisible(page1, 'Alice', TEST_FILE_NAME);
+
+    // Bob also needs to navigate to test-folder to see the file
+    const bobFolder = await page2.getByText(TEST_FOLDER, { exact: true }).first();
+    if (await bobFolder.isVisible().catch(() => false)) {
+      await bobFolder.click();
+      await sleep(1000);
+      console.log(`  Bob navigated into ${TEST_FOLDER}`);
+    }
+
+    // Sync and verify Bob sees the file
+    results.fileOperations.peerSeesFile = await verifyPeerSeesFile(page2, 'Bob', TEST_FILE_NAME, true);
+    await takeScreenshot(page2, '09_bob_sees_file');
+
+    // ========== STEP 10: File Operations - Delete ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 7: Check Mock Files');
+    console.log('STEP 10: File Operations - Delete');
     console.log('─'.repeat(50));
 
-    if (results.tabsVisible) {
-      results.mockFilesVisible = await checkMockFilesVisible(page);
-      await takeScreenshot(page, '07_mock_files');
-    }
+    // Delete the file
+    results.fileOperations.deleteFile = await deleteFileViaContextMenu(page1, 'Alice', TEST_FILE_NAME);
+    await takeScreenshot(page1, '10_file_deleted');
 
-    // Final screenshot
-    await takeScreenshot(page, 'FINAL_file_manager');
+    // Verify file is removed on Alice's side
+    results.fileOperations.fileRemoved = !await verifyFileVisible(page1, 'Alice', TEST_FILE_NAME);
+
+    // Sync and verify Bob sees the file is gone
+    results.fileOperations.peerSeesFileRemoved = await verifyPeerSeesFile(page2, 'Bob', TEST_FILE_NAME, false);
+    await takeScreenshot(page2, '10_bob_file_gone');
+
+    // ========== STEP 11: Delete Folder ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 11: Delete Folder');
+    console.log('─'.repeat(50));
+
+    results.folderOperations.deleteFolder = await deleteFolderViaContextMenu(page1, 'Alice', TEST_FOLDER);
+    await takeScreenshot(page1, '09_folder_deleted');
+
+    await verifyPeerSeesChanges(page2, 'Bob', TEST_FOLDER, false);
+    await takeScreenshot(page2, '09_bob_folder_gone');
+
+    await takeScreenshot(page1, 'FINAL_alice');
+    await takeScreenshot(page2, 'FINAL_bob');
 
     // ========== RESULTS ==========
     console.log('\n' + '='.repeat(60));
@@ -470,37 +915,64 @@ async function runTest(): Promise<boolean> {
     console.log('='.repeat(60));
 
     const allPassed =
-      results.accountCreated &&
-      results.navigatedToFileManager &&
-      results.pageTitleVisible &&
-      results.tabsVisible;
-
-    const corePassed = results.accountCreated;
+      results.accountCreation.alice &&
+      results.accountCreation.bob &&
+      results.noPeersState &&
+      results.p2pSetup.registered &&
+      results.p2pSetup.accepted &&
+      results.treeLoading.aliceTreeLoaded &&
+      results.treeLoading.bobTreeLoaded &&
+      results.defaultFolders.aliceSeesFolders &&
+      results.defaultFolders.bobSeesFolders &&
+      results.folderOperations.createFolder &&
+      results.folderOperations.navigateIntoFolder &&
+      results.folderOperations.breadcrumbNavigation &&
+      results.folderOperations.deleteFolder &&
+      results.fileOperations.uploadFile &&
+      results.fileOperations.fileVisible &&
+      results.fileOperations.deleteFile &&
+      results.fileOperations.fileRemoved &&
+      results.contextMenu.openContextMenu;
 
     console.log('\nAccount Creation:');
-    console.log(`  Account Created:          ${results.accountCreated ? 'PASS' : 'FAIL'}`);
+    console.log(`  Alice:                     ${results.accountCreation.alice ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bob:                       ${results.accountCreation.bob ? 'PASS' : 'FAIL'}`);
 
-    console.log('\nNavigation:');
-    console.log(`  Navigated to File Manager:${results.navigatedToFileManager ? 'PASS' : 'FAIL'}`);
+    console.log('\nFile Manager States:');
+    console.log(`  No Peers State:            ${results.noPeersState ? 'PASS' : 'FAIL'}`);
 
-    console.log('\nPage Structure:');
-    console.log(`  Page Title Visible:       ${results.pageTitleVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Tabs Visible:             ${results.tabsVisible ? 'PASS' : 'CHECK'}`);
+    console.log('\nP2P Setup:');
+    console.log(`  Registered:                ${results.p2pSetup.registered ? 'PASS' : 'FAIL'}`);
+    console.log(`  Accepted:                  ${results.p2pSetup.accepted ? 'PASS' : 'FAIL'}`);
 
-    console.log('\nTab Functionality:');
-    console.log(`  Standard Tab Works:       ${results.standardTabWorks ? 'PASS' : 'CHECK'}`);
-    console.log(`  RE-VFS Tab Works:         ${results.revfsTabWorks ? 'PASS' : 'CHECK'}`);
+    console.log('\nTree Loading:');
+    console.log(`  Alice Tree Loaded:         ${results.treeLoading.aliceTreeLoaded ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bob Tree Loaded:           ${results.treeLoading.bobTreeLoaded ? 'PASS' : 'FAIL'}`);
 
-    console.log('\nFile List:');
-    console.log(`  File List Container:      ${results.fileListContainerVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Clear All Button:         ${results.clearAllButtonVisible ? 'PASS' : 'CHECK'}`);
+    console.log('\nDefault Folders:');
+    console.log(`  Alice Sees Folders:        ${results.defaultFolders.aliceSeesFolders ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bob Sees Folders:          ${results.defaultFolders.bobSeesFolders ? 'PASS' : 'FAIL'}`);
 
-    console.log('\nClear All Dialog:');
-    console.log(`  Dialog Opens:             ${results.clearAllDialogOpens ? 'PASS' : 'CHECK'}`);
-    console.log(`  Dialog Closes:            ${results.clearAllDialogCloses ? 'PASS' : 'CHECK'}`);
+    console.log('\nFolder Operations:');
+    console.log(`  Create Folder:             ${results.folderOperations.createFolder ? 'PASS' : 'FAIL'}`);
+    console.log(`  Navigate Into Folder:      ${results.folderOperations.navigateIntoFolder ? 'PASS' : 'FAIL'}`);
+    console.log(`  Breadcrumb Navigation:     ${results.folderOperations.breadcrumbNavigation ? 'PASS' : 'FAIL'}`);
+    console.log(`  Sync Folder:               ${results.folderOperations.syncFolder ? 'PASS' : 'CHECK'}`);
+    console.log(`  Delete Folder:             ${results.folderOperations.deleteFolder ? 'PASS' : 'FAIL'}`);
+    console.log(`  Peer Sees Changes:         ${results.folderOperations.peerSeesChanges ? 'PASS' : 'CHECK'}`);
 
-    console.log('\nMock Files:');
-    console.log(`  Mock Files Visible:       ${results.mockFilesVisible ? 'PASS' : 'CHECK'}`);
+    console.log('\nFile Operations:');
+    console.log(`  Upload File:               ${results.fileOperations.uploadFile ? 'PASS' : 'FAIL'}`);
+    console.log(`  File Visible:              ${results.fileOperations.fileVisible ? 'PASS' : 'FAIL'}`);
+    console.log(`  Peer Sees File:            ${results.fileOperations.peerSeesFile ? 'PASS' : 'CHECK'}`);
+    console.log(`  Delete File:               ${results.fileOperations.deleteFile ? 'PASS' : 'FAIL'}`);
+    console.log(`  File Removed:              ${results.fileOperations.fileRemoved ? 'PASS' : 'FAIL'}`);
+    console.log(`  Peer Sees File Removed:    ${results.fileOperations.peerSeesFileRemoved ? 'PASS' : 'CHECK'}`);
+
+    console.log('\nContext Menu:');
+    console.log(`  Open Context Menu:         ${results.contextMenu.openContextMenu ? 'PASS' : 'FAIL'}`);
+    console.log(`  New Folder Option:         ${results.contextMenu.hasNewFolder ? 'PASS' : 'CHECK'}`);
+    console.log(`  Delete Option:             ${results.contextMenu.hasDelete ? 'PASS' : 'CHECK'}`);
 
     const uxIssues = uxTracker.getIssues();
     if (uxIssues.length > 0) {
@@ -516,28 +988,25 @@ async function runTest(): Promise<boolean> {
     }
 
     console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : corePassed ? 'CORE PASSED' : 'TEST FAILED'}`);
+    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
     console.log('='.repeat(60));
 
-    // Log the test result
-    logObservation('test-complete', `File Manager Test ${allPassed ? 'PASSED' : 'COMPLETED'}`, {
+    logObservation('test-complete', `File Manager Test ${allPassed ? 'PASSED' : 'FAILED'}`, {
       results,
       uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'investigating');
+    }, allPassed ? 'verified' : 'failed');
 
-    // Write report
     writeTestReport('FILE_MANAGER_TEST_REPORT.json', {
-      username: USERNAME,
+      users: { alice: ALICE, bob: BOB },
       results,
       uxIssues,
       passed: allPassed,
-      corePassed,
     });
 
-    console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
+    console.log('\nBrowser will remain open for 10 seconds...');
     await sleep(10000);
 
-    return corePassed;
+    return allPassed;
 
   } catch (error) {
     console.error('\nTest error:', error);
@@ -546,7 +1015,7 @@ async function runTest(): Promise<boolean> {
     }, 'failed');
     throw error;
   } finally {
-    await browser.close();
+    await cleanup();
   }
 }
 

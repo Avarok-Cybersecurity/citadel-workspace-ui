@@ -17,6 +17,7 @@ import {
 import {
   MessagingLayerType,
   isMessage,
+  isRevfsOperation,
   TYPING_DISPLAY_DURATION_MS,
 } from '@/types/messaging-layer';
 import { eventEmitter } from '../event-emitter';
@@ -28,6 +29,7 @@ import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
 import { MessageAckHandler } from './message-ack-handler';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
+import { revfsService } from '@/lib/revfs';
 
 export interface MessageHandlerConfig {
   getCurrentCid: () => Promise<bigint | null>;
@@ -289,6 +291,16 @@ export class MessageHandler {
         this.config.handleCheckStateResponse(peerCid);
         break;
 
+      // RE-VFS tree operations
+      case MessagingLayerType.RevfsOperation:
+        if (isRevfsOperation(layer)) {
+          const myCid = await this.config.getCurrentCid();
+          if (myCid) {
+            void revfsService.handleRevfsOperation(peerCid, myCid, layer.operation);
+          }
+        }
+        break;
+
       // File Transfer message handling
       case MessagingLayerType.FileTransferRequest:
       case MessagingLayerType.FileTransferResponse:
@@ -296,12 +308,12 @@ export class MessageHandler {
       case MessagingLayerType.FileTransferComplete:
       case MessagingLayerType.FileTransferCancel:
       case MessagingLayerType.FileTransferChunk:
-        console.log('[P2P] Received file transfer message:', layer.type, 'from:', peerCid);
+        console.log('[P2P] Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
         const effectiveRecipientCid = recipientCid || await this.config.getCurrentCid();
         eventEmitter.emit('p2p:file-transfer-message', {
           layer,
-          senderCid: peerCid,
-          recipientCid: effectiveRecipientCid
+          senderCid: peerCid.toString(),
+          recipientCid: effectiveRecipientCid?.toString()
         });
         await this.handleFileTransferMessage(payload, peerCid, recipientCid);
         break;

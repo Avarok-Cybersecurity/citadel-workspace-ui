@@ -17,6 +17,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { getUserFriendlyErrorMessage } from '@/lib/error-messages';
 import { healthCheckService } from '@/lib/health-check';
 import { getSelectedUser, setSelectedUser } from '@/lib/tab-context';
+import { revfsService } from '@/lib/revfs';
 // Import sessionStartupService to ensure it's instantiated (sets up event listeners)
 // P2P startup is now centralized here - triggered by 'session:activated' event
 import '@/lib/session-startup-service';
@@ -69,6 +70,18 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
     const messagingService = MessagingService.getInstance();
     const connectionService = ConnectionService.getInstance();
     const userService = UserService;
+
+    // Initialize RE-VFS service with I/O dependencies
+    revfsService.initialize({
+      sendP2PMessageReliable: (localCid, peerCid, message) =>
+        websocketService.sendP2PMessageReliable(localCid, peerCid, message),
+      getCurrentCid: async () => {
+        const info = connectionManager.getConnectionInfo();
+        return info?.cid ?? null;
+      },
+      sendInternalServiceRequest: (request) =>
+        websocketService.sendMessage(request),
+    });
 
     // Track the last processed CID to prevent redundant workspace reloads
     // This is critical to prevent flickering when BroadcastChannel sends connection-status

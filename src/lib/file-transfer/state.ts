@@ -85,7 +85,7 @@ export class FileTransferState {
       autoAccept: false,
       maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
       transferMode: 'browser',
-      allowRevfsStorage: false,
+      allowRevfsStorage: true, // Default to true for RE-VFS file browser functionality
       revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,
     };
   }
