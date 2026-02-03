@@ -31,7 +31,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   const [isAddingPeer, setIsAddingPeer] = useState(false);
   
   const messenger = P2PMessengerManager.getInstance();
-  
+
   // Add demo peer for Kathy McCooper
   const DEMO_PEERS: PeerInfo[] = [
     {
@@ -43,6 +43,31 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       lastMessageTime: Date.now() - 1000 * 60 * 5 // 5 minutes ago
     }
   ];
+
+  // Define loadPeers before it's used in effects
+  const loadPeers = useCallback(() => {
+    const conversations = messenger.getAllConversations();
+    const peerList: PeerInfo[] = conversations.map(conv => {
+      const lastMessage = conv.messages[conv.messages.length - 1];
+      const peerCidStr = conv.peerCid.toString();
+      return {
+        cid: peerCidStr,
+        // Use stored username if available, otherwise fallback to truncated CID
+        name: conv.peerUsername || `User ${peerCidStr.slice(0, 8)}...`,
+        isConnected: messenger.isConnected(conv.peerCid),
+        unreadCount: conv.unreadCount,
+        lastMessage: lastMessage?.content,
+        lastMessageTime: lastMessage?.timestamp
+      };
+    });
+
+    // Add demo peers
+    const allPeers = [...DEMO_PEERS, ...peerList];
+
+    // Sort by last message time
+    allPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+    setPeers(allPeers);
+  }, [messenger]);
 
   // Initialize peers on mount
   useEffect(() => {
@@ -84,30 +109,6 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
   // Listen for messages-loaded event in case init completes after mount
   useEventListener('p2p:messages-loaded', loadPeers);
-
-  const loadPeers = () => {
-    const conversations = messenger.getAllConversations();
-    const peerList: PeerInfo[] = conversations.map(conv => {
-      const lastMessage = conv.messages[conv.messages.length - 1];
-      const peerCidStr = conv.peerCid.toString();
-      return {
-        cid: peerCidStr,
-        // Use stored username if available, otherwise fallback to truncated CID
-        name: conv.peerUsername || `User ${peerCidStr.slice(0, 8)}...`,
-        isConnected: messenger.isConnected(conv.peerCid),
-        unreadCount: conv.unreadCount,
-        lastMessage: lastMessage?.content,
-        lastMessageTime: lastMessage?.timestamp
-      };
-    });
-
-    // Add demo peers
-    const allPeers = [...DEMO_PEERS, ...peerList];
-
-    // Sort by last message time
-    allPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-    setPeers(allPeers);
-  };
 
   const loadAvailablePeers = () => {
     const { allPeers } = p2pRegistrationService.getPeers();

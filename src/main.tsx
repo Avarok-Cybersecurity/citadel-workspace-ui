@@ -6,6 +6,13 @@ import './index.css'
 import { initWasmPeerBridge } from './lib/wasm-peer-bridge'
 initWasmPeerBridge();
 
+// Expose P2P services on window for integration testing
+// These are singletons so we can import and expose them safely
+import { p2pRegistrationService } from './lib/p2p-registration-service';
+import { p2pAutoConnectService } from './lib/p2p-auto-connect-service';
+(window as unknown as { __p2pRegistrationService: typeof p2pRegistrationService }).__p2pRegistrationService = p2pRegistrationService;
+(window as unknown as { __p2pAutoConnectService: typeof p2pAutoConnectService }).__p2pAutoConnectService = p2pAutoConnectService;
+
 // Initialize instance inbound router (routes WebSocket responses to correct instance)
 // Must be imported early to set up event listeners before any messages are processed
 console.log('[Main] About to import instance-inbound-router...');

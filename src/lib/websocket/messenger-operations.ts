@@ -8,6 +8,7 @@
 import { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
+import { isEnsureMessengerOpenResponse } from '../multi-instance/outbound-queue';
 
 export interface MessengerConfig {
   init: () => Promise<void>;
@@ -98,7 +99,7 @@ export class MessengerOperations {
       if (result.status === 'error') {
         throw new Error(`Leader failed to ensure messenger: ${result.error}`);
       }
-      return result.data?.wasOpened ?? false;
+      return isEnsureMessengerOpenResponse(result.data) ? result.data.wasOpened : false;
     }
   }
 

@@ -27,6 +27,34 @@ import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
+
+// ============================================================================
+// Type guards for InternalServiceResponse variants
+// These provide type-safe access to response payloads without dirty casts
+// ============================================================================
+
+interface PeerMessagePayload {
+  peer_cid: bigint | string | number;
+  message: Uint8Array | number[];
+}
+
+interface MessageNotificationPayload {
+  cid: bigint | string | number;
+  peer_cid: bigint | string | number;
+  message: Uint8Array | number[];
+}
+
+function isPeerMessage(
+  response: InternalServiceResponse
+): response is InternalServiceResponse & { PeerMessage: PeerMessagePayload } {
+  return 'PeerMessage' in response && response.PeerMessage !== null && typeof response.PeerMessage === 'object';
+}
+
+function isMessageNotification(
+  response: InternalServiceResponse
+): response is InternalServiceResponse & { MessageNotification: MessageNotificationPayload } {
+  return 'MessageNotification' in response && response.MessageNotification !== null && typeof response.MessageNotification === 'object';
+}
 import { MessageAckHandler } from './message-ack-handler';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
 import { revfsService } from '@/lib/revfs';
@@ -81,14 +109,14 @@ export class MessageHandler {
    */
   public async handleWebSocketMessage(response: InternalServiceResponse): Promise<void> {
     // Handle P2P message responses via MessageNotification
-    if ('MessageNotification' in response) {
+    if (isMessageNotification(response)) {
       await this.handleMessageNotification(response);
       return;
     }
 
     // Handler for PeerMessage format
-    if ('PeerMessage' in response) {
-      const { peer_cid, message } = (response as { PeerMessage: { peer_cid: unknown; message: unknown } }).PeerMessage;
+    if (isPeerMessage(response)) {
+      const { peer_cid, message } = response.PeerMessage;
       try {
         let messageBytes: Uint8Array;
         if (Array.isArray(message)) {
@@ -112,9 +140,12 @@ export class MessageHandler {
 
   /**
    * Handle MessageNotification response
+   * Pre-condition: isMessageNotification(response) has passed
    */
-  private async handleMessageNotification(response: InternalServiceResponse): Promise<void> {
-    const notification = (response as { MessageNotification: { message: unknown; peer_cid: unknown; cid: unknown } }).MessageNotification;
+  private async handleMessageNotification(
+    response: InternalServiceResponse & { MessageNotification: MessageNotificationPayload }
+  ): Promise<void> {
+    const notification = response.MessageNotification;
     const { message: rawMessage, peer_cid, cid } = notification;
 
     const currentCid = await this.config.getCurrentCid();

@@ -224,8 +224,8 @@ export class ConnectionIO {
 
   async setSelectedUser(context: TabSelectionContext): Promise<void> {
     await setSelectedUser({
-      selectedUsername: context.selectedUsername,
-      selectedServerAddress: context.selectedServerAddress,
+      selectedUsername: context.selectedUsername ?? undefined,
+      selectedServerAddress: context.selectedServerAddress ?? undefined,
       selectedCid: context.selectedCid,
     });
   }
@@ -234,8 +234,8 @@ export class ConnectionIO {
     const result = await getSelectedUser();
     if (!result) return null;
     return {
-      selectedUsername: result.selectedUsername,
-      selectedServerAddress: result.selectedServerAddress,
+      selectedUsername: result.selectedUsername ?? null,
+      selectedServerAddress: result.selectedServerAddress ?? null,
       selectedCid: result.selectedCid,
     };
   }

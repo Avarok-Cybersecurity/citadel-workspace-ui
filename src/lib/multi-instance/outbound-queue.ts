@@ -29,10 +29,31 @@ export interface QueuedMessage {
   timeoutId?: ReturnType<typeof setTimeout>;
 }
 
+/**
+ * Known proxy response data shapes.
+ * When adding new proxy operations that return data, add their shape here.
+ */
+export type ProxyResponseData =
+  | { wasOpened: boolean }         // ensureMessengerOpen response
+  | { success: boolean }           // generic operation result
+  | Record<string, unknown>;       // fallback for other operations
+
 export interface AckResult {
   status: 'processed' | 'error';
   error?: string;
-  data?: unknown;
+  data?: ProxyResponseData;
+}
+
+/**
+ * Type guard for ensureMessengerOpen response
+ */
+export function isEnsureMessengerOpenResponse(data: unknown): data is { wasOpened: boolean } {
+  return (
+    data !== null &&
+    typeof data === 'object' &&
+    'wasOpened' in data &&
+    typeof (data as { wasOpened: unknown }).wasOpened === 'boolean'
+  );
 }
 
 const ACK_TIMEOUT_MS = 5000;

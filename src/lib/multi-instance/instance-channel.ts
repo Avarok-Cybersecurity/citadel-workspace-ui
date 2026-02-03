@@ -21,7 +21,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
-import { outboundQueue, type AckResult } from './outbound-queue';
+import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
 
 const CHANNEL_NAME = 'citadel-instance-channel';
 const HEARTBEAT_INTERVAL_MS = 2000;
@@ -47,6 +47,7 @@ export interface ChannelMessage {
   payload?: any;
   status?: 'processed' | 'error';
   error?: string;
+  data?: ProxyResponseData; // Typed data for acknowledgments
 }
 
 class InstanceChannel {

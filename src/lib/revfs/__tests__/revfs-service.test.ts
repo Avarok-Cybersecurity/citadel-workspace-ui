@@ -41,6 +41,7 @@ function createTestService(
   service.initialize({
     sendP2PMessageReliable: vi.fn(),
     getCurrentCid: vi.fn().mockResolvedValue(ALICE),
+    sendInternalServiceRequest: vi.fn(),
   });
 
   const io = (service as unknown as { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> } }).io;
@@ -91,7 +92,7 @@ function defaultIntentHandler(overrides?: Partial<Record<RevfsIntent['type'], In
 
 function getExecuteCalls(service: RevfsService): RevfsIntent[] {
   const io = (service as unknown as { io: { execute: ReturnType<typeof vi.fn> } }).io;
-  return io.execute.mock.calls.map((c: [RevfsIntent]) => c[0]);
+  return io.execute.mock.calls.map((c: unknown[]) => c[0] as RevfsIntent);
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────

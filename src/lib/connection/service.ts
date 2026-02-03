@@ -571,12 +571,12 @@ export class ConnectionManager {
       }
 
       const requestId = crypto.randomUUID();
+      // Note: serverAddress and serverPassword are stored on the server from registration,
+      // so they don't need to be passed for login (Connect request)
       await this.io.connect({
         requestId,
         username: session.username,
         password: session.password,
-        serverAddress: session.serverAddress,
-        serverPassword: session.serverPassword,
         sessionSecuritySettings: session.sessionSecuritySettings,
       });
 
@@ -899,12 +899,12 @@ export class ConnectionManager {
 
       try {
         const requestId = crypto.randomUUID();
+        // Note: serverAddress and serverPassword are stored on the server from registration,
+        // so they don't need to be passed for login (Connect request)
         await this.io.connect({
           requestId,
           username: session.username,
           password: session.password,
-          serverAddress: session.serverAddress,
-          serverPassword: session.serverPassword,
           sessionSecuritySettings: session.sessionSecuritySettings,
         });
 

@@ -6,7 +6,10 @@
  */
 
 import { debugLog } from '../debug-config';
-import { normalizeHeaderObfuscatorSettings } from '../security-utils';
+import {
+  type SessionSecuritySettings,
+  getDefaultSecuritySettings
+} from '../security-utils';
 import { resolveServerAddress } from '../address-resolver';
 import { instanceManager } from '../multi-instance';
 
@@ -33,7 +36,7 @@ export class AuthOperations {
     requestId: string,
     username: string,
     password: string,
-    sessionSecuritySettings?: Record<string, unknown>
+    sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
     await this.config.init();
 
@@ -70,6 +73,9 @@ export class AuthOperations {
     // Proceed with Connect request
     console.log(`[Connect] Proceeding with new connection for ${username}`);
 
+    // Use provided settings or defaults (snake_case from SessionSecuritySettings)
+    const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();
+
     const connectOptions = {
       request_id: requestId,
       username,
@@ -78,16 +84,10 @@ export class AuthOperations {
       udp_mode: "Disabled",
       keep_alive_timeout: null,
       session_security_settings: {
-        security_level: (sessionSecuritySettings?.securityLevel as string) || "Standard",
-        secrecy_mode: (sessionSecuritySettings?.secrecyMode as string) || "BestEffort",
-        header_obfuscator_settings: normalizeHeaderObfuscatorSettings(
-          sessionSecuritySettings?.headerObfuscatorSettings
-        ),
-        crypto_params: {
-          encryption_algorithm: (sessionSecuritySettings?.encryptionAlgorithm as string) || "AES_GCM_256",
-          kem_algorithm: (sessionSecuritySettings?.kemAlgorithm as string) || "Kyber",
-          sig_algorithm: (sessionSecuritySettings?.sigAlgorithm as string) || "None"
-        },
+        security_level: settings.security_level,
+        secrecy_mode: settings.secrecy_mode,
+        header_obfuscator_settings: settings.header_obfuscator_settings,
+        crypto_params: settings.crypto_params,
       },
     };
 
@@ -112,13 +112,16 @@ export class AuthOperations {
     fullName: string,
     serverAddr: string,
     serverPassword?: string,
-    sessionSecuritySettings?: Record<string, unknown>
+    sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
     await this.config.init();
 
     // Resolve hostname to IP if needed (DNS resolution)
     const resolvedAddr = await resolveServerAddress(serverAddr);
     console.log(`[Register] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
+
+    // Use provided settings or defaults (snake_case from SessionSecuritySettings)
+    const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
     const registerOptions = {
       request_id: requestId,
@@ -128,16 +131,10 @@ export class AuthOperations {
       proposed_password: stringToByteArray(password),
       connect_after_register: true,
       session_security_settings: {
-        security_level: (sessionSecuritySettings?.securityLevel as string) || "Standard",
-        secrecy_mode: (sessionSecuritySettings?.secrecyMode as string) || "BestEffort",
-        header_obfuscator_settings: normalizeHeaderObfuscatorSettings(
-          sessionSecuritySettings?.headerObfuscatorSettings
-        ),
-        crypto_params: {
-          encryption_algorithm: (sessionSecuritySettings?.encryptionAlgorithm as string) || "AES_GCM_256",
-          kem_algorithm: (sessionSecuritySettings?.kemAlgorithm as string) || "Kyber",
-          sig_algorithm: (sessionSecuritySettings?.sigAlgorithm as string) || "None"
-        },
+        security_level: settings.security_level,
+        secrecy_mode: settings.secrecy_mode,
+        header_obfuscator_settings: settings.header_obfuscator_settings,
+        crypto_params: settings.crypto_params,
       },
       server_password: serverPassword || null
     };

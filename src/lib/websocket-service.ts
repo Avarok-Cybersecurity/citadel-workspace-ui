@@ -1,6 +1,7 @@
 import { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { connectionManager } from './connection';
 import { debugLog, errorLog } from './debug-config';
+import type { SessionSecuritySettings } from './security-utils';
 
 // New multi-instance architecture imports
 import { instanceManager, instanceChannel, instanceInboundRouter } from './multi-instance';
@@ -195,7 +196,7 @@ class WebSocketService {
     requestId: string,
     username: string,
     password: string,
-    sessionSecuritySettings?: Record<string, unknown>
+    sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
     return this.authOps.connect(requestId, username, password, sessionSecuritySettings);
   }
@@ -207,7 +208,7 @@ class WebSocketService {
     fullName: string,
     serverAddr: string,
     serverPassword?: string,
-    sessionSecuritySettings?: Record<string, unknown>
+    sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
     return this.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings);
   }

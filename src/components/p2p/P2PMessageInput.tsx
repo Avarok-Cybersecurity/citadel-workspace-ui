@@ -13,7 +13,6 @@ import { MarkdownToolbar } from './MarkdownToolbar';
 import { TypeSelectorBar } from './TypeSelectorBar';
 import ReactMarkdown from 'react-markdown';
 import type { MessageType } from '@/types/message-protocol';
-import type { FormatType } from './MarkdownToolbar';
 
 interface P2PMessageInputProps {
   inputMessage: string;
@@ -25,7 +24,7 @@ interface P2PMessageInputProps {
   onInputBlur: () => void;
   onSubmit: () => void;
   onFileClick: () => void;
-  onFormat: (formatType: FormatType) => void;
+  onFormat: (format: string, prefix: string, suffix: string) => void;
   onTogglePreview: () => void;
   onMessageTypeChange: (type: MessageType) => void;
 }

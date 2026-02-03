@@ -1,21 +1,19 @@
 /**
- * File Transfer I/O Router
+ * File Transfer I/O Router - Real Protocol Implementation
  *
- * Handles all I/O operations for file transfers.
- * Follows SBIO principle - only performs I/O, no business logic.
+ * This file provides backward compatibility during the migration to IFileTransferIORouter.
+ * It wraps RealProtocolIORouter with the intent-based pattern for existing code.
+ *
+ * Uses the native SendFile/RespondFileTransfer commands instead of P2P messaging.
+ * Requires file paths (from PickFile) rather than browser File objects.
+ *
+ * @deprecated Use IFileTransferIORouter and RealProtocolIORouter directly.
  */
 
 import { eventEmitter } from '../event-emitter';
 import { websocketService } from '../websocket-service';
-import { p2pMessengerManager } from '../p2p';
-import { getSelectedUser } from '../tab-context';
-import {
-  createFileTransferRequest,
-  createFileTransferResponse,
-  createFileTransferCancel,
-  createFileTransferChunk,
-  createFileTransferComplete,
-} from '@/types/messaging-layer';
+import { RealProtocolIORouter } from './real-protocol-io-router';
+import type { FileSource } from './io-router-types';
 import type {
   FileTransfer,
   FileTransferIntent,
@@ -31,23 +29,27 @@ import type {
   FilePickerResult,
 } from './types';
 
-export class FileTransferIO {
+/**
+ * @deprecated Use RealProtocolIORouter with IFileTransferIORouter interface instead.
+ * This class maintains backward compatibility with the intent-based pattern.
+ */
+export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
-  // Intent Execution
+  // Intent Execution (backward compatibility)
   // ============================================================================
 
   async executeIntent(intent: FileTransferIntent): Promise<unknown> {
     switch (intent.type) {
       case 'send-transfer-request':
-        return this.sendTransferRequest(intent);
+        return this.executeSendTransferRequest(intent);
       case 'send-chunk':
-        return this.sendChunk(intent);
+        return this.executeSendChunk(intent);
       case 'send-response':
-        return this.sendResponse(intent);
+        return this.executeSendResponse(intent);
       case 'send-cancel':
-        return this.sendCancel(intent);
+        return this.executeSendCancel(intent);
       case 'send-complete':
-        return this.sendComplete(intent);
+        return this.executeSendComplete(intent);
       case 'upload-to-server':
         return this.uploadToServer(intent);
       case 'download-from-server':
@@ -64,63 +66,68 @@ export class FileTransferIO {
   }
 
   // ============================================================================
-  // P2P Message Operations
+  // Intent Adapters (convert old intent pattern to new interface)
   // ============================================================================
 
-  private async sendTransferRequest(intent: SendTransferRequestIntent): Promise<void> {
+  private async executeSendTransferRequest(intent: SendTransferRequestIntent): Promise<void> {
     const { transfer } = intent;
-    const requestMsg = createFileTransferRequest(
-      transfer.fileName,
-      transfer.fileSize,
-      transfer.fileType,
-      transfer.mode,
-      {
-        transfer_id: transfer.id,
+    // Create a mock File object since we need metadata
+    // The actual file is stored separately in pending files
+    await this.sendFile({
+      source: new File([], transfer.fileName), // Placeholder - actual file in pending
+      cid: BigInt(transfer.senderCid),
+      peerCid: BigInt(transfer.recipientCid),
+      mode: transfer.mode,
+      transferId: transfer.id,
+      metadata: {
+        fileName: transfer.fileName,
+        fileSize: transfer.fileSize,
+        fileType: transfer.fileType,
         thumbnail: transfer.thumbnail,
-        virtual_path: transfer.virtualPath,
-        expiry_timestamp: transfer.expiresAt,
-      }
-    );
-
-    await p2pMessengerManager.sendRawMessage(BigInt(transfer.recipientCid), requestMsg);
+        expiresAt: transfer.expiresAt,
+      },
+    });
   }
 
-  private async sendChunk(intent: SendChunkIntent): Promise<void> {
-    const chunkMsg = createFileTransferChunk(
+  private async executeSendChunk(intent: SendChunkIntent): Promise<void> {
+    await this.sendChunk(
       intent.transferId,
+      BigInt(intent.recipientCid),
       intent.chunkIndex,
       intent.totalChunks,
       intent.data
     );
-    await p2pMessengerManager.sendRawMessage(BigInt(intent.recipientCid), chunkMsg);
   }
 
-  private async sendResponse(intent: SendResponseIntent): Promise<void> {
-    const responseMsg = createFileTransferResponse(
+  private async executeSendResponse(intent: SendResponseIntent): Promise<void> {
+    await this.respondToTransfer({
+      protocolId: intent.transferId,
+      cid: BigInt(0), // Not used for message-based
+      peerCid: BigInt(intent.targetCid),
+      accept: intent.accepted,
+      downloadLocation: intent.reason, // Using reason as download location in old API
+    });
+  }
+
+  private async executeSendCancel(intent: SendCancelIntent): Promise<void> {
+    await this.cancelTransfer({
+      transferId: intent.transferId,
+      targetCid: BigInt(intent.targetCid),
+      reason: intent.reason,
+    });
+  }
+
+  private async executeSendComplete(intent: SendCompleteIntent): Promise<void> {
+    await this.sendComplete(
       intent.transferId,
-      intent.accepted,
-      intent.reason
-    );
-    await p2pMessengerManager.sendRawMessage(BigInt(intent.targetCid), responseMsg);
-  }
-
-  private async sendCancel(intent: SendCancelIntent): Promise<void> {
-    const cancelMsg = createFileTransferCancel(intent.transferId, intent.reason);
-    await p2pMessengerManager.sendRawMessage(BigInt(intent.targetCid), cancelMsg);
-  }
-
-  private async sendComplete(intent: SendCompleteIntent): Promise<void> {
-    const completeMsg = createFileTransferComplete(
-      intent.transferId,
+      BigInt(intent.targetCid),
       intent.success,
-      undefined, // download_path
       intent.errorMessage
     );
-    await p2pMessengerManager.sendRawMessage(BigInt(intent.targetCid), completeMsg);
   }
 
   // ============================================================================
-  // Server Operations
+  // Server Operations (keep original implementation)
   // ============================================================================
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
@@ -157,16 +164,24 @@ export class FileTransferIO {
   }
 
   // ============================================================================
-  // Protocol-Level File Send
+  // Protocol-Level File Send (for native file picker flow)
   // ============================================================================
 
   private async sendFileViaProtocol(intent: SendFileViaProtocolIntent): Promise<void> {
     const requestId = crypto.randomUUID();
 
+    // Build FileSource - support both direct path and PickFileRef
+    let source: FileSource;
+    if (intent.pickFileRequestId) {
+      source = { PickFileRef: { pick_file_request_id: intent.pickFileRequestId } };
+    } else {
+      source = { Path: intent.filePath };
+    }
+
     const request = {
       SendFile: {
         request_id: requestId,
-        source: intent.filePath,
+        source,
         cid: intent.cid,
         peer_cid: intent.peerCid,
         chunk_size: null, // Use default
@@ -176,7 +191,7 @@ export class FileTransferIO {
 
     console.log('FileTransferIO: Sending SendFile request', {
       requestId,
-      filePath: intent.filePath,
+      source,
       cid: intent.cid,
       peerCid: intent.peerCid,
       transferId: intent.transferId,
@@ -199,7 +214,9 @@ export class FileTransferIO {
           resolve();
         }
         // Check for SendFileRequestFailure
-        const failure = msg.SendFileRequestFailure as { request_id?: string; message?: string } | undefined;
+        const failure = msg.SendFileRequestFailure as
+          | { request_id?: string; message?: string }
+          | undefined;
         if (failure?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
@@ -217,132 +234,5 @@ export class FileTransferIO {
         reject(error);
       });
     });
-  }
-
-  // ============================================================================
-  // File Reading/Writing Utilities
-  // ============================================================================
-
-  /**
-   * Read a file chunk as base64
-   */
-  async fileChunkToBase64(chunk: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = () => reject(new Error('Failed to read chunk'));
-      reader.readAsDataURL(chunk);
-    });
-  }
-
-  /**
-   * Convert base64 string back to binary
-   */
-  base64ToBinary(base64: string): Uint8Array {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  }
-
-  /**
-   * Generate thumbnail for an image file
-   */
-  async generateThumbnail(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_SIZE = 100;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_SIZE) {
-              height *= MAX_SIZE / width;
-              width = MAX_SIZE;
-            }
-          } else {
-            if (height > MAX_SIZE) {
-              width *= MAX_SIZE / height;
-              height = MAX_SIZE;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.7));
-          } else {
-            reject(new Error('Could not get canvas context'));
-          }
-        };
-        img.onerror = () => reject(new Error('Could not load image'));
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => reject(new Error('Could not read file'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  /**
-   * Create blob from chunks and get object URL
-   */
-  createBlobFromChunks(
-    chunks: { data: string; index: number }[],
-    fileType: string
-  ): { blob: Blob; downloadUrl: string } {
-    // Sort chunks by index
-    const sortedChunks = [...chunks].sort((a, b) => a.index - b.index);
-
-    // Convert base64 chunks to binary
-    const binaryChunks: BlobPart[] = [];
-    for (const chunk of sortedChunks) {
-      const binary = this.base64ToBinary(chunk.data);
-      binaryChunks.push(binary);
-    }
-
-    // Create blob
-    const blob = new Blob(binaryChunks, { type: fileType });
-    const downloadUrl = URL.createObjectURL(blob);
-
-    return { blob, downloadUrl };
-  }
-
-  // ============================================================================
-  // State Change Notification
-  // ============================================================================
-
-  /**
-   * Update file transfer state in P2PMessengerManager (for UI refresh)
-   */
-  notifyStateChange(transfer: FileTransfer): void {
-    const peerCid = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
-    p2pMessengerManager.updateFileTransferState(BigInt(peerCid), transfer.id, {
-      transfer_state: transfer.state,
-      transfer_progress: transfer.progress,
-    });
-  }
-
-  // ============================================================================
-  // Context Retrieval
-  // ============================================================================
-
-  async getCurrentCid(): Promise<bigint | null> {
-    const tabSelection = await getSelectedUser();
-    if (tabSelection?.selectedCid) {
-      return tabSelection.selectedCid;
-    }
-    return null;
   }
 }

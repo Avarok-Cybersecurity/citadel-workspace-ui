@@ -18,6 +18,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import {
+  type MessagingLayer,
   type FileTransferState as TransferState,
   type FileTransferMode,
   MessagingLayerType,
@@ -39,6 +40,7 @@ import {
 import { FileTransferState } from './state';
 import { FileTransferIO } from './io';
 import { FILE_TRANSFER_EVENTS } from './events';
+import type { IFileTransferIORouter } from './io-router';
 import type {
   FileTransfer,
   FileTransferSettings,
@@ -51,16 +53,46 @@ export class FileTransferService {
   private static instance: FileTransferService;
 
   private readonly state = new FileTransferState();
-  private readonly io = new FileTransferIO();
+  /**
+   * I/O router for file transfer operations.
+   * Uses the RealProtocolIORouter (native SendFile command).
+   */
+  private io: FileTransferIO;
   private initialized = false;
 
-  private constructor() {}
+  private constructor() {
+    // Use FileTransferIO (RealProtocolIORouter with backward compatibility layer)
+    this.io = new FileTransferIO();
+  }
 
   static getInstance(): FileTransferService {
     if (!FileTransferService.instance) {
       FileTransferService.instance = new FileTransferService();
     }
     return FileTransferService.instance;
+  }
+
+  /**
+   * Swap the I/O router implementation.
+   *
+   * @param router - New I/O router (must extend FileTransferIO)
+   */
+  setIORouter(router: FileTransferIO): void {
+    // Dispose old router
+    this.io.dispose();
+    // Set new router
+    this.io = router;
+    console.log('FileTransferService: I/O router swapped', {
+      routerType: router.constructor.name,
+    });
+  }
+
+  /**
+   * Get the current I/O router as IFileTransferIORouter interface.
+   * Useful for testing and inspection.
+   */
+  getIORouter(): IFileTransferIORouter {
+    return this.io;
   }
 
   async initialize(): Promise<void> {
@@ -429,12 +461,15 @@ export class FileTransferService {
   }
 
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
-    const { layer, senderCid, recipientCid } = message;
+    const { layer: rawLayer, senderCid, recipientCid } = message;
     console.log('FileTransferService: handleFileTransferMessage received', {
-      type: (layer as { type?: string })?.type,
+      type: (rawLayer as { type?: string })?.type,
       senderCid: senderCid?.slice(0, 12),
       recipientCid: recipientCid?.slice(0, 12),
     });
+
+    // Cast to MessagingLayer for type guards - they will validate the actual type
+    const layer = rawLayer as MessagingLayer;
 
     if (isFileTransferRequest(layer)) {
       await this.handleTransferRequest(layer, senderCid);

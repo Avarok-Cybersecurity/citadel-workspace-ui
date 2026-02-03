@@ -5,7 +5,7 @@
  * Extracted from websocket-service.ts to reduce file size.
  */
 
-import { WorkspaceClient } from 'citadel-workspace-client-ts';
+import { WorkspaceClient, type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
 
@@ -34,7 +34,7 @@ export class WorkspaceOperations {
         throw new Error('WebSocket client not available (leader without client)');
       }
       debugLog('websocket', '[Leader] Sending workspace request directly');
-      await client.sendWorkspaceRequest(cid, request);
+      await client.sendWorkspaceRequest(cid, request as WorkspaceProtocolRequest);
     } else {
       debugLog('websocket', '[Follower] Proxying workspace request through leader');
 

@@ -1,5 +1,5 @@
 import { SecurityLevel } from '@/types';
-import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS, GroupMessageTypeTS } from '@/types/workspace-protocol';
+import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS, GroupMessageTypeTS, PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
 import { Office, GroupMessageType } from '@/types/workspace-entities';
 import { websocketService } from './websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
@@ -455,17 +455,17 @@ export class WorkspaceService {
   public async updateMemberPermissions(
     userId: string,
     domainId: string,
-    permissions: any[], // Permission[] type
-    operation: 'Add' | 'Set' | 'Remove'
+    permissions: PermissionTS[],
+    operation: UpdateOperationTS
   ): Promise<any> {
-    const requestPart = {
+    const requestPart: WorkspaceProtocolRequestTS = {
       UpdateMemberPermissions: {
         user_id: userId,
         domain_id: domainId,
         permissions,
         operation
       }
-    } as unknown as WorkspaceProtocolRequestTS;
+    };
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }
@@ -481,13 +481,13 @@ export class WorkspaceService {
     officeId?: string,
     roomId?: string
   ): Promise<any> {
-    const requestPart = {
+    const requestPart: WorkspaceProtocolRequestTS = {
       RemoveMember: {
         user_id: userId,
         office_id: officeId,
         room_id: roomId
       }
-    } as unknown as WorkspaceProtocolRequestTS;
+    };
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
   }

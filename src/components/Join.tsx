@@ -240,6 +240,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
       });
 
       // Send the registration request with our pre-generated request ID
+      // mapSecuritySettings converts camelCase UI settings to snake_case protocol settings
       await websocketService.register(
         requestId,
         formData.username,
@@ -250,14 +251,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         // The "password" is an optional security feature that prevents connections to the server (at the Citadel Protocol layer)
         // unless the password is provided. For security reasons, a client does not know if such a password is required unless it is provided.
         serverData.password || "",
-        {
-          securityLevel: securitySettings.securityLevel,
-          secrecyMode: securitySettings.secrecyMode,
-          encryptionAlgorithm: securitySettings.encryptionAlgorithm,
-          kemAlgorithm: securitySettings.kemAlgorithm,
-          sigAlgorithm: securitySettings.sigAlgorithm,
-          headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
-        }
+        mapSecuritySettings(securitySettings)
       );
       
       console.log('Registration request sent with ID:', requestId);

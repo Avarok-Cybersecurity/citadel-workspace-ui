@@ -4,8 +4,8 @@
  * Centralized exports for all React contexts.
  */
 
-export { PermissionsContext, PermissionsProvider, usePermissions } from './PermissionsContext';
-export type { PermissionsContextType, PermissionKey } from './PermissionsContext';
+export { PermissionsProvider, usePermissions, Permission, PERMISSION_LABELS, PERMISSION_CATEGORIES } from './PermissionsContext';
+export type { DomainPermissions, UserRole } from './PermissionsContext';
 
 export { WorkspaceContext, WorkspaceProvider, useWorkspace } from './WorkspaceContext';
-export type { WorkspaceState, WorkspaceAction } from './WorkspaceContext';
+export type { WorkspaceState } from './WorkspaceContext';

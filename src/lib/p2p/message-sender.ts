@@ -4,7 +4,7 @@
  * Handles sending P2P messages and commands to peers.
  */
 
-import type { P2PCommand } from '@/types/p2p-types';
+import type { P2PCommand, P2PAttachment } from '@/types/p2p-types';
 import {
   createMessagingLayerCommand,
   createMessageAckCommand,
@@ -55,7 +55,7 @@ export class MessageSender {
     options?: {
       replyTo?: string;
       mentions?: string[];
-      attachments?: unknown[];
+      attachments?: P2PAttachment[];
       messageType?: MessageType;
       documentId?: string;
       documentTitle?: string;
@@ -203,7 +203,7 @@ export class MessageSender {
         messageId: message.id,
         replyTo: message.replyTo,
         mentions: message.mentions,
-        attachments: message.attachments,
+        attachments: message.attachments as P2PAttachment[] | undefined,
         messageType: message.message_type,
         documentId: message.document_id,
         documentTitle: message.document_title

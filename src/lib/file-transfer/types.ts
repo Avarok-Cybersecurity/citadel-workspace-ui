@@ -115,6 +115,8 @@ export interface SendFileViaProtocolIntent {
   peerCid: string | null;
   filePath: string;
   transferId: string;
+  /** Optional PickFile request ID - if provided, uses PickFileRef instead of direct path */
+  pickFileRequestId?: string;
 }
 
 export type FileTransferIntent =

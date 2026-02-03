@@ -23,6 +23,7 @@ import { EventListenerManager } from '../utils/event-listener-manager';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
+import type { P2PAttachment } from '@/types/p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
 import { PresenceManager } from './presence-manager';
 import { CheckStateManager } from './checkstate-manager';
@@ -228,7 +229,7 @@ export class P2PMessengerManager extends EventListenerManager {
   // ===== Public API: Messaging =====
 
   public async sendMessage(recipientCid: bigint, content: string, options?: {
-    replyTo?: string; mentions?: string[]; attachments?: unknown[];
+    replyTo?: string; mentions?: string[]; attachments?: P2PAttachment[];
     messageType?: MessageType; documentId?: string; documentTitle?: string;
   }): Promise<P2PMessage> {
     return this.messageSender.sendMessage(recipientCid, content, options);

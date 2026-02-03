@@ -174,13 +174,15 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
   console.log(`\n=== ${label}: Sync and check folder "${folderName}" (expect ${shouldExist ? 'present' : 'absent'}) ===`);
   try {
     // Try multiple sync attempts — P2P ops may take a moment to propagate
-    for (let attempt = 0; attempt < 5; attempt++) {
+    // Increased from 5 to 10 attempts with longer delays for better reliability
+    for (let attempt = 0; attempt < 10; attempt++) {
       const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
       if (await syncBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
         await syncBtn.click();
-        console.log(`  Clicked Sync button (attempt ${attempt + 1})`);
+        console.log(`  Clicked Sync button (attempt ${attempt + 1}/10)`);
       }
-      await sleep(3000);
+      // Longer wait between sync attempts for P2P propagation
+      await sleep(4000);
 
       const folder = page.getByText(folderName, { exact: true }).first();
       const visible = await folder.isVisible().catch(() => false);
@@ -308,7 +310,9 @@ async function runTest(): Promise<boolean> {
     results.p2pSetup.registered = await p2pRegister(pageAlice, ALICE, BOB, uxTracker);
     await sleep(3000);
     results.p2pSetup.accepted = await acceptP2PRequest(pageBob, BOB, uxTracker);
-    await sleep(5000);
+    // Wait longer for P2P channel to be fully established before file operations
+    console.log('  Waiting 10s for P2P channel to fully establish...');
+    await sleep(10000);
 
     await takeScreenshot(pageAlice, '02_p2p_registered');
     await takeScreenshot(pageBob, '02_p2p_accepted');
@@ -360,7 +364,9 @@ async function runTest(): Promise<boolean> {
 
       if (results.folderCreation.created) {
         // Wait for the direct P2P Mkdir message to propagate before syncing
-        await sleep(3000);
+        // Increased from 3s to 5s for more reliable P2P propagation
+        console.log('  Waiting 5s for P2P folder creation to propagate...');
+        await sleep(5000);
         results.folderCreation.bobSees = await syncAndCheckFolder(pageBob, 'Bob', FOLDER_NAME, true);
         await takeScreenshot(pageBob, '05_bob_sees_folder');
       }

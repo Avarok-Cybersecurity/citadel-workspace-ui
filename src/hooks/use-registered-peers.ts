@@ -83,10 +83,11 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           const displayName = (p.username && p.username !== 'Unknown')
             ? p.username
             : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
-          const isOnline = p2pAutoConnectService.isPeerOnline(cidStr);
+          const peerCidBigInt = p.cid ?? BigInt(0);
+          const isOnline = p2pAutoConnectService.isPeerOnline(peerCidBigInt);
           let isConnected = false;
           try {
-            const connectedPromise = p2pAutoConnectService.isPeerConnected(cidStr);
+            const connectedPromise = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
             const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000));
             isConnected = await Promise.race([connectedPromise, timeoutPromise]);
           } catch {

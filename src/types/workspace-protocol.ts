@@ -109,6 +109,7 @@ export interface WorkspaceProtocolRequestTS {
     office_id?: string;
     room_id?: string;
     role: UserRoleTS;
+    metadata?: number[];
   };
   GetMember?: {
     user_id: string;
@@ -116,6 +117,7 @@ export interface WorkspaceProtocolRequestTS {
   UpdateMemberRole?: {
     user_id: string;
     role: UserRoleTS;
+    metadata?: number[];
   };
   UpdateMemberPermissions?: {
     user_id: string;
@@ -125,7 +127,8 @@ export interface WorkspaceProtocolRequestTS {
   };
   RemoveMember?: {
     user_id: string;
-    domain_id: string;
+    office_id?: string;
+    room_id?: string;
   };
   ListMembers?: {
     office_id?: string;

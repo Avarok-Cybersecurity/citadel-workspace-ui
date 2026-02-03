@@ -6,6 +6,7 @@
 
 import type { MessagingLayerType } from '@/types/messaging-layer';
 import type { MessageType } from '@/types/message-protocol';
+import type { P2PAttachment } from '@/types/p2p-types';
 
 // ============================================================================
 // PAGINATED MESSAGE PERSISTENCE
@@ -60,7 +61,7 @@ export interface P2PMessage {
   error?: string;
   replyTo?: string;
   mentions?: string[];
-  attachments?: unknown[];
+  attachments?: P2PAttachment[];
   // Message type support (text, markdown, live_document, file_transfer)
   message_type: MessageType;
   // Live document specific fields
