@@ -155,6 +155,13 @@ export class WorkspaceResponseHandler {
         },
         connection: connectionInfo
       });
+    } else if ('Workspaces' in response) {
+      // Handle workspace list response (multi-workspace)
+      debugLog('workspace', 'Workspaces list received', response.Workspaces);
+      eventEmitter.emit('workspaces:listed', {
+        workspaces: response.Workspaces,
+        connection: connectionInfo
+      });
     } else if ('Workspace' in response) {
       // Handle workspace loaded response
       eventEmitter.emit('workspace:loaded', {
@@ -210,15 +217,49 @@ export class WorkspaceResponseHandler {
         connection: connectionInfo
       });
     } else if ('Rooms' in response) {
-      // Handle rooms list response
+      // Handle rooms list response - convert snake_case to camelCase for Room interface
+      const convertedRooms = response.Rooms.map((room: {
+        id: string;
+        office_id: string;
+        owner_id: string;
+        name: string;
+        description: string;
+        members: string[];
+        mdx_content: string;
+        metadata?: number[];
+        chat_enabled?: boolean;
+        chat_channel_id?: string;
+      }) => ({
+        id: room.id,
+        officeId: room.office_id,
+        ownerId: room.owner_id,
+        name: room.name,
+        description: room.description,
+        members: room.members,
+        mdxContent: room.mdx_content,
+        metadata: room.metadata || [],
+        chat_enabled: room.chat_enabled ?? false,
+        chat_channel_id: room.chat_channel_id
+      }));
       eventEmitter.emit('rooms:loaded', {
-        rooms: response.Rooms,
+        rooms: convertedRooms,
         connection: connectionInfo
       });
     } else if ('Room' in response) {
-      // Handle single room response
+      // Handle single room response - convert snake_case to camelCase for Room interface
       eventEmitter.emit('room:loaded', {
-        room: response.Room,
+        room: {
+          id: response.Room.id,
+          officeId: response.Room.office_id,
+          ownerId: response.Room.owner_id,
+          name: response.Room.name,
+          description: response.Room.description,
+          members: response.Room.members,
+          mdxContent: response.Room.mdx_content,
+          metadata: response.Room.metadata || [],
+          chat_enabled: response.Room.chat_enabled ?? false,
+          chat_channel_id: response.Room.chat_channel_id
+        },
         connection: connectionInfo
       });
     } else if ('Members' in response) {
@@ -285,11 +326,13 @@ export class WorkspaceResponseHandler {
       eventEmitter.emit('room:created', {
         room: {
           id: response.CreateRoom.id,
-          office_id: response.CreateRoom.office_id,
+          officeId: response.CreateRoom.office_id,
           name: response.CreateRoom.name,
           description: response.CreateRoom.description,
-          mdx_content: response.CreateRoom.mdx_content,
-          metadata: response.CreateRoom.metadata || []
+          mdxContent: response.CreateRoom.mdx_content,
+          metadata: response.CreateRoom.metadata || [],
+          chat_enabled: response.CreateRoom.chat_enabled ?? false,
+          chat_channel_id: response.CreateRoom.chat_channel_id
         },
         connection: connectionInfo
       });
@@ -302,7 +345,16 @@ export class WorkspaceResponseHandler {
       // Handle room update response
       debugLog('workspace', 'UpdateRoom response', response.UpdateRoom);
       eventEmitter.emit('room:updated', {
-        room: response.UpdateRoom,
+        room: {
+          id: response.UpdateRoom.id,
+          officeId: response.UpdateRoom.office_id,
+          name: response.UpdateRoom.name,
+          description: response.UpdateRoom.description,
+          mdxContent: response.UpdateRoom.mdx_content,
+          metadata: response.UpdateRoom.metadata || [],
+          chat_enabled: response.UpdateRoom.chat_enabled ?? false,
+          chat_channel_id: response.UpdateRoom.chat_channel_id
+        },
         connection: connectionInfo
       });
       // Trigger rooms reload
@@ -352,12 +404,14 @@ export class WorkspaceResponseHandler {
       if (response.Success.includes('deleted')) {
         eventEmitter.emit('operation:deleted', connectionInfo);
       }
+      eventEmitter.emit('workspace:raw-response', response);
     } else if ('Error' in response) {
       // Handle error response
       eventEmitter.emit('operation:error', {
         message: response.Error,
         connection: connectionInfo
       });
+      eventEmitter.emit('workspace:raw-response', response);
     } else if ('WorkspaceNotInitialized' in response) {
       // Handle workspace not initialized response (object form)
       debugLog('workspace', 'Workspace not initialized, triggering initialization flow');
@@ -464,9 +518,171 @@ export class WorkspaceResponseHandler {
         revfsStorageQuotaMb: Number(capabilities.revfs_storage_quota_mb),
         connection: connectionInfo
       });
+    // ========== Tree Node Responses (Generalized Hierarchy) ==========
+    } else if ('Node' in response) {
+      // Handle single node response (create/get/update node)
+      const node = response.Node;
+      debugLog('workspace', 'Node response received', { id: node.id, name: node.name, entityType: node.entity_type });
+      eventEmitter.emit('node:loaded', {
+        node,
+        connection: connectionInfo
+      });
+
+      // Emit legacy events based on entity_type for backward compatibility
+      const entityType = node.entity_type;
+      if (entityType?.Child === 'Office') {
+        // Emit office events for UI compatibility
+        eventEmitter.emit('office:created', {
+          office: {
+            id: node.id,
+            name: node.name,
+            description: node.description,
+            mdx_content: node.mdx_content,
+            metadata: node.metadata || []
+          },
+          connection: connectionInfo
+        });
+        eventEmitter.emit('office:loaded', {
+          office: node,
+          connection: connectionInfo
+        });
+        eventEmitter.emit('offices:reload', connectionInfo);
+      } else if (entityType?.Child === 'Room') {
+        // Emit room events for UI compatibility
+        eventEmitter.emit('room:created', {
+          room: {
+            id: node.id,
+            officeId: node.parent_id,
+            name: node.name,
+            description: node.description,
+            mdxContent: node.mdx_content,
+            metadata: node.metadata || [],
+            chat_enabled: node.chat_enabled ?? false,
+            chat_channel_id: node.chat_channel_id ?? null
+          },
+          connection: connectionInfo
+        });
+        eventEmitter.emit('room:loaded', {
+          room: {
+            id: node.id,
+            officeId: node.parent_id,
+            name: node.name,
+            description: node.description,
+            mdxContent: node.mdx_content,
+            metadata: node.metadata || [],
+            chat_enabled: node.chat_enabled ?? false,
+            chat_channel_id: node.chat_channel_id ?? null
+          },
+          connection: connectionInfo
+        });
+        eventEmitter.emit('rooms:reload', {
+          office_id: node.parent_id,
+          connection: connectionInfo
+        });
+      }
+
+      // Also emit raw response for protocol-level testing
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('Nodes' in response) {
+      // Handle nodes list response
+      const nodes = response.Nodes;
+      debugLog('workspace', 'Nodes response received', { count: nodes.length });
+      eventEmitter.emit('nodes:loaded', {
+        nodes,
+        connection: connectionInfo
+      });
+
+      // Emit legacy events based on entity types for backward compatibility
+      const offices = nodes.filter((n: any) => n.entity_type?.Child === 'Office');
+      const rooms = nodes.filter((n: any) => n.entity_type?.Child === 'Room');
+
+      if (offices.length > 0) {
+        eventEmitter.emit('offices:loaded', {
+          offices,
+          connection: connectionInfo
+        });
+        // Determine default office
+        const defaultOffice = offices.find((o: any) => o.is_default === true) || offices[0];
+        if (defaultOffice) {
+          eventEmitter.emit('offices:default-determined', {
+            officeId: defaultOffice.id,
+            officeName: defaultOffice.name,
+            connection: connectionInfo
+          });
+        }
+      }
+
+      if (rooms.length > 0) {
+        // Convert rooms to camelCase format expected by UI
+        const convertedRooms = rooms.map((room: any) => ({
+          id: room.id,
+          officeId: room.parent_id,
+          ownerId: room.owner_id,
+          name: room.name,
+          description: room.description,
+          members: room.members || [],
+          mdxContent: room.mdx_content,
+          metadata: room.metadata || [],
+          chat_enabled: room.chat_enabled ?? false,
+          chat_channel_id: room.chat_channel_id ?? null
+        }));
+        eventEmitter.emit('rooms:loaded', {
+          rooms: convertedRooms,
+          connection: connectionInfo
+        });
+      }
+
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('TreeStructure' in response) {
+      // Handle tree structure response
+      debugLog('workspace', 'TreeStructure response received');
+      eventEmitter.emit('tree:structure:loaded', {
+        root: response.TreeStructure.root,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('TreeSchema' in response) {
+      // Handle tree schema response
+      debugLog('workspace', 'TreeSchema response received');
+      eventEmitter.emit('tree:schema:loaded', {
+        schema: response.TreeSchema,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('NodeTypes' in response) {
+      // Handle node types list response
+      debugLog('workspace', 'NodeTypes response received', { count: response.NodeTypes.length });
+      eventEmitter.emit('node:types:loaded', {
+        nodeTypes: response.NodeTypes,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('NodeDeleted' in response) {
+      // Handle node deletion response
+      const { node_id, children_deleted } = response.NodeDeleted;
+      debugLog('workspace', 'NodeDeleted response received', { node_id, childrenDeleted: children_deleted.length });
+      eventEmitter.emit('node:deleted', {
+        nodeId: node_id,
+        childrenDeleted: children_deleted,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('NodeMoved' in response) {
+      // Handle node move response
+      const { node_id, old_parent_id, new_parent_id } = response.NodeMoved;
+      debugLog('workspace', 'NodeMoved response received', { node_id, old_parent_id, new_parent_id });
+      eventEmitter.emit('node:moved', {
+        nodeId: node_id,
+        oldParentId: old_parent_id,
+        newParentId: new_parent_id,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
     } else {
       // Log unhandled response types for debugging
       debugLog('workspace', 'Unhandled response type:', response);
+      // Still emit raw response for protocol-level testing
+      eventEmitter.emit('workspace:raw-response', response);
     }
   }
 

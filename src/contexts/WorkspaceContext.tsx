@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { Office, Room, User } from '../types/workspace-entities';
+import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 
 // Define the shape of our workspace state
 export interface WorkspaceState {
@@ -9,6 +10,7 @@ export interface WorkspaceState {
     description?: string;
     metadata?: Record<string, any>;
   };
+  workspaces: WorkspaceMetadataTS[];
   currentUser?: {
     id: string;
     username: string;
@@ -51,6 +53,7 @@ export interface WorkspaceState {
 // Default initial state
 const initialState: WorkspaceState = {
   workspace: undefined,
+  workspaces: [],
   currentUser: undefined,
   offices: {},
   rooms: {},

@@ -1499,8 +1499,10 @@ async function runTest(): Promise<boolean> {
       passed: corePassed,
     });
 
-    console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
-    await sleep(20000);
+    if (!process.env.IN_CI) {
+      console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
+      await sleep(20000);
+    }
 
     return corePassed;
 

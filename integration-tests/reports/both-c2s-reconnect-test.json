@@ -1,20 +1,20 @@
 {
-  "timestamp": "2026-01-08T17:09:51.440Z",
+  "timestamp": "2026-02-05T00:45:57.751Z",
   "testName": "Both C2S Reconnection Test",
   "users": {
-    "user1": "bothc2s_1_1767891985568",
-    "user2": "bothc2s_2_1767891985568"
+    "user1": "bothc2s_1_1770252063232",
+    "user2": "bothc2s_2_1770252063232"
   },
   "results": [
     {
       "step": "Phase 1a: Create User1",
       "status": "PASS",
-      "notes": "Created bothc2s_1_1767891985568"
+      "notes": "Created bothc2s_1_1770252063232"
     },
     {
       "step": "Phase 1b: Create User2",
       "status": "PASS",
-      "notes": "Created bothc2s_2_1767891985568"
+      "notes": "Created bothc2s_2_1770252063232"
     },
     {
       "step": "Phase 2a: P2P Register",
@@ -82,7 +82,15 @@
       "notes": "None"
     }
   ],
-  "uxIssues": [],
+  "uxIssues": [
+    {
+      "severity": "minor",
+      "category": "functional",
+      "description": "Session for bothc2s_1_1770252063232 lingered in OrphanSessionsNavbar (race condition)",
+      "screenshot": null,
+      "timestamp": "2026-02-05T00:43:15.354Z"
+    }
+  ],
   "consoleErrors": [],
   "passed": true
 }

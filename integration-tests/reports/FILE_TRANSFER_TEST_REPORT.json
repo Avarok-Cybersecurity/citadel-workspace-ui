@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-02-03T05:08:34.024Z",
+  "timestamp": "2026-02-05T00:19:02.374Z",
   "users": {
-    "user1": "file_alice_1770095021608",
-    "user2": "file_bob_1770095021608"
+    "user1": "file_alice_1770250447231",
+    "user2": "file_bob_1770250447231"
   },
   "results": {
     "accountCreation": {
@@ -16,8 +16,8 @@
       "user2": true
     },
     "fileTransfer": {
-      "modalOpened": true,
-      "transferRequestSent": true,
+      "modalOpened": false,
+      "transferRequestSent": false,
       "receiverGotBubble": true,
       "acceptButtonVisible": false,
       "declineButtonVisible": false,

@@ -345,20 +345,41 @@ export async function waitForAllMessages(
   const startTime = Date.now();
   let found = 0;
 
-  while (Date.now() - startTime < timeout && found < expectedMessages.length) {
-    // Check page content for all remaining messages
-    const pageContent = await page.content();
+  // Use page.waitForFunction for lightweight in-browser checks instead of
+  // serializing the entire DOM with page.content() on every poll cycle.
+  // This dramatically reduces resource usage for long timeout periods.
+  const remaining = [...expectedMessages];
 
-    for (const msg of expectedMessages) {
-      if (!results[msg] && pageContent.includes(msg)) {
+  while (remaining.length > 0 && Date.now() - startTime < timeout) {
+    try {
+      // Wait for the next unfound message using in-browser JS (lightweight)
+      await page.waitForFunction(
+        (msgs: string[]) => {
+          const body = document.body?.innerText ?? '';
+          return msgs.some(m => body.includes(m));
+        },
+        remaining,
+        { timeout: Math.min(pollInterval * 10, timeout - (Date.now() - startTime)), polling: pollInterval }
+      );
+    } catch {
+      // Timeout on this batch - check what we found so far
+    }
+
+    // Check which remaining messages are now present (lightweight innerText check)
+    const bodyText = await page.evaluate(() => document.body?.innerText ?? '').catch(() => '');
+    const nowFound: string[] = [];
+    for (const msg of remaining) {
+      if (!results[msg] && bodyText.includes(msg)) {
         results[msg] = true;
         found++;
+        nowFound.push(msg);
         console.log(`  ✓ Found (${found}/${expectedMessages.length}): "${msg.substring(0, 40)}..."`);
       }
     }
-
-    if (found < expectedMessages.length) {
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    // Remove found messages from remaining list
+    for (const f of nowFound) {
+      const idx = remaining.indexOf(f);
+      if (idx >= 0) remaining.splice(idx, 1);
     }
   }
 
@@ -546,24 +567,23 @@ export async function waitForP2PReady(
     try {
       const result = await page.evaluate(async (peerUser: string) => {
         try {
-          // @ts-ignore - Browser-side import via Vite dev server
-          const { p2pAutoConnectService } = await import('/src/lib/p2p-auto-connect-service.ts');
-          // @ts-ignore - Browser-side import via Vite dev server
-          const { p2pRegistrationService } = await import('/src/lib/p2p-registration-service.ts');
+          // Access actual singleton instances exposed on window by main.tsx
+          const p2pAutoConnectService = (window as any).__p2pAutoConnectService;
+          const p2pRegistrationService = (window as any).__p2pRegistrationService;
+          if (!p2pAutoConnectService || !p2pRegistrationService) {
+            return { ready: false, reason: 'window services not available' };
+          }
 
-          // Find peer CID by username
           const { registeredPeers } = p2pRegistrationService.getPeers();
           const peer = registeredPeers.find(
             (p: { username?: string }) => p.username?.toLowerCase() === peerUser.toLowerCase()
           );
           if (!peer?.cid) return { ready: false, reason: 'peer_not_found' };
 
-          // Check if connected
           const peerCid = typeof peer.cid === 'bigint' ? peer.cid : BigInt(peer.cid);
           const connected = await p2pAutoConnectService.isPeerConnected(peerCid);
           if (!connected) return { ready: false, reason: 'not_connected' };
 
-          // Check if peer is marked online/ready
           const isOnline = p2pAutoConnectService.isPeerOnline(peerCid);
           return { ready: connected, reason: isOnline ? 'connected_and_online' : 'connected_but_offline' };
         } catch (e) {

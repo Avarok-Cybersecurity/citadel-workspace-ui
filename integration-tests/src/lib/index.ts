@@ -151,3 +151,48 @@ export type {
   GroupTestResults,
   MessageTestResult,
 } from './group-helpers.js';
+
+// Tree Helpers - Protocol-level tree operations (may not work without exposed service)
+export {
+  executeTreeProtocolRequest,
+  createNodeViaProtocol,
+  getNodeViaProtocol,
+  updateNodeViaProtocol,
+  moveNodeViaProtocol,
+  deleteNodeViaProtocol,
+  listNodesViaProtocol,
+  getTreeStructure,
+  getWorkspaceRootId,
+  getTreeSchema,
+  updateTreeSchema,
+  createNodeType,
+  listNodeTypes,
+  verifyNodeDepth,
+  verifyNodeParent,
+  verifyNodeExists,
+  verifyNodeDeleted,
+  createDeepHierarchy,
+  createSiblingNodes,
+  countTreeNodes,
+  findNodeInTree,
+  getAllNodeIds,
+  getDescendantIds,
+  // UI-based helpers (use these instead of protocol ones)
+  createOfficeViaUI,
+  createRoomViaUI,
+  navigateToOfficeViaUI,
+  deleteNodeViaUI,
+  nodeExistsInUI,
+} from './tree-helpers.js';
+export type {
+  NodeEntityType,
+  DomainNode,
+  TreeNode,
+  TreeSchema,
+  NestingRule,
+  CustomNodeType,
+  WorkspaceProtocolResponse,
+  CreateNodeResult,
+  MoveNodeResult,
+  DeleteNodeResult,
+} from './tree-helpers.js';

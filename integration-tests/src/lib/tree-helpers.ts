@@ -1,0 +1,1058 @@
+/**
+ * Tree Helpers - Protocol-level tree operation utilities
+ *
+ * These helpers execute WorkspaceProtocol requests directly via the browser's
+ * WebSocket service, enabling protocol-level testing of tree operations.
+ */
+
+import type { Page } from 'playwright';
+import { sleep } from './utils.js';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type NodeEntityType = 'Workspace' | { Child: string };
+
+export interface DomainNode {
+  id: string;
+  parent_id: string | null;
+  entity_type: NodeEntityType;
+  depth: number;
+  name: string;
+  description: string;
+  owner_id: string;
+  members: string[];
+  children: string[];
+  mdx_content: string;
+  rules: string | null;
+  chat_enabled: boolean;
+  chat_channel_id: string | null;
+  metadata: number[];
+  allowed_child_types: string[] | null;
+  is_default: boolean;
+  created_at: bigint;
+  updated_at: bigint;
+}
+
+export interface TreeNode {
+  node: DomainNode;
+  children: TreeNode[];
+}
+
+export interface TreeSchema {
+  id: string;
+  name: string;
+  rules: NestingRule[];
+  max_depth: number | null;
+}
+
+export interface NestingRule {
+  parent_type: string;
+  allowed_child_types: string[];
+}
+
+export interface CustomNodeType {
+  name: string;
+  display_name: string;
+  icon: string | null;
+  allowed_parents: string[];
+}
+
+export interface WorkspaceProtocolResponse {
+  Node?: DomainNode;
+  Nodes?: DomainNode[];
+  TreeStructure?: { root: TreeNode };
+  TreeSchema?: TreeSchema;
+  NodeTypes?: CustomNodeType[];
+  NodeDeleted?: { node_id: string; children_deleted: string[] };
+  NodeMoved?: { node_id: string; old_parent_id: string | null; new_parent_id: string | null };
+  Success?: string;
+  Error?: string;
+  Workspace?: { id: string; name: string };
+}
+
+export interface CreateNodeResult {
+  success: boolean;
+  nodeId?: string;
+  node?: DomainNode;
+  error?: string;
+}
+
+export interface MoveNodeResult {
+  success: boolean;
+  oldParentId?: string | null;
+  newParentId?: string | null;
+  error?: string;
+}
+
+export interface DeleteNodeResult {
+  success: boolean;
+  childrenDeleted?: string[];
+  error?: string;
+}
+
+// ============================================================================
+// Protocol Request Execution
+// ============================================================================
+
+/**
+ * Execute a WorkspaceProtocol request via the browser's WebSocket service.
+ * Uses the exposed __workspaceService or direct WebSocket communication.
+ */
+export async function executeTreeProtocolRequest(
+  page: Page,
+  request: Record<string, unknown> | string
+): Promise<WorkspaceProtocolResponse | null> {
+  console.log(`  [Protocol] Executing:`, JSON.stringify(request).substring(0, 150));
+
+  try {
+    const result = await page.evaluate(async (req) => {
+      return new Promise<WorkspaceProtocolResponse>((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve({ Error: 'Protocol request timed out after 15s' });
+        }, 15000);
+
+        // Try to access workspace service
+        const wsService = (window as unknown as Record<string, unknown>).__workspaceService as {
+          sendRequest?: (payload: unknown) => Promise<unknown>;
+          executeProtocolRequest?: (request: unknown) => Promise<unknown>;
+        } | undefined;
+
+        if (wsService?.sendRequest) {
+          // Send the raw request directly - don't wrap in { Request: ... }
+          wsService.sendRequest(req)
+            .then((response) => {
+              clearTimeout(timeout);
+              resolve(response as WorkspaceProtocolResponse);
+            })
+            .catch((err) => {
+              clearTimeout(timeout);
+              resolve({ Error: String(err) });
+            });
+          return;
+        }
+
+        // Alternative: Use custom event-based communication
+        const responseHandler = (event: CustomEvent<WorkspaceProtocolResponse>) => {
+          clearTimeout(timeout);
+          window.removeEventListener('workspace-protocol-response', responseHandler as EventListener);
+          resolve(event.detail);
+        };
+
+        window.addEventListener('workspace-protocol-response', responseHandler as EventListener);
+
+        // Dispatch request event
+        window.dispatchEvent(new CustomEvent('workspace-protocol-request', {
+          detail: { Request: req }
+        }));
+
+        // If no response after 5s via events, try direct evaluation
+        setTimeout(() => {
+          window.removeEventListener('workspace-protocol-response', responseHandler as EventListener);
+          resolve({ Error: 'No workspace service available' });
+        }, 5000);
+      });
+    }, request as Record<string, unknown>);
+
+    if (result?.Error) {
+      console.log(`  [Protocol] Error:`, result.Error);
+    } else {
+      console.log(`  [Protocol] Success`);
+    }
+
+    return result;
+  } catch (error) {
+    console.log(`  [Protocol] Exception:`, error);
+    return { Error: String(error) };
+  }
+}
+
+// ============================================================================
+// Node CRUD Operations
+// ============================================================================
+
+/**
+ * Create a node via protocol (not UI).
+ * Returns the created node ID on success.
+ */
+export async function createNodeViaProtocol(
+  page: Page,
+  parentId: string | null,
+  entityType: NodeEntityType,
+  name: string,
+  description: string = ''
+): Promise<CreateNodeResult> {
+  const request = {
+    CreateNode: {
+      parent_id: parentId,
+      entity_type: entityType,
+      name,
+      description,
+    }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+
+  if (response?.Node) {
+    return {
+      success: true,
+      nodeId: response.Node.id,
+      node: response.Node,
+    };
+  }
+
+  return {
+    success: false,
+    error: response?.Error || 'Unknown error creating node',
+  };
+}
+
+/**
+ * Get a single node by ID.
+ */
+export async function getNodeViaProtocol(
+  page: Page,
+  nodeId: string
+): Promise<DomainNode | null> {
+  const request = {
+    GetNode: { node_id: nodeId }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+  return response?.Node || null;
+}
+
+/**
+ * Update a node's properties.
+ */
+export async function updateNodeViaProtocol(
+  page: Page,
+  nodeId: string,
+  updates: {
+    name?: string;
+    description?: string;
+    mdx_content?: string;
+    rules?: string;
+    chat_enabled?: boolean;
+  }
+): Promise<DomainNode | null> {
+  const request = {
+    UpdateNode: {
+      node_id: nodeId,
+      ...updates,
+    }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+  return response?.Node || null;
+}
+
+/**
+ * Move a node to a new parent.
+ */
+export async function moveNodeViaProtocol(
+  page: Page,
+  nodeId: string,
+  newParentId: string | null
+): Promise<MoveNodeResult> {
+  const request = {
+    MoveNode: {
+      node_id: nodeId,
+      new_parent_id: newParentId,
+    }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+
+  if (response?.NodeMoved) {
+    return {
+      success: true,
+      oldParentId: response.NodeMoved.old_parent_id,
+      newParentId: response.NodeMoved.new_parent_id,
+    };
+  }
+
+  return {
+    success: false,
+    error: response?.Error || 'Unknown error moving node',
+  };
+}
+
+/**
+ * Delete a node.
+ * @param cascade - If true, delete all descendants. If false, fail if node has children.
+ */
+export async function deleteNodeViaProtocol(
+  page: Page,
+  nodeId: string,
+  cascade: boolean
+): Promise<DeleteNodeResult> {
+  const request = {
+    DeleteNode: {
+      node_id: nodeId,
+      cascade,
+    }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+
+  if (response?.NodeDeleted) {
+    return {
+      success: true,
+      childrenDeleted: response.NodeDeleted.children_deleted,
+    };
+  }
+
+  if (response?.Success) {
+    return {
+      success: true,
+      childrenDeleted: [],
+    };
+  }
+
+  return {
+    success: false,
+    error: response?.Error || 'Unknown error deleting node',
+  };
+}
+
+/**
+ * List nodes with optional filters.
+ */
+export async function listNodesViaProtocol(
+  page: Page,
+  options: {
+    parentId?: string;
+    depth?: number;
+    entityTypes?: NodeEntityType[];
+  } = {}
+): Promise<DomainNode[]> {
+  const request = {
+    ListNodes: {
+      parent_id: options.parentId,
+      depth: options.depth,
+      entity_types: options.entityTypes,
+    }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+  return response?.Nodes || [];
+}
+
+// ============================================================================
+// Tree Structure Operations
+// ============================================================================
+
+/**
+ * Get the full tree structure.
+ */
+export async function getTreeStructure(
+  page: Page,
+  rootId?: string,
+  maxDepth?: number
+): Promise<TreeNode | null> {
+  const request = {
+    GetTreeStructure: {
+      root_id: rootId,
+      max_depth: maxDepth,
+    }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+  return response?.TreeStructure?.root || null;
+}
+
+/**
+ * Get the workspace root ID from the current context.
+ * Supports multiple workspaces per server by detecting the workspace ID from URL or context.
+ */
+export async function getWorkspaceRootId(page: Page): Promise<string | null> {
+  console.log('  [Tree] Searching for workspace root ID...');
+
+  // Try to get from workspace context or localStorage
+  const result = await page.evaluate(() => {
+    // Try workspace context
+    const ctx = (window as unknown as Record<string, unknown>).__workspaceContext as {
+      workspace?: { id: string };
+    } | undefined;
+
+    if (ctx?.workspace?.id) {
+      return { id: ctx.workspace.id, source: 'context' };
+    }
+
+    // Try localStorage/sessionStorage
+    const stored = localStorage.getItem('currentWorkspace') ||
+      sessionStorage.getItem('currentWorkspace');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.id) return { id: parsed.id, source: 'localStorage' };
+        if (parsed.workspaceId) return { id: parsed.workspaceId, source: 'localStorage' };
+      } catch {
+        if (stored.match(/^[a-f0-9-]{36}$/i)) {
+          return { id: stored, source: 'localStorage-raw' };
+        }
+      }
+    }
+
+    // Try to find workspace ID from DOM
+    const wsElement = document.querySelector('[data-workspace-id]');
+    if (wsElement) {
+      const id = wsElement.getAttribute('data-workspace-id');
+      if (id) return { id, source: 'dom-attribute' };
+    }
+
+    // Try to find any UUID in data attributes that looks like a workspace ID
+    const allElements = Array.from(document.querySelectorAll('[data-id]'));
+    for (const el of allElements) {
+      const id = el.getAttribute('data-id');
+      if (id && id.match(/^[a-f0-9-]{36}$/i)) {
+        return { id, source: 'dom-data-id' };
+      }
+    }
+
+    return { id: null, source: 'not-found' };
+  });
+
+  if (result?.id) {
+    console.log(`  [Tree] Found workspace root ID: ${result.id} (via ${result.source})`);
+    return result.id;
+  }
+
+  // Fallback: Get from URL (supports multiple workspaces)
+  const url = page.url();
+  const match = url.match(/workspace[\/=]([a-f0-9-]{36})/i);
+  if (match) {
+    console.log(`  [Tree] Extracted workspace ID from URL: ${match[1]}`);
+    return match[1];
+  }
+
+  // Final fallback: Use the default workspace-root constant for single-workspace servers
+  console.log('  [Tree] Using default workspace-root ID');
+  return 'workspace-root';
+}
+
+// ============================================================================
+// UI-Based Node Operations (Use these instead of protocol-level ones)
+// ============================================================================
+
+/**
+ * Create an office node via UI.
+ */
+export async function createOfficeViaUI(
+  page: Page,
+  name: string,
+  description: string = ''
+): Promise<{ success: boolean; name: string }> {
+  console.log(`  [UI] Creating office: ${name}`);
+
+  try {
+    // Find and click the add office button (same selectors as office-room-crud.test.ts)
+    const addBtnSelectors = [
+      '[data-testid="add-office-button"]',
+      '.offices-section button:has(svg)',
+      'button[aria-label*="office" i]:has(svg)',
+      'section:has-text("OFFICES") button:has(svg)',
+    ];
+
+    let addBtn = null;
+    for (const selector of addBtnSelectors) {
+      const btn = page.locator(selector).first();
+      if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        addBtn = btn;
+        console.log(`  [UI] Found Add Office button with selector: ${selector}`);
+        break;
+      }
+    }
+
+    if (!addBtn) {
+      console.log('  [UI] Add office button not found');
+      return { success: false, name };
+    }
+
+    await addBtn.click();
+    await sleep(500);
+
+    // Fill the form (use id selector since the input has id="name")
+    const nameInput = page.locator('input#name, input[id="name"]').first();
+    if (!await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('  [UI] Name input not found');
+      await page.keyboard.press('Escape');
+      return { success: false, name };
+    }
+
+    await nameInput.fill(name);
+
+    if (description) {
+      const descInput = page.locator('textarea#description, textarea[id="description"]').first();
+      if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await descInput.fill(description);
+      }
+    }
+
+    await sleep(300);
+
+    // Submit - look for "Create Office" or "Update Office" button
+    const createBtn = page.locator('button:has-text("Create Office"), button:has-text("Update Office")').first();
+    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await createBtn.click();
+      await sleep(2000);
+
+      // Verify creation
+      const officeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
+      const exists = await officeInSidebar.isVisible({ timeout: 3000 }).catch(() => false);
+
+      console.log(`  [UI] Office "${name}" created: ${exists}`);
+      return { success: exists, name };
+    }
+
+    console.log('  [UI] Create button not found');
+    await page.keyboard.press('Escape');
+    return { success: false, name };
+  } catch (error) {
+    console.log(`  [UI] Error creating office: ${error}`);
+    return { success: false, name };
+  }
+}
+
+/**
+ * Create a room node via UI (must be in an office first).
+ */
+export async function createRoomViaUI(
+  page: Page,
+  name: string,
+  description: string = ''
+): Promise<{ success: boolean; name: string }> {
+  console.log(`  [UI] Creating room: ${name}`);
+
+  try {
+    // Find and click the add room button (same selectors as office-room-crud.test.ts)
+    const addBtnSelectors = [
+      '[data-testid="add-room-button"]',
+      '.rooms-section button:has(svg)',
+      'button[aria-label*="room" i]:has(svg)',
+      'section:has-text("ROOMS") button:has(svg)',
+    ];
+
+    let addBtn = null;
+    for (const selector of addBtnSelectors) {
+      const btn = page.locator(selector).first();
+      if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        addBtn = btn;
+        console.log(`  [UI] Found Add Room button with selector: ${selector}`);
+        break;
+      }
+    }
+
+    if (!addBtn) {
+      console.log('  [UI] Add room button not found');
+      return { success: false, name };
+    }
+
+    await addBtn.click();
+    await sleep(500);
+
+    // Wait for modal to open - look for the dialog
+    const modal = page.locator('[role="dialog"], [role="alertdialog"]').first();
+    const modalVisible = await modal.isVisible({ timeout: 3000 }).catch(() => false);
+    if (!modalVisible) {
+      console.log('  [UI] Modal did not open');
+      return { success: false, name };
+    }
+    console.log('  [UI] Modal opened');
+
+    // Fill the form (use id selector since the input has id="name")
+    const nameInput = page.locator('input#name, input[id="name"]').first();
+    if (!await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('  [UI] Name input not found');
+      await page.keyboard.press('Escape');
+      return { success: false, name };
+    }
+
+    await nameInput.fill(name);
+    console.log(`  [UI] Filled name: ${name}`);
+
+    if (description) {
+      const descInput = page.locator('textarea#description, textarea[id="description"]').first();
+      if (await descInput.isVisible({ timeout: 500 }).catch(() => false)) {
+        await descInput.fill(description);
+        console.log(`  [UI] Filled description`);
+      }
+    }
+
+    await sleep(300);
+
+    // Submit - look for "Create Room" or "Update Room" button
+    const createBtn = page.locator('button:has-text("Create Room"), button:has-text("Update Room")').first();
+    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('  [UI] Clicking Create Room button');
+
+      // Capture console messages before clicking
+      const consoleMessages: string[] = [];
+      const consoleHandler = (msg: { type: () => string; text: () => string }) => {
+        if (msg.type() === 'error' || msg.type() === 'warn') {
+          consoleMessages.push(`[${msg.type()}] ${msg.text()}`);
+        }
+      };
+      page.on('console', consoleHandler);
+
+      await createBtn.click();
+      await sleep(4000); // Wait longer for API call and UI update
+
+      // Stop capturing
+      page.removeListener('console', consoleHandler);
+
+      // Log any errors/warnings captured
+      if (consoleMessages.length > 0) {
+        console.log('  [UI] Console messages during room creation:');
+        consoleMessages.forEach(msg => console.log(`    ${msg}`));
+      }
+
+      // Check for error toast
+      const errorToast = page.locator('[role="status"]:has-text("Error"), .toast:has-text("Error")').first();
+      if (await errorToast.isVisible({ timeout: 500 }).catch(() => false)) {
+        console.log('  [UI] Error toast detected');
+        return { success: false, name };
+      }
+
+      // Check for success toast
+      const successToast = page.locator('[role="status"]:has-text("Created"), .toast:has-text("Created")').first();
+      if (await successToast.isVisible({ timeout: 500 }).catch(() => false)) {
+        console.log('  [UI] Success toast detected');
+      }
+
+      // Verify creation - the room should appear in the sidebar
+      const roomInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
+      const exists = await roomInSidebar.isVisible({ timeout: 5000 }).catch(() => false);
+
+      console.log(`  [UI] Room "${name}" created: ${exists}`);
+      return { success: exists, name };
+    }
+
+    console.log('  [UI] Create button not found');
+    await page.keyboard.press('Escape');
+    return { success: false, name };
+  } catch (error) {
+    console.log(`  [UI] Error creating room: ${error}`);
+    return { success: false, name };
+  }
+}
+
+/**
+ * Navigate to an office in the sidebar.
+ */
+export async function navigateToOfficeViaUI(
+  page: Page,
+  officeName: string
+): Promise<boolean> {
+  console.log(`  [UI] Navigating to office: ${officeName}`);
+
+  const selectors = [
+    `[data-sidebar="menu-button"]:has-text("${officeName}")`,
+    `button:has-text("${officeName}")`,
+    `a:has-text("${officeName}")`,
+  ];
+
+  for (const selector of selectors) {
+    const officeBtn = page.locator(selector).first();
+    if (await officeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await officeBtn.click();
+      await sleep(1000);
+      console.log(`  [UI] Navigated to office "${officeName}"`);
+      return true;
+    }
+  }
+
+  console.log(`  [UI] Office "${officeName}" not found`);
+  return false;
+}
+
+/**
+ * Delete a node via UI (office or room).
+ * Uses the same approach as office-room-crud.test.ts with page.evaluate() to find menu buttons.
+ */
+export async function deleteNodeViaUI(
+  page: Page,
+  nodeName: string,
+  nodeType: 'Office' | 'Room'
+): Promise<{ success: boolean; cascaded: boolean }> {
+  console.log(`  [UI] Deleting ${nodeType}: ${nodeName}`);
+
+  try {
+    // Close any open menus
+    await page.keyboard.press('Escape');
+    await sleep(300);
+
+    // Find the node's menu button using page.evaluate (same approach as office-room-crud.test.ts)
+    const menuPrefix = nodeType === 'Office' ? 'office-menu-' : 'room-menu-';
+    const menuTestId = await page.evaluate((params: { name: string; prefix: string }) => {
+      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
+      for (const btn of buttons) {
+        if (btn.textContent?.includes(params.name)) {
+          const parent = btn.closest('.group');
+          if (parent) {
+            const menuBtn = parent.querySelector(`button[data-testid^="${params.prefix}"]`);
+            if (menuBtn) {
+              return menuBtn.getAttribute('data-testid');
+            }
+          }
+        }
+      }
+      return null;
+    }, { name: nodeName, prefix: menuPrefix });
+
+    if (!menuTestId) {
+      console.log(`  [UI] Menu button not found for "${nodeName}"`);
+      return { success: false, cascaded: false };
+    }
+
+    console.log(`  [UI] Found menu button: ${menuTestId}`);
+
+    // Click the menu button with force to handle opacity:0 styling
+    const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
+    await menuBtn.click({ force: true, timeout: 2000 });
+    await sleep(600);
+
+    // Click delete option
+    const deleteOption = page.locator(`div[role="menuitem"]:has-text("Delete ${nodeType}"), [data-testid="delete-${nodeType.toLowerCase()}-option"]`).first();
+    if (!await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log(`  [UI] Delete option not found`);
+      const allMenuItems = await page.locator('[role="menuitem"]').count();
+      console.log(`  [UI] DEBUG: Found ${allMenuItems} menu items`);
+      await page.keyboard.press('Escape');
+      return { success: false, cascaded: false };
+    }
+
+    await deleteOption.click();
+    await sleep(500);
+
+    // Handle confirmation dialog
+    const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
+    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await confirmBtn.click();
+      console.log(`  [UI] ${nodeType} delete confirmed`);
+
+      // Wait for the node to be removed from sidebar
+      const nodeLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
+      try {
+        await nodeLocator.waitFor({ state: 'hidden', timeout: 5000 });
+        console.log(`  [UI] ${nodeType} removed from sidebar`);
+        return { success: true, cascaded: true };
+      } catch {
+        console.log(`  [UI] WARNING: ${nodeType} still visible after delete`);
+        return { success: false, cascaded: true };
+      }
+    }
+
+    console.log(`  [UI] Confirmation dialog not found`);
+    return { success: false, cascaded: false };
+  } catch (error) {
+    console.log(`  [UI] Error deleting ${nodeType}: ${error}`);
+    await page.keyboard.press('Escape');
+    return { success: false, cascaded: false };
+  }
+}
+
+/**
+ * Check if a node exists in the sidebar.
+ */
+export async function nodeExistsInUI(page: Page, nodeName: string): Promise<boolean> {
+  const node = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
+  const exists = await node.isVisible({ timeout: 2000 }).catch(() => false);
+  console.log(`  [UI] Node "${nodeName}" exists: ${exists}`);
+  return exists;
+}
+
+// ============================================================================
+// Tree Schema Operations
+// ============================================================================
+
+/**
+ * Get the current tree schema.
+ */
+export async function getTreeSchema(page: Page): Promise<TreeSchema | null> {
+  // Unit variant: send as string for correct serde deserialization
+  const response = await executeTreeProtocolRequest(page, 'GetTreeSchema' as unknown as Record<string, unknown>);
+  return response?.TreeSchema || null;
+}
+
+/**
+ * Update the tree schema.
+ */
+export async function updateTreeSchema(
+  page: Page,
+  schema: TreeSchema
+): Promise<boolean> {
+  const request = {
+    UpdateTreeSchema: { schema }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+  return response?.Success !== undefined || response?.TreeSchema !== undefined;
+}
+
+/**
+ * Create a custom node type.
+ */
+export async function createNodeType(
+  page: Page,
+  name: string,
+  displayName: string,
+  allowedParents: string[],
+  icon?: string
+): Promise<boolean> {
+  const request = {
+    CreateNodeType: {
+      name,
+      display_name: displayName,
+      icon: icon || null,
+      allowed_parents: allowedParents,
+    }
+  };
+
+  const response = await executeTreeProtocolRequest(page, request);
+  return response?.Success !== undefined || response?.NodeTypes !== undefined;
+}
+
+/**
+ * List all node types (built-in + custom).
+ */
+export async function listNodeTypes(page: Page): Promise<CustomNodeType[]> {
+  // Unit variant: send as string for correct serde deserialization
+  const response = await executeTreeProtocolRequest(page, 'ListNodeTypes' as unknown as Record<string, unknown>);
+  return response?.NodeTypes || [];
+}
+
+// ============================================================================
+// Verification Helpers
+// ============================================================================
+
+/**
+ * Verify a node has the expected depth.
+ */
+export async function verifyNodeDepth(
+  page: Page,
+  nodeId: string,
+  expectedDepth: number
+): Promise<boolean> {
+  const node = await getNodeViaProtocol(page, nodeId);
+  if (!node) {
+    console.log(`  [Verify] Node ${nodeId} not found`);
+    return false;
+  }
+
+  const matches = node.depth === expectedDepth;
+  console.log(`  [Verify] Node ${nodeId} depth: ${node.depth} (expected: ${expectedDepth}) - ${matches ? 'PASS' : 'FAIL'}`);
+  return matches;
+}
+
+/**
+ * Verify a node has the expected parent.
+ */
+export async function verifyNodeParent(
+  page: Page,
+  nodeId: string,
+  expectedParentId: string | null
+): Promise<boolean> {
+  const node = await getNodeViaProtocol(page, nodeId);
+  if (!node) {
+    console.log(`  [Verify] Node ${nodeId} not found`);
+    return false;
+  }
+
+  const matches = node.parent_id === expectedParentId;
+  console.log(`  [Verify] Node ${nodeId} parent: ${node.parent_id} (expected: ${expectedParentId}) - ${matches ? 'PASS' : 'FAIL'}`);
+  return matches;
+}
+
+/**
+ * Verify a node exists.
+ */
+export async function verifyNodeExists(
+  page: Page,
+  nodeId: string
+): Promise<boolean> {
+  const node = await getNodeViaProtocol(page, nodeId);
+  const exists = node !== null;
+  console.log(`  [Verify] Node ${nodeId} exists: ${exists}`);
+  return exists;
+}
+
+/**
+ * Verify a node does NOT exist (was deleted).
+ */
+export async function verifyNodeDeleted(
+  page: Page,
+  nodeId: string
+): Promise<boolean> {
+  const node = await getNodeViaProtocol(page, nodeId);
+  const deleted = node === null;
+  console.log(`  [Verify] Node ${nodeId} deleted: ${deleted}`);
+  return deleted;
+}
+
+// ============================================================================
+// Hierarchy Creation Helpers
+// ============================================================================
+
+/**
+ * Create a deep hierarchy of nodes.
+ * Returns array of created node IDs in order from root to deepest.
+ * Automatically updates tree schema to allow Office/Room nesting at arbitrary depth.
+ */
+export async function createDeepHierarchy(
+  page: Page,
+  depth: number,
+  workspaceRootId: string,
+  namePrefix: string = 'Level'
+): Promise<string[]> {
+  // First, update tree schema to allow circular Office↔Room nesting
+  const schema = await getTreeSchema(page);
+  if (schema) {
+    let schemaModified = false;
+    // Ensure Room→Office nesting is allowed (for depth 3+)
+    const roomRule = schema.rules.find((r: NestingRule) => r.parent_type === 'Room');
+    if (roomRule) {
+      if (!roomRule.allowed_child_types.includes('Office')) {
+        roomRule.allowed_child_types.push('Office');
+        schemaModified = true;
+      }
+    } else {
+      schema.rules.push({ parent_type: 'Room', allowed_child_types: ['Office'] });
+      schemaModified = true;
+    }
+    // Ensure Office→Office nesting is allowed (for same-type chains)
+    const officeRule = schema.rules.find((r: NestingRule) => r.parent_type === 'Office');
+    if (officeRule) {
+      if (!officeRule.allowed_child_types.includes('Office')) {
+        officeRule.allowed_child_types.push('Office');
+        schemaModified = true;
+      }
+    }
+    // Also ensure max_depth allows the requested depth
+    if (schema.max_depth !== undefined && schema.max_depth !== null && schema.max_depth < depth + 1) {
+      schema.max_depth = depth + 1;
+      schemaModified = true;
+      console.log(`  [DeepHierarchy] Increasing max_depth to ${depth + 1}`);
+    }
+    if (schemaModified) {
+      console.log('  [DeepHierarchy] Updating tree schema for deep nesting');
+      await updateTreeSchema(page, schema);
+      await sleep(200);
+    }
+  }
+
+  const nodeIds: string[] = [];
+  let parentId: string | null = workspaceRootId;
+
+  for (let i = 1; i <= depth; i++) {
+    // Alternate between Office and Room for default schema
+    const entityType: NodeEntityType = i % 2 === 1
+      ? { Child: 'Office' }
+      : { Child: 'Room' };
+
+    const result = await createNodeViaProtocol(
+      page,
+      parentId,
+      entityType,
+      `${namePrefix}_${i}_${Date.now()}`,
+      `Test node at depth ${i}`
+    );
+
+    if (!result.success || !result.nodeId) {
+      console.log(`  [DeepHierarchy] Failed to create node at depth ${i}: ${result.error}`);
+      break;
+    }
+
+    nodeIds.push(result.nodeId);
+    parentId = result.nodeId;
+
+    // Small delay to ensure ordering
+    await sleep(100);
+  }
+
+  console.log(`  [DeepHierarchy] Created ${nodeIds.length} nodes`);
+  return nodeIds;
+}
+
+/**
+ * Create multiple sibling nodes under a parent.
+ * Returns array of created node IDs.
+ */
+export async function createSiblingNodes(
+  page: Page,
+  parentId: string,
+  entityType: NodeEntityType,
+  count: number,
+  namePrefix: string = 'Sibling'
+): Promise<string[]> {
+  const nodeIds: string[] = [];
+
+  for (let i = 1; i <= count; i++) {
+    const result = await createNodeViaProtocol(
+      page,
+      parentId,
+      entityType,
+      `${namePrefix}_${i}_${Date.now()}`,
+      `Sibling node ${i}`
+    );
+
+    if (result.success && result.nodeId) {
+      nodeIds.push(result.nodeId);
+    }
+
+    await sleep(50);
+  }
+
+  console.log(`  [Siblings] Created ${nodeIds.length}/${count} sibling nodes`);
+  return nodeIds;
+}
+
+/**
+ * Count all nodes in a tree recursively.
+ */
+export function countTreeNodes(tree: TreeNode): number {
+  let count = 1; // Count this node
+  for (const child of tree.children) {
+    count += countTreeNodes(child);
+  }
+  return count;
+}
+
+/**
+ * Find a node by ID in a tree.
+ */
+export function findNodeInTree(tree: TreeNode, nodeId: string): TreeNode | null {
+  if (tree.node.id === nodeId) {
+    return tree;
+  }
+  for (const child of tree.children) {
+    const found = findNodeInTree(child, nodeId);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Get all node IDs in a tree.
+ */
+export function getAllNodeIds(tree: TreeNode): string[] {
+  const ids: string[] = [tree.node.id];
+  for (const child of tree.children) {
+    ids.push(...getAllNodeIds(child));
+  }
+  return ids;
+}
+
+/**
+ * Get all descendant IDs of a node (not including the node itself).
+ */
+export function getDescendantIds(tree: TreeNode): string[] {
+  const ids: string[] = [];
+  for (const child of tree.children) {
+    ids.push(child.node.id);
+    ids.push(...getDescendantIds(child));
+  }
+  return ids;
+}

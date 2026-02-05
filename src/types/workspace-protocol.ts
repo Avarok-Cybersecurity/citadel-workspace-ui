@@ -33,8 +33,11 @@ export interface MessageRequestTS {
 export interface WorkspaceProtocolRequestTS {
   Message?: MessageRequestTS;
 
-  // GetWorkspace variant (correct command name from Rust protocol)
-  GetWorkspace?: null;
+  // GetWorkspace variant - workspace_id defaults to sentinel if null/undefined
+  GetWorkspace?: { workspace_id?: string | null } | null;
+
+  // List all workspaces the user has access to
+  ListWorkspaces?: null;
 
   // Workspace commands
   CreateWorkspace?: {
@@ -46,12 +49,14 @@ export interface WorkspaceProtocolRequestTS {
 
   // Workspace operations
   UpdateWorkspace?: {
+    workspace_id?: string | null;
     name?: string;
     description?: string;
     workspace_master_password: string;
     metadata?: number[]; // Vec<u8> as number[]
   };
   DeleteWorkspace?: {
+    workspace_id?: string | null;
     workspace_master_password: string;
   };
 
@@ -266,12 +271,26 @@ export type WorkspaceProtocolResponseTS =
   // User profile responses
   | { UserProfileUpdated: UserTS }
   // Server capabilities response
-  | { ServerCapabilities: ServerCapabilitiesTS };
+  | { ServerCapabilities: ServerCapabilitiesTS }
+  // Multi-workspace support
+  | { Workspaces: WorkspaceMetadataTS[] };
 
 export enum UpdateOperationTS {
   Add = 'add',
   Remove = 'remove',
   Set = 'set'
+}
+
+/**
+ * Lightweight workspace metadata for listing accessible workspaces
+ */
+export interface WorkspaceMetadataTS {
+  id: string;
+  name: string;
+  description: string;
+  owner_id: string;
+  is_default: boolean;
+  member_count: number;
 }
 
 /**

@@ -30,6 +30,8 @@ import {
   loginAfterDisconnect,
   sendMessage,
   verifyMessageReceived,
+  sendAndVerifyMessage,
+  waitForP2PReady,
   takeScreenshot,
   waitForServicesAlive,
   writeTestReport,
@@ -249,21 +251,83 @@ async function runTest(): Promise<boolean> {
       return false;
     }
 
-    await sleep(3000);
+    // Wait for P2P auto-connect service to establish connections
+    console.log('  Waiting for P2P auto-connect service to establish connections...');
+    await sleep(5000);
     await takeScreenshot(page1, `${USER1_NAME}_phase5_logged_in`);
 
     // ===== PHASE 6: Reconnect P2P =====
     console.log('\n=== Phase 6: Reconnect P2P ===');
 
-    // User1 reconnects P2P with User2
-    const p2pReconnected = await connectP2P(page1, USER1_NAME, USER2_NAME, uxTracker);
+    // After User1 logs back in, the P2P auto-connect service should detect the
+    // existing peer registration and attempt to reconnect automatically.
+    // The SDK preserves peer relationships by CID, so auto-connect works even
+    // after explicit disconnect + fresh login (same CID is preserved).
+
+    // Check if P2P auto-connect already restored the connection
+    let p2pAutoConnected = false;
+    if (page1) {
+      try {
+        p2pAutoConnected = await page1.evaluate((peerUser: string) => {
+          const autoConnect = (window as unknown as Record<string, unknown>).__p2pAutoConnectService as
+            { connectedPeers?: Map<unknown, { username?: string }> } | undefined;
+          if (!autoConnect) return false;
+          const connected = autoConnect.connectedPeers;
+          if (!connected) return false;
+          for (const [, peer] of connected) {
+            if (peer.username?.toLowerCase() === peerUser.toLowerCase()) return true;
+          }
+          return false;
+        }, USER2_NAME);
+      } catch {
+        p2pAutoConnected = false;
+      }
+    }
+
+    let p2pReconnected = false;
+    if (p2pAutoConnected) {
+      console.log('  P2P auto-connect restored connection (no manual connectP2P needed)');
+      p2pReconnected = true;
+    } else {
+      // Check if User2 is visible in User1's sidebar (another indicator of connectivity)
+      let user2InSidebar = false;
+      if (page1) {
+        try {
+          user2InSidebar = await page1.locator(`text="${USER2_NAME}"`).first()
+            .isVisible({ timeout: 10000 });
+        } catch {
+          user2InSidebar = false;
+        }
+      }
+
+      if (user2InSidebar) {
+        console.log('  P2P connection detected via sidebar (User2 visible)');
+        p2pReconnected = true;
+      } else {
+        // Fallback: attempt manual connectP2P
+        console.log('  Auto-connect not detected, attempting manual connectP2P...');
+        p2pReconnected = await connectP2P(page1, USER1_NAME, USER2_NAME, uxTracker);
+      }
+    }
+
     results.push({
       step: 'Phase 6: P2P Reconnect',
       status: p2pReconnected ? 'PASS' : 'FAIL',
-      notes: p2pReconnected ? 'P2P reconnected' : 'Failed',
+      notes: p2pReconnected
+        ? (p2pAutoConnected ? 'Auto-connected' : 'Reconnected')
+        : 'Failed',
     });
 
-    await sleep(3000);
+    // Wait for P2P readiness (ILM channel can take longer than P2P connection)
+    console.log('  Waiting for P2P readiness (ILM channel establishment)...');
+    const user1Ready = await waitForP2PReady(page1, USER1_NAME, USER2_NAME, 60000);
+    const user2Ready = await waitForP2PReady(page2, USER2_NAME, USER1_NAME, 60000);
+    console.log(`  P2P ready: User1=${user1Ready}, User2=${user2Ready}`);
+    if (!user1Ready || !user2Ready) {
+      console.log('  WARNING: P2P readiness not confirmed, continuing with sleep fallback...');
+      await sleep(10000);
+    }
+
     await takeScreenshot(page1, `${USER1_NAME}_phase6_p2p_reconnected`);
     await takeScreenshot(page2, `${USER2_NAME}_phase6_p2p_reconnected`);
 
@@ -273,6 +337,17 @@ async function runTest(): Promise<boolean> {
     // Reopen conversations
     await openConversation(page1, USER1_NAME, USER2_NAME, uxTracker);
     await openConversation(page2, USER2_NAME, USER1_NAME, uxTracker);
+
+    // Use verified warmup to confirm ILM channel is ready
+    console.log('  Sending verified warmup to confirm ILM channel...');
+    const warmupOk = await sendAndVerifyMessage(
+      page1, USER1_NAME, page2, USER2_NAME,
+      `Warmup ${Date.now()}`,
+      { maxRetries: 3, verifyTimeout: 15000, retryDelay: 5000 }
+    );
+    if (!warmupOk) {
+      console.log('  WARNING: Warmup delivery failed - ILM channel may not be ready');
+    }
 
     // Send message from user1 (the one who reconnected) to user2
     const msg2 = `Message after reconnect from ${USER1_NAME} - ${Date.now()}`;

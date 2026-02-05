@@ -29,27 +29,31 @@ export async function connectP2P(
   console.log(`\n=== ${username}: Connecting P2P to ${peerUsername} ===`);
 
   try {
-    // Execute in browser context to access frontend services
+    // Execute in browser context using window-exposed singletons (NOT dynamic imports which create fresh instances)
     const result = await page.evaluate(async (peerUser: string) => {
-      // Dynamic imports using Vite dev server paths (NOT @/ aliases which only work at build time)
-      // @ts-ignore - Browser-side import via Vite dev server
-      const { websocketService } = await import('/src/lib/websocket-service.ts');
-      // @ts-ignore - Browser-side import via Vite dev server
-      const { connectionManager } = await import('/src/lib/connection-manager.ts');
-      // @ts-ignore - Browser-side import via Vite dev server
-      const { p2pRegistrationService } = await import('/src/lib/p2p-registration-service.ts');
+      // Access actual singleton instances exposed on window by main.tsx
+      const websocketService = (window as any).__websocketService;
+      const connectionManager = (window as any).__connectionManager;
+      const p2pRegistrationService = (window as any).__p2pRegistrationService;
+      const p2pAutoConnectService = (window as any).__p2pAutoConnectService;
+
+      if (!websocketService || !connectionManager || !p2pRegistrationService || !p2pAutoConnectService) {
+        return { success: false, error: `Missing window services: ws=${!!websocketService} cm=${!!connectionManager} reg=${!!p2pRegistrationService} auto=${!!p2pAutoConnectService}` };
+      }
 
       // Get current session CID
-      const session = connectionManager.getTabSelectedSession();
-      if (!session?.cid) {
-        return { success: false, error: 'No active session' };
+      let sessionCid: bigint | null = null;
+      const session = await connectionManager.getTabSelectedSession();
+      if (session?.cid) {
+        sessionCid = session.cid;
+      }
+      if (!sessionCid) {
+        return { success: false, error: 'No active session from connectionManager' };
       }
 
       // Find peer CID from registered peers
-      // getPeers() returns { allPeers: Peer[], registeredPeers: Peer[] }
-      // where Peer = { cid, username, fullName, isOnline, isRegistered }
       const { registeredPeers } = p2pRegistrationService.getPeers();
-      let peerCid: string | null = null;
+      let peerCid: bigint | string | null = null;
 
       for (const peer of registeredPeers) {
         if (peer.username?.toLowerCase() === peerUser.toLowerCase()) {
@@ -59,31 +63,28 @@ export async function connectP2P(
       }
 
       if (!peerCid) {
-        // Also check connected peers (may already be connected)
-        // @ts-ignore - Browser-side import via Vite dev server
-        const { p2pAutoConnectService } = await import('/src/lib/p2p-auto-connect-service.ts');
-        // getConnectedPeers() returns string[] (CID array)
-        const connectedPeerCids = p2pAutoConnectService.getConnectedPeers();
+        // Check connected peers (may already be connected)
+        const connectedPeerCids = await p2pAutoConnectService.getConnectedPeers();
         if (connectedPeerCids && connectedPeerCids.length > 0) {
-          // Check if any connected peer matches by username
           for (const cid of connectedPeerCids) {
             const peerInfo = p2pRegistrationService.getPeerInfo(cid);
             if (peerInfo?.username?.toLowerCase() === peerUser.toLowerCase()) {
-              // Already connected
               return { success: true, alreadyConnected: true };
             }
           }
         }
-        return { success: false, error: `Peer ${peerUser} not registered` };
+
+        if (!peerCid) {
+          return { success: false, error: `Peer ${peerUser} not registered. registeredPeers(${registeredPeers?.length || 0}): ${registeredPeers?.map((p: any) => p.username).join(', ') || 'empty'}` };
+        }
       }
 
       // Call openP2PConnection
       try {
-        await websocketService.openP2PConnection(session.cid, peerCid);
+        await websocketService.openP2PConnection(sessionCid, peerCid);
         return { success: true };
       } catch (e) {
         const errorMsg = String(e);
-        // "Already connected" is a success case (auto-connect service may have reconnected)
         if (errorMsg.includes('Already connected')) {
           return { success: true, alreadyConnected: true };
         }
@@ -166,30 +167,34 @@ export async function disconnectP2P(
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      // Execute in browser context to access frontend services
+      // Execute in browser context using window-exposed singletons (NOT dynamic imports which create fresh instances)
       const result = await page.evaluate(async (peerUser: string) => {
-        // Dynamic imports using Vite dev server paths (NOT @/ aliases which only work at build time)
-        // @ts-ignore - Browser-side import via Vite dev server
-        const { websocketService } = await import('/src/lib/websocket-service.ts');
-        // @ts-ignore - Browser-side import via Vite dev server
-        const { connectionManager } = await import('/src/lib/connection-manager.ts');
-        // @ts-ignore - Browser-side import via Vite dev server
-        const { p2pAutoConnectService } = await import('/src/lib/p2p-auto-connect-service.ts');
+        // Access actual singleton instances exposed on window by main.tsx
+        const websocketService = (window as any).__websocketService;
+        const connectionManager = (window as any).__connectionManager;
+        const p2pAutoConnectService = (window as any).__p2pAutoConnectService;
+        const p2pRegistrationService = (window as any).__p2pRegistrationService;
 
-        // Get current session CID
-        const session = connectionManager.getTabSelectedSession();
-        if (!session?.cid) {
-          return { success: false, error: 'No active session', retryable: false };
+        if (!websocketService || !connectionManager || !p2pAutoConnectService || !p2pRegistrationService) {
+          return { success: false, error: `Missing window services: ws=${!!websocketService} cm=${!!connectionManager} auto=${!!p2pAutoConnectService} reg=${!!p2pRegistrationService}`, retryable: false };
         }
 
-        // Import p2pRegistrationService to get peer info
-        // @ts-ignore - Browser-side import via Vite dev server
-        const { p2pRegistrationService } = await import('/src/lib/p2p-registration-service.ts');
+        // Get current session CID
+        let sessionCid: bigint | null = null;
+        const session = await connectionManager.getTabSelectedSession();
+        if (session?.cid) {
+          sessionCid = session.cid;
+        }
+        if (!sessionCid) {
+          return { success: false, error: 'No active session from connectionManager', retryable: false };
+        }
 
         // Find peer CID from connected peers
-        // getConnectedPeers() returns string[] (CID array)
-        const connectedPeerCids = p2pAutoConnectService.getConnectedPeers();
-        let peerCid: string | null = null;
+        const connectedPeerCids = await p2pAutoConnectService.getConnectedPeers();
+        let peerCid: bigint | string | null = null;
+
+        const debugInfo: string[] = [];
+        debugInfo.push(`connectedPeers(${connectedPeerCids?.length || 0}): ${connectedPeerCids?.map((c: bigint) => c.toString()).join(', ') || 'empty'}`);
 
         if (connectedPeerCids && connectedPeerCids.length > 0) {
           for (const cid of connectedPeerCids) {
@@ -203,8 +208,9 @@ export async function disconnectP2P(
 
         if (!peerCid) {
           // Check registered peers as fallback
-          // getPeers() returns { allPeers: Peer[], registeredPeers: Peer[] }
-          const { registeredPeers } = p2pRegistrationService.getPeers();
+          const { registeredPeers, allPeers } = p2pRegistrationService.getPeers();
+          debugInfo.push(`registeredPeers(${registeredPeers?.length || 0}): ${registeredPeers?.map((p: any) => `${p.username}=${p.cid?.toString()}`).join(', ') || 'empty'}`);
+          debugInfo.push(`allPeers(${allPeers?.length || 0}): ${allPeers?.map((p: any) => `${p.username}=${p.cid?.toString()}`).join(', ') || 'empty'}`);
           for (const peer of registeredPeers) {
             if (peer.username?.toLowerCase() === peerUser.toLowerCase()) {
               peerCid = peer.cid;
@@ -214,22 +220,36 @@ export async function disconnectP2P(
         }
 
         if (!peerCid) {
-          return { success: false, error: `Peer ${peerUser} not found in connected or registered peers`, retryable: false };
+          // DOM fallback: extract CID from sidebar data-peer-cid attribute
+          const allPeerRows = Array.from(document.querySelectorAll('[data-peer-cid]'));
+          for (const row of allPeerRows) {
+            const text = row.textContent || '';
+            if (text.toLowerCase().includes(peerUser.toLowerCase())) {
+              const cidStr = (row as HTMLElement).dataset.peerCid;
+              if (cidStr) {
+                try { peerCid = BigInt(cidStr); } catch { peerCid = cidStr; }
+                debugInfo.push(`DOM fallback: found CID ${cidStr} for ${peerUser}`);
+                break;
+              }
+            }
+          }
+        }
+
+        if (!peerCid) {
+          return { success: false, error: `Peer ${peerUser} not found. Debug: ${debugInfo.join(' | ')}`, retryable: false };
         }
 
         // Call disconnectP2P
         try {
-          await websocketService.disconnectP2P(session.cid, peerCid);
+          await websocketService.disconnectP2P(sessionCid, peerCid);
           return { success: true };
         } catch (e) {
           const errorMsg = String(e);
-          // "Peer connection not found" means peer was already disconnected - treat as success
           if (errorMsg.includes('Peer connection not found') ||
               errorMsg.includes('not connected') ||
               errorMsg.includes('not found')) {
             return { success: true, alreadyDisconnected: true };
           }
-          // Check if error is retryable (SDK busy with protocol)
           const retryable = errorMsg.includes('still in protocol') ||
                            errorMsg.includes('in protocol') ||
                            errorMsg.includes('busy');
@@ -316,24 +336,22 @@ export async function waitForP2PConnection(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      // PRIMARY: Check ACTUAL connection state via page.evaluate (deterministic)
+      // PRIMARY: Check ACTUAL connection state via window-exposed singletons
       const isConnected = await page.evaluate(async (peerUser: string) => {
         try {
-          // @ts-ignore - Browser-side import via Vite dev server
-          const { p2pAutoConnectService } = await import('/src/lib/p2p-auto-connect-service.ts');
-          // @ts-ignore - Browser-side import via Vite dev server
-          const { p2pRegistrationService } = await import('/src/lib/p2p-registration-service.ts');
+          const p2pAutoConnectService = (window as any).__p2pAutoConnectService;
+          const p2pRegistrationService = (window as any).__p2pRegistrationService;
+          if (!p2pAutoConnectService || !p2pRegistrationService) {
+            return { connected: false, reason: 'window services not available' };
+          }
 
-          // Find peer CID by username
           const { registeredPeers } = p2pRegistrationService.getPeers();
           const peer = registeredPeers.find(
             (p: { username?: string }) => p.username?.toLowerCase() === peerUser.toLowerCase()
           );
           if (!peer?.cid) return { connected: false, reason: 'peer not found in registry' };
 
-          // Check if actually connected in p2pAutoConnectService
           const peerCid = typeof peer.cid === 'bigint' ? peer.cid : BigInt(peer.cid);
-          // isPeerConnected is async - must await it
           const connected = await p2pAutoConnectService.isPeerConnected(peerCid);
           return { connected, reason: connected ? 'service reports connected' : 'service reports not connected' };
         } catch (e) {
@@ -402,15 +420,15 @@ export async function waitForP2PChannelReady(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      // Check if channel is ready (received a message from peer)
+      // Check if channel is ready using window-exposed singletons
       const result = await page.evaluate(async (peerUser: string) => {
         try {
-          // @ts-ignore - Browser-side import via Vite dev server
-          const { p2pAutoConnectService } = await import('/src/lib/p2p-auto-connect-service.ts');
-          // @ts-ignore - Browser-side import via Vite dev server
-          const { p2pRegistrationService } = await import('/src/lib/p2p-registration-service.ts');
+          const p2pAutoConnectService = (window as any).__p2pAutoConnectService;
+          const p2pRegistrationService = (window as any).__p2pRegistrationService;
+          if (!p2pAutoConnectService || !p2pRegistrationService) {
+            return { ready: false, reason: 'window services not available' };
+          }
 
-          // Find peer CID by username
           const { registeredPeers } = p2pRegistrationService.getPeers();
           const peer = registeredPeers.find(
             (p: { username?: string }) => p.username?.toLowerCase() === peerUser.toLowerCase()
@@ -419,13 +437,11 @@ export async function waitForP2PChannelReady(
 
           const peerCid = typeof peer.cid === 'bigint' ? peer.cid : BigInt(peer.cid);
 
-          // Check if channel is READY (proven message flow)
           const ready = p2pAutoConnectService.isChannelReady(peerCid);
           if (ready) {
             return { ready: true, reason: 'channel proven ready via message receipt' };
           }
 
-          // Also check if connected (may become ready soon)
           const connected = await p2pAutoConnectService.isPeerConnected(peerCid);
           return {
             ready: false,

@@ -24,7 +24,6 @@ import {
   writeTestReport,
   setupConsoleCapture,
   UxIssueTracker,
-  config,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -522,7 +521,7 @@ async function runChatSettingsTest(): Promise<void> {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
     // Write test report
-    writeTestReport(`${config.SCREENSHOTS_DIR}/CHAT_SETTINGS_TEST_REPORT.json`, {
+    writeTestReport('CHAT_SETTINGS_TEST_REPORT.json', {
       users: { user1: USER1, user2: USER2 },
       results,
       passed: chatSettingsPass,

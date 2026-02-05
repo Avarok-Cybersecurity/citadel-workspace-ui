@@ -57,61 +57,76 @@ const FOLDER_NAME = 'shared-docs';
 // Helpers
 // ============================================================================
 
-async function navigateToFileManager(page: Page, label: string): Promise<boolean> {
-  console.log(`\n=== ${label}: Navigating to File Manager ===`);
-  try {
-    const loaded = await waitForWorkspaceLoaded(page, 30000);
-    if (!loaded) {
-      console.log('  Workspace not fully loaded');
+async function navigateToFileManager(page: Page, label: string, maxRetries = 2): Promise<boolean> {
+  for (let retry = 0; retry <= maxRetries; retry++) {
+    if (retry > 0) {
+      console.log(`\n=== ${label}: Retrying File Manager navigation (attempt ${retry + 1}/${maxRetries + 1}) ===`);
+      // Reload page to reset state before retry
+      await page.reload({ waitUntil: 'commit', timeout: 30000 }).catch(() => {});
+      await sleep(3000);
+    } else {
+      console.log(`\n=== ${label}: Navigating to File Manager ===`);
+    }
+
+    try {
+      const loaded = await waitForWorkspaceLoaded(page, 45000);
+      if (!loaded) {
+        console.log('  Workspace not fully loaded');
+        if (retry < maxRetries) continue;
+        return false;
+      }
+
+      // Click the File Manager sidebar button (avoids full page reload / session reclaim)
+      const filesBtn = page.locator('[data-testid="file-manager-button"]');
+      if (await filesBtn.isVisible().catch(() => false)) {
+        await filesBtn.click();
+        console.log('  Clicked File Manager sidebar button');
+      } else {
+        // Fallback: navigate via URL
+        const currentUrl = page.url();
+        const baseUrl = currentUrl.split('?')[0];
+        await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
+        console.log('  Navigated via URL (fallback)');
+      }
+      await sleep(2000);
+
+      // Wait for the VFS tree to load. The File Manager polls peers every 2s,
+      // so "No Peers Connected" is transient while the service syncs.
+      const deadline = Date.now() + 30000;
+      let state = 'unknown';
+      while (Date.now() < deadline) {
+        if (await page.getByText('Sent Files', { exact: true }).first().isVisible().catch(() => false)) {
+          state = 'tree';
+          break;
+        }
+        if (await page.locator('text="File System Error"').isVisible().catch(() => false)) {
+          const errText = await page.locator('text=/Error:.*/')
+            .first().textContent().catch(() => 'unknown error');
+          console.log(`  File System Error: ${errText}`);
+          state = 'error';
+          break;
+        }
+        // Check for other states
+        const noPeers = await page.getByText('No Peers Connected').isVisible().catch(() => false);
+        const loading = await page.getByText('Loading file system').isVisible().catch(() => false);
+        const connecting = await page.getByText('Connecting...').isVisible().catch(() => false);
+        if (noPeers || loading || connecting) {
+          console.log(`  Waiting... noPeers=${noPeers} loading=${loading} connecting=${connecting}`);
+        }
+        await sleep(1000);
+      }
+
+      console.log(`  File Manager state: ${state}`);
+      if (state === 'tree') return true;
+      if (retry < maxRetries) continue;
+      return false;
+    } catch (error) {
+      console.error(`  Error navigating: ${error}`);
+      if (retry < maxRetries) continue;
       return false;
     }
-
-    // Click the File Manager sidebar button (avoids full page reload / session reclaim)
-    const filesBtn = page.locator('[data-testid="file-manager-button"]');
-    if (await filesBtn.isVisible().catch(() => false)) {
-      await filesBtn.click();
-      console.log('  Clicked File Manager sidebar button');
-    } else {
-      // Fallback: navigate via URL
-      const currentUrl = page.url();
-      const baseUrl = currentUrl.split('?')[0];
-      await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
-      console.log('  Navigated via URL (fallback)');
-    }
-    await sleep(2000);
-
-    // Wait for the VFS tree to load. The File Manager polls peers every 2s,
-    // so "No Peers Connected" is transient while the service syncs.
-    const deadline = Date.now() + 30000;
-    let state = 'unknown';
-    while (Date.now() < deadline) {
-      if (await page.getByText('Sent Files', { exact: true }).first().isVisible().catch(() => false)) {
-        state = 'tree';
-        break;
-      }
-      if (await page.locator('text="File System Error"').isVisible().catch(() => false)) {
-        const errText = await page.locator('text=/Error:.*/')
-          .first().textContent().catch(() => 'unknown error');
-        console.log(`  File System Error: ${errText}`);
-        state = 'error';
-        break;
-      }
-      // Check for other states
-      const noPeers = await page.getByText('No Peers Connected').isVisible().catch(() => false);
-      const loading = await page.getByText('Loading file system').isVisible().catch(() => false);
-      const connecting = await page.getByText('Connecting...').isVisible().catch(() => false);
-      if (noPeers || loading || connecting) {
-        console.log(`  Waiting... noPeers=${noPeers} loading=${loading} connecting=${connecting}`);
-      }
-      await sleep(1000);
-    }
-
-    console.log(`  File Manager state: ${state}`);
-    return state === 'tree';
-  } catch (error) {
-    console.error(`  Error navigating: ${error}`);
-    return false;
   }
+  return false;
 }
 
 async function waitForTreeLoaded(page: Page, label: string, timeoutMs = 30000): Promise<boolean> {
@@ -174,14 +189,13 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
   console.log(`\n=== ${label}: Sync and check folder "${folderName}" (expect ${shouldExist ? 'present' : 'absent'}) ===`);
   try {
     // Try multiple sync attempts — P2P ops may take a moment to propagate
-    // Increased from 5 to 10 attempts with longer delays for better reliability
     for (let attempt = 0; attempt < 10; attempt++) {
       const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
       if (await syncBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
         await syncBtn.click();
         console.log(`  Clicked Sync button (attempt ${attempt + 1}/10)`);
       }
-      // Longer wait between sync attempts for P2P propagation
+      // Wait for P2P propagation and UI re-render
       await sleep(4000);
 
       const folder = page.getByText(folderName, { exact: true }).first();
@@ -189,6 +203,17 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
       const result = shouldExist ? visible : !visible;
       console.log(`  Folder "${folderName}" visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'FAIL'}`);
       if (result) return true;
+
+      // After several failed attempts, try navigating away and back to force re-render
+      if (attempt === 4 && shouldExist) {
+        console.log('  Trying navigation refresh to force UI re-render...');
+        const currentUrl = page.url();
+        const baseUrl = currentUrl.split('?')[0];
+        await page.goto(baseUrl, { waitUntil: 'commit', timeout: 15000 }).catch(() => {});
+        await sleep(2000);
+        await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 15000 }).catch(() => {});
+        await sleep(3000);
+      }
     }
     return false;
   } catch {
@@ -235,6 +260,57 @@ async function deleteFolder(page: Page, label: string, folderName: string): Prom
     console.error(`  Error deleting folder: ${error}`);
     return false;
   }
+}
+
+/**
+ * Wait for P2P connectivity between two users.
+ * After File Manager navigation, the P2PAutoConnect service may temporarily
+ * lose the P2P connection and schedule reconnection (30s cycle).
+ * This function waits until both peers show each other as connected.
+ */
+async function waitForP2PConnectivity(
+  pageA: Page, pageB: Page,
+  userA: string, userB: string,
+  timeoutMs = 90000,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  let lastLog = 0;
+
+  while (Date.now() < deadline) {
+    // Check if userA sees userB as connected
+    const aSeesB = await pageA.evaluate((peerUser: string) => {
+      const autoConnect = (window as unknown as Record<string, unknown>).__p2pAutoConnectService as
+        { connectedPeers?: Map<unknown, { username?: string }> } | undefined;
+      if (!autoConnect?.connectedPeers) return false;
+      for (const [, peer] of autoConnect.connectedPeers) {
+        if (peer.username?.toLowerCase() === peerUser.toLowerCase()) return true;
+      }
+      return false;
+    }, userB).catch(() => false);
+
+    if (aSeesB) {
+      // Also verify B sees A
+      const bSeesA = await pageB.evaluate((peerUser: string) => {
+        const autoConnect = (window as unknown as Record<string, unknown>).__p2pAutoConnectService as
+          { connectedPeers?: Map<unknown, { username?: string }> } | undefined;
+        if (!autoConnect?.connectedPeers) return false;
+        for (const [, peer] of autoConnect.connectedPeers) {
+          if (peer.username?.toLowerCase() === peerUser.toLowerCase()) return true;
+        }
+        return false;
+      }, userA).catch(() => false);
+
+      if (bSeesA) return true;
+    }
+
+    // Log periodically
+    if (Date.now() - lastLog > 10000) {
+      console.log(`  P2P connectivity: ${userA}→${userB}=${aSeesB}, waiting...`);
+      lastLog = Date.now();
+    }
+    await sleep(3000);
+  }
+  return false;
 }
 
 // ============================================================================
@@ -353,6 +429,18 @@ async function runTest(): Promise<boolean> {
     await takeScreenshot(pageAlice, '04_alice_default_tree');
     await takeScreenshot(pageBob, '04_bob_default_tree');
 
+    // ========== STEP 4b: Wait for P2P connectivity ==========
+    // After File Manager navigation, the P2PAutoConnect service may detect
+    // the peer as offline and schedule reconnection (30s cycle).
+    // We must wait for P2P to be re-established before folder operations.
+    console.log('\n  Waiting for P2P connectivity before folder operations...');
+    const p2pReady = await waitForP2PConnectivity(pageAlice, pageBob, ALICE, BOB);
+    if (!p2pReady) {
+      console.log('  WARNING: P2P connectivity not confirmed, proceeding anyway...');
+    } else {
+      console.log('  P2P connectivity confirmed');
+    }
+
     // ========== STEP 5: Create Folder (Alice) ==========
     console.log('\n' + '─'.repeat(50));
     console.log('STEP 5: Alice Creates Folder');
@@ -449,8 +537,10 @@ async function runTest(): Promise<boolean> {
       alice: ALICE, bob: BOB, results, uxIssues, passed: allPassed,
     });
 
-    console.log('\nBrowser will remain open for 10 seconds...');
-    await sleep(10000);
+    if (!process.env.IN_CI) {
+      console.log('\nBrowser will remain open for 10 seconds...');
+      await sleep(10000);
+    }
 
     return allPassed;
 

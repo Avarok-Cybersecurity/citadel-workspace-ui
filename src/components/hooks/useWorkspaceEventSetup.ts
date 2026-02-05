@@ -6,10 +6,11 @@
  */
 
 import { useEffect } from 'react';
-import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
+import { workspaceEvents, type ConnectionInfo, type WorkspacesPayload } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { connectionManager } from '@/lib/connection';
 import UserService from '@/lib/user-service';
+import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 
 interface UseWorkspaceEventSetupProps {
@@ -92,6 +93,19 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
             }
           }));
         }
+
+        // Fetch workspace list now that connection is active
+        await WorkspaceService.listWorkspaces().catch((err: unknown) => {
+          console.warn('[WorkspaceEventSetup] Failed to list workspaces:', err);
+        });
+      });
+
+      // Workspaces listed event
+      await workspaceEvents.onWorkspaceEvent('workspaces:listed', (payload: WorkspacesPayload) => {
+        setState(prev => ({
+          ...prev,
+          workspaces: payload.workspaces,
+        }));
       });
 
       // Workspace not initialized event

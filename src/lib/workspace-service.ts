@@ -4,6 +4,7 @@ import { Office, GroupMessageType } from '@/types/workspace-entities';
 import { websocketService } from './websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { workspaceResponseHandler } from './workspace-response-handler';
+import { eventEmitter } from './event-emitter';
 
 /**
  * Workspace Service
@@ -68,7 +69,15 @@ export class WorkspaceService {
         
         // Convert based on the request type
         if ('GetWorkspace' in tsRequest) {
-          request = 'GetWorkspace';
+          const ws = tsRequest.GetWorkspace;
+          // GetWorkspace changed from unit variant to struct with optional workspace_id
+          request = {
+            GetWorkspace: {
+              workspace_id: (ws && typeof ws === 'object' && 'workspace_id' in ws) ? ws.workspace_id ?? null : null
+            }
+          };
+        } else if ('ListWorkspaces' in tsRequest) {
+          request = 'ListWorkspaces';
         } else if ('CreateWorkspace' in tsRequest) {
           const req = tsRequest.CreateWorkspace!;
           request = {
@@ -83,6 +92,7 @@ export class WorkspaceService {
           const req = tsRequest.UpdateWorkspace!;
           request = {
             UpdateWorkspace: {
+              workspace_id: req.workspace_id ?? null,
               name: req.name,
               description: req.description,
               workspace_master_password: req.workspace_master_password,
@@ -134,16 +144,22 @@ export class WorkspaceService {
   }
 
   /**
-   * Get the current workspace
-   * This will trigger a workspace:loaded event when complete
+   * Get a workspace by ID (defaults to sentinel root workspace)
    */
-  public async getWorkspace(): Promise<any> {
-    // NOTE: WorkspaceProtocolRequestTS doesn't define 'GetWorkspace'. 
-    // Assuming 'GetWorkspace: true' is the intended structure based on Rust enum.
-    // This requires adding 'GetWorkspace' to WorkspaceProtocolRequestTS type definition.
+  public async getWorkspace(workspaceId?: string): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
-      // Changed from true to null for unit variant
-      GetWorkspace: null
+      GetWorkspace: { workspace_id: workspaceId ?? null }
+    };
+    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
+    return this.sendWorkspaceRequest(payload);
+  }
+
+  /**
+   * List all workspaces the current user has access to
+   */
+  public async listWorkspaces(): Promise<void> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      ListWorkspaces: null
     };
     const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     return this.sendWorkspaceRequest(payload);
@@ -691,7 +707,107 @@ export class WorkspaceService {
   public cleanup(): void {
     // Any cleanup needed
   }
+
+  // ========== Raw Protocol Request (for testing) ==========
+
+  /**
+   * Send a raw WorkspaceProtocol request directly and wait for response.
+   * This method is primarily for testing purposes to enable protocol-level tests.
+   * @param request The raw protocol request object (e.g., { CreateNode: { ... } })
+   * @param timeoutMs Timeout in milliseconds (default: 15000)
+   * @returns Promise resolving to the response
+   */
+  public async sendRequest(request: WorkspaceProtocolRequest, timeoutMs: number = 15000): Promise<unknown> {
+    if (!this.currentCid) {
+      throw new Error('No active connection available. Please connect first.');
+    }
+
+    console.info('[WorkspaceService] sendRequest (raw):', JSON.stringify(request).substring(0, 200));
+
+    // Determine expected response type based on request
+    // Handle both string (unit variant) and object (struct variant) requests
+    const requestType = typeof request === 'string' ? request : Object.keys(request)[0];
+    const expectedResponseTypes = this.getExpectedResponseTypes(requestType);
+
+    // Create a promise that resolves when we get a matching response
+    const responsePromise = new Promise<unknown>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        eventEmitter.off('workspace:raw-response', handler);
+        reject(new Error(`Request timed out after ${timeoutMs}ms waiting for response to ${requestType}`));
+      }, timeoutMs);
+
+      const handler = (response: unknown) => {
+        // Check if this response matches what we expect
+        if (response && typeof response === 'object') {
+          const responseType = Object.keys(response)[0];
+          if (expectedResponseTypes.includes(responseType) || responseType === 'Error') {
+            clearTimeout(timeoutId);
+            eventEmitter.off('workspace:raw-response', handler);
+            resolve(response);
+          }
+          // Otherwise, keep waiting for the right response
+        }
+      };
+
+      eventEmitter.on('workspace:raw-response', handler);
+    });
+
+    // Send the request (fire-and-forget)
+    await websocketService.sendWorkspaceRequest(this.currentCid, request);
+
+    // Wait for the response
+    return responsePromise;
+  }
+
+  /**
+   * Map request types to their expected response types
+   */
+  private getExpectedResponseTypes(requestType: string): string[] {
+    const mapping: Record<string, string[]> = {
+      // Tree node operations
+      CreateNode: ['Node'],
+      GetNode: ['Node'],
+      UpdateNode: ['Node'],
+      DeleteNode: ['NodeDeleted'],
+      MoveNode: ['NodeMoved'],
+      ListNodes: ['Nodes'],
+      GetTreeStructure: ['TreeStructure'],
+      GetTreeSchema: ['TreeSchema'],
+      UpdateTreeSchema: ['TreeSchema', 'Success'],
+      CreateNodeType: ['NodeTypes', 'Success'],
+      ListNodeTypes: ['NodeTypes'],
+      // Workspace operations
+      GetWorkspace: ['Workspace', 'WorkspaceNotInitialized'],
+      ListWorkspaces: ['Workspaces'],
+      CreateWorkspace: ['Workspace'],
+      UpdateWorkspace: ['Workspace', 'Success'],
+      // Office operations (backend returns Node/Nodes after DomainNode migration)
+      CreateOffice: ['Node', 'Office'],
+      GetOffice: ['Node', 'Office'],
+      UpdateOffice: ['Node', 'Office', 'Success'],
+      DeleteOffice: ['DeleteOffice', 'Success'],
+      ListOffices: ['Nodes', 'Offices'],
+      // Room operations (backend returns Node/Nodes after DomainNode migration)
+      CreateRoom: ['Node', 'Room'],
+      GetRoom: ['Node', 'Room'],
+      UpdateRoom: ['Node', 'Room', 'Success'],
+      DeleteRoom: ['DeleteRoom', 'Success'],
+      ListRooms: ['Nodes', 'Rooms'],
+      // Member operations
+      AddMember: ['Member', 'Success'],
+      RemoveMember: ['Success'],
+      UpdateMemberRole: ['MemberRoleUpdated', 'Success'],
+      ListMembers: ['Members'],
+    };
+
+    return mapping[requestType] || ['Success'];
+  }
 }
 
 // Export singleton instance for convenience
 export default WorkspaceService.getInstance();
+
+// Expose for testing - allows protocol-level integration tests
+if (typeof window !== 'undefined') {
+  (window as unknown as Record<string, unknown>).__workspaceService = WorkspaceService.getInstance();
+}

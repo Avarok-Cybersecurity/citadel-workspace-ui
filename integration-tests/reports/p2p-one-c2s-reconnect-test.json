@@ -1,20 +1,20 @@
 {
-  "timestamp": "2026-01-08T00:31:35.551Z",
+  "timestamp": "2026-02-05T00:50:08.827Z",
   "testName": "P2P + One C2S Reconnection Test",
   "users": {
-    "user1": "p2pc2s_1_1767832089243",
-    "user2": "p2pc2s_2_1767832089243"
+    "user1": "p2pc2s_1_1770252358069",
+    "user2": "p2pc2s_2_1770252358069"
   },
   "results": [
     {
       "step": "Phase 1a: Create User1",
       "status": "PASS",
-      "notes": "Created p2pc2s_1_1767832089243"
+      "notes": "Created p2pc2s_1_1770252358069"
     },
     {
       "step": "Phase 1b: Create User2",
       "status": "PASS",
-      "notes": "Created p2pc2s_2_1767832089243"
+      "notes": "Created p2pc2s_2_1770252358069"
     },
     {
       "step": "Phase 2a: P2P Register",
@@ -38,8 +38,8 @@
     },
     {
       "step": "Phase 4: User2 IS Orphaned",
-      "status": "FAIL",
-      "notes": "Session NOT in OrphanSessionsNavbar (unexpected)"
+      "status": "PASS",
+      "notes": "Session correctly in OrphanSessionsNavbar (TCP drop preserved it)"
     },
     {
       "step": "Phase 5a: User1 Sign Out",
@@ -62,14 +62,14 @@
       "notes": "Logged in"
     },
     {
-      "step": "Phase 8a: P2P Re-register",
-      "status": "FAIL",
-      "notes": "Failed"
+      "step": "Phase 8a: P2P Re-establish",
+      "status": "PASS",
+      "notes": "User2 sees User1 in sidebar (auto-connected)"
     },
     {
       "step": "Phase 8b: P2P Re-accept",
-      "status": "FAIL",
-      "notes": "Failed"
+      "status": "SKIP",
+      "notes": "Skipped - auto-connect handled reconnection"
     },
     {
       "step": "Phase 9a: Send Message",
@@ -99,20 +99,13 @@
   ],
   "uxIssues": [
     {
-      "severity": "critical",
+      "severity": "minor",
       "category": "functional",
-      "description": "Session for p2pc2s_2_1767832089243 not found in OrphanSessionsNavbar after TCP drop",
+      "description": "Session for p2pc2s_1_1770252358069 lingered in OrphanSessionsNavbar (race condition)",
       "screenshot": null,
-      "timestamp": "2026-01-08T00:29:48.314Z"
-    },
-    {
-      "severity": "major",
-      "category": "functional",
-      "description": "Peer p2pc2s_2_1767832089243 not found after 3 retries. Available: onec2s_2_1767831656183, p2p_recon_1_1767831306945, p2p_recon_1_1767830530652, onec2s_1_1767831446478, p2p_recon_2_1767830530652, p2pc2s_2_1767832089243, p2p_recon_2_1767831087781, bothc2s_2_1767831827207, p2p_recon_1_1767831087781, p2p_recon_2_1767830730960, p2p_recon_2_1767831306945, onec2s_1_1767831656183, p2p_recon_1_1767830730960, onec2s_2_1767831446478, bothc2s_1_1767831827207",
-      "screenshot": null,
-      "timestamp": "2026-01-08T00:30:45.057Z"
+      "timestamp": "2026-02-05T00:48:05.423Z"
     }
   ],
   "consoleErrors": [],
-  "passed": false
+  "passed": true
 }

@@ -1,5 +1,6 @@
 // Workspace events for WebSocket integration
 import { Office, Room, User } from '../types/workspace-entities';
+import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import { eventEmitter } from './event-emitter';
 
 // Type for unlisten function
@@ -52,6 +53,11 @@ export interface MembersPayload {
   connection: ConnectionInfo;
 }
 
+export interface WorkspacesPayload {
+  workspaces: WorkspaceMetadataTS[];
+  connection: ConnectionInfo;
+}
+
 export interface ErrorPayload {
   message: string;
   connection: ConnectionInfo;
@@ -84,6 +90,7 @@ export type WorkspaceEventType =
   | 'workspace:loaded'
   | 'workspace:created'
   | 'workspace:not-initialized'
+  | 'workspaces:listed'
   // Office events
   | 'office:creating'
   | 'office:created'
@@ -148,6 +155,7 @@ export class WorkspaceEvents {
   public onWorkspaceEvent(event: 'workspace:loaded', callback: (payload: WorkspacePayload) => void): () => void;
   public onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onWorkspaceEvent(event: 'workspaces:listed', callback: (payload: WorkspacesPayload) => void): () => void;
   public onWorkspaceEvent(event: 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: 'rooms:reload', callback: (payload: { office_id?: string; connection: ConnectionInfo }) => void): () => void;
   public onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;

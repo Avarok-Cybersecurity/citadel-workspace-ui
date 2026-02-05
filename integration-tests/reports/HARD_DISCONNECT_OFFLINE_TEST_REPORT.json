@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-01-26T22:26:46.217Z",
+  "timestamp": "2026-02-05T00:02:37.088Z",
   "users": {
-    "user1": "harddc_alice_1769465911097",
-    "user2": "harddc_bob_1769465911097"
+    "user1": "harddc_alice_1770249518132",
+    "user2": "harddc_bob_1770249518132"
   },
   "results": {
     "accountCreation": {
@@ -18,8 +18,8 @@
     "initialMessaging": {
       "user1ToUser2": true,
       "user2ToUser1": true,
-      "user1Received": false,
-      "user2Received": false
+      "user1Received": true,
+      "user2Received": true
     },
     "disconnection": {
       "user2Disconnected": true,
@@ -35,32 +35,17 @@
       "p2pReEstablished": true
     },
     "offlineDelivery": {
-      "message1Received": false,
-      "message2Received": false,
-      "message3Received": false
+      "message1Received": true,
+      "message2Received": true,
+      "message3Received": true
     },
     "postReconnectMessaging": {
       "user1ToUser2": true,
       "user2ToUser1": true,
-      "user1Received": false,
-      "user2Received": false
+      "user1Received": true,
+      "user2Received": true
     }
   },
-  "uxIssues": [
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not received within 15000ms: \"Hello Bob! Time: 5:20:06 PM\"",
-      "screenshot": null,
-      "timestamp": "2026-01-26T22:20:53.378Z"
-    },
-    {
-      "severity": "critical",
-      "category": "functional",
-      "description": "Message not received within 15000ms: \"Hi Alice! Got it! Time: 5:20:06 PM\"",
-      "screenshot": null,
-      "timestamp": "2026-01-26T22:21:26.416Z"
-    }
-  ],
-  "passed": false
+  "uxIssues": [],
+  "passed": true
 }

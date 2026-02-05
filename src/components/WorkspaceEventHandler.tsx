@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { workspaceEvents, type ErrorPayload, type ConnectionInfo, type ProtocolWarningPayload, type MessagePayload } from '../lib/workspace-events';
+import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import { Office, Room } from '../types/workspace-entities';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
@@ -24,6 +25,7 @@ export interface WorkspaceEventState {
     name: string;
     metadata?: Record<string, unknown>;
   };
+  workspaces: WorkspaceMetadataTS[];
   offices: Record<string, Office>;
   rooms: Record<string, Room>;
   loading: {
@@ -76,6 +78,7 @@ export const WorkspaceEventHandler: React.FC<{
 }> = ({ onStateChange, children }) => {
   const [state, setState] = useState<WorkspaceEventState>({
     workspace: undefined,
+    workspaces: [],
     offices: {},
     rooms: {},
     loading: {

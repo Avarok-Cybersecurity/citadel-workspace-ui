@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-03T03:49:55.598Z",
+  "timestamp": "2026-02-04T23:38:39.828Z",
   "testName": "Office & Room CRUD Integration Test",
   "overallPass": true,
   "results": {
@@ -11,11 +11,11 @@
     "officeDescriptionUpdated": false,
     "officeMdxUpdated": false,
     "officeDeleted": true,
-    "roomCreated": false,
+    "roomCreated": true,
     "roomNameUpdated": false,
     "roomDescriptionUpdated": false,
     "roomMdxUpdated": false,
-    "roomDeleted": false,
+    "roomDeleted": true,
     "cascadeDeleteWorks": true,
     "nonAdminCannotCreateOffice": true,
     "nonAdminCannotDeleteOffice": false,
