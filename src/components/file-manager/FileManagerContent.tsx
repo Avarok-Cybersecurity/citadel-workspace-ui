@@ -506,7 +506,7 @@ export const FileManagerContent = () => {
         multiple
         onChange={(e) => {
           if (e.target.files?.length) {
-            handleDrop(uploadTargetDir, e.target.files);
+            void handleDrop(uploadTargetDir, e.target.files);
             e.target.value = '';
           }
         }}

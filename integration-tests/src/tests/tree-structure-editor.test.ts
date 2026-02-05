@@ -302,7 +302,7 @@ async function getInitialTreeStructure(page: Page): Promise<string | null> {
 
   // Fallback: Get workspace ID from URL or page content
   const url = page.url();
-  const match = url.match(/workspace[\/=]([a-f0-9-]+)/i);
+  const match = url.match(/workspace[/=]([a-f0-9-]+)/i);
   if (match) {
     console.log(`  Extracted workspace ID from URL: ${match[1]}`);
     return match[1];

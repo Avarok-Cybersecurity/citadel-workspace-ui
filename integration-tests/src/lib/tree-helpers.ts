@@ -422,7 +422,7 @@ export async function getWorkspaceRootId(page: Page): Promise<string | null> {
 
   // Fallback: Get from URL (supports multiple workspaces)
   const url = page.url();
-  const match = url.match(/workspace[\/=]([a-f0-9-]{36})/i);
+  const match = url.match(/workspace[/=]([a-f0-9-]{36})/i);
   if (match) {
     console.log(`  [Tree] Extracted workspace ID from URL: ${match[1]}`);
     return match[1];
