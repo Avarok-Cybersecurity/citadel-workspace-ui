@@ -42,7 +42,7 @@
     "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
     "test:ui": "npm run test:directory && npm run test:files && npm run test:notifications && npm run test:settings && npm run test:workspace-init",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "npx eslint .",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
