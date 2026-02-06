@@ -305,16 +305,27 @@ async function runTest(): Promise<boolean> {
     const INITIAL_MSG_1 = `Hello Bob! Time: ${new Date().toLocaleTimeString()}`;
     const INITIAL_MSG_2 = `Hi Alice! Got it! Time: ${new Date().toLocaleTimeString()}`;
 
-    // Use verified warmup to confirm ILM channel is ready before actual test messages
-    // ILM-BLOCKED can persist even after P2P reports connected
-    console.log('  Sending verified warmup (confirms ILM channel ready)...');
+    // Use verified warmup to confirm ILM channel is ready in BOTH directions
+    // ILM-BLOCKED can persist even after P2P reports connected, and the channel
+    // can be asymmetric (Alice→Bob works but Bob→Alice doesn't until warmed up)
+    console.log('  Sending verified warmup Alice→Bob (confirms ILM channel ready)...');
     const warmupDelivered = await sendAndVerifyMessage(
       page1, USER1, page2, USER2,
-      `Warmup ${Date.now()}`,
+      `Warmup A→B ${Date.now()}`,
       { maxRetries: 5, verifyTimeout: 15000, retryDelay: 5000 }
     );
     if (!warmupDelivered) {
-      console.log('  WARNING: Warmup delivery failed - ILM channel may still be blocked');
+      console.log('  WARNING: Alice→Bob warmup failed - ILM channel may still be blocked');
+    }
+
+    console.log('  Sending verified warmup Bob→Alice (confirms reverse ILM channel)...');
+    const reverseWarmupDelivered = await sendAndVerifyMessage(
+      page2, USER2, page1, USER1,
+      `Warmup B→A ${Date.now()}`,
+      { maxRetries: 5, verifyTimeout: 15000, retryDelay: 5000 }
+    );
+    if (!reverseWarmupDelivered) {
+      console.log('  WARNING: Bob→Alice warmup failed - reverse ILM channel may still be blocked');
     }
 
     // Test bidirectional messaging
