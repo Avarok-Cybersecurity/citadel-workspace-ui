@@ -108,6 +108,28 @@ async function waitForAllSessionsInNavbar(
   console.log(`  Waiting for ${usernames.length} sessions to appear in navbar...`);
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Wait for the navbar container to appear first — the navbar only renders
+    // after sessions load asynchronously (WebSocket → GetSessions → setSessions → React render).
+    // In CI, this can take 5-10s due to WebSocket reconnection + backend response time.
+    try {
+      await page.locator('[data-testid="previous-sessions-navbar"]').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      });
+      console.log(`  Attempt ${attempt}/${maxRetries}: Navbar container visible`);
+    } catch {
+      console.log(`  Attempt ${attempt}/${maxRetries}: Navbar container not visible after 15s`);
+      if (attempt < maxRetries) {
+        const waitTime = 2000 * attempt;
+        console.log(`  Waiting ${waitTime}ms and reloading page...`);
+        await sleep(waitTime);
+        await page.reload({ waitUntil: 'networkidle', timeout: 30000 });
+        await sleep(3000); // Wait for React + WebSocket + session load
+      }
+      continue;
+    }
+
+    // Navbar is visible — now check individual session icons
     const visibleSessions: Record<string, boolean> = {};
     let allVisible = true;
 
@@ -128,12 +150,11 @@ async function waitForAllSessionsInNavbar(
     }
 
     if (attempt < maxRetries) {
-      // Exponential backoff: 1s, 2s, 3s, 4s...
-      const waitTime = 1000 * attempt;
+      const waitTime = 2000 * attempt;
       console.log(`  Waiting ${waitTime}ms and reloading page...`);
       await sleep(waitTime);
-      await page.reload({ waitUntil: 'commit', timeout: 30000 });
-      await sleep(2000); // Wait for navbar to render after reload
+      await page.reload({ waitUntil: 'networkidle', timeout: 30000 });
+      await sleep(3000); // Wait for React + WebSocket + session load
     }
   }
 
@@ -395,21 +416,10 @@ async function runTest(): Promise<boolean> {
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
     await sleep(3000);
 
-    // Check navbar visibility and structure first
-    const navbar = page.locator('[data-testid="previous-sessions-navbar"]');
-    results.navbarVisible = await navbar.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Navbar visible: ${results.navbarVisible}`);
-
-    const label = page.locator('text="Previous Sessions:"');
-    results.previousSessionsLabel = await label.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Previous Sessions label: ${results.previousSessionsLabel}`);
-
-    const scrollContainer = page.locator('[data-testid="sessions-scroll-container"]');
-    results.scrollContainerExists = await scrollContainer.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Scroll container exists: ${results.scrollContainerExists}`);
-
-    // Use retry logic to wait for all sessions to appear
-    // This handles CI timing issues where GetSessions may not return all sessions immediately
+    // Use retry logic to wait for all sessions to appear first.
+    // The navbar, label, and scroll container only render AFTER sessions are loaded
+    // asynchronously via WebSocket (GetSessions). Checking structural elements before
+    // sessions load will always return false.
     const { allVisible, visibleSessions } = await waitForAllSessionsInNavbar(
       page,
       USERS,
@@ -421,6 +431,19 @@ async function runTest(): Promise<boolean> {
     });
 
     results.allSessionsInNavbar = allVisible;
+
+    // Check navbar visibility and structure AFTER sessions have loaded
+    const navbar = page.locator('[data-testid="previous-sessions-navbar"]');
+    results.navbarVisible = await navbar.isVisible({ timeout: 5000 }).catch(() => false);
+    console.log(`  Navbar visible: ${results.navbarVisible}`);
+
+    const label = page.locator('text="Previous Sessions:"');
+    results.previousSessionsLabel = await label.isVisible({ timeout: 3000 }).catch(() => false);
+    console.log(`  Previous Sessions label: ${results.previousSessionsLabel}`);
+
+    const scrollContainer = page.locator('[data-testid="sessions-scroll-container"]');
+    results.scrollContainerExists = await scrollContainer.isVisible({ timeout: 3000 }).catch(() => false);
+    console.log(`  Scroll container exists: ${results.scrollContainerExists}`);
 
     const count = await getSessionCount(page);
     console.log(`  Final session count in navbar: ${count}`);
