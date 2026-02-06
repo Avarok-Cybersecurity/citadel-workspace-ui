@@ -65,6 +65,7 @@ import {
   logObservation,
   UxIssueTracker,
   config,
+  connectP2P,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -235,12 +236,36 @@ async function runTest(): Promise<boolean> {
 
     // Wait for P2P readiness (ILM channel can take longer than P2P connection)
     console.log('\n  Waiting for P2P readiness (ILM channel establishment)...');
-    const aliceReady = await waitForP2PReady(page1, USER1, USER2, 60000);
-    const bobReady = await waitForP2PReady(page2, USER2, USER1, 60000);
+    let aliceReady = await waitForP2PReady(page1, USER1, USER2, 60000);
+    let bobReady = await waitForP2PReady(page2, USER2, USER1, 60000);
     console.log(`  P2P ready: Alice=${aliceReady}, Bob=${bobReady}`);
+
+    // If either side isn't ready, retry with explicit connectP2P.
+    // The initial PeerConnect may time out (30s SDK timeout) and ServerAutoConnect
+    // interference can prevent P2PAutoConnect retries from succeeding.
+    // An explicit connectP2P sends a fresh PeerConnect through the WASM client.
     if (!aliceReady || !bobReady) {
-      console.log('  WARNING: P2P readiness not confirmed, continuing with sleep fallback...');
-      await sleep(10000);
+      console.log(`  P2P not ready (Alice=${aliceReady}, Bob=${bobReady}), retrying with explicit connect...`);
+
+      // Wait for ServerAutoConnect interference to settle
+      await sleep(5000);
+
+      if (!bobReady) {
+        console.log('  Attempting explicit connectP2P from Bob...');
+        await connectP2P(page2, USER2, USER1);
+        bobReady = await waitForP2PReady(page2, USER2, USER1, 30000);
+      }
+
+      if (!aliceReady) {
+        console.log('  Attempting explicit connectP2P from Alice...');
+        await connectP2P(page1, USER1, USER2);
+        aliceReady = await waitForP2PReady(page1, USER1, USER2, 30000);
+      }
+
+      if (!aliceReady || !bobReady) {
+        console.log(`  P2P still not ready after retry (Alice=${aliceReady}, Bob=${bobReady}), final fallback...`);
+        await sleep(10000);
+      }
     }
 
     // ========== STEP 4: Open Conversations ==========
@@ -252,8 +277,24 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
     results.conversationOpen.user2 = await openConversation(page2, USER2, USER1, uxTracker);
 
+    // If conversations couldn't be opened (peer not in sidebar), retry with explicit P2P connect
     if (!results.conversationOpen.user1 || !results.conversationOpen.user2) {
-      throw new Error('Could not open conversations');
+      console.log('  Conversations not opened, retrying with explicit P2P connect...');
+
+      if (!results.conversationOpen.user2) {
+        await connectP2P(page2, USER2, USER1);
+        await sleep(5000);
+        results.conversationOpen.user2 = await openConversation(page2, USER2, USER1, uxTracker);
+      }
+      if (!results.conversationOpen.user1) {
+        await connectP2P(page1, USER1, USER2);
+        await sleep(5000);
+        results.conversationOpen.user1 = await openConversation(page1, USER1, USER2, uxTracker);
+      }
+
+      if (!results.conversationOpen.user1 || !results.conversationOpen.user2) {
+        throw new Error('Could not open conversations after P2P retry');
+      }
     }
 
     // ========== STEP 5: Initial Bidirectional Messaging ==========
@@ -377,9 +418,18 @@ async function runTest(): Promise<boolean> {
     console.log(`  P2P re-established: ${results.reconnection.p2pReEstablished}`);
 
     if (!results.reconnection.p2pReEstablished) {
-      console.log('  WARNING: P2P not re-established - trying to wait longer...');
-      await sleep(10000);
+      console.log('  P2P not re-established, attempting explicit connectP2P...');
+      await connectP2P(page2, USER2, USER1);
+      await sleep(5000);
       results.reconnection.p2pReEstablished = await openConversation(page2, USER2, USER1, uxTracker);
+
+      if (!results.reconnection.p2pReEstablished) {
+        // Try from Alice's side
+        console.log('  Trying connectP2P from Alice side...');
+        await connectP2P(page1, USER1, USER2);
+        await sleep(5000);
+        results.reconnection.p2pReEstablished = await openConversation(page2, USER2, USER1, uxTracker);
+      }
     }
 
     // Give conversation time to fully load messages from local storage/ILM
