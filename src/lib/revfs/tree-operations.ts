@@ -837,9 +837,8 @@ export function mergeTrees(local: RevfsNode, remote: RevfsNode): RevfsNode {
   const merged = cloneTree(local);
   const remoteChildren = remote.children ?? [];
   const localChildren = merged.children ?? [];
-  const remoteChildPaths = new Set(remoteChildren.map(c => c.path));
 
-  // Handle children that exist in remote
+  // Union merge: add remote children, recursively merge shared paths
   for (const remoteChild of remoteChildren) {
     const localIdx = localChildren.findIndex(c => c.path === remoteChild.path);
     if (localIdx >= 0) {
@@ -850,21 +849,9 @@ export function mergeTrees(local: RevfsNode, remote: RevfsNode): RevfsNode {
       localChildren.push(cloneTree(remoteChild));
     }
   }
-
-  // Handle deletions: remove local children that don't exist in remote
-  // if the remote tree was updated more recently than the local child
-  // (indicating the child was deleted remotely)
-  for (let i = localChildren.length - 1; i >= 0; i--) {
-    const localChild = localChildren[i];
-    if (!remoteChildPaths.has(localChild.path)) {
-      // Local has this child but remote doesn't
-      // If remote's updatedAt is newer than the local child's updatedAt,
-      // the child was deleted remotely
-      if (remote.updatedAt > localChild.updatedAt) {
-        localChildren.splice(i, 1);
-      }
-    }
-  }
+  // Note: deletions are handled by explicit RemoveFile/RemoveDir operations,
+  // not inferred from missing children (which is indistinguishable from
+  // "remote never had this child").
 
   merged.children = localChildren;
   merged.updatedAt = Math.max(local.updatedAt, remote.updatedAt);
