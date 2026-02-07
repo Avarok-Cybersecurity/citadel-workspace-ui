@@ -5,7 +5,7 @@
  * Extracted from websocket-service.ts to reduce file size.
  */
 
-import { eventEmitter } from '../event-emitter';
+import { requestResponse, requestResponseSoft } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
 
 export interface P2PConfig {
@@ -99,44 +99,36 @@ export class P2POperations {
       }
     };
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('PeerConnect request timed out'));
-      }, 30000);
-
-      const handler = (message: Record<string, unknown>) => {
-        const msg = message as {
-          PeerConnectSuccess?: { request_id: string };
-          PeerConnectFailure?: { request_id: string; message?: string };
-        };
-        if (msg.PeerConnectSuccess && msg.PeerConnectSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'P2P connection established', { targetCid: targetCid.toString() });
-          resolve();
-        } else if (msg.PeerConnectFailure && msg.PeerConnectFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          const error = msg.PeerConnectFailure.message || 'PeerConnect failed';
-          errorLog('P2P connection failed:', error);
-          reject(new Error(error));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendMessage(peerConnectRequest).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
+    await requestResponse<true>({
+      request: peerConnectRequest, requestId, timeoutMs: 30000,
+      sendRequest: this.config.sendMessage,
+      operationName: 'PeerConnect',
+      matcher: {
+        matchSuccess: (msg) => {
+          const r = msg as { PeerConnectSuccess?: { request_id: string } };
+          if (r.PeerConnectSuccess?.request_id === requestId) {
+            debugLog('websocket', 'P2P connection established', { targetCid: targetCid.toString() });
+            return true;
+          }
+          return undefined;
+        },
+        matchFailure: (msg) => {
+          const r = msg as { PeerConnectFailure?: { request_id: string; message?: string } };
+          if (r.PeerConnectFailure?.request_id === requestId) {
+            const error = r.PeerConnectFailure.message || 'PeerConnect failed';
+            errorLog('P2P connection failed:', error);
+            return error;
+          }
+          return undefined;
+        },
+      },
     });
   }
 
   /**
    * Accept an incoming P2P connection request.
    * This is sent in response to PeerConnectNotification to complete the handshake.
+   * Resolves on both success AND failure (warn-and-continue pattern).
    */
   async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> {
     await this.config.init();
@@ -169,40 +161,27 @@ export class P2POperations {
       }
     };
 
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        console.warn('PeerConnectAccept timed out - continuing with PeerConnect fallback');
-        resolve();
-      }, 10000);
-
-      const handler = (message: Record<string, unknown>) => {
-        const msg = message as {
-          PeerConnectAcceptSuccess?: { request_id: string };
-          PeerConnectAcceptFailure?: { request_id: string; message?: string };
-        };
-        if (msg.PeerConnectAcceptSuccess && msg.PeerConnectAcceptSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
+    await requestResponseSoft({
+      request: acceptRequest, requestId, timeoutMs: 10000,
+      sendRequest: this.config.sendMessage,
+      operationName: 'PeerConnectAccept',
+      matchSuccess: (msg) => {
+        const r = msg as { PeerConnectAcceptSuccess?: { request_id: string } };
+        if (r.PeerConnectAcceptSuccess?.request_id === requestId) {
           debugLog('websocket', 'P2P connection accept sent', { peerCid });
-          resolve();
-        } else if (msg.PeerConnectAcceptFailure && msg.PeerConnectAcceptFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          const error = msg.PeerConnectAcceptFailure.message || 'PeerConnectAccept failed';
-          console.warn('PeerConnectAccept failed:', error, '- will use PeerConnect fallback');
-          resolve();
+          return true;
         }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendMessage(acceptRequest).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        console.warn('Failed to send PeerConnectAccept:', error);
-        resolve();
-      });
+        return false;
+      },
+      matchFailure: (msg) => {
+        const r = msg as { PeerConnectAcceptFailure?: { request_id: string; message?: string } };
+        if (r.PeerConnectAcceptFailure?.request_id === requestId) {
+          return r.PeerConnectAcceptFailure.message || 'PeerConnectAccept failed';
+        }
+        return undefined;
+      },
+      onTimeout: () => console.warn('PeerConnectAccept timed out - continuing with PeerConnect fallback'),
+      onFailure: (error) => console.warn('PeerConnectAccept failed:', error, '- will use PeerConnect fallback'),
     });
   }
 
@@ -225,57 +204,42 @@ export class P2POperations {
 
     const requestId = crypto.randomUUID();
     const peerDisconnectRequest = {
-      PeerDisconnect: {
-        request_id: requestId,
-        cid: localCid,
-        peer_cid: peerCid
-      }
+      PeerDisconnect: { request_id: requestId, cid: localCid, peer_cid: peerCid }
     };
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('PeerDisconnect request timed out'));
-      }, 10000);
-
-      const handler = (message: Record<string, unknown>) => {
-        const msg = message as {
-          PeerDisconnectSuccess?: { request_id: string };
-          PeerDisconnectFailure?: { request_id: string; message?: string };
-          DisconnectNotification?: { request_id?: string; peer_cid?: bigint };
-        };
-
-        if (msg.PeerDisconnectSuccess && msg.PeerDisconnectSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'P2P disconnect successful', { peerCid: peerCid.toString() });
-          resolve();
-        }
-        else if (msg.DisconnectNotification) {
-          const notification = msg.DisconnectNotification;
-          if (notification.request_id === requestId || notification.peer_cid === peerCid) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            debugLog('websocket', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
-            resolve();
+    await requestResponse<true>({
+      request: peerDisconnectRequest, requestId, timeoutMs: 10000,
+      sendRequest: this.config.sendMessage,
+      operationName: 'PeerDisconnect',
+      matcher: {
+        matchSuccess: (msg) => {
+          const r = msg as {
+            PeerDisconnectSuccess?: { request_id: string };
+            DisconnectNotification?: { request_id?: string; peer_cid?: bigint };
+          };
+          if (r.PeerDisconnectSuccess?.request_id === requestId) {
+            debugLog('websocket', 'P2P disconnect successful', { peerCid: peerCid.toString() });
+            return true;
           }
-        }
-        else if (msg.PeerDisconnectFailure && msg.PeerDisconnectFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          const error = msg.PeerDisconnectFailure.message || 'PeerDisconnect failed';
-          errorLog('P2P disconnect failed:', error);
-          reject(new Error(error));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendMessage(peerDisconnectRequest).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
+          if (r.DisconnectNotification) {
+            const n = r.DisconnectNotification;
+            if (n.request_id === requestId || n.peer_cid === peerCid) {
+              debugLog('websocket', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
+              return true;
+            }
+          }
+          return undefined;
+        },
+        matchFailure: (msg) => {
+          const r = msg as { PeerDisconnectFailure?: { request_id: string; message?: string } };
+          if (r.PeerDisconnectFailure?.request_id === requestId) {
+            const error = r.PeerDisconnectFailure.message || 'PeerDisconnect failed';
+            errorLog('P2P disconnect failed:', error);
+            return error;
+          }
+          return undefined;
+        },
+      },
     });
   }
 }

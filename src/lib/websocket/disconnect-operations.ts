@@ -5,7 +5,7 @@
  * Extracted from websocket-service.ts to reduce file size.
  */
 
-import { eventEmitter } from '../event-emitter';
+import { requestResponse } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
 
 export interface DisconnectConfig {
@@ -34,57 +34,43 @@ export class DisconnectOperations {
 
     const requestId = crypto.randomUUID();
     const request = {
-      Disconnect: {
-        request_id: requestId,
-        cid: cid
-      }
+      Disconnect: { request_id: requestId, cid }
     };
 
     debugLog('websocket', 'Sending Disconnect request', request);
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('Disconnect request timed out'));
-      }, 30000);
-
-      const handler = (message: Record<string, unknown>) => {
-        const response = (message.Response || message) as {
-          DisconnectNotification?: { request_id?: string | null; cid?: bigint };
-          DisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string };
-        };
-
-        if (response.DisconnectNotification) {
-          const notification = response.DisconnectNotification;
-          if (notification.request_id === requestId ||
-              (notification.request_id === null && notification.cid === cid)) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            debugLog('websocket', 'Disconnect successful for CID:', cid.toString());
-            resolve();
+    await requestResponse<true>({
+      request, requestId, timeoutMs: 30000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'Disconnect',
+      matcher: {
+        matchSuccess: (message) => {
+          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+            DisconnectNotification?: { request_id?: string | null; cid?: bigint };
+          };
+          if (response.DisconnectNotification) {
+            const n = response.DisconnectNotification;
+            if (n.request_id === requestId || (n.request_id === null && n.cid === cid)) {
+              debugLog('websocket', 'Disconnect successful for CID:', cid.toString());
+              return true;
+            }
           }
-        }
-
-        if (response.DisconnectFailure) {
-          const failure = response.DisconnectFailure;
-          if (failure.request_id === requestId ||
-              (failure.request_id === null && failure.cid === cid)) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            errorLog('Disconnect failed:', failure.message);
-            reject(new Error(failure.message || 'Failed to disconnect'));
+          return undefined;
+        },
+        matchFailure: (message) => {
+          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+            DisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string };
+          };
+          if (response.DisconnectFailure) {
+            const f = response.DisconnectFailure;
+            if (f.request_id === requestId || (f.request_id === null && f.cid === cid)) {
+              errorLog('Disconnect failed:', f.message);
+              return f.message || 'Failed to disconnect';
+            }
           }
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        errorLog('Error sending disconnect request:', error);
-        reject(error);
-      });
+          return undefined;
+        },
+      },
     });
   }
 
@@ -98,47 +84,36 @@ export class DisconnectOperations {
 
     const requestId = crypto.randomUUID();
     const request = {
-      Deregister: {
-        request_id: requestId,
-        cid: cid
-      }
+      Deregister: { request_id: requestId, cid }
     };
 
     debugLog('websocket', 'Sending Deregister request', request);
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('Deregister request timed out'));
-      }, 30000);
-
-      const handler = (message: Record<string, unknown>) => {
-        const response = (message.Response || message) as {
-          DeregisterSuccess?: { request_id: string };
-          DeregisterFailure?: { request_id: string; message?: string };
-        };
-
-        if (response.DeregisterSuccess && response.DeregisterSuccess.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          debugLog('websocket', 'Deregister successful for CID:', cid.toString());
-          resolve();
-        }
-
-        if (response.DeregisterFailure && response.DeregisterFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(response.DeregisterFailure.message || 'Failed to deregister'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
+    await requestResponse<true>({
+      request, requestId, timeoutMs: 30000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'Deregister',
+      matcher: {
+        matchSuccess: (message) => {
+          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+            DeregisterSuccess?: { request_id: string };
+          };
+          if (response.DeregisterSuccess?.request_id === requestId) {
+            debugLog('websocket', 'Deregister successful for CID:', cid.toString());
+            return true;
+          }
+          return undefined;
+        },
+        matchFailure: (message) => {
+          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+            DeregisterFailure?: { request_id: string; message?: string };
+          };
+          if (response.DeregisterFailure?.request_id === requestId) {
+            return response.DeregisterFailure.message || 'Failed to deregister';
+          }
+          return undefined;
+        },
+      },
     });
   }
 }

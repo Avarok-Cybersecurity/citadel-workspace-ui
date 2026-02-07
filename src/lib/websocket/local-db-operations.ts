@@ -4,7 +4,7 @@
  * Handles LocalDB key-value storage operations via the internal service.
  */
 
-import { eventEmitter } from '../event-emitter';
+import { requestResponse } from './request-response';
 
 export interface LocalDBConfig {
   init: () => Promise<void>;
@@ -23,40 +23,27 @@ export class LocalDBOperations {
 
     const requestId = crypto.randomUUID();
     const request = {
-      LocalDBGetKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null,
-        key
-      }
+      LocalDBGetKV: { request_id: requestId, cid, peer_cid: null, key }
     };
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBGetKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: Record<string, unknown>) => {
-        const msg = message as { LocalDBGetKVSuccess?: { request_id: string; value: number[] }; LocalDBGetKVFailure?: { request_id: string; message?: string } };
-        if (msg.LocalDBGetKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve({ value: msg.LocalDBGetKVSuccess.value });
-        } else if (msg.LocalDBGetKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(msg.LocalDBGetKVFailure.message || 'LocalDB get failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
+    return requestResponse<{ value: number[] }>({
+      request, requestId, timeoutMs: 5000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'LocalDBGetKV',
+      matcher: {
+        matchSuccess: (msg) => {
+          const r = msg as { LocalDBGetKVSuccess?: { request_id: string; value: number[] } };
+          return r.LocalDBGetKVSuccess?.request_id === requestId
+            ? { value: r.LocalDBGetKVSuccess.value }
+            : undefined;
+        },
+        matchFailure: (msg) => {
+          const r = msg as { LocalDBGetKVFailure?: { request_id: string; message?: string } };
+          return r.LocalDBGetKVFailure?.request_id === requestId
+            ? (r.LocalDBGetKVFailure.message || 'LocalDB get failed')
+            : undefined;
+        },
+      },
     });
   }
 
@@ -65,41 +52,25 @@ export class LocalDBOperations {
 
     const requestId = crypto.randomUUID();
     const request = {
-      LocalDBSetKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null,
-        key,
-        value
-      }
+      LocalDBSetKV: { request_id: requestId, cid, peer_cid: null, key, value }
     };
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBSetKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: Record<string, unknown>) => {
-        const msg = message as { LocalDBSetKVSuccess?: { request_id: string }; LocalDBSetKVFailure?: { request_id: string; message?: string } };
-        if (msg.LocalDBSetKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve();
-        } else if (msg.LocalDBSetKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(msg.LocalDBSetKVFailure.message || 'LocalDB set failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
+    await requestResponse<true>({
+      request, requestId, timeoutMs: 5000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'LocalDBSetKV',
+      matcher: {
+        matchSuccess: (msg) => {
+          const r = msg as { LocalDBSetKVSuccess?: { request_id: string } };
+          return r.LocalDBSetKVSuccess?.request_id === requestId ? true : undefined;
+        },
+        matchFailure: (msg) => {
+          const r = msg as { LocalDBSetKVFailure?: { request_id: string; message?: string } };
+          return r.LocalDBSetKVFailure?.request_id === requestId
+            ? (r.LocalDBSetKVFailure.message || 'LocalDB set failed')
+            : undefined;
+        },
+      },
     });
   }
 
@@ -108,40 +79,25 @@ export class LocalDBOperations {
 
     const requestId = crypto.randomUUID();
     const request = {
-      LocalDBDeleteKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null,
-        key
-      }
+      LocalDBDeleteKV: { request_id: requestId, cid, peer_cid: null, key }
     };
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBDeleteKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: Record<string, unknown>) => {
-        const msg = message as { LocalDBDeleteKVSuccess?: { request_id: string }; LocalDBDeleteKVFailure?: { request_id: string; message?: string } };
-        if (msg.LocalDBDeleteKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve();
-        } else if (msg.LocalDBDeleteKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(msg.LocalDBDeleteKVFailure.message || 'LocalDB delete failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
+    await requestResponse<true>({
+      request, requestId, timeoutMs: 5000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'LocalDBDeleteKV',
+      matcher: {
+        matchSuccess: (msg) => {
+          const r = msg as { LocalDBDeleteKVSuccess?: { request_id: string } };
+          return r.LocalDBDeleteKVSuccess?.request_id === requestId ? true : undefined;
+        },
+        matchFailure: (msg) => {
+          const r = msg as { LocalDBDeleteKVFailure?: { request_id: string; message?: string } };
+          return r.LocalDBDeleteKVFailure?.request_id === requestId
+            ? (r.LocalDBDeleteKVFailure.message || 'LocalDB delete failed')
+            : undefined;
+        },
+      },
     });
   }
 
@@ -150,44 +106,31 @@ export class LocalDBOperations {
 
     const requestId = crypto.randomUUID();
     const request = {
-      LocalDBGetAllKV: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: null
-      }
+      LocalDBGetAllKV: { request_id: requestId, cid, peer_cid: null }
     };
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('LocalDBGetAllKV request timed out'));
-      }, 5000);
-
-      const handleMessage = (message: Record<string, unknown>) => {
-        const msg = message as { LocalDBGetAllKVSuccess?: { request_id: string; map?: Record<string, unknown> }; LocalDBGetAllKVFailure?: { request_id: string; message?: string } };
-        if (msg.LocalDBGetAllKVSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          const map = msg.LocalDBGetAllKVSuccess.map || {};
+    return requestResponse<string[]>({
+      request, requestId, timeoutMs: 5000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'LocalDBGetAllKV',
+      matcher: {
+        matchSuccess: (msg) => {
+          const r = msg as { LocalDBGetAllKVSuccess?: { request_id: string; map?: Record<string, unknown> } };
+          if (r.LocalDBGetAllKVSuccess?.request_id !== requestId) return undefined;
+          const map = r.LocalDBGetAllKVSuccess.map || {};
           let keys = Object.keys(map);
           if (prefix) {
             keys = keys.filter(k => k.startsWith(prefix));
           }
-          resolve(keys);
-        } else if (msg.LocalDBGetAllKVFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          reject(new Error(msg.LocalDBGetAllKVFailure.message || 'LocalDB get all failed'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
+          return keys;
+        },
+        matchFailure: (msg) => {
+          const r = msg as { LocalDBGetAllKVFailure?: { request_id: string; message?: string } };
+          return r.LocalDBGetAllKVFailure?.request_id === requestId
+            ? (r.LocalDBGetAllKVFailure.message || 'LocalDB get all failed')
+            : undefined;
+        },
+      },
     });
   }
 }

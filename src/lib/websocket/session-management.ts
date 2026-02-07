@@ -4,7 +4,7 @@
  * Handles session management via ConnectionManagement requests.
  */
 
-import { eventEmitter } from '../event-emitter';
+import { requestResponse } from './request-response';
 import { debugLog } from '../debug-config';
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
 
@@ -20,11 +20,50 @@ export interface SessionManagementResult {
   cid?: bigint;
 }
 
+type ConnectionManagementResponse = {
+  ConnectionManagementSuccess?: { request_id: string; message?: string; cid?: bigint };
+  ConnectionManagementFailure?: { request_id: string; error?: string };
+};
+
 export class SessionManagement {
   private readonly config: SessionManagementConfig;
 
   constructor(config: SessionManagementConfig) {
     this.config = config;
+  }
+
+  /**
+   * Unwrap the optional Response wrapper that some messages arrive with.
+   */
+  private static unwrapResponse(message: unknown): ConnectionManagementResponse {
+    const msg = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
+    return (msg.Response || msg) as ConnectionManagementResponse;
+  }
+
+  /**
+   * Create a matcher for ConnectionManagement success/failure responses.
+   */
+  private connectionManagementMatcher(requestId: string) {
+    return {
+      matchSuccess: (message: Record<string, unknown>): SessionManagementResult | undefined => {
+        const response = SessionManagement.unwrapResponse(message);
+        if (response.ConnectionManagementSuccess?.request_id === requestId) {
+          return {
+            success: true,
+            message: response.ConnectionManagementSuccess.message,
+            cid: response.ConnectionManagementSuccess.cid,
+          };
+        }
+        return undefined;
+      },
+      matchFailure: (message: Record<string, unknown>): string | undefined => {
+        const response = SessionManagement.unwrapResponse(message);
+        if (response.ConnectionManagementFailure?.request_id === requestId) {
+          return response.ConnectionManagementFailure.error || 'Connection management operation failed';
+        }
+        return undefined;
+      },
+    };
   }
 
   async setOrphanMode(enabled: boolean): Promise<SessionManagementResult> {
@@ -34,52 +73,17 @@ export class SessionManagement {
     const request = {
       ConnectionManagement: {
         request_id: requestId,
-        management_command: {
-          SetConnectionOrphan: {
-            allow_orphan_sessions: enabled
-          }
-        }
+        management_command: { SetConnectionOrphan: { allow_orphan_sessions: enabled } }
       }
     };
 
     debugLog('websocket', 'Sending SetConnectionOrphan request', request);
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('SetConnectionOrphan request timed out'));
-      }, 3000);
-
-      const handler = (message: unknown) => {
-        const msg = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
-        const response = msg.Response || msg;
-
-        const typedResponse = response as {
-          ConnectionManagementSuccess?: { request_id: string; message?: string };
-          ConnectionManagementFailure?: { request_id: string; error?: string };
-        };
-
-        if (typedResponse.ConnectionManagementSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          resolve({
-            success: true,
-            message: typedResponse.ConnectionManagementSuccess.message
-          });
-        } else if (typedResponse.ConnectionManagementFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(typedResponse.ConnectionManagementFailure.error || 'Failed to set orphan mode'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
+    return requestResponse<SessionManagementResult>({
+      request, requestId, timeoutMs: 3000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'SetConnectionOrphan',
+      matcher: this.connectionManagementMatcher(requestId),
     });
   }
 
@@ -99,53 +103,18 @@ export class SessionManagement {
       ConnectionManagement: {
         request_id: requestId,
         management_command: {
-          ClaimSession: {
-            session_cid: sessionCidBigInt,
-            only_if_orphaned: onlyIfOrphaned
-          }
+          ClaimSession: { session_cid: sessionCidBigInt, only_if_orphaned: onlyIfOrphaned }
         }
       }
     };
 
     debugLog('websocket', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('ClaimSession request timed out'));
-      }, 10000);
-
-      const handler = (message: unknown) => {
-        const msg = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
-        const response = msg.Response || msg;
-
-        const typedResponse = response as {
-          ConnectionManagementSuccess?: { request_id: string; message?: string; cid?: bigint };
-          ConnectionManagementFailure?: { request_id: string; error?: string };
-        };
-
-        if (typedResponse.ConnectionManagementSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          resolve({
-            success: true,
-            message: typedResponse.ConnectionManagementSuccess.message,
-            cid: typedResponse.ConnectionManagementSuccess.cid
-          });
-        } else if (typedResponse.ConnectionManagementFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(typedResponse.ConnectionManagementFailure.error || 'Failed to claim session'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
+    return requestResponse<SessionManagementResult>({
+      request, requestId, timeoutMs: 10000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'ClaimSession',
+      matcher: this.connectionManagementMatcher(requestId),
     });
   }
 
@@ -157,51 +126,18 @@ export class SessionManagement {
       ConnectionManagement: {
         request_id: requestId,
         management_command: {
-          DisconnectOrphan: {
-            session_cid: sessionCid ? BigInt(sessionCid) : null
-          }
+          DisconnectOrphan: { session_cid: sessionCid ? BigInt(sessionCid) : null }
         }
       }
     };
 
     debugLog('websocket', 'Sending DisconnectOrphan request', request);
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handler);
-        reject(new Error('DisconnectOrphan request timed out'));
-      }, 10000);
-
-      const handler = (message: unknown) => {
-        const msg = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
-        const response = msg.Response || msg;
-
-        const typedResponse = response as {
-          ConnectionManagementSuccess?: { request_id: string; message?: string };
-          ConnectionManagementFailure?: { request_id: string; error?: string };
-        };
-
-        if (typedResponse.ConnectionManagementSuccess?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          resolve({
-            success: true,
-            message: typedResponse.ConnectionManagementSuccess.message
-          });
-        } else if (typedResponse.ConnectionManagementFailure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(typedResponse.ConnectionManagementFailure.error || 'Failed to disconnect orphan'));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handler);
-
-      this.config.sendRequest(request, requestId).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handler);
-        reject(error);
-      });
+    return requestResponse<SessionManagementResult>({
+      request, requestId, timeoutMs: 10000,
+      sendRequest: this.config.sendRequest,
+      operationName: 'DisconnectOrphan',
+      matcher: this.connectionManagementMatcher(requestId),
     });
   }
 
@@ -215,11 +151,7 @@ export class SessionManagement {
     const request = {
       ConnectionManagement: {
         request_id: crypto.randomUUID(),
-        management_command: {
-          ReleaseSession: {
-            session_cid: sessionCid
-          }
-        }
+        management_command: { ReleaseSession: { session_cid: sessionCid } }
       }
     };
 
