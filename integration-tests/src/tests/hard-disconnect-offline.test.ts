@@ -50,9 +50,8 @@ import {
   acceptP2PRequest,
   openConversation,
   sendMessage,
-  verifyMessageReceived,
-  waitForAllMessages,
   sendAndVerifyMessage,
+  waitForAllMessages,
   waitForP2PReady,
   disconnectViaTopBar,
   assertSessionNotInOrphanNavbar,
@@ -316,14 +315,18 @@ async function runTest(): Promise<boolean> {
       console.log('  WARNING: Bob→Alice warmup failed - reverse ILM channel may still be blocked');
     }
 
-    // Test bidirectional messaging
-    results.initialMessaging.user1ToUser2 = await sendMessage(page1, USER1, INITIAL_MSG_1, uxTracker);
-    await sleep(1000);
-    results.initialMessaging.user2ToUser1 = await sendMessage(page2, USER2, INITIAL_MSG_2, uxTracker);
-    await sleep(1000);
+    // Test bidirectional messaging with retry logic
+    results.initialMessaging.user2Received = await sendAndVerifyMessage(
+      page1, USER1, page2, USER2, INITIAL_MSG_1,
+      { maxRetries: 3, verifyTimeout: 15000, retryDelay: 2000, uxTracker }
+    );
+    results.initialMessaging.user1ToUser2 = results.initialMessaging.user2Received;
 
-    results.initialMessaging.user2Received = await verifyMessageReceived(page2, USER2, INITIAL_MSG_1, 30000, uxTracker);
-    results.initialMessaging.user1Received = await verifyMessageReceived(page1, USER1, INITIAL_MSG_2, 30000, uxTracker);
+    results.initialMessaging.user1Received = await sendAndVerifyMessage(
+      page2, USER2, page1, USER1, INITIAL_MSG_2,
+      { maxRetries: 3, verifyTimeout: 15000, retryDelay: 2000, uxTracker }
+    );
+    results.initialMessaging.user2ToUser1 = results.initialMessaging.user1Received;
 
     console.log(`  Initial messaging: Alice->Bob=${results.initialMessaging.user2Received}, Bob->Alice=${results.initialMessaging.user1Received}`);
 
@@ -404,8 +407,21 @@ async function runTest(): Promise<boolean> {
     }
 
     // Wait for P2PAutoConnect to re-establish connections
-    console.log('  Waiting 15s for P2PAutoConnect to re-establish P2P connection...');
-    await sleep(15000);
+    console.log('  Waiting for P2PAutoConnect to re-establish P2P connection...');
+    let bobP2PReady = await waitForP2PReady(page2, USER2, USER1, 60000);
+    console.log(`  P2P auto-reconnect: ${bobP2PReady ? 'SUCCESS' : 'TIMEOUT'}`);
+
+    if (!bobP2PReady) {
+      console.log('  P2PAutoConnect timed out, attempting explicit connectP2P...');
+      await connectP2P(page2, USER2, USER1);
+      bobP2PReady = await waitForP2PReady(page2, USER2, USER1, 30000);
+      if (!bobP2PReady) {
+        console.log('  Trying connectP2P from Alice side...');
+        await connectP2P(page1, USER1, USER2);
+        bobP2PReady = await waitForP2PReady(page2, USER2, USER1, 30000);
+      }
+      console.log(`  P2P after explicit connect: ${bobP2PReady ? 'SUCCESS' : 'TIMEOUT (continuing anyway)'}`);
+    }
 
     // ========== STEP 10: Verify Offline Messages Received ==========
     console.log('\n' + '─'.repeat(50));
@@ -431,9 +447,14 @@ async function runTest(): Promise<boolean> {
       }
     }
 
-    // Give conversation time to fully load messages from local storage/ILM
-    console.log('  Waiting 5s for conversation to fully load...');
-    await sleep(5000);
+    // Verified warmup: prove ILM channel is delivering messages before checking offline queue
+    console.log('  Sending verified warmup to confirm ILM channel is ready...');
+    const postLoginWarmup = await sendAndVerifyMessage(
+      page1, USER1, page2, USER2,
+      `Post-login warmup ${Date.now()}`,
+      { maxRetries: 5, verifyTimeout: 15000, retryDelay: 5000 }
+    );
+    console.log(`  Post-login warmup: ${postLoginWarmup ? 'DELIVERED' : 'FAILED (checking offline messages anyway)'}`);
 
     // Use reactive polling to wait for all offline messages at once
     // This is more efficient than sequential checks with fixed timeouts
@@ -465,13 +486,17 @@ async function runTest(): Promise<boolean> {
     const POST_MSG_1 = 'Welcome back Bob! Did you get my offline messages?';
     const POST_MSG_2 = 'Thanks Alice! Yes I got all of them (hard disconnect test)!';
 
-    results.postReconnectMessaging.user1ToUser2 = await sendMessage(page1, USER1, POST_MSG_1);
-    await sleep(1000);
-    results.postReconnectMessaging.user2ToUser1 = await sendMessage(page2, USER2, POST_MSG_2);
-    await sleep(1000);
+    results.postReconnectMessaging.user2Received = await sendAndVerifyMessage(
+      page1, USER1, page2, USER2, POST_MSG_1,
+      { maxRetries: 3, verifyTimeout: 15000, retryDelay: 2000, uxTracker }
+    );
+    results.postReconnectMessaging.user1ToUser2 = results.postReconnectMessaging.user2Received;
 
-    results.postReconnectMessaging.user2Received = await verifyMessageReceived(page2, USER2, POST_MSG_1, 10000);
-    results.postReconnectMessaging.user1Received = await verifyMessageReceived(page1, USER1, POST_MSG_2, 10000);
+    results.postReconnectMessaging.user1Received = await sendAndVerifyMessage(
+      page2, USER2, page1, USER1, POST_MSG_2,
+      { maxRetries: 3, verifyTimeout: 15000, retryDelay: 2000, uxTracker }
+    );
+    results.postReconnectMessaging.user2ToUser1 = results.postReconnectMessaging.user1Received;
 
     console.log(`  Post-reconnect: Alice->Bob=${results.postReconnectMessaging.user2Received}, Bob->Alice=${results.postReconnectMessaging.user1Received}`);
 

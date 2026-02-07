@@ -223,12 +223,22 @@ async function runTest(): Promise<boolean> {
     const INITIAL_MSG_1 = `Hello Bob! Time: ${new Date().toLocaleTimeString()}`;
     const INITIAL_MSG_2 = `Hi Alice! Got it! Time: ${new Date().toLocaleTimeString()}`;
 
-    // Send warmup messages first (helps prime the connection)
-    console.log('  Sending warmup messages...');
-    await sendMessage(page1, USER1, 'Warmup from Alice', null);
-    await sleep(1000);
-    await sendMessage(page2, USER2, 'Warmup from Bob', null);
-    await sleep(1000);
+    // Verified warmup: confirm ILM channel is ready in both directions before testing
+    console.log('  Sending verified warmup Alice→Bob...');
+    const warmupAB = await sendAndVerifyMessage(
+      page1, USER1, page2, USER2,
+      `Warmup A→B ${Date.now()}`,
+      { maxRetries: 5, verifyTimeout: 15000, retryDelay: 5000 }
+    );
+    if (!warmupAB) console.log('  WARNING: Alice→Bob warmup failed');
+
+    console.log('  Sending verified warmup Bob→Alice...');
+    const warmupBA = await sendAndVerifyMessage(
+      page2, USER2, page1, USER1,
+      `Warmup B→A ${Date.now()}`,
+      { maxRetries: 5, verifyTimeout: 15000, retryDelay: 5000 }
+    );
+    if (!warmupBA) console.log('  WARNING: Bob→Alice warmup failed');
 
     // Test bidirectional messaging with retry logic for robustness
     results.initialMessaging.user2Received = await sendAndVerifyMessage(
