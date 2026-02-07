@@ -1,15 +1,9 @@
-/**
- * useMemberEventSetup Hook
- *
- * Sets up member-level event listeners for loading, loaded, added, role-updated, removed events.
- * Extracted from WorkspaceEventHandler.tsx to reduce file size.
- */
-
 import { useEffect } from 'react';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
+import { setLoading, trackRequest, runAsyncSetup } from './event-setup-utils';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -20,11 +14,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
     const setupMemberListeners = async () => {
       // Member events
       await workspaceEvents.onMemberEvent('members:loading', (payload) => {
-        setState(prev => ({
-          ...prev,
-          loading: { ...prev.loading, members: true },
-          lastRequestId: payload.connection.request_id
-        }));
+        setLoading(setState, 'members', true, payload.connection.request_id);
 
         if (payload.officeId) {
           console.info(`Loading members for office: ${payload.officeId}, request ID: ${payload.connection.request_id}`);
@@ -75,10 +65,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       // Member added event
       await workspaceEvents.onMemberEvent('member:added', (payload: { member: unknown; connection: ConnectionInfo }) => {
         console.info('Member added:', payload.member);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
+        trackRequest(setState, payload.connection.request_id);
       });
 
       // Member role updated event
@@ -155,10 +142,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       // Member removed event
       await workspaceEvents.onMemberEvent('member:removed', (payload: { userId: string; connection: ConnectionInfo }) => {
         console.info('Member removed:', payload.userId);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: payload.connection.request_id
-        }));
+        trackRequest(setState, payload.connection.request_id);
       });
 
       // Members reload event
@@ -176,8 +160,6 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       });
     };
 
-    (async () => {
-      await setupMemberListeners();
-    })().catch(console.error);
+    runAsyncSetup(setupMemberListeners);
   }, [setState]);
 }

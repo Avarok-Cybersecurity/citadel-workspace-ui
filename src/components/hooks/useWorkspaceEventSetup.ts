@@ -1,10 +1,3 @@
-/**
- * useWorkspaceEventSetup Hook
- *
- * Sets up workspace-level event listeners for loading, loaded, and not-initialized events.
- * Extracted from WorkspaceEventHandler.tsx to reduce file size.
- */
-
 import { useEffect } from 'react';
 import { workspaceEvents, type ConnectionInfo, type WorkspacesPayload } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
@@ -12,6 +5,7 @@ import { connectionManager } from '@/lib/connection';
 import UserService from '@/lib/user-service';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
+import { setLoading, runAsyncSetup } from './event-setup-utils';
 
 interface UseWorkspaceEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -22,11 +16,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
     const setupWorkspaceListeners = async () => {
       // Loading state
       await workspaceEvents.onWorkspaceEvent('workspace:loading', (connectionInfo: ConnectionInfo) => {
-        setState(prev => ({
-          ...prev,
-          loading: { ...prev.loading, workspace: true },
-          lastRequestId: connectionInfo.request_id
-        }));
+        setLoading(setState, 'workspace', true, connectionInfo.request_id);
       });
 
       // Workspace loaded event
@@ -118,8 +108,6 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
       });
     };
 
-    (async () => {
-      await setupWorkspaceListeners();
-    })().catch(console.error);
+    runAsyncSetup(setupWorkspaceListeners);
   }, [setState]);
 }
