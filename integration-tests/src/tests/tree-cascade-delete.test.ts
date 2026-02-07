@@ -15,14 +15,9 @@ import type { Page, Browser } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
-  restartBackendServices,
   startDiagnostics,
   type DiagnosticsHandle,
   // Tree helpers
@@ -35,6 +30,9 @@ import {
   getNodeViaProtocol,
   createSiblingNodes,
   listNodesViaProtocol,
+  // Test framework
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -73,9 +71,13 @@ const ADMIN_USER = `cascade_admin_${timestamp}`;
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('TREE CASCADE DELETE INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'TREE CASCADE DELETE INTEGRATION TEST',
+    reportFileName: 'TREE_CASCADE_DELETE_TEST_REPORT.json',
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Admin User: ${ADMIN_USER}`);
   console.log('');
 
@@ -96,18 +98,12 @@ async function runTest(): Promise<boolean> {
     workspaceRootDeleteFailed: false,
   };
 
-  const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let page: Page | null = null;
   let diagnostics: DiagnosticsHandle | null = null;
   let workspaceRootId: string | null = null;
 
   try {
-    await ensureScreenshotsDir();
-
-    // Restart backend services for clean state
-    await restartBackendServices();
-    await waitForServicesAlive();
 
     // Create browser
     const setup = await createBrowser();
@@ -533,19 +529,6 @@ async function runTest(): Promise<boolean> {
     const allCriticalPassed = criticalTests.every(Boolean);
     const overallPass = allCriticalPassed;
 
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Write report
-    await writeTestReport('TREE_CASCADE_DELETE_TEST_REPORT.json', {
-      testName: 'Tree Cascade Delete Integration Test',
-      timestamp: new Date().toISOString(),
-      overallPass,
-      results,
-      uxIssues: uxTracker.getIssues(),
-    });
-
     // Keep browser open for inspection
     console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
     await sleep(10000);
@@ -553,6 +536,8 @@ async function runTest(): Promise<boolean> {
     if (browser) {
       await browser.close();
     }
+
+    await harness.finalize(overallPass, results as unknown as Record<string, any>);
 
     return overallPass;
   }
@@ -562,11 +547,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest()
-  .then((passed) => {
-    process.exit(passed ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('Unhandled test error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

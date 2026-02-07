@@ -18,17 +18,14 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
   openConversation,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -1104,25 +1101,16 @@ async function testRealProtocolTransfer(
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('FILE TRANSFER INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'File Transfer Integration Test',
+    reportFileName: 'FILE_TRANSFER_TEST_REPORT.json',
+    metadata: { user1: USER1, user2: USER2 },
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`User 1 (Alice): ${USER1}`);
   console.log(`User 2 (Bob): ${USER2}`);
   console.log('');
-
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Wait for services
-  await waitForServicesAlive();
-
-  logObservation('test-start', 'File Transfer Test Started', {
-    user1: USER1,
-    user2: USER2,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Create SEPARATE browser contexts for each user to avoid shared localStorage issues
   // This ensures each user has their own isolated session storage and tab context
@@ -1470,34 +1458,7 @@ async function runTest(): Promise<boolean> {
       console.log(`  Error:                        ${results.realProtocol.error}`);
     }
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '-'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('-'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${corePassed ? 'TEST PASSED' : 'TEST NEEDS REVIEW'}`);
-    console.log('='.repeat(60));
-
-    logObservation('test-complete', `File Transfer Test ${corePassed ? 'PASSED' : 'NEEDS REVIEW'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, corePassed ? 'verified' : 'failed');
-
-    writeTestReport('FILE_TRANSFER_TEST_REPORT.json', {
-      users: { user1: USER1, user2: USER2 },
-      results,
-      uxIssues,
-      passed: corePassed,
-    });
+    harness.finalize(corePassed, results);
 
     if (!process.env.IN_CI) {
       console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
@@ -1508,9 +1469,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'File Transfer Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -1521,9 +1479,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

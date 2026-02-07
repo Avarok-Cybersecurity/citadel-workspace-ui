@@ -14,19 +14,15 @@ import { Page } from 'playwright';
 import {
   sleep,
   createSeparateBrowsers,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
   closeAnyModals,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -318,22 +314,17 @@ async function waitForP2PConnectivity(
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('RE-VFS PEER INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'RE-VFS Peer Integration Test',
+    reportFileName: 'REVFS_PEER_TEST_REPORT.json',
+    metadata: { alice: ALICE, bob: BOB },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Alice: ${ALICE}`);
   console.log(`Bob: ${BOB}`);
   console.log('');
-
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  await restartBackendServices();
-  await waitForServicesAlive();
-
-  logObservation('test-start', 'RE-VFS Peer Test Started', {
-    alice: ALICE, bob: BOB, timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Use SEPARATE browser instances for each user
   // This gives each user their own WebSocket connection, avoiding ILM cross-user issues
@@ -516,26 +507,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Alice deleted:    ${results.folderDeletion.deleted ? 'PASS' : 'FAIL'}`);
     console.log(`  Bob sees gone:    ${results.folderDeletion.bobSeesGone ? 'PASS' : 'FAIL'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES:');
-      uxIssues.forEach((issue, i) => {
-        console.log(`  ${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}: ${issue.description}`);
-      });
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    logObservation('test-complete', `RE-VFS Peer Test ${allPassed ? 'PASSED' : 'COMPLETED'}`, {
-      results, uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'investigating');
-
-    writeTestReport('REVFS_PEER_TEST_REPORT.json', {
-      alice: ALICE, bob: BOB, results, uxIssues, passed: allPassed,
-    });
+    harness.finalize(allPassed, results);
 
     if (!process.env.IN_CI) {
       console.log('\nBrowser will remain open for 10 seconds...');
@@ -546,7 +518,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'RE-VFS Peer Test Error', { error: String(error) }, 'failed');
     throw error;
   } finally {
     await cleanup();
@@ -557,9 +528,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

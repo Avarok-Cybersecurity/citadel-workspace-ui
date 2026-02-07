@@ -15,14 +15,9 @@
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   navigateToOffice,
   navigateToRoom,
   switchToChatTab,
@@ -30,7 +25,8 @@ import {
   sendGroupMessage,
   verifyGroupMessageReceived,
   waitForWorkspaceLoaded,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -95,36 +91,19 @@ const TEST_ROOM = 'Random';
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('MULTI-USER GROUP MESSAGING TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'Multi-User Group Messaging Test',
+    reportFileName: 'GROUP_MESSAGING_MULTIUSER_TEST_REPORT.json',
+    metadata: { user1: USER1, user2: USER2, office: TEST_OFFICE, room: TEST_ROOM },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`User 1: ${USER1}`);
   console.log(`User 2: ${USER2}`);
   console.log(`Test Office: ${TEST_OFFICE}`);
   console.log(`Test Room: ${TEST_ROOM}`);
   console.log('');
-
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Restart backend services to ensure clean state
-  // This is critical because the admin user is the first user to join
-  // the workspace with the master password. If stale state exists from
-  // previous test runs, new users may not get admin role.
-  await restartBackendServices();
-
-  // Wait for services
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'Multi-User Group Messaging Test Started', {
-    user1: USER1,
-    user2: USER2,
-    office: TEST_OFFICE,
-    room: TEST_ROOM,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Setup browser with shared context (single WebSocket for both tabs)
   const { browser, context } = await createBrowser();
@@ -331,38 +310,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  User2 -> User1 Msg:         ${results.roomMessaging.user2Sent ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
     console.log(`  User1 Received:             ${results.roomMessaging.user1Received ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Log the test result
-    logObservation('test-complete', `Multi-User Group Messaging Test ${allPassed ? 'PASSED' : 'FAILED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'failed');
-
-    // Write report
-    writeTestReport('GROUP_MESSAGING_MULTIUSER_TEST_REPORT.json', {
-      users: { user1: USER1, user2: USER2 },
-      office: TEST_OFFICE,
-      room: TEST_ROOM,
-      results,
-      uxIssues,
-      passed: allPassed,
-    });
+    harness.finalize(allPassed, results);
 
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
     await sleep(15000);
@@ -371,9 +319,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'Multi-User Group Messaging Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -384,9 +329,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

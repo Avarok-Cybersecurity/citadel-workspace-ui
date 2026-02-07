@@ -135,6 +135,10 @@ export type {
 // Service Helpers - Backend service management
 export { restartBackendServices } from './service-helpers.js';
 
+// Test Harness - Reduces init/finalize boilerplate in test files
+export { TestHarness, runTestMain } from './test-harness.js';
+export type { TestHarnessConfig } from './test-harness.js';
+
 // Group Chat Test Helpers - Parameterized multi-user group tests
 export {
   createNUsers,

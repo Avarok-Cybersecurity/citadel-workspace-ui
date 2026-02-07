@@ -14,16 +14,14 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
   openConversation,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  UxIssueTracker,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -182,11 +180,7 @@ async function closeChatSettingsModal(page: Page): Promise<void> {
 // Main Test
 // ============================================================================
 
-async function runChatSettingsTest(): Promise<void> {
-  console.log('\n╔════════════════════════════════════════════════════════════════╗');
-  console.log('║           CHAT SETTINGS INTEGRATION TEST                        ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝\n');
-
+async function runChatSettingsTest(): Promise<boolean> {
   const results: TestResults = {
     accountCreation: { user1: false, user2: false },
     p2pRegistration: false,
@@ -223,18 +217,12 @@ async function runChatSettingsTest(): Promise<void> {
     },
   };
 
-  const uxIssues = new UxIssueTracker();
-
-  // Ensure services are ready
-  console.log('Waiting for services...');
-  const servicesReady = await waitForServicesAlive();
-  if (!servicesReady) {
-    console.error('Services not ready, aborting test');
-    return;
-  }
-
-  // Ensure screenshots directory (clean = true)
-  ensureScreenshotsDir(true);
+  const harness = await TestHarness.create({
+    testName: 'Chat Settings Integration Test',
+    reportFileName: 'CHAT_SETTINGS_TEST_REPORT.json',
+    metadata: { user1: USER1, user2: USER2 },
+  });
+  const uxIssues = harness.uxTracker;
 
   // Create browser context
   const { browser, context } = await createBrowser();
@@ -520,13 +508,8 @@ async function runChatSettingsTest(): Promise<void> {
     console.log(`OVERALL: ${chatSettingsPass ? '✓ PASS' : '✗ FAIL'}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    // Write test report
-    writeTestReport('CHAT_SETTINGS_TEST_REPORT.json', {
-      users: { user1: USER1, user2: USER2 },
-      results,
-      passed: chatSettingsPass,
-      uxIssues: uxIssues.getIssues(),
-    });
+    await harness.finalize(chatSettingsPass, { results } as Record<string, any>);
+    return chatSettingsPass;
 
   } catch (error) {
     console.error('\n❌ TEST ERROR:', error);
@@ -539,7 +522,4 @@ async function runChatSettingsTest(): Promise<void> {
 }
 
 // Run the test
-runChatSettingsTest().catch((error) => {
-  console.error('Test failed:', error);
-  process.exit(1);
-});
+runTestMain(runChatSettingsTest);

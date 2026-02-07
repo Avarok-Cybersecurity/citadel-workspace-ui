@@ -23,15 +23,12 @@ import type { Page, Browser } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
-  restartBackendServices,
   startDiagnostics,
+  TestHarness,
+  runTestMain,
   type DiagnosticsHandle,
 } from '../lib/index.js';
 
@@ -605,9 +602,13 @@ async function verifyNodeDepth(
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('TREE STRUCTURE EDITOR INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'TREE STRUCTURE EDITOR INTEGRATION TEST',
+    reportFileName: 'TREE_STRUCTURE_EDITOR_TEST_REPORT.json',
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Admin User: ${ADMIN_USER}`);
   console.log(`Test Office: ${TEST_OFFICE_NAME}`);
   console.log(`Test Room: ${TEST_ROOM_NAME}`);
@@ -633,17 +634,11 @@ async function runTest(): Promise<boolean> {
     parentChildRelationshipMaintained: false,
   };
 
-  const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let page: Page | null = null;
   let diagnostics: DiagnosticsHandle | null = null;
 
   try {
-    await ensureScreenshotsDir();
-
-    // Restart backend services for clean state
-    await restartBackendServices();
-    await waitForServicesAlive();
 
     // Create browser
     const setup = await createBrowser();
@@ -981,15 +976,6 @@ async function runTest(): Promise<boolean> {
     console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);
     console.log('='.repeat(60));
 
-    // Write report
-    await writeTestReport('TREE_STRUCTURE_EDITOR_TEST_REPORT.json', {
-      testName: 'Tree Structure Editor Integration Test',
-      timestamp: new Date().toISOString(),
-      overallPass,
-      results,
-      uxIssues: uxTracker.getIssues(),
-    });
-
     // Keep browser open for inspection
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
     await sleep(15000);
@@ -998,6 +984,7 @@ async function runTest(): Promise<boolean> {
       await browser.close();
     }
 
+    harness.finalize(overallPass, results as unknown as Record<string, any>);
     return overallPass;
   }
 }
@@ -1006,11 +993,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest()
-  .then((passed) => {
-    process.exit(passed ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('Unhandled test error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

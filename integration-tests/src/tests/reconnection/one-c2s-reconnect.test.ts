@@ -18,7 +18,6 @@ import type { Page, Browser } from 'playwright';
 import {
   sleep,
   createSeparateBrowsers,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
@@ -33,12 +32,10 @@ import {
   sendAndVerifyMessage,
   waitForP2PReady,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   config,
+  TestHarness,
+  runTestMain,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -54,15 +51,14 @@ interface TestResult {
 }
 
 async function runTest(): Promise<boolean> {
-  console.log('=== One C2S Reconnection Test ===');
-  console.log(`Timestamp: ${timestamp}`);
-  console.log(`User1: ${USER1_NAME}`);
-  console.log(`User2: ${USER2_NAME}`);
-  console.log(`Server: ${config.WORKSPACE_SERVER}`);
-  console.log('');
+  const harness = await TestHarness.create({
+    testName: 'One C2S Reconnection Test',
+    reportFileName: 'one-c2s-reconnect-test.json',
+    metadata: { user1: USER1_NAME, user2: USER2_NAME },
+  });
+  const uxTracker = harness.uxTracker;
 
   const results: TestResult[] = [];
-  const uxTracker = new UxIssueTracker();
   let browser1: Browser | null = null;
   let browser2: Browser | null = null;
   let page1: Page | null = null;
@@ -70,19 +66,6 @@ async function runTest(): Promise<boolean> {
   const consoleErrors: string[] = [];
 
   try {
-    ensureScreenshotsDir();
-
-    // Wait for services
-    console.log('Waiting for services to be alive...');
-    const servicesAlive = await waitForServicesAlive();
-    if (!servicesAlive) {
-      results.push({
-        step: 'Services Check',
-        status: 'FAIL',
-        notes: 'Services not responding',
-      });
-      return false;
-    }
 
     // Create separate browsers for each user
     const browserSetup = await createSeparateBrowsers(2);
@@ -113,7 +96,6 @@ async function runTest(): Promise<boolean> {
 
     // ===== PHASE 1: Create Accounts =====
     console.log('\n=== Phase 1: Create Accounts ===');
-    logObservation('setup', 'Creating accounts', { user1: USER1_NAME, user2: USER2_NAME }, 'investigating');
 
     const user1Created = await createAccount(page1, USER1_NAME, {
       isFirstUser: true,
@@ -397,17 +379,8 @@ async function runTest(): Promise<boolean> {
       }
     }
 
-    writeTestReport('one-c2s-reconnect-test.json', {
-      testName: 'One C2S Reconnection Test',
-      users: { user1: USER1_NAME, user2: USER2_NAME },
-      results,
-      uxIssues: uxTracker.getIssues(),
-      consoleErrors,
-      passed: results.every((r) => r.status === 'PASS' || r.status === 'SKIP'),
-    });
-
     const allPassed = results.every((r) => r.status === 'PASS' || r.status === 'SKIP');
-    console.log(allPassed ? '\n✅ One C2S Reconnection Test PASSED' : '\n❌ One C2S Reconnection Test FAILED');
+    harness.finalize(allPassed, { results, consoleErrors } as Record<string, unknown>);
 
     return allPassed;
   } catch (error) {
@@ -449,9 +422,4 @@ function printResults(results: TestResult[]): void {
   console.log(`Total: ${results.length} | Passed: ${passed} | Failed: ${failed} | Skipped: ${skipped}`);
 }
 
-runTest()
-  .then((passed) => process.exit(passed ? 0 : 1))
-  .catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

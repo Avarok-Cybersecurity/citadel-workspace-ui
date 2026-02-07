@@ -18,19 +18,16 @@ import {
   sleep,
   createBrowser,
   createSeparateBrowsers,
-  ensureScreenshotsDir,
   createAccount,
   waitForWorkspaceLoaded,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  logObservation,
   UxIssueTracker,
-  restartBackendServices,
   startDiagnostics,
   createNUsers,
   printGroupTestResults,
   calculateAllPassed,
+  TestHarness,
+  runTestMain,
   type GroupTestResults,
   type MessageTestResult,
   type DiagnosticsHandle,
@@ -377,16 +374,8 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
   console.log('');
 
   // Initialize
-  ensureScreenshotsDir();
   const uxTracker = new UxIssueTracker();
   const groupName = `${GROUP_NAME_PREFIX}_${userCount}_${Date.now()}`;
-
-  // Log test start
-  logObservation('test-start', `Peer Group Chat Test (${userCount} users) Started`, {
-    userCount,
-    groupName,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Use separate browsers for 3+ users to avoid memory exhaustion
   // Single context works for 2 users but 3 WASM clients overwhelm one V8 heap
@@ -513,17 +502,6 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
       console.log('\n  SKIPPED: Peer group UI not yet implemented (CreateGroupDialog / GroupChatPage)');
       console.log('  This test requires WASM bindings for groupCreate, groupInvite, groupMessage.');
       console.log('  Treating as PASS (feature not yet available).\n');
-      logObservation('test-skipped', `Peer Group Chat Test (${userCount} users) SKIPPED - feature not implemented`, {
-        userCount,
-        groupName,
-      }, 'investigating');
-      writeTestReport(`PEER_GROUP_CHAT_${userCount}USERS_REPORT.json`, {
-        userCount,
-        groupName,
-        skipped: true,
-        reason: 'Peer group UI not yet implemented',
-        passed: true,
-      });
       return true; // Skip gracefully
     }
 
@@ -592,34 +570,6 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
       console.log(`  ${username}: ${success ? 'PASS' : 'FAIL'}`);
     }
 
-    // Log UX issues
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    }
-
-    // Log test result
-    logObservation('test-complete', `Peer Group Chat Test (${userCount} users) ${allPassed ? 'PASSED' : 'FAILED'}`, {
-      results: fullResults,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'failed');
-
-    // Write report
-    writeTestReport(`PEER_GROUP_CHAT_${userCount}USERS_REPORT.json`, {
-      userCount,
-      groupName,
-      users: users.map(u => u.username),
-      results: { ...fullResults, p2pConnections: results.p2pConnections, groupNavigation: results.groupNavigation },
-      uxIssues,
-      passed: allPassed,
-    });
-
     return allPassed;
 
   } catch (error) {
@@ -635,24 +585,9 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
     if (isBrowserCrash && userCount >= 3) {
       console.log('\n  Browser resource exhaustion for 3+ users (peer group UI not implemented yet)');
       console.log('  Treating as PASS (feature not yet available).\n');
-      logObservation('test-skipped', `Peer Group Chat Test (${userCount} users) SKIPPED - browser resource limit`, {
-        userCount,
-        groupName,
-        error: errorMsg,
-      }, 'investigating');
-      writeTestReport(`PEER_GROUP_CHAT_${userCount}USERS_REPORT.json`, {
-        userCount,
-        groupName,
-        skipped: true,
-        reason: 'Browser resource limit for 3+ users (peer group UI not implemented)',
-        passed: true,
-      });
       return true; // Skip gracefully
     }
 
-    logObservation('test-error', `Peer Group Chat Test (${userCount} users) Error`, {
-      error: errorMsg,
-    }, 'failed');
     return false;
   } finally {
     // Stop diagnostics
@@ -680,15 +615,15 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(70));
-  console.log('PEER GROUP CHAT INTEGRATION TEST - PARAMETERIZED');
-  console.log('='.repeat(70));
+  const harness = await TestHarness.create({
+    testName: 'Peer Group Chat Integration Test',
+    reportFileName: 'PEER_GROUP_CHAT_REPORT.json',
+    metadata: { userCounts: USER_COUNTS },
+    restartBackend: true,
+  });
+
   console.log(`User counts: ${USER_COUNTS.join(', ')}`);
   console.log('');
-
-  // Restart backend services for clean state
-  await restartBackendServices();
-  await waitForServicesAlive();
 
   let allPassed = true;
 
@@ -707,9 +642,7 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
   }
 
-  console.log('\n' + '='.repeat(70));
-  console.log(`PEER GROUP CHAT TEST SUITE: ${allPassed ? 'ALL PASSED' : 'SOME FAILED'}`);
-  console.log('='.repeat(70));
+  harness.finalize(allPassed, { userCounts: USER_COUNTS });
 
   return allPassed;
 }
@@ -718,9 +651,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

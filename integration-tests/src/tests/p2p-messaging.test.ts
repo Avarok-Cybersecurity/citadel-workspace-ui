@@ -14,7 +14,6 @@ import { Page } from 'playwright';
 import {
   sleep,
   createSeparateBrowsers,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
@@ -25,15 +24,12 @@ import {
   sendAndVerifyMessage,
   waitForP2PReady,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   verifyConnectedBadgeInModal,
   closePeerDiscoveryModal,
-  restartBackendServices,
   waitForWorkspaceLoaded,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -123,30 +119,17 @@ async function checkOnlineStatus(page: Page, username: string, _peerUsername: st
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('P2P MESSAGING TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'P2P Messaging Test',
+    reportFileName: 'P2P_MESSAGING_TEST_REPORT.json',
+    metadata: { user1: USER1, user2: USER2 },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`User 1 (Alice): ${USER1}`);
   console.log(`User 2 (Bob): ${USER2}`);
   console.log('');
-
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Restart backend services to clear stale sessions from previous test runs
-  // Both internal-service AND server persist user data in-memory
-  await restartBackendServices();
-
-  // Wait for services (restartBackendServices already calls this, but kept for safety)
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'P2P Messaging Test Started', {
-    user1: USER1,
-    user2: USER2,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Setup SEPARATE browser instances for each user
   // This gives each user their own WebSocket connection, avoiding ILM cross-user issues
@@ -442,36 +425,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Message Timestamps:           ${results.uxChecks.timestamps ? 'PASS' : 'CHECK'}`);
     console.log(`  Online Status Indicator:      ${results.uxChecks.onlineStatus ? 'PASS' : 'CHECK'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Log the test result
-    logObservation('test-complete', `P2P Messaging Test ${allPassed ? 'PASSED' : 'FAILED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'failed');
-
-    // Write report
-    writeTestReport('P2P_MESSAGING_TEST_REPORT.json', {
-      users: { user1: USER1, user2: USER2 },
-      results,
-      uxIssues,
-      passed: allPassed,
-    });
+    harness.finalize(allPassed, results);
 
     console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
     await sleep(20000);
@@ -480,9 +434,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'P2P Messaging Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await cleanup();
@@ -493,9 +444,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

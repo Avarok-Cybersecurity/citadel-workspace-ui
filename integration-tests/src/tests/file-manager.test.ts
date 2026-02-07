@@ -17,19 +17,15 @@ import { Page } from 'playwright';
 import {
   sleep,
   createSeparateBrowsers,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
   closeAnyModals,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -659,24 +655,17 @@ async function verifyPeerSeesFile(
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('FILE MANAGER INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'File Manager Integration Test',
+    reportFileName: 'FILE_MANAGER_TEST_REPORT.json',
+    metadata: { alice: ALICE, bob: BOB },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`User 1 (Alice): ${ALICE}`);
   console.log(`User 2 (Bob): ${BOB}`);
   console.log('');
-
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  await restartBackendServices();
-  await waitForServicesAlive();
-
-  logObservation('test-start', 'File Manager Test Started', {
-    alice: ALICE,
-    bob: BOB,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   const { pages, cleanup } = await createSeparateBrowsers(2);
   const page1 = pages[0];
@@ -974,34 +963,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  New Folder Option:         ${results.contextMenu.hasNewFolder ? 'PASS' : 'CHECK'}`);
     console.log(`  Delete Option:             ${results.contextMenu.hasDelete ? 'PASS' : 'CHECK'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    logObservation('test-complete', `File Manager Test ${allPassed ? 'PASSED' : 'FAILED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'failed');
-
-    writeTestReport('FILE_MANAGER_TEST_REPORT.json', {
-      users: { alice: ALICE, bob: BOB },
-      results,
-      uxIssues,
-      passed: allPassed,
-    });
+    harness.finalize(allPassed, results);
 
     console.log('\nBrowser will remain open for 10 seconds...');
     await sleep(10000);
@@ -1010,9 +972,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'File Manager Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await cleanup();
@@ -1023,9 +982,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

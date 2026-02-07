@@ -21,17 +21,13 @@ import { Page } from 'playwright';
 import {
   sleep,
   createSeparateBrowsers,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
   closeAnyModals,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -267,21 +263,14 @@ async function refreshTree(page: Page): Promise<void> {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('RE-VFS SERVER INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'RE-VFS Server Integration Test',
+    reportFileName: 'REVFS_SERVER_TEST_REPORT.json',
+    metadata: { username: USERNAME },
+    restartBackend: true,
+  });
   console.log(`User: ${USERNAME}`);
   console.log('');
-
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  await restartBackendServices();
-  await waitForServicesAlive();
-
-  logObservation('test-start', 'RE-VFS Server Test Started', {
-    username: USERNAME, timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   const { pages, cleanup } = await createSeparateBrowsers(1);
 
@@ -308,7 +297,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     results.accountCreation = await createAccount(page, USERNAME, {
-      isFirstUser: true, password: PASSWORD, uxTracker,
+      isFirstUser: true, password: PASSWORD, uxTracker: harness.uxTracker,
     });
 
     await takeScreenshot(page, '01_account_created');
@@ -409,10 +398,6 @@ async function runTest(): Promise<boolean> {
     // ========== RESULTS ==========
     await takeScreenshot(page, 'FINAL');
 
-    console.log('\n' + '='.repeat(60));
-    console.log('TEST RESULTS');
-    console.log('='.repeat(60));
-
     const corePassed =
       results.accountCreation &&
       results.navigation &&
@@ -421,6 +406,9 @@ async function runTest(): Promise<boolean> {
       results.folderCreation &&
       results.folderDeletion;
 
+    console.log('\n' + '='.repeat(60));
+    console.log('TEST RESULTS');
+    console.log('='.repeat(60));
     console.log('\nCore Tests:');
     console.log(`  Account Creation:       ${results.accountCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Navigation:             ${results.navigation ? 'PASS' : 'FAIL'}`);
@@ -429,26 +417,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Folder Creation:        ${results.folderCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Folder Deletion:        ${results.folderDeletion ? 'PASS' : 'FAIL'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES:');
-      uxIssues.forEach((issue, i) => {
-        console.log(`  ${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}: ${issue.description}`);
-      });
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${corePassed ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    logObservation('test-complete', `RE-VFS Server Test ${corePassed ? 'PASSED' : 'COMPLETED'}`, {
-      results, uxIssuesCount: uxIssues.length,
-    }, corePassed ? 'verified' : 'investigating');
-
-    writeTestReport('REVFS_SERVER_TEST_REPORT.json', {
-      username: USERNAME, results, uxIssues, passed: corePassed,
-    });
+    harness.finalize(corePassed, results);
 
     console.log('\nBrowser will remain open for 10 seconds...');
     await sleep(10000);
@@ -457,7 +426,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'RE-VFS Server Test Error', { error: String(error) }, 'failed');
     throw error;
   } finally {
     await cleanup();
@@ -468,9 +436,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

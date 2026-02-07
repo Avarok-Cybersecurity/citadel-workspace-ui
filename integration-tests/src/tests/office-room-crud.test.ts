@@ -15,18 +15,15 @@
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  UxIssueTracker,
   navigateToOffice,
   waitForWorkspaceLoaded,
   startDiagnostics,
   assertNoToastConflict,
   dismissAllToasts,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
   type DiagnosticsHandle,
 } from '../lib/index.js';
 
@@ -441,9 +438,14 @@ async function hasPermissionDenied(page: Page): Promise<boolean> {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('OFFICE & ROOM CRUD INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'Office & Room CRUD Integration Test',
+    reportFileName: 'OFFICE_ROOM_CRUD_TEST_REPORT.json',
+    metadata: { adminUser: ADMIN_USER, nonAdminUser: NON_ADMIN_USER },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Admin User: ${ADMIN_USER}`);
   console.log(`Non-Admin User: ${NON_ADMIN_USER}`);
   console.log(`Test Office: ${TEST_OFFICE_NAME}`);
@@ -476,22 +478,13 @@ async function runTest(): Promise<boolean> {
     toastConflictDetected: false,
   };
 
-  const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let adminPage: Page | null = null;
   let nonAdminPage: Page | null = null;
   let diagnostics: DiagnosticsHandle | null = null;
+  let overallPass = false;
 
   try {
-    await ensureScreenshotsDir();
-
-    // Restart backend services to ensure clean state
-    // This is critical because the admin user is the first user to join
-    // the workspace with the master password. If stale state exists from
-    // previous test runs, new users may not get admin role.
-    await restartBackendServices();
-    await waitForServicesAlive();
-
     // Create browser with BOTH contexts upfront to avoid browser state issues
     // Creating contexts late (after many operations) can fail with "browser has been closed"
     const setup = await createBrowser();
@@ -841,21 +834,9 @@ async function runTest(): Promise<boolean> {
       !results.toastConflictDetected, // No toast conflicts is critical
     ];
 
-    const allCriticalPassed = criticalTests.every(Boolean);
-    const overallPass = allCriticalPassed;
+    overallPass = criticalTests.every(Boolean);
 
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Write report
-    await writeTestReport('OFFICE_ROOM_CRUD_TEST_REPORT.json', {
-      testName: 'Office & Room CRUD Integration Test',
-      timestamp: new Date().toISOString(),
-      overallPass,
-      results,
-      uxIssues: uxTracker.getIssues(),
-    });
+    harness.finalize(overallPass, results);
 
     // Keep browser open for inspection
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
@@ -864,20 +845,13 @@ async function runTest(): Promise<boolean> {
     if (browser) {
       await browser.close();
     }
-
-    return overallPass;
   }
+
+  return overallPass;
 }
 
 // ============================================================================
 // Entry Point
 // ============================================================================
 
-runTest()
-  .then((passed) => {
-    process.exit(passed ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('Unhandled test error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

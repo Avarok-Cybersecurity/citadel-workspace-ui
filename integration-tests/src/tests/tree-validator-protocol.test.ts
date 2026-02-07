@@ -16,15 +16,12 @@ import type { Page, Browser } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
-  restartBackendServices,
   startDiagnostics,
+  TestHarness,
+  runTestMain,
   // UI-based tree helpers
   getWorkspaceRootId,
   createOfficeViaUI,
@@ -78,9 +75,13 @@ const TEST_OFFICE_2 = `TestOffice2_${timestamp}`;
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('============================================================');
-  console.log('TREE VALIDATOR INTEGRATION TEST');
-  console.log('============================================================');
+  const harness = await TestHarness.create({
+    testName: 'TREE VALIDATOR INTEGRATION TEST',
+    reportFileName: 'TREE_VALIDATOR_TEST_REPORT.json',
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Admin User: ${ADMIN_USER}`);
   console.log('');
 
@@ -99,22 +100,11 @@ async function runTest(): Promise<boolean> {
     leafNodeDeletedWithoutCascade: false,
   };
 
-  const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let page: Page | null = null;
   let diagnostics: DiagnosticsHandle | null = null;
 
   try {
-    await ensureScreenshotsDir();
-
-    // ========================================================================
-    // Restart services for clean state
-    // ========================================================================
-    console.log('\n============================================================');
-    console.log('RESTARTING BACKEND SERVICES FOR CLEAN STATE');
-    console.log('============================================================\n');
-    await restartBackendServices();
-    await waitForServicesAlive();
 
     // Create browser
     const setup = await createBrowser();
@@ -318,15 +308,6 @@ async function runTest(): Promise<boolean> {
     console.log(`OVERALL: ${allCriticalPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
     console.log('='.repeat(60));
 
-    // Write report
-    await writeTestReport('TREE_VALIDATOR_TEST_REPORT.json', {
-      testName: 'Tree Validator Integration Test',
-      timestamp: new Date().toISOString(),
-      overallPass: allCriticalPassed,
-      results,
-      uxIssues: uxTracker.getIssues(),
-    });
-
     // Keep browser open for inspection
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
     await sleep(15000);
@@ -335,6 +316,7 @@ async function runTest(): Promise<boolean> {
       await browser.close();
     }
 
+    harness.finalize(allCriticalPassed, results as unknown as Record<string, any>);
     return allCriticalPassed;
   }
 }
@@ -343,11 +325,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest()
-  .then((passed) => {
-    process.exit(passed ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('Unhandled test error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

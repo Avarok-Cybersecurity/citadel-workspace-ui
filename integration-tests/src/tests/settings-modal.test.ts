@@ -13,17 +13,13 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
   closeAnyModals,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -306,25 +302,16 @@ async function closeSettingsModal(page: Page): Promise<boolean> {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('SETTINGS MODAL INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'Settings Modal Test',
+    reportFileName: 'SETTINGS_MODAL_TEST_REPORT.json',
+    metadata: { username: USERNAME },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Username: ${USERNAME}`);
   console.log('');
-
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Restart backend for clean state
-  await restartBackendServices();
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'Settings Modal Test Started', {
-    username: USERNAME,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Setup browser
   const { browser, context } = await createBrowser();
@@ -466,13 +453,6 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const allPassed =
-      results.accountCreated &&
-      results.userDropdownOpens &&
-      results.settingsMenuItemVisible &&
-      results.modalOpens &&
-      results.tabsVisible;
-
     const corePassed = results.accountCreated && results.userDropdownOpens;
 
     console.log('\nAccount Creation:');
@@ -505,37 +485,7 @@ async function runTest(): Promise<boolean> {
     console.log('\nClose Functionality:');
     console.log(`  Modal Closes:             ${results.modalCloses ? 'PASS' : 'CHECK'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : corePassed ? 'CORE PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Log the test result
-    logObservation('test-complete', `Settings Modal Test ${allPassed ? 'PASSED' : 'COMPLETED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'investigating');
-
-    // Write report
-    writeTestReport('SETTINGS_MODAL_TEST_REPORT.json', {
-      username: USERNAME,
-      results,
-      uxIssues,
-      passed: allPassed,
-      corePassed,
-    });
+    harness.finalize(corePassed, results);
 
     console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
     await sleep(10000);
@@ -544,9 +494,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'Settings Modal Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -557,9 +504,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

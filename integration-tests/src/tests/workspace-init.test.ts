@@ -12,16 +12,12 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
   clearBrowserStorage,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -250,28 +246,17 @@ async function checkNoInitModal(page: Page): Promise<boolean> {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('WORKSPACE INITIALIZATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'Workspace Initialization Test',
+    reportFileName: 'WORKSPACE_INIT_TEST_REPORT.json',
+    metadata: { firstUser: FIRST_USER, secondUser: SECOND_USER },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`First User: ${FIRST_USER}`);
   console.log(`Second User: ${SECOND_USER}`);
   console.log('');
-
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Restart backend for COMPLETELY clean state
-  // This is critical - workspace must not be initialized
-  await restartBackendServices();
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'Workspace Initialization Test Started', {
-    firstUser: FIRST_USER,
-    secondUser: SECOND_USER,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Setup browser
   const { browser, context } = await createBrowser();
@@ -398,15 +383,6 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const allPassed =
-      results.firstUserRegistered &&
-      results.initModalAppears &&
-      results.initSubmitted &&
-      results.firstUserWorkspaceLoaded &&
-      results.secondUserRegistered &&
-      results.noInitModalForSecond &&
-      results.secondUserWorkspaceLoaded;
-
     const corePassed =
       results.firstUserRegistered &&
       results.secondUserRegistered;
@@ -425,38 +401,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  No Init Modal:            ${results.noInitModalForSecond ? 'PASS' : 'CHECK'}`);
     console.log(`  Workspace Loaded:         ${results.secondUserWorkspaceLoaded ? 'PASS' : 'CHECK'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : corePassed ? 'CORE PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Log the test result
-    logObservation('test-complete', `Workspace Initialization Test ${allPassed ? 'PASSED' : 'COMPLETED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'investigating');
-
-    // Write report
-    writeTestReport('WORKSPACE_INIT_TEST_REPORT.json', {
-      firstUser: FIRST_USER,
-      secondUser: SECOND_USER,
-      results,
-      uxIssues,
-      passed: allPassed,
-      corePassed,
-    });
+    harness.finalize(corePassed, results);
 
     console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
     await sleep(10000);
@@ -465,9 +410,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'Workspace Initialization Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -478,9 +420,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

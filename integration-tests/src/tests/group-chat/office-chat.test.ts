@@ -8,14 +8,9 @@
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  logObservation,
   UxIssueTracker,
   isChatEnabled,
-  restartBackendServices,
   startDiagnostics,
   createNUsers,
   navigateAllToOffice,
@@ -23,6 +18,8 @@ import {
   testBidirectionalMessaging,
   printGroupTestResults,
   calculateAllPassed,
+  TestHarness,
+  runTestMain,
   type GroupTestResults,
   type DiagnosticsHandle,
 } from '../../lib/index.js';
@@ -49,15 +46,7 @@ async function runOfficeTest(userCount: number): Promise<boolean> {
   console.log('');
 
   // Initialize
-  ensureScreenshotsDir();
   const uxTracker = new UxIssueTracker();
-
-  // Log test start
-  logObservation('test-start', `Office Chat Test (${userCount} users) Started`, {
-    userCount,
-    office: TEST_OFFICE,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Setup browser
   const { browser, context } = await createBrowser();
@@ -150,41 +139,10 @@ async function runOfficeTest(userCount: number): Promise<boolean> {
       fullResults
     );
 
-    // Log UX issues
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    }
-
-    // Log test result
-    logObservation('test-complete', `Office Chat Test (${userCount} users) ${allPassed ? 'PASSED' : 'FAILED'}`, {
-      results: fullResults,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'failed');
-
-    // Write report
-    writeTestReport(`OFFICE_CHAT_${userCount}USERS_REPORT.json`, {
-      userCount,
-      office: TEST_OFFICE,
-      users: users.map(u => u.username),
-      results: fullResults,
-      uxIssues,
-      passed: allPassed,
-    });
-
     return allPassed;
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', `Office Chat Test (${userCount} users) Error`, {
-      error: String(error),
-    }, 'failed');
     return false;
   } finally {
     // Stop diagnostics
@@ -208,16 +166,16 @@ async function runOfficeTest(userCount: number): Promise<boolean> {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(70));
-  console.log('OFFICE GROUP CHAT INTEGRATION TEST - PARAMETERIZED');
-  console.log('='.repeat(70));
+  const harness = await TestHarness.create({
+    testName: 'Office Group Chat Integration Test',
+    reportFileName: 'OFFICE_CHAT_REPORT.json',
+    metadata: { userCounts: USER_COUNTS, office: TEST_OFFICE },
+    restartBackend: true,
+  });
+
   console.log(`User counts: ${USER_COUNTS.join(', ')}`);
   console.log(`Office: ${TEST_OFFICE}`);
   console.log('');
-
-  // Restart backend services for clean state
-  await restartBackendServices();
-  await waitForServicesAlive();
 
   let allPassed = true;
 
@@ -236,9 +194,7 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
   }
 
-  console.log('\n' + '='.repeat(70));
-  console.log(`OFFICE CHAT TEST SUITE: ${allPassed ? 'ALL PASSED' : 'SOME FAILED'}`);
-  console.log('='.repeat(70));
+  harness.finalize(allPassed, { userCounts: USER_COUNTS, office: TEST_OFFICE });
 
   return allPassed;
 }
@@ -247,9 +203,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

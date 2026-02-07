@@ -15,14 +15,9 @@ import type { Page, Browser } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
-  restartBackendServices,
   startDiagnostics,
   type DiagnosticsHandle,
   // Tree helpers
@@ -37,6 +32,9 @@ import {
   type TreeSchema,
   type NestingRule,
   type CustomNodeType,
+  // Test framework
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -134,9 +132,13 @@ function logStep(step: string, passed: boolean, details?: string): void {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('TREE CUSTOM TYPES INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'TREE CUSTOM TYPES INTEGRATION TEST',
+    reportFileName: 'TREE_CUSTOM_TYPES_TEST_REPORT.json',
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Admin User: ${ADMIN_USER}`);
   console.log(`Custom Types: ${DEPARTMENT_TYPE}, ${TEAM_TYPE}`);
   console.log('');
@@ -162,17 +164,11 @@ async function runTest(): Promise<boolean> {
     updatedSchemaEnforced: false,
   };
 
-  const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let page: Page | null = null;
   let diagnostics: DiagnosticsHandle | null = null;
 
   try {
-    await ensureScreenshotsDir();
-
-    // Restart backend services for clean state
-    await restartBackendServices();
-    await waitForServicesAlive();
 
     // Create browser
     const setup = await createBrowser();
@@ -569,22 +565,10 @@ async function runTest(): Promise<boolean> {
     const schemaPassed = schemaEnforcementTests.filter(Boolean).length >= 1;
     const overallPass = criticalPassed && schemaPassed;
 
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);
     if (!overallPass) {
       console.log('Note: Custom type creation may not be implemented yet.');
       console.log('Schema enforcement tests show the expected behavior.');
     }
-    console.log('='.repeat(60));
-
-    // Write report
-    await writeTestReport('TREE_CUSTOM_TYPES_TEST_REPORT.json', {
-      testName: 'Tree Custom Types Integration Test',
-      timestamp: new Date().toISOString(),
-      overallPass,
-      results,
-      uxIssues: uxTracker.getIssues(),
-    });
 
     // Keep browser open for inspection
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
@@ -594,6 +578,8 @@ async function runTest(): Promise<boolean> {
       await browser.close();
     }
 
+    await harness.finalize(overallPass, results as unknown as Record<string, any>);
+
     return overallPass;
   }
 }
@@ -602,11 +588,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest()
-  .then((passed) => {
-    process.exit(passed ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('Unhandled test error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

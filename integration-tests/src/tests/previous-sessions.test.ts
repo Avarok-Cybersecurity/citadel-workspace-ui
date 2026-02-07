@@ -15,15 +15,12 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 
@@ -334,28 +331,17 @@ async function loginWithCredentials(
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('PREVIOUS SESSIONS NAVBAR TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'Previous Sessions Navbar Test',
+    reportFileName: 'PREVIOUS_SESSIONS_TEST_REPORT.json',
+    metadata: { users: USERS, sessionCount: SESSION_COUNT, isCI },
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Environment: ${isCI ? 'CI' : 'Local'}`);
   console.log(`Session Count: ${SESSION_COUNT}`);
   USERS.forEach((user, i) => console.log(`User ${i + 1}: ${user}`));
   console.log('');
-
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Wait for services
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'Previous Sessions Navbar Test Started', {
-    users: USERS,
-    sessionCount: SESSION_COUNT,
-    isCI,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Setup browser with shared context
   const { browser, context } = await createBrowser();
@@ -635,49 +621,14 @@ async function runTest(): Promise<boolean> {
     console.log('\nOrdering:');
     console.log(`  Most Recent First:         ${results.mostRecentFirst ? 'PASS' : 'CHECK'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    if (allPassed) {
-      console.log('OVERALL: TEST PASSED');
-    } else if (corePassed) {
-      console.log('OVERALL: CORE TESTS PASSED (Reconnect has known limitation)');
-    } else {
-      console.log('OVERALL: TEST FAILED');
-    }
-    console.log('='.repeat(60));
-
     // Log the test result - consider test passing if core tests pass
     const testPassed = corePassed; // Reconnect is known limitation, core tests are required
-    logObservation('test-complete', `Previous Sessions Navbar Test ${testPassed ? 'PASSED' : 'FAILED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-      corePassed,
-      allPassed,
-    }, testPassed ? 'verified' : 'failed');
 
-    // Write report
-    writeTestReport('PREVIOUS_SESSIONS_TEST_REPORT.json', {
-      users: USERS,
-      sessionCount: SESSION_COUNT,
-      isCI,
-      results,
-      uxIssues,
-      passed: testPassed,
-      corePassed,
-      allPassed,
-    });
+    if (corePassed && !allPassed) {
+      console.log('\nNote: Core tests PASSED. Reconnect has known limitation.');
+    }
+
+    harness.finalize(testPassed, { ...results, corePassed, allPassed });
 
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
     await sleep(15000);
@@ -686,9 +637,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'Previous Sessions Navbar Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -699,9 +647,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

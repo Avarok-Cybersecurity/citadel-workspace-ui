@@ -20,17 +20,14 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
   openConversation,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -258,9 +255,13 @@ async function verifySendFileProtocolUsed(page: Page, username: string): Promise
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('NATIVE FILE PICKER INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'Native File Picker Integration Test',
+    reportFileName: 'NATIVE_FILE_PICKER_TEST_REPORT.json',
+    metadata: { user1: USER1, user2: USER2 },
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`User 1 (Alice): ${USER1}`);
   console.log(`User 2 (Bob): ${USER2}`);
   console.log('');
@@ -270,18 +271,6 @@ async function runTest(): Promise<boolean> {
   console.log('  - Server running (Docker or native)');
   console.log('  - UI running at http://localhost:5173');
   console.log('');
-
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Wait for services
-  await waitForServicesAlive();
-
-  logObservation('test-start', 'Native File Picker Test Started', {
-    user1: USER1,
-    user2: USER2,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   const { browser, context } = await createBrowser();
   const context2 = await browser.newContext();
@@ -434,19 +423,10 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const setupPassed =
-      results.accountCreation.user1 &&
-      results.accountCreation.user2 &&
-      results.p2pRegistration &&
-      results.conversationOpen.user1 &&
-      results.conversationOpen.user2;
-
     const nativePickerPassed =
       results.nativePickerFlow.modalOpened &&
       results.nativePickerFlow.nativeButtonVisible &&
       results.nativePickerFlow.nativeButtonClicked;
-
-    const fullFlowPassed = nativePickerPassed && results.nativePickerFlow.fileSelected;
 
     console.log('\nSetup:');
     console.log(`  Account Creation (Alice):     ${results.accountCreation.user1 ? 'PASS' : 'FAIL'}`);
@@ -468,32 +448,7 @@ async function runTest(): Promise<boolean> {
       console.log(`  Error:                        ${results.nativePickerFlow.error}`);
     }
 
-    console.log('\n' + '='.repeat(60));
-    if (fullFlowPassed) {
-      console.log('OVERALL: NATIVE PICKER FLOW PASSED');
-    } else if (nativePickerPassed) {
-      console.log('OVERALL: NATIVE PICKER UI PASSED (file selection skipped/timed out)');
-    } else if (setupPassed) {
-      console.log('OVERALL: SETUP PASSED, NATIVE PICKER NEEDS REVIEW');
-    } else {
-      console.log('OVERALL: TEST NEEDS REVIEW');
-    }
-    console.log('='.repeat(60));
-
-    logObservation('test-complete', `Native File Picker Test ${nativePickerPassed ? 'PASSED' : 'NEEDS REVIEW'}`, {
-      results,
-    }, nativePickerPassed ? 'verified' : 'investigating');
-
-    writeTestReport('NATIVE_FILE_PICKER_TEST_REPORT.json', {
-      users: { user1: USER1, user2: USER2 },
-      results,
-      passed: nativePickerPassed,
-      note: fullFlowPassed
-        ? 'Full native picker flow completed with file selection'
-        : nativePickerPassed
-          ? 'Native picker UI verified, manual file selection was skipped or timed out'
-          : 'Native picker flow needs review',
-    });
+    harness.finalize(nativePickerPassed, results);
 
     console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
     await sleep(20000);
@@ -502,9 +457,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'Native File Picker Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -515,9 +467,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

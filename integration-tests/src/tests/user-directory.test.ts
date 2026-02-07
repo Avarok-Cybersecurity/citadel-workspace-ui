@@ -14,16 +14,12 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   closeAnyModals,
-  restartBackendServices,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -346,27 +342,17 @@ async function testConnectionRequestFlow(page: Page): Promise<{
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('USER DIRECTORY INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'User Directory Test',
+    reportFileName: 'USER_DIRECTORY_TEST_REPORT.json',
+    metadata: { alice: ALICE, bob: BOB },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Alice: ${ALICE}`);
   console.log(`Bob: ${BOB}`);
   console.log('');
-
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Restart backend for clean state
-  await restartBackendServices();
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'User Directory Test Started', {
-    alice: ALICE,
-    bob: BOB,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
 
   // Setup browser
   const { browser, context } = await createBrowser();
@@ -560,12 +546,6 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const allPassed =
-      results.aliceCreated &&
-      results.bobCreated &&
-      results.navigatedToDirectory &&
-      results.pageTitleVisible;
-
     // Core functionality that must pass
     const corePassed =
       results.aliceCreated &&
@@ -601,38 +581,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Request Button Visible: ${results.requestButtonVisible ? 'PASS' : 'CHECK'}`);
     console.log(`  Request Dialog Opens:   ${results.requestDialogOpens ? 'PASS' : 'CHECK'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : corePassed ? 'CORE PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Log the test result
-    logObservation('test-complete', `User Directory Test ${allPassed ? 'PASSED' : 'COMPLETED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'investigating');
-
-    // Write report
-    writeTestReport('USER_DIRECTORY_TEST_REPORT.json', {
-      alice: ALICE,
-      bob: BOB,
-      results,
-      uxIssues,
-      passed: allPassed,
-      corePassed,
-    });
+    harness.finalize(corePassed, results);
 
     console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
     await sleep(10000);
@@ -641,9 +590,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'User Directory Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -654,9 +600,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

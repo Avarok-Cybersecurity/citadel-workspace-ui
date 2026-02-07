@@ -13,14 +13,9 @@ import type { Page, Browser } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
-  restartBackendServices,
   startDiagnostics,
   // Tree helpers
   createNodeViaProtocol,
@@ -37,6 +32,9 @@ import {
   type DiagnosticsHandle,
   type TreeSchema,
   type TreeNode,
+  // Test framework
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -144,9 +142,13 @@ void _countNodesAtDepth;
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('TREE DEEP HIERARCHY INTEGRATION TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'TREE DEEP HIERARCHY INTEGRATION TEST',
+    reportFileName: 'TREE_DEEP_HIERARCHY_TEST_REPORT.json',
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`Admin User: ${ADMIN_USER}`);
   console.log(`Deep Hierarchy Levels: ${DEEP_HIERARCHY_LEVELS}`);
   console.log(`Wide Hierarchy Count: ${WIDE_HIERARCHY_COUNT}`);
@@ -171,7 +173,6 @@ async function runTest(): Promise<boolean> {
     treeStructureFullRetrieval: false,
   };
 
-  const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let page: Page | null = null;
   let diagnostics: DiagnosticsHandle | null = null;
@@ -180,11 +181,6 @@ async function runTest(): Promise<boolean> {
   const createdNodeIds: string[] = [];
 
   try {
-    await ensureScreenshotsDir();
-
-    // Restart backend services for clean state
-    await restartBackendServices();
-    await waitForServicesAlive();
 
     // Create browser
     const setup = await createBrowser();
@@ -643,24 +639,6 @@ async function runTest(): Promise<boolean> {
     const allCriticalPassed = criticalTests.every(Boolean);
     const overallPass = allCriticalPassed;
 
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Write report
-    await writeTestReport('TREE_DEEP_HIERARCHY_TEST_REPORT.json', {
-      testName: 'Tree Deep Hierarchy Integration Test',
-      timestamp: new Date().toISOString(),
-      overallPass,
-      results,
-      uxIssues: uxTracker.getIssues(),
-      metrics: {
-        deepHierarchyLevels: DEEP_HIERARCHY_LEVELS,
-        wideHierarchyCount: WIDE_HIERARCHY_COUNT,
-        largeTreeNodeCount: LARGE_TREE_NODE_COUNT,
-      },
-    });
-
     // Keep browser open for inspection
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
     await sleep(15000);
@@ -668,6 +646,15 @@ async function runTest(): Promise<boolean> {
     if (browser) {
       await browser.close();
     }
+
+    await harness.finalize(overallPass, {
+      ...results,
+      metrics: {
+        deepHierarchyLevels: DEEP_HIERARCHY_LEVELS,
+        wideHierarchyCount: WIDE_HIERARCHY_COUNT,
+        largeTreeNodeCount: LARGE_TREE_NODE_COUNT,
+      },
+    } as unknown as Record<string, any>);
 
     return overallPass;
   }
@@ -677,11 +664,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest()
-  .then((passed) => {
-    process.exit(passed ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('Unhandled test error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);
