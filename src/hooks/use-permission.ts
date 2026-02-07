@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface UsePermissionResult {
   /** Whether the user has the permission */
@@ -59,13 +60,13 @@ export function usePermission(
     if (!permissions.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
       attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
-      (async () => {
+      runAsyncSetup(async () => {
         try {
           await fetchPermissionsForDomain(domainId);
         } finally {
           setLocalLoading(false);
         }
-      })().catch(console.error);
+      });
     }
   }, [domainId, permissions, fetchPermissionsForDomain]);
 
@@ -122,13 +123,13 @@ export function useAnyPermission(
     if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
       attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
-      (async () => {
+      runAsyncSetup(async () => {
         try {
           await fetchPermissionsForDomain(domainId);
         } finally {
           setLocalLoading(false);
         }
-      })().catch(console.error);
+      });
     }
   }, [domainId, permissionMap, fetchPermissionsForDomain]);
 
@@ -186,13 +187,13 @@ export function useAllPermissions(
     if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
       attemptedFetchRef.current.add(domainId);
       setLocalLoading(true);
-      (async () => {
+      runAsyncSetup(async () => {
         try {
           await fetchPermissionsForDomain(domainId);
         } finally {
           setLocalLoading(false);
         }
-      })().catch(console.error);
+      });
     }
   }, [domainId, permissionMap, fetchPermissionsForDomain]);
 

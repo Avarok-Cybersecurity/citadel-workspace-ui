@@ -27,6 +27,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePermissions, Permission, PERMISSION_CATEGORIES } from '@/contexts/PermissionsContext';
 import type { UserRole } from '@/lib/permissions-service';
 import { cn } from '@/lib/utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 /**
  * Role badge component with appropriate styling
@@ -196,9 +197,9 @@ function RoomPermissionSection({
   const role = getRole(roomId);
 
   useEffect(() => {
-    (async () => {
+    runAsyncSetup(async () => {
       await fetchPermissionsForDomain(roomId);
-    })().catch(console.error);
+    });
   }, [roomId, fetchPermissionsForDomain]);
 
   return (
@@ -234,9 +235,9 @@ function OfficePermissionSection({
   const role = getRole(officeId);
 
   useEffect(() => {
-    (async () => {
+    runAsyncSetup(async () => {
       await fetchPermissionsForDomain(officeId);
-    })().catch(console.error);
+    });
   }, [officeId, fetchPermissionsForDomain]);
 
   return (
@@ -294,9 +295,9 @@ export function PermissionsSettingsTab() {
   // Fetch workspace permissions on mount
   useEffect(() => {
     if (workspaceId) {
-      (async () => {
+      runAsyncSetup(async () => {
         await fetchPermissionsForDomain(workspaceId);
-      })().catch(console.error);
+      });
     }
   }, [workspaceId, fetchPermissionsForDomain]);
 

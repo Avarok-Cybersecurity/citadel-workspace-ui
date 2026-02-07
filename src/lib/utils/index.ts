@@ -41,3 +41,9 @@ export {
   PollingService,
   EventListenerPollingService
 } from './polling-service';
+
+// Encoding utilities
+export {
+  stringToBytes,
+  bytesToString
+} from './encoding-utils';

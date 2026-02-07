@@ -8,10 +8,13 @@ import { websocketService } from '@/lib/websocket-service';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
+import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser } from '@/lib/tab-context';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
+import { getDefaultSecuritySettings } from '@/lib/security-utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface Peer {
   cid: string;
@@ -49,16 +52,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       setCurrentCid(cid);
       setCurrentUsername(username);
     };
-    (async () => {
-      await loadConnectionInfo();
-    })().catch(console.error);
+    runAsyncSetup(loadConnectionInfo);
   }, [state.currentUser?.username]);
 
   useEffect(() => {
     if (isOpen) {
-      (async () => {
-        await discoverPeers();
-      })().catch(console.error);
+      runAsyncSetup(discoverPeers);
       // Load initial outgoing requests - convert bigint CIDs to strings
       const loadOutgoing = async () => {
         const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
@@ -66,9 +65,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         bigintCids.forEach(cid => stringCids.add(cid.toString()));
         setOutgoingRequests(stringCids);
       };
-      (async () => {
-        await loadOutgoing();
-      })().catch(console.error);
+      runAsyncSetup(loadOutgoing);
     }
   }, [isOpen]);
 
@@ -101,9 +98,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
     // Initial load when modal opens
     if (isOpen) {
-      (async () => {
-        await updateIncomingRequests();
-      })().catch(console.error);
+      runAsyncSetup(updateIncomingRequests);
     }
 
     // Listen for updates
@@ -161,11 +156,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   const discoverPeers = async () => {
     if (!currentCid) {
-      toast({
-        title: "Not Connected",
-        description: "Please connect to a workspace first",
-        variant: "destructive",
-      });
+      toastError(toast, "Not Connected", "Please connect to a workspace first");
       return;
     }
 
@@ -241,24 +232,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           loadRegisteredPeers().catch(err => {
             console.warn('Could not load registered peers:', err);
           });
-          toast({
-            title: "Peers Discovered",
-            description: `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`,
-            className: "bg-[#343A5C] border-purple-800 text-purple-200",
-          });
+          toastSuccess(toast, "Peers Discovered", `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`);
           return;
         }
-        toast({
-          title: "No Peers Found",
-          description: "You are the only user connected to this workspace",
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
+        toastSuccess(toast, "No Peers Found", "You are the only user connected to this workspace");
       } else {
-        toast({
-          title: "Peers Discovered",
-          description: `Found ${processedPeers.length} other user${processedPeers.length > 1 ? 's' : ''} in the workspace`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
+        toastSuccess(toast, "Peers Discovered", `Found ${processedPeers.length} other user${processedPeers.length > 1 ? 's' : ''} in the workspace`);
       }
     } catch (error) {
       console.error('Failed to discover peers via ListAllPeers:', error);
@@ -271,21 +250,13 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           loadRegisteredPeers().catch(err => {
             console.warn('Could not load registered peers:', err);
           });
-          toast({
-            title: "Peers Discovered",
-            description: `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`,
-            className: "bg-[#343A5C] border-purple-800 text-purple-200",
-          });
+          toastSuccess(toast, "Peers Discovered", `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`);
           return;
         }
       } catch (fallbackError) {
         console.error('GetSessions fallback also failed:', fallbackError);
       }
-      toast({
-        title: "Discovery Failed",
-        description: "Could not discover peers in the workspace",
-        variant: "destructive",
-      });
+      toastError(toast, "Discovery Failed", "Could not discover peers in the workspace");
     } finally {
       setLoading(false);
     }
@@ -404,11 +375,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       // Refresh the registered peers list
       await loadRegisteredPeers();
     } catch (error) {
-      toast({
-        title: 'Failed to Accept',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
+      toastError(toast, 'Failed to Accept', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setAcceptingPeerCid(null);
     }
@@ -416,11 +383,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   const registerWithPeer = async (peerCid: string, peerUsername: string) => {
     if (!currentCid) {
-      toast({
-        title: "Not Connected",
-        description: "Please connect to a workspace first",
-        variant: "destructive",
-      });
+      toastError(toast, "Not Connected", "Please connect to a workspace first");
       return;
     }
 
@@ -435,16 +398,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           request_id: requestId,
           cid: currentCid,
           peer_cid: BigInt(peerCid),
-          session_security_settings: {
-            security_level: "Standard",
-            secrecy_mode: "BestEffort",
-            crypto_params: {
-              encryption_algorithm: "AES_GCM_256",
-              kem_algorithm: "Kyber",
-              sig_algorithm: "None"
-            },
-            header_obfuscator_settings: "Disabled"
-          },
+          session_security_settings: getDefaultSecuritySettings(),
           connect_after_register: false,
           peer_session_password: null
         }
@@ -474,11 +428,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       // and will automatically remove from outgoing + update UI via event emitter
     } catch (error) {
       console.error('Failed to send registration request:', error);
-      toast({
-        title: "Request Failed",
-        description: "Could not send registration request",
-        variant: "destructive",
-      });
+      toastError(toast, "Request Failed", "Could not send registration request");
     }
   };
 

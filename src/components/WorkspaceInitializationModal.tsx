@@ -9,6 +9,7 @@ import WorkspaceService from "@/lib/workspace-service";
 import { WorkspaceProtocolRequestTS, WorkspaceProtocolPayloadTS } from "@/types/workspace-protocol";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { workspaceEvents } from "@/lib/workspace-events";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface WorkspaceInitializationModalProps {
     isOpen: boolean;
@@ -93,20 +94,20 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 };
                 
                 // Listen for workspace response
-                (async () => {
+                runAsyncSetup(async () => {
                     unsubscribeWorkspace = await workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
                         cleanup();
                         resolve();
                     });
-                })().catch(console.error);
+                });
 
                 // Also listen for errors
-                (async () => {
+                runAsyncSetup(async () => {
                     unsubscribeError = await workspaceEvents.onOperationEvent('operation:error', (error) => {
                         cleanup();
                         reject(new Error(error.message || 'Failed to initialize workspace'));
                     });
-                })().catch(console.error);
+                });
                 
                 // Timeout after 10 seconds
                 timeoutId = setTimeout(() => {

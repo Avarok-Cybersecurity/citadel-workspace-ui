@@ -1,4 +1,5 @@
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
 import {
   EntityManagementModal,
@@ -64,25 +65,13 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
   const handleSubmit = async (formData: Record<string, string>) => {
     if (mode === "add") {
       await WorkspaceService.addMember(formData.username, formData.role, officeId, roomId);
-      toast({
-        title: "Member Added",
-        description: `${formData.username} has been added to the ${location} as ${formData.role}`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Member Added", `${formData.username} has been added to the ${location} as ${formData.role}`);
     } else if (mode === "edit" && member) {
       await WorkspaceService.updateMemberRole(member.id, formData.role);
-      toast({
-        title: "Member Updated",
-        description: `${member.username}'s role has been updated to ${formData.role}`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Member Updated", `${member.username}'s role has been updated to ${formData.role}`);
     } else if (mode === "remove" && member) {
       await WorkspaceService.removeMember(member.id, officeId, roomId);
-      toast({
-        title: "Member Removed",
-        description: `${member.username} has been removed`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Member Removed", `${member.username} has been removed`);
     }
   };
 

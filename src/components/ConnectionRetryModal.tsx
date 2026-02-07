@@ -6,6 +6,7 @@ import { useRetry, useEventListener } from "@/hooks";
 import { websocketService } from "@/lib/websocket-service";
 import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface ConnectionRetryModalProps {
   isOpen: boolean;
@@ -101,9 +102,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
       setHasInitialized(true);
       // Start the first connection attempt using ref to avoid dependency on changing callback
       if (executeFnRef.current) {
-        (async () => {
-          await executeFnRef.current!();
-        })().catch(console.error);
+        runAsyncSetup(() => executeFnRef.current!());
       }
     }
 
@@ -140,13 +139,13 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
 
         // Use the ref to call retry (avoids dependency on changing callback reference)
         if (retryFnRef.current) {
-          (async () => {
+          runAsyncSetup(async () => {
             try {
               await retryFnRef.current!();
             } finally {
               retryInProgressRef.current = false;
             }
-          })().catch(console.error);
+          });
         }
       }
     };
@@ -169,13 +168,13 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     // Use ref for consistency with auto-retry path to avoid race conditions
     if (retryFnRef.current && !retryInProgressRef.current) {
       retryInProgressRef.current = true;
-      (async () => {
+      runAsyncSetup(async () => {
         try {
           await retryFnRef.current!();
         } finally {
           retryInProgressRef.current = false;
         }
-      })().catch(console.error);
+      });
     }
   };
 

@@ -9,6 +9,7 @@ import {
 } from '@/lib/file-upload-service';
 import { formatFileSize, formatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,9 +42,7 @@ export const FileList: React.FC<FileListProps> = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    (async () => {
-      await loadFiles();
-    })().catch(console.error);
+    runAsyncSetup(loadFiles);
 
     // Listen for file upload events
     const handleFileUploaded = (file: FileMetadata) => {

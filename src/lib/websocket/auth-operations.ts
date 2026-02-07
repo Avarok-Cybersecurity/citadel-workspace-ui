@@ -12,17 +12,13 @@ import {
 } from '../security-utils';
 import { resolveServerAddress } from '../address-resolver';
 import { instanceManager } from '../multi-instance';
+import { stringToBytes } from '../utils/encoding-utils';
 
 export interface AuthConfig {
   init: () => Promise<void>;
   sendRequest: (request: unknown, requestId?: string) => Promise<void>;
   claimSession: (cid: bigint, onlyIfOrphaned: boolean) => Promise<unknown>;
   disconnect: (cid: bigint) => Promise<void>;
-}
-
-// Helper function to convert string to byte array
-function stringToByteArray(str: string): number[] {
-  return Array.from(new TextEncoder().encode(str));
 }
 
 export class AuthOperations {
@@ -79,7 +75,7 @@ export class AuthOperations {
     const connectOptions = {
       request_id: requestId,
       username,
-      password: stringToByteArray(password),
+      password: stringToBytes(password),
       connect_mode: { Standard: { force_login: true } },
       udp_mode: "Disabled",
       keep_alive_timeout: null,
@@ -128,7 +124,7 @@ export class AuthOperations {
       server_addr: resolvedAddr,
       full_name: fullName,
       username,
-      proposed_password: stringToByteArray(password),
+      proposed_password: stringToBytes(password),
       connect_after_register: true,
       session_security_settings: {
         security_level: settings.security_level,

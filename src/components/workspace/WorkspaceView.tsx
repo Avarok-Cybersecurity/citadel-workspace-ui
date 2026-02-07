@@ -7,6 +7,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from '@/lib/connection';
 import { StoredSession } from '@/types/session-types';
 import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface WorkspaceViewProps {
   officeId?: string | null;
@@ -27,9 +28,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }
       setTabSelection(selection);
       setTabSession(session);
     };
-    (async () => {
-      await loadTabInfo();
-    })().catch(console.error);
+    runAsyncSetup(loadTabInfo);
   }, []);
   
   // Parse query parameters for P2P chat

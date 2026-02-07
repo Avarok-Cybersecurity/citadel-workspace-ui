@@ -12,16 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps, MemberData, UserRole, USER_ROLES } from '../types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -29,6 +20,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import { PermissionManager } from '@/components/permissions/PermissionManager';
 import { Loader2, UserMinus, Shield } from 'lucide-react';
 import { getUserInitials } from '@/lib/workspace-metadata-service';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 const ROLE_COLORS: Record<UserRole, string> = {
   Admin: 'bg-red-500',
@@ -49,9 +41,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    (async () => {
-      await loadMembers();
-    })().catch(console.error);
+    runAsyncSetup(loadMembers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId]);
 
@@ -329,28 +319,14 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
       </div>
 
       {/* Remove Member Confirmation */}
-      <AlertDialog open={!!memberToRemove} onOpenChange={() => setMemberToRemove(null)}>
-        <AlertDialogContent className="bg-[#343A5C] border-purple-800">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Remove Member</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-300">
-              Are you sure you want to remove {memberToRemove?.name || memberToRemove?.username} from
-              this {entityType}? They will lose access to all content.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-gray-600 text-white hover:bg-[#444A6C]">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRemoveMember}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!memberToRemove}
+        onOpenChange={() => setMemberToRemove(null)}
+        title="Remove Member"
+        description={`Are you sure you want to remove ${memberToRemove?.name || memberToRemove?.username} from this ${entityType}? They will lose access to all content.`}
+        onConfirm={handleRemoveMember}
+        confirmLabel="Remove"
+      />
     </div>
   );
 }

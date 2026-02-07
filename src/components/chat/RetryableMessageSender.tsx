@@ -6,6 +6,7 @@ import { useRetry } from '../../hooks/use-retry';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Alert, AlertDescription } from '../ui/alert';
 import { MessagingService } from '../../lib/messaging-service';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface RetryableMessageSenderProps {
   recipientId: string;
@@ -86,9 +87,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
 
     // If there's text and the user is typing
     if (inputValue.length > 0) {
-      (async () => {
-        await handleTypingStarted();
-      })().catch(console.error);
+      runAsyncSetup(handleTypingStarted);
     } else if (isTyping) {
       // If the input is cleared, stop typing immediately
       setIsTyping(false);

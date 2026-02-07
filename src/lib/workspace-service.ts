@@ -43,6 +43,10 @@ export class WorkspaceService {
     this.currentCid = cid;
   }
 
+  private sendProtocolRequest(request: WorkspaceProtocolRequestTS): Promise<void> {
+    return this.sendWorkspaceRequest({ Request: request });
+  }
+
   /**
    * Send a workspace protocol request
    * @param request The workspace protocol request object
@@ -137,10 +141,8 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetWorkspace: null
     };
-    // Construct the full payload expected by the Rust command (PascalCase 'Request')
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
     console.log('[WorkspaceService] Sending GetWorkspace request');
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -150,8 +152,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetWorkspace: { workspace_id: workspaceId ?? null }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -161,8 +162,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       ListWorkspaces: null
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -177,9 +177,7 @@ export class WorkspaceService {
       // Changed from true to null for unit variant
       ListOffices: null
     };
-    // Construct the full payload expected by the Rust command (PascalCase 'Request')
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -194,9 +192,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       ListRooms: { office_id: officeId }
     };
-    // Construct the full payload expected by the Rust command (PascalCase 'Request')
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -215,8 +211,7 @@ export class WorkspaceService {
         metadata: metadata ? Array.from(metadata) : undefined
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -235,8 +230,7 @@ export class WorkspaceService {
         metadata: metadata ? Array.from(metadata) : undefined
       }
     } as WorkspaceProtocolRequestTS;
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -263,8 +257,7 @@ export class WorkspaceService {
         metadata: metadata ? Array.from(metadata) : undefined
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -275,8 +268,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetOffice: { office_id: officeId }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -304,8 +296,7 @@ export class WorkspaceService {
         is_default: updates.is_default
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -316,8 +307,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       DeleteOffice: { office_id: officeId }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -344,8 +334,7 @@ export class WorkspaceService {
         metadata: metadata ? Array.from(metadata) : undefined
       }
     } as WorkspaceProtocolRequestTS;
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -356,8 +345,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetRoom: { room_id: roomId }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -383,8 +371,7 @@ export class WorkspaceService {
         metadata: updates.metadata ? Array.from(updates.metadata) : undefined
       }
     } as WorkspaceProtocolRequestTS;
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -395,8 +382,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       DeleteRoom: { room_id: roomId }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -423,8 +409,7 @@ export class WorkspaceService {
         metadata: metadata ? Array.from(metadata) : undefined
       }
     } as WorkspaceProtocolRequestTS;
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -435,8 +420,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetMember: { user_id: userId }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -457,8 +441,7 @@ export class WorkspaceService {
         metadata: metadata ? Array.from(metadata) : undefined
       }
     } as WorkspaceProtocolRequestTS;
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -482,8 +465,7 @@ export class WorkspaceService {
         operation
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -504,8 +486,7 @@ export class WorkspaceService {
         room_id: roomId
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -520,8 +501,7 @@ export class WorkspaceService {
         room_id: roomId
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -536,8 +516,7 @@ export class WorkspaceService {
         domain_id: domainId
       }
     } as WorkspaceProtocolRequestTS;
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -550,8 +529,7 @@ export class WorkspaceService {
         contents: new Uint8Array(contents)
       }
     } as WorkspaceProtocolRequestTS;
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   // ========== Group Messaging Methods ==========
@@ -580,8 +558,7 @@ export class WorkspaceService {
         mentions
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -602,8 +579,7 @@ export class WorkspaceService {
         new_content: newContent
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -621,8 +597,7 @@ export class WorkspaceService {
         message_id: messageId
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -643,8 +618,7 @@ export class WorkspaceService {
         limit
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**
@@ -662,8 +636,7 @@ export class WorkspaceService {
         parent_message_id: parentMessageId
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   // ========== User Profile Methods ==========
@@ -683,8 +656,7 @@ export class WorkspaceService {
         avatar_data: avatarData
       }
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   // ========== Server Capabilities Methods ==========
@@ -697,8 +669,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetServerCapabilities: null
     };
-    const payload: WorkspaceProtocolPayloadTS = { Request: requestPart };
-    return this.sendWorkspaceRequest(payload);
+    return this.sendProtocolRequest(requestPart);
   }
 
   /**

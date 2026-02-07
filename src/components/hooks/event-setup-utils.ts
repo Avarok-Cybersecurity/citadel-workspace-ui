@@ -1,4 +1,6 @@
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
+// Re-export runAsyncSetup from canonical location for backward compatibility
+export { runAsyncSetup } from '@/lib/utils/async-utils';
 
 type SetState = React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
 
@@ -53,9 +55,4 @@ export function removeEntity(
       ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
     };
   });
-}
-
-/** Standard async IIFE wrapper for useEffect setup functions. */
-export function runAsyncSetup(fn: () => Promise<void>): void {
-  fn().catch(console.error);
 }

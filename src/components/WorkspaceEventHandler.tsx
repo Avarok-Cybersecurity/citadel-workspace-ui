@@ -9,6 +9,7 @@ import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
 import { connectionManager } from '../lib/connection';
 // P2P startup is now centralized in SessionStartupService, but we still need stop() for cleanup
 import { p2pRegistrationService } from '../lib/p2p-registration-service';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 // Import extracted hooks
 import {
@@ -255,14 +256,10 @@ export const WorkspaceEventHandler: React.FC<{
       console.info('Workspace event listeners initialized');
     };
 
-    (async () => {
-      await initializeEvents();
-    })().catch(console.error);
+    runAsyncSetup(initializeEvents);
 
     return () => {
-      (async () => {
-        await workspaceEvents.cleanupAllListeners();
-      })().catch(console.error);
+      runAsyncSetup(async () => { workspaceEvents.cleanupAllListeners(); });
       p2pRegistrationService.stop();
     };
   }, []);

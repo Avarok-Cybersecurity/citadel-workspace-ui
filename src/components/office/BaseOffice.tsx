@@ -19,6 +19,7 @@ import GroupChatView from "@/components/chat/GroupChatView";
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface BaseOfficeProps {
   title: string;
@@ -49,10 +50,10 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
 
   // Load tab session asynchronously
   useEffect(() => {
-    (async () => {
+    runAsyncSetup(async () => {
       const session = await connectionManager.getTabSelectedSession();
       setTabSession(session);
-    })().catch(console.error);
+    });
   }, []);
 
   // Determine if we're in a loading state
@@ -141,9 +142,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
       }
     };
 
-    (async () => {
-      await compileContent();
-    })().catch(console.error);
+    runAsyncSetup(compileContent);
   }, [content]);
 
   // Handle template selection

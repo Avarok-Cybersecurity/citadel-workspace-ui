@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { DialogContent, DialogHeader, DialogTitle, DialogDescription, Dialog } from '@/components/ui/dialog';
 import { Image, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface MediaUploaderProps {
   open: boolean;
@@ -37,18 +38,18 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      (async () => {
+      runAsyncSetup(async () => {
         await handleFile(e.dataTransfer.files[0]);
-      })().catch(console.error);
+      });
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (e.target.files && e.target.files[0]) {
-      (async () => {
+      runAsyncSetup(async () => {
         await handleFile(e.target.files![0]);
-      })().catch(console.error);
+      });
     }
   };
 

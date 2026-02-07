@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess } from "@/lib/toast-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import PreferencesDialog from "@/components/connection/PreferencesDialog";
 import NotificationCenter from "@/components/notification/NotificationCenter";
@@ -28,6 +29,7 @@ import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface TopBarProps {
   // Optional prop for backward compatibility
@@ -61,11 +63,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
 
   const handleSettingsClick = () => {
-    toast({
-      title: "Settings",
-      description: "Settings panel opening soon",
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Settings", "Settings panel opening soon");
   };
 
   const handleExit = () => {
@@ -73,16 +71,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     wasmConnectionManager.stop();
 
     // Just navigate to landing page, keep session active
-    (async () => {
-      await clearSelectedUser();
-    })().catch(console.error);
+    runAsyncSetup(clearSelectedUser);
     navigate('/');
 
-    toast({
-      title: "Returned to landing page",
-      description: "Your session is still active. Click your workspace icon to return instantly.",
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Returned to landing page", "Your session is still active. Click your workspace icon to return instantly.");
   };
 
   const handleSignOut = async () => {
@@ -148,11 +140,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     setShowDisconnectModal(false);
     if (disconnectStatus === "ready") {
       navigate('/');
-      toast({
-        title: "Signed out",
-        description: "You have been fully logged out. You'll need to login again to access this workspace.",
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Signed out", "You have been fully logged out. You'll need to login again to access this workspace.");
     }
   };
 

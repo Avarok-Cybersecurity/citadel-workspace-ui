@@ -19,7 +19,9 @@ import { ConnectionService } from "@/lib/connection-service";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface StoredWorkspace {
   id: string;
@@ -116,9 +118,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       }
     };
 
-    (async () => {
-      await loadStoredWorkspaces();
-    })().catch(console.error);
+    runAsyncSetup(loadStoredWorkspaces);
 
     // Also listen for connection changes
     const connectionService = ConnectionService.getInstance();
@@ -162,11 +162,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
     try {
       // Show switching toast immediately
-      toast({
-        title: "Switching workspace...",
-        description: `Connecting as ${workspace.fullName || workspace.username}`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Switching workspace...", `Connecting as ${workspace.fullName || workspace.username}`);
 
       // Add transition class to main content
       const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
@@ -223,16 +219,12 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       await WorkspaceService.listOffices();
 
       // Show success notification
-      toast({
-        title: "Connected!",
-        description: (
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span>{workspace.fullName || workspace.username} · {workspace.workspaceName}</span>
-          </div>
-        ),
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Connected!", (
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <span>{workspace.fullName || workspace.username} · {workspace.workspaceName}</span>
+        </div>
+      ));
 
       // Navigate to saved route or default
       const savedRoute = workspaceRoutes[workspace.id];
@@ -253,11 +245,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
     } catch (error) {
       console.error('Failed to switch workspace:', error);
-      toast({
-        title: "Switch Failed",
-        description: "Could not switch to the selected workspace",
-        variant: "destructive",
-      });
+      toastError(toast, "Switch Failed", "Could not switch to the selected workspace");
 
       // Reset animation state on error
       const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
@@ -280,20 +268,12 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
     setCurrentStep("connect");
     setIsOpen(false);
     
-    toast({
-      title: "Adding New Account",
-      description: `Join ${workspaceName} with a different account`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Adding New Account", `Join ${workspaceName} with a different account`);
   };
 
   const handleManageAccounts = () => {
     setIsOpen(false);
-    toast({
-      title: "Account Management",
-      description: "Account management coming soon",
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Account Management", "Account management coming soon");
   };
 
   const handleNext = () => {

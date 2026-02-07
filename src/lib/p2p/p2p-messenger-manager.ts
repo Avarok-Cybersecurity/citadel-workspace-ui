@@ -20,6 +20,7 @@ import { instanceManager } from '../multi-instance';
 import { notificationService } from '../notification-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { EventListenerManager } from '../utils/event-listener-manager';
+import { getDefaultSecuritySettings } from '../security-utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
@@ -378,11 +379,7 @@ export class P2PMessengerManager extends EventListenerManager {
     const request = {
       PeerRegister: {
         request_id: crypto.randomUUID(), cid: ownCid.toString(), peer_cid: peerCid.toString(),
-        session_security_settings: {
-          security_level: 'Standard', secrecy_mode: 'BestEffort',
-          crypto_params: { encryption_algorithm: 'AES_GCM_256', kem_algorithm: 'Kyber', sig_algorithm: 'None' },
-          header_obfuscator_settings: 'Disabled'
-        },
+        session_security_settings: getDefaultSecuritySettings(),
         connect_after_register: false, peer_session_password: null
       }
     };

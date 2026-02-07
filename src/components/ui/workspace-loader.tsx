@@ -7,6 +7,7 @@ import { websocketService } from '@/lib/websocket-service';
 import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import WorkspaceService from '@/lib/workspace-service';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '@/lib/tab-context';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface WorkspaceLoaderProps {
   children: React.ReactNode;
@@ -191,9 +192,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
       }
     };
 
-    (async () => {
-      await autoClaimSession();
-    })().catch(console.error);
+    runAsyncSetup(autoClaimSession);
   }, [isDevMode]);
 
   useEffect(() => {

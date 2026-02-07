@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { websocketService } from './websocket-service';
 import { sha256Sync } from './merkle-tree';
 import type { RevisionEntry } from '@/types/p2p-types';
+import { stringToBytes, bytesToString } from './utils/encoding-utils';
 
 // Document metadata stored in LocalDB
 export interface DocumentMetadata {
@@ -128,7 +129,7 @@ class LiveDocumentStore {
   async saveDocument(docId: string, doc: StoredDocument): Promise<void> {
     const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
     const valueStr = JSON.stringify(doc);
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    const valueBytes = stringToBytes(valueStr);
 
     await websocketService.sendLocalDBSet(0n, key, valueBytes);
 
@@ -310,7 +311,7 @@ class LiveDocumentStore {
   private async updateIndex(): Promise<void> {
     const docIds = Array.from(this.documentsCache.keys());
     const valueStr = JSON.stringify(docIds);
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    const valueBytes = stringToBytes(valueStr);
 
     await websocketService.sendLocalDBSet(0n, DOCUMENTS_INDEX_KEY, valueBytes);
   }
@@ -320,7 +321,7 @@ class LiveDocumentStore {
    */
   private decodeValue(value: any): string {
     if (Array.isArray(value)) {
-      return new TextDecoder().decode(new Uint8Array(value));
+      return bytesToString(value);
     }
     if (typeof value === 'string') {
       return value;

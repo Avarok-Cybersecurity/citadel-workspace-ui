@@ -21,6 +21,7 @@ import { revfsService } from '@/lib/revfs';
 // Import sessionStartupService to ensure it's instantiated (sets up event listeners)
 // P2P startup is now centralized here - triggered by 'session:activated' event
 import '@/lib/session-startup-service';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 /**
  * WorkspaceApp is the main container component that provides:
@@ -60,9 +61,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     
-    (async () => {
-      await initializeServices();
-    })().catch(console.error);
+    runAsyncSetup(initializeServices);
 
     // Initialize required services to ensure they're instantiated
     // This will set up their event listeners and notification handlers
@@ -298,9 +297,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
       messagingService.cleanup();
       connectionService.cleanup();
       WorkspaceService.cleanup();
-      (async () => {
-        await userService.cleanup();
-      })().catch(console.error);
+      runAsyncSetup(() => userService.cleanup());
       healthCheckService.stopHealthChecks();
       eventEmitter.off('connection-failure', handleConnectionFailure);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);

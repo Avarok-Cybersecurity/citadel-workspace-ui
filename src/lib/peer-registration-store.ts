@@ -13,6 +13,9 @@ import { notificationService } from './notification-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { p2pRegistrationService } from './p2p-registration-service';
 import { getSelectedUser } from './tab-context';
+import { getDefaultSecuritySettings } from './security-utils';
+import { stringToBytes, bytesToString } from './utils/encoding-utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export interface PendingPeerRequest {
   id: string;              // UUID for this request
@@ -228,16 +231,7 @@ class PeerRegistrationStore {
         request_id: request.id,
         cid: request.fromCid,
         peer_cid: request.toCid,
-        session_security_settings: {
-          security_level: 'Standard',
-          secrecy_mode: 'BestEffort',
-          crypto_params: {
-            encryption_algorithm: 'AES_GCM_256',
-            kem_algorithm: 'Kyber',
-            sig_algorithm: 'None'
-          },
-          header_obfuscator_settings: 'Disabled'
-        },
+        session_security_settings: getDefaultSecuritySettings(),
         connect_after_register: true,
         peer_session_password: null
       }
@@ -527,16 +521,7 @@ class PeerRegistrationStore {
         request_id: registerRequestId,
         cid: currentCid,
         peer_cid: request.peer_cid,
-        session_security_settings: {
-          security_level: 'Standard',
-          secrecy_mode: 'BestEffort',
-          crypto_params: {
-            encryption_algorithm: 'AES_GCM_256',
-            kem_algorithm: 'Kyber',
-            sig_algorithm: 'None'
-          },
-          header_obfuscator_settings: 'Disabled'
-        },
+        session_security_settings: getDefaultSecuritySettings(),
         connect_after_register: true,
         peer_session_password: null
       }
@@ -718,7 +703,7 @@ class PeerRegistrationStore {
         cid: 0n, // Global storage (BigInt for WASM u64)
         peer_cid: null,
         key: STORAGE_KEY,
-        value: Array.from(new TextEncoder().encode(valueStr))
+        value: stringToBytes(valueStr)
       }
     };
 
@@ -827,7 +812,7 @@ class PeerRegistrationStore {
         cid: 0n, // Global storage (BigInt for WASM u64)
         peer_cid: null,
         key: OUTGOING_STORAGE_KEY,
-        value: Array.from(new TextEncoder().encode(valueStr))
+        value: stringToBytes(valueStr)
       }
     };
 
@@ -930,9 +915,9 @@ class PeerRegistrationStore {
       console.log('PeerRegistrationStore: Session switched, refreshing notifications');
       // Delay slightly to ensure connectionManager has updated
       setTimeout(() => {
-        (async () => {
+        runAsyncSetup(async () => {
           await this.refreshNotificationsForCurrentSession();
-        })().catch(console.error);
+        });
       }, 100);
     });
 
@@ -970,7 +955,7 @@ class PeerRegistrationStore {
           this.pendingKVRequests.delete(request_id);
           try {
             if (value && value.length > 0) {
-              const decoded = new TextDecoder().decode(new Uint8Array(value));
+              const decoded = bytesToString(value);
               const parsed = JSON.parse(decoded);
               pending.resolve(parsed);
             } else {

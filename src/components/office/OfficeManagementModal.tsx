@@ -1,4 +1,5 @@
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
@@ -45,10 +46,10 @@ export const OfficeManagementModal: React.FC<OfficeManagementModalProps> = ({
       const workspaceId = state.workspace?.id;
       if (!workspaceId) throw new Error("No workspace ID available");
       await WorkspaceService.createOffice(workspaceId, formData.name, formData.description);
-      toast({ title: "Office Created", description: `${formData.name} has been created successfully`, className: "bg-[#343A5C] border-purple-800 text-purple-200" });
+      toastSuccess(toast, "Office Created", `${formData.name} has been created successfully`);
     } else if (mode === "edit" && office) {
       await WorkspaceService.updateOffice(office.id, { name: formData.name, description: formData.description });
-      toast({ title: "Office Updated", description: `${formData.name} has been updated successfully`, className: "bg-[#343A5C] border-purple-800 text-purple-200" });
+      toastSuccess(toast, "Office Updated", `${formData.name} has been updated successfully`);
     }
   };
 

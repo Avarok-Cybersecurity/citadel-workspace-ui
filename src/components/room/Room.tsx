@@ -18,6 +18,7 @@ import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
 import { connectionManager } from '@/lib/connection';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';
@@ -52,10 +53,10 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   // Load tab session asynchronously
   useEffect(() => {
-    (async () => {
+    runAsyncSetup(async () => {
       const session = await connectionManager.getTabSelectedSession();
       setTabSession(session);
-    })().catch(console.error);
+    });
   }, []);
 
   // Fetch room data if not available
@@ -71,9 +72,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       }
     };
 
-    (async () => {
-      await fetchRoomData();
-    })().catch(console.error);
+    runAsyncSetup(fetchRoomData);
   }, [roomId, room, isLoading, officeId]);
 
   // Update content when room data changes
@@ -111,9 +110,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       }
     };
 
-    (async () => {
-      await compileContent();
-    })().catch(console.error);
+    runAsyncSetup(compileContent);
   }, [content]);
 
   // Handle saving MDX content

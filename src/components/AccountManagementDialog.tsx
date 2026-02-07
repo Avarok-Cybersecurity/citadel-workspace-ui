@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -49,9 +50,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
           console.error('Failed to load active sessions:', error);
         }
       };
-      (async () => {
-        await loadActiveSessions();
-      })().catch(console.error);
+      runAsyncSetup(loadActiveSessions);
       // Also refresh stored sessions
       setStoredSessions(connectionManager.getStoredSessionsArray());
     }

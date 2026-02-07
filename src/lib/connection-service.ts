@@ -3,6 +3,7 @@ import { MessagingService } from './messaging-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export enum ConnectionRequestStatus {
   PENDING = 'pending',
@@ -165,9 +166,9 @@ export class ConnectionService {
 
       // For demo purposes, we'll auto-accept P2P connections
       setTimeout(() => {
-        (async () => {
+        runAsyncSetup(async () => {
           await this.autoAcceptConnection(request);
-        })().catch(console.error);
+        });
       }, 1000);
 
     } catch (error) {
@@ -521,9 +522,9 @@ export class ConnectionService {
       if (preferences.autoAcceptRegistrations) {
         // Auto-accept the request
         setTimeout(() => {
-          (async () => {
+          runAsyncSetup(async () => {
             await this.acceptConnectionRequest(request.id);
-          })().catch(console.error);
+          });
         }, 1000);
       }
 

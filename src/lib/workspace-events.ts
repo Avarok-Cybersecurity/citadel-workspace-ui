@@ -146,12 +146,24 @@ export type WorkspaceEventType =
 export class WorkspaceEvents {
   private listeners: Map<string, UnlistenFn[]> = new Map();
 
-  /**
-   * Listen for workspace events
-   * @param event Event type to listen for
-   * @param callback Callback function to be called when event is received
-   * @returns A function to unsubscribe from the event
-   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private registerListener(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
+    const unlistenFn = eventEmitter.on(event, callback);
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event)?.push(unlistenFn);
+    return () => {
+      unlistenFn();
+      const listeners = this.listeners.get(event) || [];
+      const index = listeners.indexOf(unlistenFn);
+      if (index !== -1) {
+        listeners.splice(index, 1);
+      }
+    };
+  }
+
+  // Workspace events
   public onWorkspaceEvent(event: 'workspace:loaded', callback: (payload: WorkspacePayload) => void): () => void;
   public onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): () => void;
@@ -161,31 +173,10 @@ export class WorkspaceEvents {
   public onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
   public onWorkspaceEvent(event: WorkspaceEventType, callback: any): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
-
-    // Store the unlisten function
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(unlistenFn);
-
-    // Return a function to unsubscribe from this specific event
-    return () => {
-      unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
+    return this.registerListener(event, callback);
   }
 
-  /**
-   * Listen for office events
-   * @param event Event type to listen for
-   * @param callback Callback function to be called when event is received
-   * @returns A function to unsubscribe from the event
-   */
+  // Office events
   public onOfficeEvent<T>(event: 'office:loaded', callback: (payload: OfficePayload) => void): () => void;
   public onOfficeEvent<T>(event: 'offices:loaded', callback: (payload: OfficesPayload) => void): () => void;
   public onOfficeEvent<T>(event: 'office:creating' | 'offices:loading' | 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
@@ -193,31 +184,10 @@ export class WorkspaceEvents {
   public onOfficeEvent<T>(event: 'office:created' | 'office:updated', callback: (payload: { office: Office, connection: ConnectionInfo }) => void): () => void;
   public onOfficeEvent<T>(event: 'office:deleted', callback: (payload: { officeId: string, connection: ConnectionInfo }) => void): () => void;
   public onOfficeEvent<T>(event: WorkspaceEventType, callback: any): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
-
-    // Store the unlisten function
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(unlistenFn);
-
-    // Return a function to unsubscribe from this specific event
-    return () => {
-      unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
+    return this.registerListener(event, callback);
   }
 
-  /**
-   * Listen for room events
-   * @param event Event type to listen for
-   * @param callback Callback function to be called when event is received
-   * @returns A function to unsubscribe from the event
-   */
+  // Room events
   public onRoomEvent<T>(event: 'room:loaded', callback: (payload: RoomPayload) => void): () => void;
   public onRoomEvent<T>(event: 'rooms:loaded', callback: (payload: RoomsPayload) => void): () => void;
   public onRoomEvent<T>(event: 'room:creating', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): () => void;
@@ -226,31 +196,10 @@ export class WorkspaceEvents {
   public onRoomEvent<T>(event: 'room:created' | 'room:updated', callback: (payload: { room: Room, connection: ConnectionInfo }) => void): () => void;
   public onRoomEvent<T>(event: 'room:deleted', callback: (payload: { roomId: string, connection: ConnectionInfo }) => void): () => void;
   public onRoomEvent<T>(event: WorkspaceEventType, callback: any): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
-
-    // Store the unlisten function
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(unlistenFn);
-
-    // Return a function to unsubscribe from this specific event
-    return () => {
-      unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
+    return this.registerListener(event, callback);
   }
 
-  /**
-   * Listen for member events
-   * @param event Event type to listen for
-   * @param callback Callback function to be called when event is received
-   * @returns A function to unsubscribe from the event
-   */
+  // Member events
   public onMemberEvent<T>(event: 'member:loaded', callback: (payload: MemberPayload) => void): () => void;
   public onMemberEvent<T>(event: 'members:loaded', callback: (payload: MembersPayload) => void): () => void;
   public onMemberEvent<T>(event: 'member:adding', callback: (payload: { user_id: string, office_id?: string, room_id?: string, connection: ConnectionInfo }) => void): () => void;
@@ -264,105 +213,26 @@ export class WorkspaceEvents {
   public onMemberEvent<T>(event: 'user:permissions:loaded', callback: (payload: { userId: string, role: string, permissions: any[], domainId: string, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
   public onMemberEvent<T>(event: WorkspaceEventType, callback: any): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
-
-    // Store the unlisten function
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(unlistenFn);
-
-    // Return a function to unsubscribe from this specific event
-    return () => {
-      unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
+    return this.registerListener(event, callback);
   }
 
-  /**
-   * Listen for message events
-   * @param event Event type to listen for
-   * @param callback Callback function to be called when event is received
-   * @returns A function to unsubscribe from the event
-   */
+  // Message events
   public onMessageEvent(event: 'message:received', callback: (payload: MessagePayload) => void): () => void;
   public onMessageEvent(event: 'typing:started' | 'typing:stopped', callback: (payload: TypingPayload) => void): () => void;
   public onMessageEvent(event: WorkspaceEventType, callback: any): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
-
-    // Store the unlisten function
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(unlistenFn);
-
-    // Return a function to unsubscribe from this specific event
-    return () => {
-      unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
+    return this.registerListener(event, callback);
   }
 
-  /**
-   * Listen for operation events
-   * @param event Event type to listen for
-   * @param callback Callback function to be called when event is received
-   * @returns A function to unsubscribe from the event
-   */
+  // Operation events
   public onOperationEvent(event: 'operation:success', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onOperationEvent(event: 'operation:error', callback: (payload: ErrorPayload) => void): () => void;
   public onOperationEvent(event: WorkspaceEventType, callback: any): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
-
-    // Store the unlisten function
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(unlistenFn);
-
-    // Return a function to unsubscribe from this specific event
-    return () => {
-      unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
+    return this.registerListener(event, callback);
   }
 
-  /**
-   * Listen for protocol events
-   * @param event Event type to listen for
-   * @param callback Callback function to be called when event is received
-   * @returns A function to unsubscribe from the event
-   */
+  // Protocol events
   public onProtocolEvent(event: 'protocol:warning', callback: (payload: ProtocolWarningPayload) => void): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
-
-    // Store the unlisten function
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(unlistenFn);
-
-    // Return a function to unsubscribe from this specific event
-    return () => {
-      unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
+    return this.registerListener(event, callback);
   }
 
   /**

@@ -20,6 +20,7 @@ import { instanceManager, instanceChannel } from '../multi-instance';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '../tab-context';
 import { safeJSONStringify } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
+import { stringToBytes, bytesToString } from '../utils/encoding-utils';
 import type { SessionSecuritySettings } from '../p2p-registration-service';
 import type { StoredSessions, GetSessionsRequest, GetSessionsResponse } from '@/types/session-types';
 import type { ConnectionIntent, TabSelectionContext, PendingRequest } from './types';
@@ -136,7 +137,7 @@ export class ConnectionIO {
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
     const valueStr = safeJSONStringify(sessions);
     console.log('ConnectionIO: Storing sessions, serialized:', formatForDebug(valueStr));
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    const valueBytes = stringToBytes(valueStr);
     await this.localDBSet(0n, SESSION_STORAGE_KEY, valueBytes);
   }
 
@@ -147,7 +148,7 @@ export class ConnectionIO {
     const result = await this.localDBGet(0n, SESSION_STORAGE_KEY);
     if (result && result.value) {
       try {
-        const jsonStr = new TextDecoder().decode(new Uint8Array(result.value));
+        const jsonStr = bytesToString(result.value);
         return JSON.parse(jsonStr) as StoredSessions;
       } catch (decodeError) {
         console.error('ConnectionIO: Failed to decode stored sessions:', decodeError);

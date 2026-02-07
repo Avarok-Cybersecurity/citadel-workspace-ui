@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { useToast } from "@/hooks/use-toast";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface ConnectionPreferences {
   autoAcceptRegistrations: boolean;
@@ -40,9 +41,7 @@ export const PreferencesDialog = () => {
     };
 
     if (open) {
-      (async () => {
-        await loadPreferences();
-      })().catch(console.error);
+      runAsyncSetup(loadPreferences);
     }
   }, [open]);
 

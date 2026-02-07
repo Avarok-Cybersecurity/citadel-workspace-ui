@@ -5,6 +5,8 @@ import { getSelectedUser } from './tab-context';
 import { peerRegistrationStore } from './peer-registration-store';
 import { broadcastChannelService } from './broadcast-channel-service';
 import { instanceManager } from './multi-instance';
+import { stringToBytes, bytesToString } from './utils/encoding-utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type {
   InternalServiceRequest,
   InternalServiceResponse
@@ -465,9 +467,9 @@ export class P2PRegistrationService {
 
     // Start polling
     this.pollingInterval = setInterval(() => {
-      (async () => {
+      runAsyncSetup(async () => {
         await this.checkAndRegisterPeers(options);
-      })().catch(console.error);
+      });
     }, this.POLLING_INTERVAL);
 
     eventEmitter.emit('p2p:registration-service-started');
@@ -953,7 +955,7 @@ export class P2PRegistrationService {
       );
 
       if (result?.value) {
-        const decoded = new TextDecoder().decode(new Uint8Array(result.value));
+        const decoded = bytesToString(result.value);
         return decoded === 'true';
       }
     } catch (error: any) {
@@ -977,11 +979,10 @@ export class P2PRegistrationService {
     }
 
     try {
-      const value = new TextEncoder().encode(String(autoAccept));
       await websocketService.sendLocalDBSet(
         currentCid,
         P2PRegistrationService.AUTO_ACCEPT_KEY,
-        Array.from(value)
+        stringToBytes(String(autoAccept))
       );
       console.log(`[P2P] Auto-accept setting saved: ${autoAccept}`);
     } catch (error) {

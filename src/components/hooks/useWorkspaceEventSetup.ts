@@ -4,6 +4,7 @@ import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { connectionManager } from '@/lib/connection';
 import UserService from '@/lib/user-service';
 import WorkspaceService from '@/lib/workspace-service';
+import { bytesToString } from '@/lib/utils/encoding-utils';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 
@@ -29,7 +30,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         try {
           if (rawMetadata && typeof rawMetadata === 'object') {
             if (Array.isArray(rawMetadata) && rawMetadata.length > 0) {
-              const metadataString = new TextDecoder().decode(new Uint8Array(rawMetadata as number[]));
+              const metadataString = bytesToString(rawMetadata as number[]);
               parsedMetadata = JSON.parse(metadataString);
               isInitialized = parsedMetadata?.initialized === true;
             } else if (!Array.isArray(rawMetadata)) {

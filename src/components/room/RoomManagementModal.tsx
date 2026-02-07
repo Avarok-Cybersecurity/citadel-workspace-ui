@@ -1,4 +1,5 @@
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
 import {
   EntityManagementModal,
@@ -42,10 +43,10 @@ export const RoomManagementModal: React.FC<RoomManagementModalProps> = ({
   const handleSubmit = async (formData: Record<string, string>) => {
     if (mode === "create") {
       await WorkspaceService.createRoom(officeId, formData.name, formData.description);
-      toast({ title: "Room Created", description: `${formData.name} has been created successfully`, className: "bg-[#343A5C] border-purple-800 text-purple-200" });
+      toastSuccess(toast, "Room Created", `${formData.name} has been created successfully`);
     } else if (mode === "edit" && room) {
       await WorkspaceService.updateRoom(room.id, { name: formData.name, description: formData.description });
-      toast({ title: "Room Updated", description: `${formData.name} has been updated successfully`, className: "bg-[#343A5C] border-purple-800 text-purple-200" });
+      toastSuccess(toast, "Room Updated", `${formData.name} has been updated successfully`);
     }
   };
 

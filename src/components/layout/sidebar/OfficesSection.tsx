@@ -22,17 +22,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { OfficeManagementModal } from "@/components/office/OfficeManagementModal";
 import { AdminModal } from "@/components/admin";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
 import { buildWorkspacePath, getWorkspacePath } from "@/lib/workspace-navigation";
 
@@ -87,18 +79,10 @@ export const OfficesSection = () => {
 
     try {
       await WorkspaceService.updateOffice(officeId, { is_default: true });
-      toast({
-        title: "Default Office Updated",
-        description: `${office.name} is now the default office`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Default Office Updated", `${office.name} is now the default office`);
     } catch (error) {
       console.error("Error setting default office:", error);
-      toast({
-        title: "Error",
-        description: "Failed to set default office. Please try again.",
-        variant: "destructive",
-      });
+      toastError(toast, "Error", "Failed to set default office. Please try again.");
     }
   };
 
@@ -118,18 +102,10 @@ export const OfficesSection = () => {
         navigate(getWorkspacePath());
       }
 
-      toast({
-        title: "Office Deleted",
-        description: `${officeToDelete.name} has been deleted successfully`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Office Deleted", `${officeToDelete.name} has been deleted successfully`);
     } catch (error) {
       console.error("Error deleting office:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete office. Please try again.",
-        variant: "destructive",
-      });
+      toastError(toast, "Error", "Failed to delete office. Please try again.");
     } finally {
       setOfficeToDelete(null);
     }
@@ -255,30 +231,13 @@ export const OfficesSection = () => {
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!officeToDelete} onOpenChange={() => setOfficeToDelete(null)}>
-        <AlertDialogContent className="bg-[#343A5C] border-purple-800">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">
-              Delete Office
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-300">
-              Are you sure you want to delete "{officeToDelete?.name}"? This action cannot be undone.
-              All rooms and content within this office will be permanently deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-gray-600 text-white hover:bg-[#444A6C]">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteOffice}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!officeToDelete}
+        onOpenChange={() => setOfficeToDelete(null)}
+        title="Delete Office"
+        description={`Are you sure you want to delete "${officeToDelete?.name ?? ''}"? This action cannot be undone. All rooms and content within this office will be permanently deleted.`}
+        onConfirm={confirmDeleteOffice}
+      />
 
       {/* Admin Settings Modal */}
       <AdminModal

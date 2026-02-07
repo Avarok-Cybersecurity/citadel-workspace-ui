@@ -13,6 +13,8 @@ import { instanceManager } from './multi-instance';
 import type { StoredSession, ActiveSession } from '@/types/session-types';
 import { v4 as uuidv4 } from 'uuid';
 import { EventListenerPollingService } from './utils/polling-service';
+import { stringToBytes, bytesToString } from './utils/encoding-utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface ConnectionAttempt {
   sessionKey: string;
@@ -92,7 +94,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
       );
 
       if (result?.value) {
-        const decoded = new TextDecoder().decode(new Uint8Array(result.value));
+        const decoded = bytesToString(result.value);
         const sessions = JSON.parse(decoded);
         if (Array.isArray(sessions)) {
           this.userDisconnectedSessions = new Set(sessions);
@@ -111,7 +113,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   private async persistUserDisconnectedSessions(): Promise<void> {
     try {
       const sessions = Array.from(this.userDisconnectedSessions);
-      const value = Array.from(new TextEncoder().encode(JSON.stringify(sessions)));
+      const value = stringToBytes(JSON.stringify(sessions));
       await websocketService.sendLocalDBSet(GLOBAL_CID, USER_DISCONNECTED_KEY, value);
     } catch (error) {
       console.warn('ServerAutoConnect: Failed to persist user disconnected sessions:', error);
@@ -177,7 +179,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
       );
 
       if (result?.value) {
-        const decoded = new TextDecoder().decode(new Uint8Array(result.value));
+        const decoded = bytesToString(result.value);
         return decoded === 'true';
       }
     } catch (error) {
@@ -204,7 +206,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     this.isEnabled = enabled;
 
     try {
-      const value = Array.from(new TextEncoder().encode(String(enabled)));
+      const value = stringToBytes(String(enabled));
       await websocketService.sendLocalDBSet(GLOBAL_CID, LOCALDB_KEY, value);
       console.log(`ServerAutoConnect: Setting saved (enabled: ${enabled})`);
 
@@ -359,9 +361,9 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     this.reconnectAttempts.set(sessionKey, attempt);
 
     // Attempt immediately for first try
-    (async () => {
+    runAsyncSetup(async () => {
       await this.attemptReconnect(sessionKey, session);
-    })().catch(console.error);
+    });
   }
 
   /**
@@ -397,9 +399,9 @@ export class ServerAutoConnectService extends EventListenerPollingService {
 
       // Schedule retry
       attempt.timeout = setTimeout(() => {
-        (async () => {
+        runAsyncSetup(async () => {
           await this.attemptReconnect(sessionKey, session);
-        })().catch(console.error);
+        });
       }, delay);
 
       this.reconnectAttempts.set(sessionKey, attempt);

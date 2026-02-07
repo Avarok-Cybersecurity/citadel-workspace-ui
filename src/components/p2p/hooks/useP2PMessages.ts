@@ -10,6 +10,7 @@ import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { P2PMessage, PeerPresence } from '@/lib/p2p';
 
@@ -102,7 +103,7 @@ export function useP2PMessages({
         setPeerPresence({ status: MessagingLayerType.Online, lastUpdate: Date.now() });
       }
     };
-    (async () => { await loadConversation(); })().catch(console.error);
+    runAsyncSetup(loadConversation);
 
     const unsubscribeMessage = messenger.onMessage((message) => {
       if (message.senderCid === peerCid || message.recipientCid === peerCid) {
@@ -169,7 +170,7 @@ export function useP2PMessages({
       const autoConnected = await p2pAutoConnectService.isPeerConnected(peerCid);
       setIsConnected(syncConnected || autoConnected);
     };
-    (async () => { await checkInitialConnection(); })().catch(console.error);
+    runAsyncSetup(checkInitialConnection);
 
     setIsRegistered(p2pRegistrationService.isPeerRegistered(peerCid));
 
@@ -254,7 +255,7 @@ export function useP2PMessages({
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     if (target.scrollTop < 100 && hasMorePages && !isLoadingMore) {
-      (async () => { await loadOlderMessages(); })().catch(console.error);
+      runAsyncSetup(loadOlderMessages);
     }
   }, [hasMorePages, isLoadingMore, loadOlderMessages]);
 

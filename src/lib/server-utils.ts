@@ -1,5 +1,6 @@
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
+import { stringToBytes, bytesToString } from './utils/encoding-utils';
 
 /**
  * Server info stored in LocalDB
@@ -53,7 +54,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
                   const value = kvMap[key];
                   if (Array.isArray(value)) {
                     // If it's a byte array, convert to string
-                    const jsonStr = new TextDecoder().decode(new Uint8Array(value));
+                    const jsonStr = bytesToString(value);
                     const parsed = JSON.parse(jsonStr);
                     if (Array.isArray(parsed)) {
                       servers.push(...parsed);
@@ -155,7 +156,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
 
       // Convert servers array to JSON bytes
       const jsonStr = JSON.stringify({ servers });
-      const bytes = Array.from(new TextEncoder().encode(jsonStr));
+      const bytes = stringToBytes(jsonStr);
 
       // Send the request
       const request = {

@@ -28,6 +28,7 @@ import {
   SigAlgorithm,
   stringToUint8Array
 } from "@/types";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -241,7 +242,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
             console.log(`Login: SessionAlreadyActive - ${message}`);
 
             // Redirect to the existing session
-            (async () => {
+            runAsyncSetup(async () => {
               try {
                 await redirectToExistingSession({
                   cid: cid as bigint,
@@ -251,7 +252,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
               } finally {
                 setLoading(false);
               }
-            })().catch(console.error);
+            });
             return; // Don't resolve/reject - redirectToExistingSession handles navigation
           } else if ('ConnectFailure' in response && response.ConnectFailure.request_id === requestId) {
             responseReceived = true;
@@ -271,7 +272,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
               const errorCid = response.ConnectFailure.cid;
               if (errorCid && errorCid !== 0n && errorCid !== BigInt(0)) {
                 // Redirect to the existing session seamlessly
-                (async () => {
+                runAsyncSetup(async () => {
                   try {
                     await redirectToExistingSession({
                       cid: errorCid as bigint,
@@ -281,11 +282,11 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   } finally {
                     setLoading(false);
                   }
-                })().catch(console.error);
+                });
                 return;
               } else {
                 // CID is 0 or missing - look up session by username
-                (async () => {
+                runAsyncSetup(async () => {
                   try {
                     const sessions = await connectionManager.getActiveSessions();
                     const matchingSession = sessions.find(s => s.username === username.trim());
@@ -308,7 +309,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     setLoading(false);
                     reject(new Error(errorMessage));
                   }
-                })().catch(console.error);
+                });
                 return;
               }
             }

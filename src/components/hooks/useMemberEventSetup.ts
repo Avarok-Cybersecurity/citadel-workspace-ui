@@ -43,12 +43,12 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
               // Persist role to stored session for WorkspaceSwitcher (async)
               const roleToSave = currentUserMember.role;
               if (roleToSave) {
-                (async () => {
+                runAsyncSetup(async () => {
                   const session = await connectionManager.getTabSelectedSession();
                   if (session) {
                     await connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
                   }
-                })().catch(console.error);
+                });
               }
             }
           }
@@ -82,12 +82,12 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             };
 
             // Persist role to stored session for WorkspaceSwitcher (async)
-            (async () => {
+            runAsyncSetup(async () => {
               const session = await connectionManager.getTabSelectedSession();
               if (session) {
                 await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }
-            })().catch(console.error);
+            });
           }
           return {
             ...prev,
@@ -124,12 +124,12 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             };
 
             // Persist role to stored session for WorkspaceSwitcher (async)
-            (async () => {
+            runAsyncSetup(async () => {
               const session = await connectionManager.getTabSelectedSession();
               if (session) {
                 await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }
-            })().catch(console.error);
+            });
           }
           return {
             ...prev,

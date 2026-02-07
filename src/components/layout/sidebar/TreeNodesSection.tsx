@@ -30,16 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 
@@ -584,39 +575,24 @@ export function TreeNodesSection({
       </SidebarGroup>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
+      <ConfirmDeleteDialog
         open={!!nodeToDelete}
         onOpenChange={() => setNodeToDelete(null)}
-      >
-        <AlertDialogContent className="bg-[#343A5C] border-purple-800">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">
-              Delete {nodeToDelete ? getEntityTypeName(nodeToDelete.entity_type) : "Node"}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-300">
-              Are you sure you want to delete &quot;{nodeToDelete?.name}&quot;? This
-              action cannot be undone.
-              {nodeToDelete?.children && nodeToDelete.children.length > 0 && (
-                <span className="block mt-2 text-yellow-400">
-                  Warning: This will also delete {nodeToDelete.children.length}{" "}
-                  child node(s) and all their content.
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-gray-600 text-white hover:bg-[#444A6C]">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={`Delete ${nodeToDelete ? getEntityTypeName(nodeToDelete.entity_type) : "Node"}`}
+        description={
+          <>
+            Are you sure you want to delete &quot;{nodeToDelete?.name}&quot;? This
+            action cannot be undone.
+            {nodeToDelete?.children && nodeToDelete.children.length > 0 && (
+              <span className="block mt-2 text-yellow-400">
+                Warning: This will also delete {nodeToDelete.children.length}{" "}
+                child node(s) and all their content.
+              </span>
+            )}
+          </>
+        }
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }

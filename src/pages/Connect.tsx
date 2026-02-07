@@ -5,6 +5,7 @@ import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listKnownServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export const Connect = () => {
   const navigate = useNavigate();
@@ -39,9 +40,7 @@ export const Connect = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    (async () => {
-      await fetchServers();
-    })().catch(console.error);
+    runAsyncSetup(fetchServers);
   }, [fetchServers]);
 
   const handleConnect = async () => {

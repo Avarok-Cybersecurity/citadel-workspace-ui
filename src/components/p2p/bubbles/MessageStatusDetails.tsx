@@ -1,4 +1,5 @@
 import type { P2PMessage } from '@/lib/p2p';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface MessageStatusDetailsProps {
   message: P2PMessage;
@@ -55,9 +56,9 @@ interface RowProps {
 
 function Row({ label, value, valueClassName = 'text-gray-200', copyable, fullValue }: RowProps) {
   const handleCopy = () => {
-    (async () => {
+    runAsyncSetup(async () => {
       await navigator.clipboard.writeText(fullValue || value);
-    })().catch(console.error);
+    });
   };
 
   return (

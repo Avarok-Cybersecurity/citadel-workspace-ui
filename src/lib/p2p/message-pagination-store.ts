@@ -11,6 +11,7 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { stringToBytes, bytesToString } from '../utils/encoding-utils';
 import type {
   ConversationMetadata,
   MessagePage,
@@ -106,7 +107,7 @@ export class MessagePaginationStore {
         const rawValue = response.value;
         let valueStr: string;
         if (Array.isArray(rawValue)) {
-          valueStr = new TextDecoder().decode(new Uint8Array(rawValue));
+          valueStr = bytesToString(rawValue);
         } else if (typeof rawValue === 'string') {
           valueStr = rawValue;
         } else {
@@ -133,7 +134,7 @@ export class MessagePaginationStore {
     // Convert bigint peerCid to string for JSON serialization
     const serializableMetadata = { ...metadata, peerCid: metadata.peerCid.toString() };
     const valueStr = JSON.stringify(serializableMetadata);
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    const valueBytes = stringToBytes(valueStr);
     await websocketService.sendLocalDBSet(0n, key, valueBytes);
   }
 
@@ -151,7 +152,7 @@ export class MessagePaginationStore {
         const rawValue = response.value;
         let valueStr: string;
         if (Array.isArray(rawValue)) {
-          valueStr = new TextDecoder().decode(new Uint8Array(rawValue));
+          valueStr = bytesToString(rawValue);
         } else if (typeof rawValue === 'string') {
           valueStr = rawValue;
         } else {
@@ -194,7 +195,7 @@ export class MessagePaginationStore {
       }))
     };
     const valueStr = JSON.stringify(serializablePage);
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    const valueBytes = stringToBytes(valueStr);
     await websocketService.sendLocalDBSet(0n, key, valueBytes);
   }
 

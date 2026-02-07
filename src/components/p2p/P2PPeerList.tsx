@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { UserPlus, MessageCircle, Circle, Users, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useEventListener } from '@/hooks';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
@@ -172,9 +173,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              (async () => {
-                await handleAddPeer();
-              })().catch(console.error);
+              runAsyncSetup(handleAddPeer);
             }}
             className="flex gap-2"
           >
@@ -213,9 +212,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                       onClick={() => {
                         if (!peer.isRegistered) {
                           setNewPeerCid(peerCidStr);
-                          (async () => {
-                            await handleAddPeer();
-                          })().catch(console.error);
+                          runAsyncSetup(handleAddPeer);
                         } else {
                           onSelectPeer(peerCidStr);
                         }

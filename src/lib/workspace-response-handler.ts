@@ -3,6 +3,8 @@ import { WorkspaceProtocolPayloadTS, WorkspaceProtocolResponseTS } from '@/types
 import { websocketService } from './websocket-service';
 import { debugLog, errorLog } from './debug-config';
 import { groupMessagingManager } from './group-messaging-manager';
+import { bytesToString } from './utils/encoding-utils';
+import { convertRoomFromBackend } from './converters/room-converter';
 
 /**
  * Handles workspace protocol responses and emits appropriate events
@@ -55,7 +57,7 @@ export class WorkspaceResponseHandler {
           // Convert array of numbers to Uint8Array
           const contentBytes = new Uint8Array(notification.message);
           // Decode bytes to string
-          const contentStr = new TextDecoder().decode(contentBytes);
+          const contentStr = bytesToString(contentBytes);
 
           // Parse the JSON workspace protocol response
           const workspacePayload = JSON.parse(contentStr);
@@ -85,7 +87,7 @@ export class WorkspaceResponseHandler {
           // Convert array of numbers to Uint8Array
           const contentBytes = new Uint8Array(message.MessageDelivered.contents);
           // Decode bytes to string
-          const contentStr = new TextDecoder().decode(contentBytes);
+          const contentStr = bytesToString(contentBytes);
           // Parse the JSON workspace protocol response
           const workspacePayload = JSON.parse(contentStr);
           
@@ -218,29 +220,7 @@ export class WorkspaceResponseHandler {
       });
     } else if ('Rooms' in response) {
       // Handle rooms list response - convert snake_case to camelCase for Room interface
-      const convertedRooms = response.Rooms.map((room: {
-        id: string;
-        office_id: string;
-        owner_id: string;
-        name: string;
-        description: string;
-        members: string[];
-        mdx_content: string;
-        metadata?: number[];
-        chat_enabled?: boolean;
-        chat_channel_id?: string;
-      }) => ({
-        id: room.id,
-        officeId: room.office_id,
-        ownerId: room.owner_id,
-        name: room.name,
-        description: room.description,
-        members: room.members,
-        mdxContent: room.mdx_content,
-        metadata: room.metadata || [],
-        chat_enabled: room.chat_enabled ?? false,
-        chat_channel_id: room.chat_channel_id
-      }));
+      const convertedRooms = response.Rooms.map((room: any) => convertRoomFromBackend(room));
       eventEmitter.emit('rooms:loaded', {
         rooms: convertedRooms,
         connection: connectionInfo
@@ -248,18 +228,7 @@ export class WorkspaceResponseHandler {
     } else if ('Room' in response) {
       // Handle single room response - convert snake_case to camelCase for Room interface
       eventEmitter.emit('room:loaded', {
-        room: {
-          id: response.Room.id,
-          officeId: response.Room.office_id,
-          ownerId: response.Room.owner_id,
-          name: response.Room.name,
-          description: response.Room.description,
-          members: response.Room.members,
-          mdxContent: response.Room.mdx_content,
-          metadata: response.Room.metadata || [],
-          chat_enabled: response.Room.chat_enabled ?? false,
-          chat_channel_id: response.Room.chat_channel_id
-        },
+        room: convertRoomFromBackend(response.Room),
         connection: connectionInfo
       });
     } else if ('Members' in response) {
@@ -324,16 +293,7 @@ export class WorkspaceResponseHandler {
       // Handle room creation response
       debugLog('workspace', 'CreateRoom response', response.CreateRoom);
       eventEmitter.emit('room:created', {
-        room: {
-          id: response.CreateRoom.id,
-          officeId: response.CreateRoom.office_id,
-          name: response.CreateRoom.name,
-          description: response.CreateRoom.description,
-          mdxContent: response.CreateRoom.mdx_content,
-          metadata: response.CreateRoom.metadata || [],
-          chat_enabled: response.CreateRoom.chat_enabled ?? false,
-          chat_channel_id: response.CreateRoom.chat_channel_id
-        },
+        room: convertRoomFromBackend(response.CreateRoom),
         connection: connectionInfo
       });
       // Also trigger a reload of rooms
@@ -345,16 +305,7 @@ export class WorkspaceResponseHandler {
       // Handle room update response
       debugLog('workspace', 'UpdateRoom response', response.UpdateRoom);
       eventEmitter.emit('room:updated', {
-        room: {
-          id: response.UpdateRoom.id,
-          officeId: response.UpdateRoom.office_id,
-          name: response.UpdateRoom.name,
-          description: response.UpdateRoom.description,
-          mdxContent: response.UpdateRoom.mdx_content,
-          metadata: response.UpdateRoom.metadata || [],
-          chat_enabled: response.UpdateRoom.chat_enabled ?? false,
-          chat_channel_id: response.UpdateRoom.chat_channel_id
-        },
+        room: convertRoomFromBackend(response.UpdateRoom),
         connection: connectionInfo
       });
       // Trigger rooms reload
@@ -549,30 +500,13 @@ export class WorkspaceResponseHandler {
         eventEmitter.emit('offices:reload', connectionInfo);
       } else if (entityType?.Child === 'Room') {
         // Emit room events for UI compatibility
+        const convertedRoom = convertRoomFromBackend(node);
         eventEmitter.emit('room:created', {
-          room: {
-            id: node.id,
-            officeId: node.parent_id,
-            name: node.name,
-            description: node.description,
-            mdxContent: node.mdx_content,
-            metadata: node.metadata || [],
-            chat_enabled: node.chat_enabled ?? false,
-            chat_channel_id: node.chat_channel_id ?? null
-          },
+          room: convertedRoom,
           connection: connectionInfo
         });
         eventEmitter.emit('room:loaded', {
-          room: {
-            id: node.id,
-            officeId: node.parent_id,
-            name: node.name,
-            description: node.description,
-            mdxContent: node.mdx_content,
-            metadata: node.metadata || [],
-            chat_enabled: node.chat_enabled ?? false,
-            chat_channel_id: node.chat_channel_id ?? null
-          },
+          room: convertedRoom,
           connection: connectionInfo
         });
         eventEmitter.emit('rooms:reload', {
@@ -614,18 +548,7 @@ export class WorkspaceResponseHandler {
 
       if (rooms.length > 0) {
         // Convert rooms to camelCase format expected by UI
-        const convertedRooms = rooms.map((room: any) => ({
-          id: room.id,
-          officeId: room.parent_id,
-          ownerId: room.owner_id,
-          name: room.name,
-          description: room.description,
-          members: room.members || [],
-          mdxContent: room.mdx_content,
-          metadata: room.metadata || [],
-          chat_enabled: room.chat_enabled ?? false,
-          chat_channel_id: room.chat_channel_id ?? null
-        }));
+        const convertedRooms = rooms.map((room: any) => convertRoomFromBackend(room));
         eventEmitter.emit('rooms:loaded', {
           rooms: convertedRooms,
           connection: connectionInfo

@@ -7,6 +7,8 @@
 
 import { requestResponse, requestResponseSoft } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
+import { getDefaultSecuritySettings } from '../security-utils';
+import { stringToBytes } from '../utils/encoding-utils';
 
 export interface P2PConfig {
   init: () => Promise<void>;
@@ -47,7 +49,7 @@ export class P2POperations {
     const messageRequest = {
       Message: {
         request_id: crypto.randomUUID(),
-        message: Array.from(new TextEncoder().encode(message)),
+        message: stringToBytes(message),
         cid: cid,
         peer_cid: targetCid,
         security_level: 'Standard'
@@ -86,16 +88,7 @@ export class P2POperations {
         cid: cid,
         peer_cid: targetCid,
         udp_mode: 'Disabled',
-        session_security_settings: {
-          security_level: 'Standard',
-          secrecy_mode: 'BestEffort',
-          crypto_params: {
-            encryption_algorithm: 'AES_GCM_256',
-            kem_algorithm: 'Kyber',
-            sig_algorithm: 'None'
-          },
-          header_obfuscator_settings: 'Disabled'
-        }
+        session_security_settings: getDefaultSecuritySettings()
       }
     };
 
@@ -147,16 +140,7 @@ export class P2POperations {
         peer_cid: peerCid,
         accept: true,
         udp_mode: (notification?.udp_mode as string) || 'Disabled',
-        session_security_settings: notification?.session_security_settings || {
-          security_level: 'Standard',
-          secrecy_mode: 'BestEffort',
-          crypto_params: {
-            encryption_algorithm: 'AES_GCM_256',
-            kem_algorithm: 'Kyber',
-            sig_algorithm: 'None'
-          },
-          header_obfuscator_settings: 'Disabled'
-        },
+        session_security_settings: notification?.session_security_settings || getDefaultSecuritySettings(),
         peer_session_password: null
       }
     };

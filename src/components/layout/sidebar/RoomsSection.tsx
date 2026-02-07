@@ -22,17 +22,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RoomManagementModal } from "@/components/room/RoomManagementModal";
 import { AdminModal } from "@/components/admin";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 
@@ -123,18 +115,10 @@ export const RoomsSection = () => {
         navigate(buildWorkspacePath(params));
       }
 
-      toast({
-        title: "Room Deleted",
-        description: `${roomToDelete.name} has been deleted successfully`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Room Deleted", `${roomToDelete.name} has been deleted successfully`);
     } catch (error) {
       console.error("Error deleting room:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete room. Please try again.",
-        variant: "destructive",
-      });
+      toastError(toast, "Error", "Failed to delete room. Please try again.");
     } finally {
       setRoomToDelete(null);
     }
@@ -267,30 +251,13 @@ export const RoomsSection = () => {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!roomToDelete} onOpenChange={() => setRoomToDelete(null)}>
-        <AlertDialogContent className="bg-[#343A5C] border-purple-800">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">
-              Delete Room
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-300">
-              Are you sure you want to delete "{roomToDelete?.name}"? This action cannot be undone.
-              All content within this room will be permanently deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-gray-600 text-white hover:bg-[#444A6C]">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteRoom}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!roomToDelete}
+        onOpenChange={() => setRoomToDelete(null)}
+        title="Delete Room"
+        description={`Are you sure you want to delete "${roomToDelete?.name ?? ''}"? This action cannot be undone. All content within this room will be permanently deleted.`}
+        onConfirm={confirmDeleteRoom}
+      />
 
       {/* Admin Settings Modal */}
       <AdminModal

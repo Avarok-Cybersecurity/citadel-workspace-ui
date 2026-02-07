@@ -3,6 +3,7 @@ import { getSelectedUser } from './tab-context';
 import { instanceManager } from './multi-instance';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { PollingService } from './utils/polling-service';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export interface BroadcastMessage {
   type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message' | 'p2p-notification';
@@ -114,7 +115,7 @@ export class BroadcastChannelService extends PollingService {
 
       console.log(`BroadcastChannelService: Received message from ${message.tabId}:`, message.type);
 
-      (async () => {
+      runAsyncSetup(async () => {
         switch (message.type) {
           case 'workspace-response':
             await this.handleWorkspaceResponse(message);
@@ -138,7 +139,7 @@ export class BroadcastChannelService extends PollingService {
             await this.handleP2PNotification(message);
             break;
         }
-      })().catch(console.error);
+      });
     };
 
     this.channel.addEventListener('messageerror', (event: MessageEvent) => {

@@ -9,6 +9,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { connectionManager } from '@/lib/connection';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type { RegisteredPeer } from './use-registered-peers';
 
 export interface ConversationPeer {
@@ -70,7 +71,7 @@ export function useConversationPeers({
   }, [registeredPeers]);
 
   useEffect(() => {
-    (async () => { await loadConversations(); })().catch(console.error);
+    runAsyncSetup(loadConversations);
 
     const handleMessageUpdate = async () => { await loadConversations(); };
 

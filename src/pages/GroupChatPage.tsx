@@ -19,6 +19,7 @@ import type { GroupConversation, GroupSettings, GroupMessage } from '@/types/gro
 import { websocketService } from '@/lib/websocket-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { ensureBigInt } from '@/lib/utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { Send, Loader2 } from 'lucide-react';
 
 // ============================================================================
@@ -199,9 +200,7 @@ export function GroupChatPage() {
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        (async () => {
-          await handleSendMessage();
-        })().catch(console.error);
+        runAsyncSetup(handleSendMessage);
       }
     },
     [handleSendMessage]

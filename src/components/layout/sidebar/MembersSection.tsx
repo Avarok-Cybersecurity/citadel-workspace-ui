@@ -49,6 +49,7 @@ import { GroupConversationRow } from "./GroupConversationRow";
 import { PeerListRow } from "./PeerListRow";
 import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface Member {
   id: string;
@@ -139,7 +140,7 @@ export const MembersSection = () => {
         setIsLoadingMembers(false);
       }
     };
-    (async () => { await loadMembers(); })().catch(console.error);
+    runAsyncSetup(loadMembers);
   }, [currentOfficeId, currentRoomId]);
 
   // Listen for members loaded event
@@ -147,7 +148,7 @@ export const MembersSection = () => {
     const handleMembersLoaded = (payload: { members?: Member[] }) => {
       if (payload.members) setMembers(payload.members);
     };
-    (async () => { await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded); })().catch(console.error);
+    runAsyncSetup(async () => { await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded); });
   }, []);
 
   // Handlers

@@ -16,6 +16,7 @@ import { LoginConflictModal } from "@/components/LoginConflictModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export const Landing = () => {
   const navigate = useNavigate();
@@ -56,9 +57,7 @@ export const Landing = () => {
       }
     };
 
-    (async () => {
-      await checkOrphanSessions();
-    })().catch(console.error);
+    runAsyncSetup(checkOrphanSessions);
   }, [navigate]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
@@ -82,9 +81,7 @@ export const Landing = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    (async () => {
-      await checkForServers();
-    })().catch(console.error);
+    runAsyncSetup(checkForServers);
   }, [checkForServers]);
 
   const handleServerNext = () => setCurrentStep('security');

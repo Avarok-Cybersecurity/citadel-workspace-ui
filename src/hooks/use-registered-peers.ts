@@ -11,6 +11,7 @@ import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { sessionStartupService } from '@/lib/session-startup-service';
 import { P2PMessengerManager } from '@/lib/p2p';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export interface RegisteredPeer {
   cid: string;
@@ -150,7 +151,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
 
   // Initial load and event listeners
   useEffect(() => {
-    (async () => { await loadRegisteredPeers(); })().catch(console.error);
+    runAsyncSetup(loadRegisteredPeers);
 
     const handlePeerUpdate = async () => { await loadRegisteredPeers(); };
 

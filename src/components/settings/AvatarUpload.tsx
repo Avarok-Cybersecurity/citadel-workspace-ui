@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, X, User } from 'lucide-react';
 import { processAvatarImage, validateAvatarFile, avatarToDataUrl } from '@/lib/image-processor';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface AvatarUploadProps {
   currentAvatar?: string; // Base64-encoded current avatar
@@ -49,9 +50,9 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
 
     const file = e.dataTransfer.files[0];
     if (file) {
-      (async () => {
+      runAsyncSetup(async () => {
         await handleFile(file);
-      })().catch(console.error);
+      });
     }
   }, [disabled, handleFile]);
 
@@ -78,9 +79,9 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      (async () => {
+      runAsyncSetup(async () => {
         await handleFile(file);
-      })().catch(console.error);
+      });
     }
     // Reset input so the same file can be selected again
     e.target.value = '';
