@@ -62,20 +62,19 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
       return new BigUint64Array(0);
     }
 
-    const cid = localCid.toString();
-    const peers = p2pAutoConnectService.getPeersForSession(cid);
+    const peers = p2pAutoConnectService.getPeersForSession(localCid);
 
     // DEBUG: Rate-limited logging to trace peer lookups
     const now = Date.now();
     if (now - lastLogTime > LOG_INTERVAL_MS || peers.length > 0) {
       lastLogTime = now;
       // ILM-DIAG: Log full CID for comparison with setPeerConnected logs
-      console.log(`[ILM-DIAG][WasmPeerBridge] QUERY localCid=${cid} -> ${peers.length} peers`,
+      console.log(`[ILM-DIAG][WasmPeerBridge] QUERY localCid=${localCid.toString()} -> ${peers.length} peers`,
         peers.length > 0 ? peers : '(none)');
     }
 
-    // Convert string CIDs to BigUint64Array for WASM
-    return new BigUint64Array(peers.map(p => BigInt(p)));
+    // Convert bigint array to BigUint64Array for WASM
+    return new BigUint64Array(peers);
   } catch (error) {
     console.error(`[P2P][WasmPeerBridge] CALL #${callCount} Error:`, error);
     return new BigUint64Array(0);
@@ -101,11 +100,4 @@ export function initWasmPeerBridge(): void {
   } else {
     console.warn('[WasmPeerBridge] Window not available - skipping initialization');
   }
-}
-
-/**
- * Check if the WASM Peer Bridge is initialized.
- */
-export function isWasmPeerBridgeInitialized(): boolean {
-  return typeof window !== 'undefined' && typeof window.__citadel_get_peers_for_session === 'function';
 }

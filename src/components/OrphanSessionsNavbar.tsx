@@ -1,22 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
 import type { ActiveSession } from "@/types/session-types";
 import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal, type DisconnectAction } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal, type DisconnectStatus } from "./LoadingModal";
-import { useToast } from "@/hooks/use-toast";
+import { useToast, useEventListener } from "@/hooks";
 import { setSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
-import { instanceManager } from "@/lib/instance-manager";
-import { instanceChannel } from "@/lib/instance-channel";
+import { instanceManager, instanceChannel } from "@/lib/multi-instance";
 import { p2pRegistrationService } from "@/lib/p2p-registration-service";
-import { notificationService, UnreadCountChange } from "@/lib/notification-service";
-import { eventEmitter } from "@/lib/event-emitter";
+import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
+import { eventEmitter } from "@/lib/event-emitter";
 
 interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -32,7 +31,7 @@ export const OrphanSessionsNavbar = () => {
     session: ActiveSession;
     workspaceName: string;
   } | null>(null);
-  const [glowingSessionCid, setGlowingSessionCid] = useState<string | null>(null);
+  const [glowingSessionCid, setGlowingSessionCid] = useState<bigint | null>(null);
   const [notificationCounts, setNotificationCounts] = useState<Map<string, number>>(new Map());
 
   // Loading modal state for disconnect flow
@@ -94,24 +93,24 @@ export const OrphanSessionsNavbar = () => {
       // CRITICAL: Each tab should only manage its OWN session's WASM connection
       // Do NOT add ALL sessions - that causes Tab 2 to open messenger handles for Tab 1's CID
       // The WASM connection manager is set up in handleNavigate() when user explicitly selects a session
-      const tabSelection = getSelectedUser();
+      const tabSelection = await getSelectedUser();
 
       if (tabSelection?.selectedCid) {
         // Only set up WASM for this tab's selected session
         const selectedSession = sessionsWithWorkspace.find(s => s.cid === tabSelection.selectedCid);
-        if (selectedSession) {
+        if (selectedSession && selectedSession.cid !== undefined) {
           try {
-            await wasmConnectionManager.addSession(selectedSession.cid);
-            console.log('OrphanSessionsNavbar: Added THIS TAB\'s session to WASM manager:', selectedSession.cid);
+            await wasmConnectionManager.addSession(selectedSession.cid.toString());
+            console.log('OrphanSessionsNavbar: Added THIS TAB\'s session to WASM manager:', selectedSession.cid.toString());
 
             // Sync peer connections only for this tab's session
             if (selectedSession.peer_connections) {
               p2pRegistrationService.syncPeerConnectionsFromSession(selectedSession.peer_connections)
-                .then(() => console.log('OrphanSessionsNavbar: Synced peer connections for session:', selectedSession.cid))
-                .catch(err => console.error('OrphanSessionsNavbar: Failed to sync peer connections:', selectedSession.cid, err));
+                .then(() => console.log('OrphanSessionsNavbar: Synced peer connections for session:', selectedSession.cid?.toString()))
+                .catch(err => console.error('OrphanSessionsNavbar: Failed to sync peer connections:', selectedSession.cid?.toString(), err));
             }
           } catch (err) {
-            console.error('OrphanSessionsNavbar: Failed to add session to WASM manager:', selectedSession.cid, err);
+            console.error('OrphanSessionsNavbar: Failed to add session to WASM manager:', selectedSession.cid?.toString(), err);
           }
         }
       } else {
@@ -124,37 +123,31 @@ export const OrphanSessionsNavbar = () => {
     }
   };
 
+  // Initial load of sessions
   useEffect(() => {
     // Try to load immediately (will return empty if WebSocket not connected yet)
-    loadActiveSessions();
+    loadActiveSessions().catch(console.error);
+    // Initialize notification counts
+    setNotificationCounts(notificationService.getUnreadCountsByCid());
+  }, []);
 
-    // Also listen for WebSocket connection success to reload sessions
-    // This handles the case where component mounts before WebSocket is ready
-    const unsubscribe = eventEmitter.on('on-ws-connection-success', () => {
-      console.log('OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
-      loadActiveSessions();
-    });
+  // Handle WebSocket connection success to reload sessions
+  // This handles the case where component mounts before WebSocket is ready
+  const handleWsConnectionSuccess = useCallback(async () => {
+    console.log('OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
+    await loadActiveSessions();
+  }, []);
 
-    return () => {
-      unsubscribe();
-    };
+  // Listen for WebSocket connection success
+  useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
+
+  // Handle notification count changes
+  const handleUnreadCountChanged = useCallback((change: UnreadCountChange) => {
+    setNotificationCounts(new Map(change.byCid));
   }, []);
 
   // Subscribe to notification count changes
-  useEffect(() => {
-    const updateCounts = (change: UnreadCountChange) => {
-      setNotificationCounts(new Map(change.byCid));
-    };
-
-    eventEmitter.on('unread-count-changed', updateCounts);
-
-    // Initialize with current counts
-    setNotificationCounts(notificationService.getUnreadCountsByCid());
-
-    return () => {
-      eventEmitter.off('unread-count-changed', updateCounts);
-    };
-  }, []);
+  useEventListener<UnreadCountChange>('unread-count-changed', handleUnreadCountChanged);
 
   const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
     try {
@@ -192,7 +185,7 @@ export const OrphanSessionsNavbar = () => {
       }
 
       // Update tab context to track which workspace this tab is viewing
-      setSelectedUser({
+      await setSelectedUser({
         selectedUsername: session.username,
         selectedServerAddress: session.server_address,
         selectedCid: session.cid
@@ -209,8 +202,8 @@ export const OrphanSessionsNavbar = () => {
 
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {
-        await wasmConnectionManager.start(session.cid);
-        console.log('OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid);
+        await wasmConnectionManager.start(session.cid!.toString());
+        console.log('OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid?.toString());
       } catch (error) {
         console.error('OrphanSessionsNavbar: Failed to start WASM connection manager:', error);
         // Don't block navigation - P2P messaging may not be immediately needed
@@ -219,7 +212,7 @@ export const OrphanSessionsNavbar = () => {
       // CRITICAL: Emit session:activated to trigger P2P reconnection
       // This ensures ILM can deliver queued messages after ClaimSession
       eventEmitter.emit('session:activated', {
-        cid: session.cid,
+        cid: session.cid!.toString(),
         username: session.username,
         serverAddress: session.server_address,
         activationType: 'claim' as const
@@ -227,8 +220,8 @@ export const OrphanSessionsNavbar = () => {
       console.log('OrphanSessionsNavbar: Emitted session:activated for ClaimSession');
 
       // Trigger workspace loading
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices();
 
       // Navigate to the office page immediately
       navigate(getWorkspacePath());
@@ -277,10 +270,10 @@ export const OrphanSessionsNavbar = () => {
 
       // Mark as user-disconnected BEFORE disconnecting to prevent auto-reconnect race
       // This respects user intent - if they explicitly disconnect, don't auto-reconnect
-      serverAutoConnectService.markUserDisconnected(username, serverAddress);
+      await serverAutoConnectService.markUserDisconnected(username, serverAddress);
 
       // Stop WASM connection manager if this is the current session
-      if (wasmConnectionManager.getCurrentCid() === cid) {
+      if (cid !== undefined && wasmConnectionManager.getCurrentCid() === cid.toString()) {
         wasmConnectionManager.stop();
       }
 
@@ -339,7 +332,7 @@ export const OrphanSessionsNavbar = () => {
   };
 
   // Trigger glowing effect on a session
-  const triggerGlow = (cid: string) => {
+  const triggerGlow = (cid: bigint) => {
     setGlowingSessionCid(cid);
 
     // Remove glow after 4 seconds
@@ -376,13 +369,13 @@ export const OrphanSessionsNavbar = () => {
             >
               {sessions.map((session) => (
                 <OrphanSessionIcon
-                  key={session.cid}
+                  key={session.cid?.toString()}
                   session={session}
                   workspaceName={session.workspaceName}
                   onNavigate={() => handleNavigate(session)}
                   onDisconnect={() => handleDisconnect(session)}
                   shouldGlow={glowingSessionCid === session.cid}
-                  unreadCount={notificationCounts.get(session.cid) || 0}
+                  unreadCount={notificationCounts.get(session.cid?.toString() ?? '') || 0}
                 />
               ))}
             </div>

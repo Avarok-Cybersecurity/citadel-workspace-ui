@@ -16,19 +16,16 @@ import type { Page, Browser, BrowserContext } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   disconnectViaTopBar,
   loginAfterDisconnect,
   assertSessionNotInOrphanNavbar,
   waitForWorkspaceLoaded,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   config,
+  TestHarness,
+  runTestMain,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -43,34 +40,20 @@ interface TestResult {
 }
 
 async function runTest(): Promise<boolean> {
-  console.log('=== C2S Reconnection Test ===');
-  console.log(`Timestamp: ${timestamp}`);
-  console.log(`Username: ${USERNAME}`);
-  console.log(`Server: ${config.WORKSPACE_SERVER}`);
-  console.log('');
+  const harness = await TestHarness.create({
+    testName: 'C2S Reconnection Test',
+    reportFileName: 'c2s-reconnection-test.json',
+    metadata: { username: USERNAME },
+  });
+  const uxTracker = harness.uxTracker;
 
   const results: TestResult[] = [];
-  const uxTracker = new UxIssueTracker();
   let browser: Browser | null = null;
   let context: BrowserContext | null = null;
   let page: Page | null = null;
   const consoleErrors: string[] = [];
 
   try {
-    // Ensure screenshot directory exists
-    ensureScreenshotsDir();
-
-    // Wait for services
-    console.log('Waiting for services to be alive...');
-    const servicesAlive = await waitForServicesAlive();
-    if (!servicesAlive) {
-      results.push({
-        step: 'Services Check',
-        status: 'FAIL',
-        notes: 'Services not responding',
-      });
-      return false;
-    }
 
     // Create browser with shared context
     const browserResult = await createBrowser();
@@ -97,7 +80,6 @@ async function runTest(): Promise<boolean> {
 
     // ===== PHASE 1: Create Account =====
     console.log('\n=== Phase 1: Create Account ===');
-    logObservation('setup', 'Starting account creation', { username: USERNAME }, 'investigating');
 
     const accountCreated = await createAccount(page, USERNAME, {
       isFirstUser: true,
@@ -272,23 +254,8 @@ async function runTest(): Promise<boolean> {
       }
     }
 
-    // Write test report
-    writeTestReport('c2s-reconnection-test.json', {
-      testName: 'C2S Reconnection Test',
-      username: USERNAME,
-      results,
-      uxIssues: uxTracker.getIssues(),
-      consoleErrors,
-      passed: results.every((r) => r.status === 'PASS' || r.status === 'SKIP'),
-    });
-
     const allPassed = results.every((r) => r.status === 'PASS' || r.status === 'SKIP');
-
-    if (allPassed) {
-      console.log('\n✅ C2S Reconnection Test PASSED');
-    } else {
-      console.log('\n❌ C2S Reconnection Test FAILED');
-    }
+    harness.finalize(allPassed, { results, consoleErrors } as Record<string, unknown>);
 
     return allPassed;
   } catch (error) {
@@ -333,9 +300,4 @@ function printResults(results: TestResult[]): void {
 }
 
 // Run the test
-runTest()
-  .then((passed) => process.exit(passed ? 0 : 1))
-  .catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

@@ -14,13 +14,14 @@ import { SecuritySettingsValues } from "./SecuritySettings";
 import { SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm } from "@/types";
 import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import WorkspaceService from "@/lib/workspace-service";
-import { ConnectRequestTS, ConnectMode, UdpMode } from "@/types";
+import { ConnectMode, UdpMode } from "@/types";
 import { eventEmitter } from "@/lib/event-emitter";
-import { ConnectionManager } from "@/lib/connection-manager";
+import { ConnectionManager } from "@/lib/connection";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { mapSecuritySettings } from "@/lib/security-utils";
 import { ConnectLoadingModal, type ConnectStatus } from "./LoadingModal";
+import { safeJSONStringify } from "@/lib/storage-utils";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -110,7 +111,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         }
       };
 
-      console.info("Register Payload:", JSON.stringify(registerPayload, null, 2));
+      console.info("Register Payload:", safeJSONStringify(registerPayload, 2));
 
       // Generate request ID first to avoid race condition
       const requestId = crypto.randomUUID();
@@ -127,9 +128,12 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         }, 10000); // Increased timeout
 
         const handler = (message: any) => {
-          console.log('Registration response received:', message);
-          console.log('Response content:', JSON.stringify(message, null, 2));
-          console.log('Expected requestId:', requestId);
+          console.log('[ILM-TRACE] Join: Registration response received');
+          console.log('[ILM-TRACE] Join: Response type:', Object.keys(message)[0]);
+          console.log('[ILM-TRACE] Join: Expected requestId:', requestId);
+          const msgRequestId = message.ConnectSuccess?.request_id || message.Response?.ConnectSuccess?.request_id;
+          console.log('[ILM-TRACE] Join: Message requestId:', msgRequestId);
+          console.log('[ILM-TRACE] Join: requestId match:', msgRequestId === requestId);
           
           // Handle both wrapped and unwrapped responses
           // Try direct access first (for messages from internal service)
@@ -139,17 +143,28 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
             // Store the session for persistence with the CID
+            // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
+            // BEFORE resolving. This prevents race condition where WorkspaceApp's
+            // onConnectionChange fires before tab context is set.
+            console.log('[ILM-TRACE] Join: ConnectSuccess matched! CID:', message.ConnectSuccess.cid?.toString());
             const connectionManager = ConnectionManager.getInstance();
-            connectionManager.handleAuthSuccess(
-              formData.username,
-              formData.password,
-              formData.fullName,
-              serverData.serverAddress,
-              serverData.password || "", // Server password from ServerConnect step
-              mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-              message.ConnectSuccess.cid
-            );
-            resolve({ cid: message.ConnectSuccess.cid });
+            (async () => {
+              console.log('[ILM-TRACE] Join: Calling handleAuthSuccess...');
+              await connectionManager.handleAuthSuccess({
+                username: formData.username,
+                password: formData.password,
+                fullName: formData.fullName,
+                serverAddress: serverData.serverAddress,
+                serverPassword: serverData.password || "", // Server password from ServerConnect step
+                securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
+                cid: message.ConnectSuccess.cid
+              });
+              console.log('[ILM-TRACE] Join: handleAuthSuccess completed, resolving promise');
+              resolve({ cid: message.ConnectSuccess.cid });
+            })().catch(err => {
+              console.error('[ILM-TRACE] Join: handleAuthSuccess failed:', err);
+              reject(err);
+            });
           } else if (message.RegisterFailure && message.RegisterFailure.request_id === requestId) {
             resolved = true;
             clearTimeout(timeout);
@@ -174,6 +189,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             // Also check wrapped format (Response.RegisterSuccess)
             const response = message.Response || message;
             if (response !== message) {
+              console.log('[ILM-TRACE] Join: Checking wrapped format...');
               // It was wrapped, check again
               // Since connect_after_register is true, we'll receive ConnectSuccess
               if (response.ConnectSuccess && response.ConnectSuccess.request_id === requestId) {
@@ -181,17 +197,28 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 clearTimeout(timeout);
                 eventEmitter.off('websocket-message', handler);
                 // Store the session for persistence with the CID
+                // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
+                // BEFORE resolving. This prevents race condition where WorkspaceApp's
+                // onConnectionChange fires before tab context is set.
+                console.log('[ILM-TRACE] Join: Wrapped ConnectSuccess matched! CID:', response.ConnectSuccess.cid?.toString());
                 const connectionManager = ConnectionManager.getInstance();
-                connectionManager.handleAuthSuccess(
-                  formData.username,
-                  formData.password,
-                  formData.fullName,
-                  serverData.serverAddress,
-                  serverData.password || "", // Server password from ServerConnect step
-                  mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-                  response.ConnectSuccess.cid
-                );
-                resolve({ cid: response.ConnectSuccess.cid });
+                (async () => {
+                  console.log('[ILM-TRACE] Join: Calling handleAuthSuccess (wrapped format)...');
+                  await connectionManager.handleAuthSuccess({
+                    username: formData.username,
+                    password: formData.password,
+                    fullName: formData.fullName,
+                    serverAddress: serverData.serverAddress,
+                    serverPassword: serverData.password || "", // Server password from ServerConnect step
+                    securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
+                    cid: response.ConnectSuccess.cid
+                  });
+                  console.log('[ILM-TRACE] Join: handleAuthSuccess completed (wrapped), resolving promise');
+                  resolve({ cid: response.ConnectSuccess.cid });
+                })().catch(err => {
+                  console.error('[ILM-TRACE] Join: handleAuthSuccess failed (wrapped):', err);
+                  reject(err);
+                });
               } else if (response.RegisterFailure && response.RegisterFailure.request_id === requestId) {
                 resolved = true;
                 clearTimeout(timeout);
@@ -213,6 +240,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
       });
 
       // Send the registration request with our pre-generated request ID
+      // mapSecuritySettings converts camelCase UI settings to snake_case protocol settings
       await websocketService.register(
         requestId,
         formData.username,
@@ -223,14 +251,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         // The "password" is an optional security feature that prevents connections to the server (at the Citadel Protocol layer)
         // unless the password is provided. For security reasons, a client does not know if such a password is required unless it is provided.
         serverData.password || "",
-        {
-          securityLevel: securitySettings.securityLevel,
-          secrecyMode: securitySettings.secrecyMode,
-          encryptionAlgorithm: securitySettings.encryptionAlgorithm,
-          kemAlgorithm: securitySettings.kemAlgorithm,
-          sigAlgorithm: securitySettings.sigAlgorithm,
-          headerObfuscatorSettings: securitySettings.headerObfuscatorSettings
-        }
+        mapSecuritySettings(securitySettings)
       );
       
       console.log('Registration request sent with ID:', requestId);

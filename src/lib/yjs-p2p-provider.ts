@@ -588,8 +588,8 @@ export class YjsP2PProvider {
     if (!this.ownCid) return;
 
     websocketService.sendP2PMessage(
-      this.ownCid,
-      this.peerCid,
+      BigInt(this.ownCid),
+      BigInt(this.peerCid),
       JSON.stringify(message)
     ).catch(error => {
       console.error('[Yjs] Failed to send message:', error);

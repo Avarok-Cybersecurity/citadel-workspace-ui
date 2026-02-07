@@ -3,6 +3,8 @@ import { WorkspaceProtocolPayloadTS, WorkspaceProtocolResponseTS } from '@/types
 import { websocketService } from './websocket-service';
 import { debugLog, errorLog } from './debug-config';
 import { groupMessagingManager } from './group-messaging-manager';
+import { bytesToString } from './utils/encoding-utils';
+import { convertRoomFromBackend } from './converters/room-converter';
 
 /**
  * Handles workspace protocol responses and emits appropriate events
@@ -55,7 +57,7 @@ export class WorkspaceResponseHandler {
           // Convert array of numbers to Uint8Array
           const contentBytes = new Uint8Array(notification.message);
           // Decode bytes to string
-          const contentStr = new TextDecoder().decode(contentBytes);
+          const contentStr = bytesToString(contentBytes);
 
           // Parse the JSON workspace protocol response
           const workspacePayload = JSON.parse(contentStr);
@@ -85,7 +87,7 @@ export class WorkspaceResponseHandler {
           // Convert array of numbers to Uint8Array
           const contentBytes = new Uint8Array(message.MessageDelivered.contents);
           // Decode bytes to string
-          const contentStr = new TextDecoder().decode(contentBytes);
+          const contentStr = bytesToString(contentBytes);
           // Parse the JSON workspace protocol response
           const workspacePayload = JSON.parse(contentStr);
           
@@ -155,6 +157,13 @@ export class WorkspaceResponseHandler {
         },
         connection: connectionInfo
       });
+    } else if ('Workspaces' in response) {
+      // Handle workspace list response (multi-workspace)
+      debugLog('workspace', 'Workspaces list received', response.Workspaces);
+      eventEmitter.emit('workspaces:listed', {
+        workspaces: response.Workspaces,
+        connection: connectionInfo
+      });
     } else if ('Workspace' in response) {
       // Handle workspace loaded response
       eventEmitter.emit('workspace:loaded', {
@@ -210,15 +219,16 @@ export class WorkspaceResponseHandler {
         connection: connectionInfo
       });
     } else if ('Rooms' in response) {
-      // Handle rooms list response
+      // Handle rooms list response - convert snake_case to camelCase for Room interface
+      const convertedRooms = response.Rooms.map((room: any) => convertRoomFromBackend(room));
       eventEmitter.emit('rooms:loaded', {
-        rooms: response.Rooms,
+        rooms: convertedRooms,
         connection: connectionInfo
       });
     } else if ('Room' in response) {
-      // Handle single room response
+      // Handle single room response - convert snake_case to camelCase for Room interface
       eventEmitter.emit('room:loaded', {
-        room: response.Room,
+        room: convertRoomFromBackend(response.Room),
         connection: connectionInfo
       });
     } else if ('Members' in response) {
@@ -283,14 +293,7 @@ export class WorkspaceResponseHandler {
       // Handle room creation response
       debugLog('workspace', 'CreateRoom response', response.CreateRoom);
       eventEmitter.emit('room:created', {
-        room: {
-          id: response.CreateRoom.id,
-          office_id: response.CreateRoom.office_id,
-          name: response.CreateRoom.name,
-          description: response.CreateRoom.description,
-          mdx_content: response.CreateRoom.mdx_content,
-          metadata: response.CreateRoom.metadata || []
-        },
+        room: convertRoomFromBackend(response.CreateRoom),
         connection: connectionInfo
       });
       // Also trigger a reload of rooms
@@ -302,7 +305,7 @@ export class WorkspaceResponseHandler {
       // Handle room update response
       debugLog('workspace', 'UpdateRoom response', response.UpdateRoom);
       eventEmitter.emit('room:updated', {
-        room: response.UpdateRoom,
+        room: convertRoomFromBackend(response.UpdateRoom),
         connection: connectionInfo
       });
       // Trigger rooms reload
@@ -352,12 +355,14 @@ export class WorkspaceResponseHandler {
       if (response.Success.includes('deleted')) {
         eventEmitter.emit('operation:deleted', connectionInfo);
       }
+      eventEmitter.emit('workspace:raw-response', response);
     } else if ('Error' in response) {
       // Handle error response
       eventEmitter.emit('operation:error', {
         message: response.Error,
         connection: connectionInfo
       });
+      eventEmitter.emit('workspace:raw-response', response);
     } else if ('WorkspaceNotInitialized' in response) {
       // Handle workspace not initialized response (object form)
       debugLog('workspace', 'Workspace not initialized, triggering initialization flow');
@@ -452,9 +457,155 @@ export class WorkspaceResponseHandler {
         user,
         connection: connectionInfo
       });
+    // ========== Server Capabilities Response ==========
+    } else if ('ServerCapabilities' in response) {
+      // Handle server capabilities response
+      const capabilities = response.ServerCapabilities;
+      debugLog('workspace', 'ServerCapabilities received', capabilities);
+      eventEmitter.emit('server:capabilities:loaded', {
+        allowServerFileTransfer: capabilities.allow_server_file_transfer,
+        allowServerRevfsStorage: capabilities.allow_server_revfs_storage,
+        maxFileTransferSizeMb: Number(capabilities.max_file_transfer_size_mb),
+        revfsStorageQuotaMb: Number(capabilities.revfs_storage_quota_mb),
+        connection: connectionInfo
+      });
+    // ========== Tree Node Responses (Generalized Hierarchy) ==========
+    } else if ('Node' in response) {
+      // Handle single node response (create/get/update node)
+      const node = response.Node;
+      debugLog('workspace', 'Node response received', { id: node.id, name: node.name, entityType: node.entity_type });
+      eventEmitter.emit('node:loaded', {
+        node,
+        connection: connectionInfo
+      });
+
+      // Emit legacy events based on entity_type for backward compatibility
+      const entityType = node.entity_type;
+      if (entityType?.Child === 'Office') {
+        // Emit office events for UI compatibility
+        eventEmitter.emit('office:created', {
+          office: {
+            id: node.id,
+            name: node.name,
+            description: node.description,
+            mdx_content: node.mdx_content,
+            metadata: node.metadata || []
+          },
+          connection: connectionInfo
+        });
+        eventEmitter.emit('office:loaded', {
+          office: node,
+          connection: connectionInfo
+        });
+        eventEmitter.emit('offices:reload', connectionInfo);
+      } else if (entityType?.Child === 'Room') {
+        // Emit room events for UI compatibility
+        const convertedRoom = convertRoomFromBackend(node);
+        eventEmitter.emit('room:created', {
+          room: convertedRoom,
+          connection: connectionInfo
+        });
+        eventEmitter.emit('room:loaded', {
+          room: convertedRoom,
+          connection: connectionInfo
+        });
+        eventEmitter.emit('rooms:reload', {
+          office_id: node.parent_id,
+          connection: connectionInfo
+        });
+      }
+
+      // Also emit raw response for protocol-level testing
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('Nodes' in response) {
+      // Handle nodes list response
+      const nodes = response.Nodes;
+      debugLog('workspace', 'Nodes response received', { count: nodes.length });
+      eventEmitter.emit('nodes:loaded', {
+        nodes,
+        connection: connectionInfo
+      });
+
+      // Emit legacy events based on entity types for backward compatibility
+      const offices = nodes.filter((n: any) => n.entity_type?.Child === 'Office');
+      const rooms = nodes.filter((n: any) => n.entity_type?.Child === 'Room');
+
+      if (offices.length > 0) {
+        eventEmitter.emit('offices:loaded', {
+          offices,
+          connection: connectionInfo
+        });
+        // Determine default office
+        const defaultOffice = offices.find((o: any) => o.is_default === true) || offices[0];
+        if (defaultOffice) {
+          eventEmitter.emit('offices:default-determined', {
+            officeId: defaultOffice.id,
+            officeName: defaultOffice.name,
+            connection: connectionInfo
+          });
+        }
+      }
+
+      if (rooms.length > 0) {
+        // Convert rooms to camelCase format expected by UI
+        const convertedRooms = rooms.map((room: any) => convertRoomFromBackend(room));
+        eventEmitter.emit('rooms:loaded', {
+          rooms: convertedRooms,
+          connection: connectionInfo
+        });
+      }
+
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('TreeStructure' in response) {
+      // Handle tree structure response
+      debugLog('workspace', 'TreeStructure response received');
+      eventEmitter.emit('tree:structure:loaded', {
+        root: response.TreeStructure.root,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('TreeSchema' in response) {
+      // Handle tree schema response
+      debugLog('workspace', 'TreeSchema response received');
+      eventEmitter.emit('tree:schema:loaded', {
+        schema: response.TreeSchema,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('NodeTypes' in response) {
+      // Handle node types list response
+      debugLog('workspace', 'NodeTypes response received', { count: response.NodeTypes.length });
+      eventEmitter.emit('node:types:loaded', {
+        nodeTypes: response.NodeTypes,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('NodeDeleted' in response) {
+      // Handle node deletion response
+      const { node_id, children_deleted } = response.NodeDeleted;
+      debugLog('workspace', 'NodeDeleted response received', { node_id, childrenDeleted: children_deleted.length });
+      eventEmitter.emit('node:deleted', {
+        nodeId: node_id,
+        childrenDeleted: children_deleted,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
+    } else if ('NodeMoved' in response) {
+      // Handle node move response
+      const { node_id, old_parent_id, new_parent_id } = response.NodeMoved;
+      debugLog('workspace', 'NodeMoved response received', { node_id, old_parent_id, new_parent_id });
+      eventEmitter.emit('node:moved', {
+        nodeId: node_id,
+        oldParentId: old_parent_id,
+        newParentId: new_parent_id,
+        connection: connectionInfo
+      });
+      eventEmitter.emit('workspace:raw-response', response);
     } else {
       // Log unhandled response types for debugging
       debugLog('workspace', 'Unhandled response type:', response);
+      // Still emit raw response for protocol-level testing
+      eventEmitter.emit('workspace:raw-response', response);
     }
   }
 

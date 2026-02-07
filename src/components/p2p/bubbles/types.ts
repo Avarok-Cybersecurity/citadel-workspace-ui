@@ -1,4 +1,4 @@
-import type { P2PMessage } from '@/lib/p2p-messenger-manager';
+import type { P2PMessage } from '@/lib/p2p';
 
 export interface BaseBubbleProps {
   message: P2PMessage;

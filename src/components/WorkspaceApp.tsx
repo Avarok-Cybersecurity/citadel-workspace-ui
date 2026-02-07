@@ -10,16 +10,18 @@ import { ConnectionService } from '@/lib/connection-service';
 import WorkspaceService from '@/lib/workspace-service';
 import UserService from '@/lib/user-service';
 import { websocketService } from '@/lib/websocket-service';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { getUserFriendlyErrorMessage } from '@/lib/error-messages';
 import { healthCheckService } from '@/lib/health-check';
 import { getSelectedUser, setSelectedUser } from '@/lib/tab-context';
+import { revfsService } from '@/lib/revfs';
 // Import sessionStartupService to ensure it's instantiated (sets up event listeners)
 // P2P startup is now centralized here - triggered by 'session:activated' event
 import '@/lib/session-startup-service';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 /**
  * WorkspaceApp is the main container component that provides:
@@ -59,8 +61,8 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     
-    initializeServices();
-    
+    runAsyncSetup(initializeServices);
+
     // Initialize required services to ensure they're instantiated
     // This will set up their event listeners and notification handlers
     const notificationService = NotificationService.getInstance();
@@ -68,12 +70,26 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
     const connectionService = ConnectionService.getInstance();
     const userService = UserService;
 
+    // Initialize RE-VFS service with I/O dependencies
+    revfsService.initialize({
+      sendP2PMessageReliable: (localCid, peerCid, message) =>
+        websocketService.sendP2PMessageReliable(localCid, peerCid, message),
+      getCurrentCid: async () => {
+        const info = connectionManager.getConnectionInfo();
+        return info?.cid ?? null;
+      },
+      sendInternalServiceRequest: (request) =>
+        websocketService.sendMessage(request),
+    });
+
     // Track the last processed CID to prevent redundant workspace reloads
     // This is critical to prevent flickering when BroadcastChannel sends connection-status
     let lastProcessedCid: string | null = null;
 
     // Connection change listener - load workspace data when user connects
-    connectionService.onConnectionChange((connection) => {
+    console.log('[ILM-TRACE] WorkspaceApp: Subscribing to connection changes');
+    connectionService.onConnectionChange(async (connection) => {
+      console.log(`[ILM-TRACE] WorkspaceApp: onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, hasUserContext=${!!connection?.userContext}`);
       // CID 0 is the service connection, not a user session - skip it
       const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
@@ -88,28 +104,93 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         // CRITICAL: Only process connection updates for THIS tab's session
         // In multi-tab scenarios, BroadcastChannel sends connection-status for ALL sessions
         // Each tab must only respond to updates for its own selected user
-        const tabSelection = getSelectedUser();
-        if (tabSelection?.selectedCid && tabSelection.selectedCid !== cidString) {
-          console.log(`WorkspaceApp: Ignoring connection update for CID ${cidString} (tab has CID ${tabSelection.selectedCid})`);
+        //
+        // PRIORITY 1: Use userContext from the connection event (bypasses IndexedDB)
+        // PRIORITY 2: Fall back to getSelectedUser() from IndexedDB
+        let tabSelection: { selectedCid?: string | bigint } | null = null;
+
+        // Check if connection includes user context (passed directly by handleAuthSuccess)
+        if (connection.userContext?.selectedCid) {
+          console.log(`[ILM-TRACE] WorkspaceApp: Using userContext from connection event: selectedCid=${connection.userContext.selectedCid.toString()}`);
+          tabSelection = { selectedCid: connection.userContext.selectedCid };
+        } else {
+          // Fall back to IndexedDB (may timeout, especially for follower tabs)
+          const maxRetries = 5;
+          const retryDelayMs = 200;
+
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              // Use 2 second timeout - IndexedDB can be slow when many operations are in flight
+              const timeoutPromise = new Promise<null>((_, reject) =>
+                setTimeout(() => reject(new Error('getSelectedUser timeout')), 2000)
+              );
+              tabSelection = await Promise.race([getSelectedUser(), timeoutPromise]);
+
+              // If we got a result with selectedCid, we're done
+              if (tabSelection?.selectedCid) {
+                console.log(`[ILM-TRACE] WorkspaceApp: Got tab context from IndexedDB on attempt ${attempt}: selectedCid=${tabSelection.selectedCid}`);
+                break;
+              }
+
+              // If no selectedCid and not last attempt, wait and retry
+              // This handles the race condition where connection update arrives before
+              // the Join/Login component has called setSelectedUser
+              if (attempt < maxRetries) {
+                console.log(`[ILM-TRACE] WorkspaceApp: No tab context yet (attempt ${attempt}/${maxRetries}), waiting ${retryDelayMs}ms...`);
+                await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+              }
+            } catch (e: unknown) {
+              const errorMsg = e instanceof Error ? e.message : String(e);
+              if (attempt < maxRetries) {
+                console.log(`[ILM-TRACE] WorkspaceApp: getSelectedUser failed (attempt ${attempt}/${maxRetries}): ${errorMsg}, retrying...`);
+                await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+              } else {
+                console.warn(`[ILM-TRACE] WorkspaceApp: getSelectedUser failed after all retries: ${errorMsg}`);
+              }
+            }
+          }
+        }
+        console.log(`[ILM-TRACE] WorkspaceApp: tabSelection=${JSON.stringify(tabSelection, (_, v) => typeof v === 'bigint' ? v.toString() : v)}, cidString=${cidString}`);
+
+        // CRITICAL: If tab context is not set, skip processing entirely.
+        // This handles the race condition where broadcastConnectionStatus fires
+        // before Join.tsx's handleAuthSuccess has completed setSelectedUser.
+        // The tab that owns this CID will process it once its context is set.
+        if (!tabSelection?.selectedCid) {
+          console.log(`[ILM-TRACE] WorkspaceApp: No tab context yet, skipping connection update for CID ${cidString}`);
+          console.log(`[ILM-TRACE] WorkspaceApp: The owning tab's Join.tsx will handle workspace loading after handleAuthSuccess completes`);
+          return;
+        }
+
+        // Tab context exists - check if this update is for our CID
+        if (tabSelection.selectedCid.toString() !== cidString) {
+          console.log(`[ILM-TRACE] WorkspaceApp: Ignoring connection update for CID ${cidString} (tab has CID ${tabSelection.selectedCid})`);
           return;
         }
 
         lastProcessedCid = cidString;
 
-        console.log('WorkspaceApp: Valid user session detected, CID:', connection.cid);
+        console.log('[ILM-TRACE] WorkspaceApp: Valid user session detected, CID:', connection.cid?.toString());
         // Set the connection ID in the workspace service
         WorkspaceService.setConnectionId(connection.cid);
 
         // Emit session:activated to trigger P2P startup (handled by SessionStartupService)
         // Get username from stored session if available
-        const storedSession = connectionManager.getStoredSessionsArray().find(
-          s => s.cid === cidString || s.cid === connection.cid?.toString()
+        const allStoredSessions = connectionManager.getStoredSessionsArray();
+        console.log(`[ILM-TRACE] WorkspaceApp: Looking for CID ${cidString} in ${allStoredSessions.length} stored sessions`);
+        console.log(`[ILM-TRACE] WorkspaceApp: Stored session CIDs: ${allStoredSessions.map(s => s.cid?.toString()).join(', ')}`);
+        // CRITICAL: Convert both sides to strings for comparison
+        // session.cid can be bigint, undefined, or string depending on when it was set
+        const storedSession = allStoredSessions.find(
+          s => s.cid?.toString() === cidString
         );
-        
+
         if (!storedSession) {
-          console.error('No stored session found for CID:', cidString);
+          console.error('[ILM-TRACE] WorkspaceApp: No stored session found for CID:', cidString);
           return;
         }
+        console.log(`[ILM-TRACE] WorkspaceApp: Found stored session for ${storedSession.username}`);
+
         
         eventEmitter.emit('session:activated', {
           cid: cidString,
@@ -216,7 +297,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
       messagingService.cleanup();
       connectionService.cleanup();
       WorkspaceService.cleanup();
-      userService.cleanup();
+      runAsyncSetup(() => userService.cleanup());
       healthCheckService.stopHealthChecks();
       eventEmitter.off('connection-failure', handleConnectionFailure);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
@@ -243,10 +324,10 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
           if (orphanSessionCid) {
             try {
               await websocketService.setOrphanMode(true);
-              const result = await websocketService.claimSession(orphanSessionCid, true);
-              
-              if (result.cid) {
-                connectionService.updateConnectionStatus({
+              const result = await websocketService.claimSession(orphanSessionCid, true) as { cid?: bigint };
+
+              if (result?.cid) {
+                ConnectionService.getInstance().updateConnectionStatus({
                   cid: result.cid,
                   isConnected: true
                 });

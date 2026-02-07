@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import { Trash2, UserCheck, Clock, Wifi } from 'lucide-react';
 import type { ActiveSession } from '@/types/session-types';
 import {
@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
           console.error('Failed to load active sessions:', error);
         }
       };
-      loadActiveSessions();
+      runAsyncSetup(loadActiveSessions);
       // Also refresh stored sessions
       setStoredSessions(connectionManager.getStoredSessionsArray());
     }
@@ -173,7 +174,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                             <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Active</span>
                           </div>
                           <p className="text-sm text-gray-400">{session.server_address}</p>
-                          <p className="text-xs text-gray-500">CID: {session.cid}</p>
+                          <p className="text-xs text-gray-500">CID: {session.cid.toString()}</p>
                         </div>
                       </div>
 

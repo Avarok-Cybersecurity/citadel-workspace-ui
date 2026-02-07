@@ -13,13 +13,15 @@ import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
 import { getWorkspaceLogo, getWorkspaceInitials } from "@/lib/workspace-metadata-service";
-import { useWorkspace } from "@/lib/workspace-context";
-import { connectionManager } from "@/lib/connection-manager";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface StoredWorkspace {
   id: string;
@@ -27,7 +29,7 @@ interface StoredWorkspace {
   serverAddress: string;
   workspaceName?: string;
   isActive: boolean;
-  cid?: string;
+  cid?: bigint;
   fullName?: string;
   role?: string;
 }
@@ -60,26 +62,26 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
   // Load stored sessions and track current workspace
   useEffect(() => {
-    const loadStoredWorkspaces = () => {
+    const loadStoredWorkspaces = async () => {
       const storedSessions = connectionManager.getStoredSessions();
       const connectionService = ConnectionService.getInstance();
-      const tabSelectedUser = getSelectedUser();
-      
+      const tabSelectedUser = await getSelectedUser();
+
       // Get current connection status
-      let currentCid = null;
+      let currentCid: bigint | null = null;
       connectionService.onConnectionChange((connection) => {
         if (connection?.cid) {
           currentCid = connection.cid;
         }
       });
-      
+
       // Ensure storedSessions has the expected structure
       if (!storedSessions || !storedSessions.sessions || !Array.isArray(storedSessions.sessions)) {
         console.warn('No stored sessions found or invalid format');
         setAvailableWorkspaces([]);
         return;
       }
-      
+
       // Convert stored sessions to workspace objects
       const workspaces: StoredWorkspace[] = storedSessions.sessions.map((session, index) => ({
         id: `${session.serverAddress}-${session.username}`,
@@ -91,37 +93,37 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
         fullName: session.fullName,
         role: session.role || 'Member' // Use stored role or default to Member
       }));
-      
+
       setAvailableWorkspaces(workspaces);
-      
+
       // Set current workspace based on tab-specific selected user
       let activeWorkspace: StoredWorkspace | undefined;
-      
+
       if (tabSelectedUser && tabSelectedUser.selectedUsername && tabSelectedUser.selectedServerAddress) {
         // Find workspace matching the tab's selected user
-        activeWorkspace = workspaces.find(w => 
-          w.username === tabSelectedUser.selectedUsername && 
+        activeWorkspace = workspaces.find(w =>
+          w.username === tabSelectedUser.selectedUsername &&
           w.serverAddress === tabSelectedUser.selectedServerAddress
         );
         console.log('WorkspaceSwitcher: Using tab-selected user:', tabSelectedUser.selectedUsername);
       }
-      
+
       // Fall back to the workspace with active connection if no tab selection
       if (!activeWorkspace) {
         activeWorkspace = workspaces.find(w => w.isActive);
       }
-      
+
       if (activeWorkspace) {
         setCurrentWorkspace(activeWorkspace);
       }
     };
-    
-    loadStoredWorkspaces();
-    
+
+    runAsyncSetup(loadStoredWorkspaces);
+
     // Also listen for connection changes
     const connectionService = ConnectionService.getInstance();
-    connectionService.onConnectionChange(() => {
-      loadStoredWorkspaces();
+    connectionService.onConnectionChange(async () => {
+      await loadStoredWorkspaces();
     });
   }, [state.workspace]);
   
@@ -160,11 +162,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
     try {
       // Show switching toast immediately
-      toast({
-        title: "Switching workspace...",
-        description: `Connecting as ${workspace.fullName || workspace.username}`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Switching workspace...", `Connecting as ${workspace.fullName || workspace.username}`);
 
       // Add transition class to main content
       const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
@@ -207,7 +205,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       }
 
       // Update tab context with new workspace session
-      setSelectedUser({
+      await setSelectedUser({
         selectedUsername: workspace.username,
         selectedServerAddress: workspace.serverAddress,
         selectedCid: targetSession.cid
@@ -217,20 +215,16 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       WorkspaceService.setConnectionId(targetSession.cid);
 
       // Trigger workspace loading
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices();
 
       // Show success notification
-      toast({
-        title: "Connected!",
-        description: (
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span>{workspace.fullName || workspace.username} · {workspace.workspaceName}</span>
-          </div>
-        ),
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Connected!", (
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <span>{workspace.fullName || workspace.username} · {workspace.workspaceName}</span>
+        </div>
+      ));
 
       // Navigate to saved route or default
       const savedRoute = workspaceRoutes[workspace.id];
@@ -251,11 +245,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
     } catch (error) {
       console.error('Failed to switch workspace:', error);
-      toast({
-        title: "Switch Failed",
-        description: "Could not switch to the selected workspace",
-        variant: "destructive",
-      });
+      toastError(toast, "Switch Failed", "Could not switch to the selected workspace");
 
       // Reset animation state on error
       const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
@@ -278,20 +268,12 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
     setCurrentStep("connect");
     setIsOpen(false);
     
-    toast({
-      title: "Adding New Account",
-      description: `Join ${workspaceName} with a different account`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Adding New Account", `Join ${workspaceName} with a different account`);
   };
 
   const handleManageAccounts = () => {
     setIsOpen(false);
-    toast({
-      title: "Account Management",
-      description: "Account management coming soon",
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Account Management", "Account management coming soon");
   };
 
   const handleNext = () => {
@@ -391,7 +373,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
                   disabled={isSwitching}
                 >
                   <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#6E59A5] text-white text-sm font-semibold">
-                    {workspace.fullName ? workspace.fullName.charAt(0).toUpperCase() : workspace.username.charAt(0).toUpperCase()}
+                    {(workspace.fullName || workspace.username || '?').charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1">
                     <span className="font-semibold block group-hover:text-[#1C1D28]">
@@ -400,7 +382,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
                     <span className="text-xs text-gray-400 group-hover:text-gray-600 flex items-center gap-1">
                       @{workspace.username} · {workspace.role || 'Member'}
                       {(workspace.role === 'Admin' || workspace.role === 'admin' || workspace.role === 'Owner' || workspace.role === 'owner') && (
-                        <Shield className="w-3 h-3 text-amber-400" title="Administrator" />
+                        <span title="Administrator"><Shield className="w-3 h-3 text-amber-400" /></span>
                       )}
                     </span>
                   </div>

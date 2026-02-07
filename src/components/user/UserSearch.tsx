@@ -13,7 +13,7 @@ import {
   CardTitle 
 } from '@/components/ui/card';
 import { UserRole } from '@/types/workspace-entities';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Badge } from '@/components/ui/badge';
 
 export interface UserData {

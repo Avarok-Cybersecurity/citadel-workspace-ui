@@ -1,4 +1,4 @@
-import { listen, eventEmitter } from './event-emitter';
+import { eventEmitter } from './event-emitter';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface UnreadCountChange {
@@ -65,18 +65,13 @@ export class NotificationService {
     return NotificationService.instance;
   }
 
-  private async setupEventListeners() {
-    try {
-      // Listen for notifications from the Rust backend
-      this.unlisten = await listen('notification', (event) => {
-        const notification = event.payload as Notification;
-        this.addNotification(notification);
-      });
+  private setupEventListeners(): void {
+    // Listen for notifications
+    this.unlisten = eventEmitter.on<Notification>('notification', (notification) => {
+      this.addNotification(notification);
+    });
 
-      console.info('NotificationService event listeners set up');
-    } catch (error) {
-      console.error('Failed to set up notification listeners:', error);
-    }
+    console.info('NotificationService event listeners set up');
   }
 
   /**

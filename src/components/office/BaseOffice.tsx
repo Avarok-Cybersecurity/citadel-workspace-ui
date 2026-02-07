@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
+import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
 import { useLocation } from "react-router-dom";
-import { useWorkspace } from "../../lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
@@ -15,9 +16,10 @@ import { FileText, MessageSquare } from "lucide-react";
 import WorkspaceService from "@/lib/workspace-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GroupChatView from "@/components/chat/GroupChatView";
-import { usePermission } from "@/hooks/usePermission";
+import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface BaseOfficeProps {
   title: string;
@@ -43,7 +45,16 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
+  const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
   const { toast } = useToast();
+
+  // Load tab session asynchronously
+  useEffect(() => {
+    runAsyncSetup(async () => {
+      const session = await connectionManager.getTabSelectedSession();
+      setTabSession(session);
+    });
+  }, []);
 
   // Determine if we're in a loading state
   const isLoading = roomId
@@ -121,17 +132,17 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
         console.info('Compiling MDX content...');
         const result = await evaluate(content, {
           ...runtime,
-          useMDXComponents: () => components,
+          useMDXComponents: () => components as unknown as MDXComponents,
           baseUrl: window.location.origin
         });
         console.info('MDX compilation successful');
-        setCompiledContent(result.default({ components }));
+        setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
         console.error('Error compiling MDX:', error);
       }
     };
 
-    compileContent();
+    runAsyncSetup(compileContent);
   }, [content]);
 
   // Handle template selection
@@ -164,7 +175,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
 
   // Get current user info from workspace state OR connection manager
   // The workspace state currentUser may not be populated yet during initial render
-  const tabSession = connectionManager.getTabSelectedSession();
+  // tabSession is loaded asynchronously via useEffect
   const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
   const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
@@ -194,7 +205,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
     </div>
   ) : (
     <div className="px-4 pt-6 pb-2 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-none">
-      <MDXProvider components={components}>
+      <MDXProvider components={components as unknown as MDXComponents}>
         {compiledContent}
       </MDXProvider>
     </div>

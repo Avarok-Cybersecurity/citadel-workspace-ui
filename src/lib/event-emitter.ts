@@ -32,7 +32,7 @@ export class TypedEventEmitter<T> {
 export class EventEmitter {
   private listeners: Map<string, Set<EventHandler>> = new Map();
 
-  emit<T = any>(event: string, payload: T): void {
+  emit<T = any>(event: string, payload?: T): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
       handlers.forEach(handler => {
@@ -49,7 +49,7 @@ export class EventEmitter {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    
+
     const handlers = this.listeners.get(event)!;
     handlers.add(handler);
 
@@ -60,6 +60,15 @@ export class EventEmitter {
         this.listeners.delete(event);
       }
     };
+  }
+
+  once<T = any>(event: string, handler: EventHandler<T>): () => void {
+    const wrappedHandler: EventHandler<T> = (payload) => {
+      unsubscribe();
+      handler(payload);
+    };
+    const unsubscribe = this.on(event, wrappedHandler);
+    return unsubscribe;
   }
 
   off(event: string, handler?: EventHandler): void {
@@ -83,21 +92,5 @@ export class EventEmitter {
   }
 }
 
-// Create a global event emitter instance
-export const globalEventEmitter = new EventEmitter();
-export const eventEmitter = globalEventEmitter; // Alias for compatibility
-
-export async function listen<T = any>(
-  event: string,
-  handler: (event: { payload: T }) => void
-): Promise<() => void> {
-  const wrappedHandler = (payload: T) => {
-    handler({ payload });
-  };
-  
-  return globalEventEmitter.on(event, wrappedHandler);
-}
-
-export async function emit<T = any>(event: string, payload: T): Promise<void> {
-  globalEventEmitter.emit(event, payload);
-}
+// Global event emitter singleton
+export const eventEmitter = new EventEmitter();

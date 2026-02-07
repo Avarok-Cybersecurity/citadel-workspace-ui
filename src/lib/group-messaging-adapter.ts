@@ -15,7 +15,7 @@ import {
   groupMessagingManager,
   GroupMessageEvent,
 } from './group-messaging-manager';
-import { workspaceService } from './workspace-service';
+import WorkspaceService from './workspace-service';
 import { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
 import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import type { MessageType } from '@/types/message-protocol';
@@ -154,7 +154,7 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
       ? mapMessageTypeToGroupMessageType(options.messageType)
       : GroupMessageTypeTS.Text;
 
-    await workspaceService.sendGroupMessage(
+    await WorkspaceService.sendGroupMessage(
       this._groupId,
       content,
       messageType,
@@ -168,7 +168,7 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
     this._isLoading = true;
 
     try {
-      const response = await workspaceService.getGroupMessages(this._groupId);
+      const response = await WorkspaceService.getGroupMessages(this._groupId);
 
       if (response?.GroupMessages) {
         const groupMessages: GroupMessage[] = response.GroupMessages.messages || [];
@@ -210,7 +210,7 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
       // Get oldest timestamp for pagination
       const oldestTimestamp = groupMessagingManager.getOldestTimestamp(this._groupId);
 
-      const response = await workspaceService.getGroupMessages(
+      const response = await WorkspaceService.getGroupMessages(
         this._groupId,
         oldestTimestamp
       );
@@ -265,15 +265,15 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
   // ===== Message Actions =====
 
   async editMessage(messageId: string, newContent: string): Promise<void> {
-    await workspaceService.editGroupMessage(this._groupId, messageId, newContent);
+    await WorkspaceService.editGroupMessage(this._groupId, messageId, newContent);
   }
 
   async deleteMessage(messageId: string): Promise<void> {
-    await workspaceService.deleteGroupMessage(this._groupId, messageId);
+    await WorkspaceService.deleteGroupMessage(this._groupId, messageId);
   }
 
   async replyToMessage(messageId: string, content: string): Promise<void> {
-    await workspaceService.sendGroupMessage(
+    await WorkspaceService.sendGroupMessage(
       this._groupId,
       content,
       GroupMessageTypeTS.Text,

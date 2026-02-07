@@ -1,0 +1,146 @@
+/**
+ * Authentication Operations
+ *
+ * Handles connect and register operations via the internal service.
+ * Extracted from websocket-service.ts to reduce file size.
+ */
+
+import { debugLog } from '../debug-config';
+import {
+  type SessionSecuritySettings,
+  getDefaultSecuritySettings
+} from '../security-utils';
+import { resolveServerAddress } from '../address-resolver';
+import { instanceManager } from '../multi-instance';
+import { stringToBytes } from '../utils/encoding-utils';
+
+export interface AuthConfig {
+  init: () => Promise<void>;
+  sendRequest: (request: unknown, requestId?: string) => Promise<void>;
+  claimSession: (cid: bigint, onlyIfOrphaned: boolean) => Promise<unknown>;
+  disconnect: (cid: bigint) => Promise<void>;
+}
+
+export class AuthOperations {
+  private readonly config: AuthConfig;
+
+  constructor(config: AuthConfig) {
+    this.config = config;
+  }
+
+  async connect(
+    requestId: string,
+    username: string,
+    password: string,
+    sessionSecuritySettings?: SessionSecuritySettings
+  ): Promise<void> {
+    await this.config.init();
+
+    // Server address is NOT needed for login - the Citadel protocol stores it from registration
+    console.log(`[Connect] Connecting user: ${username}`);
+
+    // Check if session already exists
+    try {
+      const { connectionManager } = await import('../connection');
+      const activeSessions = await connectionManager.getActiveSessions();
+      const existingSession = activeSessions.find(s => s.username === username);
+
+      if (existingSession) {
+        console.log(`[Connect] Found existing session CID ${existingSession.cid}`);
+
+        // Check if session is orphaned
+        const { connectionManager: cm } = await import('../connection');
+        const storedSession = cm.getStoredSessions().sessions.find(s => s.username === username);
+        const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid;
+
+        if (isOrphaned) {
+          console.log(`[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
+          await this.config.claimSession(existingSession.cid, false);
+          return;
+        } else {
+          console.warn(`[Connect] Session exists but not orphaned - disconnecting first`);
+          await this.config.disconnect(existingSession.cid);
+        }
+      }
+    } catch (error) {
+      console.warn(`[Connect] Session check failed, proceeding with Connect:`, error);
+    }
+
+    // Proceed with Connect request
+    console.log(`[Connect] Proceeding with new connection for ${username}`);
+
+    // Use provided settings or defaults (snake_case from SessionSecuritySettings)
+    const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();
+
+    const connectOptions = {
+      request_id: requestId,
+      username,
+      password: stringToBytes(password),
+      connect_mode: { Standard: { force_login: true } },
+      udp_mode: "Disabled",
+      keep_alive_timeout: null,
+      session_security_settings: {
+        security_level: settings.security_level,
+        secrecy_mode: settings.secrecy_mode,
+        header_obfuscator_settings: settings.header_obfuscator_settings,
+        crypto_params: settings.crypto_params,
+      },
+    };
+
+    const connectRequest = { Connect: connectOptions };
+
+    console.log(`[Connect] Sending Connect request with request_id: ${requestId}`);
+    console.log(`[Connect] isLeader: ${instanceManager.isLeader}`);
+
+    try {
+      await this.config.sendRequest(connectRequest, requestId);
+      console.log(`[Connect] Connect request sent successfully for ${username}`);
+    } catch (sendError) {
+      console.error(`[Connect] FAILED to send Connect request:`, sendError);
+      throw sendError;
+    }
+  }
+
+  async register(
+    requestId: string,
+    username: string,
+    password: string,
+    fullName: string,
+    serverAddr: string,
+    serverPassword?: string,
+    sessionSecuritySettings?: SessionSecuritySettings
+  ): Promise<void> {
+    await this.config.init();
+
+    // Resolve hostname to IP if needed (DNS resolution)
+    const resolvedAddr = await resolveServerAddress(serverAddr);
+    console.log(`[Register] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
+
+    // Use provided settings or defaults (snake_case from SessionSecuritySettings)
+    const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();
+
+    const registerOptions = {
+      request_id: requestId,
+      server_addr: resolvedAddr,
+      full_name: fullName,
+      username,
+      proposed_password: stringToBytes(password),
+      connect_after_register: true,
+      session_security_settings: {
+        security_level: settings.security_level,
+        secrecy_mode: settings.secrecy_mode,
+        header_obfuscator_settings: settings.header_obfuscator_settings,
+        crypto_params: settings.crypto_params,
+      },
+      server_password: serverPassword || null
+    };
+
+    debugLog('websocket', 'Sending register options to WASM client', registerOptions);
+
+    const registerRequest = { Register: registerOptions };
+
+    debugLog('websocket', `[Register] isLeader: ${instanceManager.isLeader}`);
+
+    await this.config.sendRequest(registerRequest, requestId);
+  }
+}

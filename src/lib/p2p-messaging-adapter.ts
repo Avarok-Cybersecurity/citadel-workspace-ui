@@ -35,9 +35,9 @@ import {
 } from './chat-messaging-adapter';
 import {
   P2PMessengerManager,
-  P2PMessage,
   p2pMessengerManager,
-} from './p2p-messenger-manager';
+} from './p2p';
+import type { P2PMessage } from './p2p';
 import type { MessageType } from '@/types/message-protocol';
 
 /**
@@ -45,7 +45,7 @@ import type { MessageType } from '@/types/message-protocol';
  */
 function convertP2PMessageToChatMessage(
   msg: P2PMessage,
-  currentUserId: string,
+  currentUserId: bigint,
   peerName: string
 ): ChatMessage {
   const isOwn = msg.senderCid === currentUserId;
@@ -54,7 +54,7 @@ function convertP2PMessageToChatMessage(
     id: msg.id,
     content: msg.content,
     timestamp: msg.timestamp,
-    senderId: msg.senderCid,
+    senderId: msg.senderCid.toString(), // Convert bigint to string for UI
     senderName: isOwn ? 'You' : peerName,
     isOwn,
     messageType: msg.message_type,
@@ -104,9 +104,9 @@ function mapP2PStatus(
  */
 export class P2PMessagingAdapter extends ChatMessagingAdapter {
   private manager: P2PMessengerManager;
-  private _peerCid: string;
+  private _peerCid: bigint;
   private _peerName: string;
-  private _currentUserId: string;
+  private _currentUserId: bigint;
   private _currentUserName: string;
   private messages: ChatMessage[] = [];
   private subscribers: ((event: ChatMessageEvent) => void)[] = [];
@@ -115,9 +115,9 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
   private currentPage = 0;
 
   constructor(
-    peerCid: string,
+    peerCid: bigint,
     peerName: string,
-    currentUserId: string,
+    currentUserId: bigint,
     currentUserName: string
   ) {
     super();
@@ -131,7 +131,7 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
   // ===== Readonly Properties =====
 
   get contextId(): string {
-    return this._peerCid;
+    return this._peerCid.toString();
   }
 
   get displayName(): string {
@@ -139,7 +139,7 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
   }
 
   get currentUserId(): string {
-    return this._currentUserId;
+    return this._currentUserId.toString();
   }
 
   get currentUserName(): string {
@@ -286,7 +286,7 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
     // For the adapter, we'll emit a typing event
     this.notifySubscribers({
       type: 'typing_started',
-      senderId: this._currentUserId,
+      senderId: this._currentUserId.toString(),
       isTyping: true,
     });
   }
@@ -294,7 +294,7 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
   stopTyping(): void {
     this.notifySubscribers({
       type: 'typing_stopped',
-      senderId: this._currentUserId,
+      senderId: this._currentUserId.toString(),
       isTyping: false,
     });
   }
@@ -357,7 +357,7 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
       if (peerCid === this._peerCid) {
         this.notifySubscribers({
           type: isTyping ? 'typing_started' : 'typing_stopped',
-          senderId: peerCid,
+          senderId: peerCid.toString(),
           isTyping,
         });
       }
@@ -366,10 +366,10 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
 
     const unsubPresence = this.manager.onPresenceChange((peerCid, presence) => {
       if (peerCid === this._peerCid) {
-        const isOnline = presence.status !== 4; // 4 = Offline in MessagingLayerType
+        const isOnline = presence.status !== 'Offline'; // Check for Offline status
         this.notifySubscribers({
           type: 'presence_changed',
-          senderId: peerCid,
+          senderId: peerCid.toString(),
           presence: isOnline ? 'online' : 'offline',
         });
       }
@@ -467,9 +467,9 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
  * Factory function to create a P2P messaging adapter
  */
 export function createP2PMessagingAdapter(
-  peerCid: string,
+  peerCid: bigint,
   peerName: string,
-  currentUserId: string,
+  currentUserId: bigint,
   currentUserName: string
 ): P2PMessagingAdapter {
   return new P2PMessagingAdapter(peerCid, peerName, currentUserId, currentUserName);

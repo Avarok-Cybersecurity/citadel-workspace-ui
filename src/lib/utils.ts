@@ -1,10 +1,19 @@
+/**
+ * Utils Module
+ *
+ * Centralized utilities for the Citadel Workspaces application.
+ * Re-exports specialized utilities from utils/ subdirectory.
+ */
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
+// Tailwind CSS class merging utility (shadcn/ui)
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// File size formatting
 export function formatFileSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let size = bytes;
@@ -18,6 +27,7 @@ export function formatFileSize(bytes: number): string {
   return `${size.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${units[unitIndex]}`;
 }
 
+// Date formatting with relative time
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
@@ -42,3 +52,6 @@ export function formatDate(date: Date | string): string {
     return d.toLocaleDateString();
   }
 }
+
+// Re-export specialized utilities
+export * from './utils/index';

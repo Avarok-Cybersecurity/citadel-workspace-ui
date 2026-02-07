@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast, useEventListener } from '@/hooks';
 import { AvatarUpload } from './AvatarUpload';
 import WorkspaceService from '@/lib/workspace-service';
-import { eventEmitter } from '@/lib/event-emitter';
 import userService from '@/lib/user-service';
 
 export function GeneralSettingsTab() {
@@ -20,38 +19,39 @@ export function GeneralSettingsTab() {
 
   // Load current user data on mount
   useEffect(() => {
-    const currentUser = userService.getCurrentUser();
-    if (currentUser) {
-      setDisplayName(currentUser.fullName || currentUser.username);
-      setOriginalDisplayName(currentUser.fullName || currentUser.username);
+    const loadUser = async () => {
+      const currentUser = await userService.getCurrentUser();
+      if (currentUser) {
+        setDisplayName(currentUser.fullName || currentUser.username);
+        setOriginalDisplayName(currentUser.fullName || currentUser.username);
+      }
+      setIsLoading(false);
+    };
+    loadUser().catch(console.error);
+  }, []);
+
+  // Handle profile updates
+  // MetadataValue is a tagged enum: { type: "String", content: "..." }
+  const handleProfileUpdate = useCallback((data: { user: any }) => {
+    const avatarMeta = data.user.metadata?.avatar;
+    const avatar = avatarMeta?.content || avatarMeta?.String;
+    if (avatar) {
+      setAvatarData(avatar);
+      setOriginalAvatarData(avatar);
     }
-    setIsLoading(false);
-
-    // Listen for profile updates
-    // MetadataValue is a tagged enum: { type: "String", content: "..." }
-    const handleProfileUpdate = (data: { user: any }) => {
-      const avatarMeta = data.user.metadata?.avatar;
-      const avatar = avatarMeta?.content || avatarMeta?.String;
-      if (avatar) {
-        setAvatarData(avatar);
-        setOriginalAvatarData(avatar);
-      }
-      if (data.user.name) {
-        setDisplayName(data.user.name);
-        setOriginalDisplayName(data.user.name);
-      }
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been saved successfully.',
-      });
-      setIsSaving(false);
-    };
-
-    eventEmitter.on('user:profile-updated', handleProfileUpdate);
-    return () => {
-      eventEmitter.off('user:profile-updated', handleProfileUpdate);
-    };
+    if (data.user.name) {
+      setDisplayName(data.user.name);
+      setOriginalDisplayName(data.user.name);
+    }
+    toast({
+      title: 'Profile Updated',
+      description: 'Your profile has been saved successfully.',
+    });
+    setIsSaving(false);
   }, [toast]);
+
+  // Listen for profile updates
+  useEventListener<{ user: any }>('user:profile-updated', handleProfileUpdate);
 
   const hasChanges = displayName !== originalDisplayName || avatarData !== originalAvatarData;
 

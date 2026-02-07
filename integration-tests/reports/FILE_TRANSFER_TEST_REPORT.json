@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-01-10T03:08:09.288Z",
+  "timestamp": "2026-02-05T00:19:02.374Z",
   "users": {
-    "user1": "file_alice_1768014344589",
-    "user2": "file_bob_1768014344589"
+    "user1": "file_alice_1770250447231",
+    "user2": "file_bob_1770250447231"
   },
   "results": {
     "accountCreation": {
@@ -16,16 +16,16 @@
       "user2": true
     },
     "fileTransfer": {
-      "modalOpened": true,
-      "transferRequestSent": true,
+      "modalOpened": false,
+      "transferRequestSent": false,
       "receiverGotBubble": true,
-      "acceptButtonVisible": true,
-      "declineButtonVisible": true,
-      "acceptFlow": true,
+      "acceptButtonVisible": false,
+      "declineButtonVisible": false,
+      "acceptFlow": false,
       "declineFlow": false,
       "cancelFlow": false,
-      "contentVerified": true,
-      "receivedContent": "Hello from Citadel! This is a P2P file transfer test - timestamp: 1768014344589"
+      "contentVerified": false,
+      "receivedContent": ""
     },
     "uxChecks": {
       "fileIconVisible": true,
@@ -33,11 +33,16 @@
       "statusUpdates": false
     },
     "multipleTransfers": {
-      "allSent": true,
+      "allSent": false,
       "allAccepted": true,
-      "sidebarFilesFound": true,
-      "sidebarFileCount": 4,
-      "sidebarOrderCorrect": true
+      "sidebarFilesFound": false,
+      "sidebarFileCount": 0,
+      "sidebarOrderCorrect": false
+    },
+    "realProtocol": {
+      "tested": true,
+      "success": true,
+      "protocolUsed": "real-protocol (SendFile success)"
     }
   },
   "uxIssues": [],

@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { P2PMessengerManager } from '@/lib/p2p-messenger-manager';
+import React, { useState, useEffect, useCallback } from 'react';
+import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService, type Peer } from '@/lib/p2p-registration-service';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UserPlus, MessageCircle, Circle, Users, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { eventEmitter } from '@/lib/event-emitter';
-import type { P2PConversation } from '@/lib/p2p-messenger-manager';
+import { useEventListener } from '@/hooks';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
@@ -33,7 +32,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   const [isAddingPeer, setIsAddingPeer] = useState(false);
   
   const messenger = P2PMessengerManager.getInstance();
-  
+
   // Add demo peer for Kathy McCooper
   const DEMO_PEERS: PeerInfo[] = [
     {
@@ -46,55 +45,16 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     }
   ];
 
-  useEffect(() => {
-    // Wait for LocalDB to load before loading peers
-    const initPeers = async () => {
-      await messenger.waitForReady();
-      // Sync connection status from backend BEFORE loading peers
-      // This ensures status dots are accurate on page reload
-      await messenger.syncConnectionsFromBackend();
-      loadPeers();
-      loadAvailablePeers();
-    };
-    initPeers();
-
-    // Subscribe to message updates
-    const unsubscribeMessage = messenger.onMessage(() => {
-      loadPeers();
-    });
-
-    // Subscribe to connection changes
-    const unsubscribeConnection = messenger.onConnectionChange(() => {
-      loadPeers();
-    });
-
-    // Subscribe to peer updates from registration service
-    const handlePeersUpdated = (data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
-      setAvailablePeers(data.allPeers);
-      loadPeers();
-    };
-    eventEmitter.on('p2p:peers-updated', handlePeersUpdated);
-
-    // Also listen for messages-loaded event in case init completes after mount
-    const handleMessagesLoaded = () => loadPeers();
-    eventEmitter.on('p2p:messages-loaded', handleMessagesLoaded);
-
-    return () => {
-      unsubscribeMessage();
-      unsubscribeConnection();
-      eventEmitter.off('p2p:peers-updated', handlePeersUpdated);
-      eventEmitter.off('p2p:messages-loaded', handleMessagesLoaded);
-    };
-  }, []);
-
-  const loadPeers = () => {
+  // Define loadPeers before it's used in effects
+  const loadPeers = useCallback(() => {
     const conversations = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
       const lastMessage = conv.messages[conv.messages.length - 1];
+      const peerCidStr = conv.peerCid.toString();
       return {
-        cid: conv.peerCid,
+        cid: peerCidStr,
         // Use stored username if available, otherwise fallback to truncated CID
-        name: conv.peerUsername || `User ${conv.peerCid.slice(0, 8)}...`,
+        name: conv.peerUsername || `User ${peerCidStr.slice(0, 8)}...`,
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
         lastMessage: lastMessage?.content,
@@ -108,7 +68,48 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     // Sort by last message time
     allPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
     setPeers(allPeers);
-  };
+  }, [messenger]);
+
+  // Initialize peers on mount
+  useEffect(() => {
+    // Wait for LocalDB to load before loading peers
+    const initPeers = async () => {
+      await messenger.waitForReady();
+      // Sync connection status from backend BEFORE loading peers
+      // This ensures status dots are accurate on page reload
+      await messenger.syncConnectionsFromBackend();
+      loadPeers();
+      loadAvailablePeers();
+    };
+    initPeers().catch(console.error);
+
+    // Subscribe to message updates (uses messenger's internal event system)
+    const unsubscribeMessage = messenger.onMessage(() => {
+      loadPeers();
+    });
+
+    // Subscribe to connection changes (uses messenger's internal event system)
+    const unsubscribeConnection = messenger.onConnectionChange(() => {
+      loadPeers();
+    });
+
+    return () => {
+      unsubscribeMessage();
+      unsubscribeConnection();
+    };
+  }, []);
+
+  // Handle peer updates from registration service
+  const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
+    setAvailablePeers(data.allPeers);
+    loadPeers();
+  }, []);
+
+  // Listen for peer updates
+  useEventListener<{ allPeers: Peer[]; registeredPeers: Peer[] }>('p2p:peers-updated', handlePeersUpdated);
+
+  // Listen for messages-loaded event in case init completes after mount
+  useEventListener('p2p:messages-loaded', loadPeers);
 
   const loadAvailablePeers = () => {
     const { allPeers } = p2pRegistrationService.getPeers();
@@ -120,7 +121,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
     setIsAddingPeer(true);
     try {
-      await messenger.autoRegisterPeer(newPeerCid);
+      await messenger.autoRegisterPeer(BigInt(newPeerCid));
       setNewPeerCid('');
       loadPeers();
     } catch (error) {
@@ -172,7 +173,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleAddPeer();
+              runAsyncSetup(handleAddPeer);
             }}
             className="flex gap-2"
           >
@@ -201,33 +202,35 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                   Available Peers ({availablePeers.length})
                 </div>
                 <div className="space-y-1">
-                  {availablePeers.map((peer) => (
+                  {availablePeers.map((peer) => {
+                    const peerCidStr = peer.cid.toString();
+                    return (
                     <Button
-                      key={peer.cid}
+                      key={peerCidStr}
                       variant="ghost"
                       className="w-full justify-start h-auto py-2 px-3"
                       onClick={() => {
                         if (!peer.isRegistered) {
-                          setNewPeerCid(peer.cid);
-                          handleAddPeer();
+                          setNewPeerCid(peerCidStr);
+                          runAsyncSetup(handleAddPeer);
                         } else {
-                          onSelectPeer(peer.cid);
+                          onSelectPeer(peerCidStr);
                         }
                       }}
                     >
                       <div className="flex items-center gap-3 w-full">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="text-xs">
-                            {peer.username?.[0] || peer.cid.slice(0, 2)}
+                            {peer.username?.[0] || peerCidStr.slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
-                        
+
                         <div className="flex-1 text-left">
                           <div className="font-medium text-sm">
-                            {peer.fullName || peer.username || `User ${peer.cid.slice(0, 8)}...`}
+                            {peer.fullName || peer.username || `User ${peerCidStr.slice(0, 8)}...`}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {peer.cid.slice(0, 16)}...
+                            {peerCidStr.slice(0, 16)}...
                           </div>
                         </div>
                         
@@ -238,7 +241,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                         )}
                       </div>
                     </Button>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="my-4 border-b" />
               </div>

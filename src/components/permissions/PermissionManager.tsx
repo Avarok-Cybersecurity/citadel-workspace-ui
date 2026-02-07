@@ -21,7 +21,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import WorkspaceService from '@/lib/workspace-service';
 import { useToast } from '@/hooks/use-toast';
+import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { User, UserRole } from '@/types/workspace-entities';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface PermissionManagerProps {
   userId: string;
@@ -85,7 +87,8 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
 
   useEffect(() => {
     // Load current user permissions
-    loadUserPermissions();
+    runAsyncSetup(loadUserPermissions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, domainId]);
 
   const loadUserPermissions = async () => {
@@ -156,22 +159,14 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
       // Update the user's role via backend
       await WorkspaceService.updateMemberRole(userId, selectedRole as any);
 
-      toast({
-        title: "Permissions Updated",
-        description: `User role updated to ${selectedRole}.`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Permissions Updated", `User role updated to ${selectedRole}.`);
 
       if (onClose) {
         onClose();
       }
     } catch (error) {
       console.error('Error saving permissions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update permissions. Please try again.",
-        variant: "destructive",
-      });
+      toastError(toast, "Error", "Failed to update permissions. Please try again.");
     } finally {
       setIsLoading(false);
     }

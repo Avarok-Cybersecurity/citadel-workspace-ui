@@ -3,21 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { listKnownServers } from "@/lib/server-utils";
+import { listKnownServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
-
-interface ServerInfo {
-  server_address: string;
-  full_name: string;
-  username: string;
-  security_level: number;
-  security_mode: number;
-}
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export const Connect = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [servers, setServers] = useState<ServerInfo[]>([]);
+  const [servers, setServers] = useState<StoredServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -29,7 +22,7 @@ export const Connect = () => {
       const response = await listKnownServers({ cid: "1" });
       setServers(response.servers);
       if (response.servers.length > 0) {
-        setSelectedServer(response.servers[0].server_address);
+        setSelectedServer(response.servers[0].serverAddress);
       }
     } catch (error: any) {
       console.error("Error fetching known servers:", error);
@@ -47,7 +40,7 @@ export const Connect = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    fetchServers();
+    runAsyncSetup(fetchServers);
   }, [fetchServers]);
 
   const handleConnect = async () => {
@@ -60,7 +53,7 @@ export const Connect = () => {
       return;
     }
 
-    const selectedServerInfo = servers.find(s => s.server_address === selectedServer);
+    const selectedServerInfo = servers.find(s => s.serverAddress === selectedServer);
     if (!selectedServerInfo) return;
 
     try {
@@ -114,20 +107,22 @@ export const Connect = () => {
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                 {servers.map((server) => (
                   <div
-                    key={server.server_address}
+                    key={server.serverAddress}
                     className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${
-                      selectedServer === server.server_address
+                      selectedServer === server.serverAddress
                         ? "bg-purple-700/50 border border-purple-500"
                         : "bg-[#221F26]/70 hover:bg-[#221F26] border border-purple-400/20"
                     }`}
-                    onClick={() => setSelectedServer(server.server_address)}
+                    onClick={() => setSelectedServer(server.serverAddress)}
                   >
                     <Server className="w-5 h-5 text-purple-300 mr-3" />
                     <div>
-                      <p className="text-white font-medium">{server.server_address}</p>
-                      <p className="text-gray-300 text-sm">{server.username} ({server.full_name})</p>
+                      <p className="text-white font-medium">{server.serverAddress}</p>
+                      {server.serverName && (
+                        <p className="text-gray-300 text-sm">{server.serverName}</p>
+                      )}
                     </div>
-                    {selectedServer === server.server_address && (
+                    {selectedServer === server.serverAddress && (
                       <ArrowRight className="w-5 h-5 text-purple-300 ml-auto" />
                     )}
                   </div>

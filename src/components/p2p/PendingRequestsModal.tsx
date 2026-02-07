@@ -5,7 +5,7 @@
  * Non-disruptive UX - accessible via sidebar badge.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,8 +17,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserPlus, UserX, Loader2, Clock } from 'lucide-react';
 import { peerRegistrationStore, PendingPeerRequest } from '@/lib/peer-registration-store';
-import { eventEmitter } from '@/lib/event-emitter';
-import { useToast } from '@/hooks/use-toast';
+import { useToast, useEventListener } from '@/hooks';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PendingRequestsModalProps {
@@ -34,21 +33,21 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Subscribe to pending requests updates
-  useEffect(() => {
-    const updateRequests = () => {
-      setPendingRequests(peerRegistrationStore.getPendingRequests());
-    };
-
-    // Initial load
-    updateRequests();
-
-    // Listen for updates
-    eventEmitter.on('peer-requests:updated', updateRequests);
-    return () => {
-      eventEmitter.off('peer-requests:updated', updateRequests);
-    };
+  // Load pending requests
+  const loadRequests = useCallback(async () => {
+    const requests = await peerRegistrationStore.getPendingRequests();
+    setPendingRequests(requests);
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadRequests().catch(console.error);
+  }, [loadRequests]);
+
+  // Listen for updates
+  useEventListener('peer-requests:updated', () => {
+    loadRequests().catch(console.error);
+  });
 
   const handleAccept = async (request: PendingPeerRequest) => {
     setProcessingId(request.id);
@@ -143,7 +142,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                       </p>
                       <div className="flex items-center text-xs text-gray-400">
                         <span className="truncate max-w-[120px]">
-                          CID: {request.peer_cid.slice(0, 8)}...
+                          CID: {request.peer_cid.toString().slice(0, 8)}...
                         </span>
                         <span className="mx-2">•</span>
                         <Clock className="h-3 w-3 mr-1" />

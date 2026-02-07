@@ -1,100 +1,104 @@
 # P2P Basic Test Report
 
-**Date:** 2025-12-30
-**Timestamp:** 1767109387
-**Test Run:** 2 (after WasmPeerBridge ESM fix)
+**Date:** 2026-01-22
+**Timestamp:** 1769092410
+**Test Type:** Basic P2P Messaging (2 Users)
 
 ## Accounts Created
-- User 1: p2ptest1_1767109387 (CID: 893330922318524083)
-- User 2: p2ptest2_1767109387 (CID: 10324791384386614288)
+
+| User | Username | CID | Tab Role |
+|------|----------|-----|----------|
+| Alice | p2palice_1769092410 | 1087410467696734588 | Tab 0 (Leader) |
+| Bob | p2pbob_1769092410 | 4519690157514980889 | Tab 1 (Follower) |
+
+**Password:** test12345
+**Workspace Admin Password:** SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME
 
 ## Test Results
 
 | Test | Status | Notes |
 |------|--------|-------|
-| Account Creation | PASS | Both accounts created successfully |
-| Workspace Initialization | PASS | User 1 initialized workspace as admin, User 2 correctly did not see init modal |
-| P2P Registration | PASS | Connection request sent and accepted, PeerConnectSuccess received |
-| Message User2 -> User1 | PASS | "Hello from user2!" delivered and displayed in User 1's chat |
-| Message User1 -> User2 | PASS | "Hello back from user1!" delivered and displayed in User 2's chat |
+| Account Creation (Alice) | PASS | First user, initialized workspace |
+| Account Creation (Bob) | PASS | Second user, no init modal shown |
+| P2P Registration (Alice -> Bob) | PASS | Alice sent request via Discover Peers |
+| P2P Acceptance (Bob accepts) | PASS | Bob accepted via Pending Connection Requests |
+| Message User1 -> User2 | PASS | "Hello from Alice!" delivered in 43ms |
+| Message User2 -> User1 | PASS | "Hello back from Bob!" delivered in 6ms |
+| Message Delivery Receipts | PASS | Status transitions: sent -> delivered -> read |
+| MessageNotification Routing | PASS | CID-based routing working correctly |
 
-## Key Verification Points
+## MessageNotification Routing Verification
 
-### WasmPeerBridge Fix Confirmed
-The previous test failed due to a CommonJS/ESM compatibility issue (`require is not defined`). This has been fixed by changing `wasm-peer-bridge.ts` to use ES module import instead of require().
+The primary objective of this test was to verify that `MessageNotification` routing works correctly after adding it to the `CID_ROUTED_NOTIFICATIONS` set in `instance-inbound-router.ts`.
 
-**Verification:**
-- **NO "[WasmPeerBridge]" console errors** - The ESM import fix works correctly
-- **getPeersForSession logs appear correctly:**
-  - `[WasmPeerBridge] Initialized - global callback registered`
-  - `[WasmPeerBridge] getPeersForSession(89333092...) -> 1 peers`
-  - `[WasmPeerBridge] getPeersForSession(10324791...) -> 1 peers`
+**Console Evidence:**
+```
+[ILM-Router] MessageNotification uses CID routing, skipping request_id extraction
+[ILM-Router] Routing MessageNotification (CID: 4519690157514980889)
+P2P MessageNotification received from peer: 1087410467696734588 for session: 45196901575149808...
+[P2P] handleMessageAck FOUND message, updating status: sent -> delivered
+[P2P] handleMessageAck FOUND message, updating status: delivered -> read
+```
 
-### Message Acknowledgments Working
-- Delivery acknowledgments received for both messages
-- Read acknowledgments received when chat was opened
-- `[P2P] handleMessageAck received: {ack_type: delivered, ...}`
-- `[P2P] handleMessageAck received: {ack_type: read, ...}`
+**Conclusion:** MessageNotification CID routing is working as expected. Messages are correctly routed to the appropriate tab/session based on the CID in the notification.
 
 ## UX/UI Issues Discovered
 
 | Severity | Issue |
 |----------|-------|
-| Low | React Router future flag warnings (v7_startTransition, v7_relativeSplatPath) - cosmetic only |
-| Low | WASM client initialization uses deprecated parameters warning |
-| Low | ServerAutoConnect: "Failed to load enabled setting: Key not found" on initial load - non-blocking |
-| Low | Failed to load cached messages error on initial WebSocket connection - non-blocking, race condition on first load |
+| Low | React Router v7 future flag warnings (expected, not a bug) |
+| Low | "Key not found" warnings for first-time LocalDB access (expected behavior) |
+| Low | Deprecated WASM initialization parameters warning |
+
+**Note:** No critical UX issues discovered. The P2P registration, acceptance, and messaging flows all worked smoothly.
 
 ## Console Warnings/Errors
 
-### Non-Critical Warnings (cosmetic/race conditions)
-1. **React Router Future Flag Warnings** (cosmetic):
-   - v7_startTransition future flag warning
-   - v7_relativeSplatPath future flag warning
+**Errors:** None
 
-2. **WASM Deprecation Warning** (cosmetic):
-   - "using deprecated parameters for the initialization function; pass a single object instead"
+**Warnings (benign):**
+1. React Router Future Flag warnings for v7 migration preparation
+2. PeerRegistrationStore: Failed to load from LocalDB (expected on first use)
+3. ServerAutoConnect: Failed to load enabled setting: Key not found (expected on first use)
+4. WASM deprecated parameters warning (cosmetic)
 
-3. **LocalDB Key Not Found** (non-blocking):
-   - "ServerAutoConnect: Failed to load enabled setting: Error: Key not found"
-   - Occurs on first load before settings are saved
+## Screenshots
 
-4. **Cached Messages Load** (non-blocking):
-   - "Failed to load cached messages: Error: No WebSocket client available"
-   - Occurs during P2PMessengerManager initialization race condition
+| Screenshot | Description |
+|------------|-------------|
+| 04-bob-accepts-request.png | Bob's view after accepting Alice's P2P registration |
+| 05-message-sent-alice.png | Alice's chat showing sent message to Bob |
+| 06-message-received-bob.png | Bob's chat showing received message from Alice |
+| 07-message-sent-bob.png | Bob's chat showing reply sent to Alice |
+| 08-bidirectional-complete-alice.png | Alice's view showing complete bidirectional conversation |
 
-### NO Critical Errors
-The previous WasmPeerBridge errors (`require is not defined`) have been completely eliminated.
+## Multi-Tab Architecture Observations
 
-## Backend Log Analysis
+The test successfully verified the multi-tab leader/follower architecture:
 
-From `tilt logs internal-service`:
-- All operations showed successful LocalDBGetKVSuccess responses
-- Inbound/outbound message storage working correctly for all CIDs
-- Proper message serialization (BytesLike data with appropriate lengths)
-- No errors or failures in backend logs
-
-## Comparison with Previous Test Run
-
-| Aspect | Previous Run (FAIL) | Current Run (PASS) |
-|--------|---------------------|-------------------|
-| WasmPeerBridge errors | Hundreds of "require is not defined" errors | NONE |
-| getPeersForSession | Never called successfully | Working correctly |
-| Message delivery | Messages stuck in outbound queue | Bidirectional delivery working |
-| Acknowledgments | None received | Both delivered and read acks working |
+1. **Leader Tab (Alice - Tab 0):** Manages WebSocket connection to internal service
+2. **Follower Tab (Bob - Tab 1):** Receives updates via BroadcastChannel from leader
+3. **CID Routing:** Messages correctly routed to appropriate session based on notification CID
+4. **Session Isolation:** Each user's messages appear in their respective conversation views
 
 ## Overall Result: PASS
 
-### Summary
+All test objectives were met:
 - Both accounts created successfully
-- P2P registration completed (request sent and accepted)
-- **Bidirectional messaging works correctly**
-- WasmPeerBridge ESM fix confirmed working
-- Message acknowledgments (delivered + read) working
-- No critical errors in console or backend logs
+- P2P registration completed successfully
+- Bidirectional messaging verified (Alice -> Bob and Bob -> Alice)
+- MessageNotification CID routing confirmed working
+- No blocking errors or UX issues discovered
 
-### Fix Applied
-The root cause of the previous failure was identified and fixed:
-- **File:** `citadel-workspaces/ui/src/lib/wasm-peer-bridge.ts`
-- **Issue:** CommonJS `require()` used in ESM/browser context
-- **Fix:** Changed to use ES module dynamic import
+---
+
+## Historical Test Results
+
+### Previous Test (2026-01-18)
+- **Result:** FAIL
+- **Issue:** `PeerRegisterRespond` request type was missing in backend
+- **Resolution:** Backend handler was subsequently implemented
+
+### Current Test (2026-01-22)
+- **Result:** PASS
+- **Notes:** Full P2P flow working end-to-end including MessageNotification CID routing

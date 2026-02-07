@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { UserSearch, UserData } from '@/components/user/UserSearch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -370,9 +370,9 @@ export const UserDirectory = () => {
                   )}
                   <CardDescription className="text-gray-400 flex items-center justify-center">
                     <Clock className="h-3.5 w-3.5 mr-1.5" />
-                    {selectedUser.isOnline 
-                      ? 'Online now' 
-                      : `Last active ${formatRelativeTime(selectedUser.lastActive)}`
+                    {selectedUser.isOnline
+                      ? 'Online now'
+                      : `Last active ${formatRelativeTime(selectedUser.lastActive ?? Date.now())}`
                     }
                   </CardDescription>
                 </div>

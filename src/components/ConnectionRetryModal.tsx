@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, RefreshCw, X } from "lucide-react";
-import { useRetry } from "@/hooks/use-retry";
+import { useRetry, useEventListener } from "@/hooks";
 import { websocketService } from "@/lib/websocket-service";
-import { eventEmitter } from "@/lib/event-emitter";
 import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface ConnectionRetryModalProps {
   isOpen: boolean;
@@ -102,7 +102,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
       setHasInitialized(true);
       // Start the first connection attempt using ref to avoid dependency on changing callback
       if (executeFnRef.current) {
-        executeFnRef.current();
+        runAsyncSetup(() => executeFnRef.current!());
       }
     }
 
@@ -139,8 +139,12 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
 
         // Use the ref to call retry (avoids dependency on changing callback reference)
         if (retryFnRef.current) {
-          retryFnRef.current().finally(() => {
-            retryInProgressRef.current = false;
+          runAsyncSetup(async () => {
+            try {
+              await retryFnRef.current!();
+            } finally {
+              retryInProgressRef.current = false;
+            }
           });
         }
       }
@@ -155,16 +159,8 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   }, [isOpen, attempt, maxRetries, isLoading]);
 
   // Listen for successful connection events
-  useEffect(() => {
-    const handleConnectionSuccess = () => {
-      onClose();
-    };
-
-    const unsubscribe = eventEmitter.on('connection-success', handleConnectionSuccess);
-    
-    return () => {
-      unsubscribe();
-    };
+  useEventListener('connection-success', () => {
+    onClose();
   }, [onClose]);
 
   const handleManualRetry = () => {
@@ -172,8 +168,12 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     // Use ref for consistency with auto-retry path to avoid race conditions
     if (retryFnRef.current && !retryInProgressRef.current) {
       retryInProgressRef.current = true;
-      retryFnRef.current().finally(() => {
-        retryInProgressRef.current = false;
+      runAsyncSetup(async () => {
+        try {
+          await retryFnRef.current!();
+        } finally {
+          retryInProgressRef.current = false;
+        }
       });
     }
   };

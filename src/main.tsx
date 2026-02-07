@@ -1,15 +1,26 @@
 import { createRoot } from 'react-dom/client'
-// Import fixed App
 import App from './App.tsx'
-// import TestApp from './TestApp.tsx'
 import './index.css'
-
-// Initialize tab notification service (updates tab title and favicon with unread count)
-import './lib/tab-notification-service'
 
 // Initialize WASM peer bridge (provides peer connection state to WASM ILM via JS callback)
 import { initWasmPeerBridge } from './lib/wasm-peer-bridge'
 initWasmPeerBridge();
+
+// Expose singleton services on window for dev tools and integration testing
+import { p2pRegistrationService } from './lib/p2p-registration-service';
+import { p2pAutoConnectService } from './lib/p2p-auto-connect-service';
+import { websocketService } from './lib/websocket-service';
+import { connectionManager } from './lib/connection/service';
+(window as unknown as { __p2pRegistrationService: typeof p2pRegistrationService }).__p2pRegistrationService = p2pRegistrationService;
+(window as unknown as { __p2pAutoConnectService: typeof p2pAutoConnectService }).__p2pAutoConnectService = p2pAutoConnectService;
+(window as unknown as { __websocketService: typeof websocketService }).__websocketService = websocketService;
+(window as unknown as { __connectionManager: typeof connectionManager }).__connectionManager = connectionManager;
+
+// Initialize instance inbound router (routes WebSocket responses to correct instance)
+// Must be imported early to set up event listeners before any messages are processed
+console.log('[Main] About to import instance-inbound-router...');
+import { instanceInboundRouter } from './lib/multi-instance';
+console.log('[Main] instance-inbound-router imported, active:', instanceInboundRouter.isRouterActive());
 
 console.log("main.tsx starting");
 
@@ -51,16 +62,18 @@ try {
   console.log("main.tsx: App rendered successfully");
 } catch (error) {
   console.error("main.tsx: Error during initialization:", error);
-  
+
   // Show error on page if React fails
   const rootElement = document.getElementById("root");
   if (rootElement) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : '';
     rootElement.innerHTML = `
       <div style="padding: 20px; color: red; font-family: monospace;">
         <h2>React Initialization Error</h2>
-        <p><strong>Error:</strong> ${error.message}</p>
+        <p><strong>Error:</strong> ${errorMessage}</p>
         <p><strong>Stack:</strong></p>
-        <pre>${error.stack}</pre>
+        <pre>${errorStack}</pre>
       </div>
     `;
   }

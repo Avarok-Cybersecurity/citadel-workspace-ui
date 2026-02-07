@@ -369,4 +369,7 @@ class FileUploadServiceImpl extends EventEmitter {
   }
 }
 
-export const FileUploadService = FileUploadServiceImpl.getInstance();
+export const fileUploadService = FileUploadServiceImpl.getInstance();
+
+// Re-export class for testing
+export { FileUploadServiceImpl };

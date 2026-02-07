@@ -26,7 +26,10 @@
  * Note: Uses sync pattern with crypto.subtle for consistency
  */
 export async function sha256Async(data: Uint8Array): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  // Create a new ArrayBuffer from the Uint8Array to ensure proper type for crypto.subtle
+  const buffer = new ArrayBuffer(data.byteLength);
+  new Uint8Array(buffer).set(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }

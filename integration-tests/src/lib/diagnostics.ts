@@ -172,7 +172,7 @@ export async function startDiagnostics(
   // Start white screen polling
   whiteScreenIntervalId = setInterval(() => {
     if (!stopped) {
-      checkWhiteScreen();
+      void checkWhiteScreen();
     }
   }, whiteScreenCheckInterval);
 

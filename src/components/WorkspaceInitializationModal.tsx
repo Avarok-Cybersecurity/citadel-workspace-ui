@@ -9,6 +9,7 @@ import WorkspaceService from "@/lib/workspace-service";
 import { WorkspaceProtocolRequestTS, WorkspaceProtocolPayloadTS } from "@/types/workspace-protocol";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { workspaceEvents } from "@/lib/workspace-events";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface WorkspaceInitializationModalProps {
     isOpen: boolean;
@@ -71,8 +72,8 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             const request: WorkspaceProtocolRequestTS = {
                 UpdateWorkspace: {
                     workspace_master_password: masterPassword,
-                    name: null,
-                    description: null,
+                    name: undefined,
+                    description: undefined,
                     metadata: metadataArray
                 }
             };
@@ -93,19 +94,19 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 };
                 
                 // Listen for workspace response
-                workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
-                    cleanup();
-                    resolve();
-                }).then(unsub => {
-                    unsubscribeWorkspace = unsub;
+                runAsyncSetup(async () => {
+                    unsubscribeWorkspace = await workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
+                        cleanup();
+                        resolve();
+                    });
                 });
-                
+
                 // Also listen for errors
-                workspaceEvents.onOperationEvent('operation:error', (error) => {
-                    cleanup();
-                    reject(new Error(error.message || 'Failed to initialize workspace'));
-                }).then(unsub => {
-                    unsubscribeError = unsub;
+                runAsyncSetup(async () => {
+                    unsubscribeError = await workspaceEvents.onOperationEvent('operation:error', (error) => {
+                        cleanup();
+                        reject(new Error(error.message || 'Failed to initialize workspace'));
+                    });
                 });
                 
                 // Timeout after 10 seconds

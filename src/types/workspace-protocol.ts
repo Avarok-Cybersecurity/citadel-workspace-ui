@@ -33,8 +33,11 @@ export interface MessageRequestTS {
 export interface WorkspaceProtocolRequestTS {
   Message?: MessageRequestTS;
 
-  // GetWorkspace variant (correct command name from Rust protocol)
-  GetWorkspace?: null;
+  // GetWorkspace variant - workspace_id defaults to sentinel if null/undefined
+  GetWorkspace?: { workspace_id?: string | null } | null;
+
+  // List all workspaces the user has access to
+  ListWorkspaces?: null;
 
   // Workspace commands
   CreateWorkspace?: {
@@ -46,12 +49,14 @@ export interface WorkspaceProtocolRequestTS {
 
   // Workspace operations
   UpdateWorkspace?: {
+    workspace_id?: string | null;
     name?: string;
     description?: string;
     workspace_master_password: string;
     metadata?: number[]; // Vec<u8> as number[]
   };
   DeleteWorkspace?: {
+    workspace_id?: string | null;
     workspace_master_password: string;
   };
 
@@ -109,6 +114,7 @@ export interface WorkspaceProtocolRequestTS {
     office_id?: string;
     room_id?: string;
     role: UserRoleTS;
+    metadata?: number[];
   };
   GetMember?: {
     user_id: string;
@@ -116,6 +122,7 @@ export interface WorkspaceProtocolRequestTS {
   UpdateMemberRole?: {
     user_id: string;
     role: UserRoleTS;
+    metadata?: number[];
   };
   UpdateMemberPermissions?: {
     user_id: string;
@@ -125,7 +132,8 @@ export interface WorkspaceProtocolRequestTS {
   };
   RemoveMember?: {
     user_id: string;
-    domain_id: string;
+    office_id?: string;
+    room_id?: string;
   };
   ListMembers?: {
     office_id?: string;
@@ -168,6 +176,9 @@ export interface WorkspaceProtocolRequestTS {
     name?: string;
     avatar_data?: string; // Base64-encoded WebP image
   };
+
+  // Server capabilities query
+  GetServerCapabilities?: null;
 }
 
 // Group message type enum
@@ -258,12 +269,42 @@ export type WorkspaceProtocolResponseTS =
   | { GroupMessageDeleted: { group_id: string; message_id: string; deleted_by: string } }
   | { GroupMessage: GroupMessageTS }
   // User profile responses
-  | { UserProfileUpdated: UserTS };
+  | { UserProfileUpdated: UserTS }
+  // Server capabilities response
+  | { ServerCapabilities: ServerCapabilitiesTS }
+  // Multi-workspace support
+  | { Workspaces: WorkspaceMetadataTS[] };
 
 export enum UpdateOperationTS {
   Add = 'add',
   Remove = 'remove',
   Set = 'set'
+}
+
+/**
+ * Lightweight workspace metadata for listing accessible workspaces
+ */
+export interface WorkspaceMetadataTS {
+  id: string;
+  name: string;
+  description: string;
+  owner_id: string;
+  is_default: boolean;
+  member_count: number;
+}
+
+/**
+ * Server file transfer and storage capabilities
+ */
+export interface ServerCapabilitiesTS {
+  /** Whether server-mediated file transfers are enabled */
+  allow_server_file_transfer: boolean;
+  /** Whether RE-VFS (server-side encrypted storage) is enabled */
+  allow_server_revfs_storage: boolean;
+  /** Maximum file size for transfers (in megabytes) */
+  max_file_transfer_size_mb: bigint;
+  /** RE-VFS storage quota per user (in megabytes) */
+  revfs_storage_quota_mb: bigint;
 }
 
 /**

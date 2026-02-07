@@ -57,6 +57,12 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
         'text="CONNECTED PEERS"',
         'text="DIRECT MESSAGES"',
         'text="FILES"',
+        // Additional indicators - sidebar group labels from the workspace layout
+        '[data-sidebar="group-label"]',
+        // Office/room navigation elements
+        'text="General"',
+        // Workspace name in sidebar header
+        '[data-testid="workspace-name"]',
       ];
 
       for (const selector of sidebarIndicators) {
@@ -64,6 +70,20 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
         if (await element.isVisible({ timeout: 500 }).catch(() => false)) {
           console.log('  Workspace fully loaded');
           return true;
+        }
+      }
+
+      // Additional check: if we're on a workspace URL and there's a sidebar element visible
+      const currentUrl = page.url();
+      if (currentUrl.includes('/workspace') || currentUrl.includes('/office')) {
+        const sidebar = page.locator('[data-sidebar="sidebar"], aside, nav').first();
+        if (await sidebar.isVisible({ timeout: 300 }).catch(() => false)) {
+          // Sidebar is visible - check for any content inside it
+          const sidebarText = await sidebar.textContent().catch(() => '');
+          if (sidebarText && sidebarText.length > 20) {
+            console.log('  Workspace loaded (sidebar with content detected)');
+            return true;
+          }
         }
       }
     }

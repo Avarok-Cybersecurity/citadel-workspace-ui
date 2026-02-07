@@ -5,13 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users, UserPlus, UserCheck, RefreshCw, Loader2, Signal, Clock } from 'lucide-react';
 import { websocketService } from '@/lib/websocket-service';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
-import { useWorkspace } from '@/lib/workspace-context';
+import { toastSuccess, toastError } from '@/lib/toast-helpers';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser } from '@/lib/tab-context';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
+import { getDefaultSecuritySettings } from '@/lib/security-utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface Peer {
   cid: string;
@@ -33,28 +36,46 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   const [incomingRequests, setIncomingRequests] = useState<Map<string, PendingPeerRequest>>(new Map());
   const [loading, setLoading] = useState(false);
   const [acceptingPeerCid, setAcceptingPeerCid] = useState<string | null>(null);
+  const [currentCid, setCurrentCid] = useState<bigint | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string>('Unknown');
   const { toast } = useToast();
   const { state } = useWorkspace();
-  
-  // Get current connection CID and username from tab-specific session
-  // Priority: 1) Tab context selectedCid/selectedUsername (set during session switch), 2) StoredSession, 3) Global connection
-  const tabSelection = getSelectedUser();
-  const tabSession = connectionManager.getTabSelectedSession();
-  const currentCid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
-  const currentUsername = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
+
+  // Load current connection info asynchronously
+  useEffect(() => {
+    const loadConnectionInfo = async () => {
+      // Priority: 1) Tab context selectedCid/selectedUsername (set during session switch), 2) StoredSession, 3) Global connection
+      const tabSelection = await getSelectedUser();
+      const tabSession = await connectionManager.getTabSelectedSession();
+      const cid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
+      const username = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
+      setCurrentCid(cid);
+      setCurrentUsername(username);
+    };
+    runAsyncSetup(loadConnectionInfo);
+  }, [state.currentUser?.username]);
 
   useEffect(() => {
     if (isOpen) {
-      discoverPeers();
-      // Load initial outgoing requests
-      setOutgoingRequests(peerRegistrationStore.getOutgoingRequestCids());
+      runAsyncSetup(discoverPeers);
+      // Load initial outgoing requests - convert bigint CIDs to strings
+      const loadOutgoing = async () => {
+        const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
+        const stringCids = new Set<string>();
+        bigintCids.forEach(cid => stringCids.add(cid.toString()));
+        setOutgoingRequests(stringCids);
+      };
+      runAsyncSetup(loadOutgoing);
     }
   }, [isOpen]);
 
   // Listen for outgoing request updates
   useEffect(() => {
-    const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<string> }) => {
-      setOutgoingRequests(data.cids);
+    const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<bigint> }) => {
+      // Convert bigint CIDs to strings for state
+      const stringCids = new Set<string>();
+      data.cids.forEach(cid => stringCids.add(cid.toString()));
+      setOutgoingRequests(stringCids);
     };
 
     eventEmitter.on('outgoing-peer-requests:updated', handleOutgoingUpdate);
@@ -65,18 +86,19 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   // Listen for incoming pending requests (for "Accept Request" button)
   useEffect(() => {
-    const updateIncomingRequests = () => {
-      const pending = peerRegistrationStore.getPendingRequests();
+    const updateIncomingRequests = async () => {
+      const pending = await peerRegistrationStore.getPendingRequests();
       const incomingMap = new Map<string, PendingPeerRequest>();
       pending.forEach(req => {
-        incomingMap.set(req.peer_cid, req);
+        // Convert bigint peer_cid to string for Map key
+        incomingMap.set(req.peer_cid.toString(), req);
       });
       setIncomingRequests(incomingMap);
     };
 
     // Initial load when modal opens
     if (isOpen) {
-      updateIncomingRequests();
+      runAsyncSetup(updateIncomingRequests);
     }
 
     // Listen for updates
@@ -119,10 +141,10 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // Set up listener for incoming registration notifications
   // Delegate to peerRegistrationStore for persistence and non-disruptive UX
   useEffect(() => {
-    const handleIncomingRegistration = (message: any) => {
+    const handleIncomingRegistration = async (message: any) => {
       if (message.PeerRegisterNotification) {
         // Delegate to store - handles persistence, deduplication, and UI updates via badge
-        peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification);
+        await peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification);
       }
     };
 
@@ -134,11 +156,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   const discoverPeers = async () => {
     if (!currentCid) {
-      toast({
-        title: "Not Connected",
-        description: "Please connect to a workspace first",
-        variant: "destructive",
-      });
+      toastError(toast, "Not Connected", "Please connect to a workspace first");
       return;
     }
 
@@ -146,7 +164,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     try {
       const requestId = crypto.randomUUID();
       // Register request for cross-tab response routing
-      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+      broadcastChannelService.registerRequest(requestId, currentCid);
 
       // Create request for listing all peers
       const request = {
@@ -214,24 +232,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           loadRegisteredPeers().catch(err => {
             console.warn('Could not load registered peers:', err);
           });
-          toast({
-            title: "Peers Discovered",
-            description: `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`,
-            className: "bg-[#343A5C] border-purple-800 text-purple-200",
-          });
+          toastSuccess(toast, "Peers Discovered", `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`);
           return;
         }
-        toast({
-          title: "No Peers Found",
-          description: "You are the only user connected to this workspace",
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
+        toastSuccess(toast, "No Peers Found", "You are the only user connected to this workspace");
       } else {
-        toast({
-          title: "Peers Discovered",
-          description: `Found ${processedPeers.length} other user${processedPeers.length > 1 ? 's' : ''} in the workspace`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
+        toastSuccess(toast, "Peers Discovered", `Found ${processedPeers.length} other user${processedPeers.length > 1 ? 's' : ''} in the workspace`);
       }
     } catch (error) {
       console.error('Failed to discover peers via ListAllPeers:', error);
@@ -244,21 +250,13 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           loadRegisteredPeers().catch(err => {
             console.warn('Could not load registered peers:', err);
           });
-          toast({
-            title: "Peers Discovered",
-            description: `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`,
-            className: "bg-[#343A5C] border-purple-800 text-purple-200",
-          });
+          toastSuccess(toast, "Peers Discovered", `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`);
           return;
         }
       } catch (fallbackError) {
         console.error('GetSessions fallback also failed:', fallbackError);
       }
-      toast({
-        title: "Discovery Failed",
-        description: "Could not discover peers in the workspace",
-        variant: "destructive",
-      });
+      toastError(toast, "Discovery Failed", "Could not discover peers in the workspace");
     } finally {
       setLoading(false);
     }
@@ -318,7 +316,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     try {
       const requestId = crypto.randomUUID();
       // Register request for cross-tab response routing
-      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+      broadcastChannelService.registerRequest(requestId, currentCid);
 
       const request = {
         ListRegisteredPeers: {
@@ -370,18 +368,14 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
    * Uses the same logic as PendingRequestsModal's handleAccept.
    */
   const acceptIncomingRequest = async (request: PendingPeerRequest) => {
-    setAcceptingPeerCid(request.peer_cid);
+    setAcceptingPeerCid(request.peer_cid.toString());
     try {
       await peerRegistrationStore.acceptRequest(request.id);
       // Toast removed - modal already shows success state
       // Refresh the registered peers list
-      loadRegisteredPeers();
+      await loadRegisteredPeers();
     } catch (error) {
-      toast({
-        title: 'Failed to Accept',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
+      toastError(toast, 'Failed to Accept', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setAcceptingPeerCid(null);
     }
@@ -389,11 +383,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   const registerWithPeer = async (peerCid: string, peerUsername: string) => {
     if (!currentCid) {
-      toast({
-        title: "Not Connected",
-        description: "Please connect to a workspace first",
-        variant: "destructive",
-      });
+      toastError(toast, "Not Connected", "Please connect to a workspace first");
       return;
     }
 
@@ -401,23 +391,14 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     try {
       const requestId = crypto.randomUUID();
       // Register request for cross-tab response routing
-      broadcastChannelService.registerRequest(requestId, currentCid.toString());
+      broadcastChannelService.registerRequest(requestId, currentCid);
 
       const request = {
         PeerRegister: {
           request_id: requestId,
           cid: currentCid,
-          peer_cid: peerCid,
-          session_security_settings: {
-            security_level: "Standard",
-            secrecy_mode: "BestEffort",
-            crypto_params: {
-              encryption_algorithm: "AES_GCM_256",
-              kem_algorithm: "Kyber",
-              sig_algorithm: "None"
-            },
-            header_obfuscator_settings: "Disabled"
-          },
+          peer_cid: BigInt(peerCid),
+          session_security_settings: getDefaultSecuritySettings(),
           connect_after_register: false,
           peer_session_password: null
         }
@@ -427,8 +408,8 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       const now = Date.now();
       await peerRegistrationStore.addOutgoingRequest({
         id: requestId,
-        fromCid: currentCid.toString(),
-        toCid: peerCid,
+        fromCid: currentCid,
+        toCid: BigInt(peerCid),
         peerUsername: peerUsername,
         timestamp: now,
         timeLastSent: now
@@ -447,11 +428,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       // and will automatically remove from outgoing + update UI via event emitter
     } catch (error) {
       console.error('Failed to send registration request:', error);
-      toast({
-        title: "Request Failed",
-        description: "Could not send registration request",
-        variant: "destructive",
-      });
+      toastError(toast, "Request Failed", "Could not send registration request");
     }
   };
 
@@ -494,7 +471,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                 <Signal className="h-4 w-4 text-green-400" />
                 <span className="text-sm">You are connected as: <strong>{currentUsername}</strong></span>
               </div>
-              <span className="text-xs text-gray-400">CID: {currentCid}</span>
+              <span className="text-xs text-gray-400">CID: {currentCid?.toString()}</span>
             </div>
           </div>
 

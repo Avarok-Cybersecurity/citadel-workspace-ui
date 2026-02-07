@@ -13,24 +13,23 @@
 import { Page } from 'playwright';
 import {
   sleep,
-  createBrowser,
-  ensureScreenshotsDir,
+  createSeparateBrowsers,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
   openConversation,
   sendMessage,
-  verifyMessageReceived,
   verifyMessageOrder,
   verifyMessagesSeen,
+  sendAndVerifyMessage,
+  waitForP2PReady,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
-  UxIssueTracker,
   verifyConnectedBadgeInModal,
   closePeerDiscoveryModal,
+  waitForWorkspaceLoaded,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -120,29 +119,25 @@ async function checkOnlineStatus(page: Page, username: string, _peerUsername: st
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('P2P MESSAGING TEST');
-  console.log('='.repeat(60));
+  const harness = await TestHarness.create({
+    testName: 'P2P Messaging Test',
+    reportFileName: 'P2P_MESSAGING_TEST_REPORT.json',
+    metadata: { user1: USER1, user2: USER2 },
+    restartBackend: true,
+  });
+  const uxTracker = harness.uxTracker;
+
   console.log(`User 1 (Alice): ${USER1}`);
   console.log(`User 2 (Bob): ${USER2}`);
   console.log('');
 
-  // Initialize
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  // Wait for services
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'P2P Messaging Test Started', {
-    user1: USER1,
-    user2: USER2,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
-
-  // Setup browser with shared context (single WebSocket for both tabs)
-  const { browser, context } = await createBrowser();
+  // Setup SEPARATE browser instances for each user
+  // This gives each user their own WebSocket connection, avoiding ILM cross-user issues
+  // The ILM (Inter-session Layer Messaging) was designed for one user with multiple tabs,
+  // NOT multiple different users sharing one WebSocket
+  const { pages, cleanup } = await createSeparateBrowsers(2);
+  const page1 = pages[0];
+  const page2 = pages[1];
 
   const results: TestResults = {
     accountCreation: { user1: false, user2: false },
@@ -171,12 +166,11 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    const page1 = await context.newPage();
-    const page2 = await context.newPage();
-
     // Setup console capture - include ILM for InterSession Layer Messaging diagnostics
-    setupConsoleCapture(page1, 'Alice', ['P2P', 'error', 'Error', 'ILM', 'ism']);
-    setupConsoleCapture(page2, 'Bob', ['P2P', 'error', 'Error', 'ILM', 'ism']);
+    // Add 'Workspace' to capture workspace loading logs for debugging
+    // Add 'WASM' to capture WASM-side debug logs for HashMap serialization tracing
+    setupConsoleCapture(page1, 'Alice', ['P2P', 'error', 'Error', 'ILM', 'ism', 'Workspace', 'workspace', 'WASM']);
+    setupConsoleCapture(page2, 'Bob', ['P2P', 'error', 'Error', 'ILM', 'ism', 'Workspace', 'workspace', 'WASM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));
@@ -188,10 +182,28 @@ async function runTest(): Promise<boolean> {
       uxTracker,
     });
 
+    // CRITICAL: Verify Alice's workspace is visible before proceeding
+    // This ensures the connection is fully established and workspace data loaded
+    console.log('\n  Verifying Alice workspace is visible...');
+    const aliceWorkspaceLoaded = await waitForWorkspaceLoaded(page1, 60000);
+    if (!aliceWorkspaceLoaded) {
+      throw new Error('Alice workspace failed to load - account creation incomplete');
+    }
+    console.log('  ✓ Alice workspace loaded successfully');
+
     results.accountCreation.user2 = await createAccount(page2, USER2, {
       isFirstUser: false,
       uxTracker,
     });
+
+    // CRITICAL: Verify Bob's workspace is visible before proceeding
+    // This ensures Bob's connection is fully established (follower tab got responses)
+    console.log('\n  Verifying Bob workspace is visible...');
+    const bobWorkspaceLoaded = await waitForWorkspaceLoaded(page2, 60000);
+    if (!bobWorkspaceLoaded) {
+      throw new Error('Bob workspace failed to load - account creation incomplete');
+    }
+    console.log('  ✓ Bob workspace loaded successfully');
 
     // Wait for sessions to be fully established in Citadel SDK session manager
     console.log('\n  Waiting 10s for sessions to be fully established...');
@@ -265,8 +277,16 @@ async function runTest(): Promise<boolean> {
     const MESSAGE_3 = `Great! The P2P chat is working perfectly!`;
 
     // Wait for P2P encryption channel to be ready before first message
-    // Both conversation UIs need time to fully mount and register message handlers
-    console.log('  Waiting for P2P channel and message handlers to be ready...');
+    // Use the waitForP2PReady helper to ensure connection is established
+    console.log('  Waiting for P2P channel to be ready...');
+    const aliceP2PReady = await waitForP2PReady(page1, USER1, USER2, 30000);
+    const bobP2PReady = await waitForP2PReady(page2, USER2, USER1, 30000);
+
+    if (!aliceP2PReady || !bobP2PReady) {
+      console.log('  Warning: P2P ready check timed out, proceeding anyway...');
+    }
+
+    // Additional wait for message handlers to be fully registered
     await sleep(3000);
 
     // KNOWN ISSUE: In multi-tab tests, the first message may be lost due to
@@ -281,30 +301,28 @@ async function runTest(): Promise<boolean> {
     await sendMessage(page2, USER2, WARMUP_2, null);
     await sleep(2000);
 
-    // Now send the actual test messages
-    console.log('  Sending test messages...');
+    // Now send and verify the actual test messages using robust retry logic
+    console.log('  Sending test messages with retry logic...');
 
-    // Alice sends MESSAGE_1
-    results.messaging.user1ToUser2 = await sendMessage(page1, USER1, MESSAGE_1, uxTracker);
-    await sleep(1000);
+    // Alice sends MESSAGE_1 to Bob - use sendAndVerifyMessage for reliability
+    results.messaging.user1ToUser2 = await sendAndVerifyMessage(
+      page1, USER1, page2, USER2, MESSAGE_1,
+      { maxRetries: 3, verifyTimeout: 20000, retryDelay: 3000, uxTracker }
+    );
+    results.messaging.user2Received = results.messaging.user1ToUser2;
 
-    // Bob sends MESSAGE_2
-    results.messaging.user2ToUser1 = await sendMessage(page2, USER2, MESSAGE_2, uxTracker);
-    await sleep(1000);
-
-    // Verify Bob receives Alice's message
-    if (results.messaging.user1ToUser2) {
-      results.messaging.user2Received = await verifyMessageReceived(page2, USER2, MESSAGE_1, 15000, uxTracker);
-    }
-
-    // Verify Alice receives Bob's reply
-    if (results.messaging.user2ToUser1) {
-      results.messaging.user1Received = await verifyMessageReceived(page1, USER1, MESSAGE_2, 15000, uxTracker);
-    }
+    // Bob sends MESSAGE_2 to Alice - use sendAndVerifyMessage for reliability
+    results.messaging.user2ToUser1 = await sendAndVerifyMessage(
+      page2, USER2, page1, USER1, MESSAGE_2,
+      { maxRetries: 3, verifyTimeout: 20000, retryDelay: 3000, uxTracker }
+    );
+    results.messaging.user1Received = results.messaging.user2ToUser1;
 
     // Alice sends MESSAGE_3 as a follow-up to confirm continued bidirectional messaging
-    await sendMessage(page1, USER1, MESSAGE_3, uxTracker);
-    await verifyMessageReceived(page2, USER2, MESSAGE_3, 15000, uxTracker);
+    await sendAndVerifyMessage(
+      page1, USER1, page2, USER2, MESSAGE_3,
+      { maxRetries: 3, verifyTimeout: 20000, retryDelay: 3000, uxTracker }
+    );
 
     // ========== STEP 6: Message Order Verification ==========
     console.log('\n' + '─'.repeat(50));
@@ -407,36 +425,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Message Timestamps:           ${results.uxChecks.timestamps ? 'PASS' : 'CHECK'}`);
     console.log(`  Online Status Indicator:      ${results.uxChecks.onlineStatus ? 'PASS' : 'CHECK'}`);
 
-    const uxIssues = uxTracker.getIssues();
-    if (uxIssues.length > 0) {
-      console.log('\n' + '─'.repeat(50));
-      console.log('UX ISSUES FOUND:');
-      console.log('─'.repeat(50));
-      uxIssues.forEach((issue, i) => {
-        console.log(`\n${i + 1}. [${issue.severity.toUpperCase()}] ${issue.category}`);
-        console.log(`   ${issue.description}`);
-      });
-    } else {
-      console.log('\nNo UX issues detected!');
-    }
-
-    console.log('\n' + '='.repeat(60));
-    console.log(`OVERALL: ${allPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
-    console.log('='.repeat(60));
-
-    // Log the test result
-    logObservation('test-complete', `P2P Messaging Test ${allPassed ? 'PASSED' : 'FAILED'}`, {
-      results,
-      uxIssuesCount: uxIssues.length,
-    }, allPassed ? 'verified' : 'failed');
-
-    // Write report
-    writeTestReport('P2P_MESSAGING_TEST_REPORT.json', {
-      users: { user1: USER1, user2: USER2 },
-      results,
-      uxIssues,
-      passed: allPassed,
-    });
+    harness.finalize(allPassed, results);
 
     console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
     await sleep(20000);
@@ -445,12 +434,9 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'P2P Messaging Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
-    await browser.close();
+    await cleanup();
   }
 }
 
@@ -458,9 +444,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

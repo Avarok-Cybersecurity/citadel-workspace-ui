@@ -35,7 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { GroupConversation, GroupMemberWithRole, GroupRole } from '@/types/group';
-import { useGroupPermissions } from '@/hooks/useGroupPermissions';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 
 // ============================================================================
 // Types
@@ -123,7 +123,7 @@ export function GroupMemberManagement({
   const handleRoleChange = useCallback(
     async (member: GroupMemberWithRole, newRoleId: string) => {
       if (newRoleId !== member.roleId) {
-        await onRoleChange(member.cid, newRoleId);
+        await onRoleChange(member.cid.toString(), newRoleId);
       }
     },
     [onRoleChange]
@@ -135,7 +135,7 @@ export function GroupMemberManagement({
 
     setIsKicking(true);
     try {
-      await onKickMember(memberToKick.cid);
+      await onKickMember(memberToKick.cid.toString());
     } finally {
       setIsKicking(false);
       setMemberToKick(null);

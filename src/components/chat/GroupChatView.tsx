@@ -23,6 +23,7 @@ import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import WorkspaceService from '@/lib/workspace-service';
 import { groupMessagingManager, GroupMessageEvent } from '@/lib/group-messaging-manager';
 import { cn } from '@/lib/utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getInitials, groupMessagesByDate } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
 
@@ -177,7 +178,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       }
     };
 
-    loadMessages();
+    runAsyncSetup(loadMessages);
   }, [groupId, toast]);
 
   // Subscribe to group message events
@@ -306,11 +307,13 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (editingId) {
-        handleEditMessage();
-      } else {
-        handleSendMessage();
-      }
+      runAsyncSetup(async () => {
+        if (editingId) {
+          await handleEditMessage();
+        } else {
+          await handleSendMessage();
+        }
+      });
     }
   };
 

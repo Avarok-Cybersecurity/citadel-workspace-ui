@@ -21,8 +21,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { GroupRole, GroupConversation, GroupSettings } from '@/types/group';
-import { useGroupRoles } from '@/hooks/useGroupRoles';
-import { useGroupPermissions } from '@/hooks/useGroupPermissions';
+import { useGroupRoles } from '@/hooks/use-group-roles';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { GroupRoleEditor } from './GroupRoleEditor';
 
 // ============================================================================
@@ -186,7 +186,7 @@ export function GroupRoleManagement({
                     <div className="w-3 h-3 rounded-full bg-gray-500" />
                   )}
                   {role.isBuiltIn && (
-                    <Lock className="h-3 w-3 text-amber-500" title="Built-in role" />
+                    <span title="Built-in role"><Lock className="h-3 w-3 text-amber-500" /></span>
                   )}
                 </div>
 

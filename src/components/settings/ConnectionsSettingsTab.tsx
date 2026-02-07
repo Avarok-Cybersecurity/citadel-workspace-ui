@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { serverAutoConnectService } from '@/lib/server-auto-connect-service';
 import { Loader2 } from 'lucide-react';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export function ConnectionsSettingsTab() {
   const { toast } = useToast();
@@ -12,7 +13,7 @@ export function ConnectionsSettingsTab() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadSettings();
+    runAsyncSetup(loadSettings);
   }, []);
 
   const loadSettings = async () => {

@@ -14,10 +14,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
-import { useGroupConversations } from '@/hooks/useGroupConversations';
+import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation, GroupSettings, GroupMessage } from '@/types/group';
 import { websocketService } from '@/lib/websocket-service';
 import { eventEmitter } from '@/lib/event-emitter';
+import { ensureBigInt } from '@/lib/utils';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { Send, Loader2 } from 'lucide-react';
 
 // ============================================================================
@@ -86,7 +88,7 @@ export function GroupChatPage() {
 
     const handleMessageReceived = (data: {
       groupId: string;
-      senderId: string;
+      senderId: bigint | string;
       senderName: string;
       content: string;
     }) => {
@@ -94,7 +96,7 @@ export function GroupChatPage() {
         const newMessage: GroupMessage = {
           id: crypto.randomUUID(),
           groupId: data.groupId,
-          senderId: data.senderId,
+          senderId: ensureBigInt(data.senderId),
           senderName: data.senderName,
           messageType: 'Text',
           content: data.content,
@@ -165,7 +167,7 @@ export function GroupChatPage() {
 
     setIsSending(true);
     try {
-      const connectionInfo = (await import("./../lib/connection-manager")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
+      const connectionInfo = (await import("./../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
       if (!cid) throw new Error('Not connected');
 
       // TODO: Send via backend GroupMessage API
@@ -198,7 +200,7 @@ export function GroupChatPage() {
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        handleSendMessage();
+        runAsyncSetup(handleSendMessage);
       }
     },
     [handleSendMessage]

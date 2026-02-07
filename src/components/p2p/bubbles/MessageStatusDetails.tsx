@@ -1,4 +1,5 @@
-import type { P2PMessage } from '@/lib/p2p-messenger-manager';
+import type { P2PMessage } from '@/lib/p2p';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface MessageStatusDetailsProps {
   message: P2PMessage;
@@ -55,7 +56,9 @@ interface RowProps {
 
 function Row({ label, value, valueClassName = 'text-gray-200', copyable, fullValue }: RowProps) {
   const handleCopy = () => {
-    navigator.clipboard.writeText(fullValue || value);
+    runAsyncSetup(async () => {
+      await navigator.clipboard.writeText(fullValue || value);
+    });
   };
 
   return (
@@ -95,14 +98,14 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps) {
       />
       <Row
         label="From"
-        value={truncateCid(message.senderCid)}
-        fullValue={message.senderCid}
+        value={truncateCid(message.senderCid.toString())}
+        fullValue={message.senderCid.toString()}
         copyable
       />
       <Row
         label="To"
-        value={truncateCid(message.recipientCid)}
-        fullValue={message.recipientCid}
+        value={truncateCid(message.recipientCid.toString())}
+        fullValue={message.recipientCid.toString()}
         copyable
       />
       {message.error && (

@@ -19,8 +19,72 @@ export default defineConfig(({ mode }) => {
     },
     
     build: {
+      // After splitting all vendor dependencies, the main app chunk (~1.25MB) contains:
+      // - Application code (React components, services, hooks)
+      // - WASM client bindings
+      // This size is reasonable for a complex workspace app with real-time collaboration
+      chunkSizeWarningLimit: 1300,
       rollupOptions: {
         external: ['events', 'fs', 'path', 'crypto', 'os', 'util'],
+        output: {
+          // Split vendor dependencies into separate chunks for better caching
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              // React DOM only (react-router may import components that use the editor, so let it fall to default)
+              if (id.includes('react-dom') && !id.includes('react-router')) {
+                return 'vendor-react';
+              }
+              // Radix UI components
+              if (id.includes('@radix-ui')) {
+                return 'vendor-ui';
+              }
+              // Rich text editor + Yjs collaboration (combined to avoid circular chunk dependencies)
+              // y-prosemirror bridges yjs and prosemirror, @tiptap's collaboration uses yjs
+              if (id.includes('@tiptap') || id.includes('prosemirror') ||
+                  id.includes('/yjs/') || id.includes('y-prosemirror') || id.includes('y-protocols')) {
+                return 'vendor-collab';
+              }
+              // Serialization and storage
+              if (id.includes('cbor-x') || id.includes('/idb/')) {
+                return 'vendor-data';
+              }
+              // Icons
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              // Date utilities
+              if (id.includes('date-fns')) {
+                return 'vendor-date';
+              }
+              // Charts
+              if (id.includes('recharts') || id.includes('d3-')) {
+                return 'vendor-charts';
+              }
+              // Animations
+              if (id.includes('framer-motion')) {
+                return 'vendor-motion';
+              }
+              // React Query
+              if (id.includes('@tanstack')) {
+                return 'vendor-query';
+              }
+              // Zod validation
+              if (id.includes('/zod/')) {
+                return 'vendor-zod';
+              }
+            }
+          },
+        },
+        onwarn(warning, warn) {
+          // Suppress mixed dynamic/static import warnings for modules using
+          // dynamic imports to avoid circular dependencies (intentional pattern)
+          if (warning.code === 'MIXED_IMPORT' ||
+              (warning.message && warning.message.includes('dynamically imported by') &&
+               warning.message.includes('but also statically imported'))) {
+            return;
+          }
+          warn(warning);
+        },
       },
     },
 
@@ -78,7 +142,8 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         // Explicit alias for WASM client to ensure proper resolution
-        "citadel-internal-service-wasm-client": path.resolve(__dirname, "./node_modules/citadel-internal-service-wasm-client"),
+        // Points to root node_modules since npm workspaces hoists dependencies
+        "citadel-internal-service-wasm-client": path.resolve(__dirname, "../node_modules/citadel-internal-service-wasm-client"),
       },
     },
 

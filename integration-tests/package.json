@@ -22,19 +22,38 @@
     "test:hard-disconnect": "npm run build && node dist/tests/hard-disconnect-offline.test.js",
     "test:permissions": "npm run build && node dist/tests/permissions.test.js",
     "test:admin-modal": "npm run build && node dist/tests/admin-modal.test.js",
+    "test:directory": "npm run build && node dist/tests/user-directory.test.js",
+    "test:files": "npm run build && node dist/tests/file-manager.test.js",
+    "test:file-manager": "npm run build && node dist/tests/file-manager.test.js",
+    "test:revfs": "npm run build && node dist/tests/revfs-peer.test.js",
+    "test:revfs:peer": "npm run build && node dist/tests/revfs-peer.test.js",
+    "test:revfs:server": "npm run build && node dist/tests/revfs-server.test.js",
+    "test:notifications": "npm run build && node dist/tests/notification-center.test.js",
+    "test:settings": "npm run build && node dist/tests/settings-modal.test.js",
+    "test:workspace-init": "npm run build && node dist/tests/workspace-init.test.js",
+    "test:tree-structure": "npm run build && node dist/tests/tree-structure-editor.test.js",
+    "test:tree": "npm run build && node dist/tests/tree-validator-protocol.test.js && node dist/tests/tree-move-operations.test.js && node dist/tests/tree-cascade-delete.test.js && node dist/tests/tree-custom-types.test.js && node dist/tests/tree-deep-hierarchy.test.js && node dist/tests/tree-permissions-inheritance.test.js",
+    "test:tree-validator": "npm run build && node dist/tests/tree-validator-protocol.test.js",
+    "test:tree-move": "npm run build && node dist/tests/tree-move-operations.test.js",
+    "test:tree-cascade": "npm run build && node dist/tests/tree-cascade-delete.test.js",
+    "test:tree-custom-types": "npm run build && node dist/tests/tree-custom-types.test.js",
+    "test:tree-deep": "npm run build && node dist/tests/tree-deep-hierarchy.test.js",
+    "test:tree-permissions": "npm run build && node dist/tests/tree-permissions-inheritance.test.js",
     "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
-    "lint": "eslint src --ext .ts",
+    "test:ui": "npm run test:directory && npm run test:files && npm run test:notifications && npm run test:settings && npm run test:workspace-init",
+    "typecheck": "tsc --noEmit",
+    "lint": "npx eslint .",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "typescript": "^5.3.0",
-    "eslint": "^8.55.0",
-    "@typescript-eslint/parser": "^6.13.0",
-    "@typescript-eslint/eslint-plugin": "^6.13.0"
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "typescript-eslint": "^8.20.0"
   },
   "dependencies": {
-    "playwright": "^1.40.0"
+    "playwright": "^1.57.0"
   },
   "engines": {
     "node": ">=18.0.0"

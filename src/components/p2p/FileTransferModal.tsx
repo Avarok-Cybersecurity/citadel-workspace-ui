@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Paperclip, Upload, X, FileImage, FileText, FileVideo, FileAudio, File, Zap, Cloud, FolderOpen } from 'lucide-react';
 import type { FileTransferMode } from '@/types/messaging-layer';
-import { fileTransferService } from '@/lib/file-transfer-service';
+import { fileTransferService } from '@/lib/file-transfer';
 
 interface FileTransferModalProps {
   isOpen: boolean;

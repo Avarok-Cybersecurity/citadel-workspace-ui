@@ -24,7 +24,7 @@ import {
   Eye,
   MessageSquare
 } from 'lucide-react';
-import { fileTransferService, type FileTransferSettings, type TransferModePreference } from '@/lib/file-transfer-service';
+import { fileTransferService, type FileTransferSettings, type TransferModePreference } from '@/lib/file-transfer';
 import {
   FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
   REVFS_DEFAULT_QUOTA_BYTES

@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
 import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
 import { eventEmitter } from '@/lib/event-emitter';
-import { createCollaboratorCursor, type FlashComment } from './CollaboratorCursor';
+import { createCollaboratorCursor, type FlashComment, type CursorUser } from './CollaboratorCursor';
 import {
   Bold,
   Italic,
@@ -281,7 +281,7 @@ export function CollaborativeEditor({
             name: currentUserName,
             color: userColor,
           },
-          render: (user) => createCollaboratorCursor(user),
+          render: (user: CursorUser) => createCollaboratorCursor(user),
         }),
       ] : []),
     ],

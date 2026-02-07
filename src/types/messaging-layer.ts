@@ -33,7 +33,9 @@ export enum MessagingLayerType {
   FileTransferComplete = 'FileTransferComplete',
   FileTransferCancel = 'FileTransferCancel',
   // P2P file chunk streaming (for browser-compatible transfers)
-  FileTransferChunk = 'FileTransferChunk'
+  FileTransferChunk = 'FileTransferChunk',
+  // RE-VFS tree operations (mkdir, rmdir, placeFile, etc.)
+  RevfsOperation = 'RevfsOperation'
 }
 
 /**
@@ -160,7 +162,9 @@ export type MessagingLayer =
   | { type: MessagingLayerType.FileTransferComplete } & FileTransferCompleteData
   | { type: MessagingLayerType.FileTransferCancel } & FileTransferCancelData
   // P2P chunk streaming variant (browser-compatible)
-  | { type: MessagingLayerType.FileTransferChunk } & FileTransferChunkData;
+  | { type: MessagingLayerType.FileTransferChunk } & FileTransferChunkData
+  // RE-VFS tree operations
+  | { type: MessagingLayerType.RevfsOperation; operation: import('./revfs-types').RevfsOperation };
 
 /**
  * Type guard: Check if MessagingLayer is a Message variant
@@ -272,6 +276,13 @@ export function isFileTransferCancel(layer: MessagingLayer): layer is { type: Me
  */
 export function isFileTransferChunk(layer: MessagingLayer): layer is { type: MessagingLayerType.FileTransferChunk } & FileTransferChunkData {
   return layer.type === MessagingLayerType.FileTransferChunk;
+}
+
+/**
+ * Type guard: Check if MessagingLayer is a RevfsOperation variant
+ */
+export function isRevfsOperation(layer: MessagingLayer): layer is { type: MessagingLayerType.RevfsOperation; operation: import('./revfs-types').RevfsOperation } {
+  return layer.type === MessagingLayerType.RevfsOperation;
 }
 
 /**
@@ -500,6 +511,16 @@ export function createFileTransferChunk(
     data,
     checksum,
     timestamp: Date.now()
+  };
+}
+
+/**
+ * Create a RevfsOperation variant
+ */
+export function createRevfsOperation(operation: import('./revfs-types').RevfsOperation): MessagingLayer {
+  return {
+    type: MessagingLayerType.RevfsOperation,
+    operation,
   };
 }
 

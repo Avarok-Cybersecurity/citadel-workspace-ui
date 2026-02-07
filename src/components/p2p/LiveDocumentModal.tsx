@@ -10,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface LiveDocumentModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export function LiveDocumentModal({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && title.trim()) {
-      handleCreate();
+      runAsyncSetup(handleCreate);
     }
   };
 

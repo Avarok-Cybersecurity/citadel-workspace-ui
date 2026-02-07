@@ -39,11 +39,14 @@
 
 import { websocketService } from './websocket-service';
 import { p2pRegistrationService } from './p2p-registration-service';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
 import { eventEmitter } from './event-emitter';
-import { instanceManager } from './instance-manager';
+import { instanceManager } from './multi-instance';
+import { broadcastChannelService } from './broadcast-channel-service';
 import { getSelectedUser } from './tab-context';
 import { P2P_CONSTANTS } from './constants';
+import { safeJSONStringify } from './storage-utils';
+import { ensureBigInt, ensureBigIntPair } from './utils';
 
 interface ConnectionAttempt {
   attempts: number;
@@ -55,7 +58,7 @@ interface ConnectionAttempt {
  * Stored in the nested Map structure for the single source of truth.
  */
 export interface PeerConnectionInfo {
-  peerCid: string;
+  peerCid: bigint;
   peerUsername: string;
   connectedAt: number;
   lastVerified: number;
@@ -65,8 +68,17 @@ export class P2PAutoConnectService {
   private static instance: P2PAutoConnectService;
 
   // Connection state tracking
-  private connectionAttempts = new Map<string, ConnectionAttempt>();
-  private onlinePeers = new Set<string>();
+  private connectionAttempts = new Map<bigint, ConnectionAttempt>();
+  private onlinePeers = new Set<bigint>();
+
+  /**
+   * Channels that have proven bidirectional message flow.
+   * A channel is "ready" when we receive the first P2P message from the peer,
+   * proving the channel is established and messages can flow in both directions.
+   * This is more reliable than just checking "connected" status.
+   * Reset on session reconnection (ClaimSession/Login).
+   */
+  private readyChannels = new Set<bigint>();
 
   /**
    * SINGLE SOURCE OF TRUTH for peer connections.
@@ -81,9 +93,9 @@ export class P2PAutoConnectService {
    * - WASM ILM via getPeersForSession() callback
    * - All internal connection state checks
    */
-  private connectedPeers = new Map<string, Map<string, PeerConnectionInfo>>();
+  private connectedPeers = new Map<bigint, Map<bigint, PeerConnectionInfo>>();
 
-  private pendingConnections = new Set<string>(); // Peers we've initiated connection to (waiting for PeerConnectSuccess)
+  private pendingConnections = new Set<bigint>(); // Peers we've initiated connection to (waiting for PeerConnectSuccess)
 
   /**
    * Force initiator mode - set after ClaimSession to bypass deterministic CID check.
@@ -165,11 +177,34 @@ export class P2PAutoConnectService {
       }
     });
 
+    // Listen for connectedPeers updates from leader (for follower tabs)
+    // This allows follower tabs to have synchronized connectedPeers state
+    // so WASM ILM queries work correctly on all tabs
+    eventEmitter.on('broadcast-state-sync', (data: any) => {
+      if (data?.type === 'connected-peers-update' && !instanceManager.isLeader) {
+        const { localCid, peerCid, peerUsername, localUsername } = data;
+        if (localCid !== undefined && peerCid !== undefined) {
+          const localCidBigInt = BigInt(localCid);
+          const peerCidBigInt = BigInt(peerCid);
+          console.log(`[ILM-TRACE] Follower received connectedPeers update: ${localCidBigInt.toString().slice(0, 8)}... ↔ ${peerCidBigInt.toString().slice(0, 8)}...`);
+          // Store locally without re-broadcasting (we're a follower)
+          this.setPeerConnectedLocal(localCidBigInt, peerCidBigInt, peerUsername || '', localUsername || '');
+
+          // Emit connection-established event to trigger sidebar refresh on follower tabs
+          // This ensures the UI updates to show the new peer connection
+          eventEmitter.emit('p2p-connection-established', {
+            peerCid: peerCidBigInt,
+            peerUsername: peerUsername || ''
+          });
+        }
+      }
+    });
+
     // CRITICAL: Immediately connect to newly registered peers (don't wait for 5-min poll)
     // Handle both incoming and outgoing registrations appropriately
     eventEmitter.on('p2p:peer-registered', ({ peer, isIncoming, isOutgoing }: { peer: any; isIncoming?: boolean; isOutgoing?: boolean }) => {
-      const peerCid = peer?.cid?.toString();
-      if (!peerCid) return;
+      const peerCid: bigint | undefined = peer?.cid;
+      if (peerCid === undefined) return;
 
       // For INCOMING registrations (they registered with us), check if we PREVIOUSLY
       // registered with them (outgoing). If so, mutual registration is complete.
@@ -180,22 +215,22 @@ export class P2PAutoConnectService {
         if (weRegisteredFirst) {
           // We registered with them first, they just registered back
           // Mutual registration is complete - trigger PeerConnect!
-          console.log(`P2PAutoConnect: Mutual registration complete with ${peerCid.slice(0, 8)}... (they registered back), initiating immediate connection`);
+          console.log(`P2PAutoConnect: Mutual registration complete with ${peerCid.toString().slice(0, 8)}... (they registered back), initiating immediate connection`);
           this.connectToPeer(peerCid).catch((err) => {
-            console.error(`P2PAutoConnect: Failed to connect after mutual registration ${peerCid.slice(0, 8)}...:`, err);
+            console.error(`P2PAutoConnect: Failed to connect after mutual registration ${peerCid.toString().slice(0, 8)}...:`, err);
           });
         } else {
           // They registered with us first, we need to accept and register back
-          console.log(`P2PAutoConnect: Incoming registration from ${peerCid.slice(0, 8)}..., waiting for user to accept (mutual registration required)`);
+          console.log(`P2PAutoConnect: Incoming registration from ${peerCid.toString().slice(0, 8)}..., waiting for user to accept (mutual registration required)`);
         }
         return;
       }
 
       // For OUTGOING registrations (we registered with them), try to connect immediately
       // This may fail if mutual registration isn't complete yet, but will retry
-      console.log(`P2PAutoConnect: Outgoing registration to ${peerCid.slice(0, 8)}... confirmed, initiating immediate connection`);
+      console.log(`P2PAutoConnect: Outgoing registration to ${peerCid.toString().slice(0, 8)}... confirmed, initiating immediate connection`);
       this.connectToPeer(peerCid).catch((err) => {
-        console.error(`P2PAutoConnect: Failed to connect to newly registered peer ${peerCid.slice(0, 8)}...:`, err);
+        console.error(`P2PAutoConnect: Failed to connect to newly registered peer ${peerCid.toString().slice(0, 8)}...:`, err);
       });
     });
 
@@ -205,56 +240,95 @@ export class P2PAutoConnectService {
     // which is handled by peer_channel_created.rs to set up our receive stream.
     // Calling PeerConnect from both sides causes virtual connection overwrites
     // in the SDK, leading to "unable to proxy" errors and message loss.
-    eventEmitter.on('p2p:registration-accepted', ({ peerCid }: { peerCid: string }) => {
-      if (peerCid) {
-        console.log(`P2PAutoConnect: Registration accepted for ${peerCid.slice(0, 8)}... - waiting for initiator to connect (not calling PeerConnect as acceptor)`);
+    eventEmitter.on('p2p:registration-accepted', ({ peerCid }: { peerCid: bigint }) => {
+      if (peerCid !== undefined) {
+        console.log(`P2PAutoConnect: Registration accepted for ${peerCid.toString().slice(0, 8)}... - waiting for initiator to connect (not calling PeerConnect as acceptor)`);
         // DO NOT call connectToPeer here - the initiator will call PeerConnect,
         // and we will receive PeerChannelCreated which sets up our channel.
       }
     });
 
     // Listen for successful P2P connections - INSTANT update
-    eventEmitter.on('websocket-message', (message: any) => {
+    eventEmitter.on('websocket-message', async (message: any) => {
       if (message.PeerConnectSuccess) {
-        // CRITICAL: Filter by CID - in multi-tab scenarios all tabs receive broadcast
-        // Only process if this message is for OUR session
-        const messageCid = message.PeerConnectSuccess.cid?.toString();
-        const currentCid = this.getCurrentCid();
+        // CRITICAL: On the leader tab, update connectedPeers for ALL sessions.
+        // ILM runs on the leader and calls getPeersForSession() for any CID.
+        //
+        // PeerConnectSuccess fields:
+        // - cid = INITIATOR's CID (who called PeerConnect)
+        // - peer_cid = TARGET's CID (who was connected to)
+        const messageCid: bigint | undefined = message.PeerConnectSuccess.cid;
+        const peerCid: bigint | undefined = message.PeerConnectSuccess.peer_cid;
+        const peerUsername = message.PeerConnectSuccess.peer_username || '';
 
-        if (messageCid && currentCid && messageCid !== currentCid) {
-          // This message is for a different tab's session, ignore it
+        if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
+          // Update leader's central connectedPeers Map for the initiator session
+          console.log(`[ILM-TRACE] Leader updating connectedPeers for initiator CID ${messageCid.toString().slice(0, 8)}... → peer ${peerCid.toString().slice(0, 8)}...`);
+          this.setPeerConnected(messageCid, peerCid, peerUsername);
+        }
+
+        // Filter by CID for the rest of the logic (emit events only for our session)
+        const currentCid = await this.getCurrentCid();
+        if (messageCid !== undefined && currentCid && messageCid !== currentCid) {
+          // This message is for a different tab's session, skip remaining logic
           return;
         }
 
-        const peerCid = message.PeerConnectSuccess.peer_cid?.toString();
-        const peerUsername = message.PeerConnectSuccess.peer_username || '';
-        if (peerCid && peerCid !== currentCid && currentCid) {
-          // Don't add self to connected peers
+        if (peerCid !== undefined && peerCid !== currentCid && currentCid) {
+          // Don't add self to connected peers - note: handleConnectionSuccess also calls setPeerConnected,
+          // but that's OK since it's idempotent (same data gets set again)
           this.handleConnectionSuccess(currentCid, peerCid, peerUsername);
         }
       }
 
       // Handle incoming PeerConnect from another peer
       if (message.PeerConnectNotification) {
-        console.log(`[P2P-DEBUG] PeerConnectNotification EVENT RECEIVED in websocket-message handler`);
+        // CRITICAL: On the leader tab, update connectedPeers for ALL sessions.
+        // ILM runs on the leader and calls getPeersForSession() for any CID.
+        // Without this, the leader's connectedPeers Map only has entries for the
+        // leader's own session, causing getPeersForSession(followerCid) to fail.
+        //
+        // PeerConnectNotification fields:
+        // - cid = TARGET's CID (who should accept)
+        // - peer_cid = INITIATOR's CID (who called PeerConnect)
+        if (instanceManager.isLeader) {
+          const targetCid: bigint | undefined = message.PeerConnectNotification.cid;
+          const initiatorCid: bigint | undefined = message.PeerConnectNotification.peer_cid;
+          const peerUsername = message.PeerConnectNotification.peer_username || '';
+
+          if (targetCid !== undefined && initiatorCid !== undefined) {
+            // Update leader's central connectedPeers Map for the TARGET session
+            // This ensures ILM can see connections for follower sessions
+            console.log(`[ILM-TRACE] Leader updating connectedPeers for target CID ${targetCid.toString().slice(0, 8)}... → peer ${initiatorCid.toString().slice(0, 8)}...`);
+            this.setPeerConnected(targetCid, initiatorCid, peerUsername);
+          }
+        }
+
+        // Now handle the actual acceptance logic (if we are the target)
         this.handleIncomingPeerConnect(message.PeerConnectNotification).catch((err) => {
-          console.error('[P2P-DEBUG] handleIncomingPeerConnect failed:', err);
+          console.error('[P2P-AutoConnect] handleIncomingPeerConnect failed:', err);
         });
       }
 
       // Handle peer disconnect - INSTANT update
       if (message.PeerDisconnect) {
-        // CRITICAL: Filter by CID - in multi-tab scenarios all tabs receive broadcast
-        const messageCid = message.PeerDisconnect.cid?.toString();
-        const currentCid = this.getCurrentCid();
+        const messageCid: bigint | undefined = message.PeerDisconnect.cid;
+        const peerCid: bigint | undefined = message.PeerDisconnect.peer_cid;
 
-        if (messageCid && currentCid && messageCid !== currentCid) {
-          // This message is for a different tab's session, ignore it
+        // On the leader tab, update connectedPeers for ALL sessions (central Map for ILM)
+        if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
+          console.log(`[ILM-TRACE] Leader updating connectedPeers: removing peer ${peerCid.toString().slice(0, 8)}... from CID ${messageCid.toString().slice(0, 8)}...`);
+          this.setPeerDisconnected(messageCid, peerCid);
+        }
+
+        // Filter by CID for the rest of the logic (emit events only for our session)
+        const currentCid = await this.getCurrentCid();
+        if (messageCid !== undefined && currentCid && messageCid !== currentCid) {
+          // This message is for a different tab's session, skip remaining logic
           return;
         }
 
-        const peerCid = message.PeerDisconnect.peer_cid?.toString();
-        if (peerCid && currentCid) {
+        if (peerCid !== undefined && currentCid) {
           this.handlePeerDisconnect(currentCid, peerCid);
         }
       }
@@ -263,17 +337,24 @@ export class P2PAutoConnectService {
       // The SDK emits PeerSignal::Disconnect to all connected peers, which becomes DisconnectNotification
       // This is different from PeerDisconnect (explicit P2P disconnect request)
       if (message.DisconnectNotification && message.DisconnectNotification.peer_cid) {
-        const messageCid = message.DisconnectNotification.cid?.toString();
-        const currentCid = this.getCurrentCid();
+        const messageCid: bigint | undefined = message.DisconnectNotification.cid;
+        const peerCid: bigint | undefined = message.DisconnectNotification.peer_cid;
 
-        if (messageCid && currentCid && messageCid !== currentCid) {
-          // This message is for a different tab's session, ignore it
+        // On the leader tab, update connectedPeers for ALL sessions (central Map for ILM)
+        if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
+          console.log(`[ILM-TRACE] Leader DisconnectNotification: removing peer ${peerCid.toString().slice(0, 8)}... from CID ${messageCid.toString().slice(0, 8)}...`);
+          this.setPeerDisconnected(messageCid, peerCid);
+        }
+
+        // Filter by CID for the rest of the logic (emit events only for our session)
+        const currentCid = await this.getCurrentCid();
+        if (messageCid !== undefined && currentCid && messageCid !== currentCid) {
+          // This message is for a different tab's session, skip remaining logic
           return;
         }
 
-        const peerCid = message.DisconnectNotification.peer_cid?.toString();
-        if (peerCid && currentCid) {
-          console.log(`[P2PAutoConnect] DisconnectNotification: Peer ${peerCid.slice(0, 8)}... session disconnected`);
+        if (peerCid !== undefined && currentCid) {
+          console.log(`[P2PAutoConnect] DisconnectNotification: Peer ${peerCid.toString().slice(0, 8)}... session disconnected`);
           this.handlePeerDisconnect(currentCid, peerCid);
         }
       }
@@ -287,53 +368,129 @@ export class P2PAutoConnectService {
   /**
    * Add a peer to the connected state. Called on PeerConnectSuccess event.
    * This is an INSTANT update to the single source of truth.
+   *
+   * IMPORTANT: Stores the relationship BIDIRECTIONALLY so both parties can
+   * query their connected peers:
+   * - connectedPeers[localCid] → peerCid
+   * - connectedPeers[peerCid] → localCid
+   *
+   * On the leader tab, this also broadcasts the update to follower tabs
+   * so their local connectedPeers Maps stay synchronized.
    */
-  public setPeerConnected(localCid: string, peerCid: string, peerUsername: string = ''): void {
-    if (!this.connectedPeers.has(localCid)) {
-      this.connectedPeers.set(localCid, new Map());
-    }
+  public setPeerConnected(localCid: bigint, peerCid: bigint, peerUsername: string = '', localUsername: string = ''): void {
+    // Store locally
+    this.setPeerConnectedLocal(localCid, peerCid, peerUsername, localUsername);
 
-    const peerMap = this.connectedPeers.get(localCid)!;
+    // If we're the leader, broadcast to followers so they can update their local state
+    // This enables WASM ILM queries to work correctly on follower tabs
+    if (instanceManager.isLeader) {
+      console.log(`[ILM-TRACE] Leader broadcasting connectedPeers update to followers`);
+      broadcastChannelService.broadcastStateSync({
+        type: 'connected-peers-update',
+        localCid: localCid.toString(),
+        peerCid: peerCid.toString(),
+        peerUsername,
+        localUsername,
+      });
+    }
+  }
+
+  /**
+   * Internal method to store peer connection locally without broadcasting.
+   * Used by both setPeerConnected (leader) and the broadcast listener (followers).
+   *
+   * CRITICAL: Ensures CIDs are converted to BigInt before using as Map keys.
+   * WebSocket messages may send CIDs as strings (JSON doesn't support BigInt),
+   * and TypeScript type annotations don't perform runtime conversion.
+   * Map.get() uses strict equality, so string keys != BigInt keys.
+   */
+  private setPeerConnectedLocal(localCid: bigint, peerCid: bigint, peerUsername: string = '', localUsername: string = ''): void {
     const now = Date.now();
 
-    peerMap.set(peerCid, {
-      peerCid,
+    // CRITICAL: Ensure CIDs are actually BigInt (WebSocket messages may send strings/numbers)
+    // Without this, Map keys could be mixed types causing lookup failures
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
+
+    // ILM-DIAG: Log type information for debugging
+    console.log(`[ILM-DIAG] setPeerConnectedLocal: INPUT localCid type=${typeof localCid}, peerCid type=${typeof peerCid}`);
+
+    // Store forward direction: localCid → peerCid
+    if (!this.connectedPeers.has(localCidBigInt)) {
+      this.connectedPeers.set(localCidBigInt, new Map());
+    }
+    const localPeerMap = this.connectedPeers.get(localCidBigInt)!;
+    localPeerMap.set(peerCidBigInt, {
+      peerCid: peerCidBigInt,
       peerUsername,
       connectedAt: now,
       lastVerified: now,
     });
 
-    // ILM-DIAG: Log full CIDs for comparison with ILM queries
-    console.log(`[ILM-DIAG] setPeerConnected: STORED localCid=${localCid} peerCid=${peerCid} (total: ${peerMap.size})`);
+    // Store reverse direction: peerCid → localCid (BIDIRECTIONAL)
+    if (!this.connectedPeers.has(peerCidBigInt)) {
+      this.connectedPeers.set(peerCidBigInt, new Map());
+    }
+    const peerPeerMap = this.connectedPeers.get(peerCidBigInt)!;
+    peerPeerMap.set(localCidBigInt, {
+      peerCid: localCidBigInt,
+      peerUsername: localUsername,
+      connectedAt: now,
+      lastVerified: now,
+    });
+
+    // ILM-DIAG: Log full CIDs and Map keys for comparison with ILM queries
+    const allKeys = Array.from(this.connectedPeers.keys());
+    console.log(`[ILM-DIAG] setPeerConnectedLocal: STORED BIDIRECTIONAL localCid=${localCidBigInt.toString()} ↔ peerCid=${peerCidBigInt.toString()} (local peers: ${localPeerMap.size}, peer peers: ${peerPeerMap.size})`);
+    console.log(`[ILM-DIAG] setPeerConnectedLocal: ALL MAP KEYS (${allKeys.length}): ${allKeys.map(k => `${k.toString().slice(0, 8)}...(type=${typeof k})`).join(', ')}`);
   }
 
   /**
    * Remove a peer from the connected state. Called on PeerDisconnect event.
    * This is an INSTANT update to the single source of truth.
+   *
+   * IMPORTANT: Removes the relationship BIDIRECTIONALLY.
+   * CRITICAL: Ensures CIDs are converted to BigInt for Map operations.
    */
-  public setPeerDisconnected(localCid: string, peerCid: string): void {
-    const peerMap = this.connectedPeers.get(localCid);
-    if (peerMap) {
-      peerMap.delete(peerCid);
-      console.log(`[P2PAutoConnect] setPeerDisconnected: ${localCid.slice(0, 8)} -X- ${peerCid.slice(0, 8)} (remaining: ${peerMap.size})`);
+  public setPeerDisconnected(localCid: bigint, peerCid: bigint): void {
+    // CRITICAL: Ensure CIDs are BigInt for Map operations
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
+
+    // Remove forward direction: localCid → peerCid
+    const localPeerMap = this.connectedPeers.get(localCidBigInt);
+    if (localPeerMap) {
+      localPeerMap.delete(peerCidBigInt);
     }
+
+    // Remove reverse direction: peerCid → localCid
+    const peerPeerMap = this.connectedPeers.get(peerCidBigInt);
+    if (peerPeerMap) {
+      peerPeerMap.delete(localCidBigInt);
+    }
+
+    console.log(`[P2PAutoConnect] setPeerDisconnected: ${localCidBigInt.toString().slice(0, 8)} -X- ${peerCidBigInt.toString().slice(0, 8)} (BIDIRECTIONAL)`);
   }
 
   /**
    * Get peer CIDs for a session. Called by WASM ILM via JavaScript callback.
    * This is the primary interface for WASM to query connection state.
    *
+   * CRITICAL: Ensures localCid is converted to BigInt for Map lookup.
+   * WASM passes proper BigInt, but this is defensive against mixed types.
+   *
    * @param localCid - The local session CID
-   * @returns Array of connected peer CID strings
+   * @returns Array of connected peer CIDs as bigints
    */
-  public getPeersForSession(localCid: string): string[] {
-    const peerMap = this.connectedPeers.get(localCid);
+  public getPeersForSession(localCid: bigint): bigint[] {
+    // CRITICAL: Ensure localCid is BigInt for Map lookup (defensive)
+    const localCidBigInt = ensureBigInt(localCid);
+
+    const peerMap = this.connectedPeers.get(localCidBigInt);
     if (!peerMap) {
       // ILM-DIAG: Log when no entry exists for the queried CID
-      // This helps identify CID mismatches
+      // Include type information to help debug key mismatches
       const allCids = Array.from(this.connectedPeers.keys());
       if (allCids.length > 0) {
-        console.warn(`[ILM-DIAG] getPeersForSession: NO ENTRY for CID ${localCid.slice(0, 8)}..., but connectedPeers has entries for: ${allCids.map(c => c.slice(0, 8)).join(', ')}`);
+        console.warn(`[ILM-DIAG] getPeersForSession: NO ENTRY for CID ${localCidBigInt.toString().slice(0, 8)}... (type=${typeof localCid}→${typeof localCidBigInt}), but connectedPeers has entries for: ${allCids.map(c => `${c.toString().slice(0, 8)}(type=${typeof c})`).join(', ')}`);
       }
       return [];
     }
@@ -342,10 +499,26 @@ export class P2PAutoConnectService {
 
   /**
    * Check if a peer is connected for the current session.
+   * CRITICAL: Ensures CIDs are converted to BigInt for Map lookup.
    */
-  public isPeerConnectedForSession(localCid: string, peerCid: string): boolean {
-    const peerMap = this.connectedPeers.get(localCid);
-    return peerMap?.has(peerCid) ?? false;
+  public isPeerConnectedForSession(localCid: bigint, peerCid: bigint): boolean {
+    // CRITICAL: Ensure CIDs are BigInt for Map lookup
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
+
+    const peerMap = this.connectedPeers.get(localCidBigInt);
+    return peerMap?.has(peerCidBigInt) ?? false;
+  }
+
+  /**
+   * Get connection info for a specific peer.
+   * Returns null if the peer is not connected.
+   * Used to check connection age for distinguishing fresh vs stale connections.
+   */
+  public getPeerConnectionInfo(localCid: bigint, peerCid: bigint): PeerConnectionInfo | null {
+    const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
+
+    const peerMap = this.connectedPeers.get(localCidBigInt);
+    return peerMap?.get(peerCidBigInt) ?? null;
   }
 
   // Guard to prevent concurrent refresh operations
@@ -374,8 +547,8 @@ export class P2PAutoConnectService {
       // Skip if already refreshing (prevent pile-up)
       if (this.isRefreshing) return;
 
-      const currentCid = this.getCurrentCid();
-      if (!currentCid || currentCid === '0') return;
+      const currentCid = await this.getCurrentCid();
+      if (!currentCid || currentCid === 0n) return;
 
       this.isRefreshing = true;
       try {
@@ -400,34 +573,52 @@ export class P2PAutoConnectService {
   /**
    * Refresh peer connection state from backend GetSessions response.
    * This is a PERIODIC consistency check for the single source of truth.
-   * It syncs the entire peer map from the backend's authoritative state.
+   *
+   * IMPORTANT: This method MERGES backend data with event-based connections.
+   * It does NOT clear connections that were established via PeerConnectSuccess events.
+   * The backend's peer_connections may be stale or not reflect real-time P2P state.
+   *
+   * Connections are only removed via explicit PeerDisconnect events (see setPeerDisconnected).
+   * CRITICAL: Ensures all CIDs are BigInt for consistent Map operations.
    */
-  public async refreshFromBackend(localCid: string): Promise<void> {
+  public async refreshFromBackend(localCid: bigint): Promise<void> {
     try {
+      // CRITICAL: Ensure localCid is BigInt
+      const localCidBigInt = ensureBigInt(localCid);
+
       const sessions = await connectionManager.getActiveSessions();
-      const mySession = sessions.find(s => s.cid?.toString() === localCid);
+      const mySession = sessions.find(s => s.cid === localCidBigInt);
+
+      // Get existing peer map (preserve event-based connections)
+      const existingPeerMap = this.connectedPeers.get(localCidBigInt) || new Map<bigint, PeerConnectionInfo>();
 
       if (!mySession?.peer_connections) {
-        // No connections - clear the map for this session
-        this.connectedPeers.set(localCid, new Map());
+        // No backend connections, but PRESERVE event-based connections
+        // Only set if we don't have an existing map
+        if (!this.connectedPeers.has(localCidBigInt)) {
+          this.connectedPeers.set(localCidBigInt, new Map());
+        }
+        // Don't clear existing connections - they came from real-time events
         return;
       }
 
-      // Build new peer map from backend data
-      const peerMap = new Map<string, PeerConnectionInfo>();
+      // MERGE backend data into existing connections (additive, not replacement)
       const now = Date.now();
 
-      for (const [peerCid, info] of Object.entries(mySession.peer_connections)) {
-        const existingInfo = this.connectedPeers.get(localCid)?.get(peerCid);
-        peerMap.set(peerCid, {
-          peerCid,
+      for (const [peerCidStr, info] of Object.entries(mySession.peer_connections)) {
+        const peerCidBigInt = BigInt(peerCidStr);
+        const existingInfo = existingPeerMap.get(peerCidBigInt);
+
+        // Add or update peer from backend data
+        existingPeerMap.set(peerCidBigInt, {
+          peerCid: peerCidBigInt,
           peerUsername: (info as any).peer_username || existingInfo?.peerUsername || '',
           connectedAt: existingInfo?.connectedAt || now,
           lastVerified: now,
         });
       }
 
-      this.connectedPeers.set(localCid, peerMap);
+      this.connectedPeers.set(localCidBigInt, existingPeerMap);
     } catch (error) {
       // Only warn on unexpected errors, skip silently for expected "no session" errors
       const errMsg = String(error);
@@ -458,7 +649,7 @@ export class P2PAutoConnectService {
       this.onlinePeers.clear();
 
       for (const peer of peers) {
-        const cid = peer.cid?.toString();
+        const cid = peer.cid;
         // Check online_status or is_online field
         const isOnline = peer.online_status ?? peer.is_online ?? false;
         if (cid && isOnline) {
@@ -480,41 +671,113 @@ export class P2PAutoConnectService {
   /**
    * Check if a peer is currently online
    */
-  public isPeerOnline(peerCid: string): boolean {
+  public isPeerOnline(peerCid: bigint): boolean {
     return this.onlinePeers.has(peerCid);
+  }
+
+  /**
+   * Check if a peer's P2P channel is READY for messaging.
+   * Channel is ready when we've received at least one P2P message from the peer,
+   * proving bidirectional message flow works.
+   *
+   * This is MORE RELIABLE than isPeerConnected() because:
+   * - Connected only means the Map entry exists (protocol handshake done)
+   * - Ready means we've proven messages actually flow through the channel
+   *
+   * @param peerCid - The peer CID to check
+   * @returns true if we've received a message from this peer (channel proven ready)
+   */
+  public isChannelReady(peerCid: bigint): boolean {
+    return this.readyChannels.has(peerCid);
+  }
+
+  /**
+   * Mark a peer's P2P channel as READY for messaging.
+   * Called when we receive the first P2P message from a peer, proving the
+   * channel is bidirectionally established.
+   *
+   * Emits 'p2p:channel-ready' event for tests and other consumers that need
+   * to wait for actual message flow capability.
+   *
+   * @param peerCid - The peer CID to mark as ready
+   */
+  public markChannelReady(peerCid: bigint): void {
+    if (!this.readyChannels.has(peerCid)) {
+      this.readyChannels.add(peerCid);
+      console.log(`[P2P] Channel ready for peer ${peerCid.toString().slice(0, 8)}... (message received)`);
+      eventEmitter.emit('p2p:channel-ready', { peerCid });
+    }
   }
 
   /**
    * Check if a peer is currently connected (legacy API using current CID)
    */
-  public isPeerConnected(peerCid: string): boolean {
-    const currentCid = this.getCurrentCid();
+  public async isPeerConnected(peerCid: bigint): Promise<boolean> {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) return false;
     return this.isPeerConnectedForSession(currentCid, peerCid);
   }
 
   /**
-   * Get current CID from connection manager
-   * Priority: 1) Tab context selectedCid (set during session switch), 2) StoredSession.cid, 3) Global connection CID
+   * Get current CID with proper priority for multi-tab support:
+   * 1) InstanceManager CID (FIRST - synchronous, set by handleSuccessfulConnection)
+   * 2) Tab context selectedCid (IndexedDB - may hang on follower tabs)
+   * 3) StoredSession.cid (IndexedDB - may hang on follower tabs)
+   * 4) Global connection CID (legacy fallback)
+   *
+   * CRITICAL: InstanceManager.cid is checked FIRST because:
+   * - It's set synchronously in handleSuccessfulConnection (no async delays)
+   * - IndexedDB reads can hang indefinitely on follower tabs due to contention
+   * - For multi-tab scenarios, instanceManager is the reliable source of truth
    */
-  private getCurrentCid(): string | null {
-    const tabSelection = getSelectedUser();
-    const tabSession = connectionManager.getTabSelectedSession();
+  private async getCurrentCid(): Promise<bigint | null> {
+    // 1) InstanceManager CID FIRST (bypasses IndexedDB, synchronous)
+    const instanceCid = instanceManager.cid;
+    if (instanceCid) {
+      return instanceCid;
+    }
+
+    // 2) Tab context from IndexedDB (with timeout to prevent hangs)
+    try {
+      const tabSelectionPromise = getSelectedUser();
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
+      const tabSelection = await Promise.race([tabSelectionPromise, timeout]);
+      if (tabSelection?.selectedCid) {
+        return tabSelection.selectedCid;
+      }
+    } catch {
+      // Ignore timeout/errors
+    }
+
+    // 3) Tab session from stored sessions (with timeout)
+    try {
+      const tabSessionPromise = connectionManager.getTabSelectedSession();
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
+      const tabSession = await Promise.race([tabSessionPromise, timeout]);
+      if (tabSession?.cid) {
+        return tabSession.cid;
+      }
+    } catch {
+      // Ignore timeout/errors
+    }
+
+    // 4) Legacy global connection CID
     const connectionInfo = connectionManager.getConnectionInfo();
-    return tabSelection?.selectedCid || tabSession?.cid?.toString() || connectionInfo?.cid?.toString() || null;
+    return connectionInfo?.cid || null;
   }
 
   /**
    * Verify if peer is actually connected in backend (not just in local connectedPeers Map)
    * This handles cases where connectedPeers is stale due to failed PeerConnect attempts
    */
-  private async isActuallyConnectedInBackend(currentCid: string, peerCid: string): Promise<boolean> {
+  private async isActuallyConnectedInBackend(currentCid: bigint, peerCid: bigint): Promise<boolean> {
     try {
       const sessions = await connectionManager.getActiveSessions();
-      const mySession = sessions.find(s => s.cid?.toString() === currentCid);
+      const mySession = sessions.find(s => s.cid === currentCid);
       if (mySession?.peer_connections) {
         // Check if peerCid exists in backend peer_connections
-        return Object.keys(mySession.peer_connections).includes(peerCid);
+        const peerCidStr = peerCid.toString();
+        return Object.keys(mySession.peer_connections).includes(peerCidStr);
       }
     } catch (error) {
       console.warn('P2PAutoConnect: Failed to verify backend connection state:', error);
@@ -536,16 +799,21 @@ export class P2PAutoConnectService {
    *
    * Only runs on leader tab to prevent duplicate P2P connect requests.
    */
-  public async connectToPeer(peerCid: string): Promise<void> {
-    console.log(`[ILM-TRACE] connectToPeer: START peerCid=${peerCid?.slice(0, 8)}`);
+  public async connectToPeer(peerCid: bigint, forceInitiator: boolean = false): Promise<void> {
+    console.log(`[ILM-TRACE] connectToPeer: START peerCid=${peerCid?.toString().slice(0, 8)}, forceInitiator=${forceInitiator}`);
+
+    // DETERMINISTIC FIX: forceInitiator passed as parameter to avoid race condition.
+    // The flag is captured synchronously at call site before async execution begins.
+    // Previous bug: this.forceInitiatorMode was read here but reset before we executed.
+    const shouldForceInitiator = forceInitiator;
 
     // Only leader tab should initiate P2P connections to prevent duplicate requests from multiple tabs
     if (!instanceManager.isLeader) {
-      console.log(`[P2PAutoConnect] connectToPeer skipped for ${peerCid?.slice(0, 8)} (not leader tab)`);
+      console.log(`[P2PAutoConnect] connectToPeer skipped for ${peerCid?.toString().slice(0, 8)} (not leader tab)`);
       return;
     }
 
-    const currentCid = this.getCurrentCid();
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) {
       console.warn('P2PAutoConnect: No current CID, cannot connect');
       console.log('[ILM-TRACE] connectToPeer: ABORT - no currentCid');
@@ -559,35 +827,27 @@ export class P2PAutoConnectService {
     }
 
     // DETERMINISTIC INITIATOR SELECTION: Higher CID is the initiator
-    // Compare as BigInt since CIDs are 64-bit integers
-    let currentCidBigInt: bigint;
-    let peerCidBigInt: bigint;
-    try {
-      currentCidBigInt = BigInt(currentCid);
-      peerCidBigInt = BigInt(peerCid);
-    } catch (e) {
-      console.error(`P2PAutoConnect: Invalid CID format - currentCid=${currentCid}, peerCid=${peerCid}`, e);
-      return;
-    }
+    // CIDs are already bigint, direct comparison works
 
     // FORCE INITIATOR MODE: After ClaimSession, the reconnecting user must ALWAYS
     // initiate PeerConnect because the peer doesn't know they've reconnected.
     // This bypasses the deterministic CID check for reconnection scenarios.
-    if (this.forceInitiatorMode) {
-      console.log(`P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.slice(0, 8)}... forcing PeerConnect to ${peerCid.slice(0, 8)}... (ClaimSession reconnection)`);
-    } else if (currentCidBigInt < peerCidBigInt) {
+    // NOTE: Using captured shouldForceInitiator (captured before any await)
+    if (shouldForceInitiator) {
+      console.log(`P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
+    } else if (currentCid < peerCid) {
       // We have the lower CID - we are NOT the initiator
       // The peer with the higher CID will call PeerConnect, and we'll receive PeerChannelCreated
-      console.log(`P2PAutoConnect: Client ${currentCid.slice(0, 8)}... is NOT the initiator; peer ${peerCid.slice(0, 8)}... has higher CID. Will handle PeerConnect asynchronously when received via PeerChannelCreated.`);
+      console.log(`P2PAutoConnect: Client ${currentCid.toString().slice(0, 8)}... is NOT the initiator; peer ${peerCid.toString().slice(0, 8)}... has higher CID. Will handle PeerConnect asynchronously when received via PeerChannelCreated.`);
       return;
     } else {
       // We have the higher CID - we ARE the initiator
-      console.log(`P2PAutoConnect: Client ${currentCid.slice(0, 8)}... IS the initiator for ${peerCid.slice(0, 8)}... (higher CID): now sending PeerConnect request`);
+      console.log(`P2PAutoConnect: Client ${currentCid.toString().slice(0, 8)}... IS the initiator for ${peerCid.toString().slice(0, 8)}... (higher CID): now sending PeerConnect request`);
     }
 
     // Mark as pending to prevent duplicate attempts
     if (this.pendingConnections.has(peerCid)) {
-      console.log(`P2PAutoConnect: Connection to ${peerCid.slice(0, 8)}... already pending, skipping duplicate`);
+      console.log(`P2PAutoConnect: Connection to ${peerCid.toString().slice(0, 8)}... already pending, skipping duplicate`);
       return;
     }
     this.pendingConnections.add(peerCid);
@@ -597,11 +857,11 @@ export class P2PAutoConnectService {
     if (this.isPeerConnectedForSession(currentCid, peerCid)) {
       const actuallyConnected = await this.isActuallyConnectedInBackend(currentCid, peerCid);
       if (actuallyConnected) {
-        console.log(`P2PAutoConnect: Already connected to ${peerCid.slice(0, 8)}... (verified with backend), skipping`);
+        console.log(`P2PAutoConnect: Already connected to ${peerCid.toString().slice(0, 8)}... (verified with backend), skipping`);
         this.pendingConnections.delete(peerCid);
         return;
       } else {
-        console.warn(`P2PAutoConnect: Local connectedPeers has ${peerCid.slice(0, 8)}... but backend shows not connected. Re-establishing connection.`);
+        console.warn(`P2PAutoConnect: Local connectedPeers has ${peerCid.toString().slice(0, 8)}... but backend shows not connected. Re-establishing connection.`);
         this.setPeerDisconnected(currentCid, peerCid);
       }
     }
@@ -610,13 +870,15 @@ export class P2PAutoConnectService {
 
     // OPTIMIZATION: Use cached online status (non-blocking) - skip if definitely offline
     // If cache says offline, defer; if cache stale or online, try optimistically
+    // EXCEPTION: FORCE INITIATOR MODE bypasses this check - after ClaimSession reconnection,
+    // the peer might be online but our cache is stale. We must try the connection.
     const isOnline = this.isPeerOnline(peerCid);
     const cacheAge = Date.now() - this.lastOnlineStatusRefresh;
     const cacheValid = cacheAge < this.ONLINE_STATUS_CACHE_TTL;
 
-    if (cacheValid && !isOnline) {
+    if (cacheValid && !isOnline && !shouldForceInitiator) {
       // Cache is fresh and says peer is offline - defer
-      console.log(`P2PAutoConnect: Peer ${peerCid.slice(0, 8)}... offline (cached), scheduling next check in ${this.POLL_INTERVAL / 1000}s`);
+      console.log(`P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... offline (cached), scheduling next check in ${this.POLL_INTERVAL / 1000}s`);
       console.log('[ILM-TRACE] connectToPeer: DEFERRED - peer offline (cached)');
       this.pendingConnections.delete(peerCid);
       attempt.timeout = setTimeout(() => this.connectToPeer(peerCid), this.POLL_INTERVAL);
@@ -630,14 +892,30 @@ export class P2PAutoConnectService {
     try {
       // OPTIMIZATION: Removed claimSession call - session context is already established at login
       // ClaimSession was causing an extra round-trip delay before every P2P connection attempt
-      console.log(`P2PAutoConnect: Attempting connection to ${peerCid.slice(0, 8)}...`);
-      console.log(`[ILM-TRACE] connectToPeer: calling openP2PConnection(${currentCid.slice(0, 8)}, ${peerCid.slice(0, 8)})`);
+      console.log(`P2PAutoConnect: Attempting connection to ${peerCid.toString().slice(0, 8)}...`);
+      console.log(`[ILM-TRACE] connectToPeer: calling openP2PConnection(${currentCid.toString().slice(0, 8)}, ${peerCid.toString().slice(0, 8)})`);
       await websocketService.openP2PConnection(currentCid, peerCid);
       console.log('[ILM-TRACE] connectToPeer: openP2PConnection SUCCESS');
 
       // Success - handled in event listener (handleConnectionSuccess will remove from pendingConnections)
     } catch (error) {
       console.log(`[ILM-TRACE] connectToPeer: CATCH error=${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Check if "Already connected" - this is actually success, not failure
+      // The backend returns this when we try to connect to an already-connected peer
+      if (errorMessage.includes('Already connected') || errorMessage.includes('already connected')) {
+        console.log(`P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... already connected (treating as success)`);
+        this.pendingConnections.delete(peerCid);
+        this.cancelRetry(peerCid);
+        // Mark as connected in local state
+        const currentCid = await this.getCurrentCid();
+        if (currentCid) {
+          this.setPeerConnected(currentCid, peerCid);
+        }
+        return;
+      }
+
       // Remove from pending on failure
       this.pendingConnections.delete(peerCid);
 
@@ -652,7 +930,7 @@ export class P2PAutoConnectService {
       this.connectionAttempts.set(peerCid, attempt);
 
       console.warn(
-        `P2PAutoConnect: Connect failed for ${peerCid.slice(0, 8)}..., ` +
+        `P2PAutoConnect: Connect failed for ${peerCid.toString().slice(0, 8)}..., ` +
           `retry in ${nextDelay / 1000}s (attempt ${attempt.attempts})`
       );
     }
@@ -662,11 +940,11 @@ export class P2PAutoConnectService {
    * Connect to all registered peers (on startup or after accept)
    */
   public async connectToAllRegisteredPeers(): Promise<void> {
-    const currentCid = this.getCurrentCid();
-    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: currentCid=${currentCid?.slice(0, 8) || 'null'}`);
+    const currentCid = await this.getCurrentCid();
+    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: currentCid=${currentCid?.toString().slice(0, 8) || 'null'}`);
 
-    // Skip silently if no valid user session (CID 0 is service connection)
-    if (!currentCid || currentCid === '0') {
+    // Skip silently if no valid user session (CID 0n is service connection)
+    if (!currentCid || currentCid === 0n) {
       console.log('[ILM-TRACE] connectToAllRegisteredPeers: SKIPPED - no valid CID');
       return;
     }
@@ -674,7 +952,7 @@ export class P2PAutoConnectService {
     // OPTIMIZATION: Kick off non-blocking online status refresh (uses caching internally)
     // Each connectToPeer() will use cached status or try optimistically
     this.refreshOnlineStatus().catch(() => {}); // Fire-and-forget
-    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: onlinePeers=${Array.from(this.onlinePeers).map(c => c.slice(0, 8)).join(',')}`);
+    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: onlinePeers=${Array.from(this.onlinePeers).map(c => c.toString().slice(0, 8)).join(',')}`);
 
     let registeredPeers: any[] = [];
 
@@ -697,14 +975,19 @@ export class P2PAutoConnectService {
       }
     }
 
+    // CRITICAL: Capture forceInitiatorMode SYNCHRONOUSLY before launching async calls.
+    // This fixes the race condition where the flag was reset before connectToPeer() bodies executed.
+    const shouldForceInitiator = this.forceInitiatorMode;
+
     // Launch connections in parallel (each handles its own retries)
-    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: launching connections to ${registeredPeers.length} peers`);
+    console.log(`[ILM-TRACE] connectToAllRegisteredPeers: launching connections to ${registeredPeers.length} peers, forceInitiator=${shouldForceInitiator}`);
     for (const peer of registeredPeers) {
-      const peerCid = peer.cid?.toString();
-      console.log(`[ILM-TRACE] Peer: cid=${peerCid?.slice(0, 8)}, currentCid=${currentCid?.slice(0, 8)}, skip=${peerCid === currentCid}`);
+      const peerCid = peer.cid;
+      console.log(`[ILM-TRACE] Peer: cid=${peerCid?.toString().slice(0, 8)}, currentCid=${currentCid?.toString().slice(0, 8)}, skip=${peerCid === currentCid}`);
       if (peerCid && peerCid !== currentCid) {
         // Don't await - let each run independently
-        this.connectToPeer(peerCid).catch((err) => {
+        // Pass forceInitiator explicitly to avoid race condition with flag reset
+        this.connectToPeer(peerCid, shouldForceInitiator).catch((err) => {
           console.error(`P2PAutoConnect: Failed to initiate connection to ${peerCid}:`, err);
         });
       }
@@ -722,10 +1005,10 @@ export class P2PAutoConnectService {
    * Fallback: Get registered peers from GetSessions response
    * This is used when ListRegisteredPeers times out
    */
-  private async getRegisteredPeersViaGetSessions(currentCid: string): Promise<any[]> {
+  private async getRegisteredPeersViaGetSessions(currentCid: bigint): Promise<any[]> {
     try {
       const sessions = await connectionManager.getActiveSessions();
-      const mySession = sessions.find(s => s.cid?.toString() === currentCid);
+      const mySession = sessions.find(s => s.cid === currentCid);
 
       if (!mySession?.peer_connections || Object.keys(mySession.peer_connections).length === 0) {
         // No peer connections yet, use local peer registry
@@ -740,9 +1023,9 @@ export class P2PAutoConnectService {
 
       // Convert peer_connections to peer array
       const peers: any[] = [];
-      for (const [peerCid, peerInfo] of Object.entries(mySession.peer_connections)) {
+      for (const [peerCidStr, peerInfo] of Object.entries(mySession.peer_connections)) {
         peers.push({
-          cid: peerCid,
+          cid: BigInt(peerCidStr),
           username: (peerInfo as any).peer_username || '',
         });
       }
@@ -757,11 +1040,11 @@ export class P2PAutoConnectService {
   /**
    * Handle successful connection - INSTANT update to single source of truth
    */
-  private handleConnectionSuccess(localCid: string, peerCid: string, peerUsername: string = ''): void {
+  private handleConnectionSuccess(localCid: bigint, peerCid: bigint, peerUsername: string = ''): void {
     this.setPeerConnected(localCid, peerCid, peerUsername);
     this.pendingConnections.delete(peerCid); // Connection complete, no longer pending
     this.cancelRetry(peerCid);
-    console.log(`P2PAutoConnect: Connected to ${peerCid.slice(0, 8)}...`);
+    console.log(`P2PAutoConnect: Connected to ${peerCid.toString().slice(0, 8)}...`);
     eventEmitter.emit('p2p-connection-established', { peerCid });
   }
 
@@ -783,24 +1066,20 @@ export class P2PAutoConnectService {
    * 1. Verify notification.cid matches our current CID (we are the TARGET)
    */
   public async handleIncomingPeerConnect(notification: any): Promise<void> {
-    console.log(`[P2P-DEBUG] handleIncomingPeerConnect RECEIVED:`, JSON.stringify(notification));
-
     // FIXED: notification.cid is TARGET (us), notification.peer_cid is INITIATOR (them)
-    const targetCid = notification.cid?.toString();       // Who should accept (us)
-    const initiatorCid = notification.peer_cid?.toString(); // Who initiated the connection
+    // CIDs come as bigint from WASM
+    const targetCid: bigint | undefined = notification.cid;
+    const initiatorCid: bigint | undefined = notification.peer_cid;
     const peerUsername = notification.peer_username || '';
 
-    console.log(`[P2P-DEBUG] handleIncomingPeerConnect targetCid=${targetCid?.slice(0,8)}, initiatorCid=${initiatorCid?.slice(0,8)}`);
-
-    if (!initiatorCid || !targetCid) {
+    if (initiatorCid === undefined || targetCid === undefined) {
       console.warn('P2PAutoConnect: Invalid PeerConnectNotification - missing cid or peer_cid');
       return;
     }
 
     // CRITICAL: Filter by CID - only process if WE are the TARGET (cid matches our CID)
     // The notification is broadcast to all WebSocket clients, so we must filter
-    const currentCid = this.getCurrentCid();
-    console.log(`[P2P-DEBUG] handleIncomingPeerConnect currentCid=${currentCid?.slice(0,8) || 'null'}`);
+    const currentCid = await this.getCurrentCid();
 
     if (!currentCid) {
       console.warn('P2PAutoConnect: No current CID, cannot process incoming connection');
@@ -809,7 +1088,7 @@ export class P2PAutoConnectService {
 
     // We should only process this if WE are the target (cid matches our CID)
     if (targetCid !== currentCid) {
-      console.log(`P2PAutoConnect: Ignoring PeerConnectNotification - target is ${targetCid.slice(0, 8)}... (we are ${currentCid.slice(0, 8)}...)`);
+      console.log(`P2PAutoConnect: Ignoring PeerConnectNotification - target is ${targetCid.toString().slice(0, 8)}... (we are ${currentCid.toString().slice(0, 8)}...)`);
       return;
     }
 
@@ -817,14 +1096,35 @@ export class P2PAutoConnectService {
     // CRITICAL FIX: Verify with backend - local connectedPeers may be stale after TCP drop with orphan mode
     // When a peer TCP drops, PeerDisconnect is NOT sent (session is orphaned), so our connectedPeers
     // still has the peer. When they reconnect and send PeerConnect, we must check backend state.
+    //
+    // RACE CONDITION FIX: The event listener for PeerConnectNotification calls setPeerConnected()
+    // BEFORE this handler runs (to update the leader's central Map for ILM visibility).
+    // If we check isPeerConnectedForSession here, it returns true for the fresh connection we just stored.
+    // The backend check then fails (backend hasn't processed the connection yet), and we remove
+    // the entry, causing a race where ILM sees 0 peers during the brief window before re-storing.
+    //
+    // Solution: Check the connection age. If stored within last 5 seconds, it's a fresh connection
+    // being established right now (likely from the event listener above), not stale from TCP drop.
     if (this.isPeerConnectedForSession(currentCid, initiatorCid)) {
-      const actuallyConnected = await this.isActuallyConnectedInBackend(currentCid, initiatorCid);
-      if (actuallyConnected) {
-        console.log(`P2PAutoConnect: Already connected to ${initiatorCid.slice(0, 8)}... (verified with backend), skipping accept`);
-        return;
+      // Check connection age to distinguish fresh vs stale
+      const peerInfo = this.getPeerConnectionInfo(currentCid, initiatorCid);
+      const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
+      const FRESH_CONNECTION_THRESHOLD_MS = 5000; // 5 seconds
+
+      if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
+        // Fresh connection - likely just stored by the event listener above.
+        // Don't do backend check or remove; the connection is being established right now.
+        console.log(`P2PAutoConnect: Connection to ${initiatorCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping backend verification`);
       } else {
-        console.warn(`P2PAutoConnect: Local connectedPeers has ${initiatorCid.slice(0, 8)}... but backend shows not connected. Stale from TCP drop - accepting new connection.`);
-        this.setPeerDisconnected(currentCid, initiatorCid);
+        // Older connection - could be stale from TCP drop. Verify with backend.
+        const actuallyConnected = await this.isActuallyConnectedInBackend(currentCid, initiatorCid);
+        if (actuallyConnected) {
+          console.log(`P2PAutoConnect: Already connected to ${initiatorCid.toString().slice(0, 8)}... (verified with backend), skipping accept`);
+          return;
+        } else {
+          console.warn(`P2PAutoConnect: Local connectedPeers has ${initiatorCid.toString().slice(0, 8)}... but backend shows not connected. Stale from TCP drop - accepting new connection.`);
+          this.setPeerDisconnected(currentCid, initiatorCid);
+        }
       }
     }
 
@@ -833,36 +1133,31 @@ export class P2PAutoConnectService {
     // Otherwise the initiator's channel is never completed and messages are lost.
     const isSimultaneousConnect = this.pendingConnections.has(initiatorCid);
     if (isSimultaneousConnect) {
-      console.log(`P2PAutoConnect: SIMULTANEOUS_CONNECT detected for ${initiatorCid.slice(0, 8)}... - will accept their connection too`);
+      console.log(`P2PAutoConnect: SIMULTANEOUS_CONNECT detected for ${initiatorCid.toString().slice(0, 8)}... - will accept their connection too`);
       this.pendingConnections.delete(initiatorCid);
       this.cancelRetry(initiatorCid);
       // Don't return - fall through to accept the connection
     }
 
-    console.log(`[P2P-DEBUG] handleIncomingPeerConnect PASSED checks - accepting connection from ${initiatorCid.slice(0, 8)}...`);
-
-    // ILM-DIAG: Log the exact CID being stored for later comparison with ILM queries
-    console.log(`[ILM-DIAG] handleIncomingPeerConnect: STORING peer ${initiatorCid.slice(0, 8)} under localCid=${currentCid}`);
-
     // Mark initiator as connected - INSTANT update
     this.setPeerConnected(currentCid, initiatorCid, peerUsername);
     this.cancelRetry(initiatorCid);
-    console.log(`P2PAutoConnect: Incoming connection from ${initiatorCid.slice(0, 8)}... (they initiated)`);
+    console.log(`P2PAutoConnect: Incoming connection from ${initiatorCid.toString().slice(0, 8)}... (they initiated)`);
 
     try {
       // Accept the incoming connection - this completes the handshake
       // The SDK's responses::peer_connect handles the bidirectional channel
-      console.log(`P2PAutoConnect: Sending PeerConnectAccept for ${initiatorCid.slice(0, 8)}...`);
+      console.log(`P2PAutoConnect: Sending PeerConnectAccept for ${initiatorCid.toString().slice(0, 8)}...`);
       await websocketService.acceptPeerConnect(currentCid, initiatorCid, notification);
-      console.log(`P2PAutoConnect: PeerConnectAccept sent for ${initiatorCid.slice(0, 8)}...`);
+      console.log(`P2PAutoConnect: PeerConnectAccept sent for ${initiatorCid.toString().slice(0, 8)}...`);
       eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });
     } catch (error) {
       const errMsg = String(error);
       if (errMsg.includes('already connected') || errMsg.includes('Already connected')) {
-        console.log(`P2PAutoConnect: Channel already exists for ${initiatorCid.slice(0, 8)}...`);
+        console.log(`P2PAutoConnect: Channel already exists for ${initiatorCid.toString().slice(0, 8)}...`);
         eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });
       } else {
-        console.warn(`P2PAutoConnect: Failed to accept connection from ${initiatorCid.slice(0, 8)}...:`, error);
+        console.warn(`P2PAutoConnect: Failed to accept connection from ${initiatorCid.toString().slice(0, 8)}...:`, error);
         // Remove from connected since accept failed
         this.setPeerDisconnected(currentCid, initiatorCid);
       }
@@ -872,10 +1167,10 @@ export class P2PAutoConnectService {
   /**
    * Handle peer disconnect - INSTANT update to single source of truth
    */
-  public handlePeerDisconnect(localCid: string, peerCid: string): void {
+  public handlePeerDisconnect(localCid: bigint, peerCid: bigint): void {
     this.setPeerDisconnected(localCid, peerCid);
     this.pendingConnections.delete(peerCid);
-    console.log(`P2PAutoConnect: Peer ${peerCid.slice(0, 8)}... disconnected`);
+    console.log(`P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... disconnected`);
     eventEmitter.emit('p2p-connection-lost', { peerCid });
   }
 
@@ -883,13 +1178,13 @@ export class P2PAutoConnectService {
    * Clear a peer from connected state (without emitting events).
    * Used by P2PMessengerManager when verifying stale connection state against backend.
    */
-  public clearPeerFromConnected(peerCid: string): void {
-    const currentCid = this.getCurrentCid();
+  public async clearPeerFromConnected(peerCid: bigint): Promise<void> {
+    const currentCid = await this.getCurrentCid();
     if (currentCid) {
       this.setPeerDisconnected(currentCid, peerCid);
     }
     this.pendingConnections.delete(peerCid);
-    console.log(`P2PAutoConnect: Cleared stale connection for ${peerCid.slice(0, 8)}...`);
+    console.log(`P2PAutoConnect: Cleared stale connection for ${peerCid.toString().slice(0, 8)}...`);
   }
 
   /**
@@ -905,8 +1200,8 @@ export class P2PAutoConnectService {
    * - We initiate fresh PeerConnect calls to all registered peers
    * - We don't skip connections thinking they're already established
    */
-  public resetConnectionState(): void {
-    const currentCid = this.getCurrentCid();
+  public async resetConnectionState(): Promise<void> {
+    const currentCid = await this.getCurrentCid();
     const peerCount = currentCid ? (this.connectedPeers.get(currentCid)?.size ?? 0) : 0;
 
     console.log(`[ILM-TRACE] P2PAutoConnect: Resetting connection state for reconnection`);
@@ -917,6 +1212,20 @@ export class P2PAutoConnectService {
     }
     this.pendingConnections.clear();
     this.cancelAllRetries();
+
+    // CRITICAL: Invalidate peer online status cache
+    // After ClaimSession, the cached online status is stale - peers that were
+    // marked offline before the TCP drop may now be online. By clearing the
+    // cache, we force a fresh query on the next connection attempt.
+    this.onlinePeers.clear();
+    this.lastOnlineStatusRefresh = 0;
+    console.log('[ILM-TRACE] P2PAutoConnect: Cleared peer online status cache for reconnection');
+
+    // CRITICAL: Clear channel ready state on reconnection
+    // After ClaimSession/Login, channels need to be re-proven as "ready"
+    // (receiving a message proves bidirectional flow works)
+    this.readyChannels.clear();
+    console.log('[ILM-TRACE] P2PAutoConnect: Cleared channel ready state for reconnection');
 
     // CRITICAL: Force initiator mode after ClaimSession
     // The reconnecting user must ALWAYS initiate PeerConnect because the peer
@@ -930,7 +1239,7 @@ export class P2PAutoConnectService {
   /**
    * Cancel pending retry for a peer
    */
-  public cancelRetry(peerCid: string): void {
+  public cancelRetry(peerCid: bigint): void {
     const attempt = this.connectionAttempts.get(peerCid);
     if (attempt?.timeout) {
       clearTimeout(attempt.timeout);
@@ -1014,8 +1323,8 @@ export class P2PAutoConnectService {
   /**
    * Get list of connected peer CIDs (legacy API using current CID)
    */
-  public getConnectedPeers(): string[] {
-    const currentCid = this.getCurrentCid();
+  public async getConnectedPeers(): Promise<bigint[]> {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) return [];
     return this.getPeersForSession(currentCid);
   }
@@ -1023,7 +1332,7 @@ export class P2PAutoConnectService {
   /**
    * Get list of online peer CIDs
    */
-  public getOnlinePeers(): string[] {
+  public getOnlinePeers(): bigint[] {
     return Array.from(this.onlinePeers);
   }
 
@@ -1038,28 +1347,28 @@ export class P2PAutoConnectService {
    * Returns immediately without blocking. Use `isPeerConnected()` to check status
    * or listen for 'p2p-connection-established' event.
    */
-  public ensurePeerConnectedInBackground(peerCid: string): void {
-    const currentCid = this.getCurrentCid();
+  public async ensurePeerConnectedInBackground(peerCid: bigint): Promise<void> {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid || currentCid === peerCid) {
       return;
     }
 
     // Already connected - nothing to do
     if (this.isPeerConnectedForSession(currentCid, peerCid)) {
-      console.log(`P2PAutoConnect: Peer ${peerCid.slice(0, 8)}... already connected`);
+      console.log(`P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... already connected`);
       return;
     }
 
     // Already attempting connection - don't start another
     if (this.connectionAttempts.has(peerCid)) {
-      console.log(`P2PAutoConnect: Connection attempt already in progress for ${peerCid.slice(0, 8)}...`);
+      console.log(`P2PAutoConnect: Connection attempt already in progress for ${peerCid.toString().slice(0, 8)}...`);
       return;
     }
 
     // Start connection in background (don't await)
-    console.log(`P2PAutoConnect: Starting background connection to ${peerCid.slice(0, 8)}...`);
+    console.log(`P2PAutoConnect: Starting background connection to ${peerCid.toString().slice(0, 8)}...`);
     this.connectToPeer(peerCid).catch((err) => {
-      console.error(`P2PAutoConnect: Background connection failed for ${peerCid.slice(0, 8)}...:`, err);
+      console.error(`P2PAutoConnect: Background connection failed for ${peerCid.toString().slice(0, 8)}...:`, err);
     });
   }
 
@@ -1072,8 +1381,8 @@ export class P2PAutoConnectService {
    *
    * For non-blocking approach, use `ensurePeerConnectedInBackground()` instead.
    */
-  public async waitForPeerConnected(peerCid: string, timeoutMs = 30000): Promise<boolean> {
-    const currentCid = this.getCurrentCid();
+  public async waitForPeerConnected(peerCid: bigint, timeoutMs = 30000): Promise<boolean> {
+    const currentCid = await this.getCurrentCid();
     if (!currentCid) return false;
 
     // Already connected
@@ -1082,7 +1391,7 @@ export class P2PAutoConnectService {
     }
 
     // Start background connection attempt
-    this.ensurePeerConnectedInBackground(peerCid);
+    await this.ensurePeerConnectedInBackground(peerCid);
 
     // Wait for connection event or timeout
     return new Promise((resolve) => {
@@ -1095,13 +1404,13 @@ export class P2PAutoConnectService {
           resolve(true);
         } else if (Date.now() - startTime > timeoutMs) {
           clearInterval(checkInterval);
-          console.warn(`P2PAutoConnect: Timeout waiting for ${peerCid.slice(0, 8)}... to connect`);
+          console.warn(`P2PAutoConnect: Timeout waiting for ${peerCid.toString().slice(0, 8)}... to connect`);
           resolve(false);
         }
       }, 500);
 
       // Also listen for event
-      const handler = ({ peerCid: connectedPeerCid }: { peerCid: string }) => {
+      const handler = ({ peerCid: connectedPeerCid }: { peerCid: bigint }) => {
         if (connectedPeerCid === peerCid) {
           clearInterval(checkInterval);
           eventEmitter.off('p2p-connection-established', handler);

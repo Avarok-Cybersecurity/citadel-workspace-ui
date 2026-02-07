@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { PermissionManagerModal } from "@/components/permissions/PermissionManagerModal";
 import {
   Dialog,
@@ -38,7 +38,7 @@ export const AdminSettingsSection = () => {
   const userRole = state.currentUser?.role;
   const isAdmin = userRole === 'Admin' ||
                   userRole === 'admin' ||
-                  (typeof userRole === 'object' && userRole?.Admin !== undefined);
+                  (typeof userRole === 'object' && (userRole as Record<string, unknown>)?.Admin !== undefined);
 
   if (!isAdmin) {
     return null;

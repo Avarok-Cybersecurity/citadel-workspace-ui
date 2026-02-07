@@ -5,7 +5,7 @@ import { Bell, Search, Shield, Send, MoreVertical, Upload, ChevronDown } from "l
 import { cn } from "@/lib/utils";
 // Removed messageChannels import - now handled internally
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useWorkspace } from "../../lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { formatRelativeTime } from "../../lib/date-utils";
 import { RetryableMessageSender } from "./RetryableMessageSender";
 import { TypingIndicator } from "./TypingIndicator";

@@ -14,16 +14,14 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
   openConversation,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  logObservation,
+  TestHarness,
+  runTestMain,
 } from '../test-lib.js';
 
 // ============================================================================
@@ -232,27 +230,12 @@ async function openLiveDocTab(page: Page, username: string, docTitle: string): P
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('LIVE DOC BIDIRECTIONAL SYNC TEST');
-  console.log('='.repeat(60));
-  console.log(`User 1: ${USER1}`);
-  console.log(`User 2: ${USER2}`);
-  console.log(`Document: ${DOC_TITLE}`);
-  console.log('');
-
-  // Initialize
-  ensureScreenshotsDir(true); // Clean screenshots dir
-
-  // Wait for services
-  await waitForServicesAlive();
-
-  // Log the test start
-  logObservation('test-start', 'Live Doc Sync Test Started', {
-    user1: USER1,
-    user2: USER2,
-    docTitle: DOC_TITLE,
-    timestamp: new Date().toISOString(),
-  }, 'investigating');
+  // Initialize test harness
+  const harness = await TestHarness.create({
+    testName: 'Live Doc Bidirectional Sync Test',
+    reportFileName: 'LIVE_DOC_TEST_REPORT.json',
+    metadata: { user1: USER1, user2: USER2, docTitle: DOC_TITLE },
+  });
 
   // Setup browser
   const { browser, context } = await createBrowser({ slowMo: 100 });
@@ -403,20 +386,12 @@ async function runTest(): Promise<boolean> {
     console.log(`TEST ${testPassed ? 'PASSED' : 'FAILED'}`);
     console.log('='.repeat(40));
 
-    // Log the test result
-    logObservation('test-complete', `Live Doc Sync Test ${testPassed ? 'PASSED' : 'FAILED'}`, {
-      results,
+    // Finalize test harness with results
+    harness.finalize(testPassed, {
+      ...results,
       content1Final: content1,
       content2Final: content2,
-    }, testPassed ? 'verified' : 'failed');
-
-    // Write report
-    writeTestReport('LIVE_DOC_TEST_REPORT.json', {
-      users: { user1: USER1, user2: USER2 },
-      document: DOC_TITLE,
-      results,
-      passed: testPassed,
-    });
+    } as unknown as Record<string, any>);
 
     console.log('\nCheck screenshots directory for visual verification');
     console.log('Browser will remain open for 30 seconds for manual inspection...');
@@ -426,9 +401,6 @@ async function runTest(): Promise<boolean> {
 
   } catch (error) {
     console.error('\nTest error:', error);
-    logObservation('test-error', 'Live Doc Sync Test Error', {
-      error: String(error),
-    }, 'failed');
     throw error;
   } finally {
     await browser.close();
@@ -439,9 +411,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest().then(passed => {
-  process.exit(passed ? 0 : 1);
-}).catch(error => {
-  console.error('Test failed with error:', error);
-  process.exit(1);
-});
+runTestMain(runTest);

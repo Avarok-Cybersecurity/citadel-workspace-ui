@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
-import { useGroupPermissions } from '@/hooks/useGroupPermissions';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 
 // ============================================================================
 // Types

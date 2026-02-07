@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useWorkspace } from '../../lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
 import { User } from '../../types/workspace-entities';
 import { MDXProvider } from '@mdx-js/react';
+import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { useToast } from '@/hooks/use-toast';
@@ -13,10 +14,11 @@ import WorkspaceService from '@/lib/workspace-service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
 import { FileText, MessageSquare } from 'lucide-react';
-import { usePermission } from '@/hooks/usePermission';
+import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
-import { connectionManager } from '@/lib/connection-manager';
+import { connectionManager } from '@/lib/connection';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';
@@ -47,6 +49,15 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   const [content, setContent] = useState<string>(room?.mdx_content || '');
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isNewContent, setIsNewContent] = useState(!room?.mdx_content);
+  const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
+
+  // Load tab session asynchronously
+  useEffect(() => {
+    runAsyncSetup(async () => {
+      const session = await connectionManager.getTabSelectedSession();
+      setTabSession(session);
+    });
+  }, []);
 
   // Fetch room data if not available
   useEffect(() => {
@@ -61,7 +72,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       }
     };
 
-    fetchRoomData();
+    runAsyncSetup(fetchRoomData);
   }, [roomId, room, isLoading, officeId]);
 
   // Update content when room data changes
@@ -89,17 +100,17 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         console.info('Compiling Room MDX content...');
         const result = await evaluate(content, {
           ...runtime,
-          useMDXComponents: () => components,
+          useMDXComponents: () => components as unknown as MDXComponents,
           baseUrl: window.location.origin
         });
         console.info('Room MDX compilation successful');
-        setCompiledContent(result.default({ components }));
+        setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
         console.error('Error compiling Room MDX:', error);
       }
     };
 
-    compileContent();
+    runAsyncSetup(compileContent);
   }, [content]);
 
   // Handle saving MDX content
@@ -156,7 +167,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   // Get current user info from workspace state OR connection manager
   // The workspace state currentUser may not be populated yet during initial render
-  const tabSession = connectionManager.getTabSelectedSession();
+  // tabSession is loaded asynchronously via useEffect
   const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
   const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
@@ -233,7 +244,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         </div>
       ) : content ? (
         <div className="mb-6 prose prose-invert prose-sm md:prose-base max-w-none">
-          <MDXProvider components={components}>
+          <MDXProvider components={components as unknown as MDXComponents}>
             {compiledContent}
           </MDXProvider>
         </div>

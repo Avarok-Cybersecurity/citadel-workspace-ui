@@ -12,22 +12,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess } from "@/lib/toast-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import PreferencesDialog from "@/components/connection/PreferencesDialog";
 import NotificationCenter from "@/components/notification/NotificationCenter";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal } from "@/components/SettingsModal";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
-import { connectionManager } from "@/lib/connection-manager";
+import { connectionManager } from "@/lib/connection";
 import { useNavigate } from "react-router-dom";
-import { clearSelectedUser } from "@/lib/tab-context";
+import { clearSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { useState } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface TopBarProps {
   // Optional prop for backward compatibility
@@ -61,11 +63,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
 
   const handleSettingsClick = () => {
-    toast({
-      title: "Settings",
-      description: "Settings panel opening soon",
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Settings", "Settings panel opening soon");
   };
 
   const handleExit = () => {
@@ -73,14 +71,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     wasmConnectionManager.stop();
 
     // Just navigate to landing page, keep session active
-    clearSelectedUser();
+    runAsyncSetup(clearSelectedUser);
     navigate('/');
 
-    toast({
-      title: "Returned to landing page",
-      description: "Your session is still active. Click your workspace icon to return instantly.",
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
-    });
+    toastSuccess(toast, "Returned to landing page", "Your session is still active. Click your workspace icon to return instantly.");
   };
 
   const handleSignOut = async () => {
@@ -94,7 +88,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       wasmConnectionManager.stop();
 
       // Get the current session BEFORE disconnecting
-      const currentSession = connectionManager.getTabSelectedSession();
+      const currentSession = await connectionManager.getTabSelectedSession();
 
       if (!currentSession) {
         console.error('TopBar: No current session found');
@@ -103,10 +97,25 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         return;
       }
 
-      console.log('TopBar: Fully signing out user', currentSession.username);
+      // Also get the CID from tab context (more reliable source)
+      const tabSelection = await getSelectedUser();
+      const cid = tabSelection?.selectedCid ?? currentSession.cid;
 
-      // Full disconnect via WebSocket
-      await connectionManager.disconnect();
+      if (!cid) {
+        console.error('TopBar: No CID found for session');
+        setDisconnectStatus("error");
+        setDisconnectError("No active session CID found");
+        return;
+      }
+
+      console.log('TopBar: Fully signing out user', currentSession.username, 'CID:', cid.toString());
+
+      // Full disconnect via WebSocket - pass the session info explicitly
+      await connectionManager.disconnect({
+        cid,
+        username: currentSession.username,
+        serverAddress: currentSession.serverAddress,
+      });
 
       // Update status to cleaning
       setDisconnectStatus("cleaning");
@@ -115,7 +124,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
 
       // Clear tab-specific user selection
-      clearSelectedUser();
+      await clearSelectedUser();
 
       // Show ready status briefly before navigating
       setDisconnectStatus("ready");
@@ -131,11 +140,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     setShowDisconnectModal(false);
     if (disconnectStatus === "ready") {
       navigate('/');
-      toast({
-        title: "Signed out",
-        description: "You have been fully logged out. You'll need to login again to access this workspace.",
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
+      toastSuccess(toast, "Signed out", "You have been fully logged out. You'll need to login again to access this workspace.");
     }
   };
 

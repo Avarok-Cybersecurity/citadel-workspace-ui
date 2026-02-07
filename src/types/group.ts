@@ -147,7 +147,7 @@ export function createDefaultRoles(ownerName: string = 'Owner'): GroupRole[] {
  */
 export interface GroupMember {
   /** The member's CID (Citadel ID) */
-  cid: string;
+  cid: bigint;
   /** The member's display username */
   username: string;
   /** ID of the role assigned to this member */
@@ -183,7 +183,7 @@ export interface GroupConversation {
   /** Group name (custom or defaults to creator's name) */
   name: string;
   /** CID of the group creator/owner */
-  ownerId: string;
+  ownerId: bigint;
   /** All members of the group (owner first, then alphabetical) */
   members: GroupMember[];
   /** Group settings including roles */
@@ -211,7 +211,7 @@ export interface GroupMessage {
   /** ID of the group this message belongs to */
   groupId: string;
   /** CID of the message sender */
-  senderId: string;
+  senderId: bigint;
   /** Username of the sender (for display) */
   senderName: string;
   /** Type of message content */
@@ -250,7 +250,7 @@ export interface CreateGroupState {
   name: string;
   /** Selected peers to invite */
   selectedPeers: Array<{
-    cid: string;
+    cid: bigint;
     username: string;
     roleId: string; // Role to assign when invited
   }>;

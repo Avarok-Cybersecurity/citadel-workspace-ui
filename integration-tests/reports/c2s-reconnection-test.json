@@ -1,17 +1,17 @@
 {
-  "timestamp": "2026-01-07T22:27:47.838Z",
+  "timestamp": "2026-02-05T00:36:04.457Z",
   "testName": "C2S Reconnection Test",
-  "username": "c2s_reconnect_1767824806625",
+  "username": "c2s_reconnect_1770251700368",
   "results": [
     {
       "step": "Phase 1: Create Account",
       "status": "PASS",
-      "notes": "Created c2s_reconnect_1767824806625"
+      "notes": "Created c2s_reconnect_1770251700368"
     },
     {
       "step": "Phase 2: Verify Initial Connection",
       "status": "PASS",
-      "notes": "On workspace page: http://127.0.0.1:5173/workspace?id=root&officeId=7ff9c3b0-116e-48da-bbb6-7a2df5aac745"
+      "notes": "On workspace page: http://127.0.0.1:5173/workspace?id=root"
     },
     {
       "step": "Phase 3: Logout",
@@ -31,7 +31,7 @@
     {
       "step": "Phase 5: Verify Connection Restored",
       "status": "PASS",
-      "notes": "Workspace loaded at: http://127.0.0.1:5173/workspace?id=root&officeId=7ff9c3b0-116e-48da-bbb6-7a2df5aac745"
+      "notes": "Workspace loaded at: http://127.0.0.1:5173/workspace?id=root&officeId=55447df3-fc60-4c52-bced-44056653ae0c"
     },
     {
       "step": "Phase 6: No \"Session Already Connected\" Errors",

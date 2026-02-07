@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps } from '../types';
-import { useWorkspace } from '@/lib/workspace-context';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Loader2, MessageSquare, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 

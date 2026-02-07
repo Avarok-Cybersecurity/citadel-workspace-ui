@@ -7,7 +7,8 @@
 
 import { eventEmitter } from './event-emitter';
 import WorkspaceService from './workspace-service';
-import { connectionManager } from './connection-manager';
+import { connectionManager } from './connection';
+import { EventListenerManager } from './utils/event-listener-manager';
 
 /**
  * Permission enum matching Rust Permission type from citadel-workspace-types
@@ -168,15 +169,17 @@ export const PERMISSION_CATEGORIES = {
 
 /**
  * Permissions Service singleton
+ *
+ * Extends EventListenerManager for automatic event listener cleanup.
  */
-class PermissionsService {
+class PermissionsService extends EventListenerManager {
   private static instance: PermissionsService;
   private cache: Map<string, DomainPermissions> = new Map();
   private pendingRequests: Map<string, Promise<DomainPermissions>> = new Map();
   private initialized = false;
-  private listenerCleanup: (() => void) | null = null;
 
   private constructor() {
+    super();
     this.setupEventListeners();
   }
 
@@ -188,58 +191,47 @@ class PermissionsService {
   }
 
   /**
-   * Setup event listeners for permission updates
+   * Setup event listeners for permission updates.
+   * Uses EventListenerManager base class for automatic cleanup.
    */
-  private setupEventListeners(): void {
+  protected setupEventListeners(): void {
     // Listen for permission responses from server
-    const handlePermissionsLoaded = (payload: {
+    this.listen<{
       userId: string;
       role: UserRole;
       permissions: string[];
       domainId: string;
-    }) => {
+    }>('user:permissions:loaded', (payload) => {
       const currentUser = this.getCurrentUserId();
       if (payload.userId === currentUser) {
         this.updateCache(payload.domainId, payload.role, payload.permissions);
       }
-    };
-
-    eventEmitter.on('user:permissions:loaded', handlePermissionsLoaded);
+    });
 
     // Listen for permission update notifications (when admin changes permissions)
-    const handlePermissionsUpdated = (payload: {
+    this.listen<{
       userId: string;
       domainId: string;
       permissions: string[];
       operation: 'add' | 'remove' | 'set';
-    }) => {
+    }>('member:permissions-updated', async (payload) => {
       const currentUser = this.getCurrentUserId();
       if (payload.userId === currentUser) {
         // Refetch permissions to get the updated set
-        this.fetchPermissions(payload.domainId, true);
-        eventEmitter.emit('permissions:updated', { domainId: payload.domainId });
+        await this.fetchPermissions(payload.domainId, true);
+        this.emit('permissions:updated', { domainId: payload.domainId });
       }
-    };
-
-    eventEmitter.on('member:permissions-updated', handlePermissionsUpdated);
+    });
 
     // Listen for role updates
-    const handleRoleUpdated = (payload: { userId: string; role: UserRole }) => {
+    this.listen<{ userId: string; role: UserRole }>('member:role-updated', (payload) => {
       const currentUser = this.getCurrentUserId();
       if (payload.userId === currentUser) {
         // Role change affects all domains - clear cache and refetch
         this.clearCache();
-        eventEmitter.emit('permissions:role-changed', { role: payload.role });
+        this.emit('permissions:role-changed', { role: payload.role });
       }
-    };
-
-    eventEmitter.on('member:role-updated', handleRoleUpdated);
-
-    this.listenerCleanup = () => {
-      eventEmitter.off('user:permissions:loaded', handlePermissionsLoaded);
-      eventEmitter.off('member:permissions-updated', handlePermissionsUpdated);
-      eventEmitter.off('member:role-updated', handleRoleUpdated);
-    };
+    });
 
     this.initialized = true;
   }
@@ -248,9 +240,8 @@ class PermissionsService {
    * Get current user ID from connection manager
    */
   private getCurrentUserId(): string | null {
-    const sessions = connectionManager.getStoredSessionsArray();
-    const activeSession = sessions.find(s => s.isActive);
-    return activeSession?.username || null;
+    const connectionInfo = connectionManager.getConnectionInfo();
+    return connectionInfo?.username || null;
   }
 
   /**
@@ -411,13 +402,12 @@ class PermissionsService {
   }
 
   /**
-   * Cleanup service (for logout)
+   * Cleanup service (for logout).
+   * Uses EventListenerManager.teardown() for automatic listener cleanup.
    */
   public cleanup(): void {
     this.clearCache();
-    if (this.listenerCleanup) {
-      this.listenerCleanup();
-    }
+    this.teardown();
     this.initialized = false;
   }
 

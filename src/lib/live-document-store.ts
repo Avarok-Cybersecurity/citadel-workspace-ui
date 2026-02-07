@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { websocketService } from './websocket-service';
 import { sha256Sync } from './merkle-tree';
 import type { RevisionEntry } from '@/types/p2p-types';
+import { stringToBytes, bytesToString } from './utils/encoding-utils';
 
 // Document metadata stored in LocalDB
 export interface DocumentMetadata {
@@ -53,7 +54,7 @@ class LiveDocumentStore {
     if (this.initialized) return;
 
     try {
-      const response = await websocketService.sendLocalDBGet('0', DOCUMENTS_INDEX_KEY);
+      const response = await websocketService.sendLocalDBGet(0n, DOCUMENTS_INDEX_KEY);
       if (response?.value) {
         const indexData = this.decodeValue(response.value);
         const index: string[] = JSON.parse(indexData);
@@ -128,9 +129,9 @@ class LiveDocumentStore {
   async saveDocument(docId: string, doc: StoredDocument): Promise<void> {
     const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
     const valueStr = JSON.stringify(doc);
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    const valueBytes = stringToBytes(valueStr);
 
-    await websocketService.sendLocalDBSet('0', key, valueBytes);
+    await websocketService.sendLocalDBSet(0n, key, valueBytes);
 
     // Update cache
     this.documentsCache.set(docId, doc);
@@ -218,7 +219,7 @@ class LiveDocumentStore {
 
     try {
       const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
-      const response = await websocketService.sendLocalDBGet('0', key);
+      const response = await websocketService.sendLocalDBGet(0n, key);
 
       if (response?.value) {
         const valueStr = this.decodeValue(response.value);
@@ -299,7 +300,7 @@ class LiveDocumentStore {
 
     // Delete from LocalDB
     const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
-    await websocketService.sendLocalDBSet('0', key, []); // Set to empty to "delete"
+    await websocketService.sendLocalDBSet(0n, key, []); // Set to empty to "delete"
 
     await this.updateIndex();
   }
@@ -310,9 +311,9 @@ class LiveDocumentStore {
   private async updateIndex(): Promise<void> {
     const docIds = Array.from(this.documentsCache.keys());
     const valueStr = JSON.stringify(docIds);
-    const valueBytes = Array.from(new TextEncoder().encode(valueStr));
+    const valueBytes = stringToBytes(valueStr);
 
-    await websocketService.sendLocalDBSet('0', DOCUMENTS_INDEX_KEY, valueBytes);
+    await websocketService.sendLocalDBSet(0n, DOCUMENTS_INDEX_KEY, valueBytes);
   }
 
   /**
@@ -320,7 +321,7 @@ class LiveDocumentStore {
    */
   private decodeValue(value: any): string {
     if (Array.isArray(value)) {
-      return new TextDecoder().decode(new Uint8Array(value));
+      return bytesToString(value);
     }
     if (typeof value === 'string') {
       return value;

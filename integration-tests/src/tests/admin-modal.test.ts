@@ -2,16 +2,14 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
-  ensureScreenshotsDir,
   createAccount,
   takeScreenshot,
-  waitForServicesAlive,
-  writeTestReport,
   setupConsoleCapture,
-  UxIssueTracker,
   waitForWorkspaceLoaded,
   closeAnyModals,
   logObservation,
+  TestHarness,
+  runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -159,18 +157,12 @@ async function clickRoomAdminSettings(page: Page): Promise<boolean> {
 // ============================================================================
 
 async function runTest(): Promise<boolean> {
-  console.log('='.repeat(60));
-  console.log('ADMIN MODAL INTEGRATION TEST');
-  console.log('='.repeat(60));
-  console.log(`Username: ${USERNAME}`);
-  console.log(`Password: ${PASSWORD}`);
-  console.log();
-
-  ensureScreenshotsDir();
-  const uxTracker = new UxIssueTracker();
-
-  console.log('\n=== Waiting for services to be alive ===');
-  await waitForServicesAlive();
+  const harness = await TestHarness.create({
+    testName: 'Admin Modal Integration Test',
+    reportFileName: 'ADMIN_MODAL_TEST_REPORT.json',
+    metadata: { username: USERNAME },
+  });
+  const uxTracker = harness.uxTracker;
 
   const { browser, context } = await createBrowser();
 
@@ -444,21 +436,7 @@ async function runTest(): Promise<boolean> {
 
     await takeScreenshot(page, 'admin_10_final');
 
-    writeTestReport('ADMIN_MODAL_TEST_REPORT.json', {
-      testName: 'Admin Modal Integration Test',
-      timestamp: new Date().toISOString(),
-      username: USERNAME,
-      results,
-      uxIssues: uxTracker.getIssues(),
-      passed: allPassed,
-      summary: {
-        passCount,
-        totalCount,
-        failedTests: Object.entries(results)
-          .filter(([_, v]) => !v)
-          .map(([k]) => k),
-      },
-    });
+    await harness.finalize(allPassed, results as unknown as Record<string, any>);
 
     await sleep(3000);
     return allPassed;
@@ -475,12 +453,4 @@ async function runTest(): Promise<boolean> {
 // Entry Point
 // ============================================================================
 
-runTest()
-  .then((passed) => {
-    console.log(`\nTest ${passed ? 'PASSED' : 'FAILED'}`);
-    process.exit(passed ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('Test failed with error:', error);
-    process.exit(1);
-  });
+runTestMain(runTest);

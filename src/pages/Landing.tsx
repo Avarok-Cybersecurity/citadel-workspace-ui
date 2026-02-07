@@ -10,12 +10,13 @@ import WorkspaceService from "@/lib/workspace-service";
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { listKnownServers } from "@/lib/server-utils";
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
-import { ConnectionManager } from "@/lib/connection-manager";
+import { ConnectionManager } from "@/lib/connection";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
 import { LoginConflictModal } from "@/components/LoginConflictModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export const Landing = () => {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export const Landing = () => {
       }
     };
 
-    checkOrphanSessions();
+    runAsyncSetup(checkOrphanSessions);
   }, [navigate]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
@@ -80,7 +81,7 @@ export const Landing = () => {
 
   // Run the effect only once when the component mounts
   useEffect(() => {
-    checkForServers();
+    runAsyncSetup(checkForServers);
   }, [checkForServers]);
 
   const handleServerNext = () => setCurrentStep('security');
@@ -91,14 +92,14 @@ export const Landing = () => {
     }
   };
   const handleSecurityBack = () => setCurrentStep('server');
-  const handleJoinNext = (cid: string) => {
+  const handleJoinNext = async (cid: string) => {
     console.info(`[Landing] handleJoinNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(cid);
-      // Trigger loading - no need to await, WorkspaceEventHandler will handle events
+      WorkspaceService.setConnectionId(BigInt(cid));
+      // Trigger loading - await to ensure operations complete before navigation
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices(); // Also trigger office loading
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices(); // Also trigger office loading
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
@@ -115,14 +116,14 @@ export const Landing = () => {
     // Allow login flow - username-specific conflict check happens in Login.tsx
     setCurrentStep('login');
   };
-  const handleLoginNext = (cid: string) => {
+  const handleLoginNext = async (cid: string) => {
     console.info(`[Landing] handleLoginNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(cid);
-      // Trigger loading
+      WorkspaceService.setConnectionId(BigInt(cid));
+      // Trigger loading - await to ensure operations complete before navigation
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
-      WorkspaceService.loadWorkspace();
-      WorkspaceService.listOffices();
+      await WorkspaceService.loadWorkspace();
+      await WorkspaceService.listOffices();
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
