@@ -447,16 +447,9 @@ async function runTest(): Promise<boolean> {
       }
     }
 
-    // Verified warmup: prove ILM channel is delivering messages before checking offline queue
-    console.log('  Sending verified warmup to confirm ILM channel is ready...');
-    const postLoginWarmup = await sendAndVerifyMessage(
-      page1, USER1, page2, USER2,
-      `Post-login warmup ${Date.now()}`,
-      { maxRetries: 5, verifyTimeout: 15000, retryDelay: 5000 }
-    );
-    console.log(`  Post-login warmup: ${postLoginWarmup ? 'DELIVERED' : 'FAILED (checking offline messages anyway)'}`);
-
     // Use reactive polling to wait for all offline messages at once
+    // ILM guarantees intersession persistence — queued messages are delivered
+    // automatically when P2P re-establishes. No warmup needed.
     // This is more efficient than sequential checks with fixed timeouts
     // ILM has significant control traffic (GetSessions, Poll, ACK) interspersed with data messages,
     // so offline messages may take a while to be delivered after reconnection
