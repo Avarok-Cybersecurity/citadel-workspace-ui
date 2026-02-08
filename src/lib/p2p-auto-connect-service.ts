@@ -858,7 +858,24 @@ export class P2PAutoConnectService {
 
     // CRITICAL FIX: Verify local connectedPeers against backend state
     // This handles cases where frontend thinks we're connected but backend doesn't have the channel
+    //
+    // RACE CONDITION FIX: After PeerConnectSuccess, the connection is stored locally but
+    // GetSessionsResponse.peer_connections may not reflect it yet. If connectToAllRegisteredPeers
+    // triggers during this window, isActuallyConnectedInBackend returns false and we destroy
+    // a valid, fresh connection. Check connection age before backend verification.
     if (this.isPeerConnectedForSession(currentCid, peerCid)) {
+      const peerInfo = this.getPeerConnectionInfo(currentCid, peerCid);
+      const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
+      const FRESH_CONNECTION_THRESHOLD_MS = 5000; // 5 seconds
+
+      if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
+        // Fresh connection - likely just established via PeerConnectSuccess.
+        // Don't verify with backend; the connection is valid but backend may not reflect it yet.
+        console.log(`P2PAutoConnect: Connection to ${peerCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping backend verification`);
+        this.pendingConnections.delete(peerCid);
+        return;
+      }
+
       const actuallyConnected = await this.isActuallyConnectedInBackend(currentCid, peerCid);
       if (actuallyConnected) {
         console.log(`P2PAutoConnect: Already connected to ${peerCid.toString().slice(0, 8)}... (verified with backend), skipping`);
