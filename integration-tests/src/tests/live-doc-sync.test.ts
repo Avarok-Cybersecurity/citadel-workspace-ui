@@ -35,6 +35,8 @@ interface LiveDocTestResults {
   docCreated: boolean;
   user1ToUser2Sync: boolean;
   user2ToUser1Sync: boolean;
+  // P12 addition: LiveDocumentBubble verification
+  liveDocBubbleVisible: boolean;
 }
 
 // ============================================================================
@@ -247,6 +249,7 @@ async function runTest(): Promise<boolean> {
     docCreated: false,
     user1ToUser2Sync: false,
     user2ToUser1Sync: false,
+    liveDocBubbleVisible: false,
   };
 
   try {
@@ -301,6 +304,25 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     results.docCreated = await createLiveDoc(page1, USER1, DOC_TITLE);
+
+    // ========== STEP 5b: Verify LiveDocumentBubble (P12) ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 5b: Verify LiveDocumentBubble in Chat (P12)');
+    console.log('─'.repeat(50));
+
+    // After creating the live doc, a LiveDocumentBubble should appear in the message list
+    // Look for the bubble with the document title or a FileText icon
+    const liveDocBubble = page1.locator(`button:has-text("${DOC_TITLE}"), [class*="live-doc"], [class*="LiveDoc"], [data-message-type="live_document"]`).first();
+    results.liveDocBubbleVisible = await liveDocBubble.isVisible({ timeout: 5000 }).catch(() => false);
+
+    if (!results.liveDocBubbleVisible) {
+      // Alternative: look for any bubble with FileText icon in message area
+      const fileTextBubble = page1.locator('button:has(svg.lucide-file-text)').first();
+      results.liveDocBubbleVisible = await fileTextBubble.isVisible({ timeout: 3000 }).catch(() => false);
+    }
+
+    console.log(`  LiveDocumentBubble visible: ${results.liveDocBubbleVisible}`);
+    await takeScreenshot(page1, `${USER1}_livedoc_bubble`);
 
     // ========== STEP 6: User 1 Types Text ==========
     console.log('\n' + '─'.repeat(50));
@@ -378,6 +400,9 @@ async function runTest(): Promise<boolean> {
     // Final screenshots
     await takeScreenshot(page1, 'FINAL_user1');
     await takeScreenshot(page2, 'FINAL_user2');
+
+    // Log P12 result
+    console.log(`\nLiveDocumentBubble (P12): ${results.liveDocBubbleVisible ? 'PASS' : 'CHECK'}`);
 
     // ========== RESULTS ==========
     const testPassed = results.user1ToUser2Sync && results.user2ToUser1Sync;

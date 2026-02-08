@@ -325,20 +325,48 @@ class PermissionsService extends EventListenerManager {
   }
 
   /**
-   * Check if user has a specific permission for a domain
+   * Check if user has a specific permission for a domain.
+   *
+   * Checks in order:
+   * 1. Exact domain cache entry — role-based grant (Admin/Owner → all)
+   * 2. Exact domain cache entry — explicit Permission.All wildcard
+   * 3. Exact domain cache entry — specific permission in set
+   * 4. Hierarchy fallback — traverse to 'workspace-root' for inherited permissions
    */
   public hasPermission(domainId: string, permission: Permission): boolean {
     const cached = this.cache.get(domainId);
-    if (!cached) {
-      return false;
+
+    if (cached) {
+      // Role-based grant: Admin and Owner have all permissions on any domain
+      if (cached.role === 'Admin' || cached.role === 'Owner') {
+        return true;
+      }
+
+      // Check for All permission (wildcard)
+      if (cached.permissions.has(Permission.All)) {
+        return true;
+      }
+
+      if (cached.permissions.has(permission)) {
+        return true;
+      }
     }
 
-    // Check for All permission (wildcard)
-    if (cached.permissions.has(Permission.All)) {
-      return true;
+    // Hierarchy fallback: check workspace-root for inherited permissions
+    if (domainId !== 'workspace-root') {
+      const root = this.cache.get('workspace-root');
+      if (root) {
+        if (root.role === 'Admin' || root.role === 'Owner') {
+          return true;
+        }
+        if (root.permissions.has(Permission.All)) {
+          return true;
+        }
+        return root.permissions.has(permission);
+      }
     }
 
-    return cached.permissions.has(permission);
+    return false;
   }
 
   /**
@@ -370,11 +398,19 @@ class PermissionsService extends EventListenerManager {
   }
 
   /**
-   * Get user's role for a domain
+   * Get user's role for a domain, with hierarchy fallback to workspace-root
    */
   public getRole(domainId: string): UserRole | null {
     const cached = this.cache.get(domainId);
-    return cached?.role || null;
+    if (cached?.role) return cached.role;
+
+    // Hierarchy fallback
+    if (domainId !== 'workspace-root') {
+      const root = this.cache.get('workspace-root');
+      if (root?.role) return root.role;
+    }
+
+    return null;
   }
 
   /**
