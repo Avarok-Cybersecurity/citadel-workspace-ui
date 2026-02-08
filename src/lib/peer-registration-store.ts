@@ -232,7 +232,7 @@ class PeerRegistrationStore {
         cid: request.fromCid,
         peer_cid: request.toCid,
         session_security_settings: getDefaultSecuritySettings(),
-        connect_after_register: true,
+        connect_after_register: false,
         peer_session_password: null
       }
     };
@@ -513,8 +513,8 @@ class PeerRegistrationStore {
     }
 
     // Send PeerRegister request back to the peer
-    // IMPORTANT: connect_after_register: true ensures P2P connection is established
-    // immediately as part of the registration flow
+    // connect_after_register: false - P2PAutoConnect background service handles connections
+    // with deterministic initiator selection (higher CID initiates)
     const registerRequestId = crypto.randomUUID();
     const registerRequest = {
       PeerRegister: {
@@ -522,7 +522,7 @@ class PeerRegistrationStore {
         cid: currentCid,
         peer_cid: request.peer_cid,
         session_security_settings: getDefaultSecuritySettings(),
-        connect_after_register: true,
+        connect_after_register: false,
         peer_session_password: null
       }
     };

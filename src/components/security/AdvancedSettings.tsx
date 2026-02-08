@@ -127,17 +127,17 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
         <div className="relative">
           <Select 
             // Use enum value from props
-            value={values.kemAlgorithm || 'Kyber'}
+            value={values.kemAlgorithm || 'MlKem'}
             // Pass enum value back up
             onValueChange={(value: KemAlgorithm) => handleValueChange('kemAlgorithm', value)}
-            defaultValue={'Kyber'}
+            defaultValue={'MlKem'}
           >
             <SelectTrigger id="kem-algorithm" className="w-full bg-[#3B3D57] border-[#4D4F6C] text-white">
               <SelectValue placeholder="Select KEM algorithm" />
             </SelectTrigger>
             <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-2">
               {/* Use enum values for SelectItem */}
-              <SelectItem value={'Kyber'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">Kyber</SelectItem>
+              <SelectItem value={'MlKem'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ML-KEM</SelectItem>
               {/* Add other KEM algorithms if available */}
             </SelectContent>
           </Select>
@@ -173,7 +173,8 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
             <SelectContent className="bg-[#2A2438] border border-purple-400/30 text-white shadow-xl p-2">
               {/* Use enum values for SelectItem */}
               <SelectItem value={'None'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">None</SelectItem>
-              <SelectItem value={'Falcon1024'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">Falcon1024</SelectItem>
+              <SelectItem value={'MlDsa65'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ML-DSA-65</SelectItem>
+              <SelectItem value={'FnDsa512'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">FN-DSA-512</SelectItem>
             </SelectContent>
           </Select>
           <TooltipProvider>

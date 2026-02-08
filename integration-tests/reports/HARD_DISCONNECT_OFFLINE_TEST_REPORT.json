@@ -1,9 +1,8 @@
 {
-  "timestamp": "2026-02-05T00:02:37.088Z",
-  "users": {
-    "user1": "harddc_alice_1770249518132",
-    "user2": "harddc_bob_1770249518132"
-  },
+  "timestamp": "2026-02-08T20:46:33.586Z",
+  "testName": "Hard Disconnect Offline Messaging Test",
+  "user1": "harddc_alice_1770583255468",
+  "user2": "harddc_bob_1770583255468",
   "results": {
     "accountCreation": {
       "user1": true,

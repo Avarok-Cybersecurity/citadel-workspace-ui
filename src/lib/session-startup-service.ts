@@ -142,6 +142,14 @@ class SessionStartupService {
         await p2pAutoConnectService.resetConnectionState();
       }
 
+      // 0.25. For login reconnections, wait for SDK stabilization after prior session cleanup
+      // The backend needs time for the old Connection's channel drops to propagate through
+      // the protocol layer before we establish a new P2P session
+      if (event.activationType === 'login') {
+        console.log('[ILM-TRACE] SessionStartup: Waiting 2s for SDK stabilization after login');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
       // 0.5. CRITICAL: Start WASM connection manager to open ILM messenger handle
       // This MUST happen before P2P operations so that the ILM layer is ready
       // to send and receive messages. Without this, ACKs are never sent for

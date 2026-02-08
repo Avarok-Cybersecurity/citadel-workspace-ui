@@ -1006,8 +1006,8 @@ export class P2PRegistrationService {
 
     console.log(`[P2P] Accepting registration from ${peerUsername || peerCid.toString()}`);
 
-    // Register back with the peer
-    await this.registerPeer(peerCid, { connectAfterRegister: true });
+    // Register back with the peer (P2PAutoConnect handles connections)
+    await this.registerPeer(peerCid, { connectAfterRegister: false });
 
     // Remove from pending requests if present
     await peerRegistrationStore.removeRequestByPeerCid(peerCid);

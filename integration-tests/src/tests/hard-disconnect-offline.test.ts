@@ -25,21 +25,6 @@
  * - P2PAutoConnect automatically reconnects to registered peers
  * - ILM delivers queued messages using the preserved CID
  *
- * KNOWN ISSUE (2026-01-24):
- * P2P reconnection after explicit logout/login fails at the Citadel SDK level.
- * Symptoms:
- * - After login, Bob's SDK queries (ListAllPeers, ListRegisteredPeers) time out
- * - Bob's PeerConnect request times out after 30 seconds even though:
- *   - Alice receives PeerConnectNotification
- *   - Alice successfully sends PeerConnectAccept
- *   - Alice gets PeerConnectAcceptSuccess
- * - The SDK's connect_to_peer_custom doesn't complete the handshake
- *
- * This is different from ClaimSession (test:offline) where the session is
- * preserved during orphan mode and P2P reconnection works correctly.
- *
- * Root cause appears to be at Citadel SDK/server level - Bob's new session
- * after explicit logout isn't properly initialized for P2P operations.
  */
 
 import {
@@ -499,13 +484,6 @@ async function runTest(): Promise<boolean> {
       results.offlineDelivery.message2Received &&
       results.offlineDelivery.message3Received;
 
-    // KNOWN ISSUE (2026-01-24): P2P reconnection after explicit logout/login
-    // fails at the Citadel SDK level. The core test verifies:
-    // 1. P2P setup + initial messaging works
-    // 2. Hard disconnect (sign-out) destroys session (not orphaned)
-    // 3. Bob can log back in with credentials
-    // P2P re-establishment and offline delivery are tracked but not required
-    // for pass/fail since they depend on SDK-level P2P reconnection.
     const corePassed =
       results.accountCreation.user1 &&
       results.accountCreation.user2 &&
@@ -516,9 +494,9 @@ async function runTest(): Promise<boolean> {
       results.initialMessaging.user2Received &&
       results.disconnection.user2Disconnected &&
       results.disconnection.sessionNotOrphaned &&
-      results.reconnection.user2LoggedIn;
-
-    const allPassed = corePassed && results.reconnection.p2pReEstablished && offlineDeliverySuccess;
+      results.reconnection.user2LoggedIn &&
+      results.reconnection.p2pReEstablished &&
+      offlineDeliverySuccess;
 
     console.log('\nPhase 1 - Account & Registration:');
     console.log(`  Account Creation:       ${results.accountCreation.user1 && results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
@@ -542,14 +520,12 @@ async function runTest(): Promise<boolean> {
     console.log(`  Offline Msg 2 Received: ${results.offlineDelivery.message2Received ? 'PASS' : 'FAIL'}`);
     console.log(`  Offline Msg 3 Received: ${results.offlineDelivery.message3Received ? 'PASS' : 'FAIL'}`);
 
-    console.log('\nPhase 5 - Post-Reconnect Messaging (non-critical - known SDK issue):');
-    console.log(`  Alice -> Bob:           ${results.postReconnectMessaging.user2Received ? 'PASS' : 'SKIP'}`);
-    console.log(`  Bob -> Alice:           ${results.postReconnectMessaging.user1Received ? 'PASS' : 'SKIP'}`);
+    console.log('\nPhase 5 - Post-Reconnect Messaging:');
+    console.log(`  Alice -> Bob:           ${results.postReconnectMessaging.user2Received ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bob -> Alice:           ${results.postReconnectMessaging.user1Received ? 'PASS' : 'FAIL'}`);
 
-    console.log(`\n  Core result: ${corePassed ? 'PASS' : 'FAIL'}`);
-    console.log(`  Full result (incl. P2P reconnect): ${allPassed ? 'PASS' : 'SKIP (known SDK issue)'}`);
+    console.log(`\n  Result: ${corePassed ? 'PASS' : 'FAIL'}`);
 
-    // Use corePassed for CI pass/fail; track allPassed as bonus metric
     harness.finalize(corePassed, results);
 
     if (!process.env.IN_CI) {

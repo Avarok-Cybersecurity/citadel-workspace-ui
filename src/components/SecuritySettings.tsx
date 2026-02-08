@@ -48,7 +48,7 @@ export const SecuritySettings = ({
     securityLevel: 'Standard',
     secrecyMode: 'BestEffort',
     encryptionAlgorithm: 'AES_GCM_256',
-    kemAlgorithm: 'Kyber',
+    kemAlgorithm: 'MlKem',
     sigAlgorithm: 'None',
     headerObfuscatorSettings: {},
     storeCredentials: false,

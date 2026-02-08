@@ -1,9 +1,8 @@
 {
-  "timestamp": "2026-02-04T23:58:37.828Z",
-  "users": {
-    "user1": "offline_alice_1770249314222",
-    "user2": "offline_bob_1770249314222"
-  },
+  "timestamp": "2026-02-08T05:33:35.598Z",
+  "testName": "Offline Messaging Test",
+  "user1": "offline_alice_1770528489567",
+  "user2": "offline_bob_1770528489567",
   "results": {
     "accountCreation": {
       "user1": true,

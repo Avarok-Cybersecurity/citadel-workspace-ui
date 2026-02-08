@@ -215,6 +215,8 @@ export class P2PAutoConnectService {
         if (weRegisteredFirst) {
           // We registered with them first, they just registered back
           // Mutual registration is complete - trigger PeerConnect!
+          // Mark peer as online in cache - they just registered so they must be online
+          this.onlinePeers.add(peerCid);
           console.log(`P2PAutoConnect: Mutual registration complete with ${peerCid.toString().slice(0, 8)}... (they registered back), initiating immediate connection`);
           this.connectToPeer(peerCid).catch((err) => {
             console.error(`P2PAutoConnect: Failed to connect after mutual registration ${peerCid.toString().slice(0, 8)}...:`, err);
@@ -228,6 +230,8 @@ export class P2PAutoConnectService {
 
       // For OUTGOING registrations (we registered with them), try to connect immediately
       // This may fail if mutual registration isn't complete yet, but will retry
+      // Mark peer as online in cache - they just responded to our registration so they must be online
+      this.onlinePeers.add(peerCid);
       console.log(`P2PAutoConnect: Outgoing registration to ${peerCid.toString().slice(0, 8)}... confirmed, initiating immediate connection`);
       this.connectToPeer(peerCid).catch((err) => {
         console.error(`P2PAutoConnect: Failed to connect to newly registered peer ${peerCid.toString().slice(0, 8)}...:`, err);
