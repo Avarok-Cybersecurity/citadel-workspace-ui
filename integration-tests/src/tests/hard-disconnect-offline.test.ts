@@ -53,6 +53,7 @@ import {
   sendAndVerifyMessage,
   waitForAllMessages,
   waitForP2PReady,
+  waitForP2PConnection,
   disconnectViaTopBar,
   assertSessionNotInOrphanNavbar,
   loginAfterDisconnect,
@@ -221,39 +222,14 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
     results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker);
 
-    // Wait for P2P readiness (ILM channel can take longer than P2P connection)
-    console.log('\n  Waiting for P2P readiness (ILM channel establishment)...');
-    let aliceReady = await waitForP2PReady(page1, USER1, USER2, 60000);
-    let bobReady = await waitForP2PReady(page2, USER2, USER1, 60000);
-    console.log(`  P2P ready: Alice=${aliceReady}, Bob=${bobReady}`);
-
-    // If either side isn't ready, retry with explicit connectP2P.
-    // The initial PeerConnect may time out (30s SDK timeout) and ServerAutoConnect
-    // interference can prevent P2PAutoConnect retries from succeeding.
-    // An explicit connectP2P sends a fresh PeerConnect through the WASM client.
-    if (!aliceReady || !bobReady) {
-      console.log(`  P2P not ready (Alice=${aliceReady}, Bob=${bobReady}), retrying with explicit connect...`);
-
-      // Wait for ServerAutoConnect interference to settle
-      await sleep(5000);
-
-      if (!bobReady) {
-        console.log('  Attempting explicit connectP2P from Bob...');
-        await connectP2P(page2, USER2, USER1);
-        bobReady = await waitForP2PReady(page2, USER2, USER1, 30000);
-      }
-
-      if (!aliceReady) {
-        console.log('  Attempting explicit connectP2P from Alice...');
-        await connectP2P(page1, USER1, USER2);
-        aliceReady = await waitForP2PReady(page1, USER1, USER2, 30000);
-      }
-
-      if (!aliceReady || !bobReady) {
-        console.log(`  P2P still not ready after retry (Alice=${aliceReady}, Bob=${bobReady}), final fallback...`);
-        await sleep(10000);
-      }
-    }
+    // Wait for P2P connection to establish (same approach as passing offline-messaging test)
+    // Use waitForP2PConnection which checks isPeerConnected + UI fallback,
+    // NOT waitForP2PReady which requires registeredPeers state (can be lost during
+    // ServerAutoConnect session recovery, causing permanent peer_not_found)
+    console.log('\n  Waiting for P2P connection to establish...');
+    const p2pConnected1 = await waitForP2PConnection(page1, USER1, USER2, 30000);
+    const p2pConnected2 = await waitForP2PConnection(page2, USER2, USER1, 30000);
+    console.log(`  P2P connection: Alice=${p2pConnected1}, Bob=${p2pConnected2}`);
 
     // ========== STEP 4: Open Conversations ==========
     console.log('\n' + '─'.repeat(50));
@@ -264,10 +240,13 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
     results.conversationOpen.user2 = await openConversation(page2, USER2, USER1, uxTracker);
 
-    // If conversations couldn't be opened (peer not in sidebar), retry with explicit P2P connect
+    // If conversations couldn't be opened (peer not in sidebar), wait for P2P to settle
+    // and retry. Avoid sending competing PeerConnect requests which can worsen the issue.
     if (!results.conversationOpen.user1 || !results.conversationOpen.user2) {
-      console.log('  Conversations not opened, retrying with explicit P2P connect...');
+      console.log('  Conversations not opened, waiting for P2P to settle...');
+      await sleep(10000);
 
+      // Single retry attempt with explicit connectP2P only from the failing side
       if (!results.conversationOpen.user2) {
         await connectP2P(page2, USER2, USER1);
         await sleep(5000);
