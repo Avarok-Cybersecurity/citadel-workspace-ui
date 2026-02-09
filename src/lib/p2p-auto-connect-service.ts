@@ -770,24 +770,6 @@ export class P2PAutoConnectService {
     return connectionInfo?.cid || null;
   }
 
-  /**
-   * Verify if peer is actually connected in backend (not just in local connectedPeers Map)
-   * This handles cases where connectedPeers is stale due to failed PeerConnect attempts
-   */
-  private async isActuallyConnectedInBackend(currentCid: bigint, peerCid: bigint): Promise<boolean> {
-    try {
-      const sessions = await connectionManager.getActiveSessions();
-      const mySession = sessions.find(s => s.cid === currentCid);
-      if (mySession?.peer_connections) {
-        // Check if peerCid exists in backend peer_connections
-        const peerCidStr = peerCid.toString();
-        return Object.keys(mySession.peer_connections).includes(peerCidStr);
-      }
-    } catch (error) {
-      console.warn('P2PAutoConnect: Failed to verify backend connection state:', error);
-    }
-    return false;
-  }
 
   /**
    * Connect to a single peer with exponential backoff + online check.
@@ -856,35 +838,16 @@ export class P2PAutoConnectService {
     }
     this.pendingConnections.add(peerCid);
 
-    // CRITICAL FIX: Verify local connectedPeers against backend state
-    // This handles cases where frontend thinks we're connected but backend doesn't have the channel
-    //
-    // RACE CONDITION FIX: After PeerConnectSuccess, the connection is stored locally but
-    // GetSessionsResponse.peer_connections may not reflect it yet. If connectToAllRegisteredPeers
-    // triggers during this window, isActuallyConnectedInBackend returns false and we destroy
-    // a valid, fresh connection. Check connection age before backend verification.
+    // Trust local connectedPeers state — it's set by authoritative protocol events
+    // (PeerConnectSuccess, PeerChannelCreated) and cleared by PeerDisconnect notifications.
+    // If a connection truly dies, the backend sends PeerDisconnect to clear local state.
+    // Stale state after TCP drop with orphan mode is handled by ClaimSession + forceInitiatorMode.
     if (this.isPeerConnectedForSession(currentCid, peerCid)) {
       const peerInfo = this.getPeerConnectionInfo(currentCid, peerCid);
       const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
-      const FRESH_CONNECTION_THRESHOLD_MS = 5000; // 5 seconds
-
-      if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
-        // Fresh connection - likely just established via PeerConnectSuccess.
-        // Don't verify with backend; the connection is valid but backend may not reflect it yet.
-        console.log(`P2PAutoConnect: Connection to ${peerCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping backend verification`);
-        this.pendingConnections.delete(peerCid);
-        return;
-      }
-
-      const actuallyConnected = await this.isActuallyConnectedInBackend(currentCid, peerCid);
-      if (actuallyConnected) {
-        console.log(`P2PAutoConnect: Already connected to ${peerCid.toString().slice(0, 8)}... (verified with backend), skipping`);
-        this.pendingConnections.delete(peerCid);
-        return;
-      } else {
-        console.warn(`P2PAutoConnect: Local connectedPeers has ${peerCid.toString().slice(0, 8)}... but backend shows not connected. Re-establishing connection.`);
-        this.setPeerDisconnected(currentCid, peerCid);
-      }
+      console.log(`P2PAutoConnect: Already connected to ${peerCid.toString().slice(0, 8)}... (${connectionAge}ms old), skipping`);
+      this.pendingConnections.delete(peerCid);
+      return;
     }
 
     const attempt = this.connectionAttempts.get(peerCid) || { attempts: 0, timeout: null };
@@ -1114,38 +1077,23 @@ export class P2PAutoConnectService {
     }
 
     // Check if already connected to the initiator
-    // CRITICAL FIX: Verify with backend - local connectedPeers may be stale after TCP drop with orphan mode
-    // When a peer TCP drops, PeerDisconnect is NOT sent (session is orphaned), so our connectedPeers
-    // still has the peer. When they reconnect and send PeerConnect, we must check backend state.
-    //
-    // RACE CONDITION FIX: The event listener for PeerConnectNotification calls setPeerConnected()
-    // BEFORE this handler runs (to update the leader's central Map for ILM visibility).
-    // If we check isPeerConnectedForSession here, it returns true for the fresh connection we just stored.
-    // The backend check then fails (backend hasn't processed the connection yet), and we remove
-    // the entry, causing a race where ILM sees 0 peers during the brief window before re-storing.
-    //
-    // Solution: Check the connection age. If stored within last 5 seconds, it's a fresh connection
-    // being established right now (likely from the event listener above), not stale from TCP drop.
+    // The event listener for PeerConnectNotification calls setPeerConnected() BEFORE this handler,
+    // so fresh connections will show as connected. Distinguish fresh vs stale by connection age.
     if (this.isPeerConnectedForSession(currentCid, initiatorCid)) {
-      // Check connection age to distinguish fresh vs stale
       const peerInfo = this.getPeerConnectionInfo(currentCid, initiatorCid);
       const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
       const FRESH_CONNECTION_THRESHOLD_MS = 5000; // 5 seconds
 
       if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
-        // Fresh connection - likely just stored by the event listener above.
-        // Don't do backend check or remove; the connection is being established right now.
-        console.log(`P2PAutoConnect: Connection to ${initiatorCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping backend verification`);
+        // Fresh connection — just stored by the event listener above.
+        // The connection is being established right now; don't interfere.
+        console.log(`P2PAutoConnect: Connection to ${initiatorCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping`);
       } else {
-        // Older connection - could be stale from TCP drop. Verify with backend.
-        const actuallyConnected = await this.isActuallyConnectedInBackend(currentCid, initiatorCid);
-        if (actuallyConnected) {
-          console.log(`P2PAutoConnect: Already connected to ${initiatorCid.toString().slice(0, 8)}... (verified with backend), skipping accept`);
-          return;
-        } else {
-          console.warn(`P2PAutoConnect: Local connectedPeers has ${initiatorCid.toString().slice(0, 8)}... but backend shows not connected. Stale from TCP drop - accepting new connection.`);
-          this.setPeerDisconnected(currentCid, initiatorCid);
-        }
+        // Older connection — but peer is explicitly sending PeerConnect, meaning they believe
+        // the connection is dead (e.g., after TCP drop with orphan mode where PeerDisconnect
+        // was NOT sent). Trust the peer's signal: clear stale local state and accept.
+        console.warn(`P2PAutoConnect: Local connectedPeers has ${initiatorCid.toString().slice(0, 8)}... but peer is reconnecting. Clearing stale state.`);
+        this.setPeerDisconnected(currentCid, initiatorCid);
       }
     }
 
