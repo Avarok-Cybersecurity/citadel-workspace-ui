@@ -13,7 +13,7 @@
 import { Page } from 'playwright';
 import {
   sleep,
-  createBrowser,
+  createSeparateBrowsers,
   createAccount,
   p2pRegister,
   acceptP2PRequest,
@@ -239,8 +239,9 @@ async function runTest(): Promise<boolean> {
     metadata: { user1: USER1, user2: USER2, docTitle: DOC_TITLE },
   });
 
-  // Setup browser
-  const { browser, context } = await createBrowser({ slowMo: 100 });
+  // Setup separate browser contexts so each user is its own leader tab
+  // (shared context causes leader/follower deadlock when lower-CID user is leader)
+  const { pages: [page1, page2], cleanup } = await createSeparateBrowsers(2);
 
   const results: LiveDocTestResults = {
     accountCreation: false,
@@ -253,9 +254,6 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    const page1 = await context.newPage();
-    const page2 = await context.newPage();
-
     // Capture YJS-related logs
     const logs1 = setupConsoleCapture(page1, 'User1', ['Yjs', 'sync', 'Sync', 'P2P']);
     const logs2 = setupConsoleCapture(page2, 'User2', ['Yjs', 'sync', 'Sync', 'P2P']);
@@ -428,7 +426,7 @@ async function runTest(): Promise<boolean> {
     console.error('\nTest error:', error);
     throw error;
   } finally {
-    await browser.close();
+    await cleanup();
   }
 }
 
