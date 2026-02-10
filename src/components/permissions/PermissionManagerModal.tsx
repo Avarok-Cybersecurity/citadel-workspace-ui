@@ -10,7 +10,7 @@ interface PermissionManagerModalProps {
   onClose: () => void;
   userId: string;
   domainId: string;
-  domainType: 'workspace' | 'office' | 'room';
+  domainType: string;
 }
 
 export const PermissionManagerModal: React.FC<PermissionManagerModalProps> = ({

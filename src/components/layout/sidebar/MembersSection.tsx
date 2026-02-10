@@ -29,6 +29,7 @@ import { MemberManagementModal } from "@/components/member/MemberManagementModal
 import WorkspaceService from "@/lib/workspace-service";
 import { Badge } from "@/components/ui/badge";
 import { workspaceEvents } from "@/lib/workspace-events";
+import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
 import {
   Tooltip,
   TooltipContent,
@@ -66,6 +67,7 @@ export const MembersSection = () => {
   const navigate = useNavigate();
   const { state } = useWorkspace();
   const params = new URLSearchParams(location.search);
+  const currentNodeId = params.get("nodeId");
   const currentOfficeId = params.get("officeId");
   const currentRoomId = params.get("roomId");
 
@@ -83,7 +85,7 @@ export const MembersSection = () => {
   const [permissionModalData, setPermissionModalData] = useState<{
     userId: string;
     domainId: string;
-    domainType: 'workspace' | 'office' | 'room';
+    domainType: string;
   } | null>(null);
   const [showPeerDiscovery, setShowPeerDiscovery] = useState(false);
   const [showPendingRequests, setShowPendingRequests] = useState(false);
@@ -164,10 +166,17 @@ export const MembersSection = () => {
 
   const handleManagePermissions = (member: Member) => {
     let domainId = '';
-    let domainType: 'workspace' | 'office' | 'room' = 'workspace';
-    if (currentRoomId) { domainId = currentRoomId; domainType = 'room'; }
+    let domainType = 'workspace';
+
+    // Prefer generic nodeId for schema-driven hierarchy
+    if (currentNodeId) {
+      domainId = currentNodeId;
+      const node = state.nodes[currentNodeId];
+      domainType = node ? getEntityTypeString(node.entity_type).toLowerCase() : 'workspace';
+    } else if (currentRoomId) { domainId = currentRoomId; domainType = 'room'; }
     else if (currentOfficeId) { domainId = currentOfficeId; domainType = 'office'; }
     else { domainId = 'workspace-root'; domainType = 'workspace'; }
+
     setPermissionModalData({ userId: member.id, domainId, domainType });
     setShowPermissionModal(true);
   };
@@ -184,6 +193,14 @@ export const MembersSection = () => {
   const getRoleColor = (role: string) => ({ Owner: "bg-purple-600", Admin: "bg-blue-600", Member: "bg-green-600", Guest: "bg-gray-600" }[role] || "bg-gray-500");
 
   const getLocationText = () => {
+    // Prefer generic node label from hierarchy schema
+    if (currentNodeId) {
+      const node = state.nodes[currentNodeId];
+      if (node) {
+        const label = getEntityMetadata(node.entity_type).label;
+        return `${label} Members`;
+      }
+    }
     if (currentRoomId) return "Room Members";
     if (currentOfficeId) return "Office Members";
     if (registeredPeers.length > 0 && members.length === 0) return "Connected Peers";

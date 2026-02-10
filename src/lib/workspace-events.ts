@@ -1,6 +1,7 @@
 // Workspace events for WebSocket integration
 import { Office, Room, User } from '../types/workspace-entities';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
+import type { DomainNode, TreeNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import { eventEmitter } from './event-emitter';
 
 // Type for unlisten function
@@ -133,6 +134,15 @@ export type WorkspaceEventType =
   | 'message:received'
   | 'typing:started'
   | 'typing:stopped'
+  // Node events (generic hierarchy)
+  | 'node:loaded'
+  | 'node:deleted'
+  | 'node:moved'
+  | 'nodes:loading'
+  | 'nodes:loaded'
+  | 'tree:structure:loaded'
+  | 'tree:schema:loaded'
+  | 'node:types:loaded'
   // Operation events
   | 'operation:success'
   | 'operation:error'
@@ -184,6 +194,21 @@ export class WorkspaceEvents {
   public onOfficeEvent<T>(event: 'office:created' | 'office:updated', callback: (payload: { office: Office, connection: ConnectionInfo }) => void): () => void;
   public onOfficeEvent<T>(event: 'office:deleted', callback: (payload: { officeId: string, connection: ConnectionInfo }) => void): () => void;
   public onOfficeEvent<T>(event: WorkspaceEventType, callback: any): () => void {
+    return this.registerListener(event, callback);
+  }
+
+  // Node events (generic hierarchy)
+  public onNodeEvent(event: 'node:loaded', callback: (payload: { node: DomainNode; connection: ConnectionInfo }) => void): () => void;
+  public onNodeEvent(event: 'nodes:loaded', callback: (payload: { nodes: DomainNode[]; connection: ConnectionInfo }) => void): () => void;
+  public onNodeEvent(event: 'nodes:loading', callback: (connectionInfo: ConnectionInfo) => void): () => void;
+  public onNodeEvent(event: 'node:deleted', callback: (payload: { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo }) => void): () => void;
+  public onNodeEvent(event: 'node:moved', callback: (payload: { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo }) => void): () => void;
+  public onNodeEvent(event: 'tree:structure:loaded', callback: (payload: { root: TreeNode; connection: ConnectionInfo }) => void): () => void;
+  public onNodeEvent(event: 'tree:schema:loaded', callback: (payload: { schema: TreeSchema; connection: ConnectionInfo }) => void): () => void;
+  public onNodeEvent(event: 'node:types:loaded', callback: (payload: { nodeTypes: unknown[]; connection: ConnectionInfo }) => void): () => void;
+  public onNodeEvent(event: WorkspaceEventType, callback: (payload: unknown) => void): () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public onNodeEvent(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
     return this.registerListener(event, callback);
   }
 

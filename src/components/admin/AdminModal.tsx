@@ -7,36 +7,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users, MessageSquare, Building2, Hash } from 'lucide-react';
+import { Settings, Users, MessageSquare } from 'lucide-react';
 import { GeneralTab } from './tabs/GeneralTab';
 import { MembersTab } from './tabs/MembersTab';
 import { ChatSettingsTab } from './tabs/ChatSettingsTab';
-import { AdminModalProps, AdminEntityType, EntityData } from './types';
+import { AdminModalProps, EntityData } from './types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-
-function getEntityIcon(entityType: AdminEntityType) {
-  switch (entityType) {
-    case 'workspace':
-      return <Building2 className="h-5 w-5 mr-2" />;
-    case 'office':
-      return <Building2 className="h-5 w-5 mr-2" />;
-    case 'room':
-      return <Hash className="h-5 w-5 mr-2" />;
-  }
-}
-
-function getEntityLabel(entityType: AdminEntityType): string {
-  switch (entityType) {
-    case 'workspace':
-      return 'Workspace';
-    case 'office':
-      return 'Office';
-    case 'room':
-      return 'Room';
-  }
-}
+import { getEntityMetadata } from '@/lib/entity-type-registry';
 
 export function AdminModal({
   isOpen,
@@ -59,7 +38,15 @@ export function AdminModal({
     const loadEntity = async () => {
       setLoading(true);
       try {
-        if (entityType === 'workspace') {
+        // Check generic nodes first (schema-driven hierarchy)
+        const node = state.nodes[entityId];
+        if (node) {
+          setEntity({
+            id: node.id,
+            name: node.name,
+            description: node.description || '',
+          });
+        } else if (entityType === 'workspace') {
           if (state.workspace) {
             setEntity({
               id: state.workspace.id,
@@ -87,7 +74,6 @@ export function AdminModal({
             }
           }
         } else if (entityType === 'room') {
-          // state.rooms is Record<string, Room> (roomId -> Room)
           const room = state.rooms[entityId];
           if (room) {
             setEntity({
@@ -115,7 +101,7 @@ export function AdminModal({
     };
 
     runAsyncSetup(loadEntity);
-  }, [isOpen, entityType, entityId, state.workspace, state.offices, state.rooms]);
+  }, [isOpen, entityType, entityId, state.workspace, state.offices, state.rooms, state.nodes]);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -123,7 +109,8 @@ export function AdminModal({
     }
   };
 
-  const entityLabel = getEntityLabel(entityType);
+  const meta = getEntityMetadata(entityType);
+  const EntityIcon = meta.icon;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -133,11 +120,11 @@ export function AdminModal({
       >
         <DialogHeader>
           <DialogTitle className="text-white text-xl flex items-center">
-            {getEntityIcon(entityType)}
-            {loading ? `Loading ${entityLabel}...` : `${entity?.name || entityLabel} Settings`}
+            <EntityIcon className="h-5 w-5 mr-2" />
+            {loading ? `Loading ${meta.label}...` : `${entity?.name || meta.label} Settings`}
           </DialogTitle>
           <DialogDescription className="text-gray-400">
-            Manage {entityLabel.toLowerCase()} settings, members, and chat configuration
+            Manage {meta.label.toLowerCase()} settings, members, and chat configuration
           </DialogDescription>
         </DialogHeader>
 

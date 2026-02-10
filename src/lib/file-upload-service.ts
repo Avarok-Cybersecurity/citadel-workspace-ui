@@ -36,7 +36,7 @@ export interface FileMetadata {
   type: string;
   uploadedAt: Date;
   uploadedBy: string;
-  entityType: 'office' | 'room' | 'workspace' | 'p2p';
+  entityType: string;
   entityId: string;
   url?: string;
   thumbnailUrl?: string;
@@ -51,7 +51,7 @@ export interface UploadProgress {
 
 export interface FileUploadRequest {
   file: File;
-  entityType: 'office' | 'room' | 'workspace' | 'p2p';
+  entityType: string;
   entityId: string;
   metadata?: Record<string, any>;
 }
@@ -64,7 +64,7 @@ export interface FileUploadResponse {
 }
 
 export interface FileListRequest {
-  entityType: 'office' | 'room' | 'workspace' | 'p2p';
+  entityType: string;
   entityId: string;
   limit?: number;
   offset?: number;
@@ -72,7 +72,7 @@ export interface FileListRequest {
 
 export interface FileDeleteRequest {
   fileId: string;
-  entityType: 'office' | 'room' | 'workspace' | 'p2p';
+  entityType: string;
   entityId: string;
 }
 

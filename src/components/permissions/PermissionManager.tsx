@@ -24,11 +24,12 @@ import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { User, UserRole } from '@/types/workspace-entities';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { getEntityMetadata } from '@/lib/entity-type-registry';
 
 interface PermissionManagerProps {
   userId: string;
   domainId: string;
-  domainType: 'workspace' | 'office' | 'room';
+  domainType: string;
   onClose?: () => void;
 }
 
@@ -172,18 +173,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     }
   };
 
-  const getDomainIcon = () => {
-    switch (domainType) {
-      case 'workspace':
-        return '🏢';
-      case 'office':
-        return '🏛️';
-      case 'room':
-        return '🚪';
-      default:
-        return '📁';
-    }
-  };
+  const DomainIcon = getEntityMetadata(domainType).icon;
 
   return (
     <Card className="w-full max-w-lg bg-[#343A5C] border-purple-800 max-h-[80vh] flex flex-col">
@@ -192,8 +182,8 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           <Shield className="h-4 w-4" />
           Permission Manager
         </CardTitle>
-        <CardDescription className="text-gray-300 text-sm">
-          {getDomainIcon()} {domainType} permissions
+        <CardDescription className="text-gray-300 text-sm flex items-center gap-1">
+          <DomainIcon className="h-4 w-4" /> {getEntityMetadata(domainType).label} permissions
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col flex-1 overflow-hidden space-y-3 pt-0">

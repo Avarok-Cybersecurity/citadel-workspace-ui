@@ -5,7 +5,7 @@ import { fileUploadService, FileUploadRequest } from '@/lib/file-upload-service'
 import { useToast } from '@/hooks/use-toast';
 
 interface FileUploadButtonProps {
-  entityType: 'office' | 'room' | 'workspace' | 'p2p';
+  entityType: string;
   entityId: string;
   onUploadComplete?: (fileId: string) => void;
   accept?: string;

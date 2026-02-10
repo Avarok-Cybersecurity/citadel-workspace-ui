@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { workspaceEvents, type ErrorPayload, type ConnectionInfo, type ProtocolWarningPayload, type MessagePayload } from '../lib/workspace-events';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import { Office, Room } from '../types/workspace-entities';
+import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
@@ -18,6 +19,7 @@ import {
   useRoomEventSetup,
   useMemberEventSetup,
   useEventEmitterSetup,
+  useNodeEventSetup,
 } from './hooks';
 
 export interface WorkspaceEventState {
@@ -29,11 +31,14 @@ export interface WorkspaceEventState {
   workspaces: WorkspaceMetadataTS[];
   offices: Record<string, Office>;
   rooms: Record<string, Room>;
+  nodes: Record<string, DomainNode>;
+  treeSchema: TreeSchema | null;
   loading: {
     workspace: boolean;
     offices: boolean;
     rooms: boolean;
     members: boolean;
+    nodes: boolean;
   };
   error?: string;
   needsWorkspaceInitialization?: boolean;
@@ -82,11 +87,14 @@ export const WorkspaceEventHandler: React.FC<{
     workspaces: [],
     offices: {},
     rooms: {},
+    nodes: {},
+    treeSchema: null,
     loading: {
       workspace: false,
       offices: false,
       rooms: false,
       members: false,
+      nodes: false,
     },
     needsWorkspaceInitialization: false,
     messages: {
@@ -120,6 +128,7 @@ export const WorkspaceEventHandler: React.FC<{
   useOfficeEventSetup({ setState });
   useRoomEventSetup({ setState });
   useMemberEventSetup({ setState });
+  useNodeEventSetup({ setState });
   useEventEmitterSetup({ setState });
 
   // Set up remaining event listeners (messages, errors, protocol warnings)

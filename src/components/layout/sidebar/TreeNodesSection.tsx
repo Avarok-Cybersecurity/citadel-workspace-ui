@@ -1,10 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Building2,
-  Briefcase,
-  MessageSquare,
-  Folder,
   Plus,
   MoreVertical,
   ChevronRight,
@@ -12,6 +8,7 @@ import {
   Settings,
   Star,
 } from "lucide-react";
+import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -118,31 +115,33 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-// Icon mapping for entity types
-const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  Workspace: Building2,
-  Office: Briefcase,
-  Room: MessageSquare,
-};
+/**
+ * Rule defining what child types are allowed under a parent type.
+ * Mirrors Rust NestingRule in citadel-workspace-types.
+ */
+export interface NestingRule {
+  parent_type: string;
+  allowed_child_types: string[];
+}
 
+/**
+ * Schema defining the structure rules for a workspace tree.
+ * Mirrors Rust TreeSchema in citadel-workspace-types.
+ */
+export interface TreeSchema {
+  id: string;
+  name: string;
+  rules: NestingRule[];
+  max_depth: number | null;
+}
+
+// Icon and label resolution delegated to entity-type-registry (SSOT)
 function getEntityIcon(entityType: NodeEntityType): React.ComponentType<{ className?: string }> {
-  if (entityType === "Workspace") {
-    return ENTITY_ICONS.Workspace;
-  }
-  if (typeof entityType === "object" && "Child" in entityType) {
-    return ENTITY_ICONS[entityType.Child] ?? Folder;
-  }
-  return Folder;
+  return getEntityMetadata(entityType).icon;
 }
 
 function getEntityTypeName(entityType: NodeEntityType): string {
-  if (entityType === "Workspace") {
-    return "Workspace";
-  }
-  if (typeof entityType === "object" && "Child" in entityType) {
-    return entityType.Child;
-  }
-  return "Node";
+  return getEntityTypeString(entityType);
 }
 
 // Props for individual tree node rendering

@@ -179,6 +179,53 @@ export interface WorkspaceProtocolRequestTS {
 
   // Server capabilities query
   GetServerCapabilities?: null;
+
+  // Generic tree node operations
+  CreateNode?: {
+    parent_id: string | null;
+    entity_type: { Child: string } | 'Workspace';
+    name: string;
+    description: string;
+    mdx_content?: string;
+    metadata?: number[];
+    is_default?: boolean;
+  };
+  GetNode?: {
+    node_id: string;
+  };
+  UpdateNode?: {
+    node_id: string;
+    name?: string;
+    description?: string;
+    mdx_content?: string;
+    rules?: string;
+    chat_enabled?: boolean;
+    is_default?: boolean;
+  };
+  DeleteNode?: {
+    node_id: string;
+    cascade: boolean;
+  };
+  MoveNode?: {
+    node_id: string;
+    new_parent_id: string | null;
+  };
+  ListNodes?: {
+    parent_id?: string | null;
+    depth?: number;
+    entity_types?: Array<{ Child: string } | 'Workspace'>;
+  };
+  GetTreeStructure?: {
+    root_id?: string | null;
+    max_depth?: number;
+  };
+  GetTreeSchema?: null;
+  UpdateTreeSchema?: {
+    schema: {
+      rules: Array<{ parent_type: string; allowed_child_types: string[] }>;
+      max_depth?: number | null;
+    };
+  };
 }
 
 // Group message type enum

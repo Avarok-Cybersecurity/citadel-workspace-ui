@@ -659,6 +659,114 @@ export class WorkspaceService {
     return this.sendProtocolRequest(requestPart);
   }
 
+  // ========== Generic Tree Node Methods ==========
+
+  /**
+   * Create a node in the workspace hierarchy.
+   * @param parentId Parent node ID (null for root-level nodes)
+   * @param entityType The node entity type (e.g., { Child: "Office" })
+   * @param name Node name
+   * @param description Node description
+   * @param options Optional fields: mdxContent, metadata, isDefault
+   */
+  public async createNode(
+    parentId: string | null,
+    entityType: { Child: string } | 'Workspace',
+    name: string,
+    description: string,
+    options?: { mdxContent?: string; metadata?: Uint8Array; isDefault?: boolean },
+  ): Promise<void> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      CreateNode: {
+        parent_id: parentId,
+        entity_type: entityType,
+        name,
+        description,
+        mdx_content: options?.mdxContent,
+        metadata: options?.metadata ? Array.from(options.metadata) : undefined,
+        is_default: options?.isDefault,
+      },
+    };
+    return this.sendProtocolRequest(requestPart);
+  }
+
+  /**
+   * Update an existing node.
+   */
+  public async updateNode(
+    nodeId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      mdxContent?: string;
+      rules?: string;
+      chatEnabled?: boolean;
+      isDefault?: boolean;
+    },
+  ): Promise<void> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      UpdateNode: {
+        node_id: nodeId,
+        name: updates.name,
+        description: updates.description,
+        mdx_content: updates.mdxContent,
+        rules: updates.rules,
+        chat_enabled: updates.chatEnabled,
+        is_default: updates.isDefault,
+      },
+    };
+    return this.sendProtocolRequest(requestPart);
+  }
+
+  /**
+   * Delete a node and optionally cascade-delete its children.
+   */
+  public async deleteNode(nodeId: string, cascade: boolean = true): Promise<void> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      DeleteNode: { node_id: nodeId, cascade },
+    };
+    return this.sendProtocolRequest(requestPart);
+  }
+
+  /**
+   * List nodes, optionally filtered by parent or entity types.
+   */
+  public async listNodes(
+    parentId?: string | null,
+    entityTypes?: Array<{ Child: string } | 'Workspace'>,
+  ): Promise<void> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      ListNodes: {
+        parent_id: parentId,
+        entity_types: entityTypes,
+      },
+    };
+    return this.sendProtocolRequest(requestPart);
+  }
+
+  /**
+   * Get the full tree structure starting from a root node.
+   */
+  public async getTreeStructure(rootId?: string, maxDepth?: number): Promise<void> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetTreeStructure: {
+        root_id: rootId ?? null,
+        max_depth: maxDepth,
+      },
+    };
+    return this.sendProtocolRequest(requestPart);
+  }
+
+  /**
+   * Get the current tree schema (nesting rules).
+   */
+  public async getTreeSchema(): Promise<void> {
+    const requestPart: WorkspaceProtocolRequestTS = {
+      GetTreeSchema: null,
+    };
+    return this.sendProtocolRequest(requestPart);
+  }
+
   // ========== Server Capabilities Methods ==========
 
   /**
