@@ -238,7 +238,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
             groupId={chatChannelId}
             currentUserId={currentUserId}
             currentUserName={currentUserName}
-            rules={entityData?.rules}
+            rules={entityData?.rules ?? undefined}
           />
         </TabsContent>
       </Tabs>

@@ -300,7 +300,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
             groupId={chatChannelId}
             currentUserId={currentUserId}
             currentUserName={currentUserName}
-            rules={room.rules}
+            rules={room.rules ?? undefined}
           />
         </TabsContent>
       </Tabs>

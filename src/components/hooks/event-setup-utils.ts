@@ -26,38 +26,6 @@ export function trackRequest(setState: SetState, requestId?: string): void {
   }
 }
 
-/** Upsert an entity into the offices or rooms map by its id. */
-export function upsertEntity(
-  setState: SetState,
-  stateKey: 'offices' | 'rooms',
-  entity: { id: string },
-  requestId?: string,
-): void {
-  setState(prev => ({
-    ...prev,
-    [stateKey]: { ...prev[stateKey], [entity.id]: entity },
-    ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
-  }));
-}
-
-/** Remove an entity from the offices or rooms map by id. */
-export function removeEntity(
-  setState: SetState,
-  stateKey: 'offices' | 'rooms',
-  entityId: string,
-  requestId?: string,
-): void {
-  setState(prev => {
-    const updated = { ...prev[stateKey] };
-    delete updated[entityId];
-    return {
-      ...prev,
-      [stateKey]: updated,
-      ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
-    };
-  });
-}
-
 /** Upsert a DomainNode into the nodes map by its id. */
 export function upsertNode(
   setState: SetState,
