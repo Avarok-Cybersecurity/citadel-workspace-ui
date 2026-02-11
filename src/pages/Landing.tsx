@@ -99,7 +99,7 @@ export const Landing = () => {
       // Trigger loading - await to ensure operations complete before navigation
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
       await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listOffices(); // Also trigger office loading
+      await WorkspaceService.listNodes(); // Also trigger office loading
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
@@ -123,7 +123,7 @@ export const Landing = () => {
       // Trigger loading - await to ensure operations complete before navigation
       console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
       await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listOffices();
+      await WorkspaceService.listNodes();
       console.info('[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {

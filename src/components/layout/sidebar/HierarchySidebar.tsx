@@ -76,7 +76,18 @@ export function HierarchySidebar() {
   }, [selectedNodeId, navigate, toast]);
 
   const handleNodeCreate = useCallback((parentId: string | null) => {
-    if (!parentId) return;
+    if (parentId === null) {
+      // Creating a root-level child under the synthetic workspace root.
+      // Allowed types come from the tree schema, defaulting to "Office".
+      const workspaceRule = state.treeSchema?.rules?.find(
+        r => r.parent_type === 'Workspace'
+      );
+      const allowedTypes = workspaceRule?.allowed_child_types ?? ['Office'];
+      if (allowedTypes.length === 0) return;
+      setCreateModal({ parentId: 'workspace-root', entityType: allowedTypes[0] });
+      return;
+    }
+
     const parentNode = state.nodes[parentId];
     if (!parentNode) return;
 
@@ -86,7 +97,7 @@ export function HierarchySidebar() {
     // If only one child type allowed, use it directly
     // If multiple, default to first (future: show type picker)
     setCreateModal({ parentId, entityType: allowedTypes[0] });
-  }, [state.nodes]);
+  }, [state.nodes, state.treeSchema]);
 
   const handleAdminSettings = useCallback((node: DomainNode) => {
     setAdminNode(node);
@@ -119,7 +130,7 @@ export function HierarchySidebar() {
         onAdminSettings={handleAdminSettings}
         onSetDefault={handleSetDefault}
         title="HIERARCHY"
-        isLoading={state.loading.nodes || state.loading.offices}
+        isLoading={state.loading.nodes}
       />
 
       {/* Create Node Modal */}

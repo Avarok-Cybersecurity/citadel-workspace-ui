@@ -13,8 +13,6 @@ import { MembersTab } from './tabs/MembersTab';
 import { ChatSettingsTab } from './tabs/ChatSettingsTab';
 import { AdminModalProps, EntityData } from './types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import WorkspaceService from '@/lib/workspace-service';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
 
 export function AdminModal({
@@ -35,18 +33,10 @@ export function AdminModal({
       return;
     }
 
-    const loadEntity = async () => {
+    const loadEntity = () => {
       setLoading(true);
       try {
-        // Check generic nodes first (schema-driven hierarchy)
-        const node = state.nodes[entityId];
-        if (node) {
-          setEntity({
-            id: node.id,
-            name: node.name,
-            description: node.description || '',
-          });
-        } else if (entityType === 'workspace') {
+        if (entityType === 'workspace') {
           if (state.workspace) {
             setEntity({
               id: state.workspace.id,
@@ -54,43 +44,14 @@ export function AdminModal({
               description: state.workspace.description || '',
             });
           }
-        } else if (entityType === 'office') {
-          const office = state.offices[entityId];
-          if (office) {
+        } else {
+          const node = state.nodes[entityId];
+          if (node) {
             setEntity({
-              id: office.id,
-              name: office.name,
-              description: office.description || '',
+              id: node.id,
+              name: node.name,
+              description: node.description || '',
             });
-          } else {
-            const response = await WorkspaceService.getOffice(entityId);
-            if (response?.GetOffice?.office) {
-              const officeData = response.GetOffice.office;
-              setEntity({
-                id: officeData.id,
-                name: officeData.name,
-                description: officeData.description || '',
-              });
-            }
-          }
-        } else if (entityType === 'room') {
-          const room = state.rooms[entityId];
-          if (room) {
-            setEntity({
-              id: room.id,
-              name: room.name,
-              description: room.description || '',
-            });
-          } else {
-            const response = await WorkspaceService.getRoom(entityId);
-            if (response?.GetRoom?.room) {
-              const roomData = response.GetRoom.room;
-              setEntity({
-                id: roomData.id,
-                name: roomData.name,
-                description: roomData.description || '',
-              });
-            }
           }
         }
       } catch (error) {
@@ -100,8 +61,8 @@ export function AdminModal({
       }
     };
 
-    runAsyncSetup(loadEntity);
-  }, [isOpen, entityType, entityId, state.workspace, state.offices, state.rooms, state.nodes]);
+    loadEntity();
+  }, [isOpen, entityType, entityId, state.workspace, state.nodes]);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {

@@ -301,19 +301,24 @@ export function PermissionsSettingsTab() {
     }
   }, [workspaceId, fetchPermissionsForDomain]);
 
-  // Group rooms by office
+  // Group child nodes by parent (Office → Room hierarchy via entity_type)
   const officesWithRooms = useMemo(() => {
-    const offices = Object.values(state.offices);
-    const rooms = Object.values(state.rooms);
+    const allNodes = Object.values(state.nodes);
+    const offices = allNodes.filter(n =>
+      typeof n.entity_type === 'object' && 'Child' in n.entity_type && n.entity_type.Child === 'Office'
+    );
+    const rooms = allNodes.filter(n =>
+      typeof n.entity_type === 'object' && 'Child' in n.entity_type && n.entity_type.Child === 'Room'
+    );
 
     return offices.map(office => ({
       id: office.id,
       name: office.name,
       rooms: rooms
-        .filter(room => room.officeId === office.id)
+        .filter(room => room.parent_id === office.id)
         .map(room => ({ id: room.id, name: room.name })),
     }));
-  }, [state.offices, state.rooms]);
+  }, [state.nodes]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

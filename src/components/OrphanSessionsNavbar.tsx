@@ -221,7 +221,7 @@ export const OrphanSessionsNavbar = () => {
 
       // Trigger workspace loading
       await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listOffices();
+      await WorkspaceService.listNodes();
 
       // Navigate to the office page immediately
       navigate(getWorkspacePath());

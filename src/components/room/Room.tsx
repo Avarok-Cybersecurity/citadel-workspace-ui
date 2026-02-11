@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
-import { User } from '../../types/workspace-entities';
 import { MDXProvider } from '@mdx-js/react';
 import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
@@ -40,9 +39,9 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   const { state } = useWorkspace();
   const { toast } = useToast();
 
-  // Get room data from workspace state
-  const room = state.rooms[roomId];
-  const isLoading = state.loading.rooms;
+  // Get room data from workspace state (unified node hierarchy)
+  const room = state.nodes[roomId];
+  const isLoading = state.loading.nodes;
 
   // State for MDX content
   const [isEditing, setIsEditing] = useState(false);
@@ -58,22 +57,6 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
       setTabSession(session);
     });
   }, []);
-
-  // Fetch room data if not available
-  useEffect(() => {
-    const fetchRoomData = async () => {
-      if (!room && !isLoading && officeId) {
-        try {
-          // Load rooms for the office - this will populate the room in state
-          await WorkspaceService.listRooms(officeId);
-        } catch (error) {
-          console.error('Failed to load room:', error);
-        }
-      }
-    };
-
-    runAsyncSetup(fetchRoomData);
-  }, [roomId, room, isLoading, officeId]);
 
   // Update content when room data changes
   useEffect(() => {
@@ -116,7 +99,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   // Handle saving MDX content
   const handleSave = async () => {
     try {
-      await WorkspaceService.updateRoom(roomId, {
+      await WorkspaceService.updateNode(roomId, {
         mdxContent: content
       });
 
@@ -250,27 +233,31 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
         </div>
       ) : null}
 
-      {room.members && Object.keys(room.members).length > 0 && (
+      {room.members && room.members.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center space-x-2 mb-4">
             <h3 className="text-lg font-semibold text-white">Members</h3>
             <span className="bg-gray-700 text-gray-300 px-2 py-0.5 text-xs rounded-full">
-              {Object.keys(room.members).length}
+              {room.members.length}
             </span>
           </div>
 
           <div className="space-y-3">
-            {Object.values(room.members).map((member: User, index) => (
-              <div key={member.id || index} className="flex items-center space-x-3">
-                <div className="h-10 w-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
-                  {member.displayName.charAt(0).toUpperCase()}
+            {room.members.map((memberId) => {
+              const member = state.members[memberId];
+              const displayName = member?.displayName || memberId;
+              return (
+                <div key={memberId} className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-medium text-white">{displayName}</p>
+                    <p className="text-gray-400 text-sm">{member?.role || 'Member'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-white">{member.displayName}</p>
-                  <p className="text-gray-400 text-sm">{member.role || 'Member'}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

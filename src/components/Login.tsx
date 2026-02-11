@@ -136,7 +136,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
       // Trigger workspace loading
       await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listOffices();
+      await WorkspaceService.listNodes();
 
       // CRITICAL: Emit session:activated to trigger P2P re-establishment
       // This ensures P2P channels are established when redirecting to existing session
@@ -356,7 +356,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
       // Trigger workspace loading
       await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listOffices();
+      await WorkspaceService.listNodes();
 
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {

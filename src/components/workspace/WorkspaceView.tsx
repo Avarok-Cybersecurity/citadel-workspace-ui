@@ -37,9 +37,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }
   const peerCid = params.get('channel');
   const peerName = params.get('p2pUser');
 
-  // Get office and room data
-  const office = officeId ? state.offices[officeId] : null;
-  const room = roomId ? state.rooms[roomId] : null;
+  // Get entity data from unified node hierarchy
+  const office = officeId ? state.nodes[officeId] : null;
+  const room = roomId ? state.nodes[roomId] : null;
 
   // Determine content to display
   const getInitialContent = () => {

@@ -323,8 +323,8 @@ async function createNodeViaUI(
 
   // Find and click the add button based on node type
   const addButtonSelector = nodeType === 'Office'
-    ? '[data-testid="add-office-button"], .offices-section button:has(svg), section:has-text("OFFICES") button:has(svg)'
-    : '[data-testid="add-room-button"], .rooms-section button:has(svg), section:has-text("ROOMS") button:has(svg)';
+    ? '[data-testid="add-node-button"], [data-testid="add-root-node-button"]'
+    : '[data-testid^="create-child-"]';
 
   const addBtn = page.locator(addButtonSelector).first();
   if (!await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {

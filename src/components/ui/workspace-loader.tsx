@@ -34,7 +34,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   const isLoading =
     !state.workspace ||
     state.loading.workspace ||
-    state.loading.offices;
+    state.loading.nodes;
 
   // Auto-claim an available session on mount if no connection exists
   // This fixes Issue #6: Direct navigation to protected routes fails without session claiming
@@ -90,7 +90,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         // Trigger workspace loading (this is what was missing!)
         console.log('WorkspaceLoader: Triggering workspace loading for existing connection');
         await WorkspaceService.loadWorkspace();
-        await WorkspaceService.listOffices();
+        await WorkspaceService.listNodes();
+        await WorkspaceService.getTreeSchema();
 
         setHasConnection(true);
         return;
@@ -181,7 +182,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
         // Trigger workspace loading
         await WorkspaceService.loadWorkspace();
-        await WorkspaceService.listOffices();
+        await WorkspaceService.listNodes();
+        await WorkspaceService.getTreeSchema();
 
         setHasConnection(true);
         console.log('WorkspaceLoader: Auto-claim complete, workspace loading initiated');

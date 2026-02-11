@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -28,7 +28,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
-import { useToast } from "@/hooks/use-toast";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 
 // =============================================================================
@@ -367,11 +366,14 @@ function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     childrenMap.set(parentId, siblings);
   }
 
-  // Find root node (workspace - no parent)
-  const roots = childrenMap.get(null) ?? [];
+  // Find root nodes: parent_id is null OR "workspace-root" (synthetic sentinel)
+  const roots = [
+    ...(childrenMap.get(null) ?? []),
+    ...(childrenMap.get('workspace-root') ?? []),
+  ];
   if (roots.length === 0) return null;
 
-  // Sort roots by name (should only be one workspace)
+  // Sort roots by name
   roots.sort((a, b) => a.name.localeCompare(b.name));
 
   // Recursive function to build tree
@@ -386,8 +388,41 @@ function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     };
   }
 
-  // Return first root (workspace)
-  return buildNode(roots[0]);
+  // Single root: return it directly
+  if (roots.length === 1) {
+    return buildNode(roots[0]);
+  }
+
+  // Multiple roots: wrap in synthetic workspace node so all are visible
+  const syntheticRoot: DomainNode = {
+    id: 'workspace-root',
+    parent_id: null,
+    entity_type: 'Workspace',
+    depth: 0,
+    name: 'Workspace',
+    description: '',
+    owner_id: '',
+    members: [],
+    children: roots.map(r => r.id),
+    mdx_content: '',
+    rules: null,
+    chat_enabled: false,
+    chat_channel_id: null,
+    default_permissions: roots[0].default_permissions,
+    metadata: [],
+    allowed_child_types: [...new Set(roots.map(r =>
+      r.entity_type === 'Workspace' ? 'Office' :
+      typeof r.entity_type === 'object' && 'Child' in r.entity_type ? r.entity_type.Child : 'Node'
+    ))],
+    is_default: false,
+    created_at: 0n,
+    updated_at: 0n,
+  };
+
+  return {
+    node: syntheticRoot,
+    children: roots.map(buildNode),
+  };
 }
 
 export function TreeNodesSection({
@@ -408,8 +443,6 @@ export function TreeNodesSection({
   const location = useLocation();
   const navigate = useNavigate();
   const { setOpenMobile } = useSidebar();
-  const { toast } = useToast();
-
   // Build tree from flat nodes if tree not provided
   const treeData = useMemo(() => {
     if (tree) return tree;
@@ -426,6 +459,24 @@ export function TreeNodesSection({
     }
     return initial;
   });
+
+  // Auto-expand parent nodes when tree data changes (e.g., new children added)
+  useEffect(() => {
+    if (!treeData) return;
+    setExpandedNodes((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      function autoExpand(tn: TreeNode) {
+        if (tn.children.length > 0 && !next.has(tn.node.id)) {
+          next.add(tn.node.id);
+          changed = true;
+        }
+        tn.children.forEach(autoExpand);
+      }
+      autoExpand(treeData);
+      return changed ? next : prev;
+    });
+  }, [treeData]);
 
   // State for delete confirmation
   const [nodeToDelete, setNodeToDelete] = useState<DomainNode | null>(null);
@@ -471,22 +522,12 @@ export function TreeNodesSection({
 
     try {
       await onNodeDelete(nodeToDelete);
-      toast({
-        title: `${getEntityTypeName(nodeToDelete.entity_type)} Deleted`,
-        description: `${nodeToDelete.name} has been deleted successfully`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
-      });
     } catch (error) {
       console.error("Error deleting node:", error);
-      toast({
-        title: "Error",
-        description: `Failed to delete ${getEntityTypeName(nodeToDelete.entity_type).toLowerCase()}. Please try again.`,
-        variant: "destructive",
-      });
     } finally {
       setNodeToDelete(null);
     }
-  }, [nodeToDelete, onNodeDelete, toast]);
+  }, [nodeToDelete, onNodeDelete]);
 
   const handleCreateRoot = useCallback(() => {
     if (onNodeCreate) {

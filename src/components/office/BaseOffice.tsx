@@ -33,10 +33,9 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   const currentRoom = new URLSearchParams(location.search).get("room");
   const { state } = useWorkspace();
 
-  // Get the office or room data from workspace state
-  const officeData = officeId ? state.offices[officeId] : null;
-  const roomData = roomId ? state.rooms[roomId] : null;
-  const entityData = roomData || officeData;
+  // Get the entity data from workspace state (unified node hierarchy)
+  const entityData = (roomId ? state.nodes[roomId] : null)
+    ?? (officeId ? state.nodes[officeId] : null);
 
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(
@@ -57,11 +56,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   }, []);
 
   // Determine if we're in a loading state
-  const isLoading = roomId
-    ? state.loading.rooms && !roomData
-    : officeId
-    ? state.loading.offices && !officeData
-    : false;
+  const isLoading = state.loading.nodes && !entityData;
 
   // Determine the domain ID for permission checks (room takes precedence over office)
   const domainId = roomId || officeId;
@@ -73,36 +68,17 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   );
 
   const handleSave = async () => {
+    const nodeId = roomId || officeId;
     try {
-      if (roomId) {
-        // Update the room with new mdx_content via workspace protocol
-        await WorkspaceService.updateRoom(roomId, {
-          mdxContent: content
-        });
-
-        toast({
-          title: "Changes saved",
-          description: `The ${roomData?.name || title} room page has been updated`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
-      } else if (officeId) {
-        // Update the office with new mdx_content via workspace protocol
-        await WorkspaceService.updateOffice(officeId, {
-          mdxContent: content
-        });
-
-        toast({
-          title: "Changes saved",
-          description: `The ${officeData?.name || title} office page has been updated`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
-      } else {
-        toast({
-          title: "Changes saved",
-          description: `The ${title.toLowerCase()} page has been updated`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
+      if (nodeId) {
+        await WorkspaceService.updateNode(nodeId, { mdxContent: content });
       }
+
+      toast({
+        title: "Changes saved",
+        description: `The ${entityData?.name || title} page has been updated`,
+        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      });
     } catch (error) {
       console.error('Failed to save MDX content:', error);
       toast({
@@ -221,6 +197,8 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
         onSave={handleSave}
         canEdit={hasEditPermission}
         editDeniedReason={editDeniedReason || undefined}
+        entityType={roomId ? 'room' : 'office'}
+        entityId={roomId || officeId || 'workspace'}
       >
         {contentView}
       </OfficeLayout>

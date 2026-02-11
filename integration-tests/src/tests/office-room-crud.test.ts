@@ -86,16 +86,14 @@ const TEST_ROOM_NAME = `TestRoom_${timestamp}`;
 // ============================================================================
 
 /**
- * Click the add office button (+) in the sidebar
+ * Click the add node button (+) in the hierarchy sidebar
  */
 async function clickAddOfficeButton(page: Page): Promise<boolean> {
-  console.log('  Looking for Add Office button...');
+  console.log('  Looking for Add Node button...');
 
   const selectors = [
-    '[data-testid="add-office-button"]',
-    '.offices-section button:has(svg)',
-    'button[aria-label*="office" i]:has(svg)',
-    'section:has-text("OFFICES") button:has(svg)',
+    '[data-testid="add-node-button"]',
+    '[data-testid="add-root-node-button"]',
   ];
 
   for (const selector of selectors) {
@@ -103,12 +101,12 @@ async function clickAddOfficeButton(page: Page): Promise<boolean> {
     if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await btn.click();
       await sleep(500);
-      console.log(`  Clicked Add Office button (${selector})`);
+      console.log(`  Clicked Add Node button (${selector})`);
       return true;
     }
   }
 
-  console.log('  WARNING: Add Office button not found');
+  console.log('  WARNING: Add Node button not found');
   return false;
 }
 
@@ -142,8 +140,8 @@ async function fillCreateOfficeModal(
 
   await sleep(300);
 
-  // Submit - look for "Create Office" or "Update Office" button
-  const createBtn = page.locator('button:has-text("Create Office"), button:has-text("Update Office")').first();
+  // Submit - NodeManagementModal uses "Create {EntityType}" as button text
+  const createBtn = page.locator('button:has-text("Create")').first();
   if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await createBtn.click();
     await sleep(2000);
@@ -155,29 +153,63 @@ async function fillCreateOfficeModal(
 }
 
 /**
- * Click the add room button in the sidebar (requires office selected)
+ * Click the create-child button for a parent node in the hierarchy sidebar.
+ * Opens the parent's context menu and clicks the create-child menu item.
+ * @param parentName - Name of the parent node to find in the sidebar
  */
-async function clickAddRoomButton(page: Page): Promise<boolean> {
-  console.log('  Looking for Add Room button...');
+async function clickAddRoomButton(page: Page, parentName?: string): Promise<boolean> {
+  console.log(`  Looking for Create Child button in tree (parent: ${parentName ?? 'any'})...`);
 
-  const selectors = [
-    '[data-testid="add-room-button"]',
-    '.rooms-section button:has(svg)',
-    'button[aria-label*="room" i]:has(svg)',
-    'section:has-text("ROOMS") button:has(svg)',
-  ];
+  // Close any stale menus/modals first
+  await page.keyboard.press('Escape');
+  await sleep(300);
 
-  for (const selector of selectors) {
-    const btn = page.locator(selector).first();
-    if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await btn.click();
-      await sleep(500);
-      console.log(`  Clicked Add Room button (${selector})`);
-      return true;
+  // Find the parent node's menu button by searching sidebar items
+  const menuTestId = await page.evaluate((name: string | undefined) => {
+    const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
+    for (const btn of buttons) {
+      if (name && !btn.textContent?.includes(name)) continue;
+      const parent = btn.closest('.group');
+      if (parent) {
+        const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
+        if (menuBtn) {
+          return menuBtn.getAttribute('data-testid');
+        }
+      }
     }
+    return null;
+  }, parentName);
+
+  if (!menuTestId) {
+    console.log('  WARNING: Parent node menu button not found');
+    return false;
   }
 
-  console.log('  WARNING: Add Room button not found');
+  const nodeId = menuTestId.replace('tree-node-menu-', '');
+  console.log(`  Found parent node menu: ${menuTestId}`);
+
+  // Click the menu button to open dropdown (force: true handles opacity:0)
+  const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
+  await menuBtn.click({ force: true, timeout: 2000 });
+  await sleep(500);
+
+  // Now look for the create-child item in the open dropdown
+  const createChildTestId = `create-child-${nodeId}`;
+  const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
+  if (await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await createItem.click();
+    await sleep(500);
+    console.log(`  Clicked Create Child button (${createChildTestId})`);
+    return true;
+  }
+
+  // Close menu if create-child not found
+  await page.keyboard.press('Escape');
+  await sleep(200);
+
+  // Debug: log what menu items ARE visible
+  const menuItems = await page.locator('[role="menuitem"]').allTextContents();
+  console.log(`  WARNING: Create Child option not found. Visible menu items: ${JSON.stringify(menuItems)}`);
   return false;
 }
 
@@ -210,8 +242,8 @@ async function fillCreateRoomModal(
 
   await sleep(300);
 
-  // Submit - look for "Create Room" or "Update Room" button
-  const createBtn = page.locator('button:has-text("Create Room"), button:has-text("Update Room")').first();
+  // Submit - NodeManagementModal uses "Create {EntityType}" as button text
+  const createBtn = page.locator('button:has-text("Create")').first();
   if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await createBtn.click();
     await sleep(2000);
@@ -223,33 +255,42 @@ async function fillCreateRoomModal(
 }
 
 /**
- * Open the office/room settings/edit modal
- * Uses hover-triggered dropdown menu (3-dot icon)
+ * Open the node edit modal via the hierarchy sidebar's tree-node-menu.
  */
-async function openEditModal(page: Page, itemName: string, type: 'office' | 'room' = 'office'): Promise<boolean> {
-  console.log(`  Opening edit modal for ${type}: ${itemName}`);
+async function openEditModal(page: Page, itemName: string, _type: 'office' | 'room' = 'office'): Promise<boolean> {
+  console.log(`  Opening edit modal for node: ${itemName}`);
 
-  // Find the item in the sidebar
-  const itemLocator = page.locator(`button:has-text("${itemName}")`).first();
+  // Find the node's menu button using page.evaluate
+  const menuTestId = await page.evaluate((name: string) => {
+    const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
+    for (const btn of buttons) {
+      if (btn.textContent?.includes(name)) {
+        const parent = btn.closest('.group');
+        if (parent) {
+          const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
+          if (menuBtn) {
+            return menuBtn.getAttribute('data-testid');
+          }
+        }
+      }
+    }
+    return null;
+  }, itemName);
 
-  if (await itemLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
-    // Hover over the item to reveal the 3-dot menu
-    await itemLocator.hover();
+  if (menuTestId) {
+    const nodeId = menuTestId.replace('tree-node-menu-', '');
+
+    // Click the menu button with force to handle opacity:0 styling
+    const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
+    await menuBtn.click({ force: true, timeout: 2000 });
     await sleep(500);
 
-    // Click the 3-dot menu button (appears on hover)
-    const menuBtn = page.locator('button:has(svg.lucide-more-vertical)').first();
-    if (await menuBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await menuBtn.click();
+    // Click the edit option using new testid pattern
+    const editOption = page.locator(`[data-testid="edit-node-${nodeId}"]`).first();
+    if (await editOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await editOption.click();
       await sleep(500);
-
-      // Click "Edit Office" or "Edit Room" in the dropdown
-      const editOption = page.locator(`[data-testid="edit-${type}-option"], [role="menuitem"]:has-text("Edit ${type === 'office' ? 'Office' : 'Room'}")`).first();
-      if (await editOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await editOption.click();
-        await sleep(500);
-        return true;
-      }
+      return true;
     }
   }
 
@@ -258,106 +299,25 @@ async function openEditModal(page: Page, itemName: string, type: 'office' | 'roo
 }
 
 /**
- * Delete an office via the UI
- * Uses the 3-dot dropdown menu next to the office name
- * Uses JavaScript click to bypass opacity:0 styling
+ * Delete a node via the UI using the hierarchy sidebar's tree-node-menu.
+ * Uses JavaScript click to bypass opacity:0 styling.
  */
-async function deleteOffice(page: Page, officeName: string): Promise<boolean> {
-  console.log(`\n=== Deleting office: ${officeName} ===`);
+async function deleteNode(page: Page, nodeName: string): Promise<boolean> {
+  console.log(`\n=== Deleting node: ${nodeName} ===`);
 
   // First close any open dialogs/menus
   await page.keyboard.press('Escape');
   await sleep(300);
 
   try {
-    // Find the office in sidebar and get its menu button testid
-    const menuTestId = await page.evaluate((name: string) => {
-      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-      for (const btn of buttons) {
-        if (btn.textContent?.trim() === name) {
-          const parent = btn.closest('.group');
-          if (parent) {
-            const menuBtn = parent.querySelector('button[data-testid^="office-menu-"]');
-            if (menuBtn) {
-              return menuBtn.getAttribute('data-testid');
-            }
-          }
-        }
-      }
-      return null;
-    }, officeName);
-
-    if (menuTestId) {
-      console.log(`  Found menu button: ${menuTestId}`);
-
-      // Use Playwright click with force to handle opacity:0
-      const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
-      await menuBtn.click({ force: true, timeout: 2000 });
-      await sleep(600);
-
-      // Look for Delete Office option in dropdown - try multiple selectors
-      const deleteOption = page.locator('div[role="menuitem"]:has-text("Delete Office"), [data-testid="delete-office-option"]').first();
-      if (await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await deleteOption.click();
-        await sleep(500);
-
-        // Confirm deletion
-        const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmBtn.click();
-          console.log('  Office delete confirmed');
-
-          // Wait for the office to be removed from sidebar
-          const officeLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
-          try {
-            await officeLocator.waitFor({ state: 'hidden', timeout: 5000 });
-            console.log('  Office removed from sidebar');
-            return true;
-          } catch {
-            console.log('  WARNING: Office still visible after delete');
-          }
-        } else {
-          console.log('  WARNING: Confirm button not found');
-        }
-      } else {
-        console.log('  WARNING: Delete Office option not found');
-        const allMenuItems = await page.locator('[role="menuitem"]').count();
-        console.log(`  DEBUG: Found ${allMenuItems} menu items`);
-      }
-    } else {
-      console.log('  WARNING: Could not find menu button');
-    }
-  } catch (err) {
-    console.log('  WARNING: Error:', err);
-  }
-
-  await page.keyboard.press('Escape');
-  await sleep(300);
-  console.log('  WARNING: Could not delete office');
-  return false;
-}
-
-/**
- * Delete a room via the UI
- * Uses the 3-dot dropdown menu next to the room name
- * Uses JavaScript click to bypass opacity:0 styling
- */
-async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
-  console.log(`\n=== Deleting room: ${roomName} ===`);
-
-  // First close any open dialogs/menus
-  await page.keyboard.press('Escape');
-  await sleep(300);
-
-  try {
-    // Find the room in sidebar and get its menu button testid
+    // Find the node in sidebar and get its menu button testid
     const menuTestId = await page.evaluate((name: string) => {
       const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
       for (const btn of buttons) {
         if (btn.textContent?.includes(name)) {
           const parent = btn.closest('.group');
           if (parent) {
-            const menuBtn = parent.querySelector('button[data-testid^="room-menu-"]');
+            const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
             if (menuBtn) {
               return menuBtn.getAttribute('data-testid');
             }
@@ -365,18 +325,19 @@ async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
         }
       }
       return null;
-    }, roomName);
+    }, nodeName);
 
     if (menuTestId) {
       console.log(`  Found menu button: ${menuTestId}`);
+      const nodeId = menuTestId.replace('tree-node-menu-', '');
 
       // Use Playwright click with force to handle opacity:0
       const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
       await menuBtn.click({ force: true, timeout: 2000 });
       await sleep(600);
 
-      // Look for Delete Room option in dropdown - try multiple selectors
-      const deleteOption = page.locator('div[role="menuitem"]:has-text("Delete Room"), [data-testid="delete-room-option"]').first();
+      // Look for Delete option using new testid pattern
+      const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
       if (await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
         await deleteOption.click();
         await sleep(500);
@@ -385,22 +346,22 @@ async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
         const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
         if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await confirmBtn.click();
-          console.log('  Room delete confirmed');
+          console.log('  Node delete confirmed');
 
-          // Wait for the room to be removed from sidebar
-          const roomLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${roomName}")`).first();
+          // Wait for the node to be removed from sidebar
+          const nodeLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
           try {
-            await roomLocator.waitFor({ state: 'hidden', timeout: 5000 });
-            console.log('  Room removed from sidebar');
+            await nodeLocator.waitFor({ state: 'hidden', timeout: 5000 });
+            console.log('  Node removed from sidebar');
             return true;
           } catch {
-            console.log('  WARNING: Room still visible after delete');
+            console.log('  WARNING: Node still visible after delete');
           }
         } else {
           console.log('  WARNING: Confirm button not found');
         }
       } else {
-        console.log('  WARNING: Delete Room option not found');
+        console.log('  WARNING: Delete option not found');
         const allMenuItems = await page.locator('[role="menuitem"]').count();
         console.log(`  DEBUG: Found ${allMenuItems} menu items`);
       }
@@ -413,9 +374,14 @@ async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
 
   await page.keyboard.press('Escape');
   await sleep(300);
-  console.log('  WARNING: Could not delete room');
+  console.log('  WARNING: Could not delete node');
   return false;
 }
+
+/** @deprecated Use deleteNode instead */
+const deleteOffice = deleteNode;
+/** @deprecated Use deleteNode instead */
+const deleteRoom = deleteNode;
 
 /**
  * Check if an item exists in the sidebar
@@ -423,6 +389,18 @@ async function deleteRoom(page: Page, roomName: string): Promise<boolean> {
 async function itemExistsInSidebar(page: Page, itemName: string): Promise<boolean> {
   const item = page.locator(`button:has-text("${itemName}"), [data-testid*="${itemName}"]`).first();
   return await item.isVisible({ timeout: 3000 }).catch(() => false);
+}
+
+/**
+ * Ensure all modals and menus are closed by pressing Escape and dismissing toasts.
+ */
+async function closeAllOverlays(page: Page): Promise<void> {
+  await dismissAllToasts(page);
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  // Press again in case there's a nested dialog
+  await page.keyboard.press('Escape');
+  await sleep(200);
 }
 
 /**
@@ -546,7 +524,7 @@ async function runTest(): Promise<boolean> {
         results.officeCreated = await itemExistsInSidebar(adminPage, TEST_OFFICE_NAME);
         console.log(`  Office created: ${results.officeCreated}`);
         await takeScreenshot(adminPage, `${ADMIN_USER}_office_created`);
-        await dismissAllToasts(adminPage);
+        await closeAllOverlays(adminPage);
       }
     }
 
@@ -566,7 +544,7 @@ async function runTest(): Promise<boolean> {
       await navigateToOffice(adminPage, ADMIN_USER, TEST_OFFICE_NAME);
       await sleep(1000);
 
-      if (await clickAddRoomButton(adminPage)) {
+      if (await clickAddRoomButton(adminPage, TEST_OFFICE_NAME)) {
         await takeScreenshot(adminPage, `${ADMIN_USER}_create_room_modal`);
 
         if (await fillCreateRoomModal(adminPage, TEST_ROOM_NAME, 'Test room description')) {
@@ -581,7 +559,7 @@ async function runTest(): Promise<boolean> {
           results.roomCreated = await itemExistsInSidebar(adminPage, TEST_ROOM_NAME);
           console.log(`  Room created: ${results.roomCreated}`);
           await takeScreenshot(adminPage, `${ADMIN_USER}_room_created`);
-          await dismissAllToasts(adminPage);
+          await closeAllOverlays(adminPage);
         }
       }
     }
@@ -597,7 +575,8 @@ async function runTest(): Promise<boolean> {
       const updatedOfficeName = `${TEST_OFFICE_NAME}_Updated`;
 
       if (await openEditModal(adminPage, TEST_OFFICE_NAME)) {
-        const nameInput = adminPage.locator('input[placeholder*="name" i], input[name="name"]').first();
+        // Use input#name to match the actual DOM element (id="name")
+        const nameInput = adminPage.locator('input#name').first();
         if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
           await nameInput.clear();
           await nameInput.fill(updatedOfficeName);
@@ -619,7 +598,12 @@ async function runTest(): Promise<boolean> {
             results.officeNameUpdated = await itemExistsInSidebar(adminPage, updatedOfficeName);
             await dismissAllToasts(adminPage);
           }
+        } else {
+          console.log('  WARNING: Name input not found in edit modal, closing modal');
         }
+        // Ensure edit modal is closed before continuing
+        await adminPage.keyboard.press('Escape');
+        await sleep(300);
         await takeScreenshot(adminPage, `${ADMIN_USER}_office_updated`);
       }
       console.log(`  Office name updated: ${results.officeNameUpdated}`);
@@ -647,7 +631,7 @@ async function runTest(): Promise<boolean> {
         // Verify room no longer exists
         const roomStillExists = await itemExistsInSidebar(adminPage, TEST_ROOM_NAME);
         results.roomDeleted = !roomStillExists;
-        await dismissAllToasts(adminPage);
+        await closeAllOverlays(adminPage);
       }
       console.log(`  Room deleted: ${results.roomDeleted}`);
       await takeScreenshot(adminPage, `${ADMIN_USER}_room_deleted`);
@@ -673,13 +657,13 @@ async function runTest(): Promise<boolean> {
           await takeScreenshot(adminPage, `${ADMIN_USER}_cascade_office_TOAST_CONFLICT`);
           throw new Error('Toast conflict detected after Create Cascade Office');
         }
-        await dismissAllToasts(adminPage);
+        await closeAllOverlays(adminPage);
 
         await navigateToOffice(adminPage, ADMIN_USER, cascadeOfficeName);
         await sleep(1000);
 
         // Create room inside
-        if (await clickAddRoomButton(adminPage)) {
+        if (await clickAddRoomButton(adminPage, cascadeOfficeName)) {
           await fillCreateRoomModal(adminPage, cascadeRoomName, 'Will be cascade deleted');
 
           // Assert no toast conflict after cascade room creation
@@ -689,7 +673,7 @@ async function runTest(): Promise<boolean> {
             await takeScreenshot(adminPage, `${ADMIN_USER}_cascade_room_TOAST_CONFLICT`);
             throw new Error('Toast conflict detected after Create Cascade Room');
           }
-          await dismissAllToasts(adminPage);
+          await closeAllOverlays(adminPage);
           await sleep(1000);
         }
 
@@ -702,7 +686,7 @@ async function runTest(): Promise<boolean> {
             await takeScreenshot(adminPage, `${ADMIN_USER}_cascade_delete_TOAST_CONFLICT`);
             throw new Error('Toast conflict detected after Cascade Delete Office');
           }
-          await dismissAllToasts(adminPage);
+          await closeAllOverlays(adminPage);
 
           // Verify both office and room are gone
           const officeGone = !(await itemExistsInSidebar(adminPage, cascadeOfficeName));

@@ -438,22 +438,21 @@ export async function getWorkspaceRootId(page: Page): Promise<string | null> {
 // ============================================================================
 
 /**
- * Create an office node via UI.
+ * Create a top-level node (e.g. office) via the hierarchy sidebar UI.
+ * Uses the generic `add-node-button` testid from TreeNodesSection.
  */
 export async function createOfficeViaUI(
   page: Page,
   name: string,
   description: string = ''
 ): Promise<{ success: boolean; name: string }> {
-  console.log(`  [UI] Creating office: ${name}`);
+  console.log(`  [UI] Creating top-level node: ${name}`);
 
   try {
-    // Find and click the add office button (same selectors as office-room-crud.test.ts)
+    // The hierarchy sidebar uses add-node-button for top-level node creation
     const addBtnSelectors = [
-      '[data-testid="add-office-button"]',
-      '.offices-section button:has(svg)',
-      'button[aria-label*="office" i]:has(svg)',
-      'section:has-text("OFFICES") button:has(svg)',
+      '[data-testid="add-node-button"]',
+      '[data-testid="add-root-node-button"]',
     ];
 
     let addBtn = null;
@@ -461,13 +460,13 @@ export async function createOfficeViaUI(
       const btn = page.locator(selector).first();
       if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
         addBtn = btn;
-        console.log(`  [UI] Found Add Office button with selector: ${selector}`);
+        console.log(`  [UI] Found Add Node button with selector: ${selector}`);
         break;
       }
     }
 
     if (!addBtn) {
-      console.log('  [UI] Add office button not found');
+      console.log('  [UI] Add node button not found');
       return { success: false, name };
     }
 
@@ -493,17 +492,17 @@ export async function createOfficeViaUI(
 
     await sleep(300);
 
-    // Submit - look for "Create Office" or "Update Office" button
-    const createBtn = page.locator('button:has-text("Create Office"), button:has-text("Update Office")').first();
+    // Submit - NodeManagementModal uses "Create {EntityType}" as button text
+    const createBtn = page.locator('button:has-text("Create")').first();
     if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await createBtn.click();
       await sleep(2000);
 
       // Verify creation
-      const officeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
-      const exists = await officeInSidebar.isVisible({ timeout: 3000 }).catch(() => false);
+      const nodeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
+      const exists = await nodeInSidebar.isVisible({ timeout: 3000 }).catch(() => false);
 
-      console.log(`  [UI] Office "${name}" created: ${exists}`);
+      console.log(`  [UI] Node "${name}" created: ${exists}`);
       return { success: exists, name };
     }
 
@@ -511,47 +510,51 @@ export async function createOfficeViaUI(
     await page.keyboard.press('Escape');
     return { success: false, name };
   } catch (error) {
-    console.log(`  [UI] Error creating office: ${error}`);
+    console.log(`  [UI] Error creating node: ${error}`);
     return { success: false, name };
   }
 }
 
 /**
- * Create a room node via UI (must be in an office first).
+ * Create a child node (e.g. room) via UI by using the parent node's "create child" menu item.
+ * The parent node must be visible and expanded in the hierarchy sidebar.
  */
 export async function createRoomViaUI(
   page: Page,
   name: string,
   description: string = ''
 ): Promise<{ success: boolean; name: string }> {
-  console.log(`  [UI] Creating room: ${name}`);
+  console.log(`  [UI] Creating child node: ${name}`);
 
   try {
-    // Find and click the add room button (same selectors as office-room-crud.test.ts)
-    const addBtnSelectors = [
-      '[data-testid="add-room-button"]',
-      '.rooms-section button:has(svg)',
-      'button[aria-label*="room" i]:has(svg)',
-      'section:has-text("ROOMS") button:has(svg)',
-    ];
-
-    let addBtn = null;
-    for (const selector of addBtnSelectors) {
-      const btn = page.locator(selector).first();
-      if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
-        addBtn = btn;
-        console.log(`  [UI] Found Add Room button with selector: ${selector}`);
-        break;
+    // Find the parent node's "create child" menu item via tree-node-menu
+    // First try the generic create-child button using page.evaluate to find a parent with children capability
+    const createChildTestId = await page.evaluate(() => {
+      // Look for any create-child button in the tree
+      const btns = Array.from(document.querySelectorAll('[data-testid^="create-child-"]'));
+      if (btns.length > 0) {
+        return btns[0].getAttribute('data-testid');
       }
-    }
+      return null;
+    });
 
-    if (!addBtn) {
-      console.log('  [UI] Add room button not found');
+    if (createChildTestId) {
+      // We need to open the parent's context menu first
+      const parentId = createChildTestId.replace('create-child-', '');
+      const menuBtn = page.locator(`[data-testid="tree-node-menu-${parentId}"]`);
+      if (await menuBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await menuBtn.click({ force: true });
+        await sleep(300);
+        const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
+        if (await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await createItem.click();
+          await sleep(500);
+        }
+      }
+    } else {
+      console.log('  [UI] No create-child button found');
       return { success: false, name };
     }
-
-    await addBtn.click();
-    await sleep(500);
 
     // Wait for modal to open - look for the dialog
     const modal = page.locator('[role="dialog"], [role="alertdialog"]').first();
@@ -583,10 +586,10 @@ export async function createRoomViaUI(
 
     await sleep(300);
 
-    // Submit - look for "Create Room" or "Update Room" button
-    const createBtn = page.locator('button:has-text("Create Room"), button:has-text("Update Room")').first();
+    // Submit - NodeManagementModal uses "Create {EntityType}" as button text
+    const createBtn = page.locator('button:has-text("Create")').first();
     if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log('  [UI] Clicking Create Room button');
+      console.log('  [UI] Clicking Create button');
 
       // Capture console messages before clicking
       const consoleMessages: string[] = [];
@@ -605,7 +608,7 @@ export async function createRoomViaUI(
 
       // Log any errors/warnings captured
       if (consoleMessages.length > 0) {
-        console.log('  [UI] Console messages during room creation:');
+        console.log('  [UI] Console messages during child node creation:');
         consoleMessages.forEach(msg => console.log(`    ${msg}`));
       }
 
@@ -622,11 +625,11 @@ export async function createRoomViaUI(
         console.log('  [UI] Success toast detected');
       }
 
-      // Verify creation - the room should appear in the sidebar
-      const roomInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
-      const exists = await roomInSidebar.isVisible({ timeout: 5000 }).catch(() => false);
+      // Verify creation - the node should appear in the sidebar
+      const nodeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
+      const exists = await nodeInSidebar.isVisible({ timeout: 5000 }).catch(() => false);
 
-      console.log(`  [UI] Room "${name}" created: ${exists}`);
+      console.log(`  [UI] Child node "${name}" created: ${exists}`);
       return { success: exists, name };
     }
 
@@ -634,65 +637,68 @@ export async function createRoomViaUI(
     await page.keyboard.press('Escape');
     return { success: false, name };
   } catch (error) {
-    console.log(`  [UI] Error creating room: ${error}`);
+    console.log(`  [UI] Error creating child node: ${error}`);
     return { success: false, name };
   }
 }
 
 /**
- * Navigate to an office in the sidebar.
+ * Navigate to a node in the hierarchy sidebar.
  */
-export async function navigateToOfficeViaUI(
+export async function navigateToNodeViaUI(
   page: Page,
-  officeName: string
+  nodeName: string
 ): Promise<boolean> {
-  console.log(`  [UI] Navigating to office: ${officeName}`);
+  console.log(`  [UI] Navigating to node: ${nodeName}`);
 
   const selectors = [
-    `[data-sidebar="menu-button"]:has-text("${officeName}")`,
-    `button:has-text("${officeName}")`,
-    `a:has-text("${officeName}")`,
+    `[data-sidebar="menu-button"]:has-text("${nodeName}")`,
+    `button:has-text("${nodeName}")`,
+    `a:has-text("${nodeName}")`,
   ];
 
   for (const selector of selectors) {
-    const officeBtn = page.locator(selector).first();
-    if (await officeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await officeBtn.click();
+    const nodeBtn = page.locator(selector).first();
+    if (await nodeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await nodeBtn.click();
       await sleep(1000);
-      console.log(`  [UI] Navigated to office "${officeName}"`);
+      console.log(`  [UI] Navigated to node "${nodeName}"`);
       return true;
     }
   }
 
-  console.log(`  [UI] Office "${officeName}" not found`);
+  console.log(`  [UI] Node "${nodeName}" not found`);
   return false;
 }
 
+/** @deprecated Use navigateToNodeViaUI instead */
+export const navigateToOfficeViaUI = navigateToNodeViaUI;
+
 /**
- * Delete a node via UI (office or room).
- * Uses the same approach as office-room-crud.test.ts with page.evaluate() to find menu buttons.
+ * Delete a node via UI using the hierarchy sidebar's tree-node-menu.
+ * Uses page.evaluate() to find menu buttons by node name.
  */
 export async function deleteNodeViaUI(
   page: Page,
   nodeName: string,
-  nodeType: 'Office' | 'Room'
+  _nodeType: 'Office' | 'Room' = 'Office'
 ): Promise<{ success: boolean; cascaded: boolean }> {
-  console.log(`  [UI] Deleting ${nodeType}: ${nodeName}`);
+  console.log(`  [UI] Deleting node: ${nodeName}`);
 
   try {
     // Close any open menus
     await page.keyboard.press('Escape');
     await sleep(300);
 
-    // Find the node's menu button using page.evaluate (same approach as office-room-crud.test.ts)
-    const menuPrefix = nodeType === 'Office' ? 'office-menu-' : 'room-menu-';
-    const menuTestId = await page.evaluate((params: { name: string; prefix: string }) => {
+    // Find the node's menu button using page.evaluate
+    // New tree uses data-testid="tree-node-menu-{id}" pattern
+    const menuTestId = await page.evaluate((name: string) => {
       const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
       for (const btn of buttons) {
-        if (btn.textContent?.includes(params.name)) {
+        if (btn.textContent?.includes(name)) {
           const parent = btn.closest('.group');
           if (parent) {
-            const menuBtn = parent.querySelector(`button[data-testid^="${params.prefix}"]`);
+            const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
             if (menuBtn) {
               return menuBtn.getAttribute('data-testid');
             }
@@ -700,7 +706,7 @@ export async function deleteNodeViaUI(
         }
       }
       return null;
-    }, { name: nodeName, prefix: menuPrefix });
+    }, nodeName);
 
     if (!menuTestId) {
       console.log(`  [UI] Menu button not found for "${nodeName}"`);
@@ -708,14 +714,15 @@ export async function deleteNodeViaUI(
     }
 
     console.log(`  [UI] Found menu button: ${menuTestId}`);
+    const nodeId = menuTestId.replace('tree-node-menu-', '');
 
     // Click the menu button with force to handle opacity:0 styling
     const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
     await menuBtn.click({ force: true, timeout: 2000 });
     await sleep(600);
 
-    // Click delete option
-    const deleteOption = page.locator(`div[role="menuitem"]:has-text("Delete ${nodeType}"), [data-testid="delete-${nodeType.toLowerCase()}-option"]`).first();
+    // Click delete option using the new testid pattern
+    const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
     if (!await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
       console.log(`  [UI] Delete option not found`);
       const allMenuItems = await page.locator('[role="menuitem"]').count();
@@ -731,16 +738,16 @@ export async function deleteNodeViaUI(
     const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
     if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await confirmBtn.click();
-      console.log(`  [UI] ${nodeType} delete confirmed`);
+      console.log(`  [UI] Node delete confirmed`);
 
       // Wait for the node to be removed from sidebar
       const nodeLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
       try {
         await nodeLocator.waitFor({ state: 'hidden', timeout: 5000 });
-        console.log(`  [UI] ${nodeType} removed from sidebar`);
+        console.log(`  [UI] Node removed from sidebar`);
         return { success: true, cascaded: true };
       } catch {
-        console.log(`  [UI] WARNING: ${nodeType} still visible after delete`);
+        console.log(`  [UI] WARNING: Node still visible after delete`);
         return { success: false, cascaded: true };
       }
     }
@@ -748,7 +755,7 @@ export async function deleteNodeViaUI(
     console.log(`  [UI] Confirmation dialog not found`);
     return { success: false, cascaded: false };
   } catch (error) {
-    console.log(`  [UI] Error deleting ${nodeType}: ${error}`);
+    console.log(`  [UI] Error deleting node: ${error}`);
     await page.keyboard.press('Escape');
     return { success: false, cascaded: false };
   }

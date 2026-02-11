@@ -28,7 +28,7 @@ export async function navigateToOffice(
     // Try multiple selectors for the office button in the sidebar
     const selectors = [
       `[data-sidebar="menu-button"]:has-text("${officeName}")`,
-      `[data-testid="office-${officeName}"]`,
+      `[data-testid^="tree-node-"]:has-text("${officeName}")`,
       `button:has-text("${officeName}")`,
       `a:has-text("${officeName}")`,
     ];
@@ -45,8 +45,8 @@ export async function navigateToOffice(
       }
     }
 
-    // Try expanding offices section first
-    const officesHeader = page.locator('text="OFFICES", [data-testid="offices-section"]').first();
+    // Try expanding hierarchy section first
+    const officesHeader = page.locator('text="HIERARCHY", [data-testid="hierarchy-section"]').first();
     if (await officesHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
       await officesHeader.click();
       await sleep(1000);
@@ -86,7 +86,7 @@ export async function navigateToRoom(
 
   try {
     // Look for the room in the sidebar or room list
-    const roomLink = page.locator(`[data-testid="room-${roomName}"], a:has-text("${roomName}"), button:has-text("${roomName}")`).first();
+    const roomLink = page.locator(`[data-sidebar="menu-button"]:has-text("${roomName}"), a:has-text("${roomName}"), button:has-text("${roomName}")`).first();
 
     if (await roomLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       await roomLink.click();
@@ -431,7 +431,7 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
 }
 
 /**
- * Create a new office via the UI
+ * Create a new top-level node (e.g. office) via the hierarchy sidebar UI
  */
 export async function createOffice(
   page: Page,
@@ -440,16 +440,14 @@ export async function createOffice(
   description: string = '',
   options: GroupChatOptions = {}
 ): Promise<boolean> {
-  console.log(`\n=== ${username}: Creating office "${officeName}" ===`);
+  console.log(`\n=== ${username}: Creating node "${officeName}" ===`);
 
   try {
-    // Try different selectors for the add button (same selectors as office-room-crud.test.ts)
-    console.log('  Looking for Add Office button...');
+    // The hierarchy sidebar uses add-node-button for top-level node creation
+    console.log('  Looking for Add Node button...');
     const selectors = [
-      '[data-testid="add-office-button"]',
-      '.offices-section button:has(svg)',
-      'button[aria-label*="office" i]:has(svg)',
-      'section:has-text("OFFICES") button:has(svg)',
+      '[data-testid="add-node-button"]',
+      '[data-testid="add-root-node-button"]',
     ];
 
     let clicked = false;
@@ -458,26 +456,26 @@ export async function createOffice(
       if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
         await btn.click();
         await sleep(500);
-        console.log(`  Clicked Add Office button (${selector})`);
+        console.log(`  Clicked Add Node button (${selector})`);
         clicked = true;
         break;
       }
     }
 
     if (!clicked) {
-      console.log(`  WARNING: Could not find add office button`);
+      console.log(`  WARNING: Could not find add node button`);
       return false;
     }
 
     await sleep(1000);
 
-    // Fill in office name - use id selector since the input has id="name"
+    // Fill in node name - use id selector since the input has id="name"
     const nameInput = page.locator('input#name, input[id="name"]').first();
     if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await nameInput.fill(officeName);
       await sleep(300);
     } else {
-      console.log(`  WARNING: Office name input not found`);
+      console.log(`  WARNING: Node name input not found`);
       return false;
     }
 
@@ -490,39 +488,39 @@ export async function createOffice(
       }
     }
 
-    // Click Create Office button
-    const createBtn = page.locator('button:has-text("Create Office"), button:has-text("Update Office")').first();
+    // Click Create button - NodeManagementModal uses "Create {EntityType}"
+    const createBtn = page.locator('button:has-text("Create")').first();
     if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await createBtn.click();
       await sleep(3000);
     } else {
-      console.log(`  WARNING: Create Office button not found`);
+      console.log(`  WARNING: Create button not found`);
       return false;
     }
 
     // Check for success or error
     const errorAlert = page.locator('text="Permission denied"').first();
     if (await errorAlert.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log(`  ERROR: Permission denied when creating office`);
+      console.log(`  ERROR: Permission denied when creating node`);
       if (options.uxTracker) {
-        options.uxTracker.log('major', 'functional', 'Cannot create office: Permission denied');
+        options.uxTracker.log('major', 'functional', 'Cannot create node: Permission denied');
       }
       // Close any dialogs
       await page.keyboard.press('Escape');
       return false;
     }
 
-    // Check if office was created
-    const officeInList = page.locator(`button:has-text("${officeName}")`).first();
-    if (await officeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
-      console.log(`  Office "${officeName}" created successfully`);
+    // Check if node was created
+    const nodeInList = page.locator(`button:has-text("${officeName}")`).first();
+    if (await nodeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
+      console.log(`  Node "${officeName}" created successfully`);
       return true;
     }
 
-    console.log(`  WARNING: Office creation status unclear`);
+    console.log(`  WARNING: Node creation status unclear`);
     return false;
   } catch (error) {
-    console.log(`  ERROR creating office: ${error}`);
+    console.log(`  ERROR creating node: ${error}`);
     return false;
   }
 }

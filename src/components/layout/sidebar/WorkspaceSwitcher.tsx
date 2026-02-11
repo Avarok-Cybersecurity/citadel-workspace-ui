@@ -216,7 +216,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
       // Trigger workspace loading
       await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listOffices();
+      await WorkspaceService.listNodes();
 
       // Show success notification
       toastSuccess(toast, "Connected!", (

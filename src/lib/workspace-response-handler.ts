@@ -4,7 +4,7 @@ import { websocketService } from './websocket-service';
 import { debugLog, errorLog } from './debug-config';
 import { groupMessagingManager } from './group-messaging-manager';
 import { bytesToString } from './utils/encoding-utils';
-import { convertRoomFromBackend } from './converters/room-converter';
+
 
 /**
  * Handles workspace protocol responses and emits appropriate events
@@ -175,62 +175,6 @@ export class WorkspaceResponseHandler {
         },
         connection: connectionInfo
       });
-    } else if ('Offices' in response) {
-      // Handle offices list response
-      eventEmitter.emit('offices:loaded', {
-        offices: response.Offices,
-        connection: connectionInfo
-      });
-
-      // Determine default office (first one with is_default=true, or first office)
-      const offices = response.Offices;
-      if (offices && offices.length > 0) {
-        const defaultOffice = offices.find((o: any) => o.is_default === true) || offices[0];
-        debugLog('workspace', 'Default office determined', {
-          officeId: defaultOffice.id,
-          officeName: defaultOffice.name,
-          isExplicitDefault: defaultOffice.is_default === true
-        });
-        eventEmitter.emit('offices:default-determined', {
-          officeId: defaultOffice.id,
-          officeName: defaultOffice.name,
-          connection: connectionInfo
-        });
-      }
-    } else if ('CreateOffice' in response) {
-      // Handle office creation response
-      debugLog('workspace', 'CreateOffice response', response.CreateOffice);
-      eventEmitter.emit('office:created', {
-        office: {
-          id: response.CreateOffice.id,
-          name: response.CreateOffice.name,
-          description: response.CreateOffice.description,
-          mdx_content: response.CreateOffice.mdx_content,
-          metadata: response.CreateOffice.metadata || []
-        },
-        connection: connectionInfo
-      });
-      // Also trigger a reload of offices
-      eventEmitter.emit('offices:reload', connectionInfo);
-    } else if ('Office' in response) {
-      // Handle single office response
-      eventEmitter.emit('office:loaded', {
-        office: response.Office,
-        connection: connectionInfo
-      });
-    } else if ('Rooms' in response) {
-      // Handle rooms list response - convert snake_case to camelCase for Room interface
-      const convertedRooms = response.Rooms.map((room: any) => convertRoomFromBackend(room));
-      eventEmitter.emit('rooms:loaded', {
-        rooms: convertedRooms,
-        connection: connectionInfo
-      });
-    } else if ('Room' in response) {
-      // Handle single room response - convert snake_case to camelCase for Room interface
-      eventEmitter.emit('room:loaded', {
-        room: convertRoomFromBackend(response.Room),
-        connection: connectionInfo
-      });
     } else if ('Members' in response) {
       // Handle members list response
       eventEmitter.emit('members:loaded', {
@@ -271,81 +215,6 @@ export class WorkspaceResponseHandler {
       });
       // Trigger members reload
       eventEmitter.emit('members:reload', connectionInfo);
-    } else if ('UpdateOffice' in response) {
-      // Handle office update response
-      debugLog('workspace', 'UpdateOffice response', response.UpdateOffice);
-      eventEmitter.emit('office:updated', {
-        office: response.UpdateOffice,
-        connection: connectionInfo
-      });
-      // Trigger offices reload
-      eventEmitter.emit('offices:reload', connectionInfo);
-    } else if ('DeleteOffice' in response) {
-      // Handle office deletion response
-      debugLog('workspace', 'DeleteOffice response', response.DeleteOffice);
-      eventEmitter.emit('office:deleted', {
-        officeId: response.DeleteOffice.office_id,
-        connection: connectionInfo
-      });
-      // Trigger offices reload
-      eventEmitter.emit('offices:reload', connectionInfo);
-    } else if ('CreateRoom' in response) {
-      // Handle room creation response
-      debugLog('workspace', 'CreateRoom response', response.CreateRoom);
-      eventEmitter.emit('room:created', {
-        room: convertRoomFromBackend(response.CreateRoom),
-        connection: connectionInfo
-      });
-      // Also trigger a reload of rooms
-      eventEmitter.emit('rooms:reload', {
-        office_id: response.CreateRoom.office_id,
-        connection: connectionInfo
-      });
-    } else if ('UpdateRoom' in response) {
-      // Handle room update response
-      debugLog('workspace', 'UpdateRoom response', response.UpdateRoom);
-      eventEmitter.emit('room:updated', {
-        room: convertRoomFromBackend(response.UpdateRoom),
-        connection: connectionInfo
-      });
-      // Trigger rooms reload
-      eventEmitter.emit('rooms:reload', {
-        office_id: response.UpdateRoom.office_id,
-        connection: connectionInfo
-      });
-    } else if ('DeleteRoom' in response) {
-      // Handle room deletion response
-      debugLog('workspace', 'DeleteRoom response', response.DeleteRoom);
-      eventEmitter.emit('room:deleted', {
-        roomId: response.DeleteRoom.room_id,
-        connection: connectionInfo
-      });
-      // Trigger rooms reload
-      eventEmitter.emit('rooms:reload', connectionInfo);
-    // ========== Content Broadcast Responses ==========
-    } else if ('OfficeContentUpdated' in response) {
-      // Handle office content update broadcast (from another user)
-      const { office_id, mdx_content, updated_by, timestamp } = response.OfficeContentUpdated;
-      debugLog('workspace', 'OfficeContentUpdated broadcast received', { office_id, updated_by, timestamp });
-      eventEmitter.emit('office:content-updated', {
-        officeId: office_id,
-        mdxContent: mdx_content,
-        updatedBy: updated_by,
-        timestamp,
-        connection: connectionInfo
-      });
-    } else if ('RoomContentUpdated' in response) {
-      // Handle room content update broadcast (from another user)
-      const { room_id, office_id, mdx_content, updated_by, timestamp } = response.RoomContentUpdated;
-      debugLog('workspace', 'RoomContentUpdated broadcast received', { room_id, office_id, updated_by, timestamp });
-      eventEmitter.emit('room:content-updated', {
-        roomId: room_id,
-        officeId: office_id,
-        mdxContent: mdx_content,
-        updatedBy: updated_by,
-        timestamp,
-        connection: connectionInfo
-      });
     } else if ('Success' in response) {
       // Handle success response
       eventEmitter.emit('operation:success', connectionInfo);
@@ -478,44 +347,6 @@ export class WorkspaceResponseHandler {
         node,
         connection: connectionInfo
       });
-
-      // Emit legacy events based on entity_type for backward compatibility
-      const entityType = node.entity_type;
-      if (entityType?.Child === 'Office') {
-        // Emit office events for UI compatibility
-        eventEmitter.emit('office:created', {
-          office: {
-            id: node.id,
-            name: node.name,
-            description: node.description,
-            mdx_content: node.mdx_content,
-            metadata: node.metadata || []
-          },
-          connection: connectionInfo
-        });
-        eventEmitter.emit('office:loaded', {
-          office: node,
-          connection: connectionInfo
-        });
-        eventEmitter.emit('offices:reload', connectionInfo);
-      } else if (entityType?.Child === 'Room') {
-        // Emit room events for UI compatibility
-        const convertedRoom = convertRoomFromBackend(node);
-        eventEmitter.emit('room:created', {
-          room: convertedRoom,
-          connection: connectionInfo
-        });
-        eventEmitter.emit('room:loaded', {
-          room: convertedRoom,
-          connection: connectionInfo
-        });
-        eventEmitter.emit('rooms:reload', {
-          office_id: node.parent_id,
-          connection: connectionInfo
-        });
-      }
-
-      // Also emit raw response for protocol-level testing
       eventEmitter.emit('workspace:raw-response', response);
     } else if ('Nodes' in response) {
       // Handle nodes list response
@@ -525,36 +356,6 @@ export class WorkspaceResponseHandler {
         nodes,
         connection: connectionInfo
       });
-
-      // Emit legacy events based on entity types for backward compatibility
-      const offices = nodes.filter((n: any) => n.entity_type?.Child === 'Office');
-      const rooms = nodes.filter((n: any) => n.entity_type?.Child === 'Room');
-
-      if (offices.length > 0) {
-        eventEmitter.emit('offices:loaded', {
-          offices,
-          connection: connectionInfo
-        });
-        // Determine default office
-        const defaultOffice = offices.find((o: any) => o.is_default === true) || offices[0];
-        if (defaultOffice) {
-          eventEmitter.emit('offices:default-determined', {
-            officeId: defaultOffice.id,
-            officeName: defaultOffice.name,
-            connection: connectionInfo
-          });
-        }
-      }
-
-      if (rooms.length > 0) {
-        // Convert rooms to camelCase format expected by UI
-        const convertedRooms = rooms.map((room: any) => convertRoomFromBackend(room));
-        eventEmitter.emit('rooms:loaded', {
-          rooms: convertedRooms,
-          connection: connectionInfo
-        });
-      }
-
       eventEmitter.emit('workspace:raw-response', response);
     } else if ('TreeStructure' in response) {
       // Handle tree structure response
@@ -622,23 +423,14 @@ export class WorkspaceResponseHandler {
       case 'workspace:loading':
         eventEmitter.emit('workspace:loading', connectionInfo);
         break;
-      case 'offices:loading':
-        eventEmitter.emit('offices:loading', connectionInfo);
-        break;
-      case 'office:loading':
-        eventEmitter.emit('office:loading', { office_id: data?.officeId, connection: connectionInfo });
-        break;
-      case 'rooms:loading':
-        eventEmitter.emit('rooms:loading', { office_id: data?.officeId, connection: connectionInfo });
-        break;
-      case 'room:loading':
-        eventEmitter.emit('room:loading', { room_id: data?.roomId, connection: connectionInfo });
+      case 'nodes:loading':
+        eventEmitter.emit('nodes:loading', connectionInfo);
         break;
       case 'members:loading':
-        eventEmitter.emit('members:loading', { 
-          officeId: data?.officeId, 
+        eventEmitter.emit('members:loading', {
+          officeId: data?.officeId,
           roomId: data?.roomId,
-          connection: connectionInfo 
+          connection: connectionInfo
         });
         break;
     }

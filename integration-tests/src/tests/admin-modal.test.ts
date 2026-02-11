@@ -74,10 +74,10 @@ function getAdminDialog(page: Page) {
   return page.locator('[role="dialog"][data-testid="admin-modal"]');
 }
 
-async function openOfficeContextMenu(page: Page, _officeName: string): Promise<boolean> {
-  const officeItem = page.locator(`[data-testid^="office-menu-"]`).first();
+async function openNodeContextMenu(page: Page, _nodeName: string): Promise<boolean> {
+  const nodeItem = page.locator(`[data-testid^="tree-node-menu-"]`).first();
   try {
-    await officeItem.click({ timeout: 5000 });
+    await nodeItem.click({ force: true, timeout: 5000 });
     await sleep(300);
     const menu = page.locator('[role="menu"]');
     return await menu.isVisible({ timeout: 3000 });
@@ -86,9 +86,12 @@ async function openOfficeContextMenu(page: Page, _officeName: string): Promise<b
   }
 }
 
+/** @deprecated Use openNodeContextMenu instead */
+const openOfficeContextMenu = openNodeContextMenu;
+
 async function clickAdminSettingsMenuItem(page: Page): Promise<boolean> {
   try {
-    const menuItem = page.locator('[data-testid="admin-settings-office-option"]');
+    const menuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
     if (await menuItem.isVisible({ timeout: 3000 })) {
       await menuItem.click();
       await sleep(500);
@@ -127,9 +130,12 @@ async function countTabs(page: Page): Promise<number> {
 }
 
 async function openRoomContextMenu(page: Page): Promise<boolean> {
-  const roomItem = page.locator(`[data-testid^="room-menu-"]`).first();
+  // Find a child node menu button (second tree-node-menu if multiple exist)
+  const allMenuBtns = page.locator('[data-testid^="tree-node-menu-"]');
+  const count = await allMenuBtns.count();
+  if (count < 2) return false;
   try {
-    await roomItem.click({ timeout: 5000 });
+    await allMenuBtns.nth(1).click({ force: true, timeout: 5000 });
     await sleep(300);
     const menu = page.locator('[role="menu"]');
     return await menu.isVisible({ timeout: 3000 });
@@ -140,7 +146,7 @@ async function openRoomContextMenu(page: Page): Promise<boolean> {
 
 async function clickRoomAdminSettings(page: Page): Promise<boolean> {
   try {
-    const menuItem = page.locator('[data-testid="admin-settings-room-option"]');
+    const menuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
     if (await menuItem.isVisible({ timeout: 3000 })) {
       await menuItem.click();
       await sleep(500);
@@ -160,6 +166,7 @@ async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
     testName: 'Admin Modal Integration Test',
     reportFileName: 'ADMIN_MODAL_TEST_REPORT.json',
+    restartBackend: true,
     metadata: { username: USERNAME },
   });
   const uxTracker = harness.uxTracker;
@@ -230,24 +237,46 @@ async function runTest(): Promise<boolean> {
     await takeScreenshot(page, 'admin_01_workspace_loaded');
 
     // ========================================================================
-    // Step 1: Verify Default Office Exists
+    // Step 1: Create an Office for Testing
     // ========================================================================
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 1: Verify Default Office Exists');
+    console.log('STEP 1: Create an Office for Testing');
     console.log('─'.repeat(50));
 
-    // Wait for offices to load - there should be a default office created during workspace init
-    await sleep(2000);
+    await sleep(1000);
 
-    // Check if any office exists in the sidebar
-    const officeMenuButton = page.locator('[data-testid^="office-menu-"]').first();
-    results.officeCreated = await officeMenuButton.isVisible({ timeout: 10000 }).catch(() => false);
-    console.log(`  Default office exists: ${results.officeCreated ? 'PASS' : 'FAIL'}`);
-    await takeScreenshot(page, 'admin_02_office_exists');
+    // Click the "+" button in the HIERARCHY section to create a new node
+    const addNodeBtn = page.locator('[data-testid="add-node-button"], [data-testid="add-root-node-button"]').first();
+    if (await addNodeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await addNodeBtn.click();
+      await sleep(500);
 
-    // Check for any office item in sidebar
-    const anyOfficeItem = page.locator('[data-testid^="office-menu-"]').first();
-    results.officeVisibleInSidebar = await anyOfficeItem.isVisible({ timeout: 5000 }).catch(() => false);
+      // Fill the NodeManagementModal
+      const nameInput = page.locator('input#name, input[id="name"]').first();
+      if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await nameInput.fill(TEST_OFFICE_NAME);
+        await sleep(200);
+
+        // Click the submit/create button
+        const submitBtn = page.locator('button[type="submit"], button:has-text("Create")').first();
+        if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await submitBtn.click();
+          await sleep(2000);
+        }
+      }
+    }
+
+    // Dismiss any toasts/overlays
+    await page.keyboard.press('Escape');
+    await sleep(500);
+
+    // Verify office appears in sidebar
+    const nodeMenuButton = page.locator('[data-testid^="tree-node-menu-"]').first();
+    results.officeCreated = await nodeMenuButton.isVisible({ timeout: 10000 }).catch(() => false);
+    console.log(`  Office created: ${results.officeCreated ? 'PASS' : 'FAIL'}`);
+    await takeScreenshot(page, 'admin_02_office_created');
+
+    results.officeVisibleInSidebar = results.officeCreated;
     console.log(`  Office visible in sidebar: ${results.officeVisibleInSidebar ? 'PASS' : 'FAIL'}`);
 
     await closeAnyModals(page);
@@ -264,7 +293,7 @@ async function runTest(): Promise<boolean> {
     await takeScreenshot(page, 'admin_03_context_menu');
 
     if (results.contextMenuOpens) {
-      const adminMenuItem = page.locator('[data-testid="admin-settings-office-option"]');
+      const adminMenuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
       results.adminSettingsVisible = await adminMenuItem.isVisible({ timeout: 3000 }).catch(() => false);
       console.log(`  Admin Settings visible: ${results.adminSettingsVisible ? 'PASS' : 'FAIL'}`);
     }
@@ -373,8 +402,10 @@ async function runTest(): Promise<boolean> {
 
     // Check if any room menu buttons exist (rooms are visible in sidebar when office is selected)
     // Use a short timeout to avoid hanging
-    const roomMenuButton = page.locator('[data-testid^="room-menu-"]').first();
-    const roomExists = await roomMenuButton.isVisible({ timeout: 2000 }).catch(() => false);
+    // Check if any child nodes exist (rooms) — look for 2nd tree-node-menu
+    const allMenuBtns = page.locator('[data-testid^="tree-node-menu-"]');
+    const menuBtnCount = await allMenuBtns.count();
+    const roomExists = menuBtnCount >= 2;
 
     if (roomExists) {
       console.log('  Room found in sidebar');

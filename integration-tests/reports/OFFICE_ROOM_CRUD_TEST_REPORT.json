@@ -1,13 +1,14 @@
 {
-  "timestamp": "2026-02-04T23:38:39.828Z",
+  "timestamp": "2026-02-11T00:36:43.271Z",
   "testName": "Office & Room CRUD Integration Test",
-  "overallPass": true,
+  "adminUser": "crud_admin_1770770072329",
+  "nonAdminUser": "crud_user_1770770072329",
   "results": {
     "accountCreation": true,
     "workspaceLoaded": true,
     "isAdmin": true,
     "officeCreated": true,
-    "officeNameUpdated": false,
+    "officeNameUpdated": true,
     "officeDescriptionUpdated": false,
     "officeMdxUpdated": false,
     "officeDeleted": true,
@@ -27,5 +28,6 @@
     "memberRemovedFromRoom": false,
     "toastConflictDetected": false
   },
-  "uxIssues": []
+  "uxIssues": [],
+  "passed": true
 }

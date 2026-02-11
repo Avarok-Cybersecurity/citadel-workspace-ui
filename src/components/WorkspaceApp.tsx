@@ -215,14 +215,11 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
           .then(() => {
             console.info('Workspace loading initiated');
 
-            // After workspace is loaded, load all offices
-            return WorkspaceService.listOffices();
+            // After workspace is loaded, load all hierarchy nodes
+            return WorkspaceService.listNodes();
           })
           .then(() => {
-            console.info('Offices loading initiated');
-
-            // After initiating office loading, we'll handle loading rooms via event listeners
-            // in WorkspaceEventHandler when the offices are loaded
+            console.info('Nodes loading initiated');
           })
           .catch((error) => {
             console.error('Error loading workspace data:', error);

@@ -1,9 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Search, Settings, Share2, Files } from "lucide-react";
+import { MessageSquare, Search, Settings, Share2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { officeRooms } from "../layout/sidebar/RoomsSection";
 import { FileUploadButton } from "@/components/files/FileUploadButton";
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 
@@ -15,13 +13,9 @@ interface OfficeLayoutProps {
   children: React.ReactNode;
   canEdit?: boolean;
   editDeniedReason?: string;
+  entityType?: 'office' | 'room' | 'workspace';
+  entityId?: string;
 }
-
-const officeNames = {
-  company: "Company",
-  marketing: "PR/Marketing",
-  hr: "Human Resources"
-};
 
 export const OfficeLayout = ({
   title,
@@ -29,27 +23,17 @@ export const OfficeLayout = ({
   onEditToggle,
   onSave,
   children,
-  canEdit = true, // Default to true for backward compatibility
-  editDeniedReason
+  canEdit = true,
+  editDeniedReason,
+  entityType = 'office',
+  entityId = 'workspace'
 }: OfficeLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { state } = useWorkspace();
-  const currentSection = new URLSearchParams(location.search).get("section") || "company";
-  const currentRoom = new URLSearchParams(location.search).get("room");
-  const officeName = officeNames[currentSection as keyof typeof officeNames];
-  
-  const rooms = officeRooms[currentSection as keyof typeof officeRooms] || [];
-  const currentRoomData = rooms.find(room => room.id === currentRoom);
-  const roomName = currentRoomData ? ` → ${currentRoomData.name}` : "";
 
-  // Determine entity type and ID for file uploads
-  const entityType = currentRoom ? 'room' : 'office';
-  const entityId = currentRoom || currentSection || 'workspace';
-
-  const handleOfficeClick = () => {
+  const handleNavigateUp = () => {
     const params = new URLSearchParams(location.search);
-    params.delete("room");
+    params.delete("roomId");
     navigate(buildWorkspacePath(params));
   };
 
@@ -59,13 +43,12 @@ export const OfficeLayout = ({
         <div className="flex justify-between items-center px-4 py-2 border-b border-gray-800 bg-[#343A5C]">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-semibold text-white hidden md:block">
-              <button 
-                onClick={handleOfficeClick}
+              <button
+                onClick={handleNavigateUp}
                 className="hover:text-[#E5DEFF] transition-colors"
               >
-                {officeName}
+                {title}
               </button>
-              <span className="text-[#E5DEFF]">{roomName}</span>
             </h1>
           </div>
           <div className="flex items-center space-x-2">
@@ -98,7 +81,7 @@ export const OfficeLayout = ({
               <Settings className="h-4 w-4" />
             </Button>
             <FileUploadButton
-              entityType={entityType as 'office' | 'room' | 'workspace'}
+              entityType={entityType}
               entityId={entityId}
               className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
             />
