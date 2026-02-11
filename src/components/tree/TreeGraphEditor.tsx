@@ -209,12 +209,14 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
     setMoveSourceNodeId(null);
   }, []);
 
-  // Check if context menu node is workspace
-  const isWorkspaceNode = useMemo(() => {
-    if (!contextMenu.nodeId) return false;
-    const node = findNodeInTree(treeStructure, contextMenu.nodeId);
-    return node?.node.entity_type === "Workspace";
+  // Check if context menu node is workspace and get its allowed child types
+  const contextMenuNode = useMemo(() => {
+    if (!contextMenu.nodeId) return null;
+    return findNodeInTree(treeStructure, contextMenu.nodeId);
   }, [contextMenu.nodeId, treeStructure]);
+
+  const isWorkspaceNode = contextMenuNode?.node.entity_type === "Workspace";
+  const allowedChildTypes = contextMenuNode?.node.allowed_child_types ?? undefined;
 
   return (
     <div className="relative w-full h-full min-h-[500px] bg-slate-900 rounded-lg border border-slate-700">
@@ -239,6 +241,7 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
         menuState={contextMenu}
         canEdit={canEdit}
         isWorkspaceNode={isWorkspaceNode}
+        allowedChildTypes={allowedChildTypes}
         onClose={handleContextMenuClose}
         onCreateChild={handleCreateChild}
         onEdit={handleEdit}

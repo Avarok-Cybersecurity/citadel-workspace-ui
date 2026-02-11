@@ -4,6 +4,7 @@ import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import type { DomainNode, TreeNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { runAsyncSetup } from './event-setup-utils';
+import { setTreeSchema } from '@/lib/entity-type-registry';
 
 interface UseNodeEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -109,8 +110,9 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
         });
       });
 
-      // Tree schema loaded
+      // Tree schema loaded — feed to entity-type-registry (SSOT) and state
       await workspaceEvents.onNodeEvent('tree:schema:loaded', (payload: { schema: TreeSchema; connection: ConnectionInfo }) => {
+        setTreeSchema(payload.schema);
         setState(prev => ({
           ...prev,
           treeSchema: payload.schema,

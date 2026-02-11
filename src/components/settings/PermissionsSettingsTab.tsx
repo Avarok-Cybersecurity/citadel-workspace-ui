@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, CheckCircle2, XCircle, Building2, FolderOpen, MessageSquare, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Building2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -28,6 +28,7 @@ import { usePermissions, Permission, PERMISSION_CATEGORIES } from '@/contexts/Pe
 import type { UserRole } from '@/lib/permissions-service';
 import { cn } from '@/lib/utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { getEntityMetadata, getEntityTypeString, type NodeEntityType } from '@/lib/entity-type-registry';
 
 /**
  * Role badge component with appropriate styling
@@ -184,17 +185,21 @@ function GroupedPermissionTable({ domainId }: { domainId: string }) {
 }
 
 /**
- * Child node permission section (e.g., Room)
+ * Child node permission section — icon derived from entity-type-registry.
  */
 function ChildNodePermissionSection({
   nodeId,
-  nodeName
+  nodeName,
+  entityType
 }: {
   nodeId: string;
   nodeName: string;
+  entityType: NodeEntityType;
 }) {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
+  const metadata = getEntityMetadata(entityType);
+  const Icon = metadata.icon;
 
   useEffect(() => {
     runAsyncSetup(async () => {
@@ -206,7 +211,7 @@ function ChildNodePermissionSection({
     <AccordionItem value={`child-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-teal-500/30 ml-4">
       <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
-          <MessageSquare className="h-4 w-4 text-teal-400" />
+          <Icon className="h-4 w-4 text-teal-400" />
           <span>{nodeName}</span>
           <RoleBadge role={role} />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
@@ -220,19 +225,23 @@ function ChildNodePermissionSection({
 }
 
 /**
- * Parent node permission section with nested children (e.g., Office with Rooms)
+ * Parent node permission section with nested children — icon derived from entity-type-registry.
  */
 function ParentNodePermissionSection({
   nodeId,
   nodeName,
+  entityType,
   children
 }: {
   nodeId: string;
   nodeName: string;
-  children: Array<{ id: string; name: string }>;
+  entityType: NodeEntityType;
+  children: Array<{ id: string; name: string; entityType: NodeEntityType }>;
 }) {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
+  const metadata = getEntityMetadata(entityType);
+  const Icon = metadata.icon;
 
   useEffect(() => {
     runAsyncSetup(async () => {
@@ -244,7 +253,7 @@ function ParentNodePermissionSection({
     <AccordionItem value={`node-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-blue-500/30 ml-2">
       <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
-          <FolderOpen className="h-4 w-4 text-blue-400" />
+          <Icon className="h-4 w-4 text-blue-400" />
           <span>{nodeName}</span>
           <RoleBadge role={role} />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
@@ -264,6 +273,7 @@ function ParentNodePermissionSection({
                   key={child.id}
                   nodeId={child.id}
                   nodeName={child.name}
+                  entityType={child.entityType}
                 />
               ))}
             </Accordion>
@@ -301,24 +311,22 @@ export function PermissionsSettingsTab() {
     }
   }, [workspaceId, fetchPermissionsForDomain]);
 
-  // Group child nodes by parent hierarchy via entity_type
+  // Group nodes by parent/child hierarchy using parent_id relationships
   const nodesWithChildren = useMemo(() => {
     const allNodes = Object.values(state.nodes);
-    // Parent nodes: those whose children can have children (e.g., 'Office' has 'Room' children)
-    const parentNodes = allNodes.filter(n =>
-      typeof n.entity_type === 'object' && 'Child' in n.entity_type && n.entity_type.Child === 'Office'
-    );
-    // Leaf nodes: those without children (e.g., 'Room')
-    const leafNodes = allNodes.filter(n =>
-      typeof n.entity_type === 'object' && 'Child' in n.entity_type && n.entity_type.Child === 'Room'
-    );
+    // Parent nodes: those that have children (other nodes reference them as parent_id)
+    const childParentIds = new Set(allNodes.filter(n => n.parent_id).map(n => n.parent_id));
+    const parentNodes = allNodes.filter(n => childParentIds.has(n.id));
+    // Leaf nodes: those that are not parents themselves
+    const leafNodes = allNodes.filter(n => !childParentIds.has(n.id) && n.parent_id);
 
     return parentNodes.map(parent => ({
       id: parent.id,
       name: parent.name,
+      entityType: parent.entity_type as NodeEntityType,
       children: leafNodes
         .filter(leaf => leaf.parent_id === parent.id)
-        .map(leaf => ({ id: leaf.id, name: leaf.name })),
+        .map(leaf => ({ id: leaf.id, name: leaf.name, entityType: leaf.entity_type as NodeEntityType })),
     }));
   }, [state.nodes]);
 
@@ -412,6 +420,7 @@ export function PermissionsSettingsTab() {
                         key={node.id}
                         nodeId={node.id}
                         nodeName={node.name}
+                        entityType={node.entityType}
                         children={node.children}
                       />
                     ))}
@@ -444,14 +453,6 @@ export function PermissionsSettingsTab() {
           <div className="flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5 text-purple-400" />
             <span className="text-gray-400">Workspace</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <FolderOpen className="h-3.5 w-3.5 text-blue-400" />
-            <span className="text-gray-400">Office</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <MessageSquare className="h-3.5 w-3.5 text-teal-400" />
-            <span className="text-gray-400">Room</span>
           </div>
         </div>
       </div>

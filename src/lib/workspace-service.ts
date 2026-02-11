@@ -202,11 +202,10 @@ export class WorkspaceService {
   }
 
   /**
-   * Add a member to an office or room
+   * Add a member to a domain node
    * @param userId The user ID
    * @param role The user role
-   * @param officeId Optional office ID
-   * @param roomId Optional room ID
+   * @param domainId Optional domain node ID
    * @param metadata Optional metadata
    */
   public async addMember(
@@ -283,10 +282,9 @@ export class WorkspaceService {
   }
 
   /**
-   * Remove a member from an office or room
+   * Remove a member from a domain node
    * @param userId The user ID
-   * @param officeId Optional office ID
-   * @param roomId Optional room ID
+   * @param domainId Optional domain node ID
    */
   public async removeMember(
     userId: string,

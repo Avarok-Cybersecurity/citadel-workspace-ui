@@ -6,7 +6,6 @@ import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
-import { useLocation } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
@@ -23,13 +22,11 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface BaseOfficeProps {
   title: string;
-  getInitialContent: (currentRoom: string | null) => string;
+  getInitialContent: () => string;
   nodeId?: string;
 }
 
 export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps) => {
-  const location = useLocation();
-  const currentRoom = new URLSearchParams(location.search).get("room");
   const { state } = useWorkspace();
 
   // Get the entity data from workspace state (unified node hierarchy)
@@ -37,7 +34,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(
-    entityData?.mdx_content || getInitialContent(currentRoom)
+    entityData?.mdx_content || getInitialContent()
   );
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -88,16 +85,16 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     setIsEditing(false);
   };
 
-  // Update content when entity data changes or when room changes
+  // Update content when entity data changes
   useEffect(() => {
     if (entityData?.mdx_content) {
       setContent(entityData.mdx_content);
       setIsNewContent(false);
     } else {
-      setContent(getInitialContent(currentRoom));
+      setContent(getInitialContent());
       setIsNewContent(true);
     }
-  }, [entityData, currentRoom, getInitialContent]);
+  }, [entityData, getInitialContent]);
 
   useEffect(() => {
     const compileContent = async () => {

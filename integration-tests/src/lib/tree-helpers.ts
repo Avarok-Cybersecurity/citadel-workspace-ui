@@ -40,11 +40,21 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
+export interface EntityTypeConfig {
+  type_name: string;
+  icon: string;
+  label: string;
+  plural_label: string;
+  name_placeholder: string;
+  description_placeholder: string;
+}
+
 export interface TreeSchema {
   id: string;
   name: string;
   rules: NestingRule[];
   max_depth: number | null;
+  entity_type_configs: EntityTypeConfig[];
 }
 
 export interface NestingRule {

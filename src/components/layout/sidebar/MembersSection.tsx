@@ -68,8 +68,6 @@ export const MembersSection = () => {
   const { state } = useWorkspace();
   const params = new URLSearchParams(location.search);
   const currentNodeId = params.get("nodeId");
-  const currentOfficeId = params.get("officeId");
-  const currentRoomId = params.get("roomId");
 
   // Members state
   const [members, setMembers] = useState<Member[]>([]);
@@ -123,7 +121,7 @@ export const MembersSection = () => {
   });
 
   // Load members when location changes
-  const activeDomainId = currentNodeId ?? currentRoomId ?? currentOfficeId;
+  const activeDomainId = currentNodeId;
   useEffect(() => {
     const loadMembers = async () => {
       if (!activeDomainId) {
@@ -162,17 +160,14 @@ export const MembersSection = () => {
   };
 
   const handleManagePermissions = (member: Member) => {
-    let domainId = '';
+    let domainId = 'workspace-root';
     let domainType = 'workspace';
 
-    // Prefer generic nodeId for schema-driven hierarchy
     if (currentNodeId) {
       domainId = currentNodeId;
       const node = state.nodes[currentNodeId];
       domainType = node ? getEntityTypeString(node.entity_type).toLowerCase() : 'workspace';
-    } else if (currentRoomId) { domainId = currentRoomId; domainType = 'room'; }
-    else if (currentOfficeId) { domainId = currentOfficeId; domainType = 'office'; }
-    else { domainId = 'workspace-root'; domainType = 'workspace'; }
+    }
 
     setPermissionModalData({ userId: member.id, domainId, domainType });
     setShowPermissionModal(true);
@@ -190,7 +185,6 @@ export const MembersSection = () => {
   const getRoleColor = (role: string) => ({ Owner: "bg-purple-600", Admin: "bg-blue-600", Member: "bg-green-600", Guest: "bg-gray-600" }[role] || "bg-gray-500");
 
   const getLocationText = () => {
-    // Prefer generic node label from hierarchy schema
     if (currentNodeId) {
       const node = state.nodes[currentNodeId];
       if (node) {
@@ -198,8 +192,6 @@ export const MembersSection = () => {
         return `${label} Members`;
       }
     }
-    if (currentRoomId) return "Room Members";
-    if (currentOfficeId) return "Office Members";
     if (registeredPeers.length > 0 && members.length === 0) return "Connected Peers";
     return "Workspace Members";
   };
@@ -335,9 +327,9 @@ export const MembersSection = () => {
       )}
 
       {/* Modals */}
-      <MemberManagementModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} mode="add" domainId={currentNodeId ?? currentRoomId ?? currentOfficeId ?? undefined} />
-      <MemberManagementModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedMember(null); }} mode="edit" domainId={currentNodeId ?? currentRoomId ?? currentOfficeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
-      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { setShowRemoveModal(false); setSelectedMember(null); }} mode="remove" domainId={currentNodeId ?? currentRoomId ?? currentOfficeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
+      <MemberManagementModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} mode="add" domainId={currentNodeId ?? undefined} />
+      <MemberManagementModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedMember(null); }} mode="edit" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
+      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { setShowRemoveModal(false); setSelectedMember(null); }} mode="remove" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
 
       {/* All Members Dialog */}
       <Dialog open={showAllMembersDialog} onOpenChange={setShowAllMembersDialog}>

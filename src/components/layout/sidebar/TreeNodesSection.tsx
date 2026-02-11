@@ -107,25 +107,8 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-/**
- * Rule defining what child types are allowed under a parent type.
- * Mirrors Rust NestingRule in citadel-workspace-types.
- */
-export interface NestingRule {
-  parent_type: string;
-  allowed_child_types: string[];
-}
-
-/**
- * Schema defining the structure rules for a workspace tree.
- * Mirrors Rust TreeSchema in citadel-workspace-types.
- */
-export interface TreeSchema {
-  id: string;
-  name: string;
-  rules: NestingRule[];
-  max_depth: number | null;
-}
+// TreeSchema and NestingRule types imported from canonical source (SSOT)
+export type { TreeSchema, NestingRule, EntityTypeConfig } from 'citadel-workspace-client-ts';
 
 // Icon and label resolution delegated to entity-type-registry (SSOT)
 function getEntityIcon(entityType: NodeEntityType): React.ComponentType<{ className?: string }> {
@@ -405,8 +388,8 @@ function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     default_permissions: roots[0].default_permissions,
     metadata: [],
     allowed_child_types: [...new Set(roots.map(r =>
-      r.entity_type === 'Workspace' ? 'Office' :
-      typeof r.entity_type === 'object' && 'Child' in r.entity_type ? r.entity_type.Child : 'Node'
+      typeof r.entity_type === 'object' && 'Child' in r.entity_type ? r.entity_type.Child :
+      getEntityTypeString(r.entity_type)
     ))],
     is_default: false,
     created_at: 0n,

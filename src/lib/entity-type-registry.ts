@@ -1,12 +1,14 @@
 /**
- * Entity Type Registry — SSOT for hierarchy node display metadata.
+ * Entity Type Registry — thin accessor over TreeSchema display metadata.
  *
- * Consolidates icon, label, and placeholder mappings that were previously
- * scattered across TreeNodesSection, tree-graph-types, AdminModal, and
- * PermissionManager into a single authoritative source.
+ * All display metadata (icons, labels, placeholders) is defined in the
+ * Rust TreeSchema and sent to the frontend via the tree:schema:loaded event.
+ * This module resolves icon name strings to Lucide React components and
+ * provides the same public API as before.
  */
 
 import type { ComponentType } from 'react';
+import type { TreeSchema, EntityTypeConfig } from 'citadel-workspace-client-ts';
 import {
   Building2,
   Briefcase,
@@ -17,8 +19,7 @@ import {
   Layers,
 } from 'lucide-react';
 
-// Re-export the canonical NodeEntityType from TreeNodesSection
-// (mirrors citadel-workspace-types/src/lib.rs)
+// Re-export the canonical NodeEntityType
 export type NodeEntityType = "Workspace" | { Child: string };
 
 export interface EntityTypeMetadata {
@@ -29,57 +30,31 @@ export interface EntityTypeMetadata {
   descriptionPlaceholder: string;
 }
 
-const REGISTRY: Record<string, EntityTypeMetadata> = {
-  Workspace: {
-    icon: Building2,
-    label: 'Workspace',
-    pluralLabel: 'Workspaces',
-    namePlaceholder: 'e.g., Avarok Cybersecurity',
-    descriptionPlaceholder: 'Describe the purpose of this workspace...',
-  },
-  Office: {
-    icon: Briefcase,
-    label: 'Office',
-    pluralLabel: 'Offices',
-    namePlaceholder: 'e.g., Engineering, Marketing, HR',
-    descriptionPlaceholder: 'Describe the purpose of this office...',
-  },
-  Room: {
-    icon: MessageSquare,
-    label: 'Room',
-    pluralLabel: 'Rooms',
-    namePlaceholder: 'e.g., General, Design Reviews, Standups',
-    descriptionPlaceholder: 'Describe the purpose of this room...',
-  },
-  Department: {
-    icon: Users,
-    label: 'Department',
-    pluralLabel: 'Departments',
-    namePlaceholder: 'e.g., R&D, Sales, Operations',
-    descriptionPlaceholder: 'Describe this department...',
-  },
-  Team: {
-    icon: Users,
-    label: 'Team',
-    pluralLabel: 'Teams',
-    namePlaceholder: 'e.g., Frontend, Backend, DevOps',
-    descriptionPlaceholder: 'Describe this team...',
-  },
-  Project: {
-    icon: FolderKanban,
-    label: 'Project',
-    pluralLabel: 'Projects',
-    namePlaceholder: 'e.g., Q1 Release, Migration',
-    descriptionPlaceholder: 'Describe this project...',
-  },
-  Channel: {
-    icon: Layers,
-    label: 'Channel',
-    pluralLabel: 'Channels',
-    namePlaceholder: 'e.g., announcements, random',
-    descriptionPlaceholder: 'Describe this channel...',
-  },
+/** Map from Lucide icon kebab-case names to React components. */
+const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
+  'building-2': Building2,
+  'briefcase': Briefcase,
+  'message-square': MessageSquare,
+  'folder': Folder,
+  'users': Users,
+  'folder-kanban': FolderKanban,
+  'layers': Layers,
 };
+
+/** Schema-driven config store. Populated by setTreeSchema(). */
+let schemaConfigs: Map<string, EntityTypeConfig> | null = null;
+
+/** Called from useNodeEventSetup when tree:schema:loaded fires. */
+export function setTreeSchema(schema: TreeSchema): void {
+  schemaConfigs = new Map(
+    schema.entity_type_configs.map(c => [c.type_name, c])
+  );
+}
+
+/** Resolve a Lucide icon name string to its React component. */
+function resolveIcon(iconName: string): ComponentType<{ className?: string }> {
+  return ICON_MAP[iconName] ?? Folder;
+}
 
 /** Extract the string name from a NodeEntityType. */
 export function getEntityTypeString(entityType: NodeEntityType): string {
@@ -90,14 +65,24 @@ export function getEntityTypeString(entityType: NodeEntityType): string {
   return 'Node';
 }
 
-/** Get display metadata for an entity type. Unknown types receive sensible defaults. */
+/** Get display metadata for an entity type from the TreeSchema (SSOT). */
 export function getEntityMetadata(entityType: NodeEntityType | string): EntityTypeMetadata {
   const key = typeof entityType === 'string'
     ? entityType
     : getEntityTypeString(entityType);
 
-  if (key in REGISTRY) {
-    return REGISTRY[key];
+  // Primary: read from schema (SSOT)
+  if (schemaConfigs) {
+    const config = schemaConfigs.get(key);
+    if (config) {
+      return {
+        icon: resolveIcon(config.icon),
+        label: config.label,
+        pluralLabel: config.plural_label,
+        namePlaceholder: config.name_placeholder,
+        descriptionPlaceholder: config.description_placeholder,
+      };
+    }
   }
 
   // Fallback for unknown entity types — derive from the type name

@@ -20,11 +20,8 @@ export function HierarchySidebar() {
   const { state } = useWorkspace();
   const { toast } = useToast();
 
-  // Read selected node from URL params (with backward compat for officeId/roomId)
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedNodeId = params.get('nodeId')
-    ?? params.get('roomId')
-    ?? params.get('officeId');
+  const selectedNodeId = params.get('nodeId');
 
   // Modal state
   const [createModal, setCreateModal] = useState<{ parentId: string; entityType: string } | null>(null);
@@ -37,22 +34,8 @@ export function HierarchySidebar() {
   const handleNodeSelect = useCallback((nodeId: string) => {
     const newParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);
-
-    // Backward compat: also set officeId/roomId based on entity type
-    const node = state.nodes[nodeId];
-    if (node) {
-      const typeName = getEntityTypeString(node.entity_type);
-      if (typeName === 'Office') {
-        newParams.set('officeId', nodeId);
-        newParams.delete('roomId');
-      } else if (typeName === 'Room') {
-        newParams.set('roomId', nodeId);
-        // Keep officeId (parent) if it's set
-      }
-    }
-
     navigate(buildWorkspacePath(newParams));
-  }, [location.search, navigate, state.nodes]);
+  }, [location.search, navigate]);
 
   const handleNodeEdit = useCallback((node: DomainNode) => {
     setEditNode(node);
@@ -78,11 +61,11 @@ export function HierarchySidebar() {
   const handleNodeCreate = useCallback((parentId: string | null) => {
     if (parentId === null) {
       // Creating a root-level child under the synthetic workspace root.
-      // Allowed types come from the tree schema, defaulting to "Office".
+      // Allowed types come from the tree schema.
       const workspaceRule = state.treeSchema?.rules?.find(
         r => r.parent_type === 'Workspace'
       );
-      const allowedTypes = workspaceRule?.allowed_child_types ?? ['Office'];
+      const allowedTypes = workspaceRule?.allowed_child_types ?? [];
       if (allowedTypes.length === 0) return;
       setCreateModal({ parentId: 'workspace-root', entityType: allowedTypes[0] });
       return;
