@@ -9,6 +9,7 @@ import { sleep } from './utils.js';
 import { takeScreenshot } from './screenshots.js';
 import type { UxIssueTracker } from './ux-tracker.js';
 import { waitForTreeDataLoaded } from './modals.js';
+import { createNodeViaProtocol, listNodesViaProtocol, updateNodeViaProtocol } from './tree-helpers.js';
 
 export interface GroupChatOptions {
   uxTracker?: UxIssueTracker | null;
@@ -531,6 +532,24 @@ export async function createOffice(
     const nodeInList = page.locator(`button:has-text("${officeName}")`).first();
     if (await nodeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
       console.log(`  Node "${officeName}" created successfully`);
+
+      // Enable chat on the newly created node so group messaging tests work.
+      // CreateNode doesn't auto-enable chat; we need to find the node ID and update it.
+      try {
+        const nodes = await listNodesViaProtocol(page);
+        const createdNode = nodes.find(n => n.name === officeName);
+        if (createdNode) {
+          console.log(`  Enabling chat on node "${officeName}" (${createdNode.id})...`);
+          await updateNodeViaProtocol(page, createdNode.id, { chat_enabled: true });
+          await sleep(1000);
+          console.log(`  Chat enabled on "${officeName}"`);
+        } else {
+          console.log(`  WARNING: Could not find node "${officeName}" to enable chat`);
+        }
+      } catch (chatError) {
+        console.log(`  WARNING: Failed to enable chat: ${chatError}`);
+      }
+
       return true;
     }
 
@@ -538,6 +557,62 @@ export async function createOffice(
     return false;
   } catch (error) {
     console.log(`  ERROR creating node: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Create a child node (room) under a parent node via protocol.
+ * Finds the parent by name, creates the child with entity_type { Child: "Room" },
+ * and enables chat on it.
+ */
+export async function createRoom(
+  page: Page,
+  username: string,
+  roomName: string,
+  parentNodeName: string,
+  description: string = '',
+  _options: GroupChatOptions = {}
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Creating room "${roomName}" under "${parentNodeName}" ===`);
+
+  try {
+    // Find parent node by name
+    const nodes = await listNodesViaProtocol(page);
+    const parentNode = nodes.find(n => n.name === parentNodeName);
+    if (!parentNode) {
+      console.log(`  WARNING: Parent node "${parentNodeName}" not found`);
+      return false;
+    }
+
+    // Create child node via protocol
+    const result = await createNodeViaProtocol(
+      page,
+      parentNode.id,
+      { Child: 'Room' },
+      roomName,
+      description
+    );
+
+    if (!result.success) {
+      console.log(`  WARNING: Failed to create room: ${result.error}`);
+      return false;
+    }
+
+    console.log(`  Room "${roomName}" created (ID: ${result.nodeId})`);
+
+    // Enable chat on the room
+    if (result.nodeId) {
+      await updateNodeViaProtocol(page, result.nodeId, { chat_enabled: true });
+      await sleep(1000);
+      console.log(`  Chat enabled on room "${roomName}"`);
+    }
+
+    // Wait for UI to reflect the new node
+    await sleep(1000);
+    return true;
+  } catch (error) {
+    console.log(`  ERROR creating room: ${error}`);
     return false;
   }
 }

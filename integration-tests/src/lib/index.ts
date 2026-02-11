@@ -117,6 +117,7 @@ export {
   checkRulesBanner,
   hasOffices,
   createOffice,
+  createRoom,
 } from './group-chat.js';
 
 // Diagnostics - Console error/warning collector and white-screen detector

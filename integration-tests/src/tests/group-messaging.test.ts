@@ -28,6 +28,7 @@ import {
   waitForWorkspaceLoaded,
   hasOffices,
   createOffice,
+  createRoom,
   startDiagnostics,
   TestHarness,
   runTestMain,
@@ -207,6 +208,14 @@ async function runTest(): Promise<boolean> {
         console.log(`  WARNING: Could not create office. This may be a permissions issue.`);
         console.log(`  NOTE: The first user needs to initialize the workspace to gain admin permissions.`);
         uxTracker.log('major', 'functional', 'Cannot create office - may need workspace initialization or admin permissions');
+      } else {
+        // Create room under the office (new generic node system doesn't auto-create rooms)
+        console.log(`  Creating room "${TEST_ROOM}" under "${TEST_OFFICE}"...`);
+        const roomCreated = await createRoom(page, USER1, TEST_ROOM, TEST_OFFICE, 'Random discussions');
+        if (!roomCreated) {
+          console.log(`  WARNING: Could not create room "${TEST_ROOM}"`);
+          uxTracker.log('major', 'functional', `Cannot create room "${TEST_ROOM}" under "${TEST_OFFICE}"`);
+        }
       }
     }
 
