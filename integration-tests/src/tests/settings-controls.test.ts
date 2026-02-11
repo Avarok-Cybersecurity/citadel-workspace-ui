@@ -72,7 +72,10 @@ async function openSettingsModal(page: Page): Promise<boolean> {
 async function testGeneralTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing General Tab Controls ===');
 
-  const generalTab = page.locator('button[role="tab"]').first();
+  // Scope tab locator to the dialog to avoid matching tabs elsewhere on the page,
+  // and wait for the dialog open animation to fully settle before clicking.
+  await sleep(500);
+  const generalTab = page.locator('[role="dialog"] button[role="tab"]').first();
   if (await generalTab.isVisible({ timeout: 2000 }).catch(() => false)) {
     await generalTab.click();
     await sleep(300);
@@ -94,7 +97,7 @@ async function testGeneralTab(page: Page): Promise<boolean> {
 async function testConnectionsTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Connections Tab ===');
 
-  const connectionsTab = page.locator('button[role="tab"]').nth(1);
+  const connectionsTab = page.locator('[role="dialog"] button[role="tab"]').nth(1);
   if (!(await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false))) {
     console.log('  Connections tab not found');
     return false;
@@ -141,7 +144,7 @@ async function testConnectionsTab(page: Page): Promise<boolean> {
 async function testAppearanceTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Appearance Tab ===');
 
-  const appearanceTab = page.locator('button[role="tab"]').nth(2);
+  const appearanceTab = page.locator('[role="dialog"] button[role="tab"]').nth(2);
   if (!(await appearanceTab.isVisible({ timeout: 2000 }).catch(() => false))) {
     console.log('  Appearance tab not found');
     return false;
@@ -167,7 +170,7 @@ async function testAppearanceTab(page: Page): Promise<boolean> {
 async function testPrivacyTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Privacy Tab ===');
 
-  const privacyTab = page.locator('button[role="tab"]').nth(3);
+  const privacyTab = page.locator('[role="dialog"] button[role="tab"]').nth(3);
   if (!(await privacyTab.isVisible({ timeout: 2000 }).catch(() => false))) {
     console.log('  Privacy tab not found');
     return false;
@@ -307,7 +310,7 @@ async function runTest(): Promise<boolean> {
 
     if (results.settingsReopen) {
       // Verify the auto-reconnect state persisted after close/reopen
-      const connectionsTab = page.locator('button[role="tab"]').nth(1);
+      const connectionsTab = page.locator('[role="dialog"] button[role="tab"]').nth(1);
       if (await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
         await connectionsTab.click();
         await sleep(300);

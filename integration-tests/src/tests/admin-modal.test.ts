@@ -384,7 +384,10 @@ async function runTest(): Promise<boolean> {
       await takeScreenshot(page, 'admin_07_chat_tab');
 
       const dialog = getAdminDialog(page);
-      results.chatToggleVisible = await dialog.locator('[data-testid="chat-enabled-toggle"]').isVisible().catch(() => false);
+      // Wait for the toggle to render — the tab panel container becomes visible
+      // before React finishes mounting the Switch component inside it.
+      await sleep(500);
+      results.chatToggleVisible = await dialog.locator('[data-testid="chat-enabled-toggle"]').isVisible({ timeout: 5000 }).catch(() => false);
 
       console.log(`  Chat toggle visible: ${results.chatToggleVisible ? 'PASS' : 'FAIL'}`);
 
