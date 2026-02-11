@@ -219,8 +219,7 @@ export class WorkspaceResponseHandler {
       // Handle success response
       eventEmitter.emit('operation:success', connectionInfo);
 
-      // Note: office:created and room:created are emitted by their specific handlers
-      // (CreateOffice, CreateRoom) - don't duplicate here
+      // Note: node:loaded is emitted by its specific handler (CreateNode) - don't duplicate here
       if (response.Success.includes('deleted')) {
         eventEmitter.emit('operation:deleted', connectionInfo);
       }
@@ -428,8 +427,7 @@ export class WorkspaceResponseHandler {
         break;
       case 'members:loading':
         eventEmitter.emit('members:loading', {
-          officeId: data?.officeId,
-          roomId: data?.roomId,
+          domainId: data?.domainId,
           connection: connectionInfo
         });
         break;

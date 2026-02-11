@@ -23,8 +23,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { components } from '../office/mdxComponents';
 
 interface RoomProps {
-  roomId: string;
-  officeId?: string;
+  nodeId: string;
 }
 
 interface Topic {
@@ -35,12 +34,12 @@ interface Topic {
 /**
  * Room component that displays room data and integrates with workspace state
  */
-export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
+export const Room: React.FC<RoomProps> = ({ nodeId }) => {
   const { state } = useWorkspace();
   const { toast } = useToast();
 
   // Get room data from workspace state (unified node hierarchy)
-  const room = state.nodes[roomId];
+  const room = state.nodes[nodeId];
   const isLoading = state.loading.nodes;
 
   // State for MDX content
@@ -70,7 +69,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
 
   // Check if user can edit the MDX content using the permissions system
   const { allowed: canEditMdx, reason: editDeniedReason, loading: permissionLoading } = usePermission(
-    roomId,
+    nodeId,
     Permission.EditMdx
   );
 
@@ -99,7 +98,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, officeId }) => {
   // Handle saving MDX content
   const handleSave = async () => {
     try {
-      await WorkspaceService.updateNode(roomId, {
+      await WorkspaceService.updateNode(nodeId, {
         mdxContent: content
       });
 

@@ -1,4 +1,4 @@
-export const getDefaultOfficeContent = (officeName: string) => `# Welcome to ${officeName} 🏢
+export const getDefaultNodeContent = (nodeName: string) => `# Welcome to ${nodeName} 🏢
 
 Welcome to your new office workspace! This is a **powerful MDX editor** that supports rich content formatting, interactive components, and collaborative editing.
 
@@ -73,9 +73,9 @@ Learn more about [Markdown syntax](https://www.markdownguide.org/) to make the m
 
 *Ready to make this space your own? Click "Edit" to get started!* ✨`;
 
-export const getDefaultRoomContent = (roomName: string, roomDescription?: string) => `# ${roomName} 📍
+export const getDefaultChildNodeContent = (nodeName: string, nodeDescription?: string) => `# ${nodeName} 📍
 
-${roomDescription || 'Welcome to your team room! This is your dedicated space for collaboration and communication.'}
+${nodeDescription || 'Welcome to your team room! This is your dedicated space for collaboration and communication.'}
 
 ## 🎯 Room Purpose
 

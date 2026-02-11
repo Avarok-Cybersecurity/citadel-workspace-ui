@@ -54,12 +54,9 @@ const PERMISSION_CATEGORIES = {
     { id: 'BanUser', label: 'Ban Users', description: 'Can ban users from domain' },
   ],
   Management: [
-    { id: 'CreateRoom', label: 'Create Rooms', description: 'Can create new rooms' },
-    { id: 'DeleteRoom', label: 'Delete Rooms', description: 'Can delete rooms' },
-    { id: 'UpdateRoom', label: 'Update Rooms', description: 'Can update room settings' },
-    { id: 'CreateOffice', label: 'Create Offices', description: 'Can create new offices' },
-    { id: 'DeleteOffice', label: 'Delete Offices', description: 'Can delete offices' },
-    { id: 'UpdateOffice', label: 'Update Offices', description: 'Can update office settings' },
+    { id: 'CreateNode', label: 'Create Nodes', description: 'Can create new nodes' },
+    { id: 'DeleteNode', label: 'Delete Nodes', description: 'Can delete nodes' },
+    { id: 'UpdateNode', label: 'Update Nodes', description: 'Can update node settings' },
   ],
   System: [
     { id: 'ManageDomains', label: 'Manage Domains', description: 'Full domain management' },
@@ -123,7 +120,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           'SendMessages', 'ReadMessages',
           'UploadFiles', 'DownloadFiles',
           'AddUsers', 'RemoveUsers',
-          'CreateRoom', 'DeleteRoom', 'UpdateRoom',
+          'CreateNode', 'DeleteNode', 'UpdateNode',
         ];
       case 'Member':
         return [

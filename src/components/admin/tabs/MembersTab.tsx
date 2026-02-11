@@ -48,16 +48,9 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   const loadMembers = async () => {
     setLoading(true);
     try {
-      let officeId: string | undefined;
-      let roomId: string | undefined;
+      const domainId = entityId;
 
-      if (entityType === 'office') {
-        officeId = entityId;
-      } else if (entityType === 'room') {
-        roomId = entityId;
-      }
-
-      const response = await WorkspaceService.listMembers(officeId, roomId);
+      const response = await WorkspaceService.listMembers(domainId);
 
       if (response?.ListMembers?.members) {
         const memberList: MemberData[] = response.ListMembers.members.map((m: any) => ({
@@ -129,16 +122,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
     if (!memberToRemove) return;
 
     try {
-      let officeId: string | undefined;
-      let roomId: string | undefined;
-
-      if (entityType === 'office') {
-        officeId = entityId;
-      } else if (entityType === 'room') {
-        roomId = entityId;
-      }
-
-      await WorkspaceService.removeMember(memberToRemove.userId, officeId, roomId);
+      await WorkspaceService.removeMember(memberToRemove.userId, entityId);
 
       setMembers(prev => prev.filter(m => m.userId !== memberToRemove.userId));
 

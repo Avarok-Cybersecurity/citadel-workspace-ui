@@ -39,8 +39,6 @@ const BYPASS_ILM_TYPES = [
   'LocalDBGetAllKV',
   'GetWorkspace',
   'ListWorkspaces',
-  'ListOffices',
-  'ListRooms',
   'ListMembers',
   'GetMemberInfo',
   'Connect',

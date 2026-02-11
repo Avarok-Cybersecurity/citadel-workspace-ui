@@ -1,5 +1,5 @@
 // Workspace events for WebSocket integration
-import { Office, Room, User } from '../types/workspace-entities';
+import { User } from '../types/workspace-entities';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import { eventEmitter } from './event-emitter';
@@ -21,26 +21,6 @@ export interface WorkspacePayload {
     name: string;
     metadata?: Record<string, any>;
   };
-  connection: ConnectionInfo;
-}
-
-export interface OfficePayload {
-  office: Office;
-  connection: ConnectionInfo;
-}
-
-export interface OfficesPayload {
-  offices: Office[];
-  connection: ConnectionInfo;
-}
-
-export interface RoomPayload {
-  room: Room;
-  connection: ConnectionInfo;
-}
-
-export interface RoomsPayload {
-  rooms: Room[];
   connection: ConnectionInfo;
 }
 
@@ -92,30 +72,6 @@ export type WorkspaceEventType =
   | 'workspace:created'
   | 'workspace:not-initialized'
   | 'workspaces:listed'
-  // Office events
-  | 'office:creating'
-  | 'office:created'
-  | 'office:loading'
-  | 'office:updating'
-  | 'office:updated'
-  | 'office:deleting'
-  | 'office:deleted'
-  | 'office:loaded'
-  | 'offices:loading'
-  | 'offices:loaded'
-  | 'offices:reload'
-  // Room events
-  | 'room:creating'
-  | 'room:created'
-  | 'room:loading'
-  | 'room:updating'
-  | 'room:updated'
-  | 'room:deleting'
-  | 'room:deleted'
-  | 'room:loaded'
-  | 'rooms:loading'
-  | 'rooms:loaded'
-  | 'rooms:reload'
   // Member events
   | 'member:adding'
   | 'member:added'
@@ -156,7 +112,6 @@ export type WorkspaceEventType =
 export class WorkspaceEvents {
   private listeners: Map<string, UnlistenFn[]> = new Map();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private registerListener(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
     const unlistenFn = eventEmitter.on(event, callback);
     if (!this.listeners.has(event)) {
@@ -178,22 +133,9 @@ export class WorkspaceEvents {
   public onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: 'workspaces:listed', callback: (payload: WorkspacesPayload) => void): () => void;
-  public onWorkspaceEvent(event: 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onWorkspaceEvent(event: 'rooms:reload', callback: (payload: { office_id?: string; connection: ConnectionInfo }) => void): () => void;
   public onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
   public onWorkspaceEvent(event: WorkspaceEventType, callback: any): () => void {
-    return this.registerListener(event, callback);
-  }
-
-  // Office events
-  public onOfficeEvent<T>(event: 'office:loaded', callback: (payload: OfficePayload) => void): () => void;
-  public onOfficeEvent<T>(event: 'offices:loaded', callback: (payload: OfficesPayload) => void): () => void;
-  public onOfficeEvent<T>(event: 'office:creating' | 'offices:loading' | 'offices:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onOfficeEvent<T>(event: 'office:loading' | 'office:updating' | 'office:deleting', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): () => void;
-  public onOfficeEvent<T>(event: 'office:created' | 'office:updated', callback: (payload: { office: Office, connection: ConnectionInfo }) => void): () => void;
-  public onOfficeEvent<T>(event: 'office:deleted', callback: (payload: { officeId: string, connection: ConnectionInfo }) => void): () => void;
-  public onOfficeEvent<T>(event: WorkspaceEventType, callback: any): () => void {
     return this.registerListener(event, callback);
   }
 
@@ -207,31 +149,18 @@ export class WorkspaceEvents {
   public onNodeEvent(event: 'tree:schema:loaded', callback: (payload: { schema: TreeSchema; connection: ConnectionInfo }) => void): () => void;
   public onNodeEvent(event: 'node:types:loaded', callback: (payload: { nodeTypes: unknown[]; connection: ConnectionInfo }) => void): () => void;
   public onNodeEvent(event: WorkspaceEventType, callback: (payload: unknown) => void): () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public onNodeEvent(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
-    return this.registerListener(event, callback);
-  }
-
-  // Room events
-  public onRoomEvent<T>(event: 'room:loaded', callback: (payload: RoomPayload) => void): () => void;
-  public onRoomEvent<T>(event: 'rooms:loaded', callback: (payload: RoomsPayload) => void): () => void;
-  public onRoomEvent<T>(event: 'room:creating', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): () => void;
-  public onRoomEvent<T>(event: 'room:loading' | 'room:updating' | 'room:deleting', callback: (payload: { room_id: string, connection: ConnectionInfo }) => void): () => void;
-  public onRoomEvent<T>(event: 'rooms:loading' | 'rooms:reload', callback: (payload: { office_id: string, connection: ConnectionInfo }) => void): () => void;
-  public onRoomEvent<T>(event: 'room:created' | 'room:updated', callback: (payload: { room: Room, connection: ConnectionInfo }) => void): () => void;
-  public onRoomEvent<T>(event: 'room:deleted', callback: (payload: { roomId: string, connection: ConnectionInfo }) => void): () => void;
-  public onRoomEvent<T>(event: WorkspaceEventType, callback: any): () => void {
     return this.registerListener(event, callback);
   }
 
   // Member events
   public onMemberEvent<T>(event: 'member:loaded', callback: (payload: MemberPayload) => void): () => void;
   public onMemberEvent<T>(event: 'members:loaded', callback: (payload: MembersPayload) => void): () => void;
-  public onMemberEvent<T>(event: 'member:adding', callback: (payload: { user_id: string, office_id?: string, room_id?: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:adding', callback: (payload: { user_id: string, domain_id?: string, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: 'member:loading' | 'member:updating_role', callback: (payload: { user_id: string, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: 'member:updating_permissions', callback: (payload: { userId: string, domainId: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'member:removing', callback: (payload: { userId: string, officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'members:loading', callback: (payload: { officeId?: string, roomId?: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'member:removing', callback: (payload: { userId: string, domainId?: string, connection: ConnectionInfo }) => void): () => void;
+  public onMemberEvent<T>(event: 'members:loading', callback: (payload: { domainId?: string, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: 'member:added', callback: (payload: { member: any, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: 'member:removed', callback: (payload: { userId: string, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: 'member:role-updated', callback: (payload: { userId: string, role: string, connection: ConnectionInfo }) => void): () => void;

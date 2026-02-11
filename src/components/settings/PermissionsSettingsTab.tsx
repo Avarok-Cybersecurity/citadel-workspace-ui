@@ -184,86 +184,86 @@ function GroupedPermissionTable({ domainId }: { domainId: string }) {
 }
 
 /**
- * Room permission section
+ * Child node permission section (e.g., Room)
  */
-function RoomPermissionSection({
-  roomId,
-  roomName
+function ChildNodePermissionSection({
+  nodeId,
+  nodeName
 }: {
-  roomId: string;
-  roomName: string;
+  nodeId: string;
+  nodeName: string;
 }) {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
-  const role = getRole(roomId);
+  const role = getRole(nodeId);
 
   useEffect(() => {
     runAsyncSetup(async () => {
-      await fetchPermissionsForDomain(roomId);
+      await fetchPermissionsForDomain(nodeId);
     });
-  }, [roomId, fetchPermissionsForDomain]);
+  }, [nodeId, fetchPermissionsForDomain]);
 
   return (
-    <AccordionItem value={`room-${roomId}`} className="border-gray-700/30 border-l-2 border-l-teal-500/30 ml-4">
+    <AccordionItem value={`child-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-teal-500/30 ml-4">
       <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
           <MessageSquare className="h-4 w-4 text-teal-400" />
-          <span>{roomName}</span>
+          <span>{nodeName}</span>
           <RoleBadge role={role} />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
         </div>
       </AccordionTrigger>
       <AccordionContent className="pl-6">
-        <GroupedPermissionTable domainId={roomId} />
+        <GroupedPermissionTable domainId={nodeId} />
       </AccordionContent>
     </AccordionItem>
   );
 }
 
 /**
- * Office permission section with nested rooms
+ * Parent node permission section with nested children (e.g., Office with Rooms)
  */
-function OfficePermissionSection({
-  officeId,
-  officeName,
-  rooms
+function ParentNodePermissionSection({
+  nodeId,
+  nodeName,
+  children
 }: {
-  officeId: string;
-  officeName: string;
-  rooms: Array<{ id: string; name: string }>;
+  nodeId: string;
+  nodeName: string;
+  children: Array<{ id: string; name: string }>;
 }) {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
-  const role = getRole(officeId);
+  const role = getRole(nodeId);
 
   useEffect(() => {
     runAsyncSetup(async () => {
-      await fetchPermissionsForDomain(officeId);
+      await fetchPermissionsForDomain(nodeId);
     });
-  }, [officeId, fetchPermissionsForDomain]);
+  }, [nodeId, fetchPermissionsForDomain]);
 
   return (
-    <AccordionItem value={`office-${officeId}`} className="border-gray-700/30 border-l-2 border-l-blue-500/30 ml-2">
+    <AccordionItem value={`node-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-blue-500/30 ml-2">
       <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
           <FolderOpen className="h-4 w-4 text-blue-400" />
-          <span>{officeName}</span>
+          <span>{nodeName}</span>
           <RoleBadge role={role} />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
         </div>
       </AccordionTrigger>
       <AccordionContent className="pl-4">
         <div className="mb-4">
-          <GroupedPermissionTable domainId={officeId} />
+          <GroupedPermissionTable domainId={nodeId} />
         </div>
 
-        {rooms.length > 0 && (
+        {children.length > 0 && (
           <div className="mt-4">
-            <h4 className="text-sm font-medium text-gray-400 mb-2 pl-2">Rooms</h4>
+            <h4 className="text-sm font-medium text-gray-400 mb-2 pl-2">Children</h4>
             <Accordion type="multiple" className="w-full">
-              {rooms.map((room) => (
-                <RoomPermissionSection
-                  key={room.id}
-                  roomId={room.id}
-                  roomName={room.name}
+              {children.map((child) => (
+                <ChildNodePermissionSection
+                  key={child.id}
+                  nodeId={child.id}
+                  nodeName={child.name}
                 />
               ))}
             </Accordion>
@@ -301,22 +301,24 @@ export function PermissionsSettingsTab() {
     }
   }, [workspaceId, fetchPermissionsForDomain]);
 
-  // Group child nodes by parent (Office → Room hierarchy via entity_type)
-  const officesWithRooms = useMemo(() => {
+  // Group child nodes by parent hierarchy via entity_type
+  const nodesWithChildren = useMemo(() => {
     const allNodes = Object.values(state.nodes);
-    const offices = allNodes.filter(n =>
+    // Parent nodes: those whose children can have children (e.g., 'Office' has 'Room' children)
+    const parentNodes = allNodes.filter(n =>
       typeof n.entity_type === 'object' && 'Child' in n.entity_type && n.entity_type.Child === 'Office'
     );
-    const rooms = allNodes.filter(n =>
+    // Leaf nodes: those without children (e.g., 'Room')
+    const leafNodes = allNodes.filter(n =>
       typeof n.entity_type === 'object' && 'Child' in n.entity_type && n.entity_type.Child === 'Room'
     );
 
-    return offices.map(office => ({
-      id: office.id,
-      name: office.name,
-      rooms: rooms
-        .filter(room => room.parent_id === office.id)
-        .map(room => ({ id: room.id, name: room.name })),
+    return parentNodes.map(parent => ({
+      id: parent.id,
+      name: parent.name,
+      children: leafNodes
+        .filter(leaf => leaf.parent_id === parent.id)
+        .map(leaf => ({ id: leaf.id, name: leaf.name })),
     }));
   }, [state.nodes]);
 
@@ -400,26 +402,26 @@ export function PermissionsSettingsTab() {
                 <GroupedPermissionTable domainId={workspaceId} />
               </div>
 
-              {/* Offices */}
-              {officesWithRooms.length > 0 && (
+              {/* Nodes */}
+              {nodesWithChildren.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">Offices</h4>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Nodes</h4>
                   <Accordion type="multiple" className="w-full">
-                    {officesWithRooms.map((office) => (
-                      <OfficePermissionSection
-                        key={office.id}
-                        officeId={office.id}
-                        officeName={office.name}
-                        rooms={office.rooms}
+                    {nodesWithChildren.map((node) => (
+                      <ParentNodePermissionSection
+                        key={node.id}
+                        nodeId={node.id}
+                        nodeName={node.name}
+                        children={node.children}
                       />
                     ))}
                   </Accordion>
                 </div>
               )}
 
-              {officesWithRooms.length === 0 && (
+              {nodesWithChildren.length === 0 && (
                 <p className="text-sm text-gray-500 italic pl-2">
-                  No offices in this workspace
+                  No nodes in this workspace
                 </p>
               )}
             </div>

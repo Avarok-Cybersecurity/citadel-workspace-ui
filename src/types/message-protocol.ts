@@ -66,8 +66,7 @@ export interface TypingIndicatorData {
   isTyping: boolean;
   userId: string;
   location: {                   // Where the user is typing
-    officeId?: string;
-    roomId?: string;
+    nodeId?: string;
   };
 }
 
@@ -189,8 +188,7 @@ export class MessageProtocol {
    * Create a typing indicator event
    */
   static createTypingIndicator(isTyping: boolean, userId: string, location: {
-    officeId?: string;
-    roomId?: string;
+    nodeId?: string;
   }): MessageEventType {
     return {
       type: 'TypingIndicator',

@@ -16,10 +16,8 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       await workspaceEvents.onMemberEvent('members:loading', (payload) => {
         setLoading(setState, 'members', true, payload.connection.request_id);
 
-        if (payload.officeId) {
-          console.info(`Loading members for office: ${payload.officeId}, request ID: ${payload.connection.request_id}`);
-        } else if (payload.roomId) {
-          console.info(`Loading members for room: ${payload.roomId}, request ID: ${payload.connection.request_id}`);
+        if (payload.domainId) {
+          console.info(`Loading members for domain: ${payload.domainId}, request ID: ${payload.connection.request_id}`);
         }
       });
 
@@ -148,14 +146,10 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       // Members reload event
       await workspaceEvents.onWorkspaceEvent('members:reload', async () => {
         console.info('Reloading members list...');
-        // Backend requires exactly ONE of office_id or room_id (room takes precedence)
         const params = new URLSearchParams(window.location.search);
-        const officeId = params.get("officeId");
-        const roomId = params.get("roomId");
-        if (roomId) {
-          await WorkspaceService.listMembers(undefined, roomId);
-        } else if (officeId) {
-          await WorkspaceService.listMembers(officeId, undefined);
+        const domainId = params.get("nodeId") ?? params.get("roomId") ?? params.get("officeId");
+        if (domainId) {
+          await WorkspaceService.listMembers(domainId);
         }
       });
     };

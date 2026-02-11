@@ -13,7 +13,7 @@ interface OfficeLayoutProps {
   children: React.ReactNode;
   canEdit?: boolean;
   editDeniedReason?: string;
-  entityType?: 'office' | 'room' | 'workspace';
+  entityType?: string;
   entityId?: string;
 }
 
@@ -25,7 +25,7 @@ export const OfficeLayout = ({
   children,
   canEdit = true,
   editDeniedReason,
-  entityType = 'office',
+  entityType = 'node',
   entityId = 'workspace'
 }: OfficeLayoutProps) => {
   const location = useLocation();
@@ -33,7 +33,7 @@ export const OfficeLayout = ({
 
   const handleNavigateUp = () => {
     const params = new URLSearchParams(location.search);
-    params.delete("roomId");
+    params.delete("nodeId");
     navigate(buildWorkspacePath(params));
   };
 

@@ -11,8 +11,7 @@ interface MemberManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
   mode: "add" | "edit" | "remove";
-  officeId?: string;
-  roomId?: string;
+  domainId?: string;
   member?: { id: string; username: string; role: string };
 }
 
@@ -51,10 +50,10 @@ const FIELDS: FieldConfig[] = [
 ];
 
 export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
-  isOpen, onClose, mode, officeId, roomId, member,
+  isOpen, onClose, mode, domainId, member,
 }) => {
   const { toast } = useToast();
-  const location = roomId ? "room" : officeId ? "office" : "workspace";
+  const location = domainId ? "domain" : "workspace";
 
   const modes: Record<"add" | "edit" | "remove", ModeConfig> = {
     add: { ...BASE_MODES.add, description: `Add a new member to this ${location}` },
@@ -64,13 +63,13 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
 
   const handleSubmit = async (formData: Record<string, string>) => {
     if (mode === "add") {
-      await WorkspaceService.addMember(formData.username, formData.role, officeId, roomId);
+      await WorkspaceService.addMember(formData.username, formData.role, domainId);
       toastSuccess(toast, "Member Added", `${formData.username} has been added to the ${location} as ${formData.role}`);
     } else if (mode === "edit" && member) {
       await WorkspaceService.updateMemberRole(member.id, formData.role);
       toastSuccess(toast, "Member Updated", `${member.username}'s role has been updated to ${formData.role}`);
     } else if (mode === "remove" && member) {
-      await WorkspaceService.removeMember(member.id, officeId, roomId);
+      await WorkspaceService.removeMember(member.id, domainId);
       toastSuccess(toast, "Member Removed", `${member.username} has been removed`);
     }
   };

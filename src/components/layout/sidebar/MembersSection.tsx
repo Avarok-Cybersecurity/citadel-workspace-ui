@@ -123,19 +123,16 @@ export const MembersSection = () => {
   });
 
   // Load members when location changes
+  const activeDomainId = currentNodeId ?? currentRoomId ?? currentOfficeId;
   useEffect(() => {
     const loadMembers = async () => {
-      if (!currentOfficeId && !currentRoomId) {
+      if (!activeDomainId) {
         setMembers([]);
         return;
       }
       setIsLoadingMembers(true);
       try {
-        if (currentRoomId) {
-          await WorkspaceService.listMembers(undefined, currentRoomId);
-        } else if (currentOfficeId) {
-          await WorkspaceService.listMembers(currentOfficeId, undefined);
-        }
+        await WorkspaceService.listMembers(activeDomainId);
       } catch (error) {
         console.error("Error loading members:", error);
       } finally {
@@ -143,7 +140,7 @@ export const MembersSection = () => {
       }
     };
     runAsyncSetup(loadMembers);
-  }, [currentOfficeId, currentRoomId]);
+  }, [activeDomainId]);
 
   // Listen for members loaded event
   useEffect(() => {
@@ -338,9 +335,9 @@ export const MembersSection = () => {
       )}
 
       {/* Modals */}
-      <MemberManagementModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} mode="add" officeId={currentOfficeId || undefined} roomId={currentRoomId || undefined} />
-      <MemberManagementModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedMember(null); }} mode="edit" officeId={currentOfficeId || undefined} roomId={currentRoomId || undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
-      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { setShowRemoveModal(false); setSelectedMember(null); }} mode="remove" officeId={currentOfficeId || undefined} roomId={currentRoomId || undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
+      <MemberManagementModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} mode="add" domainId={currentNodeId ?? currentRoomId ?? currentOfficeId ?? undefined} />
+      <MemberManagementModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedMember(null); }} mode="edit" domainId={currentNodeId ?? currentRoomId ?? currentOfficeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
+      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { setShowRemoveModal(false); setSelectedMember(null); }} mode="remove" domainId={currentNodeId ?? currentRoomId ?? currentOfficeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
 
       {/* All Members Dialog */}
       <Dialog open={showAllMembersDialog} onOpenChange={setShowAllMembersDialog}>

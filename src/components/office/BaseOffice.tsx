@@ -24,18 +24,16 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 interface BaseOfficeProps {
   title: string;
   getInitialContent: (currentRoom: string | null) => string;
-  officeId?: string;
-  roomId?: string;
+  nodeId?: string;
 }
 
-export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseOfficeProps) => {
+export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps) => {
   const location = useLocation();
   const currentRoom = new URLSearchParams(location.search).get("room");
   const { state } = useWorkspace();
 
   // Get the entity data from workspace state (unified node hierarchy)
-  const entityData = (roomId ? state.nodes[roomId] : null)
-    ?? (officeId ? state.nodes[officeId] : null);
+  const entityData = nodeId ? state.nodes[nodeId] : null;
 
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(
@@ -58,8 +56,8 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   // Determine if we're in a loading state
   const isLoading = state.loading.nodes && !entityData;
 
-  // Determine the domain ID for permission checks (room takes precedence over office)
-  const domainId = roomId || officeId;
+  // Determine the domain ID for permission checks
+  const domainId = nodeId;
 
   // Check if user can edit the MDX content using the permissions system
   const { allowed: canEditMdx, reason: editDeniedReason, loading: permissionLoading } = usePermission(
@@ -68,7 +66,6 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   );
 
   const handleSave = async () => {
-    const nodeId = roomId || officeId;
     try {
       if (nodeId) {
         await WorkspaceService.updateNode(nodeId, { mdxContent: content });
@@ -197,8 +194,8 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
         onSave={handleSave}
         canEdit={hasEditPermission}
         editDeniedReason={editDeniedReason || undefined}
-        entityType={roomId ? 'room' : 'office'}
-        entityId={roomId || officeId || 'workspace'}
+        entityType={entityData?.entity_type ? 'node' : 'workspace'}
+        entityId={nodeId || 'workspace'}
       >
         {contentView}
       </OfficeLayout>

@@ -1,6 +1,6 @@
 import { SecurityLevel } from '@/types';
 import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS, GroupMessageTypeTS, PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
-import { Office, GroupMessageType } from '@/types/workspace-entities';
+import { GroupMessageType } from '@/types/workspace-entities';
 import { websocketService } from './websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { workspaceResponseHandler } from './workspace-response-handler';
@@ -103,8 +103,6 @@ export class WorkspaceService {
               metadata: req.metadata
             }
           };
-        } else if ('ListOffices' in tsRequest) {
-          request = 'ListOffices';
         } else {
           // For other request types, pass through as-is for now
           request = tsRequest as any;
@@ -214,19 +212,17 @@ export class WorkspaceService {
   public async addMember(
     userId: string,
     role: any, // UserRole type
-    officeId?: string,
-    roomId?: string,
+    domainId?: string,
     metadata?: Uint8Array
   ): Promise<any> {
-    const requestPart = {
+    const requestPart: WorkspaceProtocolRequestTS = {
       AddMember: {
         user_id: userId,
-        office_id: officeId,
-        room_id: roomId,
+        domain_id: domainId,
         role,
         metadata: metadata ? Array.from(metadata) : undefined
       }
-    } as WorkspaceProtocolRequestTS;
+    };
     return this.sendProtocolRequest(requestPart);
   }
 
@@ -294,29 +290,25 @@ export class WorkspaceService {
    */
   public async removeMember(
     userId: string,
-    officeId?: string,
-    roomId?: string
+    domainId?: string
   ): Promise<any> {
     const requestPart: WorkspaceProtocolRequestTS = {
       RemoveMember: {
         user_id: userId,
-        office_id: officeId,
-        room_id: roomId
+        domain_id: domainId
       }
     };
     return this.sendProtocolRequest(requestPart);
   }
 
   /**
-   * List members in a workspace, office, or room
-   * @param officeId Optional office ID
-   * @param roomId Optional room ID
+   * List members in a workspace or domain node
+   * @param domainId Optional domain ID (office, room, etc.)
    */
-  public async listMembers(officeId?: string, roomId?: string): Promise<any> {
+  public async listMembers(domainId?: string): Promise<any> {
     const requestPart: WorkspaceProtocolRequestTS = {
       ListMembers: {
-        office_id: officeId,
-        room_id: roomId
+        domain_id: domainId
       }
     };
     return this.sendProtocolRequest(requestPart);
@@ -678,18 +670,6 @@ export class WorkspaceService {
       ListWorkspaces: ['Workspaces'],
       CreateWorkspace: ['Workspace'],
       UpdateWorkspace: ['Workspace', 'Success'],
-      // Office operations (backend returns Node/Nodes after DomainNode migration)
-      CreateOffice: ['Node', 'Office'],
-      GetOffice: ['Node', 'Office'],
-      UpdateOffice: ['Node', 'Office', 'Success'],
-      DeleteOffice: ['DeleteOffice', 'Success'],
-      ListOffices: ['Nodes', 'Offices'],
-      // Room operations (backend returns Node/Nodes after DomainNode migration)
-      CreateRoom: ['Node', 'Room'],
-      GetRoom: ['Node', 'Room'],
-      UpdateRoom: ['Node', 'Room', 'Success'],
-      DeleteRoom: ['DeleteRoom', 'Success'],
-      ListRooms: ['Nodes', 'Rooms'],
       // Member operations
       AddMember: ['Member', 'Success'],
       RemoveMember: ['Success'],
