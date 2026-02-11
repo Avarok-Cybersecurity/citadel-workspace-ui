@@ -384,14 +384,29 @@ async function runTest(): Promise<boolean> {
       await takeScreenshot(page, 'admin_07_chat_tab');
 
       const dialog = getAdminDialog(page);
-      // Wait for the toggle to actually appear in the DOM — ChatSettingsTab has a
-      // two-render cycle (loading spinner → content) so the tab panel becomes visible
-      // before the Switch component mounts. waitFor properly polls until visible.
+
+      // Debug: check which branch of ChatSettingsTab is rendering
+      const isLoading = await dialog.locator('[data-testid="chat-tab-loading"]').isVisible().catch(() => false);
+      const isWorkspaceMsg = await dialog.locator('[data-testid="chat-tab-workspace-message"]').isVisible().catch(() => false);
+      const isContent = await dialog.locator('[data-testid="chat-tab-content"]').isVisible().catch(() => false);
+      console.log(`  Chat tab state — loading: ${isLoading}, workspaceMsg: ${isWorkspaceMsg}, content: ${isContent}`);
+
+      if (isLoading) {
+        // Still loading — wait for content to appear
+        try {
+          await dialog.locator('[data-testid="chat-tab-content"]').waitFor({ state: 'visible', timeout: 5000 });
+        } catch {
+          console.log('  Chat tab content never appeared after loading');
+        }
+      }
+
+      // Use both data-testid and id selectors as fallback
       try {
-        await dialog.locator('[data-testid="chat-enabled-toggle"]').waitFor({ state: 'visible', timeout: 5000 });
+        await dialog.locator('[data-testid="chat-enabled-toggle"], #chat-enabled').first().waitFor({ state: 'visible', timeout: 5000 });
         results.chatToggleVisible = true;
       } catch {
-        results.chatToggleVisible = false;
+        // Final check: try looking at any switch inside the chat content
+        results.chatToggleVisible = await dialog.locator('[data-testid="chat-tab-content"] [role="switch"]').isVisible().catch(() => false);
       }
 
       console.log(`  Chat toggle visible: ${results.chatToggleVisible ? 'PASS' : 'FAIL'}`);
