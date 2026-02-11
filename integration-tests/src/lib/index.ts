@@ -43,6 +43,7 @@ export {
   closeAnyModals,
   checkForErrors,
   waitForWorkspaceLoaded,
+  waitForTreeDataLoaded,
   checkToastState,
   assertNoToastConflict,
   dismissAllToasts,

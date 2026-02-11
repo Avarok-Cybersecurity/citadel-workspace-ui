@@ -49,6 +49,7 @@
     "test:tree-cascade": "npm run build && node dist/tests/tree-cascade-delete.test.js",
     "test:tree-custom-types": "npm run build && node dist/tests/tree-custom-types.test.js",
     "test:tree-deep": "npm run build && node dist/tests/tree-deep-hierarchy.test.js",
+    "test:hierarchy-nav": "npm run build && node dist/tests/hierarchy-navigation.test.js",
     "test:tree-permissions": "npm run build && node dist/tests/tree-permissions-inheritance.test.js",
     "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
     "test:ui": "npm run test:directory && npm run test:files && npm run test:notifications && npm run test:settings && npm run test:workspace-init",

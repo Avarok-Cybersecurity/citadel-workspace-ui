@@ -179,7 +179,8 @@ function TreeNodeItem({
   const typeName = getEntityTypeName(node.entity_type);
 
   // Calculate indent based on depth (skip workspace root at depth 0)
-  const indentPx = Math.max(0, depth - 1) * 16;
+  // Cap at 5 levels of indentation to keep deep hierarchies navigable
+  const indentPx = Math.min(Math.max(0, depth - 1), 5) * 12;
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -214,7 +215,7 @@ function TreeNodeItem({
           )}
           {!hasChildren && <span className="w-5" />}
           <Icon className="h-4 w-4 flex-shrink-0" />
-          <span className="truncate flex items-center gap-1.5">
+          <span className="truncate flex items-center gap-1.5" title={node.name}>
             {node.name}
             {node.is_default && (
               <Star

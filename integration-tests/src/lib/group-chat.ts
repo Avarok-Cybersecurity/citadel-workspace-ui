@@ -8,6 +8,7 @@ import type { Page } from 'playwright';
 import { sleep } from './utils.js';
 import { takeScreenshot } from './screenshots.js';
 import type { UxIssueTracker } from './ux-tracker.js';
+import { waitForTreeDataLoaded } from './modals.js';
 
 export interface GroupChatOptions {
   uxTracker?: UxIssueTracker | null;
@@ -427,7 +428,8 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
 }
 
 /**
- * Create a new top-level node (e.g. office) via the hierarchy sidebar UI
+ * Create a new top-level node (e.g. office) via the hierarchy sidebar UI.
+ * Waits for tree data to load before clicking, with retry logic for the modal.
  */
 export async function createOffice(
   page: Page,
@@ -439,43 +441,63 @@ export async function createOffice(
   console.log(`\n=== ${username}: Creating node "${officeName}" ===`);
 
   try {
-    // The hierarchy sidebar uses add-node-button for top-level node creation
-    console.log('  Looking for Add Node button...');
-    const selectors = [
+    // Wait for tree data to be loaded before attempting to click the add button.
+    // This prevents the race condition where handleNodeCreate(null) runs before
+    // state.treeSchema is populated, causing the modal to not open.
+    console.log('  Waiting for tree data to load...');
+    await waitForTreeDataLoaded(page, 15000);
+
+    const addBtnSelectors = [
       '[data-testid="add-node-button"]',
       '[data-testid="add-root-node-button"]',
     ];
 
-    let clicked = false;
-    for (const selector of selectors) {
-      const btn = page.locator(selector).first();
-      if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await btn.click();
-        await sleep(500);
-        console.log(`  Clicked Add Node button (${selector})`);
-        clicked = true;
+    // Retry loop: click add button, wait for modal, retry if modal doesn't appear
+    let modalVisible = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        console.log(`  Retry ${attempt}: Modal did not appear, retrying...`);
+        await page.keyboard.press('Escape');
+        await sleep(1000);
+      }
+
+      // Click add-node button
+      let clicked = false;
+      for (const selector of addBtnSelectors) {
+        const btn = page.locator(selector).first();
+        if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await btn.click();
+          await sleep(500);
+          console.log(`  Clicked Add Node button (${selector})`);
+          clicked = true;
+          break;
+        }
+      }
+
+      if (!clicked) {
+        console.log(`  WARNING: Could not find add node button`);
+        return false;
+      }
+
+      // Wait for the NodeManagementModal name input to appear
+      const nameInput = page.locator('input#name, input[id="name"]').first();
+      if (await nameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+        modalVisible = true;
         break;
       }
     }
 
-    if (!clicked) {
-      console.log(`  WARNING: Could not find add node button`);
+    if (!modalVisible) {
+      console.log(`  WARNING: Node name input not found after retries`);
       return false;
     }
 
-    await sleep(1000);
-
-    // Fill in node name - use id selector since the input has id="name"
+    // Fill in node name
     const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await nameInput.fill(officeName);
-      await sleep(300);
-    } else {
-      console.log(`  WARNING: Node name input not found`);
-      return false;
-    }
+    await nameInput.fill(officeName);
+    await sleep(300);
 
-    // Fill in description - use id selector since textarea has id="description"
+    // Fill in description
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
       if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
@@ -484,7 +506,7 @@ export async function createOffice(
       }
     }
 
-    // Click Create button - NodeManagementModal uses "Create {EntityType}"
+    // Click Create button
     const createBtn = page.locator('button:has-text("Create")').first();
     if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await createBtn.click();
@@ -494,19 +516,18 @@ export async function createOffice(
       return false;
     }
 
-    // Check for success or error
+    // Check for permission error
     const errorAlert = page.locator('text="Permission denied"').first();
     if (await errorAlert.isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log(`  ERROR: Permission denied when creating node`);
       if (options.uxTracker) {
         options.uxTracker.log('major', 'functional', 'Cannot create node: Permission denied');
       }
-      // Close any dialogs
       await page.keyboard.press('Escape');
       return false;
     }
 
-    // Check if node was created
+    // Verify node was created
     const nodeInList = page.locator(`button:has-text("${officeName}")`).first();
     if (await nodeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
       console.log(`  Node "${officeName}" created successfully`);
