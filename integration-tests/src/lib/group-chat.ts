@@ -391,39 +391,35 @@ export async function checkRulesBanner(page: Page, username: string): Promise<st
 }
 
 /**
- * Check if any offices exist in the sidebar
+ * Check if any offices (child nodes) exist in the sidebar.
+ * The workspace root node is always present, so we check for tree nodes
+ * at depth > 0 by looking for nodes that are NOT the workspace root.
  */
 export async function hasOffices(page: Page, username: string): Promise<boolean> {
-  console.log(`\n=== ${username}: Checking if offices exist ===`);
+  console.log(`\n=== ${username}: Checking if child nodes (offices) exist ===`);
 
   try {
-    // Check for "No offices yet" message
-    const noOfficesMsg = page.locator('text="No offices yet"').first();
-    const noOffices = await noOfficesMsg.isVisible({ timeout: 2000 }).catch(() => false);
-
-    if (noOffices) {
-      console.log(`  No offices found (empty state)`);
+    // Check for the "No nodes yet" empty-state message
+    const noNodesMsg = page.locator('text="No nodes yet"').first();
+    if (await noNodesMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log(`  No nodes found (empty state)`);
       return false;
     }
 
-    // Check for known offices from the config (General, Engineering, etc.)
-    // These are loaded from workspaces.json and should have chat_enabled: true
-    const knownOffices = ['General', 'Engineering', 'Landing Page', 'Tutorials', 'Welcome'];
+    // Count tree-node testid elements. The workspace root is always one,
+    // so >1 means at least one child (office) exists.
+    const treeNodes = page.locator('[data-testid^="tree-node-"]:not([data-testid^="tree-node-menu-"]):not([data-testid^="tree-node-toggle-"])');
+    const count = await treeNodes.count();
+    console.log(`  Found ${count} tree node(s) in sidebar`);
 
-    for (const officeName of knownOffices) {
-      const officeBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
-      if (await officeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        console.log(`  Found office: ${officeName}`);
-        return true;
-      }
+    // 0 = loading or error, 1 = only workspace root, >1 = has children
+    if (count > 1) {
+      console.log(`  Child nodes exist`);
+      return true;
     }
 
-    // Fallback: Check for any office items in the sidebar
-    const officeList = page.locator('[data-sidebar="menu-button"]').first();
-    const hasItems = await officeList.isVisible({ timeout: 2000 }).catch(() => false);
-
-    console.log(`  Offices exist: ${hasItems}`);
-    return hasItems;
+    console.log(`  No child nodes (offices) found`);
+    return false;
   } catch (error) {
     console.log(`  ERROR checking offices: ${error}`);
     return false;
