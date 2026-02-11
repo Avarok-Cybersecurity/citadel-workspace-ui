@@ -401,7 +401,7 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
 
   try {
     // Check for the "No nodes yet" empty-state message
-    const noNodesMsg = page.locator('text="No nodes yet"').first();
+    const noNodesMsg = page.locator('text=No nodes yet').first();
     if (await noNodesMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log(`  No nodes found (empty state)`);
       return false;

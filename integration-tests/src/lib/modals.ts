@@ -217,7 +217,7 @@ export async function waitForTreeDataLoaded(page: Page, timeout = 30000): Promis
     const treeNode = page.locator(
       '[data-testid^="tree-node-"]:not([data-testid^="tree-node-menu-"]):not([data-testid^="tree-node-toggle-"])'
     );
-    const emptyState = page.locator('text="No nodes yet"');
+    const emptyState = page.locator('text=No nodes yet');
 
     if (await treeNode.first().isVisible({ timeout: 500 }).catch(() => false)) {
       console.log('  Tree data loaded (nodes visible)');
