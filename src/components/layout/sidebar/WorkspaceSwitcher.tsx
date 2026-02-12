@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface StoredWorkspace {
   id: string;
@@ -105,7 +106,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
           w.username === tabSelectedUser.selectedUsername &&
           w.serverAddress === tabSelectedUser.selectedServerAddress
         );
-        console.log('WorkspaceSwitcher: Using tab-selected user:', tabSelectedUser.selectedUsername);
+        debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Using tab-selected user:', tabSelectedUser.selectedUsername);
       }
 
       // Fall back to the workspace with active connection if no tab selection
@@ -152,12 +153,12 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
         [currentWorkspace.id]: location.pathname + location.search
       }));
     }
-  }, [location.pathname, location.search, currentWorkspace?.id]);
+  }, [location.pathname, location.search, currentWorkspace]);
 
   const handleWorkspaceChange = async (workspace: StoredWorkspace) => {
     if (isSwitching || workspace.id === currentWorkspace?.id) return;
 
-    console.info('Switching to workspace:', workspace.username, 'on', workspace.serverAddress);
+    debugLog('WorkspaceSwitcher', 'Switching to workspace:', workspace.username, 'on', workspace.serverAddress);
     setIsSwitching(true);
 
     try {
@@ -188,10 +189,10 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       // Claim the session if it's orphaned (use ClaimSession protocol instead of Connect)
       try {
         await websocketService.claimSession(targetSession.cid, true);
-        console.log('WorkspaceSwitcher: Session claimed successfully (was orphaned)');
+        debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Session claimed successfully (was orphaned)');
       } catch (claimError: any) {
         if (claimError?.message?.includes('not orphaned')) {
-          console.log('WorkspaceSwitcher: Session is still active (not orphaned), no claim needed');
+          debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Session is still active (not orphaned), no claim needed');
         } else {
           // Re-throw if it's a different error
           throw claimError;

@@ -28,6 +28,7 @@ import type {
   SendFileViaProtocolIntent,
   FilePickerResult,
 } from './types';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * @deprecated Use RealProtocolIORouter with IFileTransferIORouter interface instead.
@@ -132,8 +133,8 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
     const { file, transferId } = intent;
-    // TODO: Implement actual SendFile request via websocketService
-    console.log('FileTransferIO: Uploading file to server', {
+    // @human-review SendFile requires websocketService integration
+    debugLog('Io', 'FileTransferIO: Uploading file to server', {
       transferId,
       fileName: file.name,
       size: file.size,
@@ -145,12 +146,12 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async downloadFromServer(intent: DownloadFromServerIntent): Promise<void> {
     const { transfer } = intent;
-    console.log('FileTransferIO: Downloading file from server', {
+    debugLog('Io', 'FileTransferIO: Downloading file from server', {
       transferId: transfer.id,
       virtualPath: transfer.virtualPath,
     });
 
-    // TODO: Implement actual DownloadFile request via websocketService
+    // @human-review DownloadFile requires websocketService integration
     // For now, simulate with delay - caller will handle state update
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
@@ -189,7 +190,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       },
     };
 
-    console.log('FileTransferIO: Sending SendFile request', {
+    debugLog('Io', 'FileTransferIO: Sending SendFile request', {
       requestId,
       source,
       cid: intent.cid,
@@ -210,7 +211,7 @@ export class FileTransferIO extends RealProtocolIORouter {
         if (success?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          console.log('FileTransferIO: SendFile accepted by protocol');
+          debugLog('Io', 'FileTransferIO: SendFile accepted by protocol');
           resolve();
         }
         // Check for SendFileRequestFailure

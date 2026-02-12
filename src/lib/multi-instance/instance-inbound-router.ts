@@ -20,9 +20,10 @@
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
+import { debugLog } from '@/lib/debug-config';
 
 // Debug: Log when this module is loaded
-console.log('[ILM-Router] Module loading...');
+debugLog('InstanceInboundRouter', '[ILM-Router] Module loading...');
 
 // Message types that should be broadcast to all instances
 const BROADCAST_MESSAGE_TYPES = [
@@ -51,10 +52,10 @@ class InstanceInboundRouter {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   private constructor() {
-    console.log('[ILM-Router] Constructor called, setting up event listeners...');
+    debugLog('InstanceInboundRouter', '[ILM-Router] Constructor called, setting up event listeners...');
     this.setupEventListeners();
     this.startCleanupInterval();
-    console.log('[ILM-Router] Constructor complete');
+    debugLog('InstanceInboundRouter', '[ILM-Router] Constructor complete');
   }
 
   public static getInstance(): InstanceInboundRouter {
@@ -70,16 +71,16 @@ class InstanceInboundRouter {
       this.isActive = data.isLeader;
 
       if (this.isActive) {
-        console.log('[ILM-Router] Activated as leader');
+        debugLog('InstanceInboundRouter', '[ILM-Router] Activated as leader');
       } else {
-        console.log('[ILM-Router] Deactivated (no longer leader)');
+        debugLog('InstanceInboundRouter', '[ILM-Router] Deactivated (no longer leader)');
       }
     });
 
     // Listen for forwarded messages (when we're a follower)
     eventEmitter.on('channel:inbound-message', (data: { payload: any; senderInstanceId: string }) => {
       const messageType = this.getMessageType(data.payload);
-      console.log(`[ILM-Router] Received forwarded message: type=${messageType}`);
+      debugLog('InstanceInboundRouter', `[ILM-Router] Received forwarded message: type=${messageType}`);
       // Process the forwarded message
       this.processLocalMessage(data.payload);
     });
@@ -88,7 +89,7 @@ class InstanceInboundRouter {
     eventEmitter.on(
       'channel:outbound-request',
       (data: { requestId?: string; senderInstanceId: string; payload?: any }) => {
-        console.log(
+        debugLog('InstanceInboundRouter', 
           `[ILM-Router] Received channel:outbound-request: requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${this.isActive}`
         );
         if (this.isActive && data.requestId) {
@@ -120,7 +121,7 @@ class InstanceInboundRouter {
       instanceId,
       timestamp: Date.now(),
     });
-    console.log(
+    debugLog('InstanceInboundRouter', 
       `[ILM-Router] Registered pending request ${requestId} → ${instanceId}`
     );
   }
@@ -138,13 +139,13 @@ class InstanceInboundRouter {
 
     const messageType = this.getMessageType(message);
     const requestId = this.extractRequestId(message);
-    console.log(
+    debugLog('InstanceInboundRouter', 
       `[ILM-Router] routeMessage: type=${messageType}, requestId=${requestId}, pendingMapSize=${this.pendingRequestMap.size}`
     );
 
     // Check if this is a broadcast message
     if (this.shouldBroadcast(messageType)) {
-      console.log(`[ILM-Router] Broadcasting ${messageType}`);
+      debugLog('InstanceInboundRouter', `[ILM-Router] Broadcasting ${messageType}`);
       this.broadcastToAll(message);
       return;
     }
@@ -153,7 +154,7 @@ class InstanceInboundRouter {
     if (requestId) {
       const pending = this.pendingRequestMap.get(requestId);
       if (pending) {
-        console.log(
+        debugLog('InstanceInboundRouter', 
           `[ILM-Router] Routing ${messageType} by request_id ${requestId} → ${pending.instanceId}`
         );
         this.pendingRequestMap.delete(requestId); // Clean up after routing
@@ -163,7 +164,7 @@ class InstanceInboundRouter {
         if (messageType === 'ConnectSuccess' || messageType === 'RegisterSuccess') {
           const cid = this.extractTargetCid(message);
           if (cid) {
-            console.log(`[ILM-Router] Registering CID ${cid} for instance ${pending.instanceId}`);
+            debugLog('InstanceInboundRouter', `[ILM-Router] Registering CID ${cid} for instance ${pending.instanceId}`);
             instanceManager.registerInstance(pending.instanceId, BigInt(cid));
           }
         }
@@ -178,7 +179,7 @@ class InstanceInboundRouter {
           // CRITICAL: For P2P connection state messages, ALSO process locally on the leader.
           // ILM runs on the leader and needs to see ALL connection state changes.
           if (InstanceInboundRouter.LEADER_MUST_PROCESS_LOCALLY.has(messageType)) {
-            console.log(`[ILM-Router] Also processing ${messageType} locally for central state (via request_id path)`);
+            debugLog('InstanceInboundRouter', `[ILM-Router] Also processing ${messageType} locally for central state (via request_id path)`);
             this.processLocalMessage(message);
           }
         }
@@ -188,7 +189,7 @@ class InstanceInboundRouter {
 
     // SECOND: Try to route by CID
     const targetCid = this.extractTargetCid(message);
-    console.log(`[ILM-Router] Routing ${messageType} (CID: ${targetCid || 'none'})`);
+    debugLog('InstanceInboundRouter', `[ILM-Router] Routing ${messageType} (CID: ${targetCid || 'none'})`);
 
     // Find target instance
     if (targetCid) {
@@ -208,7 +209,7 @@ class InstanceInboundRouter {
           // needs to see ALL connection state changes (not just its own session).
           // Without this, the leader's connectedPeers Map won't have entries for follower sessions.
           if (InstanceInboundRouter.LEADER_MUST_PROCESS_LOCALLY.has(messageType)) {
-            console.log(`[ILM-Router] Also processing ${messageType} locally for central state (ILM visibility)`);
+            debugLog('InstanceInboundRouter', `[ILM-Router] Also processing ${messageType} locally for central state (ILM visibility)`);
             this.processLocalMessage(message);
           }
         }
@@ -218,7 +219,7 @@ class InstanceInboundRouter {
         // SPECIAL CASE: For ConnectSuccess/RegisterSuccess for the leader's own connection,
         // register the CID for ourselves before processing
         if (messageType === 'ConnectSuccess' || messageType === 'RegisterSuccess') {
-          console.log(`[ILM-Router] Registering CID ${targetCid} for self (leader's own connection)`);
+          debugLog('InstanceInboundRouter', `[ILM-Router] Registering CID ${targetCid} for self (leader's own connection)`);
           instanceManager.registerInstance(instanceManager.instanceId, BigInt(targetCid));
           this.processLocalMessage(message);
           return;
@@ -277,7 +278,7 @@ class InstanceInboundRouter {
     // Skip request_id extraction for notification messages that should be routed by CID
     // These messages have request_id from the sender, but should go to the 'cid' recipient
     if (InstanceInboundRouter.CID_ROUTED_NOTIFICATIONS.has(messageType)) {
-      console.log(`[ILM-Router] ${messageType} uses CID routing, skipping request_id extraction`);
+      debugLog('InstanceInboundRouter', `[ILM-Router] ${messageType} uses CID routing, skipping request_id extraction`);
       return null;
     }
 

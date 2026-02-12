@@ -7,18 +7,19 @@
  * @example
  * // Single event
  * useEventListener('user:profile-updated', (data) => {
- *   console.log('Profile updated:', data);
+ *   debugLog('UseEventListener', 'Profile updated:', data);
  * });
  *
  * @example
  * // Multiple events with same handler
  * useEventListener(['event1', 'event2'], (data) => {
- *   console.log('Received:', data);
+ *   debugLog('UseEventListener', 'Received:', data);
  * });
  */
 
 import { useEffect, useRef } from 'react';
 import { eventEmitter, type EventHandler } from '@/lib/event-emitter';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Subscribe to a single event with automatic cleanup.

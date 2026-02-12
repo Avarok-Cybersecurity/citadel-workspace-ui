@@ -37,7 +37,7 @@ export class AuthOperations {
     await this.config.init();
 
     // Server address is NOT needed for login - the Citadel protocol stores it from registration
-    console.log(`[Connect] Connecting user: ${username}`);
+    debugLog('AuthOperations', `[Connect] Connecting user: ${username}`);
 
     // Check if session already exists
     try {
@@ -46,7 +46,7 @@ export class AuthOperations {
       const existingSession = activeSessions.find(s => s.username === username);
 
       if (existingSession) {
-        console.log(`[Connect] Found existing session CID ${existingSession.cid}`);
+        debugLog('AuthOperations', `[Connect] Found existing session CID ${existingSession.cid}`);
 
         // Check if session is orphaned
         const { connectionManager: cm } = await import('../connection');
@@ -54,7 +54,7 @@ export class AuthOperations {
         const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid;
 
         if (isOrphaned) {
-          console.log(`[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
+          debugLog('AuthOperations', `[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
           await this.config.claimSession(existingSession.cid, false);
           return;
         } else {
@@ -67,7 +67,7 @@ export class AuthOperations {
     }
 
     // Proceed with Connect request
-    console.log(`[Connect] Proceeding with new connection for ${username}`);
+    debugLog('AuthOperations', `[Connect] Proceeding with new connection for ${username}`);
 
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
     const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();
@@ -89,12 +89,12 @@ export class AuthOperations {
 
     const connectRequest = { Connect: connectOptions };
 
-    console.log(`[Connect] Sending Connect request with request_id: ${requestId}`);
-    console.log(`[Connect] isLeader: ${instanceManager.isLeader}`);
+    debugLog('AuthOperations', `[Connect] Sending Connect request with request_id: ${requestId}`);
+    debugLog('AuthOperations', `[Connect] isLeader: ${instanceManager.isLeader}`);
 
     try {
       await this.config.sendRequest(connectRequest, requestId);
-      console.log(`[Connect] Connect request sent successfully for ${username}`);
+      debugLog('AuthOperations', `[Connect] Connect request sent successfully for ${username}`);
     } catch (sendError) {
       console.error(`[Connect] FAILED to send Connect request:`, sendError);
       throw sendError;
@@ -114,7 +114,7 @@ export class AuthOperations {
 
     // Resolve hostname to IP if needed (DNS resolution)
     const resolvedAddr = await resolveServerAddress(serverAddr);
-    console.log(`[Register] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
+    debugLog('AuthOperations', `[Register] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
 
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
     const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();

@@ -29,6 +29,7 @@ import {
   stringToUint8Array
 } from "@/types";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -76,7 +77,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
    */
   const redirectToExistingSession = async (session: { cid: bigint; username: string; server_address: string }) => {
     try {
-      console.log('Login: Redirecting to existing session seamlessly:', session.username);
+      debugLog('Login', 'Login: Redirecting to existing session seamlessly:', session.username);
 
       // Show loading toast
       toast({
@@ -92,10 +93,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
       // Try to claim the session if it's orphaned
       try {
         await websocketService.claimSession(session.cid, true);
-        console.log('Login: Session claimed successfully (was orphaned)');
+        debugLog('Login', 'Login: Session claimed successfully (was orphaned)');
       } catch (claimError: any) {
         if (claimError?.message?.includes('not orphaned')) {
-          console.log('Login: Session is still active (not orphaned), no claim needed');
+          debugLog('Login', 'Login: Session is still active (not orphaned), no claim needed');
         } else {
           // Re-throw if it's a different error
           throw claimError;
@@ -128,7 +129,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {
         await wasmConnectionManager.start(session.cid.toString());
-        console.log('Login: WASM connection manager started for CID:', session.cid.toString());
+        debugLog('Login', 'Login: WASM connection manager started for CID:', session.cid.toString());
       } catch (error) {
         console.error('Login: Failed to start WASM connection manager:', error);
         // Don't block navigation - P2P messaging may not be immediately needed
@@ -146,7 +147,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
         serverAddress: session.server_address,
         activationType: 'claim', // Treat as claim since we're reclaiming existing session
       });
-      console.log('Login: Emitted session:activated for redirect to existing session');
+      debugLog('Login', 'Login: Emitted session:activated for redirect to existing session');
 
       // Navigate to the office page
       navigate(getWorkspacePath());
@@ -188,7 +189,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
       if (existingSession) {
         // Don't silently redirect - inform user they need to select or disconnect first
-        console.log('Login: User already has active session:', existingSession);
+        debugLog('Login', 'Login: User already has active session:', existingSession);
         setError('You are already logged in. Please select the session from the top bar, or disconnect it first if you wish to login again.');
         setLoading(false);
         return;
@@ -203,7 +204,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       if (!serverAddress) {
         console.warn('Login: No stored session and no server address provided - connection may fail');
       } else if (!storedSession) {
-        console.log('Login: Using form server address:', serverAddress);
+        debugLog('Login', 'Login: Using form server address:', serverAddress);
       }
 
       // Generate request ID first to avoid race condition
@@ -220,8 +221,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
         }, 30000);
 
         const handler = (message: any) => {
-          console.log('Login response received:', message);
-          console.log('Expected requestId:', requestId);
+          debugLog('Login', 'Login response received:', message);
+          debugLog('Login', 'Expected requestId:', requestId);
           
           // Check if the message is wrapped in a Response object
           const response = message.Response || message;
@@ -239,7 +240,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
             eventEmitter.off('websocket-message', handler);
 
             const { cid, username: sessionUsername, message } = response.SessionAlreadyActive;
-            console.log(`Login: SessionAlreadyActive - ${message}`);
+            debugLog('Login', `Login: SessionAlreadyActive - ${message}`);
 
             // Redirect to the existing session
             runAsyncSetup(async () => {
@@ -265,7 +266,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 errorMessage.toLowerCase().includes('already connected')) {
               // This should rarely happen since we check proactively above
               // But keep as fallback in case session becomes active between our check and connect call
-              console.log('Login: Session already connected (fallback path), redirecting seamlessly');
+              debugLog('Login', 'Login: Session already connected (fallback path), redirecting seamlessly');
 
               // If we have a valid cid from the error (not "0"), redirect to that session
               // Otherwise, look up the session by username from active sessions
@@ -361,7 +362,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {
         await wasmConnectionManager.start(cid.toString());
-        console.log('WASM connection manager started for CID:', cid.toString());
+        debugLog('Login', 'WASM connection manager started for CID:', cid.toString());
       } catch (error) {
         console.error('Failed to start WASM connection manager:', error);
         // Don't block login - P2P messaging may not be immediately needed
@@ -378,7 +379,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
         serverAddress: serverAddress,
         activationType: 'login',
       });
-      console.log('Login: Emitted session:activated for login');
+      debugLog('Login', 'Login: Emitted session:activated for login');
 
       onNext(cid.toString());
       

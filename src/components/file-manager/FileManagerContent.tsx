@@ -531,7 +531,7 @@ export const FileManagerContent = () => {
         onClose={() => setRevfsDisabledModalOpen(false)}
         reason={revfsDisabledReason}
         onOpenSettings={() => {
-          // TODO: Open chat settings panel when implemented
+          // @human-review Chat settings panel not yet implemented
           toast.info('Open Chat Settings to configure P2P storage');
         }}
       />

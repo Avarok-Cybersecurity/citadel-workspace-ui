@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
+import { debugLog } from '@/lib/debug-config';
 
 interface UseEventEmitterSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -18,7 +19,7 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
   useEffect(() => {
     // Setup user profile update listener
     const userProfileHandler = (data: { user: { name?: string; metadata?: { avatar?: { content?: string; String?: string } | string } }; connection: unknown }) => {
-      console.log('WorkspaceEventHandler: Received user profile update', data);
+      debugLog('UseEventEmitterSetup', 'WorkspaceEventHandler: Received user profile update', data);
 
       const user = data.user;
       let avatarUrl: string | undefined;
@@ -47,7 +48,7 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
 
     // Broadcast state sync handler
     const broadcastSyncHandler = (data: { type: string; data: unknown }) => {
-      console.log('WorkspaceEventHandler: Received broadcast state sync', data);
+      debugLog('UseEventEmitterSetup', 'WorkspaceEventHandler: Received broadcast state sync', data);
 
       if (data.type === 'workspace') {
         const { currentUser: _receivedUser, ...receivedData } = data.data as { currentUser?: unknown };

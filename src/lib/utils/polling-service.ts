@@ -36,7 +36,7 @@ export abstract class PollingService {
       }
     }, this.getPollingIntervalMs());
 
-    console.log(`[${this.constructor.name}] Started polling (interval: ${this.getPollingIntervalMs()}ms)`);
+    debugLog('PollingService', `[${this.constructor.name}] Started polling (interval: ${this.getPollingIntervalMs()}ms)`);
   }
 
   /**
@@ -47,7 +47,7 @@ export abstract class PollingService {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
       this.isPaused = false;
-      console.log(`[${this.constructor.name}] Stopped polling`);
+      debugLog('PollingService', `[${this.constructor.name}] Stopped polling`);
     }
   }
 
@@ -112,6 +112,7 @@ export abstract class PollingService {
  * Provides unified lifecycle management.
  */
 import { EventListenerManager } from './event-listener-manager';
+import { debugLog } from '@/lib/debug-config';
 
 export abstract class EventListenerPollingService extends EventListenerManager {
   private pollingInterval: ReturnType<typeof setInterval> | null = null;

@@ -17,6 +17,7 @@ import {
   type HeaderObfuscatorSettings,
   getDefaultSecuritySettings
 } from './security-utils';
+import { debugLog } from '@/lib/debug-config';
 
 // Re-export for backward compatibility
 export type { SessionSecuritySettings, HeaderObfuscatorSettings };
@@ -108,9 +109,9 @@ export class P2PRegistrationService {
     // 1) InstanceManager CID FIRST (bypasses IndexedDB, synchronous)
     // This is the most reliable source for follower tabs
     const instanceCid = instanceManager.cid;
-    console.log(`[P2P] getCurrentCid: instanceManager.cid=${instanceCid?.toString() ?? 'null'}`);
+    debugLog('P2pRegistrationService', `[P2P] getCurrentCid: instanceManager.cid=${instanceCid?.toString() ?? 'null'}`);
     if (instanceCid) {
-      console.log(`[P2P] getCurrentCid: Using instanceManager.cid (primary): ${instanceCid}`);
+      debugLog('P2pRegistrationService', `[P2P] getCurrentCid: Using instanceManager.cid (primary): ${instanceCid}`);
       return instanceCid;
     }
 
@@ -120,9 +121,9 @@ export class P2PRegistrationService {
       const tabSelectionPromise = getSelectedUser();
       const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
       const tabSelection = await Promise.race([tabSelectionPromise, timeout]);
-      console.log(`[P2P] getCurrentCid: tabSelection=${JSON.stringify(tabSelection ? { selectedCid: tabSelection.selectedCid?.toString() } : null)}`);
+      debugLog('P2pRegistrationService', `[P2P] getCurrentCid: tabSelection=${JSON.stringify(tabSelection ? { selectedCid: tabSelection.selectedCid?.toString() } : null)}`);
       if (tabSelection?.selectedCid) {
-        console.log(`[P2P] getCurrentCid: Using tabSelection.selectedCid: ${tabSelection.selectedCid}`);
+        debugLog('P2pRegistrationService', `[P2P] getCurrentCid: Using tabSelection.selectedCid: ${tabSelection.selectedCid}`);
         return tabSelection.selectedCid;
       }
     } catch (e) {
@@ -134,9 +135,9 @@ export class P2PRegistrationService {
       const tabSessionPromise = connectionManager.getTabSelectedSession();
       const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
       const tabSession = await Promise.race([tabSessionPromise, timeout]);
-      console.log(`[P2P] getCurrentCid: tabSession=${tabSession ? { cid: tabSession.cid?.toString() } : null}`);
+      debugLog('P2pRegistrationService', `[P2P] getCurrentCid: tabSession=${tabSession ? { cid: tabSession.cid?.toString() } : null}`);
       if (tabSession?.cid) {
-        console.log(`[P2P] getCurrentCid: Using tabSession.cid: ${tabSession.cid}`);
+        debugLog('P2pRegistrationService', `[P2P] getCurrentCid: Using tabSession.cid: ${tabSession.cid}`);
         return tabSession.cid;
       }
     } catch (e) {
@@ -145,7 +146,7 @@ export class P2PRegistrationService {
 
     // 4) Legacy global connection CID
     const connectionInfo = connectionManager.getConnectionInfo();
-    console.log(`[P2P] getCurrentCid: connectionInfo=${connectionInfo ? { cid: connectionInfo.cid?.toString() } : null}`);
+    debugLog('P2pRegistrationService', `[P2P] getCurrentCid: connectionInfo=${connectionInfo ? { cid: connectionInfo.cid?.toString() } : null}`);
     return connectionInfo?.cid || null;
   }
 
@@ -178,7 +179,7 @@ export class P2PRegistrationService {
         const { peerCid, peerUsername, isOutgoing, isIncoming } = data;
         if (peerCid !== undefined) {
           const peerCidBigInt = BigInt(peerCid);
-          console.log(`[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername})`);
+          debugLog('P2pRegistrationService', `[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername})`);
           // Store locally without re-broadcasting (we're a follower)
           this.setPeerRegisteredLocal(peerCidBigInt, peerUsername || '', isOutgoing, isIncoming);
           // Emit event to trigger sidebar refresh on follower tabs
@@ -291,7 +292,7 @@ export class P2PRegistrationService {
 
         // Broadcast to followers so their sidebar shows the registered peer
         if (instanceManager.isLeader) {
-          console.log(`[P2P-SYNC] Leader broadcasting registeredPeers update to followers: ${peerCid.toString().slice(0, 8)}...`);
+          debugLog('P2pRegistrationService', `[P2P-SYNC] Leader broadcasting registeredPeers update to followers: ${peerCid.toString().slice(0, 8)}...`);
           broadcastChannelService.broadcastStateSync({
             type: 'registered-peer-update',
             peerCid: peerCid.toString(),
@@ -313,7 +314,7 @@ export class P2PRegistrationService {
       // 2. Multiple tabs try to register the same peer
       // 3. Registration completed in background before explicit request
       if (errorMsg.includes('already registered')) {
-        console.log(`[P2P] Peer ${peerCid?.toString()} already registered on server - treating as success`);
+        debugLog('P2pRegistrationService', `[P2P] Peer ${peerCid?.toString()} already registered on server - treating as success`);
 
         // Update local state to reflect the existing registration
         if (peerCid !== undefined) {
@@ -331,7 +332,7 @@ export class P2PRegistrationService {
 
           // Broadcast to followers so their sidebar shows the registered peer
           if (instanceManager.isLeader) {
-            console.log(`[P2P-SYNC] Leader broadcasting registeredPeers (already registered) to followers: ${peerCid.toString().slice(0, 8)}...`);
+            debugLog('P2pRegistrationService', `[P2P-SYNC] Leader broadcasting registeredPeers (already registered) to followers: ${peerCid.toString().slice(0, 8)}...`);
             broadcastChannelService.broadcastStateSync({
               type: 'registered-peer-update',
               peerCid: peerCid.toString(),
@@ -362,7 +363,7 @@ export class P2PRegistrationService {
       const peerCid: bigint | undefined = message.PeerRegisterNotification.peer_cid;
       const peerUsername = message.PeerRegisterNotification.peer_username;
 
-      console.log('[P2P] Peer registered with us:', {
+      debugLog('P2pRegistrationService', '[P2P] Peer registered with us:', {
         cid: notificationCid?.toString(),
         peer_cid: peerCid?.toString(),
         peer_username: peerUsername,
@@ -386,7 +387,7 @@ export class P2PRegistrationService {
 
         // 2.5. Broadcast to followers so their sidebar shows the registered peer
         if (instanceManager.isLeader) {
-          console.log(`[P2P-SYNC] Leader broadcasting registeredPeers (notification) to followers: ${peerCid.toString().slice(0, 8)}...`);
+          debugLog('P2pRegistrationService', `[P2P-SYNC] Leader broadcasting registeredPeers (notification) to followers: ${peerCid.toString().slice(0, 8)}...`);
           broadcastChannelService.broadcastStateSync({
             type: 'registered-peer-update',
             peerCid: peerCid.toString(),
@@ -422,22 +423,22 @@ export class P2PRegistrationService {
 
     if (autoAccept) {
       // Auto-accept: Register back automatically
-      console.log(`[P2P] Auto-accepting registration from ${peerUsername || peerCid.toString()}`);
+      debugLog('P2pRegistrationService', `[P2P] Auto-accepting registration from ${peerUsername || peerCid.toString()}`);
       await this.acceptRegistrationRequest(peerCid, peerUsername);
     } else {
       // Manual: Add to pending requests for user approval
       // Use the notification's cid (recipient's CID) instead of getCurrentCid()
       // This is critical for multi-tab scenarios where getCurrentCid() might return wrong tab's CID
-      console.log(`[P2P] Adding registration from ${peerUsername || peerCid.toString()} to pending requests (recipient: ${notificationCid.toString()})`);
-      console.log('[P2P] DEBUG: peerRegistrationStore exists:', !!peerRegistrationStore);
-      console.log('[P2P] DEBUG: handleIncomingRequest type:', typeof peerRegistrationStore?.handleIncomingRequest);
+      debugLog('P2pRegistrationService', `[P2P] Adding registration from ${peerUsername || peerCid.toString()} to pending requests (recipient: ${notificationCid.toString()})`);
+      debugLog('P2pRegistrationService', '[P2P] DEBUG: peerRegistrationStore exists:', !!peerRegistrationStore);
+      debugLog('P2pRegistrationService', '[P2P] DEBUG: handleIncomingRequest type:', typeof peerRegistrationStore?.handleIncomingRequest);
       try {
         await peerRegistrationStore.handleIncomingRequest({
           cid: notificationCid,
           peer_cid: peerCid,
           peer_username: peerUsername
         });
-        console.log('[P2P] DEBUG: handleIncomingRequest completed successfully');
+        debugLog('P2pRegistrationService', '[P2P] DEBUG: handleIncomingRequest completed successfully');
       } catch (error) {
         console.error('[P2P] DEBUG: handleIncomingRequest threw error:', error);
         throw error;
@@ -450,7 +451,7 @@ export class P2PRegistrationService {
    */
   public async start(options: PeerRegistrationOptions = {}): Promise<void> {
     if (this.isRunning) {
-      console.log('P2P Registration Service already running');
+      debugLog('P2pRegistrationService', 'P2P Registration Service already running');
       return;
     }
 
@@ -460,7 +461,7 @@ export class P2PRegistrationService {
     }
 
     this.isRunning = true;
-    console.log('Starting P2P Registration Service');
+    debugLog('P2pRegistrationService', 'Starting P2P Registration Service');
 
     // Do initial check
     await this.checkAndRegisterPeers(options);
@@ -490,7 +491,7 @@ export class P2PRegistrationService {
       this.pollingInterval = null;
     }
 
-    console.log('Stopped P2P Registration Service');
+    debugLog('P2pRegistrationService', 'Stopped P2P Registration Service');
     eventEmitter.emit('p2p:registration-service-stopped');
   }
 
@@ -501,7 +502,7 @@ export class P2PRegistrationService {
   private async checkAndRegisterPeers(options: PeerRegistrationOptions = {}): Promise<void> {
     // Guard: prevent concurrent calls from stacking up (prevents UI freeze)
     if (this.isCheckingPeers) {
-      console.log('[P2P] Skipping peer check - previous check still in progress');
+      debugLog('P2pRegistrationService', '[P2P] Skipping peer check - previous check still in progress');
       return;
     }
     this.isCheckingPeers = true;
@@ -558,9 +559,9 @@ export class P2PRegistrationService {
         request_id: requestId,
         cid: currentCid // Use the tab-aware CID
       }
-    } as any;
+    };
 
-    const responsePromise = new Promise<any>((resolve, reject) => {
+    const responsePromise = new Promise<Record<string, unknown>>((resolve, reject) => {
       this.pendingRequests.set(requestId, { resolve, reject });
 
       // Fail fast timeout to prevent UI freeze (was 10s, now 3s)
@@ -606,10 +607,10 @@ export class P2PRegistrationService {
    * List currently registered peers (single attempt)
    */
   public async listRegisteredPeers(): Promise<any[]> {
-    console.log('[P2P] listRegisteredPeers: called');
+    debugLog('P2pRegistrationService', '[P2P] listRegisteredPeers: called');
     // Use getCurrentCid() for proper multi-tab support
     const currentCid = await this.getCurrentCid();
-    console.log(`[P2P] listRegisteredPeers: currentCid=${currentCid?.toString() ?? 'null'}`);
+    debugLog('P2pRegistrationService', `[P2P] listRegisteredPeers: currentCid=${currentCid?.toString() ?? 'null'}`);
     // CID 0 is the service connection, not a user session - skip P2P requests
     if (!currentCid || currentCid === 0n) {
       console.warn('[P2P] listRegisteredPeers: No active user session, CID is null or 0');
@@ -625,9 +626,9 @@ export class P2PRegistrationService {
         request_id: requestId,
         cid: currentCid // Use the tab-aware CID
       }
-    } as any;
+    };
 
-    const responsePromise = new Promise<any>((resolve, reject) => {
+    const responsePromise = new Promise<Record<string, unknown>>((resolve, reject) => {
       this.pendingRequests.set(requestId, { resolve, reject });
 
       // Fail fast timeout to prevent UI freeze (was 10s, now 3s)
@@ -644,10 +645,10 @@ export class P2PRegistrationService {
     const response = await responsePromise;
 
     // DEBUG: Log the raw response to understand the structure (use P2P prefix to match test filter)
-    console.log('[P2P-ListRegisteredPeers] Raw response:', JSON.stringify(response, (k, v) => typeof v === 'bigint' ? v.toString() : v));
-    console.log('[P2P-ListRegisteredPeers] response.peers type:', typeof response.peers);
-    console.log('[P2P-ListRegisteredPeers] response.peers instanceof Map:', response.peers instanceof Map);
-    console.log('[P2P-ListRegisteredPeers] response.peers keys:', response.peers ? Object.keys(response.peers) : 'N/A');
+    debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] Raw response:', JSON.stringify(response, (k, v) => typeof v === 'bigint' ? v.toString() : v));
+    debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] response.peers type:', typeof response.peers);
+    debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] response.peers instanceof Map:', response.peers instanceof Map);
+    debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] response.peers keys:', response.peers ? Object.keys(response.peers) : 'N/A');
 
     // Convert peers to array - handle both Map and Object formats
     // Rust HashMap<u64, T> may deserialize as Map with BigInt keys or as Object with string keys
@@ -655,19 +656,19 @@ export class P2PRegistrationService {
 
     if (response.peers instanceof Map) {
       // Map with BigInt keys - iterate using Map's forEach
-      console.log('[P2P-ListRegisteredPeers] Processing as Map with', response.peers.size, 'entries');
+      debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] Processing as Map with', response.peers.size, 'entries');
       response.peers.forEach((peerInfo: any, peerCid: any) => {
         peersArray.push([peerCid.toString(), peerInfo]);
       });
     } else if (response.peers && typeof response.peers === 'object') {
       // Regular object with string keys
-      console.log('[P2P-ListRegisteredPeers] Processing as Object with', Object.keys(response.peers).length, 'keys');
+      debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] Processing as Object with', Object.keys(response.peers).length, 'keys');
       peersArray = Object.entries(response.peers);
     } else {
-      console.log('[P2P-ListRegisteredPeers] response.peers is null/undefined/not-object');
+      debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] response.peers is null/undefined/not-object');
     }
 
-    console.log('[P2P-ListRegisteredPeers] Converted peers array length:', peersArray.length);
+    debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] Converted peers array length:', peersArray.length);
 
     return peersArray.map(([peerCid, peerInfo]: [string, any]) => ({
       ...peerInfo,
@@ -709,9 +710,9 @@ export class P2PRegistrationService {
         connect_after_register: options.connectAfterRegister ?? false,
         peer_session_password: null
       }
-    } as any;
+    };
 
-    const responsePromise = new Promise<any>((resolve, reject) => {
+    const responsePromise = new Promise<Record<string, unknown>>((resolve, reject) => {
       this.pendingRequests.set(requestId, { resolve, reject });
 
       // Set timeout
@@ -727,7 +728,7 @@ export class P2PRegistrationService {
     await websocketService.sendMessage(request);
     await responsePromise;
     
-    console.log(`Successfully registered peer ${peerCid}`);
+    debugLog('P2pRegistrationService', `Successfully registered peer ${peerCid}`);
   }
 
   /**
@@ -808,7 +809,7 @@ export class P2PRegistrationService {
       return;
     }
 
-    console.log(`Found ${unregisteredPeers.length} unregistered peers, registering...`);
+    debugLog('P2pRegistrationService', `Found ${unregisteredPeers.length} unregistered peers, registering...`);
 
     // Register peers in parallel with some concurrency limit
     const CONCURRENT_REGISTRATIONS = 5;
@@ -871,12 +872,12 @@ export class P2PRegistrationService {
    */
   public async syncPeerConnectionsFromSession(peerConnections: Record<string, { cid: bigint; peer_cid: bigint; peer_username: string }> | undefined): Promise<void> {
     if (!peerConnections) {
-      console.log('[P2P Registration] No peer connections to sync');
+      debugLog('P2pRegistrationService', '[P2P Registration] No peer connections to sync');
       return;
     }
 
     const peerCids = Object.keys(peerConnections);
-    console.log('[P2P Registration] Syncing peer connections from session:', peerCids);
+    debugLog('P2pRegistrationService', '[P2P Registration] Syncing peer connections from session:', peerCids);
 
     // CRITICAL: Validate against server's registered peers (source of truth)
     // This prevents trying to connect to stale peers that no longer exist
@@ -884,12 +885,12 @@ export class P2PRegistrationService {
     try {
       const serverPeers = await this.listRegisteredPeers();
       serverPeerCids = new Set(serverPeers.map(p => p.cid as bigint).filter((c): c is bigint => c !== undefined));
-      console.log(`[P2P Registration] Server has ${serverPeerCids.size} registered peers:`, Array.from(serverPeerCids).map(c => c.toString()));
+      debugLog('P2pRegistrationService', `[P2P Registration] Server has ${serverPeerCids.size} registered peers:`, Array.from(serverPeerCids).map(c => c.toString()));
     } catch (error: any) {
       // If server query fails (e.g., no active session yet), skip syncing stale data
       // We'll sync when the server becomes available
       if (error?.message?.includes('CID 0') || error?.message?.includes('No active')) {
-        console.log('[P2P Registration] No active session, skipping sync of cached peer data');
+        debugLog('P2pRegistrationService', '[P2P Registration] No active session, skipping sync of cached peer data');
         return;
       }
       console.warn('[P2P Registration] Failed to validate peers against server, skipping sync:', error?.message);
@@ -903,13 +904,13 @@ export class P2PRegistrationService {
       // VALIDATION: Only sync peers that exist on the server
       // This filters out stale peer data from previous sessions/tests
       if (serverPeerCids && !serverPeerCids.has(peerCid)) {
-        console.log(`[P2P Registration] Skipping stale peer ${peerCid.toString()} (not in server registry)`);
+        debugLog('P2pRegistrationService', `[P2P Registration] Skipping stale peer ${peerCid.toString()} (not in server registry)`);
         continue;
       }
 
       // Check if peer is already registered
       if (this.registeredPeers.has(peerCid)) {
-        console.log(`[P2P Registration] Peer ${peerCid.toString()} already registered`);
+        debugLog('P2pRegistrationService', `[P2P Registration] Peer ${peerCid.toString()} already registered`);
         continue;
       }
 
@@ -925,7 +926,7 @@ export class P2PRegistrationService {
       this.allPeers.set(peerCid, peer);
       this.registeredPeers.set(peerCid, peer);
 
-      console.log(`[P2P Registration] Added validated peer from session: ${peerCid.toString()} (${peer.username})`);
+      debugLog('P2pRegistrationService', `[P2P Registration] Added validated peer from session: ${peerCid.toString()} (${peer.username})`);
 
       // Emit event so UI updates
       eventEmitter.emit('p2p:peer-registered', { peer });
@@ -961,7 +962,7 @@ export class P2PRegistrationService {
     } catch (error: any) {
       // Downgrade "Key not found" to debug (expected on first use)
       if (error?.message?.includes('Key not found')) {
-        console.debug('[P2P] Auto-accept setting not found, using default: false');
+        debugLog('P2pRegistrationService', '[P2P] Auto-accept setting not found, using default: false');
       } else {
         console.warn('[P2P] Failed to get auto-accept setting:', error);
       }
@@ -984,7 +985,7 @@ export class P2PRegistrationService {
         P2PRegistrationService.AUTO_ACCEPT_KEY,
         stringToBytes(String(autoAccept))
       );
-      console.log(`[P2P] Auto-accept setting saved: ${autoAccept}`);
+      debugLog('P2pRegistrationService', `[P2P] Auto-accept setting saved: ${autoAccept}`);
     } catch (error) {
       console.error('[P2P] Failed to save auto-accept setting:', error);
       throw error;
@@ -1004,7 +1005,7 @@ export class P2PRegistrationService {
       throw new Error('Cannot register with self');
     }
 
-    console.log(`[P2P] Accepting registration from ${peerUsername || peerCid.toString()}`);
+    debugLog('P2pRegistrationService', `[P2P] Accepting registration from ${peerUsername || peerCid.toString()}`);
 
     // Register back with the peer (P2PAutoConnect handles connections)
     await this.registerPeer(peerCid, { connectAfterRegister: false });
@@ -1029,7 +1030,7 @@ export class P2PRegistrationService {
    * Decline a registration request - removes from pending requests
    */
   public async declineRegistrationRequest(peerCid: bigint): Promise<void> {
-    console.log(`[P2P] Declining registration from ${peerCid.toString()}`);
+    debugLog('P2pRegistrationService', `[P2P] Declining registration from ${peerCid.toString()}`);
 
     // Remove from pending requests
     await peerRegistrationStore.removeRequestByPeerCid(peerCid);

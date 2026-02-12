@@ -24,26 +24,26 @@ interface PeerInfo {
   lastMessageTime?: number;
 }
 
+// Demo peer data (module-level constant — stable across renders)
+const DEMO_PEERS: PeerInfo[] = [
+  {
+    cid: 'demo-peer-kathy',
+    name: 'Kathy McCooper',
+    isConnected: true,
+    unreadCount: 0,
+    lastMessage: 'Hey! How\'s the project going?',
+    lastMessageTime: Date.now() - 1000 * 60 * 5 // 5 minutes ago
+  }
+];
+
 export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps) {
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [availablePeers, setAvailablePeers] = useState<Peer[]>([]);
   const [showAvailablePeers, setShowAvailablePeers] = useState(false);
   const [newPeerCid, setNewPeerCid] = useState('');
   const [isAddingPeer, setIsAddingPeer] = useState(false);
-  
-  const messenger = P2PMessengerManager.getInstance();
 
-  // Add demo peer for Kathy McCooper
-  const DEMO_PEERS: PeerInfo[] = [
-    {
-      cid: 'demo-peer-kathy',
-      name: 'Kathy McCooper',
-      isConnected: true,
-      unreadCount: 0,
-      lastMessage: 'Hey! How\'s the project going?',
-      lastMessageTime: Date.now() - 1000 * 60 * 5 // 5 minutes ago
-    }
-  ];
+  const messenger = P2PMessengerManager.getInstance();
 
   // Define loadPeers before it's used in effects
   const loadPeers = useCallback(() => {
@@ -97,13 +97,13 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       unsubscribeMessage();
       unsubscribeConnection();
     };
-  }, []);
+  }, [loadPeers, messenger]);
 
   // Handle peer updates from registration service
   const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
     setAvailablePeers(data.allPeers);
     loadPeers();
-  }, []);
+  }, [loadPeers]);
 
   // Listen for peer updates
   useEventListener<{ allPeers: Peer[]; registeredPeers: Peer[] }>('p2p:peers-updated', handlePeersUpdated);

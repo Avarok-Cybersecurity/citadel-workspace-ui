@@ -19,6 +19,7 @@ import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface BaseOfficeProps {
   title: string;
@@ -99,13 +100,13 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   useEffect(() => {
     const compileContent = async () => {
       try {
-        console.info('Compiling MDX content...');
+        debugLog('BaseOffice', 'Compiling MDX content...');
         const result = await evaluate(content, {
           ...runtime,
           useMDXComponents: () => components as unknown as MDXComponents,
           baseUrl: window.location.origin
         });
-        console.info('MDX compilation successful');
+        debugLog('BaseOffice', 'MDX compilation successful');
         setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
         console.error('Error compiling MDX:', error);
@@ -191,8 +192,6 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         onSave={handleSave}
         canEdit={hasEditPermission}
         editDeniedReason={editDeniedReason || undefined}
-        entityType={entityData?.entity_type ? 'node' : 'workspace'}
-        entityId={nodeId || 'workspace'}
       >
         {contentView}
       </OfficeLayout>

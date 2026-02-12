@@ -48,6 +48,7 @@ import type {
   TransferModePreference,
   IncomingFileTransferMessage,
 } from './types';
+import { debugLog } from '@/lib/debug-config';
 
 export class FileTransferService {
   private static instance: FileTransferService;
@@ -82,7 +83,7 @@ export class FileTransferService {
     this.io.dispose();
     // Set new router
     this.io = router;
-    console.log('FileTransferService: I/O router swapped', {
+    debugLog('Service', 'FileTransferService: I/O router swapped', {
       routerType: router.constructor.name,
     });
   }
@@ -102,7 +103,7 @@ export class FileTransferService {
     await this.loadFromStorage();
 
     this.initialized = true;
-    console.log('FileTransferService: Initialized');
+    debugLog('Service', 'FileTransferService: Initialized');
   }
 
   // ============================================================================
@@ -395,7 +396,7 @@ export class FileTransferService {
       throw new Error('No active session');
     }
 
-    console.log('FileTransferService: Starting native file picker flow');
+    debugLog('Service', 'FileTransferService: Starting native file picker flow');
 
     const fileInfo = await this.io.executeIntent({
       type: 'pick-file',
@@ -404,7 +405,7 @@ export class FileTransferService {
       allowedExtensions,
     }) as { file_path: string; file_name: string; file_size: bigint };
 
-    console.log('FileTransferService: File picked', {
+    debugLog('Service', 'FileTransferService: File picked', {
       path: fileInfo.file_path,
       name: fileInfo.file_name,
       size: fileInfo.file_size.toString(),
@@ -439,7 +440,7 @@ export class FileTransferService {
         transferId,
       });
 
-      console.log('FileTransferService: SendFile request submitted');
+      debugLog('Service', 'FileTransferService: SendFile request submitted');
       eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_SENT, transfer);
       return transferId;
     } catch (error) {
@@ -462,7 +463,7 @@ export class FileTransferService {
 
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
     const { layer: rawLayer, senderCid, recipientCid } = message;
-    console.log('FileTransferService: handleFileTransferMessage received', {
+    debugLog('Service', 'FileTransferService: handleFileTransferMessage received', {
       type: (rawLayer as { type?: string })?.type,
       senderCid: senderCid?.slice(0, 12),
       recipientCid: recipientCid?.slice(0, 12),
@@ -617,7 +618,7 @@ export class FileTransferService {
     const transfer = this.state.getTransfer(data.transfer_id);
     if (!transfer || !transfer.isIncoming) return;
 
-    console.log(
+    debugLog('Service', 
       `FileTransferService: Received chunk ${data.chunk_index + 1}/${data.total_chunks} for transfer ${data.transfer_id}`
     );
 
@@ -654,7 +655,7 @@ export class FileTransferService {
     const chunkSize = FILE_TRANSFER_CHUNK_SIZE_BYTES;
     const totalChunks = Math.ceil(file.size / chunkSize);
 
-    console.log(
+    debugLog('Service', 
       `FileTransferService: Starting P2P stream of ${file.name} (${file.size} bytes) in ${totalChunks} chunks`
     );
 
@@ -662,7 +663,7 @@ export class FileTransferService {
       for (let i = 0; i < totalChunks; i++) {
         const currentTransfer = this.state.getTransfer(transfer.id);
         if (!currentTransfer || currentTransfer.state === 'cancelled') {
-          console.log('FileTransferService: Transfer cancelled, stopping stream');
+          debugLog('Service', 'FileTransferService: Transfer cancelled, stopping stream');
           break;
         }
 
@@ -724,7 +725,7 @@ export class FileTransferService {
     const chunks = this.state.getReceivedChunks(transfer.id);
     if (!chunks) return;
 
-    console.log(`FileTransferService: Reassembling file from ${chunks.length} chunks`);
+    debugLog('Service', `FileTransferService: Reassembling file from ${chunks.length} chunks`);
 
     try {
       if (chunks.length !== totalChunks) {
@@ -744,7 +745,7 @@ export class FileTransferService {
       this.emitStateChange(transfer);
       eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, transfer);
 
-      console.log(
+      debugLog('Service', 
         `FileTransferService: File reassembled successfully: ${transfer.fileName} (${blob.size} bytes)`
       );
     } catch (error) {
@@ -798,19 +799,19 @@ export class FileTransferService {
   }
 
   // ============================================================================
-  // Persistence (TODO: Implement actual storage)
+  // @human-review Persistence requires LocalDB integration
   // ============================================================================
 
   private async loadFromStorage(): Promise<void> {
-    console.log('FileTransferService: Loading from storage');
+    debugLog('Service', 'FileTransferService: Loading from storage');
   }
 
   private async saveTransfer(_transfer: FileTransfer): Promise<void> {
-    // TODO: Save to LocalDB
+    // @human-review Save to LocalDB
   }
 
   private async saveSettings(_peerCid: string, _settings: FileTransferSettings): Promise<void> {
-    // TODO: Save to LocalDB
+    // @human-review Save to LocalDB
   }
 }
 

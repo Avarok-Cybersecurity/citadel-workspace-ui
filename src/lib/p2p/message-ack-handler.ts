@@ -6,6 +6,7 @@
 
 import type { P2PMessageAckPayload } from '@/types/p2p-types';
 import type { P2PMessage, P2PConversation } from './p2p-types';
+import { debugLog } from '@/lib/debug-config';
 
 export interface MessageAckHandlerConfig {
   /** Get conversations map */
@@ -27,7 +28,7 @@ export class MessageAckHandler {
    * Handle message acknowledgment
    */
   public async handleMessageAck(payload: P2PMessageAckPayload): Promise<void> {
-    console.log('[P2P] handleMessageAck received:', {
+    debugLog('MessageAckHandler', '[P2P] handleMessageAck received:', {
       ack_type: payload.ack_type,
       message_id: payload.message_id.slice(0, 8),
     });
@@ -41,7 +42,7 @@ export class MessageAckHandler {
     conversations.forEach((conversation, peerCid) => {
       const message = conversation.messages.find(m => m.id === payload.message_id);
       if (message) {
-        console.log('[P2P] handleMessageAck FOUND message, updating status:', message.status, '->', payload.ack_type);
+        debugLog('MessageAckHandler', '[P2P] handleMessageAck FOUND message, updating status:', message.status, '->', payload.ack_type);
         newStatus = payload.ack_type === 'failed' ? 'failed' : payload.ack_type;
         message.status = newStatus;
         if (payload.error) {
@@ -65,7 +66,7 @@ export class MessageAckHandler {
     );
 
     if (statusUpdated) {
-      console.log('[P2P] handleMessageAck notifying listeners for', updatedMessages.length, 'messages');
+      debugLog('MessageAckHandler', '[P2P] handleMessageAck notifying listeners for', updatedMessages.length, 'messages');
       updatedMessages.forEach(({ messageId }) => {
         this.config.notifyMessageStatusListeners(messageId, newStatus);
       });

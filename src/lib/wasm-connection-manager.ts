@@ -136,7 +136,7 @@ class WasmConnectionManager {
       circuitBreakerOpen: false
     });
 
-    console.log(`[WASM Connection Manager] Added session: ${cid} (total: ${this.sessions.size})`);
+    debugLog('WasmConnectionManager', `[WASM Connection Manager] Added session: ${cid} (total: ${this.sessions.size})`);
     debugLog('wasm-connection-manager', 'Added session', { cid, totalSessions: this.sessions.size });
 
     // Start if not already running
@@ -158,7 +158,7 @@ class WasmConnectionManager {
   removeSession(cid: string): void {
     if (this.sessions.has(cid)) {
       this.sessions.delete(cid);
-      console.log(`[WASM Connection Manager] Removed session: ${cid} (remaining: ${this.sessions.size})`);
+      debugLog('WasmConnectionManager', `[WASM Connection Manager] Removed session: ${cid} (remaining: ${this.sessions.size})`);
       debugLog('wasm-connection-manager', 'Removed session', { cid, remainingSessions: this.sessions.size });
 
       // Clear currentCid if it was the removed session

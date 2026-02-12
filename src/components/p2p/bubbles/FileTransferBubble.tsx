@@ -2,6 +2,7 @@ import { File, FileImage, FileText, FileVideo, FileAudio, Download, X, Check, Cl
 import { getBubbleStyles } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import type { FileTransferBubbleProps } from './types';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -39,7 +40,7 @@ export function FileTransferBubble({
   const state = message.transfer_state || 'pending';
 
   // DEBUG: Log to understand why Accept/Decline may not show
-  console.log('[FileTransferBubble] Debug:', {
+  debugLog('FileTransferBubble', '[FileTransferBubble] Debug:', {
     isOwn,
     state,
     senderCid: message.senderCid,

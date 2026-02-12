@@ -18,6 +18,7 @@ import {
   useEventEmitterSetup,
   useNodeEventSetup,
 } from './hooks';
+import { debugLog } from '@/lib/debug-config';
 
 export interface WorkspaceEventState {
   workspace?: {
@@ -107,7 +108,7 @@ export const WorkspaceEventHandler: React.FC<{
   // Watch for initialization requirement and show modal
   useEffect(() => {
     if (state.needsWorkspaceInitialization && !showInitModal && !initModalDismissed) {
-      console.info('Workspace needs initialization - showing modal');
+      debugLog('WorkspaceEventHandler', 'Workspace needs initialization - showing modal');
       setShowInitModal(true);
     }
   }, [state.needsWorkspaceInitialization, showInitModal, initModalDismissed]);
@@ -122,7 +123,7 @@ export const WorkspaceEventHandler: React.FC<{
   useEffect(() => {
     const setupMessageListeners = async () => {
       await workspaceEvents.onMessageEvent('message:received', (payload: MessagePayload) => {
-        console.info(`Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
+        debugLog('WorkspaceEventHandler', `Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
 
         if (!payload.contents) {
           console.warn('Received message event without contents');
@@ -204,7 +205,7 @@ export const WorkspaceEventHandler: React.FC<{
         console.error(`Operation error:`, payload.message);
 
         if (payload.message.includes('No workspace found')) {
-          console.info('Workspace initialization needed - showing modal');
+          debugLog('WorkspaceEventHandler', 'Workspace initialization needed - showing modal');
           setShowInitModal(true);
         } else {
           setTimeout(() => {
@@ -214,7 +215,7 @@ export const WorkspaceEventHandler: React.FC<{
       });
 
       await workspaceEvents.onOperationEvent('operation:success', (connectionInfo: ConnectionInfo) => {
-        console.info(`Operation successful (CID: ${connectionInfo.cid}, request ID: ${connectionInfo.request_id})`);
+        debugLog('WorkspaceEventHandler', `Operation successful (CID: ${connectionInfo.cid}, request ID: ${connectionInfo.request_id})`);
         setState(prev => ({
           ...prev,
           lastRequestId: connectionInfo.request_id
@@ -249,7 +250,7 @@ export const WorkspaceEventHandler: React.FC<{
       await setupMessageListeners();
       await setupErrorHandling();
       await setupProtocolWarningHandling();
-      console.info('Workspace event listeners initialized');
+      debugLog('WorkspaceEventHandler', 'Workspace event listeners initialized');
     };
 
     runAsyncSetup(initializeEvents);
@@ -296,7 +297,7 @@ export const WorkspaceEventHandler: React.FC<{
 
     WorkspaceService.loadWorkspace()
       .then(() => {
-        console.info('Workspace reloaded after initialization');
+        debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization');
       })
       .catch(error => {
         console.error('Error reloading workspace after initialization:', error);

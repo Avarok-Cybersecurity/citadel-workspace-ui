@@ -19,6 +19,7 @@
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { PollingService } from '../utils/polling-service';
+import { debugLog } from '@/lib/debug-config';
 
 export interface QueuedMessage {
   requestId: string;
@@ -97,7 +98,7 @@ class OutboundQueue extends PollingService {
    */
   start(): void {
     this.startPolling();
-    console.log('[OutboundQueue] Started timeout checker');
+    debugLog('OutboundQueue', '[OutboundQueue] Started timeout checker');
   }
 
   /**
@@ -105,7 +106,7 @@ class OutboundQueue extends PollingService {
    */
   stop(): void {
     this.stopPolling();
-    console.log('[OutboundQueue] Stopped timeout checker');
+    debugLog('OutboundQueue', '[OutboundQueue] Stopped timeout checker');
   }
 
   /**
@@ -123,7 +124,7 @@ class OutboundQueue extends PollingService {
     };
 
     this.queue.set(id, message);
-    console.log(`[OutboundQueue] Enqueued message: ${id} (queue size: ${this.queue.size})`);
+    debugLog('OutboundQueue', `[OutboundQueue] Enqueued message: ${id} (queue size: ${this.queue.size})`);
 
     return id;
   }
@@ -135,7 +136,7 @@ class OutboundQueue extends PollingService {
     const message = this.queue.get(requestId);
 
     if (!message) {
-      console.log(`[OutboundQueue] ACK for unknown requestId: ${requestId}`);
+      debugLog('OutboundQueue', `[OutboundQueue] ACK for unknown requestId: ${requestId}`);
       return;
     }
 
@@ -146,7 +147,7 @@ class OutboundQueue extends PollingService {
     this.queue.delete(requestId);
 
     const latency = Date.now() - message.timestamp;
-    console.log(`[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
+    debugLog('OutboundQueue', `[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
 
     if (result.status === 'error') {
       console.error(`[OutboundQueue] Message failed: ${requestId}`, result.error);
@@ -211,7 +212,7 @@ class OutboundQueue extends PollingService {
     message.retryCount++;
     message.timestamp = Date.now();
 
-    console.log(`[OutboundQueue] Retrying ${requestId} (attempt ${message.retryCount}/${MAX_RETRIES})`);
+    debugLog('OutboundQueue', `[OutboundQueue] Retrying ${requestId} (attempt ${message.retryCount}/${MAX_RETRIES})`);
 
     eventEmitter.emit('outbound-retry', {
       requestId,
@@ -223,7 +224,7 @@ class OutboundQueue extends PollingService {
   onLeaderChange(newLeaderId: string): void {
     if (this.queue.size === 0) return;
 
-    console.log(`[OutboundQueue] Leader changed to ${newLeaderId}, retrying ${this.queue.size} pending messages`);
+    debugLog('OutboundQueue', `[OutboundQueue] Leader changed to ${newLeaderId}, retrying ${this.queue.size} pending messages`);
 
     for (const [requestId, message] of this.queue) {
       message.timestamp = Date.now();
@@ -258,7 +259,7 @@ class OutboundQueue extends PollingService {
       }
     }
     this.queue.clear();
-    console.log('[OutboundQueue] Cleared all pending messages');
+    debugLog('OutboundQueue', '[OutboundQueue] Cleared all pending messages');
   }
 
   destroy(): void {

@@ -30,6 +30,7 @@ import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface TopBarProps {
   // Optional prop for backward compatibility
@@ -108,7 +109,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         return;
       }
 
-      console.log('TopBar: Fully signing out user', currentSession.username, 'CID:', cid.toString());
+      debugLog('TopBar', 'TopBar: Fully signing out user', currentSession.username, 'CID:', cid.toString());
 
       // Full disconnect via WebSocket - pass the session info explicitly
       await connectionManager.disconnect({

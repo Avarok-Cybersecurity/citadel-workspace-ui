@@ -25,6 +25,7 @@ import type { SessionSecuritySettings } from '../p2p-registration-service';
 import type { StoredSessions, GetSessionsRequest, GetSessionsResponse } from '@/types/session-types';
 import type { ConnectionIntent, TabSelectionContext, PendingRequest } from './types';
 import { SESSION_STORAGE_KEY } from '@/types/session-types';
+import { debugLog } from '@/lib/debug-config';
 
 export class ConnectionIO {
   /**
@@ -136,7 +137,7 @@ export class ConnectionIO {
    */
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
     const valueStr = safeJSONStringify(sessions);
-    console.log('ConnectionIO: Storing sessions, serialized:', formatForDebug(valueStr));
+    debugLog('Io', 'ConnectionIO: Storing sessions, serialized:', formatForDebug(valueStr));
     const valueBytes = stringToBytes(valueStr);
     await this.localDBSet(0n, SESSION_STORAGE_KEY, valueBytes);
   }

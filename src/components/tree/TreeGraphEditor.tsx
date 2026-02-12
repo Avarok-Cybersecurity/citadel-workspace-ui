@@ -33,6 +33,7 @@ import type { TreeGraphEditorProps, ContextMenuState, TreeFlowNode } from "./tre
 import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Node types registry for React Flow.
@@ -186,7 +187,7 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
   const handleEdit = useCallback(() => {
     if (!contextMenu.nodeId) return;
     // @human-review: Trigger edit modal - integrate with NodeManagementModal
-    console.log("Edit node:", contextMenu.nodeId);
+    debugLog('TreeGraphEditor', "Edit node:", contextMenu.nodeId);
     handleContextMenuClose();
   }, [contextMenu.nodeId, handleContextMenuClose]);
 

@@ -16,6 +16,7 @@ import type {
   GroupRole,
 } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
+import { debugLog } from '@/lib/debug-config';
 
 // ============================================================================
 // Types
@@ -97,7 +98,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       ownerId: string;
       ownerUsername: string;
     }) => {
-      console.log('[useGroupConversations] Group created:', data);
+      debugLog('UseGroupConversations', '[useGroupConversations] Group created:', data);
 
       const defaultRoles = createDefaultRoles();
       const defaultRole = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
@@ -130,9 +131,9 @@ export function useGroupConversations(): UseGroupConversationsResult {
       inviterId: string;
       inviterUsername: string;
     }) => {
-      console.log('[useGroupConversations] Invite received:', data);
+      debugLog('UseGroupConversations', '[useGroupConversations] Invite received:', data);
       // For now, auto-accept invites - in future, show invite dialog
-      // TODO: Implement invite acceptance flow
+      // @human-review Invite acceptance flow needs dialog UI and backend accept/reject
     };
 
     const handleGroupMemberJoined = (data: {
@@ -141,7 +142,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       memberUsername: string;
       roleId?: string;
     }) => {
-      console.log('[useGroupConversations] Member joined:', data);
+      debugLog('UseGroupConversations', '[useGroupConversations] Member joined:', data);
       const memberCidBigint = BigInt(data.memberCid);
 
       setGroups(prev =>
@@ -170,7 +171,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
     };
 
     const handleGroupMemberLeft = (data: { groupId: string; memberCid: string }) => {
-      console.log('[useGroupConversations] Member left:', data);
+      debugLog('UseGroupConversations', '[useGroupConversations] Member left:', data);
       const memberCidBigint = BigInt(data.memberCid);
 
       setGroups(prev =>
@@ -189,7 +190,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       senderId: string;
       content: string;
     }) => {
-      console.log('[useGroupConversations] Message received:', data);
+      debugLog('UseGroupConversations', '[useGroupConversations] Message received:', data);
 
       setGroups(prev =>
         prev.map(group => {
@@ -208,7 +209,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
     };
 
     const handleGroupDeleted = (data: { groupId: string }) => {
-      console.log('[useGroupConversations] Group deleted:', data);
+      debugLog('UseGroupConversations', '[useGroupConversations] Group deleted:', data);
       setGroups(prev => prev.filter(g => g.id !== data.groupId));
     };
 
@@ -261,7 +262,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request as any);
+        await client.sendDirectToInternalService(request);
 
         // For now, return the request ID as the group ID
         // The actual group ID will come from the GroupCreated response
@@ -288,7 +289,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           GroupInvite: {
             cid: BigInt(cid),
             peer_cid: BigInt(peerCid),
-            group_key: groupId, // TODO: Use proper group key format
+            group_key: groupId, // @human-review Verify group key format matches backend
             request_id: crypto.randomUUID(),
           },
         };
@@ -298,11 +299,11 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request as any);
+        await client.sendDirectToInternalService(request);
 
         // If roleId specified, store it locally for when member joins
         if (roleId) {
-          // TODO: Store pending role assignment
+          // @human-review Role assignment storage needs backend API
         }
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to invite peer';
@@ -334,7 +335,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
         throw new Error('WebSocket client not initialized');
       }
 
-      await client.sendDirectToInternalService(request as any);
+      await client.sendDirectToInternalService(request);
 
       // Remove from local state
       setGroups(prev => prev.filter(g => g.id !== groupId));
@@ -368,7 +369,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request as any);
+        await client.sendDirectToInternalService(request);
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to kick member';
         setError(errorMsg);
@@ -436,7 +437,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
         throw new Error('WebSocket client not initialized');
       }
 
-      await client.sendDirectToInternalService(request as any);
+      await client.sendDirectToInternalService(request);
       // Groups will be updated via events
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : 'Failed to refresh groups';

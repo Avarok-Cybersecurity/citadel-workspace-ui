@@ -10,6 +10,7 @@ import { WorkspaceProtocolRequestTS, WorkspaceProtocolPayloadTS } from "@/types/
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { workspaceEvents } from "@/lib/workspace-events";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface WorkspaceInitializationModalProps {
     isOpen: boolean;
@@ -127,7 +128,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             try {
                 if (username) {
                     await WorkspaceService.getUserPermissions(username, 'workspace-root');
-                    console.info('User permissions loaded after workspace initialization for:', username);
+                    debugLog('WorkspaceInitializationModal', 'User permissions loaded after workspace initialization for:', username);
                 } else {
                     console.warn('No username available to load permissions');
                 }

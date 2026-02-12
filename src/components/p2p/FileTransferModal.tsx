@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Paperclip, Upload, X, FileImage, FileText, FileVideo, FileAudio, File, Zap, Cloud, FolderOpen } from 'lucide-react';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
+import { debugLog } from '@/lib/debug-config';
 
 interface FileTransferModalProps {
   isOpen: boolean;
@@ -124,7 +125,7 @@ export function FileTransferModal({
         undefined // No extension filter for now
       );
 
-      console.log('FileTransferModal: Native file transfer started', { transferId });
+      debugLog('FileTransferModal', 'FileTransferModal: Native file transfer started', { transferId });
 
       // Close modal on success
       handleRemoveFile();
@@ -139,7 +140,7 @@ export function FileTransferModal({
         setError('Native file picker not available in this environment. Use drag & drop or browse instead.');
       } else if (errorMessage.includes('cancelled') || errorMessage.includes('canceled')) {
         // User cancelled - not an error
-        console.log('FileTransferModal: File picker cancelled');
+        debugLog('FileTransferModal', 'FileTransferModal: File picker cancelled');
       } else {
         setError(errorMessage);
       }

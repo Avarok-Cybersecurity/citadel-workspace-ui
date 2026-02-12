@@ -12,6 +12,7 @@ import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { sessionStartupService } from '@/lib/session-startup-service';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 export interface RegisteredPeer {
   cid: string;
@@ -121,7 +122,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         const messenger = P2PMessengerManager.getInstance();
         const cleanedCount = await messenger.cleanupStaleConversations(validPeerCids);
         if (cleanedCount > 0) {
-          console.log(`[P2P] useRegisteredPeers: Cleaned up ${cleanedCount} stale conversation(s)`);
+          debugLog('UseRegisteredPeers', `[P2P] useRegisteredPeers: Cleaned up ${cleanedCount} stale conversation(s)`);
         }
       }
     } catch (error) {

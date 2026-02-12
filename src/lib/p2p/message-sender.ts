@@ -19,6 +19,7 @@ import { websocketService } from '../websocket-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import type { P2PMessage, P2PConversation } from './p2p-types';
+import { debugLog } from '@/lib/debug-config';
 
 export interface MessageSenderConfig {
   /** Function to get current CID */
@@ -61,7 +62,7 @@ export class MessageSender {
       documentTitle?: string;
     }
   ): Promise<P2PMessage> {
-    console.log(`[P2P] *** sendMessage ENTRY *** recipientCid=${recipientCid?.toString().slice(0, 8)}..., content="${content.slice(0, 20)}..."`);
+    debugLog('MessageSender', `[P2P] *** sendMessage ENTRY *** recipientCid=${recipientCid?.toString().slice(0, 8)}..., content="${content.slice(0, 20)}..."`);
 
     const { replyTo, mentions, attachments, messageType = 'text', documentId, documentTitle } = options || {};
 
@@ -70,18 +71,18 @@ export class MessageSender {
     const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(recipientCid);
 
     if (!isAlreadyRegistered && !isAlreadyConnected) {
-      console.log(`Peer ${recipientCid.toString()} not registered and not connected, registering now...`);
+      debugLog('MessageSender', `Peer ${recipientCid.toString()} not registered and not connected, registering now...`);
       try {
         await p2pRegistrationService.registerPeer(recipientCid, {
           connectAfterRegister: false
         });
-        console.log(`Successfully registered peer ${recipientCid.toString()}`);
+        debugLog('MessageSender', `Successfully registered peer ${recipientCid.toString()}`);
       } catch (error) {
         console.error(`Failed to register peer ${recipientCid.toString()}:`, error);
         throw new Error(`Failed to register peer for P2P communication: ${error}`);
       }
     } else {
-      console.log(`Peer ${recipientCid.toString()} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);
+      debugLog('MessageSender', `Peer ${recipientCid.toString()} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);
     }
 
     // Ensure P2P connection is being established in background (non-blocking)
@@ -90,7 +91,7 @@ export class MessageSender {
     // Try to ensure peer is ready (non-blocking)
     const peerReady = await this.config.tryEnsurePeerReady(recipientCid);
     if (!peerReady) {
-      console.log(`[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
+      debugLog('MessageSender', `[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
     }
 
     const conversation = this.config.getOrCreateConversation(recipientCid);
@@ -137,13 +138,13 @@ export class MessageSender {
     this.config.notifyMessageListeners(message);
 
     // Send via P2P connection
-    console.log(`[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}...`);
+    debugLog('MessageSender', `[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}...`);
     const sendStartTime = Date.now();
     try {
       await this.sendP2PCommand(recipientCid, command);
       message.status = 'sent';
       this.config.notifyMessageStatusListeners(messageId, 'sent');
-      console.log(`[P2P] Message ${messageId} sent successfully in ${Date.now() - sendStartTime}ms`);
+      debugLog('MessageSender', `[P2P] Message ${messageId} sent successfully in ${Date.now() - sendStartTime}ms`);
     } catch (error) {
       message.status = 'failed';
       message.error = error instanceof Error ? error.message : 'Failed to send';
@@ -165,11 +166,11 @@ export class MessageSender {
     }
 
     if (message.status !== 'failed') {
-      console.log(`[P2P] Message ${messageId} is not in failed state (${message.status}), skipping resend`);
+      debugLog('MessageSender', `[P2P] Message ${messageId} is not in failed state (${message.status}), skipping resend`);
       return;
     }
 
-    console.log(`[P2P] Resending message ${messageId} to ${peerCid}`);
+    debugLog('MessageSender', `[P2P] Resending message ${messageId} to ${peerCid}`);
 
     // Reset status to pending
     message.status = 'pending';
@@ -182,7 +183,7 @@ export class MessageSender {
     // Try to ensure peer is ready (non-blocking)
     const peerReady = await this.config.tryEnsurePeerReady(peerCid);
     if (!peerReady) {
-      console.log(`[P2P] Resending to ${peerCid} without CheckState confirmation`);
+      debugLog('MessageSender', `[P2P] Resending to ${peerCid} without CheckState confirmation`);
     }
 
     const currentCid = await this.config.getCurrentCid();
@@ -214,7 +215,7 @@ export class MessageSender {
       await this.sendP2PCommand(peerCid, command);
       message.status = 'sent';
       this.config.notifyMessageStatusListeners(messageId, 'sent');
-      console.log(`[P2P] Successfully resent message ${messageId}`);
+      debugLog('MessageSender', `[P2P] Successfully resent message ${messageId}`);
     } catch (error) {
       message.status = 'failed';
       message.error = error instanceof Error ? error.message : 'Failed to send';
@@ -246,7 +247,7 @@ export class MessageSender {
     );
 
     await this.sendP2PCommand(recipientCid, command);
-    console.log(`[P2P] Sent raw message type=${layer.type} to ${recipientCid.toString().slice(0, 8)}...`);
+    debugLog('MessageSender', `[P2P] Sent raw message type=${layer.type} to ${recipientCid.toString().slice(0, 8)}...`);
   }
 
   /**
@@ -258,7 +259,7 @@ export class MessageSender {
     peerCid: bigint,
     senderCid?: bigint
   ): Promise<void> {
-    console.log('[P2P] sendMessageAck:', {
+    debugLog('MessageSender', '[P2P] sendMessageAck:', {
       ack_type: ackType,
       message_id: messageId.slice(0, 8),
       to_peer: peerCid.toString().slice(0, 10),
@@ -278,15 +279,15 @@ export class MessageSender {
 
     const messageBytes = serializeP2PCommand(command);
 
-    console.log(`[P2P] *** sendP2PCommand *** from ${currentCid.toString().slice(0, 8)}... to ${peerCid.toString().slice(0, 8)}... (${messageBytes.length} bytes)`);
+    debugLog('MessageSender', `[P2P] *** sendP2PCommand *** from ${currentCid.toString().slice(0, 8)}... to ${peerCid.toString().slice(0, 8)}... (${messageBytes.length} bytes)`);
 
     // Ensure the messenger (ILM layer) is open before sending
     await websocketService.ensureMessengerOpen(currentCid);
 
     // Use ILM for reliable P2P messaging
-    console.log(`[P2P] *** Calling websocketService.sendP2PMessageReliable(${currentCid.toString().slice(0, 8)}..., ${peerCid.toString().slice(0, 8)}..., ...)`);
+    debugLog('MessageSender', `[P2P] *** Calling websocketService.sendP2PMessageReliable(${currentCid.toString().slice(0, 8)}..., ${peerCid.toString().slice(0, 8)}..., ...)`);
     await websocketService.sendP2PMessageReliable(currentCid, peerCid, messageBytes);
-    console.log(`[P2P] *** websocketService.sendP2PMessageReliable completed successfully ***`);
+    debugLog('MessageSender', `[P2P] *** websocketService.sendP2PMessageReliable completed successfully ***`);
   }
 
   /**

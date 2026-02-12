@@ -58,6 +58,7 @@ function isMessageNotification(
 import { MessageAckHandler } from './message-ack-handler';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
 import { revfsService } from '@/lib/revfs';
+import { debugLog } from '@/lib/debug-config';
 
 export interface MessageHandlerConfig {
   getCurrentCid: () => Promise<bigint | null>;
@@ -159,10 +160,10 @@ export class MessageHandler {
     const effectiveCid = currentCid ?? notificationCidBigint;
 
     if (!currentCid && notificationCidBigint) {
-      console.log('[P2P] WARNING: currentCid is null, using notification CID as fallback:', notificationCidBigint?.toString());
+      debugLog('MessageHandler', '[P2P] WARNING: currentCid is null, using notification CID as fallback:', notificationCidBigint?.toString());
     }
 
-    console.log('[P2P] handleWebSocketMessage checking MessageNotification:', {
+    debugLog('MessageHandler', '[P2P] handleWebSocketMessage checking MessageNotification:', {
       peer_cid: peerCidBigint?.toString(),
       notification_cid: notificationCidBigint?.toString(),
       currentCid: currentCid?.toString(),
@@ -172,13 +173,13 @@ export class MessageHandler {
 
     // Skip if no peer_cid or peer_cid is 0 (from server)
     if (peerCidBigint === undefined || peerCidBigint === 0n) {
-      console.log('[P2P] Skipping: no peer_cid or peer_cid is 0');
+      debugLog('MessageHandler', '[P2P] Skipping: no peer_cid or peer_cid is 0');
       return;
     }
 
     // Self-message check
     if (peerCidBigint === notificationCidBigint) {
-      console.log('[P2P] Skipping: peer_cid equals notification_cid (self-message)');
+      debugLog('MessageHandler', '[P2P] Skipping: peer_cid equals notification_cid (self-message)');
       return;
     }
 
@@ -193,7 +194,7 @@ export class MessageHandler {
         return;
       }
 
-      console.log('P2P message received:', contentBytes.length, 'bytes');
+      debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes');
 
       // Broadcast raw message for Yjs sync BEFORE session check
       const rawMessageData = { peerCid: peerCidBigint, message: contentBytes };
@@ -203,7 +204,7 @@ export class MessageHandler {
       // Multi-tab session routing (using effectiveCid to handle ClaimSession race condition)
       const isOwnOutgoingEcho = peerCidBigint === effectiveCid;
       if (isOwnOutgoingEcho && notificationCidBigint !== effectiveCid) {
-        console.log('[P2P] Outgoing echo for different session, broadcasting to follower tabs');
+        debugLog('MessageHandler', '[P2P] Outgoing echo for different session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({
           notification,
           messageBytes: contentBytes
@@ -213,7 +214,7 @@ export class MessageHandler {
 
       const isForDifferentSession = notificationCidBigint !== undefined && notificationCidBigint !== effectiveCid;
       if (isForDifferentSession) {
-        console.log('[P2P] Message for different session, broadcasting to follower tabs');
+        debugLog('MessageHandler', '[P2P] Message for different session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({
           notification,
           messageBytes: contentBytes
@@ -221,7 +222,7 @@ export class MessageHandler {
         return;
       }
 
-      console.log('P2P MessageNotification received from peer:', peerCidBigint.toString());
+      debugLog('MessageHandler', 'P2P MessageNotification received from peer:', peerCidBigint.toString());
 
       // Verify sender is registered
       const isAlreadyConnected = this.config.isConnected(peerCidBigint);
@@ -242,7 +243,7 @@ export class MessageHandler {
    * Handle a P2P command
    */
   public async handleP2PCommand(command: P2PCommand, peerCid: bigint, recipientCid?: bigint): Promise<void> {
-    console.log('[P2P] handleP2PCommand received:', {
+    debugLog('MessageHandler', '[P2P] handleP2PCommand received:', {
       type: command.type,
       typeValue: P2PCommandType[command.type] || command.type,
       peerCid: peerCid?.toString().slice(0, 12),
@@ -259,7 +260,7 @@ export class MessageHandler {
         break;
 
       case P2PCommandType.MessageAck:
-        console.log('[P2P] handleP2PCommand: MessageAck branch reached');
+        debugLog('MessageHandler', '[P2P] handleP2PCommand: MessageAck branch reached');
         if (isMessageAckPayload(command.payload)) {
           await this.handleMessageAck(command.payload);
         } else {
@@ -339,7 +340,7 @@ export class MessageHandler {
       case MessagingLayerType.FileTransferComplete:
       case MessagingLayerType.FileTransferCancel:
       case MessagingLayerType.FileTransferChunk:
-        console.log('[P2P] Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
+        debugLog('MessageHandler', '[P2P] Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
         const effectiveRecipientCid = recipientCid || await this.config.getCurrentCid();
         eventEmitter.emit('p2p:file-transfer-message', {
           layer,
@@ -381,10 +382,10 @@ export class MessageHandler {
       try {
         await this.config.sendMessageAck(message.id, 'delivered', peerCid, recipientCid);
       } catch (error) {
-        console.debug('[P2P] Delivery ACK send failed (non-blocking):', error);
+        debugLog('MessageHandler', '[P2P] Delivery ACK send failed (non-blocking):', error);
       }
 
-      console.log('[P2P] Notifying listeners of new message:', message.id);
+      debugLog('MessageHandler', '[P2P] Notifying listeners of new message:', message.id);
       this.config.notifyMessageListeners(message);
 
       eventEmitter.emit('p2p:message-received', {
@@ -410,7 +411,7 @@ export class MessageHandler {
         );
       }
     } else {
-      console.log('[P2P] Skipping duplicate message notification:', message.id);
+      debugLog('MessageHandler', '[P2P] Skipping duplicate message notification:', message.id);
     }
   }
 

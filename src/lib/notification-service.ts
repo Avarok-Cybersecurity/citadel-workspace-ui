@@ -1,5 +1,6 @@
 import { eventEmitter } from './event-emitter';
 import { v4 as uuidv4 } from 'uuid';
+import { debugLog } from '@/lib/debug-config';
 
 export interface UnreadCountChange {
   total: number;
@@ -71,7 +72,7 @@ export class NotificationService {
       this.addNotification(notification);
     });
 
-    console.info('NotificationService event listeners set up');
+    debugLog('NotificationService', 'NotificationService event listeners set up');
   }
 
   /**
@@ -364,9 +365,9 @@ export class NotificationService {
 // Singleton instance for convenience
 export const notificationService = NotificationService.getInstance();
 
-// Expose on window for debugging
-if (typeof window !== 'undefined') {
-  (window as any).notificationService = notificationService;
+// Expose on window for debugging (dev only)
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).notificationService = notificationService;
 }
 
 export default NotificationService;

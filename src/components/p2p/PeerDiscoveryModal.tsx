@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { getSelectedUser } from '@/lib/tab-context';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { getDefaultSecuritySettings } from '@/lib/security-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface Peer {
   cid: string;
@@ -54,20 +55,6 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     };
     runAsyncSetup(loadConnectionInfo);
   }, [state.currentUser?.username]);
-
-  useEffect(() => {
-    if (isOpen) {
-      runAsyncSetup(discoverPeers);
-      // Load initial outgoing requests - convert bigint CIDs to strings
-      const loadOutgoing = async () => {
-        const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
-        const stringCids = new Set<string>();
-        bigintCids.forEach(cid => stringCids.add(cid.toString()));
-        setOutgoingRequests(stringCids);
-      };
-      runAsyncSetup(loadOutgoing);
-    }
-  }, [isOpen]);
 
   // Listen for outgoing request updates
   useEffect(() => {
@@ -118,7 +105,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       if (message.PeerRegisterSuccess) {
         const peerCid = message.PeerRegisterSuccess.peer_cid?.toString();
         if (peerCid) {
-          console.log('[PeerDiscoveryModal] PeerRegisterSuccess - marking peer as connected:', peerCid);
+          debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerRegisterSuccess - marking peer as connected:', peerCid);
           setRegisteredPeers(prev => new Set([...prev, peerCid]));
         }
       }
@@ -126,7 +113,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       if (message.PeerConnectSuccess) {
         const peerCid = message.PeerConnectSuccess.peer_cid?.toString();
         if (peerCid) {
-          console.log('[PeerDiscoveryModal] PeerConnectSuccess - marking peer as connected:', peerCid);
+          debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerConnectSuccess - marking peer as connected:', peerCid);
           setRegisteredPeers(prev => new Set([...prev, peerCid]));
         }
       }
@@ -154,7 +141,108 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     };
   }, []);
 
-  const discoverPeers = async () => {
+  /**
+   * Fallback discovery using GetSessions
+   * This queries the internal service's session map directly
+   * Works even when the Citadel SDK's peer discovery hasn't propagated yet
+   */
+  const discoverPeersViaGetSessions = useCallback(async (): Promise<Peer[]> => {
+    const requestId = crypto.randomUUID();
+    // GetSessions doesn't need CID - it returns all sessions
+    const request = {
+      GetSessions: {
+        request_id: requestId,
+        cid: 0  // 0 means get all sessions
+      }
+    };
+
+    const responsePromise = new Promise<any>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('GetSessions timed out'));
+      }, 5000);
+
+      const handleMessage = (message: any) => {
+        if (message.GetSessionsResponse && message.GetSessionsResponse.request_id === requestId) {
+          clearTimeout(timeout);
+          eventEmitter.off('websocket-message', handleMessage);
+          resolve(message.GetSessionsResponse);
+        }
+      };
+
+      eventEmitter.on('websocket-message', handleMessage);
+    });
+
+    await websocketService.sendMessage(request);
+    const response = await responsePromise;
+
+    // Convert sessions to Peer format
+    const sessions = response.sessions || [];
+    debugLog('PeerDiscoveryModal', '[PeerDiscovery] GetSessions returned', sessions.length, 'sessions');
+
+    return sessions
+      .filter((s: any) => s.cid.toString() !== currentCid?.toString()) // Filter out self
+      .map((s: any) => ({
+        cid: s.cid.toString(),
+        username: s.username || 'Unknown',
+        fullName: undefined,
+        is_online: true  // If they have a session, they're online
+      }));
+  }, [currentCid]);
+
+  const loadRegisteredPeers = useCallback(async () => {
+    if (!currentCid) return;
+
+    try {
+      const requestId = crypto.randomUUID();
+      // Register request for cross-tab response routing
+      broadcastChannelService.registerRequest(requestId, currentCid);
+
+      const request = {
+        ListRegisteredPeers: {
+          request_id: requestId,
+          cid: currentCid
+        }
+      };
+
+      const responsePromise = new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          broadcastChannelService.clearRequest(requestId);
+          reject(new Error('Request timed out'));
+        }, 10000);
+
+        const handleMessage = (message: any) => {
+          if (message.ListRegisteredPeersResponse && message.ListRegisteredPeersResponse.request_id === requestId) {
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handleMessage);
+            resolve(message.ListRegisteredPeersResponse);
+          } else if (message.ListRegisteredPeersFailure && message.ListRegisteredPeersFailure.request_id === requestId) {
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handleMessage);
+            reject(new Error(message.ListRegisteredPeersFailure.message || 'Failed to list registered peers'));
+          }
+        };
+
+        eventEmitter.on('websocket-message', handleMessage);
+      });
+
+      await websocketService.sendMessage(request);
+      const response = await responsePromise;
+
+      const registered = new Set<string>();
+      if (response.peers) {
+        // peers is a HashMap<u64, PeerInformation>, not an array
+        // Keys are the peer CIDs
+        Object.keys(response.peers).forEach((peerCid: string) => {
+          registered.add(peerCid);
+        });
+      }
+      setRegisteredPeers(registered);
+    } catch (error) {
+      console.error('Failed to load registered peers:', error);
+    }
+  }, [currentCid]);
+
+  const discoverPeers = useCallback(async () => {
     if (!currentCid) {
       toastError(toast, "Not Connected", "Please connect to a workspace first");
       return;
@@ -198,10 +286,10 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
       // Send the request
       await websocketService.sendMessage(request);
-      
+
       // Wait for response
       const response = await responsePromise;
-      
+
       // Process peers - response contains peer_information object
       const peerInfo = response.peer_information || {};
       const peerList = Object.values(peerInfo);
@@ -213,19 +301,19 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           fullName: p.full_name,
           is_online: p.is_online || false
         }));
-      
+
       setPeers(processedPeers);
-      
+
       // Try to get registered peers but don't block on it
       loadRegisteredPeers().catch(err => {
         console.warn('Could not load registered peers:', err);
         // Continue anyway - we can still show peers without registration status
       });
-      
+
       // If ListAllPeers returns empty, try GetSessions as fallback
       // GetSessions queries the internal service's session map directly
       if (processedPeers.length === 0) {
-        console.log('[PeerDiscovery] ListAllPeers returned empty, trying GetSessions fallback...');
+        debugLog('PeerDiscoveryModal', '[PeerDiscovery] ListAllPeers returned empty, trying GetSessions fallback...');
         const sessionPeers = await discoverPeersViaGetSessions();
         if (sessionPeers.length > 0) {
           setPeers(sessionPeers);
@@ -243,7 +331,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       console.error('Failed to discover peers via ListAllPeers:', error);
       // Try GetSessions as fallback on error
       try {
-        console.log('[PeerDiscovery] ListAllPeers failed, trying GetSessions fallback...');
+        debugLog('PeerDiscoveryModal', '[PeerDiscovery] ListAllPeers failed, trying GetSessions fallback...');
         const sessionPeers = await discoverPeersViaGetSessions();
         if (sessionPeers.length > 0) {
           setPeers(sessionPeers);
@@ -260,108 +348,22 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentCid, toast, discoverPeersViaGetSessions, loadRegisteredPeers]);
 
-  /**
-   * Fallback discovery using GetSessions
-   * This queries the internal service's session map directly
-   * Works even when the Citadel SDK's peer discovery hasn't propagated yet
-   */
-  const discoverPeersViaGetSessions = async (): Promise<Peer[]> => {
-    const requestId = crypto.randomUUID();
-    // GetSessions doesn't need CID - it returns all sessions
-    const request = {
-      GetSessions: {
-        request_id: requestId,
-        cid: 0  // 0 means get all sessions
-      }
-    };
-
-    const responsePromise = new Promise<any>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('GetSessions timed out'));
-      }, 5000);
-
-      const handleMessage = (message: any) => {
-        if (message.GetSessionsResponse && message.GetSessionsResponse.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve(message.GetSessionsResponse);
-        }
+  // Trigger discovery when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      runAsyncSetup(discoverPeers);
+      // Load initial outgoing requests - convert bigint CIDs to strings
+      const loadOutgoing = async () => {
+        const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
+        const stringCids = new Set<string>();
+        bigintCids.forEach(cid => stringCids.add(cid.toString()));
+        setOutgoingRequests(stringCids);
       };
-
-      eventEmitter.on('websocket-message', handleMessage);
-    });
-
-    await websocketService.sendMessage(request);
-    const response = await responsePromise;
-
-    // Convert sessions to Peer format
-    const sessions = response.sessions || [];
-    console.log('[PeerDiscovery] GetSessions returned', sessions.length, 'sessions');
-
-    return sessions
-      .filter((s: any) => s.cid.toString() !== currentCid?.toString()) // Filter out self
-      .map((s: any) => ({
-        cid: s.cid.toString(),
-        username: s.username || 'Unknown',
-        fullName: undefined,
-        is_online: true  // If they have a session, they're online
-      }));
-  };
-
-  const loadRegisteredPeers = async () => {
-    if (!currentCid) return;
-
-    try {
-      const requestId = crypto.randomUUID();
-      // Register request for cross-tab response routing
-      broadcastChannelService.registerRequest(requestId, currentCid);
-
-      const request = {
-        ListRegisteredPeers: {
-          request_id: requestId,
-          cid: currentCid
-        }
-      };
-
-      const responsePromise = new Promise<any>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          broadcastChannelService.clearRequest(requestId);
-          reject(new Error('Request timed out'));
-        }, 10000);
-
-        const handleMessage = (message: any) => {
-          if (message.ListRegisteredPeersResponse && message.ListRegisteredPeersResponse.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            resolve(message.ListRegisteredPeersResponse);
-          } else if (message.ListRegisteredPeersFailure && message.ListRegisteredPeersFailure.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            reject(new Error(message.ListRegisteredPeersFailure.message || 'Failed to list registered peers'));
-          }
-        };
-
-        eventEmitter.on('websocket-message', handleMessage);
-      });
-
-      await websocketService.sendMessage(request);
-      const response = await responsePromise;
-      
-      const registered = new Set<string>();
-      if (response.peers) {
-        // peers is a HashMap<u64, PeerInformation>, not an array
-        // Keys are the peer CIDs
-        Object.keys(response.peers).forEach((peerCid: string) => {
-          registered.add(peerCid);
-        });
-      }
-      setRegisteredPeers(registered);
-    } catch (error) {
-      console.error('Failed to load registered peers:', error);
+      runAsyncSetup(loadOutgoing);
     }
-  };
+  }, [isOpen, discoverPeers]);
 
   /**
    * Accept an incoming peer registration request from the Peer Discovery modal.

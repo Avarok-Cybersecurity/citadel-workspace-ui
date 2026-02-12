@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Search, Settings, Share2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FileUploadButton } from "@/components/files/FileUploadButton";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 
@@ -13,8 +12,6 @@ interface OfficeLayoutProps {
   children: React.ReactNode;
   canEdit?: boolean;
   editDeniedReason?: string;
-  entityType?: string;
-  entityId?: string;
 }
 
 export const OfficeLayout = ({
@@ -25,8 +22,6 @@ export const OfficeLayout = ({
   children,
   canEdit = true,
   editDeniedReason,
-  entityType = 'node',
-  entityId = 'workspace'
 }: OfficeLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -80,11 +75,6 @@ export const OfficeLayout = ({
             >
               <Settings className="h-4 w-4" />
             </Button>
-            <FileUploadButton
-              entityType={entityType}
-              entityId={entityId}
-              className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
-            />
             {isEditing ? (
               <>
                 <Button

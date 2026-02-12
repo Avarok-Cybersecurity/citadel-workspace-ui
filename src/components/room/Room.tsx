@@ -21,6 +21,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 // Import MDX components - you may need to create these if they don't exist
 import { components } from '../office/mdxComponents';
+import { debugLog } from '@/lib/debug-config';
 
 interface RoomProps {
   nodeId: string;
@@ -79,13 +80,13 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
       if (!content) return;
 
       try {
-        console.info('Compiling Room MDX content...');
+        debugLog('Room', 'Compiling Room MDX content...');
         const result = await evaluate(content, {
           ...runtime,
           useMDXComponents: () => components as unknown as MDXComponents,
           baseUrl: window.location.origin
         });
-        console.info('Room MDX compilation successful');
+        debugLog('Room', 'Room MDX compilation successful');
         setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
         console.error('Error compiling Room MDX:', error);

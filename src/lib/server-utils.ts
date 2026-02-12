@@ -1,6 +1,7 @@
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Server info stored in LocalDB
@@ -23,7 +24,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
     
     if (!client) {
       // Don't try to initialize here - let ConnectionManager handle it
-      console.log('WebSocket client not available yet, returning empty servers list');
+      debugLog('ServerUtils', 'WebSocket client not available yet, returning empty servers list');
       return { servers: [] };
     }
     
@@ -91,7 +92,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
         }
       };
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
@@ -169,7 +170,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
         }
       };
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);

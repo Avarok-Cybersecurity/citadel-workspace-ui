@@ -28,6 +28,7 @@ import type {
   FileSource,
 } from './io-router-types';
 import type { FileTransfer } from './types';
+import { debugLog } from '@/lib/debug-config';
 
 // Response/notification types from internal service
 interface FileTransferRequestNotification {
@@ -132,7 +133,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       },
     };
 
-    console.log('RealProtocolIORouter: Sending SendFile request', {
+    debugLog('RealProtocolIoRouter', 'RealProtocolIORouter: Sending SendFile request', {
       requestId,
       source,
       cid: params.cid.toString(),
@@ -154,7 +155,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
 
-          console.log('RealProtocolIORouter: SendFile accepted');
+          debugLog('RealProtocolIoRouter', 'RealProtocolIORouter: SendFile accepted');
 
           // Note: We don't know the object_id yet - it comes in FileTransferRequestNotification
           // For now, use the client transferId as both
@@ -188,7 +189,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
     // The real protocol doesn't have an explicit cancel command for in-progress transfers.
     // Cancellation happens implicitly when either side disconnects or the handler is dropped.
     // For now, we just log and clean up local state.
-    console.log('RealProtocolIORouter: cancelTransfer called', {
+    debugLog('RealProtocolIoRouter', 'RealProtocolIORouter: cancelTransfer called', {
       transferId: params.transferId,
       targetCid: params.targetCid.toString(),
       reason: params.reason,
@@ -246,7 +247,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       },
     };
 
-    console.log('RealProtocolIORouter: Sending RespondFileTransfer', {
+    debugLog('RealProtocolIoRouter', 'RealProtocolIORouter: Sending RespondFileTransfer', {
       requestId,
       cid: params.cid.toString(),
       peerCid: params.peerCid.toString(),
@@ -272,7 +273,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       },
     };
 
-    console.log('RealProtocolIORouter: Sending DownloadFile', {
+    debugLog('RealProtocolIoRouter', 'RealProtocolIORouter: Sending DownloadFile', {
       requestId,
       virtualDirectory: params.virtualDirectory,
       cid: params.cid.toString(),
@@ -294,7 +295,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
         if (success?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          console.log('RealProtocolIORouter: DownloadFile success');
+          debugLog('RealProtocolIoRouter', 'RealProtocolIORouter: DownloadFile success');
           resolve();
         }
 

@@ -50,12 +50,7 @@ vi.mock('../event-emitter', async (importOriginal) => {
   };
 });
 
-// TODO: These tests need to be updated to match the refactored p2p-registration-service
-// The service now uses:
-// - connectionManager.getConnectionInfo() instead of websocketService.getConnectionInfo()
-// - websocketService.sendMessage() instead of websocketService.sendRequest()
-// - Different internal flow for peer discovery and registration
-// The tests below test the old API and need to be rewritten to test the current implementation.
+// @human-review Tests need rewrite for refactored p2p-registration-service API
 describe.skip('P2PRegistrationService', () => {
   beforeEach(() => {
     vi.clearAllMocks();

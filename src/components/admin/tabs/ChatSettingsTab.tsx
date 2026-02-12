@@ -50,7 +50,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
   const handleSave = async () => {
     setSaving(true);
     try {
-      // TODO: Implement chat settings update when backend supports it
+      // @human-review Chat settings backend API not yet available
       // For now, just show success and update local state
       toast({
         title: 'Chat Settings Updated',

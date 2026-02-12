@@ -18,6 +18,7 @@
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
+import { debugLog } from '@/lib/debug-config';
 
 interface OutboundRequest {
   requestId: string;
@@ -81,9 +82,9 @@ class LeaderOutboundHandler {
       this.isActive = data.isLeader;
 
       if (this.isActive) {
-        console.log('[LeaderOutboundHandler] Activated as leader');
+        debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] Activated as leader');
       } else {
-        console.log('[LeaderOutboundHandler] Deactivated (no longer leader)');
+        debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] Deactivated (no longer leader)');
       }
     });
   }
@@ -94,7 +95,7 @@ class LeaderOutboundHandler {
    */
   setWebSocketSendFunction(fn: (message: any) => Promise<void>): void {
     this.websocketSendFn = fn;
-    console.log('[LeaderOutboundHandler] WebSocket send function registered');
+    debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] WebSocket send function registered');
   }
 
   /**
@@ -123,7 +124,7 @@ class LeaderOutboundHandler {
 
       // Check for workspace request proxy (special handling for follower workspace requests)
       if (request.payload?.__workspaceRequestProxy) {
-        console.log(`[LeaderOutboundHandler] Handling workspace request proxy from ${request.senderInstanceId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling workspace request proxy from ${request.senderInstanceId}`);
 
         // Import websocket service to call sendWorkspaceRequest on WASM client
         // Note: Lazy import to avoid circular dependency
@@ -141,13 +142,13 @@ class LeaderOutboundHandler {
         await client.sendWorkspaceRequest(cid, request.payload.request);
 
         this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        console.log(`[LeaderOutboundHandler] Workspace request proxy processed for ${request.requestId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Workspace request proxy processed for ${request.requestId}`);
         return;
       }
 
       // Check for openMessengerFor proxy
       if (request.payload?.__openMessengerProxy) {
-        console.log(`[LeaderOutboundHandler] Handling openMessenger proxy from ${request.senderInstanceId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling openMessenger proxy from ${request.senderInstanceId}`);
 
         const { websocketService } = await import('../websocket-service');
         const client = websocketService.getClient();
@@ -161,13 +162,13 @@ class LeaderOutboundHandler {
         await client.openMessengerFor(request.payload.cid);
 
         this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        console.log(`[LeaderOutboundHandler] openMessenger proxy processed for ${request.requestId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] openMessenger proxy processed for ${request.requestId}`);
         return;
       }
 
       // Check for ensureMessengerOpen proxy
       if (request.payload?.__ensureMessengerProxy) {
-        console.log(`[LeaderOutboundHandler] Handling ensureMessenger proxy from ${request.senderInstanceId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling ensureMessenger proxy from ${request.senderInstanceId}`);
 
         const { websocketService } = await import('../websocket-service');
         const client = websocketService.getClient();
@@ -182,13 +183,13 @@ class LeaderOutboundHandler {
 
         // Send ACK with result data
         this.sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { wasOpened });
-        console.log(`[LeaderOutboundHandler] ensureMessenger proxy processed for ${request.requestId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] ensureMessenger proxy processed for ${request.requestId}`);
         return;
       }
 
       // Check for sendP2PMessageReliable proxy
       if (request.payload?.__sendP2PMessageProxy) {
-        console.log(`[LeaderOutboundHandler] Handling sendP2PMessage proxy from ${request.senderInstanceId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling sendP2PMessage proxy from ${request.senderInstanceId}`);
 
         const { websocketService } = await import('../websocket-service');
         const client = websocketService.getClient();
@@ -209,14 +210,14 @@ class LeaderOutboundHandler {
         );
 
         this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        console.log(`[LeaderOutboundHandler] sendP2PMessage proxy processed for ${request.requestId}`);
+        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] sendP2PMessage proxy processed for ${request.requestId}`);
         return;
       }
 
       // Determine routing (ILM vs bypass)
       const requiresIlm = this.requiresILM(request.payload);
 
-      console.log(
+      debugLog('LeaderOutboundHandler', 
         `[LeaderOutboundHandler] Processing ${request.requestId} from ${request.senderInstanceId} (ILM: ${requiresIlm})`
       );
 
@@ -226,7 +227,7 @@ class LeaderOutboundHandler {
       // Send ACK
       this.sendAck(request.senderInstanceId, request.requestId, 'processed');
 
-      console.log(`[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
+      debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[LeaderOutboundHandler] Failed to process ${request.requestId}:`, error);
@@ -283,7 +284,7 @@ class LeaderOutboundHandler {
     }
 
     // Default: use ILM for unknown types (safer)
-    console.log(`[LeaderOutboundHandler] Unknown message type "${messageType}", using ILM`);
+    debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Unknown message type "${messageType}", using ILM`);
     return true;
   }
 

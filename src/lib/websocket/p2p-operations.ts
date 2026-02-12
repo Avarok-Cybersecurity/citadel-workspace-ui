@@ -37,7 +37,7 @@ export class P2POperations {
       throw new Error('Target CID (peer_cid) is required to send P2P message');
     }
 
-    console.log('[P2P] sendP2PMessage called with:', {
+    debugLog('P2pOperations', '[P2P] sendP2PMessage called with:', {
       cid: cid.toString(),
       cidType: typeof cid,
       targetCid: targetCid.toString(),
@@ -56,7 +56,7 @@ export class P2POperations {
       }
     };
 
-    console.log('[P2P] messageRequest before conversion:', JSON.stringify(messageRequest, (key, value) =>
+    debugLog('P2pOperations', '[P2P] messageRequest before conversion:', JSON.stringify(messageRequest, (key, value) =>
       typeof value === 'bigint' ? value.toString() : value
     ));
 

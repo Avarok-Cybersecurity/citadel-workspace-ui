@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getInitials, groupMessagesByDate } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
+import { debugLog } from '@/lib/debug-config';
 
 interface GroupChatViewProps {
   groupId: string;
@@ -197,7 +198,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
               // Check for duplicates by message ID
               const exists = prev.some((m) => m.id === event.message!.id);
               if (exists) {
-                console.log('[GroupChatView] Skipping duplicate message:', event.message!.id);
+                debugLog('GroupChatView', '[GroupChatView] Skipping duplicate message:', event.message!.id);
                 return prev;
               }
               return [...prev, event.message!];

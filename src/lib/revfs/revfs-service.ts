@@ -263,7 +263,7 @@ export class RevfsService {
   // ── Incoming Operation Handler ────────────────────────────────────────
 
   async handleRevfsOperation(senderCid: bigint, myCid: bigint, op: RevfsOperation): Promise<void> {
-    console.log(`[revfs] handleRevfsOperation: sender=${senderCid} myCid=${myCid} op=${op.op_type} path=${op.path}`);
+    debugLog('RevfsService', `[revfs] handleRevfsOperation: sender=${senderCid} myCid=${myCid} op=${op.op_type} path=${op.path}`);
     const key = peerPairKey(myCid, senderCid);
 
     // Handle ACK
@@ -299,7 +299,7 @@ export class RevfsService {
     // Apply tree mutation
     const tree = await this.getTree(myCid, senderCid);
     const newTree = applyRemoteOp(tree, op, myCid);
-    console.log(`[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
+    debugLog('RevfsService', `[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
     this.state.setTree(key, newTree);
     const io = this.ensureIO();
     await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
@@ -565,6 +565,7 @@ export class RevfsService {
 
 // Need this import for the Sent/Received state override
 import { RevfsFileState } from '@/types/revfs-types';
+import { debugLog } from '@/lib/debug-config';
 
 // Singleton
 export const revfsService = new RevfsService();

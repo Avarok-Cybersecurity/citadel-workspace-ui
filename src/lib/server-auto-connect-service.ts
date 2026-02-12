@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { EventListenerPollingService } from './utils/polling-service';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface ConnectionAttempt {
   sessionKey: string;
@@ -74,7 +75,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
       this.isEnabled = await this.loadEnabledSetting();
       await this.loadUserDisconnectedSessions();
       this.isInitialized = true;
-      console.log(`ServerAutoConnect: Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ${this.userDisconnectedSessions.size})`);
+      debugLog('ServerAutoConnectService', `ServerAutoConnect: Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ${this.userDisconnectedSessions.size})`);
     } catch (error) {
       console.warn('ServerAutoConnect: Failed to load settings, using defaults:', error);
       this.isEnabled = true; // Default to enabled
@@ -98,7 +99,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
         const sessions = JSON.parse(decoded);
         if (Array.isArray(sessions)) {
           this.userDisconnectedSessions = new Set(sessions);
-          console.log(`ServerAutoConnect: Loaded ${sessions.length} user-disconnected sessions from LocalDB`);
+          debugLog('ServerAutoConnectService', `ServerAutoConnect: Loaded ${sessions.length} user-disconnected sessions from LocalDB`);
         }
       }
     } catch (error) {
@@ -129,13 +130,13 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     // Add delay to let the new session be fully established before polling
     // This prevents race conditions where poll() sees stale cache without the new session
     this.listen('auth:success', () => {
-      console.log('ServerAutoConnect: Auth success detected, starting polling after delay');
+      debugLog('ServerAutoConnectService', 'ServerAutoConnect: Auth success detected, starting polling after delay');
       setTimeout(() => this.startPolling(), 3000);
     });
 
     // Stop polling on logout (reuse existing event)
     this.listen('p2p:registration-service-stopped', () => {
-      console.log('ServerAutoConnect: Logout detected, stopping polling');
+      debugLog('ServerAutoConnectService', 'ServerAutoConnect: Logout detected, stopping polling');
       this.stopPolling();
       this.cancelAllRetries();
     });
@@ -156,7 +157,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     // Start/stop polling based on leader status
     // Only leader tab should poll to prevent duplicate connect requests from multiple tabs
     this.listen<{ isLeader: boolean; leaderId: string }>('instance:leader-changed', (data) => {
-      console.log(`ServerAutoConnect: Leader changed - isLeader: ${data.isLeader}`);
+      debugLog('ServerAutoConnectService', `ServerAutoConnect: Leader changed - isLeader: ${data.isLeader}`);
       if (data.isLeader) {
         // Became leader, start polling if enabled
         this.startPolling();
@@ -208,7 +209,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     try {
       const value = stringToBytes(String(enabled));
       await websocketService.sendLocalDBSet(GLOBAL_CID, LOCALDB_KEY, value);
-      console.log(`ServerAutoConnect: Setting saved (enabled: ${enabled})`);
+      debugLog('ServerAutoConnectService', `ServerAutoConnect: Setting saved (enabled: ${enabled})`);
 
       // Start or stop polling based on new setting
       if (enabled) {
@@ -236,12 +237,12 @@ export class ServerAutoConnectService extends EventListenerPollingService {
    */
   public triggerReconnect(): void {
     if (!this.isEnabled) {
-      console.log('ServerAutoConnect: Poll skipped (disabled)');
+      debugLog('ServerAutoConnectService', 'ServerAutoConnect: Poll skipped (disabled)');
       return;
     }
 
     if (!instanceManager.isLeader) {
-      console.log('ServerAutoConnect: Poll skipped (not leader tab)');
+      debugLog('ServerAutoConnectService', 'ServerAutoConnect: Poll skipped (not leader tab)');
       return;
     }
 
@@ -256,16 +257,16 @@ export class ServerAutoConnectService extends EventListenerPollingService {
    */
   public override startPolling(): void {
     if (!this.isEnabled) {
-      console.log('ServerAutoConnect: Polling not started (disabled)');
+      debugLog('ServerAutoConnectService', 'ServerAutoConnect: Polling not started (disabled)');
       return;
     }
 
     if (!instanceManager.isLeader) {
-      console.log('ServerAutoConnect: Polling not started (not leader tab)');
+      debugLog('ServerAutoConnectService', 'ServerAutoConnect: Polling not started (not leader tab)');
       return;
     }
 
-    console.log(`ServerAutoConnect: Starting background polling (interval: ${POLL_INTERVAL_MS / 1000}s)`);
+    debugLog('ServerAutoConnectService', `ServerAutoConnect: Starting background polling (interval: ${POLL_INTERVAL_MS / 1000}s)`);
     this.triggerReconnect();
     super.startPolling();
   }
@@ -275,7 +276,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
    */
   public override stopPolling(): void {
     super.stopPolling();
-    console.log('ServerAutoConnect: Stopped background polling');
+    debugLog('ServerAutoConnectService', 'ServerAutoConnect: Stopped background polling');
   }
 
   /**
@@ -305,25 +306,25 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     // Build set of active session keys
     // Note: ActiveSession uses snake_case (server_address), normalize for comparison
     const activeKeys = new Set<string>();
-    console.log(`ServerAutoConnect: Active sessions count: ${activeSessions.length}`);
+    debugLog('ServerAutoConnectService', `ServerAutoConnect: Active sessions count: ${activeSessions.length}`);
     for (const session of activeSessions) {
       // Match by username + server address if available
       if (session.username) {
         const key = `${session.username}@${session.server_address}`;
         activeKeys.add(key);
-        console.log(`ServerAutoConnect: Active session key: ${key}`);
+        debugLog('ServerAutoConnectService', `ServerAutoConnect: Active session key: ${key}`);
       }
     }
 
     // Find disconnected sessions
-    console.log(`ServerAutoConnect: Stored sessions count: ${storedSessions.sessions.length}`);
+    debugLog('ServerAutoConnectService', `ServerAutoConnect: Stored sessions count: ${storedSessions.sessions.length}`);
     for (const session of storedSessions.sessions) {
       const sessionKey = this.getSessionKey(session);
-      console.log(`ServerAutoConnect: Checking stored session: ${sessionKey}, active: ${activeKeys.has(sessionKey)}`);
+      debugLog('ServerAutoConnectService', `ServerAutoConnect: Checking stored session: ${sessionKey}, active: ${activeKeys.has(sessionKey)}`);
 
       // Skip if already connected
       if (activeKeys.has(sessionKey)) {
-        console.log(`ServerAutoConnect: Skipping ${session.username} (already active)`);
+        debugLog('ServerAutoConnectService', `ServerAutoConnect: Skipping ${session.username} (already active)`);
         continue;
       }
 
@@ -339,11 +340,11 @@ export class ServerAutoConnectService extends EventListenerPollingService {
 
       // Skip if user explicitly disconnected this session (respect user intent)
       if (this.userDisconnectedSessions.has(sessionKey)) {
-        console.log(`ServerAutoConnect: Skipping ${session.username} (user-initiated disconnect)`);
+        debugLog('ServerAutoConnectService', `ServerAutoConnect: Skipping ${session.username} (user-initiated disconnect)`);
         continue;
       }
 
-      console.log(`ServerAutoConnect: Scheduling reconnect for ${session.username}`);
+      debugLog('ServerAutoConnectService', `ServerAutoConnect: Scheduling reconnect for ${session.username}`);
       this.scheduleReconnect(sessionKey, session);
     }
   }
@@ -376,7 +377,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     }
 
     try {
-      console.log(`ServerAutoConnect: Attempting reconnect for ${session.username} (attempt ${attempt.attempts + 1})`);
+      debugLog('ServerAutoConnectService', `ServerAutoConnect: Attempting reconnect for ${session.username} (attempt ${attempt.attempts + 1})`);
 
       await websocketService.connect(
         uuidv4(),
@@ -426,7 +427,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
         // Persist to LocalDB
         await this.persistUserDisconnectedSessions();
       }
-      console.log(`ServerAutoConnect: Connection successful for ${username}`);
+      debugLog('ServerAutoConnectService', `ServerAutoConnect: Connection successful for ${username}`);
     }
   }
 
@@ -443,7 +444,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
    */
   private handleDisconnect(notification: any): void {
     const cid = notification.cid?.toString();
-    console.log(`ServerAutoConnect: Disconnect notification for CID ${cid}`);
+    debugLog('ServerAutoConnectService', `ServerAutoConnect: Disconnect notification for CID ${cid}`);
 
     // Remove from active sessions
     // Note: We'd need username to remove from activeSessionKeys
@@ -465,7 +466,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     this.cancelRetry(sessionKey);
     // Persist to LocalDB
     await this.persistUserDisconnectedSessions();
-    console.log(`ServerAutoConnect: Marked ${username} as user-disconnected (won't auto-reconnect, persisted to LocalDB)`);
+    debugLog('ServerAutoConnectService', `ServerAutoConnect: Marked ${username} as user-disconnected (won't auto-reconnect, persisted to LocalDB)`);
   }
 
   /**
@@ -477,7 +478,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     this.userDisconnectedSessions.delete(sessionKey);
     // Persist to LocalDB
     await this.persistUserDisconnectedSessions();
-    console.log(`ServerAutoConnect: Cleared user-disconnected status for ${username} (persisted to LocalDB)`);
+    debugLog('ServerAutoConnectService', `ServerAutoConnect: Cleared user-disconnected status for ${username} (persisted to LocalDB)`);
   }
 
   /**

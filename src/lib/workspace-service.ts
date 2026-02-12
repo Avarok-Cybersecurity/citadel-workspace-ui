@@ -5,6 +5,7 @@ import { websocketService } from './websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { workspaceResponseHandler } from './workspace-response-handler';
 import { eventEmitter } from './event-emitter';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Workspace Service
@@ -36,7 +37,7 @@ export class WorkspaceService {
    * @param cid Connection ID
    */
   public setConnectionId(cid: bigint): void {
-    console.log('[WorkspaceService] setConnectionId called:', {
+    debugLog('WorkspaceService', '[WorkspaceService] setConnectionId called:', {
       newCid: cid.toString(),
       oldCid: this.currentCid?.toString() ?? 'null',
     });
@@ -62,7 +63,7 @@ export class WorkspaceService {
     // websocketService.sendWorkspaceRequest() handles this routing automatically.
 
     try {
-      console.info('[WorkspaceService] Sending payload:', payload);
+      debugLog('WorkspaceService', '[WorkspaceService] Sending payload:', payload);
       
       // Convert TypeScript payload to the format expected by the client
       let request: WorkspaceProtocolRequest;
@@ -104,15 +105,15 @@ export class WorkspaceService {
             }
           };
         } else {
-          // For other request types, pass through as-is for now
-          request = tsRequest as any;
+          // For other request types, pass through as-is
+          request = tsRequest as unknown as WorkspaceProtocolRequest;
         }
       } else {
         throw new Error('Invalid workspace protocol payload');
       }
 
       await websocketService.sendWorkspaceRequest(this.currentCid, request);
-      console.info('[WorkspaceService] Request sent successfully');
+      debugLog('WorkspaceService', '[WorkspaceService] Request sent successfully');
 
     } catch (error) {
       if (error instanceof Error) {
@@ -130,7 +131,7 @@ export class WorkspaceService {
    * This will trigger a workspace:loaded event when complete
    */
   public async loadWorkspace(): Promise<any> {
-    console.log('[WorkspaceService] loadWorkspace called with CID:', this.currentCid?.toString());
+    debugLog('WorkspaceService', '[WorkspaceService] loadWorkspace called with CID:', this.currentCid?.toString());
 
     // Emit loading event
     workspaceResponseHandler.emitLoadingEvent('workspace:loading');
@@ -139,7 +140,7 @@ export class WorkspaceService {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetWorkspace: null
     };
-    console.log('[WorkspaceService] Sending GetWorkspace request');
+    debugLog('WorkspaceService', '[WorkspaceService] Sending GetWorkspace request');
     return this.sendProtocolRequest(requestPart);
   }
 
@@ -244,9 +245,9 @@ export class WorkspaceService {
    */
   public async updateMemberRole(
     userId: string,
-    role: any, // UserRole type
+    role: string,
     metadata?: Uint8Array
-  ): Promise<any> {
+  ): Promise<unknown> {
     const requestPart = {
       UpdateMemberRole: {
         user_id: userId,
@@ -609,7 +610,7 @@ export class WorkspaceService {
       throw new Error('No active connection available. Please connect first.');
     }
 
-    console.info('[WorkspaceService] sendRequest (raw):', JSON.stringify(request).substring(0, 200));
+    debugLog('WorkspaceService', '[WorkspaceService] sendRequest (raw):', JSON.stringify(request).substring(0, 200));
 
     // Determine expected response type based on request
     // Handle both string (unit variant) and object (struct variant) requests

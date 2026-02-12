@@ -13,6 +13,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { debugLog } from '@/lib/debug-config';
 
 const INSTANCE_ID_KEY = 'citadel-instance-id';
 
@@ -44,7 +45,7 @@ class InstanceManager {
     this.knownInstances.set(this._instanceId, null);
     this.setupEventListeners();
 
-    console.log(`[InstanceManager] Initialized with instanceId: ${this._instanceId}`);
+    debugLog('InstanceManager', `[InstanceManager] Initialized with instanceId: ${this._instanceId}`);
   }
 
   public static getInstance(): InstanceManager {
@@ -83,7 +84,7 @@ class InstanceManager {
       this._isLeader = data.isLeader;
       this._leaderId = data.leaderId;
 
-      console.log(`[InstanceManager] Leader changed - isLeader: ${this._isLeader}, leaderId: ${this._leaderId}`);
+      debugLog('InstanceManager', `[InstanceManager] Leader changed - isLeader: ${this._isLeader}, leaderId: ${this._leaderId}`);
 
       // Emit our own event for components that care about our leader status
       eventEmitter.emit('instance:state-changed', this.getState());
@@ -92,13 +93,13 @@ class InstanceManager {
     // Listen for instance registry updates
     eventEmitter.on('instance:registry-update', (data: { instanceId: string; cid: bigint | null }) => {
       this.knownInstances.set(data.instanceId, data.cid);
-      console.log(`[InstanceManager] Registry updated: ${data.instanceId} → ${data.cid?.toString()}`);
+      debugLog('InstanceManager', `[InstanceManager] Registry updated: ${data.instanceId} → ${data.cid?.toString()}`);
     });
 
     // Listen for instance disconnection
     eventEmitter.on('instance:disconnected', (data: { instanceId: string }) => {
       this.knownInstances.delete(data.instanceId);
-      console.log(`[InstanceManager] Instance disconnected: ${data.instanceId}`);
+      debugLog('InstanceManager', `[InstanceManager] Instance disconnected: ${data.instanceId}`);
     });
   }
 
@@ -151,7 +152,7 @@ class InstanceManager {
     this._cid = cid;
     this.knownInstances.set(this._instanceId, cid);
 
-    console.log(`[InstanceManager] CID changed: ${previousCid?.toString()} → ${cid?.toString()}`);
+    debugLog('InstanceManager', `[InstanceManager] CID changed: ${previousCid?.toString()} → ${cid?.toString()}`);
 
     // Emit state change
     eventEmitter.emit('instance:state-changed', this.getState());
@@ -181,7 +182,7 @@ class InstanceManager {
    */
   registerInstance(instanceId: string, cid: bigint | null): void {
     this.knownInstances.set(instanceId, cid);
-    console.log(`[InstanceManager] Registered instance: ${instanceId} → ${cid?.toString()}`);
+    debugLog('InstanceManager', `[InstanceManager] Registered instance: ${instanceId} → ${cid?.toString()}`);
   }
 
   /**
@@ -189,7 +190,7 @@ class InstanceManager {
    */
   unregisterInstance(instanceId: string): void {
     this.knownInstances.delete(instanceId);
-    console.log(`[InstanceManager] Unregistered instance: ${instanceId}`);
+    debugLog('InstanceManager', `[InstanceManager] Unregistered instance: ${instanceId}`);
   }
 
   /**
@@ -240,7 +241,7 @@ class InstanceManager {
       instanceId: this._instanceId,
     });
 
-    console.log(`[InstanceManager] Destroyed instance: ${this._instanceId}`);
+    debugLog('InstanceManager', `[InstanceManager] Destroyed instance: ${this._instanceId}`);
   }
 }
 

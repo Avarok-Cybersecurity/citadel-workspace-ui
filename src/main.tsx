@@ -11,20 +11,19 @@ import { p2pRegistrationService } from './lib/p2p-registration-service';
 import { p2pAutoConnectService } from './lib/p2p-auto-connect-service';
 import { websocketService } from './lib/websocket-service';
 import { connectionManager } from './lib/connection/service';
-(window as unknown as { __p2pRegistrationService: typeof p2pRegistrationService }).__p2pRegistrationService = p2pRegistrationService;
-(window as unknown as { __p2pAutoConnectService: typeof p2pAutoConnectService }).__p2pAutoConnectService = p2pAutoConnectService;
-(window as unknown as { __websocketService: typeof websocketService }).__websocketService = websocketService;
-(window as unknown as { __connectionManager: typeof connectionManager }).__connectionManager = connectionManager;
+if (import.meta.env.DEV) {
+  (window as unknown as { __p2pRegistrationService: typeof p2pRegistrationService }).__p2pRegistrationService = p2pRegistrationService;
+  (window as unknown as { __p2pAutoConnectService: typeof p2pAutoConnectService }).__p2pAutoConnectService = p2pAutoConnectService;
+  (window as unknown as { __websocketService: typeof websocketService }).__websocketService = websocketService;
+  (window as unknown as { __connectionManager: typeof connectionManager }).__connectionManager = connectionManager;
+}
 
 // Initialize instance inbound router (routes WebSocket responses to correct instance)
 // Must be imported early to set up event listeners before any messages are processed
-console.log('[Main] About to import instance-inbound-router...');
 import { instanceInboundRouter } from './lib/multi-instance';
-console.log('[Main] instance-inbound-router imported, active:', instanceInboundRouter.isRouterActive());
+void instanceInboundRouter.isRouterActive();
 
-console.log("main.tsx starting");
-
-// Add error handlers to catch any issues
+// Global error handlers
 window.addEventListener('error', (e) => {
   console.error('[MAIN ERROR]', {
     message: e.error?.message || e.message,
@@ -43,40 +42,49 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 try {
-  console.log("main.tsx: Getting root element...");
   const rootElement = document.getElementById("root");
-  console.log("main.tsx: Root element found:", !!rootElement);
-  
+
   if (!rootElement) {
     throw new Error("Root element not found");
   }
-  
-  console.log("main.tsx: Creating React root...");
+
   const root = createRoot(rootElement);
-  console.log("main.tsx: React root created successfully");
-  
-  console.log("main.tsx: App imported successfully, type:", typeof App);
-  console.log("main.tsx: Rendering App...");
-  // Test minimal app component
   root.render(<App />);
-  console.log("main.tsx: App rendered successfully");
 } catch (error) {
   console.error("main.tsx: Error during initialization:", error);
 
-  // Show error on page if React fails
+  // Show error on page if React fails — use safe DOM APIs (no innerHTML)
   const rootElement = document.getElementById("root");
   if (rootElement) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : '';
-    rootElement.innerHTML = `
-      <div style="padding: 20px; color: red; font-family: monospace;">
-        <h2>React Initialization Error</h2>
-        <p><strong>Error:</strong> ${errorMessage}</p>
-        <p><strong>Stack:</strong></p>
-        <pre>${errorStack}</pre>
-      </div>
-    `;
+    const errorStack = error instanceof Error ? error.stack ?? '' : '';
+
+    const container = document.createElement('div');
+    container.style.cssText = 'padding: 20px; color: red; font-family: monospace;';
+
+    const heading = document.createElement('h2');
+    heading.textContent = 'React Initialization Error';
+
+    const errorParagraph = document.createElement('p');
+    const errorLabel = document.createElement('strong');
+    errorLabel.textContent = 'Error: ';
+    errorParagraph.appendChild(errorLabel);
+    errorParagraph.appendChild(document.createTextNode(errorMessage));
+
+    const stackLabel = document.createElement('p');
+    const stackStrong = document.createElement('strong');
+    stackStrong.textContent = 'Stack:';
+    stackLabel.appendChild(stackStrong);
+
+    const stackPre = document.createElement('pre');
+    stackPre.textContent = errorStack;
+
+    container.appendChild(heading);
+    container.appendChild(errorParagraph);
+    container.appendChild(stackLabel);
+    container.appendChild(stackPre);
+
+    rootElement.textContent = '';
+    rootElement.appendChild(container);
   }
 }
-
-console.log("main.tsx finished");

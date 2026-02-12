@@ -9,6 +9,7 @@ import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { eventEmitter } from '../event-emitter';
 import type { P2PMessage, P2PConversation, MessageCache } from './p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
+import { debugLog } from '@/lib/debug-config';
 
 export interface ConversationManagerConfig {
   /** Function to get current CID */
@@ -82,7 +83,7 @@ export class ConversationManager {
     const conversation = this.getOrCreateConversation(peerCid);
 
     if (conversation.messages.find(m => m.id === message.id)) {
-      console.log('[P2P] Duplicate message detected, skipping add:', message.id);
+      debugLog('ConversationManager', '[P2P] Duplicate message detected, skipping add:', message.id);
       return false;
     }
 
@@ -142,12 +143,12 @@ export class ConversationManager {
     }
 
     for (const cid of staleCids) {
-      console.log(`[P2P] Removing stale conversation for peer: ${cid.toString().slice(0, 8)}...`);
+      debugLog('ConversationManager', `[P2P] Removing stale conversation for peer: ${cid.toString().slice(0, 8)}...`);
       this.cache.conversations.delete(cid);
     }
 
     if (staleCids.length > 0) {
-      console.log(`[P2P] Cleaned up ${staleCids.length} stale conversation(s)`);
+      debugLog('ConversationManager', `[P2P] Cleaned up ${staleCids.length} stale conversation(s)`);
       await Promise.all(staleCids.map(cid => messagePaginationStore.deleteConversationPages(cid)));
       eventEmitter.emit('p2p:conversations-cleaned');
     }

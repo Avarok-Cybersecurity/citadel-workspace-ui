@@ -9,6 +9,7 @@ import { eventEmitter } from './event-emitter';
 import WorkspaceService from './workspace-service';
 import { connectionManager } from './connection';
 import { EventListenerManager } from './utils/event-listener-manager';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Permission enum matching Rust Permission type from citadel-workspace-types
@@ -235,7 +236,7 @@ class PermissionsService extends EventListenerManager {
       lastUpdated: Date.now(),
     });
 
-    console.log(`[PermissionsService] Cache updated for ${domainId}: ${permSet.size} permissions`);
+    debugLog('PermissionsService', `[PermissionsService] Cache updated for ${domainId}: ${permSet.size} permissions`);
   }
 
   /**
@@ -407,7 +408,7 @@ class PermissionsService extends EventListenerManager {
    */
   public clearCache(): void {
     this.cache.clear();
-    console.log('[PermissionsService] Cache cleared');
+    debugLog('PermissionsService', '[PermissionsService] Cache cleared');
   }
 
   /**

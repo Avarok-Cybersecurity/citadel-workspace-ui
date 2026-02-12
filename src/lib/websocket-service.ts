@@ -53,7 +53,7 @@ class WebSocketService {
 
   constructor(config: WebSocketServiceConfig = {}) {
     this.config = {
-      websocketUrl: config.websocketUrl || 'ws://localhost:12345',
+      websocketUrl: config.websocketUrl || import.meta.env.VITE_WS_URL || 'ws://localhost:12345',
       messageHandler: config.messageHandler,
       errorHandler: config.errorHandler,
     };
@@ -383,7 +383,7 @@ class WebSocketService {
 
     // DEBUG: Log leadership decision
     const messageType = Object.keys(request)[0] || 'unknown';
-    console.log(`[ILM-TRACE] _sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
+    debugLog('WebsocketService', `[ILM-TRACE] _sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
 
     if (instanceManager.isLeader) {
       // LEADER: Send directly via WebSocket
@@ -391,11 +391,11 @@ class WebSocketService {
         console.error(`[ILM-TRACE] ERROR: Leader without client! Cannot send ${messageType}`);
         throw new Error('WebSocket client not available (leader without client)');
       }
-      console.log(`[ILM-TRACE] [Leader] Sending ${messageType} directly`);
+      debugLog('WebsocketService', `[ILM-TRACE] [Leader] Sending ${messageType} directly`);
       await this.client.sendDirectToInternalService(request);
     } else {
       // FOLLOWER: Proxy through leader via InstanceChannel
-      console.log(`[ILM-TRACE] [Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
+      debugLog('WebsocketService', `[ILM-TRACE] [Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
       const id = requestId || crypto.randomUUID();
 
       // Register the request with instance inbound router for response routing
@@ -410,7 +410,7 @@ class WebSocketService {
         throw new Error(`Leader failed to send request: ${result.error}`);
       }
 
-      console.log(`[ILM-TRACE] [Follower] Request ${messageType} proxied successfully`);
+      debugLog('WebsocketService', `[ILM-TRACE] [Follower] Request ${messageType} proxied successfully`);
     }
   }
 
@@ -450,10 +450,7 @@ class WebSocketService {
   async getWasmModule(): Promise<any> {
     await this.init(); // ensure initialized
     
-    // The WASM module should be available on the client instance
-    // This assumes the WorkspaceClient extends InternalServiceWasmClient which has access to the WASM module
-    // @human-review Need to check how WorkspaceClient exposes WASM module
-    return (this.client as any)?._wasmModule || null;
+    return this.client?.getWasmModule() ?? null;
   }
 
   /**

@@ -4,6 +4,7 @@ import { instanceManager } from './multi-instance';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { PollingService } from './utils/polling-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 export interface BroadcastMessage {
   type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message' | 'p2p-notification';
@@ -59,7 +60,7 @@ export class BroadcastChannelService extends PollingService {
     for (const [requestId, entry] of this.pendingRequests) {
       if (now - entry.insertTime > REQUEST_EXPIRY_MS) {
         this.pendingRequests.delete(requestId);
-        console.log(`BroadcastChannelService: Cleaned up expired request ${requestId}`);
+        debugLog('BroadcastChannelService', `BroadcastChannelService: Cleaned up expired request ${requestId}`);
       }
     }
   }
@@ -70,7 +71,7 @@ export class BroadcastChannelService extends PollingService {
   private setupLeaderSync(): void {
     // Listen to leader-changed events from instance-channel
     eventEmitter.on('leader-changed', ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
-      console.log(`BroadcastChannelService: Syncing leader state from instance-channel - isLeader: ${isLeader}, leaderId: ${leaderId}`);
+      debugLog('BroadcastChannelService', `BroadcastChannelService: Syncing leader state from instance-channel - isLeader: ${isLeader}, leaderId: ${leaderId}`);
       this.isLeader = isLeader;
       this.lastLeaderHeartbeat = Date.now();
     });
@@ -98,7 +99,7 @@ export class BroadcastChannelService extends PollingService {
       this.setupMessageHandler();
       this.startLeaderElection();
       this.startPolling();
-      console.log(`BroadcastChannelService: Initialized with tabId ${this.tabId}`);
+      debugLog('BroadcastChannelService', `BroadcastChannelService: Initialized with tabId ${this.tabId}`);
     } catch (error) {
       console.error('BroadcastChannelService: Failed to initialize', error);
     }
@@ -113,7 +114,7 @@ export class BroadcastChannelService extends PollingService {
       // Ignore our own messages
       if (message.tabId === this.tabId) return;
 
-      console.log(`BroadcastChannelService: Received message from ${message.tabId}:`, message.type);
+      debugLog('BroadcastChannelService', `BroadcastChannelService: Received message from ${message.tabId}:`, message.type);
 
       runAsyncSetup(async () => {
         switch (message.type) {
@@ -157,7 +158,7 @@ export class BroadcastChannelService extends PollingService {
       // CRITICAL: Filter by target CID if present (for P2P notifications)
       // This prevents race conditions where multiple tabs process the same notification
       if (message.targetCid && tabCid && message.targetCid !== tabCid) {
-        console.log(`BroadcastChannelService: Skipping notification for CID ${message.targetCid.toString().slice(0, 8)}... (we are ${tabCid.toString().slice(0, 8)}...)`);
+        debugLog('BroadcastChannelService', `BroadcastChannelService: Skipping notification for CID ${message.targetCid.toString().slice(0, 8)}... (we are ${tabCid.toString().slice(0, 8)}...)`);
         return;
       }
 
@@ -173,7 +174,7 @@ export class BroadcastChannelService extends PollingService {
       // 1. No request_id (broadcast to all) OR
       // 2. Response CID matches this tab's CID
       if (!requestId || (tabCid && this.isResponseForThisCid(requestId, tabCid))) {
-        console.log('BroadcastChannelService: Forwarding workspace response to event system');
+        debugLog('BroadcastChannelService', 'BroadcastChannelService: Forwarding workspace response to event system');
         eventEmitter.emit('websocket-message', message.data);
         eventEmitter.emit('broadcast-workspace-response', message.data);
         // Don't clear immediately - other tabs with same CID may also need it
@@ -200,7 +201,7 @@ export class BroadcastChannelService extends PollingService {
       
       if (this.isLeader && electionData.tabId !== this.tabId) {
         // We're no longer the leader
-        console.log(`BroadcastChannelService: Tab ${electionData.tabId} is now the leader`);
+        debugLog('BroadcastChannelService', `BroadcastChannelService: Tab ${electionData.tabId} is now the leader`);
         this.isLeader = false;
         eventEmitter.emit('leader-changed', { isLeader: false, leaderId: electionData.tabId });
       }
@@ -221,7 +222,7 @@ export class BroadcastChannelService extends PollingService {
     // Forward P2P raw messages to non-leader tabs for Yjs sync
     // Leader already handled the message when it was received via WebSocket
     if (!this.isLeader && message.data) {
-      console.log('BroadcastChannelService: Forwarding P2P raw message to event system');
+      debugLog('BroadcastChannelService', 'BroadcastChannelService: Forwarding P2P raw message to event system');
       eventEmitter.emit('p2p:raw-message', message.data);
     }
   }
@@ -229,7 +230,7 @@ export class BroadcastChannelService extends PollingService {
   private async handleP2PNotification(message: BroadcastMessage): Promise<void> {
     // Forward P2P MessageNotifications to the correct follower tab for chat processing
     // The leader broadcasts these when it receives a message meant for a different session
-    console.log('[BroadcastChannel] handleP2PNotification received:', {
+    debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification received:', {
       isLeader: this.isLeader,
       hasData: !!message.data,
       fromTabId: message.tabId
@@ -238,7 +239,7 @@ export class BroadcastChannelService extends PollingService {
     if (!this.isLeader && message.data) {
       const { notification, messageBytes } = message.data;
       if (!notification) {
-        console.log('[BroadcastChannel] handleP2PNotification: No notification in data');
+        debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification: No notification in data');
         return;
       }
 
@@ -255,7 +256,7 @@ export class BroadcastChannelService extends PollingService {
       // because JavaScript strict equality doesn't coerce types
       const tabCidStr = tabCid?.toString();
 
-      console.log('[BroadcastChannel] handleP2PNotification checking session match:', {
+      debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification checking session match:', {
         notificationCid,
         peerCid,
         tabCidStr,
@@ -265,7 +266,7 @@ export class BroadcastChannelService extends PollingService {
       });
 
       if (tabCidStr && notificationCid === tabCidStr) {
-        console.log('[BroadcastChannel] Forwarding P2P notification for our session', {
+        debugLog('BroadcastChannelService', '[BroadcastChannel] Forwarding P2P notification for our session', {
           notificationCid,
           tabCidStr,
           peerCid
@@ -273,14 +274,14 @@ export class BroadcastChannelService extends PollingService {
         // Emit as websocket-message so handleWebSocketMessage processes it
         eventEmitter.emit('websocket-message', { MessageNotification: notification });
       } else {
-        console.log('[BroadcastChannel] P2P notification NOT for our session, ignoring', {
+        debugLog('BroadcastChannelService', '[BroadcastChannel] P2P notification NOT for our session, ignoring', {
           notificationCid,
           tabCidStr,
           reason: !tabCidStr ? 'no tabCid selected' : 'CID mismatch'
         });
       }
     } else if (this.isLeader) {
-      console.log('[BroadcastChannel] handleP2PNotification: Ignoring (we are leader)');
+      debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification: Ignoring (we are leader)');
     }
   }
 
@@ -291,7 +292,7 @@ export class BroadcastChannelService extends PollingService {
     //
     // This eliminates the dual leader election race condition where both services
     // would independently claim leadership with different timing, causing flip-flopping.
-    console.log('BroadcastChannelService: Leader election delegated to InstanceChannel');
+    debugLog('BroadcastChannelService', 'BroadcastChannelService: Leader election delegated to InstanceChannel');
   }
 
   private broadcastLeaderClaim(): void {
@@ -313,7 +314,7 @@ export class BroadcastChannelService extends PollingService {
   private becomeLeader(): void {
     this.isLeader = true;
     this.lastLeaderHeartbeat = Date.now();
-    console.log(`BroadcastChannelService: Tab ${this.tabId} is now the leader`);
+    debugLog('BroadcastChannelService', `BroadcastChannelService: Tab ${this.tabId} is now the leader`);
     
     // Notify components that we're now the leader
     eventEmitter.emit('leader-changed', { isLeader: true, leaderId: this.tabId });
@@ -337,7 +338,7 @@ export class BroadcastChannelService extends PollingService {
     }
     // Debug: log what type of response is being broadcast
     const responseType = Object.keys(response)[0];
-    console.log(`BroadcastChannelService: Broadcasting ${responseType} as workspace-response`);
+    debugLog('BroadcastChannelService', `BroadcastChannelService: Broadcasting ${responseType} as workspace-response`);
 
     // Extract target CID for P2P notifications to enable filtering
     // The 'cid' field in these notifications is the TARGET (who should receive it)
@@ -345,13 +346,14 @@ export class BroadcastChannelService extends PollingService {
     // Without this, MessageNotification is delivered TWICE to follower tabs:
     // 1. Via InstanceChannel routing (correct path)
     // 2. Via this legacy broadcast (without CID filtering → ALL tabs receive it)
-    const responseAny = response as any;
-    const targetCid: bigint | undefined = responseAny.PeerConnectNotification?.cid ||
-                      responseAny.PeerRegisterNotification?.cid ||
-                      responseAny.MessageNotification?.cid;
+    const responseRecord = response as Record<string, Record<string, unknown>>;
+    const targetCid: bigint | undefined =
+      (responseRecord.PeerConnectNotification?.cid as bigint | undefined) ||
+      (responseRecord.PeerRegisterNotification?.cid as bigint | undefined) ||
+      (responseRecord.MessageNotification?.cid as bigint | undefined);
 
     if (targetCid !== undefined) {
-      console.log(`BroadcastChannelService: P2P notification has targetCid=${targetCid.toString().slice(0, 8)}...`);
+      debugLog('BroadcastChannelService', `BroadcastChannelService: P2P notification has targetCid=${targetCid.toString().slice(0, 8)}...`);
     }
 
     const message: BroadcastMessage = {
@@ -424,14 +426,14 @@ export class BroadcastChannelService extends PollingService {
   public broadcastP2PNotification(data: { notification: any; messageBytes: Uint8Array }): void {
     // Only leader broadcasts P2P notifications to followers
     if (!this.isLeader) {
-      console.log('[BroadcastChannel] broadcastP2PNotification: Not leader, skipping');
+      debugLog('BroadcastChannelService', '[BroadcastChannel] broadcastP2PNotification: Not leader, skipping');
       return;
     }
 
     const notificationCid = data.notification?.cid?.toString();
     const peerCid = data.notification?.peer_cid?.toString();
 
-    console.log('[BroadcastChannel] Broadcasting P2P notification to followers:', {
+    debugLog('BroadcastChannelService', '[BroadcastChannel] Broadcasting P2P notification to followers:', {
       notificationCid: notificationCid?.slice(0, 12),
       peerCid: peerCid?.slice(0, 12),
       messageLength: data.notification?.message?.length || 0,
@@ -525,7 +527,7 @@ export class BroadcastChannelService extends PollingService {
       this.channel = null;
     }
 
-    console.log(`BroadcastChannelService: Destroyed for tab ${this.tabId}`);
+    debugLog('BroadcastChannelService', `BroadcastChannelService: Destroyed for tab ${this.tabId}`);
   }
 }
 

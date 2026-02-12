@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
 import type { FileTransferMode } from '@/types/messaging-layer';
+import { debugLog } from '@/lib/debug-config';
 
 interface UseP2PFileTransferProps {
   peerCid: bigint;
@@ -77,7 +78,7 @@ export function useP2PFileTransfer({
   }, []);
 
   const handleOpenFile = useCallback((downloadPath: string) => {
-    console.log('Opening file:', downloadPath);
+    debugLog('UseP2PFileTransfer', 'Opening file:', downloadPath);
     toast({
       title: 'File Ready',
       description: `File saved to: ${downloadPath}`,

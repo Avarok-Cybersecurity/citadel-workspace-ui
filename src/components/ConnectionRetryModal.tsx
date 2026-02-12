@@ -7,6 +7,7 @@ import { websocketService } from "@/lib/websocket-service";
 import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface ConnectionRetryModalProps {
   isOpen: boolean;
@@ -85,7 +86,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
         console.error("Connection retry failed:", error);
       },
       onRetry: (attemptNum) => {
-        console.log(`Retry attempt ${attemptNum} of ${maxRetries}`);
+        debugLog('ConnectionRetryModal', `Retry attempt ${attemptNum} of ${maxRetries}`);
       }
     }
   );
@@ -110,9 +111,8 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     if (!isOpen && hasInitialized) {
       setHasInitialized(false);
     }
-    // NOTE: Intentionally NOT including execute in deps to prevent infinite re-triggering
-    // The executeFnRef.current always has the latest execute function
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // NOTE: Intentionally NOT including execute in deps to prevent infinite re-triggering.
+    // The executeFnRef.current always has the latest execute function.
   }, [isOpen, hasInitialized, attempt]);
 
   // Handle countdown timer for auto-retry

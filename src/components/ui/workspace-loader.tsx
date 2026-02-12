@@ -8,6 +8,7 @@ import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import WorkspaceService from '@/lib/workspace-service';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface WorkspaceLoaderProps {
   children: React.ReactNode;
@@ -41,33 +42,33 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   useEffect(() => {
     // Skip in dev mode
     if (isDevMode) {
-      console.log('Dev mode: Skipping auto-claim');
+      debugLog('WorkspaceLoader', 'Dev mode: Skipping auto-claim');
       return;
     }
 
-    console.log('WorkspaceLoader: Auto-claim useEffect running, attempted:', autoClaimAttempted.current);
+    debugLog('WorkspaceLoader', 'WorkspaceLoader: Auto-claim useEffect running, attempted:', autoClaimAttempted.current);
 
     if (autoClaimAttempted.current) {
-      console.log('WorkspaceLoader: Skipping auto-claim (already attempted)');
+      debugLog('WorkspaceLoader', 'WorkspaceLoader: Skipping auto-claim (already attempted)');
       return;
     }
     autoClaimAttempted.current = true;
 
     const autoClaimSession = async () => {
-      console.log('WorkspaceLoader: Starting auto-claim session process');
+      debugLog('WorkspaceLoader', 'WorkspaceLoader: Starting auto-claim session process');
 
       const connectionManager = ConnectionManager.getInstance();
 
       // Check if already connected via ConnectionManager
       const currentConnection = connectionManager.getConnectionInfo();
-      console.log('WorkspaceLoader: getConnectionInfo() returned:', {
+      debugLog('WorkspaceLoader', 'WorkspaceLoader: getConnectionInfo() returned:', {
         hasConnection: !!currentConnection,
         cid: currentConnection?.cid?.toString() ?? 'none',
         username: currentConnection?.username ?? 'none',
       });
 
       if (currentConnection?.cid && currentConnection.cid !== 0n) {
-        console.log('WorkspaceLoader: Already connected with CID:', currentConnection.cid);
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: Already connected with CID:', currentConnection.cid);
 
         // Set up tab context if not already set
         const existingSelection = await getSelectedUser();
@@ -88,7 +89,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         WorkspaceService.setConnectionId(currentConnection.cid);
 
         // Trigger workspace loading (this is what was missing!)
-        console.log('WorkspaceLoader: Triggering workspace loading for existing connection');
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: Triggering workspace loading for existing connection');
         await WorkspaceService.loadWorkspace();
         await WorkspaceService.listNodes();
         await WorkspaceService.getTreeSchema();
@@ -101,19 +102,19 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
       try {
         // Wait for ConnectionManager to be ready (with timeout)
-        console.log('WorkspaceLoader: Waiting for ConnectionManager to be ready...');
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: Waiting for ConnectionManager to be ready...');
         const timeoutPromise = new Promise<void>((_, reject) =>
           setTimeout(() => reject(new Error('ConnectionManager ready timeout')), 10000)
         );
         await Promise.race([connectionManager.waitForReady(), timeoutPromise]);
-        console.log('WorkspaceLoader: ConnectionManager is ready');
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: ConnectionManager is ready');
 
         // Get active sessions from internal service
         const activeSessions = await connectionManager.getActiveSessions();
-        console.log('WorkspaceLoader: Found active sessions:', activeSessions.length);
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: Found active sessions:', activeSessions.length);
 
         if (activeSessions.length === 0) {
-          console.log('WorkspaceLoader: No active sessions available');
+          debugLog('WorkspaceLoader', 'WorkspaceLoader: No active sessions available');
           setIsAutoClaimingSession(false);
           return;
         }
@@ -121,7 +122,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         // CRITICAL: Only claim a session when we have an explicit CID from tab context
         // NEVER blindly pick activeSessions[0] - that steals other users' sessions!
         const existingSelection = await getSelectedUser();
-        console.log('WorkspaceLoader: Tab context getSelectedUser() returned:', {
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: Tab context getSelectedUser() returned:', {
           hasSelection: !!existingSelection,
           selectedCid: existingSelection?.selectedCid?.toString() ?? 'none',
           selectedUsername: existingSelection?.selectedUsername ?? 'none',
@@ -130,8 +131,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         if (!existingSelection?.selectedCid) {
           // No CID known for this tab - do NOT claim any session
           // User must explicitly select a session via UI (OrphanSessionsNavbar, Login, etc.)
-          console.log('WorkspaceLoader: No session CID in tab context, skipping auto-claim');
-          console.log('WorkspaceLoader: User must select a session via UI');
+          debugLog('WorkspaceLoader', 'WorkspaceLoader: No session CID in tab context, skipping auto-claim');
+          debugLog('WorkspaceLoader', 'WorkspaceLoader: User must select a session via UI');
           setIsAutoClaimingSession(false);
           return;
         }
@@ -140,21 +141,21 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         const session = activeSessions.find(s => s.cid === existingSelection.selectedCid);
         if (!session) {
           // Selected session no longer exists in backend - clear stale tab context
-          console.log('WorkspaceLoader: Selected session no longer active, clearing tab context');
+          debugLog('WorkspaceLoader', 'WorkspaceLoader: Selected session no longer active, clearing tab context');
           await clearSelectedUser();
           setIsAutoClaimingSession(false);
           return;
         }
 
-        console.log('WorkspaceLoader: Auto-claiming known session:', session.username, session.cid);
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: Auto-claiming known session:', session.username, session.cid);
 
         // Try to claim the session (same logic as OrphanSessionsNavbar.handleNavigate)
         try {
           await websocketService.claimSession(session.cid, true);
-          console.log('WorkspaceLoader: Session claimed successfully (was orphaned)');
+          debugLog('WorkspaceLoader', 'WorkspaceLoader: Session claimed successfully (was orphaned)');
         } catch (claimError: any) {
           if (claimError?.message?.includes('not orphaned')) {
-            console.log('WorkspaceLoader: Session is still active (not orphaned), no claim needed');
+            debugLog('WorkspaceLoader', 'WorkspaceLoader: Session is still active (not orphaned), no claim needed');
           } else {
             // Re-throw if it's a different error
             throw claimError;
@@ -174,7 +175,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         // Start WASM connection manager for P2P messaging
         try {
           await wasmConnectionManager.start(session.cid.toString());
-          console.log('WorkspaceLoader: WASM connection manager started for CID:', session.cid);
+          debugLog('WorkspaceLoader', 'WorkspaceLoader: WASM connection manager started for CID:', session.cid);
         } catch (error) {
           console.error('WorkspaceLoader: Failed to start WASM connection manager:', error);
           // Don't block - P2P messaging may not be immediately needed
@@ -186,7 +187,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         await WorkspaceService.getTreeSchema();
 
         setHasConnection(true);
-        console.log('WorkspaceLoader: Auto-claim complete, workspace loading initiated');
+        debugLog('WorkspaceLoader', 'WorkspaceLoader: Auto-claim complete, workspace loading initiated');
       } catch (error) {
         console.error('WorkspaceLoader: Auto-claim session failed:', error);
       } finally {
@@ -235,14 +236,14 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     }
 
     if (loadingTimeout && !hasConnection && isLoading) {
-      console.log('WorkspaceLoader: No connection detected after timeout, redirecting to connect');
+      debugLog('WorkspaceLoader', 'WorkspaceLoader: No connection detected after timeout, redirecting to connect');
       navigate('/connect');
     }
   }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode]);
 
   // In dev mode, skip all loading checks and render children directly
   if (isDevMode) {
-    console.log('Dev mode: Bypassing workspace loader');
+    debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');
     return <>{children}</>;
   }
 

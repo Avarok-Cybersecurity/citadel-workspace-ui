@@ -7,6 +7,7 @@
 
 import { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
 import { TypedEventEmitter } from './event-emitter';
+import { debugLog } from '@/lib/debug-config';
 
 export interface GroupMessageEvent {
   type: 'new_message' | 'message_edited' | 'message_deleted' | 'messages_loaded';
@@ -80,7 +81,7 @@ class GroupMessagingManagerClass {
 
     // Check for duplicate message by ID
     if (current.messages.some(m => m.id === message.id)) {
-      console.log('[GroupMessagingManager] Skipping duplicate message:', message.id);
+      debugLog('GroupMessagingManager', '[GroupMessagingManager] Skipping duplicate message:', message.id);
       return;
     }
 

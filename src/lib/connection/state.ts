@@ -19,6 +19,7 @@ import type {
 } from '@/types/session-types';
 import type { CurrentConnectionInfo, PendingRequest } from './types';
 import { CACHE_TTL_MS, MAX_RECONNECT_ATTEMPTS } from './constants';
+import { debugLog } from '@/lib/debug-config';
 
 export class ConnectionState {
   // Core state
@@ -96,7 +97,7 @@ export class ConnectionState {
   }
 
   setCurrentConnectionInfo(info: CurrentConnectionInfo | null): void {
-    console.log('[ConnectionState] setCurrentConnectionInfo called:', {
+    debugLog('State', '[ConnectionState] setCurrentConnectionInfo called:', {
       newCid: info?.cid?.toString() ?? 'null',
       newUsername: info?.username ?? 'null',
       oldCid: this._currentConnectionInfo?.cid?.toString() ?? 'null',

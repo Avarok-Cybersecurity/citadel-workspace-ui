@@ -38,6 +38,7 @@
  */
 
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Global function callable from WASM via wasm_bindgen.
@@ -69,7 +70,7 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
     if (now - lastLogTime > LOG_INTERVAL_MS || peers.length > 0) {
       lastLogTime = now;
       // ILM-DIAG: Log full CID for comparison with setPeerConnected logs
-      console.log(`[ILM-DIAG][WasmPeerBridge] QUERY localCid=${localCid.toString()} -> ${peers.length} peers`,
+      debugLog('WasmPeerBridge', `[ILM-DIAG][WasmPeerBridge] QUERY localCid=${localCid.toString()} -> ${peers.length} peers`,
         peers.length > 0 ? peers : '(none)');
     }
 
@@ -96,7 +97,7 @@ declare global {
 export function initWasmPeerBridge(): void {
   if (typeof window !== 'undefined') {
     window.__citadel_get_peers_for_session = __citadel_get_peers_for_session;
-    console.log('[WasmPeerBridge] Initialized - global callback registered');
+    debugLog('WasmPeerBridge', '[WasmPeerBridge] Initialized - global callback registered');
   } else {
     console.warn('[WasmPeerBridge] Window not available - skipping initialization');
   }

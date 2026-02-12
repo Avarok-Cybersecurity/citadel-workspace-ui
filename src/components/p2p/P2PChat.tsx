@@ -203,7 +203,7 @@ export function P2PChat({
     } catch (error) {
       console.error('Failed to create live document:', error);
     }
-  }, [peerCid, currentUserCid, handleOpenDocument]);
+  }, [peerCid, currentUserCid, handleOpenDocument, messenger]);
 
   // Input handlers
   const handleMessageTypeChange = useCallback((type: MessageType) => {
@@ -213,11 +213,11 @@ export function P2PChat({
 
   const handleInputFocus = useCallback(() => {
     if (peerCid) messenger.startTypingPolling(peerCid, () => inputMessageRef.current);
-  }, [peerCid]);
+  }, [peerCid, messenger]);
 
   const handleInputBlur = useCallback(() => {
     if (peerCid) messenger.stopTypingPolling(peerCid);
-  }, [peerCid]);
+  }, [peerCid, messenger]);
 
   // Placeholder when no peer selected
   if (!peerCid) {

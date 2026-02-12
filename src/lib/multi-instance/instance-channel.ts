@@ -22,6 +22,7 @@
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
+import { debugLog } from '@/lib/debug-config';
 
 const CHANNEL_NAME = 'citadel-instance-channel';
 const HEARTBEAT_INTERVAL_MS = 2000;
@@ -87,7 +88,7 @@ class InstanceChannel {
       this.announcePresence();
       this.setupBeforeUnloadHandler();
 
-      console.log('[InstanceChannel] Initialized');
+      debugLog('InstanceChannel', '[InstanceChannel] Initialized');
     } catch (error) {
       console.error('[InstanceChannel] Failed to initialize:', error);
     }
@@ -102,7 +103,7 @@ class InstanceChannel {
     eventEmitter.on(
       'instance:cid-changed',
       (data: { instanceId: string; cid: bigint | null }) => {
-        console.log(`[InstanceChannel] Broadcasting CID update: ${data.cid?.toString() || 'null'}`);
+        debugLog('InstanceChannel', `[InstanceChannel] Broadcasting CID update: ${data.cid?.toString() || 'null'}`);
 
         this.send({
           type: 'cid-update',
@@ -154,7 +155,7 @@ class InstanceChannel {
 
         if (otherInstancesWithSameCid.length === 0) {
           // This is the LAST tab with this CID - release the session
-          console.log(`[InstanceChannel] Last tab with CID ${myCid} closing, releasing session`);
+          debugLog('InstanceChannel', `[InstanceChannel] Last tab with CID ${myCid} closing, releasing session`);
 
           if (instanceManager.isLeader) {
             // We're the leader - emit event directly for websocket-service to handle
@@ -198,7 +199,7 @@ class InstanceChannel {
   private handleMessage(message: ChannelMessage): void {
     // Rate-limited logging for frequent messages
     if (message.type !== 'leader-heartbeat') {
-      console.log(`[InstanceChannel] Received ${message.type} from ${message.senderInstanceId}`);
+      debugLog('InstanceChannel', `[InstanceChannel] Received ${message.type} from ${message.senderInstanceId}`);
     }
 
     switch (message.type) {
@@ -249,7 +250,7 @@ class InstanceChannel {
       return;
     }
 
-    console.log(`[ILM-TRACE] Leader received outbound-request from ${message.senderInstanceId}, requestId=${message.requestId}`);
+    debugLog('InstanceChannel', `[ILM-TRACE] Leader received outbound-request from ${message.senderInstanceId}, requestId=${message.requestId}`);
 
     // Emit to leader-outbound-handler AND instance-inbound-router
     eventEmitter.emit('channel:outbound-request', {
@@ -296,7 +297,7 @@ class InstanceChannel {
       // STICKY LEADERSHIP RULE 1: If we're already the leader, stay leader
       // Established leaders NEVER yield to newcomers, regardless of ID
       if (instanceManager.isLeader) {
-        console.log(`[InstanceChannel] Rejecting leader claim from ${message.senderInstanceId} - we are the established leader (sticky)`);
+        debugLog('InstanceChannel', `[InstanceChannel] Rejecting leader claim from ${message.senderInstanceId} - we are the established leader (sticky)`);
         // Reassert our leadership via heartbeat (don't send leader-election to avoid ping-pong)
         this.sendHeartbeat();
         return;
@@ -308,7 +309,7 @@ class InstanceChannel {
       if (currentLeaderId && currentLeaderId !== message.senderInstanceId) {
         const timeSinceHeartbeat = Date.now() - this.lastLeaderHeartbeat;
         if (timeSinceHeartbeat < LEADER_TIMEOUT_MS) {
-          console.log(`[InstanceChannel] Ignoring leader claim from ${message.senderInstanceId} - already following ${currentLeaderId}`);
+          debugLog('InstanceChannel', `[InstanceChannel] Ignoring leader claim from ${message.senderInstanceId} - already following ${currentLeaderId}`);
           return;
         }
       }
@@ -328,18 +329,18 @@ class InstanceChannel {
         leaderId: message.senderInstanceId,
       });
 
-      console.log(`[InstanceChannel] Accepted leader ${message.senderInstanceId} (ID: ${theirId}, myId: ${myId})`);
+      debugLog('InstanceChannel', `[InstanceChannel] Accepted leader ${message.senderInstanceId} (ID: ${theirId}, myId: ${myId})`);
     }
   }
 
   private handleLeaderHeartbeat(message: ChannelMessage): void {
     this.lastLeaderHeartbeat = Date.now();
-    console.log(`[ILM-TRACE] Heartbeat received from ${message.senderInstanceId}, current leaderId=${instanceManager.leaderId}`);
+    debugLog('InstanceChannel', `[ILM-TRACE] Heartbeat received from ${message.senderInstanceId}, current leaderId=${instanceManager.leaderId}`);
 
     // Acknowledge the leader if not already known
     // This is critical for new instances to know there's an existing leader
     if (instanceManager.leaderId !== message.senderInstanceId) {
-      console.log(`[ILM-TRACE] Acknowledging leader from heartbeat: ${message.senderInstanceId} (was: ${instanceManager.leaderId})`);
+      debugLog('InstanceChannel', `[ILM-TRACE] Acknowledging leader from heartbeat: ${message.senderInstanceId} (was: ${instanceManager.leaderId})`);
       instanceManager.setLeader(false, message.senderInstanceId);
 
       // Emit events for compatibility
@@ -356,7 +357,7 @@ class InstanceChannel {
 
   private handleInstanceAnnounce(message: ChannelMessage): void {
     const cid = message.payload?.cid || null;
-    console.log(`[ILM-TRACE] handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
+    debugLog('InstanceChannel', `[ILM-TRACE] handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
 
     instanceManager.registerInstance(
       message.senderInstanceId,
@@ -366,7 +367,7 @@ class InstanceChannel {
     // If we're the leader, send an immediate heartbeat to the new instance
     // This ensures they learn about us quickly and don't try to claim leadership
     if (instanceManager.isLeader) {
-      console.log(`[InstanceChannel] New instance announced, sending immediate heartbeat`);
+      debugLog('InstanceChannel', `[InstanceChannel] New instance announced, sending immediate heartbeat`);
       this.sendHeartbeat();
     }
   }
@@ -376,7 +377,7 @@ class InstanceChannel {
 
     // If the leader is leaving, allow new leader election
     if (instanceManager.leaderId === message.senderInstanceId) {
-      console.log('[InstanceChannel] Leader is leaving, clearing leader state');
+      debugLog('InstanceChannel', '[InstanceChannel] Leader is leaving, clearing leader state');
       instanceManager.setLeader(false, '');
       this.lastLeaderHeartbeat = 0;
 
@@ -400,7 +401,7 @@ class InstanceChannel {
       return;
     }
 
-    console.log(`[InstanceChannel] Leader handling session release for CID ${cid}`);
+    debugLog('InstanceChannel', `[InstanceChannel] Leader handling session release for CID ${cid}`);
 
     // Emit event for websocket-service to handle
     eventEmitter.emit('session:release-request', { cid });
@@ -417,7 +418,7 @@ class InstanceChannel {
     // Update the instance registry
     instanceManager.registerInstance(message.senderInstanceId, cidBigInt);
 
-    console.log(
+    debugLog('InstanceChannel', 
       `[InstanceChannel] CID update from ${message.senderInstanceId}: ${cidBigInt?.toString() || 'null'}`
     );
   }
@@ -441,11 +442,11 @@ class InstanceChannel {
         // This prevents new instances from immediately trying to become leader
         if (this.lastLeaderHeartbeat === 0) {
           // Never received any heartbeat - no leader exists
-          console.log('[InstanceChannel] No heartbeat ever received, attempting to become leader');
+          debugLog('InstanceChannel', '[InstanceChannel] No heartbeat ever received, attempting to become leader');
           this.tryBecomeLeader();
         } else if (now - this.lastLeaderHeartbeat > LEADER_TIMEOUT_MS) {
           // Had a leader but they timed out
-          console.log('[InstanceChannel] Leader timeout, attempting to become leader');
+          debugLog('InstanceChannel', '[InstanceChannel] Leader timeout, attempting to become leader');
           this.tryBecomeLeader();
         }
       }
@@ -454,7 +455,7 @@ class InstanceChannel {
     // Initial leader election after waiting for potential heartbeat from existing leader
     setTimeout(() => {
       if (!instanceManager.leaderId && this.lastLeaderHeartbeat === 0) {
-        console.log('[InstanceChannel] No leader detected after initial wait, attempting to become leader');
+        debugLog('InstanceChannel', '[InstanceChannel] No leader detected after initial wait, attempting to become leader');
         this.tryBecomeLeader();
       }
     }, INITIAL_WAIT_MS);
@@ -465,7 +466,7 @@ class InstanceChannel {
 
     // STICKY LEADERSHIP: If we're already leader, stay leader
     if (instanceManager.isLeader) {
-      console.log('[InstanceChannel] Already leader, staying leader');
+      debugLog('InstanceChannel', '[InstanceChannel] Already leader, staying leader');
       this.sendHeartbeat();
       return;
     }
@@ -475,12 +476,12 @@ class InstanceChannel {
     if (this.lastLeaderHeartbeat > 0) {
       const timeSinceHeartbeat = Date.now() - this.lastLeaderHeartbeat;
       if (timeSinceHeartbeat < LEADER_TIMEOUT_MS) {
-        console.log(`[InstanceChannel] Recent heartbeat ${timeSinceHeartbeat}ms ago, not challenging (timeout: ${LEADER_TIMEOUT_MS}ms)`);
+        debugLog('InstanceChannel', `[InstanceChannel] Recent heartbeat ${timeSinceHeartbeat}ms ago, not challenging (timeout: ${LEADER_TIMEOUT_MS}ms)`);
         return;
       }
-      console.log(`[InstanceChannel] Leader timed out (${timeSinceHeartbeat}ms > ${LEADER_TIMEOUT_MS}ms), claiming leadership`);
+      debugLog('InstanceChannel', `[InstanceChannel] Leader timed out (${timeSinceHeartbeat}ms > ${LEADER_TIMEOUT_MS}ms), claiming leadership`);
     } else {
-      console.log('[InstanceChannel] No heartbeat ever received, claiming leadership');
+      debugLog('InstanceChannel', '[InstanceChannel] No heartbeat ever received, claiming leadership');
     }
 
     // No leader or leader timed out - claim leadership
@@ -509,7 +510,7 @@ class InstanceChannel {
       leaderId: instanceManager.instanceId,
     });
 
-    console.log(`[InstanceChannel] Became leader (ID: ${myId})`);
+    debugLog('InstanceChannel', `[InstanceChannel] Became leader (ID: ${myId})`);
 
     // Start sending heartbeats
     this.sendHeartbeat();
@@ -629,7 +630,7 @@ class InstanceChannel {
    * Announce this instance's presence and CID
    */
   announcePresence(): void {
-    console.log(`[ILM-TRACE] announcePresence: instanceId=${instanceManager.instanceId}, cid=${instanceManager.cid?.toString()}`);
+    debugLog('InstanceChannel', `[ILM-TRACE] announcePresence: instanceId=${instanceManager.instanceId}, cid=${instanceManager.cid?.toString()}`);
     this.send({
       type: 'instance-announce',
       targetInstanceId: '*',
@@ -668,7 +669,7 @@ class InstanceChannel {
       this.channel = null;
     }
 
-    console.log('[InstanceChannel] Destroyed');
+    debugLog('InstanceChannel', '[InstanceChannel] Destroyed');
   }
 }
 

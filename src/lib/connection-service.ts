@@ -4,6 +4,7 @@ import NotificationService, { NotificationType, NotificationPriority } from './n
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 export enum ConnectionRequestStatus {
   PENDING = 'pending',
@@ -82,14 +83,14 @@ export class ConnectionService {
   }
 
   private setupEventListeners() {
-    console.info('Setting up connection service event listeners');
+    debugLog('ConnectionService', 'Setting up connection service event listeners');
 
     // Listen for p2p registration responses
     // Listen for p2p connection responses
     
     // Listen for broadcast connection status updates from other tabs
     eventEmitter.on('broadcast-connection-status', (status: { isConnected: boolean; cid?: string }) => {
-      console.log('ConnectionService: Received broadcast connection status', status);
+      debugLog('ConnectionService', 'ConnectionService: Received broadcast connection status', status);
       
       // Update our connection status based on the broadcast
       this.updateConnectionStatus({
@@ -122,7 +123,7 @@ export class ConnectionService {
     };
 
     try {
-      console.info(`Sending P2P registration request to ${recipientId}`);
+      debugLog('ConnectionService', `Sending P2P registration request to ${recipientId}`);
 
       // Store the request locally
       this.connectionRequests.push(request);
@@ -159,7 +160,7 @@ export class ConnectionService {
     };
 
     try {
-      console.info(`Initiating P2P connection with ${recipientId}`);
+      debugLog('ConnectionService', `Initiating P2P connection with ${recipientId}`);
 
       // Store the request locally
       this.connectionRequests.push(request);
@@ -191,7 +192,7 @@ export class ConnectionService {
     }
 
     try {
-      console.info(`Accepting connection request ${requestId}`);
+      debugLog('ConnectionService', `Accepting connection request ${requestId}`);
 
       // Update the request status
       request.status = ConnectionRequestStatus.ACCEPTED;
@@ -233,7 +234,7 @@ export class ConnectionService {
     }
 
     try {
-      console.info(`Rejecting connection request ${requestId}`);
+      debugLog('ConnectionService', `Rejecting connection request ${requestId}`);
 
       // Update the request status
       request.status = ConnectionRequestStatus.REJECTED;
@@ -264,7 +265,7 @@ export class ConnectionService {
     }
 
     try {
-      console.info(`Canceling connection request ${requestId}`);
+      debugLog('ConnectionService', `Canceling connection request ${requestId}`);
 
       // Update the request status
       request.status = ConnectionRequestStatus.CANCELED;
@@ -400,7 +401,7 @@ export class ConnectionService {
       ...preferences
     });
 
-    console.info('User preferences updated:', this.userPreferences.get('current-user'));
+    debugLog('ConnectionService', 'User preferences updated:', this.userPreferences.get('current-user'));
   }
 
   /**
@@ -460,13 +461,13 @@ export class ConnectionService {
    * @param connection The new connection information
    */
   public updateConnectionStatus(connection: any): void {
-    console.log(`[ILM-TRACE] ConnectionService.updateConnectionStatus: cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, handlers=${this.connectionChangeHandlers.length}`);
+    debugLog('ConnectionService', `[ILM-TRACE] ConnectionService.updateConnectionStatus: cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, handlers=${this.connectionChangeHandlers.length}`);
     this.currentConnection = connection;
 
     // Notify all registered handlers
     this.connectionChangeHandlers.forEach(handler => {
       try {
-        console.log(`[ILM-TRACE] ConnectionService: Calling handler`);
+        debugLog('ConnectionService', `[ILM-TRACE] ConnectionService: Calling handler`);
         handler(connection);
       } catch (error) {
         console.error('Error in connection change handler:', error);

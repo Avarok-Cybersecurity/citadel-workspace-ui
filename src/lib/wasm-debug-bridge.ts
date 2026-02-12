@@ -1,5 +1,13 @@
 import { formatForDebug } from './debug-formatter';
 import { eventEmitter } from './event-emitter';
+import { debugLog } from '@/lib/debug-config';
+
+declare global {
+  interface Window {
+    wasmDebugLog: (logStr: string) => void;
+    onWasmWebSocketDisconnected: (reason: string) => void;
+  }
+}
 
 /**
  * Parses a string that may contain mixed text and JSON objects.
@@ -108,19 +116,19 @@ export function parseAndFormatMixedContent(input: any): string {
  */
 export function setupWasmDebugBridge() {
   // Make the debug log function available globally for WASM to call
-  (window as any).wasmDebugLog = (logStr: string) => {
+  window.wasmDebugLog = (logStr: string) => {
     try {
       const mappedLog = parseAndFormatMixedContent(logStr);
-      console.log("sanitized log: " + mappedLog);
+      debugLog('WasmDebugBridge', "sanitized log: " + mappedLog);
     } catch (error) {
       // If any error occurs, just log the original string
-      console.log(logStr);
+      debugLog('WasmDebugBridge', logStr);
     }
   };
 
   // Set up the WebSocket disconnection callback
   // This is called by the WASM module when the WebSocket connection dies
-  (window as any).onWasmWebSocketDisconnected = (reason: string) => {
+  window.onWasmWebSocketDisconnected = (reason: string) => {
     console.error('[WASM Bridge] WebSocket disconnected:', reason);
 
     // Emit connection-failure event to show the retry modal
@@ -133,5 +141,5 @@ export function setupWasmDebugBridge() {
     eventEmitter.emit('websocket-disconnected', { reason });
   };
 
-  console.log('WASM debug bridge set up');
+  debugLog('WasmDebugBridge', 'WASM debug bridge set up');
 }

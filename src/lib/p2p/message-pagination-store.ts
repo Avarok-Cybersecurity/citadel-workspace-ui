@@ -21,6 +21,7 @@ import {
   MESSAGES_PER_PAGE,
   PAGINATED_PREFIX,
 } from './p2p-types';
+import { debugLog } from '@/lib/debug-config';
 
 export class MessagePaginationStore {
   private readonly dbPrefix = 'p2p_messages';
@@ -33,7 +34,7 @@ export class MessagePaginationStore {
     try {
       const key = `${this.dbPrefix}_conversations`;
       await websocketService.sendLocalDBDelete(0n, key);
-      console.log('[P2P] Deleted old monolithic format');
+      debugLog('MessagePaginationStore', '[P2P] Deleted old monolithic format');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (!errorMessage.includes('Key not found')) {
@@ -56,13 +57,13 @@ export class MessagePaginationStore {
       const allKeys = await websocketService.sendLocalDBListKeys(0n, `${PAGINATED_PREFIX}`);
 
       if (!allKeys || allKeys.length === 0) {
-        console.log('[P2P] No paginated conversations found (fresh install)');
+        debugLog('MessagePaginationStore', '[P2P] No paginated conversations found (fresh install)');
         return results;
       }
 
       // Filter for metadata keys only
       const metadataKeys = allKeys.filter((key: string) => key.endsWith('_metadata'));
-      console.log(`[P2P] Found ${metadataKeys.length} conversation metadata keys`);
+      debugLog('MessagePaginationStore', `[P2P] Found ${metadataKeys.length} conversation metadata keys`);
 
       // Load each metadata
       for (const key of metadataKeys) {
@@ -76,11 +77,11 @@ export class MessagePaginationStore {
         }
       }
 
-      console.log(`[P2P] Loaded ${results.length} conversation(s) from paginated storage`);
+      debugLog('MessagePaginationStore', `[P2P] Loaded ${results.length} conversation(s) from paginated storage`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Key not found') || errorMessage.includes('No keys found')) {
-        console.log('[P2P] No paginated conversations found');
+        debugLog('MessagePaginationStore', '[P2P] No paginated conversations found');
       } else {
         console.error('[P2P] Failed to load metadata:', error);
       }
@@ -262,7 +263,7 @@ export class MessagePaginationStore {
           maxTimestamp: message.timestamp
         }
       };
-      console.log(`[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.toString().slice(0, 8)}...`);
+      debugLog('MessagePaginationStore', `[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.toString().slice(0, 8)}...`);
     }
 
     // Add message to current page
@@ -373,7 +374,7 @@ export class MessagePaginationStore {
     deletePromises.push(websocketService.sendLocalDBDelete(0n, metadataKey));
 
     await Promise.all(deletePromises);
-    console.log(`[P2P] Deleted ${metadata.latestPage + 1} pages + metadata for peer ${peerCid.toString().slice(0, 8)}...`);
+    debugLog('MessagePaginationStore', `[P2P] Deleted ${metadata.latestPage + 1} pages + metadata for peer ${peerCid.toString().slice(0, 8)}...`);
   }
 }
 

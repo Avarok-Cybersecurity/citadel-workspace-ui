@@ -16,6 +16,7 @@ import { getSelectedUser } from './tab-context';
 import { getDefaultSecuritySettings } from './security-utils';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 export interface PendingPeerRequest {
   id: string;              // UUID for this request
@@ -98,16 +99,16 @@ class PeerRegistrationStore {
   public startPollLoop(): void {
     // Only leader tab should poll to prevent duplicate registration requests from multiple tabs
     if (!instanceManager.isLeader) {
-      console.log('PeerRegistrationStore: Poll loop not started (not leader tab)');
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Poll loop not started (not leader tab)');
       return;
     }
 
     if (this.pollIntervalId) {
-      console.log('PeerRegistrationStore: Poll loop already running');
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Poll loop already running');
       return;
     }
 
-    console.log('PeerRegistrationStore: Starting outgoing request poll loop (interval:', OUTGOING_POLL_INTERVAL_MS, 'ms)');
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Starting outgoing request poll loop (interval:', OUTGOING_POLL_INTERVAL_MS, 'ms)');
     this.pollIntervalId = setInterval(() => {
       this.pollAndResend().catch(err => {
         console.error('PeerRegistrationStore: Poll loop error:', err);
@@ -122,7 +123,7 @@ class PeerRegistrationStore {
     if (this.pollIntervalId) {
       clearInterval(this.pollIntervalId);
       this.pollIntervalId = null;
-      console.log('PeerRegistrationStore: Stopped poll loop');
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Stopped poll loop');
     }
   }
 
@@ -152,7 +153,7 @@ class PeerRegistrationStore {
       return;
     }
 
-    console.log('PeerRegistrationStore: Poll checking', requests.length, 'outgoing requests');
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Poll checking', requests.length, 'outgoing requests');
 
     let needsPersist = false;
     const toRemove: string[] = [];
@@ -161,7 +162,7 @@ class PeerRegistrationStore {
       // CRITICAL: Skip and remove if peer is already registered
       // This handles stale requests after ClaimSession/reconnection
       if (p2pRegistrationService.isPeerRegistered(request.toCid)) {
-        console.log(`PeerRegistrationStore: Removing stale request for ${request.peerUsername} (${request.toCid.toString().slice(0, 8)}...) - already registered`);
+        debugLog('PeerRegistrationStore', `PeerRegistrationStore: Removing stale request for ${request.peerUsername} (${request.toCid.toString().slice(0, 8)}...) - already registered`);
         toRemove.push(request.id);
         continue;
       }
@@ -176,7 +177,7 @@ class PeerRegistrationStore {
       const elapsed = now - request.timeLastSent;
 
       if (elapsed >= OUTGOING_RESEND_THRESHOLD_MS) {
-        console.log('PeerRegistrationStore: Resending request to', request.peerUsername, '(elapsed:', elapsed, 'ms)');
+        debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Resending request to', request.peerUsername, '(elapsed:', elapsed, 'ms)');
 
         try {
           await this.resendPeerRegister(request);
@@ -188,7 +189,7 @@ class PeerRegistrationStore {
           // an error if the request still exists in its queue (hasn't reached TTL)
           const errorMsg = error?.message || '';
           if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
-            console.log('PeerRegistrationStore: Request already exists in protocol queue, continuing');
+            debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Request already exists in protocol queue, continuing');
             // Still update timeLastSent so we don't spam
             request.timeLastSent = Date.now();
             needsPersist = true;
@@ -237,8 +238,8 @@ class PeerRegistrationStore {
       }
     };
 
-    await client.sendDirectToInternalService(registerRequest as any);
-    console.log('PeerRegistrationStore: Resent PeerRegister to', request.peerUsername);
+    await client.sendDirectToInternalService(registerRequest);
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Resent PeerRegister to', request.peerUsername);
   }
 
   /**
@@ -284,11 +285,11 @@ class PeerRegistrationStore {
     const currentCid = await this.getCurrentSessionCid();
     const allCount = this.pendingRequests.length;
     if (!currentCid) {
-      console.log(`[P2P] PeerRegistrationStore getPendingCount: no currentCid, returning allCount=${allCount}`);
+      debugLog('PeerRegistrationStore', `[P2P] PeerRegistrationStore getPendingCount: no currentCid, returning allCount=${allCount}`);
       return allCount;
     }
     const filteredCount = this.pendingRequests.filter(r => r.cid === currentCid).length;
-    console.log(`[P2P] PeerRegistrationStore getPendingCount: currentCid=${currentCid.toString()}, allCount=${allCount}, filteredCount=${filteredCount}`);
+    debugLog('PeerRegistrationStore', `[P2P] PeerRegistrationStore getPendingCount: currentCid=${currentCid.toString()}, allCount=${allCount}, filteredCount=${filteredCount}`);
     return filteredCount;
   }
 
@@ -349,7 +350,7 @@ class PeerRegistrationStore {
 
     // Avoid duplicates
     if (this.hasOutgoingRequestTo(request.toCid, request.fromCid)) {
-      console.log('PeerRegistrationStore: Duplicate outgoing request to', request.toCid);
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Duplicate outgoing request to', request.toCid);
       return;
     }
 
@@ -359,7 +360,7 @@ class PeerRegistrationStore {
     }
 
     this.outgoingRequests.push(request);
-    console.log('PeerRegistrationStore: Added outgoing request', request);
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Added outgoing request', request);
 
     await this.persistOutgoingToLocalDB();
     await this.emitOutgoingUpdate();
@@ -373,7 +374,7 @@ class PeerRegistrationStore {
     this.outgoingRequests = this.outgoingRequests.filter(r => r.id !== requestId);
 
     if (this.outgoingRequests.length !== before) {
-      console.log('PeerRegistrationStore: Removed outgoing request', requestId);
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Removed outgoing request', requestId);
       await this.persistOutgoingToLocalDB();
       await this.emitOutgoingUpdate();
     }
@@ -393,7 +394,7 @@ class PeerRegistrationStore {
     }
 
     if (this.outgoingRequests.length !== before) {
-      console.log('PeerRegistrationStore: Removed outgoing request to peer', peerCid.toString());
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Removed outgoing request to peer', peerCid.toString());
       await this.persistOutgoingToLocalDB();
       await this.emitOutgoingUpdate();
     }
@@ -408,7 +409,7 @@ class PeerRegistrationStore {
     peer_cid: bigint;
     peer_username?: string;
   }): Promise<void> {
-    console.log('[P2P] [PeerRegistrationStore] handleIncomingRequest ENTERED with:', {
+    debugLog('PeerRegistrationStore', '[P2P] [PeerRegistrationStore] handleIncomingRequest ENTERED with:', {
       cid: notification.cid?.toString(),
       peer_cid: notification.peer_cid?.toString(),
       peer_username: notification.peer_username
@@ -429,13 +430,13 @@ class PeerRegistrationStore {
 
     // Ignore notifications where sender = target (shouldn't happen but safety check)
     if (peerCid === notificationTargetCid) {
-      console.log('PeerRegistrationStore: Ignoring self-notification');
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Ignoring self-notification');
       return;
     }
 
     // Check for duplicate (same peer sending to same target)
     if (this.hasRequestFromPeer(peerCid, notificationTargetCid)) {
-      console.log('PeerRegistrationStore: Duplicate request from peer', peerCid.toString(), 'to', notificationTargetCid.toString());
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Duplicate request from peer', peerCid.toString(), 'to', notificationTargetCid.toString());
       return;
     }
 
@@ -445,14 +446,14 @@ class PeerRegistrationStore {
       peer_username: peerUsername,
       timestamp: (() => {
         const ts = Date.now();
-        console.log(`[PeerRegistrationStore] Creating request with timestamp ${ts} (${new Date(ts).toISOString()})`);
+        debugLog('PeerRegistrationStore', `[PeerRegistrationStore] Creating request with timestamp ${ts} (${new Date(ts).toISOString()})`);
         return ts;
       })(),
       cid: notificationTargetCid,
     };
 
     this.pendingRequests.push(request);
-    console.log('[P2P] PeerRegistrationStore: Added pending request', request);
+    debugLog('PeerRegistrationStore', '[P2P] PeerRegistrationStore: Added pending request', request);
 
     // Persist to LocalDB
     await this.persistToLocalDB();
@@ -546,7 +547,7 @@ class PeerRegistrationStore {
     };
 
     const targetNormalized = normalizeCid(targetPeerCid);
-    console.log('PeerRegistrationStore: acceptRequest waiting for response', {
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: acceptRequest waiting for response', {
       registerRequestId,
       targetPeerCid,
       targetNormalized
@@ -590,7 +591,7 @@ class PeerRegistrationStore {
 
         // Debug logging for troubleshooting
         if (message.PeerRegisterSuccess || message.PeerConnectSuccess || message.PeerConnectNotification) {
-          console.log('PeerRegistrationStore: Checking response match', {
+          debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Checking response match', {
             messageType: message.PeerRegisterSuccess ? 'PeerRegisterSuccess' :
                         message.PeerConnectSuccess ? 'PeerConnectSuccess' : 'PeerConnectNotification',
             responsePeerCid,
@@ -609,7 +610,7 @@ class PeerRegistrationStore {
         if (matchesByRequestId || matchesByPeerCid || matchesByCid || isOurNotification) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          console.log('PeerRegistrationStore: Registration succeeded', {
+          debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Registration succeeded', {
             matchesByRequestId,
             matchesByPeerCid,
             matchesByCid,
@@ -634,7 +635,7 @@ class PeerRegistrationStore {
     // CRITICAL: Claim the session to ensure the backend processes this request in the correct session context.
     // In multi-tab scenarios, the WebSocket may be associated with a different session (e.g., user2's session).
     // Without claiming first, the backend would use the wrong CID and registration would fail.
-    console.log('PeerRegistrationStore: Claiming session', currentCid, 'before sending PeerRegister');
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Claiming session', currentCid, 'before sending PeerRegister');
     await websocketService.claimSession(currentCid);
 
     // Send the request
@@ -643,7 +644,7 @@ class PeerRegistrationStore {
 
     // Remove from pending list
     await this.removeRequest(requestId);
-    console.log('PeerRegistrationStore: Accepted request from', request.peer_username);
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Accepted request from', request.peer_username);
 
     // Trigger auto-connect to the newly registered peer
     p2pAutoConnectService.connectToPeer(request.peer_cid).catch((err) => {
@@ -661,7 +662,7 @@ class PeerRegistrationStore {
     }
 
     await this.removeRequest(requestId);
-    console.log('PeerRegistrationStore: Declined request from', request.peer_username);
+    debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Declined request from', request.peer_username);
   }
 
   /**
@@ -682,7 +683,7 @@ class PeerRegistrationStore {
     this.pendingRequests = this.pendingRequests.filter(r => r.peer_cid !== peerCid);
 
     if (this.pendingRequests.length !== before) {
-      console.log('PeerRegistrationStore: Removed requests from peer', peerCid.toString());
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Removed requests from peer', peerCid.toString());
       await this.persistToLocalDB();
       await this.emitUpdate();
     }
@@ -718,7 +719,7 @@ class PeerRegistrationStore {
         return;
       }
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           console.error('PeerRegistrationStore: Failed to persist:', error);
           this.pendingKVRequests.delete(requestId);
@@ -755,10 +756,10 @@ class PeerRegistrationStore {
         resolve: async (data: any) => {
           if (data && Array.isArray(data)) {
             this.pendingRequests = data;
-            console.log('PeerRegistrationStore: Loaded', data.length, 'pending requests');
+            debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Loaded', data.length, 'pending requests');
             // Create notifications for current session's pending requests
             const currentSessionRequests = await this.getPendingRequests();
-            console.log('PeerRegistrationStore: Creating notifications for', currentSessionRequests.length, 'requests in current session');
+            debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Creating notifications for', currentSessionRequests.length, 'requests in current session');
             for (const request of currentSessionRequests) {
               this.createNotificationForRequest(request);
             }
@@ -780,7 +781,7 @@ class PeerRegistrationStore {
         return;
       }
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           console.warn('PeerRegistrationStore: Failed to send load request:', error);
           this.pendingKVRequests.delete(requestId);
@@ -827,7 +828,7 @@ class PeerRegistrationStore {
         return;
       }
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           console.error('PeerRegistrationStore: Failed to persist outgoing:', error);
           this.pendingKVRequests.delete(requestId);
@@ -870,7 +871,7 @@ class PeerRegistrationStore {
               console.warn(`PeerRegistrationStore: Filtered out ${invalidCount} invalid outgoing requests (missing toCid or fromCid)`);
             }
             this.outgoingRequests = validRequests;
-            console.log('PeerRegistrationStore: Loaded', validRequests.length, 'valid outgoing requests');
+            debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Loaded', validRequests.length, 'valid outgoing requests');
             await this.emitOutgoingUpdate();
           }
           resolve(undefined);
@@ -889,7 +890,7 @@ class PeerRegistrationStore {
         return;
       }
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           console.warn('PeerRegistrationStore: Failed to send outgoing load request:', error);
           this.pendingKVRequests.delete(requestId);
@@ -912,7 +913,7 @@ class PeerRegistrationStore {
   private setupEventListeners(): void {
     // Listen for session switches to refresh notifications
     eventEmitter.on('session-selected', () => {
-      console.log('PeerRegistrationStore: Session switched, refreshing notifications');
+      debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Session switched, refreshing notifications');
       // Delay slightly to ensure connectionManager has updated
       setTimeout(() => {
         runAsyncSetup(async () => {
@@ -924,7 +925,7 @@ class PeerRegistrationStore {
     // Start/stop poll loop based on leader status
     // Only leader tab should poll to prevent duplicate registration requests from multiple tabs
     eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
-      console.log(`PeerRegistrationStore: Leader changed - isLeader: ${data.isLeader}`);
+      debugLog('PeerRegistrationStore', `PeerRegistrationStore: Leader changed - isLeader: ${data.isLeader}`);
       if (data.isLeader) {
         // Became leader, start poll loop if initialized
         if (this.isInitialized) {
@@ -981,7 +982,7 @@ class PeerRegistrationStore {
       // Handle PeerRegisterSuccess - remove from outgoing requests
       if (message.PeerRegisterSuccess) {
         const { request_id, cid, peer_cid } = message.PeerRegisterSuccess;
-        console.log('PeerRegistrationStore: PeerRegisterSuccess received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString() });
+        debugLog('PeerRegistrationStore', 'PeerRegistrationStore: PeerRegisterSuccess received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString() });
 
         // Remove from outgoing requests by request_id or peer_cid
         const peerCidBigInt: bigint | undefined = peer_cid;
@@ -993,7 +994,7 @@ class PeerRegistrationStore {
       // Handle PeerRegisterFailure - remove from outgoing requests
       if (message.PeerRegisterFailure) {
         const { request_id, cid, peer_cid, message: errorMsg } = message.PeerRegisterFailure;
-        console.log('PeerRegistrationStore: PeerRegisterFailure received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString(), errorMsg });
+        debugLog('PeerRegistrationStore', 'PeerRegistrationStore: PeerRegisterFailure received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString(), errorMsg });
 
         // Remove from outgoing requests by peer_cid
         const peerCidBigInt: bigint | undefined = peer_cid;
@@ -1006,7 +1007,7 @@ class PeerRegistrationStore {
       if (message.PeerConnectSuccess) {
         const peer_cid: bigint | undefined = message.PeerConnectSuccess.peer_cid;
         if (peer_cid !== undefined) {
-          console.log(`[PeerRegistrationStore] Clearing requests for connected peer ${peer_cid.toString()}`);
+          debugLog('PeerRegistrationStore', `[PeerRegistrationStore] Clearing requests for connected peer ${peer_cid.toString()}`);
 
           // Clear both incoming and outgoing requests
           this.removeRequestByPeerCid(peer_cid).catch(console.error);
@@ -1025,9 +1026,9 @@ class PeerRegistrationStore {
   private async emitUpdate(): Promise<void> {
     const currentCid = await this.getCurrentSessionCid();
     const currentSessionRequests = await this.getPendingRequests();
-    console.log(`[P2P] PeerRegistrationStore emitUpdate: currentCid=${currentCid?.toString()}, pendingRequests.length=${this.pendingRequests.length}, filteredCount=${currentSessionRequests.length}`);
-    console.log(`[P2P] PeerRegistrationStore emitUpdate: pending request CIDs: [${this.pendingRequests.map(r => r.cid.toString()).join(', ')}]`);
-    console.log(`[P2P] PeerRegistrationStore emitting peer-requests:updated event with count=${currentSessionRequests.length}`);
+    debugLog('PeerRegistrationStore', `[P2P] PeerRegistrationStore emitUpdate: currentCid=${currentCid?.toString()}, pendingRequests.length=${this.pendingRequests.length}, filteredCount=${currentSessionRequests.length}`);
+    debugLog('PeerRegistrationStore', `[P2P] PeerRegistrationStore emitUpdate: pending request CIDs: [${this.pendingRequests.map(r => r.cid.toString()).join(', ')}]`);
+    debugLog('PeerRegistrationStore', `[P2P] PeerRegistrationStore emitting peer-requests:updated event with count=${currentSessionRequests.length}`);
     eventEmitter.emit('peer-requests:updated', {
       requests: currentSessionRequests,
       count: currentSessionRequests.length

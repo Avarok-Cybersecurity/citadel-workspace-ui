@@ -155,7 +155,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     setIsLoading(true);
     try {
       // Update the user's role via backend
-      await WorkspaceService.updateMemberRole(userId, selectedRole as any);
+      await WorkspaceService.updateMemberRole(userId, selectedRole);
 
       toastSuccess(toast, "Permissions Updated", `User role updated to ${selectedRole}.`);
 

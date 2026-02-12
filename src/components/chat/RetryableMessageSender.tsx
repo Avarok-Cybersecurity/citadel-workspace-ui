@@ -7,6 +7,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Alert, AlertDescription } from '../ui/alert';
 import { MessagingService } from '../../lib/messaging-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface RetryableMessageSenderProps {
   recipientId: string;
@@ -49,7 +50,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
         inputRef.current?.focus();
       },
       onRetry: (attempt) => {
-        console.info(`Retrying message send (attempt ${attempt})...`);
+        debugLog('RetryableMessageSender', `Retrying message send (attempt ${attempt})...`);
       }
     }
   );

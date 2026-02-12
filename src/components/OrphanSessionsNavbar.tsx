@@ -16,6 +16,7 @@ import { notificationService, type UnreadCountChange } from "@/lib/notification-
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
 import { eventEmitter } from "@/lib/event-emitter";
+import { debugLog } from '@/lib/debug-config';
 
 interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -88,7 +89,7 @@ export const OrphanSessionsNavbar = () => {
       sessionsWithWorkspace.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
 
       setSessions(sessionsWithWorkspace);
-      console.log('OrphanSessionsNavbar: Loaded active sessions:', sessionsWithWorkspace);
+      debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Loaded active sessions:', sessionsWithWorkspace);
 
       // CRITICAL: Each tab should only manage its OWN session's WASM connection
       // Do NOT add ALL sessions - that causes Tab 2 to open messenger handles for Tab 1's CID
@@ -101,12 +102,12 @@ export const OrphanSessionsNavbar = () => {
         if (selectedSession && selectedSession.cid !== undefined) {
           try {
             await wasmConnectionManager.addSession(selectedSession.cid.toString());
-            console.log('OrphanSessionsNavbar: Added THIS TAB\'s session to WASM manager:', selectedSession.cid.toString());
+            debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Added THIS TAB\'s session to WASM manager:', selectedSession.cid.toString());
 
             // Sync peer connections only for this tab's session
             if (selectedSession.peer_connections) {
               p2pRegistrationService.syncPeerConnectionsFromSession(selectedSession.peer_connections)
-                .then(() => console.log('OrphanSessionsNavbar: Synced peer connections for session:', selectedSession.cid?.toString()))
+                .then(() => debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Synced peer connections for session:', selectedSession.cid?.toString()))
                 .catch(err => console.error('OrphanSessionsNavbar: Failed to sync peer connections:', selectedSession.cid?.toString(), err));
             }
           } catch (err) {
@@ -114,7 +115,7 @@ export const OrphanSessionsNavbar = () => {
           }
         }
       } else {
-        console.log('OrphanSessionsNavbar: No tab selection - user must explicitly choose a session');
+        debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: No tab selection - user must explicitly choose a session');
         // Do NOT automatically add any sessions - each tab must explicitly select its session
       }
     } catch (error) {
@@ -134,7 +135,7 @@ export const OrphanSessionsNavbar = () => {
   // Handle WebSocket connection success to reload sessions
   // This handles the case where component mounts before WebSocket is ready
   const handleWsConnectionSuccess = useCallback(async () => {
-    console.log('OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
+    debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: WebSocket connected, reloading sessions...');
     await loadActiveSessions();
   }, []);
 
@@ -151,7 +152,7 @@ export const OrphanSessionsNavbar = () => {
 
   const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
     try {
-      console.log('OrphanSessionsNavbar: Navigating to workspace:', session.workspaceName);
+      debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Navigating to workspace:', session.workspaceName);
 
       // Update last accessed time for ordering
       const lastAccessedKey = `session_last_accessed_${session.cid}`;
@@ -169,10 +170,10 @@ export const OrphanSessionsNavbar = () => {
       // In that case, we can skip the claim and just navigate directly
       try {
         await websocketService.claimSession(session.cid, true);
-        console.log('OrphanSessionsNavbar: Session claimed successfully (was orphaned)');
+        debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Session claimed successfully (was orphaned)');
       } catch (claimError: any) {
         if (claimError?.message?.includes('not orphaned')) {
-          console.log('OrphanSessionsNavbar: Session is still active (not orphaned), no claim needed');
+          debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Session is still active (not orphaned), no claim needed');
         } else {
           // Re-throw if it's a different error
           throw claimError;
@@ -195,7 +196,7 @@ export const OrphanSessionsNavbar = () => {
       // This is the "Instance = CID" pattern from the new architecture
       instanceManager.setCid(session.cid);
       instanceChannel.announcePresence();
-      console.log('OrphanSessionsNavbar: Set instanceManager CID to', session.cid);
+      debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Set instanceManager CID to', session.cid);
 
       // Set the connection ID in WorkspaceService (the session is already connected/claimed)
       WorkspaceService.setConnectionId(session.cid);
@@ -203,7 +204,7 @@ export const OrphanSessionsNavbar = () => {
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {
         await wasmConnectionManager.start(session.cid!.toString());
-        console.log('OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid?.toString());
+        debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid?.toString());
       } catch (error) {
         console.error('OrphanSessionsNavbar: Failed to start WASM connection manager:', error);
         // Don't block navigation - P2P messaging may not be immediately needed
@@ -217,7 +218,7 @@ export const OrphanSessionsNavbar = () => {
         serverAddress: session.server_address,
         activationType: 'claim' as const
       });
-      console.log('OrphanSessionsNavbar: Emitted session:activated for ClaimSession');
+      debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Emitted session:activated for ClaimSession');
 
       // Trigger workspace loading
       await WorkspaceService.loadWorkspace();
@@ -266,7 +267,7 @@ export const OrphanSessionsNavbar = () => {
     });
 
     try {
-      console.log(`OrphanSessionsNavbar: ${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} session:`, cid);
+      debugLog('OrphanSessionsNavbar', `OrphanSessionsNavbar: ${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} session:`, cid);
 
       // Mark as user-disconnected BEFORE disconnecting to prevent auto-reconnect race
       // This respects user intent - if they explicitly disconnect, don't auto-reconnect
@@ -310,7 +311,7 @@ export const OrphanSessionsNavbar = () => {
       // Show ready status
       setLoadingModal(prev => ({ ...prev, status: "ready" }));
 
-      console.log(`OrphanSessionsNavbar: Successfully ${action === 'deregister' ? 'deregistered' : 'disconnected'}`);
+      debugLog('OrphanSessionsNavbar', `OrphanSessionsNavbar: Successfully ${action === 'deregister' ? 'deregistered' : 'disconnected'}`);
     } catch (error) {
       console.error(`OrphanSessionsNavbar: Failed to ${action}:`, error);
       setLoadingModal(prev => ({

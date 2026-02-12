@@ -31,6 +31,7 @@ import { CheckStateManager } from './checkstate-manager';
 import { MessageHandler } from './message-handler';
 import { MessageSender } from './message-sender';
 import { ConversationManager } from './conversation-manager';
+import { debugLog } from '@/lib/debug-config';
 
 const CHECKSTATE_TIMEOUT = 3000;
 
@@ -136,7 +137,7 @@ export class P2PMessengerManager extends EventListenerManager {
     // WebSocket connection
     this.listen('on-ws-connection-success', async () => {
       if (this.cachedMessagesLoaded) return;
-      console.log('[P2P] WebSocket connected, loading cached messages...');
+      debugLog('P2pMessengerManager', '[P2P] WebSocket connected, loading cached messages...');
       await this.loadCachedMessages();
       if (this.cachedMessagesLoaded) {
         this.isReady = true;

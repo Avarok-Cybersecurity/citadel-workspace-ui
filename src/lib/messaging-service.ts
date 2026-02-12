@@ -3,6 +3,7 @@ import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection';
+import { debugLog } from '@/lib/debug-config';
 
 export interface MessageRequest {
   cid: string;
@@ -175,7 +176,7 @@ export class MessagingService {
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
     try {
       // For now, just log this action
-      console.info(`Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
+      debugLog('MessagingService', `Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
     } catch (error) {
       console.error('Error sending typing indicator:', error);
     }

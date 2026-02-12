@@ -158,7 +158,7 @@ export function GroupChatPage() {
   );
 
   const handleDeleteGroup = useCallback(async () => {
-    // TODO: Implement group deletion via backend
+    // @human-review Group deletion requires backend GroupEnd API integration
     navigate('/workspace');
   }, [navigate]);
 
@@ -170,8 +170,8 @@ export function GroupChatPage() {
       const connectionInfo = (await import("./../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
       if (!cid) throw new Error('Not connected');
 
-      // TODO: Send via backend GroupMessage API
-      // For now, add locally as demo
+      // @human-review Group messaging requires backend GroupMessage API integration
+      // Currently adds messages locally only
       const newMessage: GroupMessage = {
         id: crypto.randomUUID(),
         groupId,

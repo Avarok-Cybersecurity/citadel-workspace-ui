@@ -214,7 +214,7 @@ export function useP2PMessages({
       clearTimeout(refreshTimeout);
       messenger.stopTypingPolling(peerCid);
     };
-  }, [peerCid, activeTabIdRef, onUnreadMessage]);
+  }, [peerCid, activeTabIdRef, onUnreadMessage, messenger]);
 
   const loadOlderMessages = useCallback(async () => {
     if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) return;
@@ -250,7 +250,7 @@ export function useP2PMessages({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, currentPage, hasMorePages, peerCid, scrollRef]);
+  }, [isLoadingMore, currentPage, hasMorePages, peerCid, scrollRef, messenger]);
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
@@ -266,7 +266,7 @@ export function useP2PMessages({
     } catch (error) {
       console.error('Failed to retry message:', error);
     }
-  }, [peerCid]);
+  }, [peerCid, messenger]);
 
   return {
     messages,

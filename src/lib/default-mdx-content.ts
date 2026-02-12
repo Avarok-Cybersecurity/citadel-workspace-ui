@@ -1,3 +1,4 @@
+import { debugLog } from '@/lib/debug-config';
 export const getDefaultNodeContent = (nodeName: string) => `# Welcome to ${nodeName} 🏢
 
 Welcome to your new office workspace! This is a **powerful MDX editor** that supports rich content formatting, interactive components, and collaborative editing.
@@ -30,7 +31,7 @@ interface TeamMember {
 }
 
 const welcomeNewMember = (member: TeamMember) => {
-  console.log(\`Welcome \${member.name} to the team!\`);
+  debugLog('DefaultMdxContent', \`Welcome \${member.name} to the team!\`);
 };
 \`\`\`
 
@@ -199,7 +200,7 @@ const greeting = (name) => {
   return \`Hello, \${name}! Welcome to MDX.\`;
 };
 
-console.log(greeting('Developer'));
+debugLog('DefaultMdxContent', greeting('Developer'));
 \`\`\`
 
 ### Python

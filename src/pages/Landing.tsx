@@ -17,9 +17,13 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
+import { useToast } from '@/hooks/use-toast';
+import { toastError } from '@/lib/toast-helpers';
 
 export const Landing = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
   const [orphanSessionCount, setOrphanSessionCount] = useState(0);
@@ -41,17 +45,17 @@ export const Landing = () => {
         const activeSessions = await connectionManager.getActiveSessions();
 
         if (activeSessions && activeSessions.length > 0) {
-          console.log('Landing: Found orphan sessions:', activeSessions.length);
+          debugLog('Landing', 'Landing: Found orphan sessions:', activeSessions.length);
           setHasOrphanSessions(true);
           setOrphanSessionCount(activeSessions.length);
           // Note: Don't auto-navigate - let user choose from the navbar
         } else {
-          console.log('Landing: No orphan sessions found');
+          debugLog('Landing', 'Landing: No orphan sessions found');
           setHasOrphanSessions(false);
           setOrphanSessionCount(0);
         }
       } catch (error) {
-        console.log('Landing: Error checking orphan sessions:', error);
+        debugLog('Landing', 'Landing: Error checking orphan sessions:', error);
         setHasOrphanSessions(false);
         setOrphanSessionCount(0);
       }
@@ -64,13 +68,12 @@ export const Landing = () => {
   const checkForServers = useCallback(async () => {
     try {
       // Using "0" as a valid u64 string representation for the landing page
-      const response = await listKnownServers({ cid: "0" });
-      // TODO: do we need this??
+      await listKnownServers({ cid: "0" });
     } catch (error: any) {
       // Silently ignore initialization errors on the landing page
       // The WebSocket service will be initialized when needed
       if (error.message?.includes('WASM client not initialized')) {
-        console.log('WebSocket not yet initialized, skipping known servers check');
+        debugLog('Landing', 'WebSocket not yet initialized, skipping known servers check');
       } else {
         console.error("Error checking for known servers:", error);
         const errorMessage = error.message || error.toString() || "Unknown error";
@@ -93,18 +96,18 @@ export const Landing = () => {
   };
   const handleSecurityBack = () => setCurrentStep('server');
   const handleJoinNext = async (cid: string) => {
-    console.info(`[Landing] handleJoinNext called with cid: ${cid}`);
+    debugLog('Landing', `[Landing] handleJoinNext called with cid: ${cid}`);
     try {
       WorkspaceService.setConnectionId(BigInt(cid));
       // Trigger loading - await to ensure operations complete before navigation
-      console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
+      debugLog('Landing', `[Landing] Triggering workspace load for cid: ${cid}...`);
       await WorkspaceService.loadWorkspace();
       await WorkspaceService.listNodes(); // Also trigger office loading
-      console.info('[Landing] Navigating to /office...');
+      debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
       console.error("[Landing] Error during post-registration setup:", error);
-      // TODO: Show an error message to the user
+      toastError(toast, "Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after registration");
     }
   };
   const handleJoinBack = () => setCurrentStep('security');
@@ -117,18 +120,18 @@ export const Landing = () => {
     setCurrentStep('login');
   };
   const handleLoginNext = async (cid: string) => {
-    console.info(`[Landing] handleLoginNext called with cid: ${cid}`);
+    debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
       WorkspaceService.setConnectionId(BigInt(cid));
       // Trigger loading - await to ensure operations complete before navigation
-      console.info(`[Landing] Triggering workspace load for cid: ${cid}...`);
+      debugLog('Landing', `[Landing] Triggering workspace load for cid: ${cid}...`);
       await WorkspaceService.loadWorkspace();
       await WorkspaceService.listNodes();
-      console.info('[Landing] Navigating to /office...');
+      debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
       console.error("[Landing] Error during post-login setup:", error);
-      // TODO: Show an error message to the user
+      toastError(toast, "Login Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after login");
     }
   };
   const goToTestPage = () => navigate('/test');

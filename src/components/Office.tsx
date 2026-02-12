@@ -5,6 +5,7 @@ import { AppLayout } from "./layout/AppLayout";
 import { WorkspaceView } from "./workspace/WorkspaceView";
 import { FileManagerContent } from "./file-manager/FileManagerContent";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { debugLog } from '@/lib/debug-config';
 
 export const Office = () => {
   const location = useLocation();
@@ -25,7 +26,7 @@ export const Office = () => {
     const defaultNode = Object.values(state.nodes).find(n => n.is_default);
     if (defaultNode) {
       hasNavigatedToDefault.current = true;
-      console.info(`[Office] Navigating to default node: ${defaultNode.name} (${defaultNode.id})`);
+      debugLog('Office', `[Office] Navigating to default node: ${defaultNode.name} (${defaultNode.id})`);
       const newParams = new URLSearchParams(location.search);
       newParams.set("nodeId", defaultNode.id);
       navigate(`/workspace?${newParams.toString()}`, { replace: true });
