@@ -90,7 +90,7 @@ export class WorkspaceService {
               name: req.name,
               description: req.description,
               workspace_master_password: req.workspace_master_password,
-              metadata: req.metadata
+              metadata: req.metadata ?? null
             }
           };
         } else if ('UpdateWorkspace' in tsRequest) {
@@ -98,10 +98,10 @@ export class WorkspaceService {
           request = {
             UpdateWorkspace: {
               workspace_id: req.workspace_id ?? null,
-              name: req.name,
-              description: req.description,
+              name: req.name ?? null,
+              description: req.description ?? null,
               workspace_master_password: req.workspace_master_password,
-              metadata: req.metadata
+              metadata: req.metadata ?? null
             }
           };
         } else {
