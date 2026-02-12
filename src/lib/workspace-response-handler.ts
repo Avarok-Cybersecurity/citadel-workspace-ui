@@ -3,6 +3,7 @@ import { WorkspaceProtocolPayloadTS, WorkspaceProtocolResponseTS } from '@/types
 import { websocketService } from './websocket-service';
 import { debugLog, errorLog } from './debug-config';
 import { groupMessagingManager } from './group-messaging-manager';
+import type { GroupMessage as LocalGroupMessage } from '@/types/workspace-entities';
 import { bytesToString } from './utils/encoding-utils';
 import { isVariant } from 'citadel-workspace-client-ts';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
@@ -27,13 +28,13 @@ export class WorkspaceResponseHandler {
 
   private setupMessageHandler(): void {
     // Listen for WebSocket messages
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+     
     eventEmitter.on('websocket-message', (message: any) => {
       this.handleMessage(message);
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+   
   private handleMessage(message: any): void {
     // Handle MessageNotification responses (server sends this, not MessageDelivered)
     if (message.MessageNotification) {
@@ -139,25 +140,27 @@ export class WorkspaceResponseHandler {
     }
 
     // Handle different response types based on the Rust enum structure
-    if (isVariant(response, 'CreateWorkspace')) {
+    // TYPE-GAP: CreateWorkspace variant exists at runtime but not in generated type
+    if ('CreateWorkspace' in response) {
       // Handle workspace creation response
-      debugLog('workspace', 'CreateWorkspace response', response.CreateWorkspace);
+      const createWs = (response as Record<string, Record<string, unknown>>).CreateWorkspace;
+      debugLog('workspace', 'CreateWorkspace response', createWs);
       eventEmitter.emit('workspace:created', {
         workspace: {
-          id: response.CreateWorkspace.id,
-          name: response.CreateWorkspace.name,
-          description: response.CreateWorkspace.description,
-          metadata: response.CreateWorkspace.metadata || []
+          id: createWs.id,
+          name: createWs.name,
+          description: createWs.description,
+          metadata: createWs.metadata || []
         },
         connection: connectionInfo
       });
       // Also emit loaded event since the workspace is now available
       eventEmitter.emit('workspace:loaded', {
         workspace: {
-          id: response.CreateWorkspace.id,
-          name: response.CreateWorkspace.name,
-          description: response.CreateWorkspace.description,
-          metadata: response.CreateWorkspace.metadata || []
+          id: createWs.id,
+          name: createWs.name,
+          description: createWs.description,
+          metadata: createWs.metadata || []
         },
         connection: connectionInfo
       });
@@ -191,30 +194,36 @@ export class WorkspaceResponseHandler {
         member: response.Member,
         connection: connectionInfo
       });
-    } else if (isVariant(response, 'AddMember')) {
+    // TYPE-GAP: AddMember variant exists at runtime but not in generated type
+    } else if ('AddMember' in response) {
       // Handle add member response
-      debugLog('workspace', 'AddMember response', response.AddMember);
+      const addMember = (response as Record<string, Record<string, unknown>>).AddMember;
+      debugLog('workspace', 'AddMember response', addMember);
       eventEmitter.emit('member:added', {
-        member: response.AddMember,
+        member: addMember,
         connection: connectionInfo
       });
       // Trigger members reload
       eventEmitter.emit('members:reload', connectionInfo);
-    } else if (isVariant(response, 'UpdateMemberRole')) {
+    // TYPE-GAP: UpdateMemberRole variant exists at runtime but not in generated type
+    } else if ('UpdateMemberRole' in response) {
       // Handle update member role response
-      debugLog('workspace', 'UpdateMemberRole response', response.UpdateMemberRole);
+      const updateRole = (response as Record<string, Record<string, unknown>>).UpdateMemberRole;
+      debugLog('workspace', 'UpdateMemberRole response', updateRole);
       eventEmitter.emit('member:role-updated', {
-        userId: response.UpdateMemberRole.user_id,
-        role: response.UpdateMemberRole.role,
+        userId: updateRole.user_id,
+        role: updateRole.role,
         connection: connectionInfo
       });
       // Trigger members reload
       eventEmitter.emit('members:reload', connectionInfo);
-    } else if (isVariant(response, 'RemoveMember')) {
+    // TYPE-GAP: RemoveMember variant exists at runtime but not in generated type
+    } else if ('RemoveMember' in response) {
       // Handle remove member response
-      debugLog('workspace', 'RemoveMember response', response.RemoveMember);
+      const removeMember = (response as Record<string, Record<string, unknown>>).RemoveMember;
+      debugLog('workspace', 'RemoveMember response', removeMember);
       eventEmitter.emit('member:removed', {
-        userId: response.RemoveMember.user_id,
+        userId: removeMember.user_id,
         connection: connectionInfo
       });
       // Trigger members reload
@@ -235,13 +244,15 @@ export class WorkspaceResponseHandler {
         connection: connectionInfo
       });
       eventEmitter.emit('workspace:raw-response', response);
-    } else if (isVariant(response, 'WorkspaceError')) {
+    // TYPE-GAP: WorkspaceError variant exists at runtime but not in generated type
+    } else if ('WorkspaceError' in response) {
       // Handle workspace-specific errors
-      if (response.WorkspaceError === 'WorkspaceNotInitialized') {
+      const wsError = (response as Record<string, unknown>).WorkspaceError;
+      if (wsError === 'WorkspaceNotInitialized') {
         eventEmitter.emit('workspace:not-initialized', connectionInfo);
       } else {
         eventEmitter.emit('workspace:error', {
-          error: response.WorkspaceError,
+          error: wsError,
           connection: connectionInfo
         });
       }
@@ -250,7 +261,8 @@ export class WorkspaceResponseHandler {
       // Handle new group message notification
       const { group_id, message } = response.GroupMessageNotification;
       debugLog('workspace', 'GroupMessageNotification received', { group_id, message });
-      groupMessagingManager.handleNewMessage(group_id, message);
+      // Cast generated GroupMessage to local GroupMessage (structurally identical at runtime)
+      groupMessagingManager.handleNewMessage(group_id, message as unknown as LocalGroupMessage);
       eventEmitter.emit('group:message:new', {
         groupId: group_id,
         message,
@@ -260,7 +272,8 @@ export class WorkspaceResponseHandler {
       // Handle paginated messages response
       const { group_id, messages, has_more } = response.GroupMessages;
       debugLog('workspace', 'GroupMessages received', { group_id, count: messages.length, has_more });
-      groupMessagingManager.handleMessagesLoaded(group_id, messages, has_more);
+      // Cast generated GroupMessage[] to local GroupMessage[] (structurally identical at runtime)
+      groupMessagingManager.handleMessagesLoaded(group_id, messages as unknown as LocalGroupMessage[], has_more);
       eventEmitter.emit('group:messages:loaded', {
         groupId: group_id,
         messages,

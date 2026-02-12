@@ -163,17 +163,19 @@ export class BroadcastChannelService extends PollingService {
       }
 
       // Extract request_id from various response types
-      const requestId = message.data.request_id ||
-                        message.data.ListAllPeersResponse?.request_id ||
-                        message.data.ListRegisteredPeersResponse?.request_id ||
-                        message.data.GetSessionsResponse?.request_id ||
-                        message.data.LocalDBGetKVSuccess?.request_id ||
-                        message.data.LocalDBSetKVSuccess?.request_id;
+      // Cast to access properties - data is typed as unknown for flexibility
+      const d = message.data as Record<string, Record<string, unknown> | unknown>;
+      const requestId = d.request_id ||
+                        (d.ListAllPeersResponse as Record<string, unknown> | undefined)?.request_id ||
+                        (d.ListRegisteredPeersResponse as Record<string, unknown> | undefined)?.request_id ||
+                        (d.GetSessionsResponse as Record<string, unknown> | undefined)?.request_id ||
+                        (d.LocalDBGetKVSuccess as Record<string, unknown> | undefined)?.request_id ||
+                        (d.LocalDBSetKVSuccess as Record<string, unknown> | undefined)?.request_id;
 
       // Forward if:
       // 1. No request_id (broadcast to all) OR
       // 2. Response CID matches this tab's CID
-      if (!requestId || (tabCid && this.isResponseForThisCid(requestId, tabCid))) {
+      if (!requestId || (tabCid && this.isResponseForThisCid(requestId as string, tabCid))) {
         debugLog('BroadcastChannelService', 'BroadcastChannelService: Forwarding workspace response to event system');
         eventEmitter.emit('websocket-message', message.data);
         eventEmitter.emit('broadcast-workspace-response', message.data);
@@ -184,16 +186,17 @@ export class BroadcastChannelService extends PollingService {
 
   private handleRegisterRequest(message: BroadcastMessage): void {
     // All tabs track which CID owns which request (including leader)
-    if (message.data && message.data.requestId && message.data.cid) {
-      this.pendingRequests.set(message.data.requestId, {
-        cid: message.data.cid,
+    const data = message.data as Record<string, unknown> | null;
+    if (data && data.requestId && data.cid) {
+      this.pendingRequests.set(data.requestId as string, {
+        cid: data.cid as bigint,
         insertTime: Date.now()
       });
     }
   }
 
   private handleLeaderElection(message: BroadcastMessage): void {
-    const electionData = message.data as LeaderElectionMessage;
+    const electionData = message.data as unknown as LeaderElectionMessage;
     
     if (message.isLeader) {
       // Another tab is claiming leadership
@@ -237,7 +240,9 @@ export class BroadcastChannelService extends PollingService {
     });
 
     if (!this.isLeader && message.data) {
-      const { notification, messageBytes } = message.data;
+      const p2pData = message.data as Record<string, unknown>;
+      const notification = p2pData.notification as Record<string, unknown> | undefined;
+      const messageBytes = p2pData.messageBytes;
       if (!notification) {
         debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification: No notification in data');
         return;
@@ -261,7 +266,7 @@ export class BroadcastChannelService extends PollingService {
         peerCid,
         tabCidStr,
         hasMessageBytes: !!messageBytes,
-        messageLength: notification.message?.length || 0,
+        messageLength: Array.isArray(notification.message) ? notification.message.length : 0,
         isMatch: tabCidStr && notificationCid === tabCidStr
       });
 
@@ -423,7 +428,7 @@ export class BroadcastChannelService extends PollingService {
    * Called when leader receives a message meant for a different session.
    * BroadcastChannel uses structured clone which supports Uint8Array directly.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- notification is untyped MessageNotification from WASM; accessed via optional chaining
+   
   public broadcastP2PNotification(data: { notification: any; messageBytes: Uint8Array }): void {
     // Only leader broadcasts P2P notifications to followers
     if (!this.isLeader) {

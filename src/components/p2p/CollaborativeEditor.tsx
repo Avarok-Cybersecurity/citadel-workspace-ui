@@ -286,7 +286,7 @@ export function CollaborativeEditor({
       }),
       ...(provider ? [
         CollaborationCursor.configure({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- CollaborationCursorOptions.provider is typed as `any` in @tiptap/extension-collaboration-cursor
+           
           provider: provider as any,
           user: {
             name: currentUserName,

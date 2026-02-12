@@ -14,6 +14,7 @@ import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { p2pRegistrationService } from './p2p-registration-service';
 import { getSelectedUser } from './tab-context';
 import { getDefaultSecuritySettings } from './security-utils';
+import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
@@ -51,7 +52,8 @@ class PeerRegistrationStore {
   private static instance: PeerRegistrationStore;
   private pendingRequests: PendingPeerRequest[] = [];
   private outgoingRequests: OutgoingPeerRequest[] = [];
-  private pendingKVRequests = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+   
+  private pendingKVRequests = new Map<string, { resolve: (value?: any) => void; reject: (error: Error) => void }>();
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
@@ -238,7 +240,7 @@ class PeerRegistrationStore {
       }
     };
 
-    await client.sendDirectToInternalService(registerRequest);
+    await client.sendDirectToInternalService(registerRequest as unknown as InternalServiceRequest);
     debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Resent PeerRegister to', request.peerUsername);
   }
 

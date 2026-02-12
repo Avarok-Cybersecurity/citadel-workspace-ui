@@ -1,6 +1,7 @@
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
+import { UserRoleTS } from "@/types/workspace-protocol";
 import {
   EntityManagementModal,
   type FieldConfig,
@@ -63,7 +64,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
 
   const handleSubmit = async (formData: Record<string, string>) => {
     if (mode === "add") {
-      await WorkspaceService.addMember(formData.username, formData.role, domainId);
+      await WorkspaceService.addMember(formData.username, formData.role as UserRoleTS, domainId);
       toastSuccess(toast, "Member Added", `${formData.username} has been added to the ${location} as ${formData.role}`);
     } else if (mode === "edit" && member) {
       await WorkspaceService.updateMemberRole(member.id, formData.role);

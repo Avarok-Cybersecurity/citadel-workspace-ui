@@ -3,6 +3,6 @@
  * Replaces the `(async () => { ... })().catch(console.error)` pattern
  * with a named, greppable function call.
  */
-export function runAsyncSetup(fn: () => Promise<void>): void {
+export function runAsyncSetup(fn: () => Promise<unknown>): void {
   fn().catch(console.error);
 }

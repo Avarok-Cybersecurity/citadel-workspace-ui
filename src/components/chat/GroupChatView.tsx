@@ -213,7 +213,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           setMessages((prev) =>
             prev.map((m) =>
               m.id === event.messageId
-                ? { ...m, content: event.message?.content || m.content, edited_at: event.message?.edited_at }
+                ? { ...m, content: event.message?.content || m.content, edited_at: event.message?.edited_at ?? m.edited_at }
                 : m
             )
           );

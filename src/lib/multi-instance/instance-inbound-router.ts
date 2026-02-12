@@ -254,7 +254,8 @@ class InstanceInboundRouter {
   // These messages affect P2P connection state which ILM needs to query.
   // ILM runs on the leader and calls getPeersForSession() for ANY CID, so the leader's
   // connectedPeers Map must have entries for ALL sessions (not just the leader's own).
-  private static readonly LEADER_MUST_PROCESS_LOCALLY = new Set<ResponseType>([
+  // TYPE-GAP: 'PeerDisconnect' exists at runtime but not in generated ResponseType
+  private static readonly LEADER_MUST_PROCESS_LOCALLY = new Set<ResponseType | string>([
     'PeerConnectNotification',  // Affects connectedPeers[targetCid]
     'PeerConnectSuccess',       // Affects connectedPeers[initiatorCid]
     'PeerDisconnect',           // Removes from connectedPeers

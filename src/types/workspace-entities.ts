@@ -71,7 +71,7 @@ export interface GroupMessageReadBy {
   read_at: number;
 }
 
-// Group message interface (matches Rust GroupMessage)
+// Group message interface (matches Rust GroupMessage - generated type uses bigint for u64 fields)
 export interface GroupMessage {
   id: string;
   group_id: string;
@@ -79,10 +79,10 @@ export interface GroupMessage {
   sender_name: string;
   message_type: GroupMessageType;
   content: string;
-  timestamp: number;
-  reply_to?: string;
+  timestamp: bigint;
+  reply_to: string | null;
   reply_count: number;
   mentions: string[];
-  edited_at?: number;
+  edited_at: bigint | null;
   read_by?: GroupMessageReadBy[];  // Users who have read this message
 }

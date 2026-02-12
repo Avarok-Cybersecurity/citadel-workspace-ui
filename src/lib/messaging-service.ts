@@ -141,7 +141,7 @@ export class MessagingService {
       const failedMessage: Message = {
         ...pendingMessage,
         status: 'failed',
-        error: error.message || 'Failed to send message'
+        error: (error instanceof Error ? error.message : String(error)) || 'Failed to send message'
       };
 
       return failedMessage;

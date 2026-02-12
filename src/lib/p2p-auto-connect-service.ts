@@ -181,7 +181,7 @@ export class P2PAutoConnectService {
     // Listen for connectedPeers updates from leader (for follower tabs)
     // This allows follower tabs to have synchronized connectedPeers state
     // so WASM ILM queries work correctly on all tabs
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- State sync payload is polymorphic based on type field
+     
     eventEmitter.on('broadcast-state-sync', (data: any) => {
       if (data?.type === 'connected-peers-update' && !instanceManager.isLeader) {
         const { localCid, peerCid, peerUsername, localUsername } = data;
@@ -255,7 +255,7 @@ export class P2PAutoConnectService {
     });
 
     // Listen for successful P2P connections - INSTANT update
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+     
     eventEmitter.on('websocket-message', async (message: any) => {
       if (message.PeerConnectSuccess) {
         // CRITICAL: On the leader tab, update connectedPeers for ALL sessions.
@@ -657,8 +657,8 @@ export class P2PAutoConnectService {
 
       for (const peer of peers) {
         const cid = peer.cid;
-        // Check online_status or is_online field
-        const isOnline = peer.online_status ?? peer.is_online ?? false;
+        // Check online_status field (is_online not in PeerInfoResponse type)
+        const isOnline = peer.online_status ?? false;
         if (cid && isOnline) {
           this.onlinePeers.add(cid);
         }
@@ -942,7 +942,7 @@ export class P2PAutoConnectService {
     this.refreshOnlineStatus().catch(() => {}); // Fire-and-forget
     debugLog('P2pAutoConnectService', `[ILM-TRACE] connectToAllRegisteredPeers: onlinePeers=${Array.from(this.onlinePeers).map(c => c.toString().slice(0, 8)).join(',')}`);
 
-    let registeredPeers: Array<{ cid: bigint; username?: string }> = [];
+    let registeredPeers: Array<{ cid?: bigint; username?: string }> = [];
 
     try {
       registeredPeers = await p2pRegistrationService.listRegisteredPeers();

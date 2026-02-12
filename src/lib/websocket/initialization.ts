@@ -6,7 +6,7 @@
  */
 
 import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
-import type { InternalServiceResponse, ResponseType } from 'citadel-workspace-client-ts';
+import type { InternalServiceResponse, InternalServiceRequest, ResponseType } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '../event-emitter';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog, errorLog } from '../debug-config';
@@ -130,9 +130,9 @@ export class WebSocketInitialization {
         }
 
         if (broadcastChannelService.getIsLeader()) {
-          const messageType = Object.keys(message)[0];
+          const messageType = Object.keys(message)[0] as ResponseType | undefined;
           const cidRoutedTypes: ResponseType[] = ['MessageNotification', 'PeerRegisterNotification', 'PeerConnectNotification'];
-          if (!cidRoutedTypes.includes(messageType)) {
+          if (!messageType || !cidRoutedTypes.includes(messageType)) {
             broadcastChannelService.broadcastWorkspaceResponse(message);
           } else {
             debugLog('websocket', `Skipping legacy broadcast for CID-routed ${messageType} (handled by instanceInboundRouter)`);
@@ -158,7 +158,7 @@ export class WebSocketInitialization {
       }
 
       leaderOutboundHandler.setWebSocketSendFunction(async (message: unknown) => {
-        await client.sendDirectToInternalService(message);
+        await client.sendDirectToInternalService(message as InternalServiceRequest);
       });
       debugLog('websocket', 'Registered send function with leader outbound handler');
 

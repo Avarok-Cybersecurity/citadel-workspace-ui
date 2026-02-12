@@ -20,6 +20,7 @@ import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
 import type { ProxyResponseData } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
+import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 
 interface OutboundRequest {
   requestId: string;
@@ -139,8 +140,8 @@ class LeaderOutboundHandler {
         }
 
         // Convert CID back to BigInt and send
-        const cid = BigInt(request.payload.cid);
-        await client.sendWorkspaceRequest(cid, request.payload.request);
+        const cid = BigInt(request.payload.cid as string | number | bigint | boolean);
+        await client.sendWorkspaceRequest(cid, request.payload.request as WorkspaceProtocolRequest);
 
         this.sendAck(request.senderInstanceId, request.requestId, 'processed');
         debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Workspace request proxy processed for ${request.requestId}`);
@@ -160,7 +161,7 @@ class LeaderOutboundHandler {
           return;
         }
 
-        await client.openMessengerFor(request.payload.cid);
+        await client.openMessengerFor(request.payload.cid as string);
 
         this.sendAck(request.senderInstanceId, request.requestId, 'processed');
         debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] openMessenger proxy processed for ${request.requestId}`);
@@ -180,7 +181,7 @@ class LeaderOutboundHandler {
           return;
         }
 
-        const wasOpened = await client.ensureMessengerOpen(request.payload.cid);
+        const wasOpened = await client.ensureMessengerOpen(request.payload.cid as string);
 
         // Send ACK with result data
         this.sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { wasOpened });
@@ -202,12 +203,12 @@ class LeaderOutboundHandler {
         }
 
         // Convert Array back to Uint8Array
-        const messageBytes = new Uint8Array(request.payload.message);
+        const messageBytes = new Uint8Array(request.payload.message as ArrayLike<number>);
         await client.sendP2PMessageReliable(
-          request.payload.localCid,
-          request.payload.peerCid,
+          request.payload.localCid as string,
+          request.payload.peerCid as string,
           messageBytes,
-          request.payload.securityLevel
+          request.payload.securityLevel as 'Standard' | 'Reinforced' | 'High' | 'Extreme' | undefined
         );
 
         this.sendAck(request.senderInstanceId, request.requestId, 'processed');

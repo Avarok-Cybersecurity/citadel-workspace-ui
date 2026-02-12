@@ -67,7 +67,7 @@ export function formatForDebug(obj: unknown): unknown {
   if (typeof obj === 'object') {
     const formatted: Record<string, unknown> = {};
     
-    for (const [key, value] of Object.entries(obj)) {
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       // Special handling for known byte fields
       if (shouldFormatAsBytes(key, value)) {
         formatted[key] = formatBytes(value as number[]);

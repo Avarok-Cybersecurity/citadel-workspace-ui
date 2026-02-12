@@ -290,8 +290,9 @@ class InstanceChannel {
   }
 
   private handleLeaderElection(message: ChannelMessage): void {
-    if (message.payload?.isLeader) {
-      const theirId = BigInt(message.payload.instanceIdBigInt || '0');
+    const payload = message.payload as Record<string, unknown> | undefined;
+    if (payload?.isLeader) {
+      const theirId = BigInt((payload.instanceIdBigInt as string) || '0');
       const myId = instanceManager.instanceIdAsBigInt;
 
       // STICKY LEADERSHIP RULE 1: If we're already the leader, stay leader
@@ -356,7 +357,8 @@ class InstanceChannel {
   }
 
   private handleInstanceAnnounce(message: ChannelMessage): void {
-    const cid = message.payload?.cid || null;
+    const announcePayload = message.payload as Record<string, unknown> | undefined;
+    const cid = (announcePayload?.cid as bigint | null) || null;
     debugLog('InstanceChannel', `[ILM-TRACE] handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
 
     instanceManager.registerInstance(
@@ -395,16 +397,17 @@ class InstanceChannel {
       return;
     }
 
-    const { cid } = message.payload || {};
-    if (!cid) {
+    const releasePayload = message.payload as Record<string, unknown> | undefined;
+    const releaseCid = releasePayload?.cid;
+    if (!releaseCid) {
       console.warn('[InstanceChannel] Received session-release without CID');
       return;
     }
 
-    debugLog('InstanceChannel', `[InstanceChannel] Leader handling session release for CID ${cid}`);
+    debugLog('InstanceChannel', `[InstanceChannel] Leader handling session release for CID ${releaseCid}`);
 
     // Emit event for websocket-service to handle
-    eventEmitter.emit('session:release-request', { cid });
+    eventEmitter.emit('session:release-request', { cid: releaseCid });
   }
 
   /**
@@ -412,8 +415,9 @@ class InstanceChannel {
    * This is received when an instance authenticates and gets its CID
    */
   private handleCidUpdate(message: ChannelMessage): void {
-    const { cid } = message.payload || {};
-    const cidBigInt = cid ? BigInt(cid) : null;
+    const cidPayload = message.payload as Record<string, unknown> | undefined;
+    const cidValue = cidPayload?.cid;
+    const cidBigInt = cidValue ? BigInt(cidValue as string) : null;
 
     // Update the instance registry
     instanceManager.registerInstance(message.senderInstanceId, cidBigInt);

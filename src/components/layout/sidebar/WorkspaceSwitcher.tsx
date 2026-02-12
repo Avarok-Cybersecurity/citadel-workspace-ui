@@ -72,7 +72,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       let currentCid: bigint | null = null;
       connectionService.onConnectionChange((connection) => {
         if (connection?.cid) {
-          currentCid = connection.cid;
+          currentCid = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
         }
       });
 

@@ -420,13 +420,13 @@ export class WorkspaceService {
    */
   public async getGroupMessages(
     groupId: string,
-    beforeTimestamp?: number,
+    beforeTimestamp?: number | bigint,
     limit: number = 50
   ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetGroupMessages: {
         group_id: groupId,
-        before_timestamp: beforeTimestamp,
+        before_timestamp: beforeTimestamp != null ? Number(beforeTimestamp) : undefined,
         limit
       }
     };

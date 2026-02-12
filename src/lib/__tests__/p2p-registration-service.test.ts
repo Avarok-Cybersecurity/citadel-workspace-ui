@@ -13,6 +13,11 @@ vi.mock('../websocket-service', () => ({
   }
 }));
 
+// Helper to mock sendRequest with response data (sendRequest returns void but tests
+// verify response handling, so we need to bypass the void return type)
+ 
+const mockSendRequest = vi.mocked(websocketService.sendRequest) as any as ReturnType<typeof vi.fn>;
+
 // Mock connection manager - service uses multiple connectionManager methods
 // Note: getTabSelectedSession and getSelectedCid are async (IndexedDB-backed)
 vi.mock('../connection', () => ({
@@ -75,7 +80,7 @@ describe.skip('P2PRegistrationService', () => {
           ]
         }
       };
-      vi.mocked(websocketService.sendRequest).mockResolvedValue(mockPeersResponse);
+      mockSendRequest.mockResolvedValue(mockPeersResponse);
 
       await p2pRegistrationService.start();
 
@@ -90,7 +95,7 @@ describe.skip('P2PRegistrationService', () => {
     it('should not start if already running', async () => {
       const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
-      vi.mocked(websocketService.sendRequest).mockResolvedValue({ ListAllPeersResponse: { peers: [] } });
+      mockSendRequest.mockResolvedValue({ ListAllPeersResponse: { peers: [] } });
 
       await p2pRegistrationService.start();
       const sendRequestCallCount = vi.mocked(websocketService.sendRequest).mock.calls.length;
@@ -103,7 +108,7 @@ describe.skip('P2PRegistrationService', () => {
     it('should stop the service', async () => {
       const mockConnectionInfo = { cid: 12345n };
       vi.mocked(connectionManager.getConnectionInfo).mockReturnValue(mockConnectionInfo);
-      vi.mocked(websocketService.sendRequest).mockResolvedValue({ ListAllPeersResponse: { peers: [] } });
+      mockSendRequest.mockResolvedValue({ ListAllPeersResponse: { peers: [] } });
 
       await p2pRegistrationService.start();
       p2pRegistrationService.stop();
@@ -135,7 +140,7 @@ describe.skip('P2PRegistrationService', () => {
         }
       };
       
-      vi.mocked(websocketService.sendRequest)
+      mockSendRequest
         .mockResolvedValueOnce(mockPeersResponse)
         .mockResolvedValueOnce(mockRegisteredResponse);
 
@@ -159,7 +164,7 @@ describe.skip('P2PRegistrationService', () => {
         }
       };
       
-      vi.mocked(websocketService.sendRequest).mockResolvedValue(mockPeersResponse);
+      mockSendRequest.mockResolvedValue(mockPeersResponse);
 
       await p2pRegistrationService.start();
 
@@ -200,7 +205,7 @@ describe.skip('P2PRegistrationService', () => {
         }
       };
       
-      vi.mocked(websocketService.sendRequest)
+      mockSendRequest
         .mockResolvedValueOnce(mockPeersResponse)
         .mockResolvedValueOnce(mockRegisteredResponse)
         .mockResolvedValue(mockRegisterResponse);
@@ -243,7 +248,7 @@ describe.skip('P2PRegistrationService', () => {
         }
       };
       
-      vi.mocked(websocketService.sendRequest)
+      mockSendRequest
         .mockResolvedValueOnce(mockPeersResponse)
         .mockResolvedValueOnce(mockRegisteredResponse)
         .mockResolvedValueOnce(mockRegisterFailure);
@@ -270,7 +275,7 @@ describe.skip('P2PRegistrationService', () => {
         }
       };
       
-      vi.mocked(websocketService.sendRequest).mockResolvedValue(mockRegisterResponse);
+      mockSendRequest.mockResolvedValue(mockRegisterResponse);
 
       await p2pRegistrationService.start();
       await p2pRegistrationService.registerPeer(54321n);
@@ -303,7 +308,7 @@ describe.skip('P2PRegistrationService', () => {
         }
       };
       
-      vi.mocked(websocketService.sendRequest)
+      mockSendRequest
         .mockResolvedValueOnce(mockRegisterResponse)
         .mockResolvedValueOnce(mockConnectResponse);
 
@@ -334,7 +339,7 @@ describe.skip('P2PRegistrationService', () => {
         }
       };
       
-      vi.mocked(websocketService.sendRequest)
+      mockSendRequest
         .mockResolvedValueOnce(mockPeersResponse)
         .mockResolvedValueOnce(mockRegisteredResponse);
 

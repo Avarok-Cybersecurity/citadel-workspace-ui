@@ -33,14 +33,14 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
 
   // Use ref to store retry function to prevent useEffect re-triggering
   // when the retry callback reference changes (which happens on every state update)
-  const retryFnRef = useRef<(() => Promise<void>) | null>(null);
+  const retryFnRef = useRef<(() => Promise<unknown>) | null>(null);
 
   // Track if a retry is currently in progress to prevent overlapping retries
   const retryInProgressRef = useRef(false);
 
   // Use ref to store execute function to prevent useEffect re-triggering
   // when the execute callback reference changes (which happens on every state update)
-  const executeFnRef = useRef<(() => Promise<void>) | null>(null);
+  const executeFnRef = useRef<(() => Promise<unknown>) | null>(null);
 
   // Memoize the retry operation to prevent reference changes on every render
   // This stabilizes the execute/retry functions from useRetry

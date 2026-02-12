@@ -114,7 +114,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // and Alice's modal should immediately show "Connected" (which means "Registered"
   // in P2P terminology - the peer relationship is now established for direct messaging).
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+     
     const handleRegistrationSuccess = (message: any) => {
       // Handle PeerRegisterSuccess - peer is now registered with us
       if (message.PeerRegisterSuccess) {
@@ -143,7 +143,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // Set up listener for incoming registration notifications
   // Delegate to peerRegistrationStore for persistence and non-disruptive UX
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+     
     const handleIncomingRegistration = async (message: any) => {
       if (message.PeerRegisterNotification) {
         // Delegate to store - handles persistence, deduplication, and UI updates via badge
@@ -177,7 +177,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         reject(new Error('GetSessions timed out'));
       }, 5000);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+       
       const handleMessage = (message: any) => {
         if (message.GetSessionsResponse && message.GetSessionsResponse.request_id === requestId) {
           clearTimeout(timeout);
@@ -227,7 +227,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           reject(new Error('Request timed out'));
         }, 10000);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+         
         const handleMessage = (message: any) => {
           if (message.ListRegisteredPeersResponse && message.ListRegisteredPeersResponse.request_id === requestId) {
             clearTimeout(timeout);
@@ -287,7 +287,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           reject(new Error('Request timed out'));
         }, 10000);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+         
         const handleMessage = (message: any) => {
           if (message.ListAllPeersResponse && message.ListAllPeersResponse.request_id === requestId) {
             clearTimeout(timeout);

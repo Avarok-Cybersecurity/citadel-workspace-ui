@@ -1,4 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Type erasure required for heterogeneous event storage
+ 
 export type EventHandler<T = any> = (payload: T) => void;
 
 /**
@@ -33,7 +33,7 @@ export class TypedEventEmitter<T> {
 export class EventEmitter {
   private listeners: Map<string, Set<EventHandler>> = new Map();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous event payloads require type erasure
+   
   emit<T = any>(event: string, payload?: T): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
@@ -47,7 +47,7 @@ export class EventEmitter {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous event payloads require type erasure
+   
   on<T = any>(event: string, handler: EventHandler<T>): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -65,7 +65,7 @@ export class EventEmitter {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous event payloads require type erasure
+   
   once<T = any>(event: string, handler: EventHandler<T>): () => void {
     const wrappedHandler: EventHandler<T> = (payload) => {
       unsubscribe();

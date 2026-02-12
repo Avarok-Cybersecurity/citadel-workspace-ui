@@ -79,8 +79,8 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         const info = connectionManager.getConnectionInfo();
         return info?.cid ?? null;
       },
-      sendInternalServiceRequest: (request) =>
-        websocketService.sendMessage(request),
+      sendInternalServiceRequest: (request: unknown) =>
+        websocketService.sendMessage(request as Record<string, unknown>),
     });
 
     // Track the last processed CID to prevent redundant workspace reloads
@@ -173,7 +173,8 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
 
         debugLog('WorkspaceApp', '[ILM-TRACE] WorkspaceApp: Valid user session detected, CID:', connection.cid?.toString());
         // Set the connection ID in the workspace service
-        WorkspaceService.setConnectionId(connection.cid);
+        const cidBigInt = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
+        WorkspaceService.setConnectionId(cidBigInt);
 
         // Emit session:activated to trigger P2P startup (handled by SessionStartupService)
         // Get username from stored session if available
@@ -203,7 +204,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Load user registration info based on connection
         // Always use CID for identification when retrieving user data
-        userService.loadUserRegistration(storedSession.serverAddress, connection.cid)
+        userService.loadUserRegistration(storedSession.serverAddress, connection.cid.toString())
           .then(userInfo => {
             debugLog('WorkspaceApp', 'User registration info loaded:', userInfo);
           })

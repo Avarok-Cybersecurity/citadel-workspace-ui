@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from '@/lib/websocket-service';
+import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import type {
   GroupConversation,
   GroupMember,
@@ -262,7 +263,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request);
+        await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
 
         // For now, return the request ID as the group ID
         // The actual group ID will come from the GroupCreated response
@@ -299,7 +300,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request);
+        await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
 
         // If roleId specified, store it locally for when member joins
         if (roleId) {
@@ -335,7 +336,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
         throw new Error('WebSocket client not initialized');
       }
 
-      await client.sendDirectToInternalService(request);
+      await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
 
       // Remove from local state
       setGroups(prev => prev.filter(g => g.id !== groupId));
@@ -369,7 +370,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request);
+        await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to kick member';
         setError(errorMsg);
@@ -437,7 +438,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
         throw new Error('WebSocket client not initialized');
       }
 
-      await client.sendDirectToInternalService(request);
+      await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
       // Groups will be updated via events
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : 'Failed to refresh groups';

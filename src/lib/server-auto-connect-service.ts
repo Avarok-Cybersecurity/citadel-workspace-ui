@@ -142,7 +142,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     });
 
     // Handle connection success/failure from websocket messages
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+     
     this.listen<any>('websocket-message', async (message) => {
       if (message.ConnectSuccess) {
         await this.handleConnectionSuccess(message.ConnectSuccess);

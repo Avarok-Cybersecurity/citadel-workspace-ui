@@ -38,7 +38,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       }, 5000);
 
       // Set up event listener
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+       
       const handler = (message: any) => {
         if (message.LocalDBGetAllKVSuccess && message.LocalDBGetAllKVSuccess.request_id === requestId) {
           clearTimeout(timeout);
@@ -88,7 +88,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       const request = {
         LocalDBGetAllKV: {
           request_id: requestId,
-          cid: parseInt(options.cid) || 0,
+          cid: BigInt(options.cid || '0'),
           peer_cid: null
         }
       };
@@ -141,7 +141,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       }, 5000);
 
       // Set up event listener
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+       
       const handler = (message: any) => {
         if (message.LocalDBSetKVSuccess && message.LocalDBSetKVSuccess.request_id === requestId) {
           clearTimeout(timeout);
@@ -165,7 +165,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       const request = {
         LocalDBSetKV: {
           request_id: requestId,
-          cid: parseInt(cid) || 0,
+          cid: BigInt(cid || '0'),
           peer_cid: null,
           key: 'known_servers',
           value: bytes

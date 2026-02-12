@@ -87,7 +87,7 @@ export class ConnectionIO {
   }
 
   async sendWebSocketMessage(message: unknown): Promise<void> {
-    await websocketService.sendMessage(message);
+    await websocketService.sendMessage(message as Record<string, unknown>);
   }
 
   isWebSocketConnected(): boolean {

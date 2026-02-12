@@ -11,6 +11,7 @@ import type {
   InternalServiceRequest,
   InternalServiceResponse
 } from 'citadel-workspace-client-ts';
+import type { SessionSecuritySettings as GeneratedSessionSecuritySettings } from '@avarok/citadel-protocol-types';
 // Import and re-export security types from central location (DRY)
 import {
   type SessionSecuritySettings,
@@ -168,7 +169,7 @@ export class P2PRegistrationService {
 
   private setupEventListeners(): void {
     // Listen for WebSocket messages
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+     
     eventEmitter.on('websocket-message', (message: any) => {
       this.handleWebSocketMessage(message);
     });
@@ -184,7 +185,7 @@ export class P2PRegistrationService {
     // Listen for registeredPeers updates from leader (for follower tabs)
     // This allows follower tabs to have synchronized registeredPeers state
     // so the sidebar shows peers registered by the leader
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- State sync payload is polymorphic based on type field
+     
     eventEmitter.on('broadcast-state-sync', (data: any) => {
       if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
         const { peerCid, peerUsername, isOutgoing, isIncoming } = data;
@@ -235,7 +236,7 @@ export class P2PRegistrationService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+   
   private handleWebSocketMessage(message: any): void {
     if (message.ListAllPeersResponse) {
       const requestId = message.ListAllPeersResponse.request_id;
@@ -672,7 +673,7 @@ export class P2PRegistrationService {
       // Map with BigInt keys - iterate using Map's forEach
       debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] Processing as Map with', response.peers.size, 'entries');
       (response.peers as Map<unknown, PeerInfoResponse>).forEach((peerInfo, peerCid) => {
-        peersArray.push([peerCid.toString(), peerInfo]);
+        peersArray.push([String(peerCid), peerInfo]);
       });
     } else if (response.peers && typeof response.peers === 'object') {
       // Regular object with string keys
@@ -688,7 +689,7 @@ export class P2PRegistrationService {
       ...peerInfo,
       cid: BigInt(peerCid),  // Convert string key to BigInt (canonical CID type per CLAUDE.md)
       // Normalize username - backend may send as username or peer_username
-      username: peerInfo.username || peerInfo.peer_username || peerInfo.name || null
+      username: peerInfo.username || peerInfo.peer_username || peerInfo.name || undefined
     }));
   }
 
@@ -720,7 +721,8 @@ export class P2PRegistrationService {
         request_id: requestId,
         cid: currentCid, // Use the tab-aware CID
         peer_cid: peerCid,
-        session_security_settings: options.sessionSecuritySettings || this.DEFAULT_SESSION_SECURITY,
+        // Cast local SessionSecuritySettings to generated type (structurally compatible at runtime)
+        session_security_settings: (options.sessionSecuritySettings || this.DEFAULT_SESSION_SECURITY) as unknown as GeneratedSessionSecuritySettings,
         connect_after_register: options.connectAfterRegister ?? false,
         peer_session_password: null
       }

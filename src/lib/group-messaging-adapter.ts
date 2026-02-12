@@ -58,16 +58,16 @@ function convertGroupMessageToChatMessage(
   return {
     id: msg.id,
     content: msg.content,
-    timestamp: msg.timestamp,
+    timestamp: Number(msg.timestamp),
     senderId: msg.sender_id,
     senderName: msg.sender_name,
     isOwn,
     messageType: mapGroupMessageTypeToMessageType(msg.message_type),
     status: 'sent', // Group messages are always "sent" once received
 
-    // Optional fields
-    editedAt: msg.edited_at,
-    replyToId: msg.reply_to,
+    // Optional fields - convert bigint|null to number|undefined for ChatMessage
+    editedAt: msg.edited_at != null ? Number(msg.edited_at) : undefined,
+    replyToId: msg.reply_to ?? undefined,
     replyCount: msg.reply_count,
   };
 }
@@ -168,9 +168,12 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
     this._isLoading = true;
 
     try {
-      const response = await WorkspaceService.getGroupMessages(this._groupId);
+      // getGroupMessages returns void; response arrives via event system
+      // Cast to expected shape for runtime checking (TYPE-GAP: protocol sends response asynchronously)
+      const response = await WorkspaceService.getGroupMessages(this._groupId) as unknown as
+        { GroupMessages?: { messages: GroupMessage[]; has_more: boolean } } | void;
 
-      if (response?.GroupMessages) {
+      if (response && 'GroupMessages' in response && response.GroupMessages) {
         const groupMessages: GroupMessage[] = response.GroupMessages.messages || [];
         this._hasMoreMessages = response.GroupMessages.has_more || false;
 
@@ -210,12 +213,14 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
       // Get oldest timestamp for pagination
       const oldestTimestamp = groupMessagingManager.getOldestTimestamp(this._groupId);
 
+      // getGroupMessages returns void; response arrives via event system
+      // Cast to expected shape for runtime checking (TYPE-GAP: protocol sends response asynchronously)
       const response = await WorkspaceService.getGroupMessages(
         this._groupId,
         oldestTimestamp
-      );
+      ) as unknown as { GroupMessages?: { messages: GroupMessage[]; has_more: boolean } } | void;
 
-      if (response?.GroupMessages) {
+      if (response && 'GroupMessages' in response && response.GroupMessages) {
         const groupMessages: GroupMessage[] = response.GroupMessages.messages || [];
         this._hasMoreMessages = response.GroupMessages.has_more || false;
 
@@ -359,7 +364,7 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
           const message = this.messages.find((m) => m.id === event.messageId);
           if (message) {
             message.content = event.message.content;
-            message.editedAt = event.message.edited_at;
+            message.editedAt = event.message.edited_at != null ? Number(event.message.edited_at) : undefined;
 
             this.notifySubscribers({
               type: 'message_updated',

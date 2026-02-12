@@ -8,12 +8,12 @@ interface RetryOptions<T> {
   onRetry?: (attempt: number, error: Error) => void;
 }
 
-interface RetryState<T> {
+interface RetryState<T, A extends unknown[] = unknown[]> {
   data: T | null;
   error: Error | null;
   isLoading: boolean;
   attempt: number;
-  execute: (...params: unknown[]) => Promise<T | null>;
+  execute: (...params: A) => Promise<T | null>;
   retry: () => Promise<T | null>;
   reset: () => void;
 }
@@ -24,10 +24,10 @@ interface RetryState<T> {
  * @param options Configuration options for retry behavior
  * @returns State and control functions
  */
-export function useRetry<T>(
-  operation: (...args: unknown[]) => Promise<T>,
+export function useRetry<T, A extends unknown[] = unknown[]>(
+  operation: (...args: A) => Promise<T>,
   options: RetryOptions<T> = {}
-): RetryState<T> {
+): RetryState<T, A> {
   const {
     maxRetries = 3,
     retryDelay = 1000,
@@ -41,7 +41,7 @@ export function useRetry<T>(
     error: Error | null;
     isLoading: boolean;
     attempt: number;
-    lastParams: unknown[] | null;
+    lastParams: A | null;
   }>({
     data: null,
     error: null,
@@ -51,7 +51,7 @@ export function useRetry<T>(
   });
 
   const execute = useCallback(
-    async (...params: unknown[]): Promise<T | null> => {
+    async (...params: A): Promise<T | null> => {
       setState(prev => ({
         ...prev,
         isLoading: true,

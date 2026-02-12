@@ -48,7 +48,8 @@ interface MessageNotificationPayload {
 function isPeerMessage(
   response: InternalServiceResponse
 ): response is InternalServiceResponse & { PeerMessage: PeerMessagePayload } {
-  return isResponseType(response, 'PeerMessage');
+  // TYPE-GAP: 'PeerMessage' exists at runtime but not in generated ResponseType
+  return 'PeerMessage' in response;
 }
 
 function isMessageNotification(

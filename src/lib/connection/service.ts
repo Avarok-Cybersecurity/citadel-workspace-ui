@@ -159,7 +159,7 @@ export class ConnectionManager {
   // WebSocket Message Handling
   // ============================================================================
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
+   
   private async handleWebSocketMessage(message: any): Promise<void> {
     // Handle LocalDB responses
     if (message.LocalDBSetKVSuccess) {

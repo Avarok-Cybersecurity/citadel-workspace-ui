@@ -1,4 +1,5 @@
 import { WorkspaceClient } from 'citadel-workspace-client-ts';
+import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { connectionManager } from './connection';
 import { debugLog, errorLog } from './debug-config';
 import type { SessionSecuritySettings } from './security-utils';
@@ -61,7 +62,7 @@ class WebSocketService {
     // Initialize extracted modules with dependency injection
     const moduleConfig = {
       init: () => this.init(),
-      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req, reqId),
+      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req as Record<string, unknown>, reqId),
       getClient: () => this.client,
     };
 
@@ -72,7 +73,7 @@ class WebSocketService {
     // P2P operations config
     const p2pConfig = {
       init: () => this.init(),
-      sendMessage: (msg: unknown) => this.sendMessage(msg),
+      sendMessage: (msg: unknown) => this.sendMessage(msg as Record<string, unknown>),
       isLeader: () => instanceManager.isLeader,
     };
     this.p2pOps = new P2POperations(p2pConfig);
@@ -87,14 +88,14 @@ class WebSocketService {
     // Disconnect operations config
     const disconnectConfig = {
       init: () => this.init(),
-      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req, reqId),
+      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req as Record<string, unknown>, reqId),
     };
     this.disconnectOps = new DisconnectOperations(disconnectConfig);
 
     // Auth operations config
     const authConfig = {
       init: () => this.init(),
-      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req, reqId),
+      sendRequest: (req: unknown, reqId?: string) => this._sendRequest(req as Record<string, unknown>, reqId),
       claimSession: (cid: bigint, onlyIfOrphaned: boolean) => this.claimSession(cid, onlyIfOrphaned),
       disconnect: (cid: bigint) => this.disconnect(cid),
     };
@@ -392,7 +393,7 @@ class WebSocketService {
         throw new Error('WebSocket client not available (leader without client)');
       }
       debugLog('WebsocketService', `[ILM-TRACE] [Leader] Sending ${messageType} directly`);
-      await this.client.sendDirectToInternalService(request);
+      await this.client.sendDirectToInternalService(request as InternalServiceRequest);
     } else {
       // FOLLOWER: Proxy through leader via InstanceChannel
       debugLog('WebsocketService', `[ILM-TRACE] [Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
@@ -445,12 +446,13 @@ class WebSocketService {
   }
 
   /**
-   * Get the WASM module instance for direct P2P operations
+   * Get the WASM client instance for direct P2P operations.
+   * Returns the WorkspaceClient which wraps the WASM module.
    */
-  async getWasmModule(): Promise<unknown> {
+  async getWasmModule(): Promise<WorkspaceClient | null> {
     await this.init(); // ensure initialized
-    
-    return this.client?.getWasmModule() ?? null;
+
+    return this.client ?? null;
   }
 
   /**
