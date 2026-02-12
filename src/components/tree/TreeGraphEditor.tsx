@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { debugLog } from '@/lib/debug-config';
+import { isVariant } from 'citadel-workspace-client-ts';
 
 /**
  * Node types registry for React Flow.
@@ -53,8 +54,8 @@ function getMinimapNodeColor(node: Node): string {
     return "#7c3aed";
   }
 
-  if (typeof entityType === "object" && "Child" in entityType) {
-    const childType = entityType.Child.toLowerCase();
+  if (isVariant(entityType as Record<string, unknown>, 'Child')) {
+    const childType = (entityType as { Child: string }).Child.toLowerCase();
     switch (childType) {
       case "office":
         return "#2563eb";

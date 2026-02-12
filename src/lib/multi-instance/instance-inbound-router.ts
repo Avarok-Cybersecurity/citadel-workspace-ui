@@ -21,6 +21,7 @@ import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
 import { debugLog } from '@/lib/debug-config';
+import type { ResponseType } from 'citadel-workspace-client-ts';
 
 // Debug: Log when this module is loaded
 debugLog('InstanceInboundRouter', '[ILM-Router] Module loading...');
@@ -78,7 +79,7 @@ class InstanceInboundRouter {
     });
 
     // Listen for forwarded messages (when we're a follower)
-    eventEmitter.on('channel:inbound-message', (data: { payload: any; senderInstanceId: string }) => {
+    eventEmitter.on('channel:inbound-message', (data: { payload: unknown; senderInstanceId: string }) => {
       const messageType = this.getMessageType(data.payload);
       debugLog('InstanceInboundRouter', `[ILM-Router] Received forwarded message: type=${messageType}`);
       // Process the forwarded message
@@ -88,7 +89,7 @@ class InstanceInboundRouter {
     // Listen for outbound requests to track which instance made each request
     eventEmitter.on(
       'channel:outbound-request',
-      (data: { requestId?: string; senderInstanceId: string; payload?: any }) => {
+      (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
         debugLog('InstanceInboundRouter', 
           `[ILM-Router] Received channel:outbound-request: requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${this.isActive}`
         );
@@ -130,7 +131,7 @@ class InstanceInboundRouter {
    * Route an incoming WebSocket message to the appropriate instance(s)
    * Called by websocket-service when leader receives a message
    */
-  routeMessage(message: any): void {
+  routeMessage(message: Record<string, unknown>): void {
     if (!this.isActive) {
       // We're not the leader - this shouldn't happen
       console.warn('[ILM-Router] routeMessage called but not leader');
@@ -243,7 +244,7 @@ class InstanceInboundRouter {
   // Notification message types that should be routed by CID, NOT by request_id
   // These messages have a request_id that belongs to the SENDER, but the message
   // should be delivered to the RECIPIENT (identified by the 'cid' field).
-  private static readonly CID_ROUTED_NOTIFICATIONS = new Set([
+  private static readonly CID_ROUTED_NOTIFICATIONS = new Set<ResponseType>([
     'PeerRegisterNotification', // cid = recipient, request_id = sender's
     'PeerConnectNotification',  // cid = recipient, request_id = sender's
     'MessageNotification',      // cid = recipient, request_id = sender's (from SendMessage)
@@ -253,7 +254,7 @@ class InstanceInboundRouter {
   // These messages affect P2P connection state which ILM needs to query.
   // ILM runs on the leader and calls getPeersForSession() for ANY CID, so the leader's
   // connectedPeers Map must have entries for ALL sessions (not just the leader's own).
-  private static readonly LEADER_MUST_PROCESS_LOCALLY = new Set([
+  private static readonly LEADER_MUST_PROCESS_LOCALLY = new Set<ResponseType>([
     'PeerConnectNotification',  // Affects connectedPeers[targetCid]
     'PeerConnectSuccess',       // Affects connectedPeers[initiatorCid]
     'PeerDisconnect',           // Removes from connectedPeers
@@ -268,7 +269,7 @@ class InstanceInboundRouter {
    * we must NOT use request_id routing - instead, the router will fall through to
    * CID-based routing which uses the 'cid' field to find the correct recipient.
    */
-  private extractRequestId(message: any): string | null {
+  private extractRequestId(message: Record<string, unknown>): string | null {
     if (!message || typeof message !== 'object') {
       return null;
     }
@@ -282,7 +283,7 @@ class InstanceInboundRouter {
       return null;
     }
 
-    const payload = message[messageType];
+    const payload = message[messageType] as Record<string, unknown> | undefined;
 
     if (payload && typeof payload === 'object') {
       // Check for request_id field
@@ -297,7 +298,7 @@ class InstanceInboundRouter {
   /**
    * Broadcast a message to all instances
    */
-  private broadcastToAll(message: any): void {
+  private broadcastToAll(message: Record<string, unknown>): void {
     // Send to followers
     instanceChannel.broadcast(message);
 
@@ -308,7 +309,7 @@ class InstanceInboundRouter {
   /**
    * Process a message locally (emit to event system)
    */
-  private processLocalMessage(message: any): void {
+  private processLocalMessage(message: unknown): void {
     // Emit to the existing event system for components to handle
     eventEmitter.emit('websocket-message', message);
   }
@@ -316,20 +317,20 @@ class InstanceInboundRouter {
   /**
    * Get the type of the message (first key)
    */
-  private getMessageType(message: any): string {
+  private getMessageType(message: unknown): ResponseType {
     if (!message || typeof message !== 'object') {
-      return 'unknown';
+      return 'unknown' as ResponseType;
     }
 
     const keys = Object.keys(message);
-    return keys[0] || 'unknown';
+    return (keys[0] || 'unknown') as ResponseType;
   }
 
   /**
    * Extract the target CID from a message
    * Messages can have CID in various places depending on type
    */
-  private extractTargetCid(message: any): string | null {
+  private extractTargetCid(message: Record<string, unknown>): string | null {
     if (!message || typeof message !== 'object') {
       return null;
     }
@@ -343,7 +344,7 @@ class InstanceInboundRouter {
 
     // Check nested in message type (e.g., { MessageNotification: { cid: ... } })
     const messageType = this.getMessageType(message);
-    const payload = message[messageType];
+    const payload = message[messageType] as Record<string, unknown> | undefined;
 
     if (payload && typeof payload === 'object') {
       for (const field of CID_FIELDS) {
@@ -353,10 +354,11 @@ class InstanceInboundRouter {
       }
 
       // Check for Response wrapper
-      if (payload.Response) {
+      const response = payload.Response as Record<string, unknown> | undefined;
+      if (response) {
         for (const field of CID_FIELDS) {
-          if (payload.Response[field]) {
-            return String(payload.Response[field]);
+          if (response[field]) {
+            return String(response[field]);
           }
         }
       }
@@ -368,7 +370,7 @@ class InstanceInboundRouter {
   /**
    * Check if a message type should be broadcast to all instances
    */
-  private shouldBroadcast(messageType: string): boolean {
+  private shouldBroadcast(messageType: ResponseType): boolean {
     return BROADCAST_MESSAGE_TYPES.includes(messageType);
   }
 
@@ -376,7 +378,7 @@ class InstanceInboundRouter {
    * Force route a message to a specific instance
    * Used for P2P message routing where we know the target
    */
-  routeToInstance(targetInstanceId: string, message: any): void {
+  routeToInstance(targetInstanceId: string, message: unknown): void {
     if (targetInstanceId === instanceManager.instanceId) {
       this.processLocalMessage(message);
     } else {

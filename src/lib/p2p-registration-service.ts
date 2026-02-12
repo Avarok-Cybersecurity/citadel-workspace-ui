@@ -30,6 +30,15 @@ export interface Peer {
   isRegistered: boolean;
 }
 
+/** Shape of peer info from ListAllPeers/ListRegisteredPeers backend responses */
+interface PeerInfoResponse {
+  cid?: bigint;
+  username?: string;
+  peer_username?: string;
+  name?: string;
+  online_status?: boolean;
+}
+
 export interface PeerRegistrationOptions {
   autoRegisterAll?: boolean;
   sessionSecuritySettings?: SessionSecuritySettings;
@@ -159,6 +168,7 @@ export class P2PRegistrationService {
 
   private setupEventListeners(): void {
     // Listen for WebSocket messages
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
     eventEmitter.on('websocket-message', (message: any) => {
       this.handleWebSocketMessage(message);
     });
@@ -174,6 +184,7 @@ export class P2PRegistrationService {
     // Listen for registeredPeers updates from leader (for follower tabs)
     // This allows follower tabs to have synchronized registeredPeers state
     // so the sidebar shows peers registered by the leader
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- State sync payload is polymorphic based on type field
     eventEmitter.on('broadcast-state-sync', (data: any) => {
       if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
         const { peerCid, peerUsername, isOutgoing, isIncoming } = data;
@@ -224,6 +235,7 @@ export class P2PRegistrationService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
   private handleWebSocketMessage(message: any): void {
     if (message.ListAllPeersResponse) {
       const requestId = message.ListAllPeersResponse.request_id;
@@ -527,9 +539,10 @@ export class P2PRegistrationService {
         allPeers: Array.from(this.allPeers.values()),
         registeredPeers: Array.from(this.registeredPeers.values())
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Skip silently if there's no valid user session (expected when not logged in)
-      if (error?.message?.includes('CID 0') || error?.message?.includes('No active')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
         // This is expected when user is not logged in - don't spam the console
         return;
       }
@@ -542,7 +555,7 @@ export class P2PRegistrationService {
   /**
    * List all available peers in the network
    */
-  public async listAllPeers(): Promise<any[]> {
+  public async listAllPeers(): Promise<PeerInfoResponse[]> {
     // Use getCurrentCid() for proper multi-tab support
     const currentCid = await this.getCurrentCid();
     // CID 0 is the service connection, not a user session - skip P2P requests
@@ -586,14 +599,15 @@ export class P2PRegistrationService {
    * List currently registered peers with retry logic
    * Reduced retries and backoff to prevent UI freeze (was 3 retries with 1-3s backoff = up to 12s)
    */
-  public async listRegisteredPeersWithRetry(maxRetries = 2): Promise<any[]> {
+  public async listRegisteredPeersWithRetry(maxRetries = 2): Promise<PeerInfoResponse[]> {
     let lastError: Error | null = null;
     for (let i = 0; i < maxRetries; i++) {
       try {
         return await this.listRegisteredPeers();
-      } catch (error: any) {
-        lastError = error;
-        if (!error?.message?.includes('timed out')) {
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message;
+        if (!errorMessage?.includes('timed out')) {
           throw error; // Non-timeout errors propagate immediately
         }
         console.warn(`[P2P] ListRegisteredPeers attempt ${i + 1}/${maxRetries} timed out, retrying...`);
@@ -606,7 +620,7 @@ export class P2PRegistrationService {
   /**
    * List currently registered peers (single attempt)
    */
-  public async listRegisteredPeers(): Promise<any[]> {
+  public async listRegisteredPeers(): Promise<PeerInfoResponse[]> {
     debugLog('P2pRegistrationService', '[P2P] listRegisteredPeers: called');
     // Use getCurrentCid() for proper multi-tab support
     const currentCid = await this.getCurrentCid();
@@ -652,12 +666,12 @@ export class P2PRegistrationService {
 
     // Convert peers to array - handle both Map and Object formats
     // Rust HashMap<u64, T> may deserialize as Map with BigInt keys or as Object with string keys
-    let peersArray: Array<[string, any]> = [];
+    let peersArray: Array<[string, PeerInfoResponse]> = [];
 
     if (response.peers instanceof Map) {
       // Map with BigInt keys - iterate using Map's forEach
       debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] Processing as Map with', response.peers.size, 'entries');
-      response.peers.forEach((peerInfo: any, peerCid: any) => {
+      (response.peers as Map<unknown, PeerInfoResponse>).forEach((peerInfo, peerCid) => {
         peersArray.push([peerCid.toString(), peerInfo]);
       });
     } else if (response.peers && typeof response.peers === 'object') {
@@ -670,7 +684,7 @@ export class P2PRegistrationService {
 
     debugLog('P2pRegistrationService', '[P2P-ListRegisteredPeers] Converted peers array length:', peersArray.length);
 
-    return peersArray.map(([peerCid, peerInfo]: [string, any]) => ({
+    return peersArray.map(([peerCid, peerInfo]: [string, PeerInfoResponse]) => ({
       ...peerInfo,
       cid: BigInt(peerCid),  // Convert string key to BigInt (canonical CID type per CLAUDE.md)
       // Normalize username - backend may send as username or peer_username
@@ -736,7 +750,7 @@ export class P2PRegistrationService {
    * IMPORTANT: Preserves usernames from PeerRegisterNotification since backend
    * ListRegisteredPeers response often doesn't include usernames
    */
-  private updatePeerMaps(allPeers: any[], registeredPeers: any[]): void {
+  private updatePeerMaps(allPeers: PeerInfoResponse[], registeredPeers: PeerInfoResponse[]): void {
     // Preserve existing usernames before clearing (from PeerRegisterNotification)
     const preservedUsernames = new Map<bigint, string>();
     for (const [cid, peer] of this.allPeers) {
@@ -886,14 +900,15 @@ export class P2PRegistrationService {
       const serverPeers = await this.listRegisteredPeers();
       serverPeerCids = new Set(serverPeers.map(p => p.cid as bigint).filter((c): c is bigint => c !== undefined));
       debugLog('P2pRegistrationService', `[P2P Registration] Server has ${serverPeerCids.size} registered peers:`, Array.from(serverPeerCids).map(c => c.toString()));
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If server query fails (e.g., no active session yet), skip syncing stale data
       // We'll sync when the server becomes available
-      if (error?.message?.includes('CID 0') || error?.message?.includes('No active')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
         debugLog('P2pRegistrationService', '[P2P Registration] No active session, skipping sync of cached peer data');
         return;
       }
-      console.warn('[P2P Registration] Failed to validate peers against server, skipping sync:', error?.message);
+      console.warn('[P2P Registration] Failed to validate peers against server, skipping sync:', errorMessage);
       return;
     }
 
@@ -959,9 +974,10 @@ export class P2PRegistrationService {
         const decoded = bytesToString(result.value);
         return decoded === 'true';
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Downgrade "Key not found" to debug (expected on first use)
-      if (error?.message?.includes('Key not found')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('Key not found')) {
         debugLog('P2pRegistrationService', '[P2P] Auto-accept setting not found, using default: false');
       } else {
         console.warn('[P2P] Failed to get auto-accept setting:', error);

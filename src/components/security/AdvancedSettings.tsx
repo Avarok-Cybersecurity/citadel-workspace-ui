@@ -15,7 +15,7 @@ import {
 
 interface AdvancedSettingsProps {
   values: SecuritySettingsValues; // values is required now
-  onChange: (key: keyof SecuritySettingsValues, value: any) => void; // onChange is required now
+  onChange: <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => void;
 }
 
 export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) => {
@@ -44,7 +44,7 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
   }, [values.headerObfuscatorSettings]);
 
   // Simplified handler
-  const handleValueChange = (key: keyof SecuritySettingsValues, value: any) => {
+  const handleValueChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => {
     if (onChange) {
       onChange(key, value);
     }

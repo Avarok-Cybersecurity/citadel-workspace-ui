@@ -159,6 +159,7 @@ export class ConnectionManager {
   // WebSocket Message Handling
   // ============================================================================
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
   private async handleWebSocketMessage(message: any): Promise<void> {
     // Handle LocalDB responses
     if (message.LocalDBSetKVSuccess) {
@@ -585,21 +586,21 @@ export class ConnectionManager {
       await this.storeSession(session);
 
       debugLog('Service', 'ConnectionManager: Auto-reconnect successful');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('ConnectionManager: Auto-reconnect failed', error);
       await this.handleAutoReconnectError(error, session, activeSessions);
     }
   }
 
   private async handleAutoReconnectError(
-    error: any,
+    error: unknown,
     session: StoredSession,
     activeSessions: ActiveSession[]
   ): Promise<void> {
     this.io.updateConnectionService({ cid: null, isConnected: false });
     this.io.broadcastConnectionStatus({ isConnected: false });
 
-    const errorMessage = error.message?.toLowerCase() || '';
+    const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
     if (
       errorMessage.includes('session already connected') ||
       errorMessage.includes('localhost is already trying to connect')
@@ -622,13 +623,14 @@ export class ConnectionManager {
     }
   }
 
-  private async handleSessionAlreadyConnectedError(error: any, session: StoredSession): Promise<void> {
+  private async handleSessionAlreadyConnectedError(error: unknown, session: StoredSession): Promise<void> {
     debugLog('Service', 'ConnectionManager: Session already connected error - likely stale session');
 
-    const extractedCid = this.state.extractCidFromErrorMessage(error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const extractedCid = this.state.extractCidFromErrorMessage(errorMessage);
     if (extractedCid) {
       debugLog('Service', 'ConnectionManager: Existing session CID from message:', extractedCid);
-      this.io.emitEvent('session-already-connected', { cid: extractedCid, message: error.message });
+      this.io.emitEvent('session-already-connected', { cid: extractedCid, message: errorMessage });
       return;
     }
 
@@ -643,7 +645,7 @@ export class ConnectionManager {
         debugLog('Service', 'ConnectionManager: Found active session to claim:', matchingSession);
         this.io.emitEvent('session-already-connected', {
           cid: matchingSession.cid.toString(),
-          message: error.message,
+          message: errorMessage,
         });
       }
     } catch (err) {
@@ -744,8 +746,8 @@ export class ConnectionManager {
           ),
         ]);
         debugLog('Service', '[ILM-TRACE] handleAuthSuccess: tab context set successfully');
-      } catch (err: any) {
-        if (err.message === 'setSelectedUser timeout') {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'setSelectedUser timeout') {
           console.warn('[ILM-TRACE] handleAuthSuccess: setSelectedUser timed out - continuing anyway');
         } else {
           throw err;

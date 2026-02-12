@@ -127,13 +127,13 @@ export class MessagingService {
       };
 
       return sentMessage;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending message:', error);
 
       // Show error notification
       this.notificationService.addSystemNotification(
         'Message Failed',
-        `Failed to send message to recipient: ${error.message || 'Unknown error'}`,
+        `Failed to send message to recipient: ${error instanceof Error ? error.message : 'Unknown error'}`,
         NotificationPriority.HIGH
       );
 

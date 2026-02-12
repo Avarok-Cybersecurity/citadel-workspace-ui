@@ -113,24 +113,24 @@ export interface P2PCommand {
 }
 
 // Type guards for payload discrimination
-export function isMessagingLayerPayload(payload: any): payload is P2PMessagingLayerPayload {
-  return 'layer' in payload && 'sender_cid' in payload && 'recipient_cid' in payload;
+export function isMessagingLayerPayload(payload: unknown): payload is P2PMessagingLayerPayload {
+  return typeof payload === 'object' && payload !== null && 'layer' in payload && 'sender_cid' in payload && 'recipient_cid' in payload;
 }
 
-export function isMessageAckPayload(payload: any): payload is P2PMessageAckPayload {
-  return 'ack_type' in payload && 'message_id' in payload;
+export function isMessageAckPayload(payload: unknown): payload is P2PMessageAckPayload {
+  return typeof payload === 'object' && payload !== null && 'ack_type' in payload && 'message_id' in payload;
 }
 
-export function isFileTransferRequestPayload(payload: any): payload is P2PFileTransferRequestPayload {
-  return 'file_id' in payload && 'total_chunks' in payload;
+export function isFileTransferRequestPayload(payload: unknown): payload is P2PFileTransferRequestPayload {
+  return typeof payload === 'object' && payload !== null && 'file_id' in payload && 'total_chunks' in payload;
 }
 
-export function isFileTransferChunkPayload(payload: any): payload is P2PFileTransferChunkPayload {
-  return 'file_id' in payload && 'chunk_index' in payload && 'chunk_data' in payload;
+export function isFileTransferChunkPayload(payload: unknown): payload is P2PFileTransferChunkPayload {
+  return typeof payload === 'object' && payload !== null && 'file_id' in payload && 'chunk_index' in payload && 'chunk_data' in payload;
 }
 
-export function isFileTransferCompletePayload(payload: any): payload is P2PFileTransferCompletePayload {
-  return 'file_id' in payload && 'success' in payload && 'final_checksum' in payload;
+export function isFileTransferCompletePayload(payload: unknown): payload is P2PFileTransferCompletePayload {
+  return typeof payload === 'object' && payload !== null && 'file_id' in payload && 'success' in payload && 'final_checksum' in payload;
 }
 
 // Helper functions for creating P2P commands
@@ -293,35 +293,35 @@ export type YjsP2PMessage = YjsSyncMessage | YjsAwarenessMessage | YjsAckMessage
 /**
  * Type guard for YJS sync messages
  */
-export function isYjsSyncMessage(msg: any): msg is YjsSyncMessage {
-  return msg?.type === 'yjs_sync' && 'sub_type' in msg && 'document_id' in msg;
+export function isYjsSyncMessage(msg: unknown): msg is YjsSyncMessage {
+  return typeof msg === 'object' && msg !== null && 'type' in msg && (msg as YjsSyncMessage).type === 'yjs_sync' && 'sub_type' in msg && 'document_id' in msg;
 }
 
 /**
  * Type guard for YJS awareness messages
  */
-export function isYjsAwarenessMessage(msg: any): msg is YjsAwarenessMessage {
-  return msg?.type === 'yjs_awareness' && 'awareness' in msg;
+export function isYjsAwarenessMessage(msg: unknown): msg is YjsAwarenessMessage {
+  return typeof msg === 'object' && msg !== null && 'type' in msg && (msg as YjsAwarenessMessage).type === 'yjs_awareness' && 'awareness' in msg;
 }
 
 /**
  * Type guard for YJS ACK messages
  */
-export function isYjsAckMessage(msg: any): msg is YjsAckMessage {
-  return msg?.type === 'yjs_ack' && 'message_id' in msg && 'local_hash' in msg;
+export function isYjsAckMessage(msg: unknown): msg is YjsAckMessage {
+  return typeof msg === 'object' && msg !== null && 'type' in msg && (msg as YjsAckMessage).type === 'yjs_ack' && 'message_id' in msg && 'local_hash' in msg;
 }
 
 /**
  * Type guard for YJS divergence messages
  */
-export function isYjsDivergenceMessage(msg: any): msg is YjsDivergenceMessage {
-  return msg?.type === 'yjs_divergence' && 'action' in msg;
+export function isYjsDivergenceMessage(msg: unknown): msg is YjsDivergenceMessage {
+  return typeof msg === 'object' && msg !== null && 'type' in msg && (msg as YjsDivergenceMessage).type === 'yjs_divergence' && 'action' in msg;
 }
 
 /**
- * Check if a message is any type of YJS P2P message
+ * Check if a message is a YJS P2P message
  */
-export function isYjsP2PMessage(msg: any): msg is YjsP2PMessage {
+export function isYjsP2PMessage(msg: unknown): msg is YjsP2PMessage {
   return isYjsSyncMessage(msg) || isYjsAwarenessMessage(msg) ||
          isYjsAckMessage(msg) || isYjsDivergenceMessage(msg);
 }

@@ -34,7 +34,7 @@ function formatBytesMap(map: Record<string, number[] | Uint8Array>): string {
 /**
  * Recursively format an object for debug output, replacing byte arrays with formatted strings
  */
-export function formatForDebug(obj: any): any {
+export function formatForDebug(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -65,7 +65,7 @@ export function formatForDebug(obj: any): any {
   
   // Handle objects
   if (typeof obj === 'object') {
-    const formatted: any = {};
+    const formatted: Record<string, unknown> = {};
     
     for (const [key, value] of Object.entries(obj)) {
       // Special handling for known byte fields
@@ -91,12 +91,12 @@ export function formatForDebug(obj: any): any {
 /**
  * Check if a field should be formatted as bytes based on its name and value
  */
-function shouldFormatAsBytes(fieldName: string, value: any): boolean {
+function shouldFormatAsBytes(fieldName: string, value: unknown): boolean {
   // Check if it's an array of numbers
   if (!Array.isArray(value) || value.length === 0) {
     return false;
   }
-  
+
   // Known byte fields from Rust structs
   const byteFields = [
     'value',      // LocalDBGetKVSuccess, LocalDBSetKV
@@ -106,32 +106,32 @@ function shouldFormatAsBytes(fieldName: string, value: any): boolean {
     'metadata',   // Workspace types: Workspace, Office, Room
     'contents',   // SendMessage in workspace protocol
   ];
-  
+
   // Check if field name matches and all elements are byte values
-  return byteFields.includes(fieldName) && 
-         value.every((v: any) => typeof v === 'number' && v >= 0 && v <= 255);
+  return byteFields.includes(fieldName) &&
+         value.every((v: unknown) => typeof v === 'number' && v >= 0 && v <= 255);
 }
 
 /**
  * Check if a field should be formatted as a map of bytes
  */
-function shouldFormatAsBytesMap(fieldName: string, value: any): boolean {
+function shouldFormatAsBytesMap(fieldName: string, value: unknown): boolean {
   // Check if it's an object
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
-  
+
   // Known map fields from Rust structs
   if (fieldName !== 'map') {
     return false;
   }
-  
+
   // Check if all values in the map are byte arrays
   for (const val of Object.values(value)) {
-    if (!Array.isArray(val) || !val.every((v: any) => typeof v === 'number' && v >= 0 && v <= 255)) {
+    if (!Array.isArray(val) || !val.every((v: unknown) => typeof v === 'number' && v >= 0 && v <= 255)) {
       return false;
     }
   }
-  
+
   return true;
 }

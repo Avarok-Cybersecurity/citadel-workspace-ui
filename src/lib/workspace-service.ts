@@ -1,8 +1,9 @@
 import { SecurityLevel } from '@/types';
-import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS, GroupMessageTypeTS, PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
+import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS, GroupMessageTypeTS, PermissionTS, UpdateOperationTS, UserRoleTS } from '@/types/workspace-protocol';
 import { GroupMessageType } from '@/types/workspace-entities';
 import { websocketService } from './websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import { isVariant } from 'citadel-workspace-client-ts';
 import { workspaceResponseHandler } from './workspace-response-handler';
 import { eventEmitter } from './event-emitter';
 import { debugLog } from '@/lib/debug-config';
@@ -68,12 +69,14 @@ export class WorkspaceService {
       // Convert TypeScript payload to the format expected by the client
       let request: WorkspaceProtocolRequest;
       
-      if ('Request' in payload && payload.Request) {
+      if (isVariant(payload as Record<string, unknown>, 'Request') && payload.Request) {
         // Map the TypeScript request format to the Rust format
         const tsRequest = payload.Request;
-        
+
         // Convert based on the request type
-        if ('GetWorkspace' in tsRequest) {
+        // Note: WorkspaceProtocolRequestTS uses optional-key interface pattern;
+        // isVariant checks typeof==='object' && key in obj, equivalent to 'in' check
+        if (isVariant(tsRequest as Record<string, unknown>, 'GetWorkspace')) {
           const ws = tsRequest.GetWorkspace;
           // GetWorkspace changed from unit variant to struct with optional workspace_id
           request = {
@@ -81,9 +84,9 @@ export class WorkspaceService {
               workspace_id: (ws && typeof ws === 'object' && 'workspace_id' in ws) ? ws.workspace_id ?? null : null
             }
           };
-        } else if ('ListWorkspaces' in tsRequest) {
+        } else if (typeof tsRequest === 'string' && tsRequest === 'ListWorkspaces') {
           request = 'ListWorkspaces';
-        } else if ('CreateWorkspace' in tsRequest) {
+        } else if (isVariant(tsRequest as Record<string, unknown>, 'CreateWorkspace')) {
           const req = tsRequest.CreateWorkspace!;
           request = {
             CreateWorkspace: {
@@ -93,7 +96,7 @@ export class WorkspaceService {
               metadata: req.metadata ?? null
             }
           };
-        } else if ('UpdateWorkspace' in tsRequest) {
+        } else if (isVariant(tsRequest as Record<string, unknown>, 'UpdateWorkspace')) {
           const req = tsRequest.UpdateWorkspace!;
           request = {
             UpdateWorkspace: {
@@ -130,7 +133,7 @@ export class WorkspaceService {
    * Load workspace data
    * This will trigger a workspace:loaded event when complete
    */
-  public async loadWorkspace(): Promise<any> {
+  public async loadWorkspace(): Promise<void> {
     debugLog('WorkspaceService', '[WorkspaceService] loadWorkspace called with CID:', this.currentCid?.toString());
 
     // Emit loading event
@@ -171,7 +174,7 @@ export class WorkspaceService {
    * @param masterPassword The master password for admin operations
    * @param metadata Optional metadata
    */
-  public async createWorkspace(name: string, description: string, masterPassword: string, metadata?: Uint8Array): Promise<any> {
+  public async createWorkspace(name: string, description: string, masterPassword: string, metadata?: Uint8Array): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       CreateWorkspace: {
         name,
@@ -190,7 +193,7 @@ export class WorkspaceService {
    * @param masterPassword The master password for admin operations
    * @param metadata Optional metadata
    */
-  public async updateWorkspace(name?: string, description?: string, masterPassword?: string, metadata?: Uint8Array): Promise<any> {
+  public async updateWorkspace(name?: string, description?: string, masterPassword?: string, metadata?: Uint8Array): Promise<void> {
     const requestPart = {
       UpdateWorkspace: {
         name,
@@ -211,10 +214,10 @@ export class WorkspaceService {
    */
   public async addMember(
     userId: string,
-    role: any, // UserRole type
+    role: UserRoleTS,
     domainId?: string,
     metadata?: Uint8Array
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       AddMember: {
         user_id: userId,
@@ -230,7 +233,7 @@ export class WorkspaceService {
    * Get a member by ID
    * @param userId The user ID
    */
-  public async getMember(userId: string): Promise<any> {
+  public async getMember(userId: string): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetMember: { user_id: userId }
     };
@@ -270,7 +273,7 @@ export class WorkspaceService {
     domainId: string,
     permissions: PermissionTS[],
     operation: UpdateOperationTS
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       UpdateMemberPermissions: {
         user_id: userId,
@@ -290,7 +293,7 @@ export class WorkspaceService {
   public async removeMember(
     userId: string,
     domainId?: string
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       RemoveMember: {
         user_id: userId,
@@ -304,7 +307,7 @@ export class WorkspaceService {
    * List members in a workspace or domain node
    * @param domainId Optional domain ID (office, room, etc.)
    */
-  public async listMembers(domainId?: string): Promise<any> {
+  public async listMembers(domainId?: string): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       ListMembers: {
         domain_id: domainId
@@ -318,7 +321,7 @@ export class WorkspaceService {
    * @param userId The user ID
    * @param domainId The domain ID (workspace, office, or room)
    */
-  public async getUserPermissions(userId: string, domainId: string): Promise<any> {
+  public async getUserPermissions(userId: string, domainId: string): Promise<void> {
     const requestPart = {
       GetUserPermissions: {
         user_id: userId,
@@ -332,7 +335,7 @@ export class WorkspaceService {
    * Send a message via workspace protocol
    * @param contents The message contents (can be any subprotocol)
    */
-  public async sendMessage(contents: Uint8Array): Promise<any> {
+  public async sendMessage(contents: Uint8Array): Promise<void> {
     const requestPart = {
       Message: {
         contents: new Uint8Array(contents)
@@ -357,7 +360,7 @@ export class WorkspaceService {
     messageType: GroupMessageTypeTS = GroupMessageTypeTS.Text,
     replyTo?: string,
     mentions?: string[]
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       SendGroupMessage: {
         group_id: groupId,
@@ -380,7 +383,7 @@ export class WorkspaceService {
     groupId: string,
     messageId: string,
     newContent: string
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       EditGroupMessage: {
         group_id: groupId,
@@ -399,7 +402,7 @@ export class WorkspaceService {
   public async deleteGroupMessage(
     groupId: string,
     messageId: string
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       DeleteGroupMessage: {
         group_id: groupId,
@@ -419,7 +422,7 @@ export class WorkspaceService {
     groupId: string,
     beforeTimestamp?: number,
     limit: number = 50
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetGroupMessages: {
         group_id: groupId,
@@ -438,7 +441,7 @@ export class WorkspaceService {
   public async getThreadMessages(
     groupId: string,
     parentMessageId: string
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetThreadMessages: {
         group_id: groupId,
@@ -458,7 +461,7 @@ export class WorkspaceService {
   public async updateUserProfile(
     name?: string,
     avatarData?: string
-  ): Promise<any> {
+  ): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       UpdateUserProfile: {
         name,
@@ -582,7 +585,7 @@ export class WorkspaceService {
    * Get server file transfer and storage capabilities
    * Returns configuration for RE-VFS storage, file transfers, etc.
    */
-  public async getServerCapabilities(): Promise<any> {
+  public async getServerCapabilities(): Promise<void> {
     const requestPart: WorkspaceProtocolRequestTS = {
       GetServerCapabilities: null
     };

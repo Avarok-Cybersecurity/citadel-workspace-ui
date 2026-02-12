@@ -51,7 +51,7 @@ class PeerRegistrationStore {
   private static instance: PeerRegistrationStore;
   private pendingRequests: PendingPeerRequest[] = [];
   private outgoingRequests: OutgoingPeerRequest[] = [];
-  private pendingKVRequests = new Map<string, { resolve: (value: any) => void; reject: (error: Error) => void }>();
+  private pendingKVRequests = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
@@ -184,10 +184,10 @@ class PeerRegistrationStore {
           // Update timeLastSent
           request.timeLastSent = Date.now();
           needsPersist = true;
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Handle duplicate request error gracefully - Citadel Protocol may return
           // an error if the request still exists in its queue (hasn't reached TTL)
-          const errorMsg = error?.message || '';
+          const errorMsg = error instanceof Error ? error.message : String(error);
           if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
             debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Request already exists in protocol queue, continuing');
             // Still update timeLastSent so we don't spam
@@ -539,7 +539,7 @@ class PeerRegistrationStore {
     // Normalize CID for comparison - extract last 8 digits to handle JS precision loss
     // e.g., "18017897041159203224" and "18017897041159203000" both become "59203224" and "59203000"
     // This is a workaround for JS number precision issues with u64
-    const normalizeCid = (cid: any): string => {
+    const normalizeCid = (cid: bigint | string | number | null | undefined): string => {
       if (!cid) return '';
       const str = cid.toString();
       // For very long CIDs, compare last 10 chars to avoid precision issues
@@ -559,7 +559,7 @@ class PeerRegistrationStore {
         reject(new Error('Registration request timed out'));
       }, 10000);
 
-      const handleMessage = (message: any) => {
+      const handleMessage = (message: any) => { // any: WebSocket discriminated union with optional chaining
         // Match by request_id (primary)
         const matchesByRequestId =
           message.PeerRegisterSuccess?.request_id === registerRequestId ||
@@ -753,9 +753,9 @@ class PeerRegistrationStore {
 
     return new Promise((resolve) => {
       this.pendingKVRequests.set(requestId, {
-        resolve: async (data: any) => {
+        resolve: async (data: unknown) => {
           if (data && Array.isArray(data)) {
-            this.pendingRequests = data;
+            this.pendingRequests = data as PendingPeerRequest[];
             debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Loaded', data.length, 'pending requests');
             // Create notifications for current session's pending requests
             const currentSessionRequests = await this.getPendingRequests();
@@ -862,10 +862,10 @@ class PeerRegistrationStore {
 
     return new Promise((resolve) => {
       this.pendingKVRequests.set(requestId, {
-        resolve: async (data: any) => {
+        resolve: async (data: unknown) => {
           if (data && Array.isArray(data)) {
             // Filter out any invalid requests missing required fields (toCid, fromCid)
-            const validRequests = data.filter((r: OutgoingPeerRequest) => r.toCid && r.fromCid);
+            const validRequests = (data as OutgoingPeerRequest[]).filter((r: OutgoingPeerRequest) => r.toCid && r.fromCid);
             const invalidCount = data.length - validRequests.length;
             if (invalidCount > 0) {
               console.warn(`PeerRegistrationStore: Filtered out ${invalidCount} invalid outgoing requests (missing toCid or fromCid)`);
@@ -937,7 +937,7 @@ class PeerRegistrationStore {
       }
     });
 
-    eventEmitter.on('websocket-message', (message: any) => {
+    eventEmitter.on('websocket-message', (message: any) => { // any: WebSocket discriminated union with optional chaining
       // Handle LocalDBSetKV success
       if (message.LocalDBSetKVSuccess) {
         const { request_id } = message.LocalDBSetKVSuccess;

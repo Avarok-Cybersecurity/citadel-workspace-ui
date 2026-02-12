@@ -16,7 +16,7 @@ declare global {
  * @param input - The input string that may contain text and JSON objects
  * @returns The reconstructed string with formatted JSON objects
  */
-export function parseAndFormatMixedContent(input: any): string {
+export function parseAndFormatMixedContent(input: unknown): string {
   // If input is not a string, format it directly
   if (typeof input !== 'string') {
     const formatted = formatForDebug(input);

@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 
-interface RetryOptions {
+interface RetryOptions<T> {
   maxRetries?: number;
   retryDelay?: number;
-  onSuccess?: (result: any) => void;
+  onSuccess?: (result: T) => void;
   onError?: (error: Error) => void;
   onRetry?: (attempt: number, error: Error) => void;
 }
@@ -13,7 +13,7 @@ interface RetryState<T> {
   error: Error | null;
   isLoading: boolean;
   attempt: number;
-  execute: (params?: any) => Promise<T | null>;
+  execute: (...params: unknown[]) => Promise<T | null>;
   retry: () => Promise<T | null>;
   reset: () => void;
 }
@@ -25,8 +25,8 @@ interface RetryState<T> {
  * @returns State and control functions
  */
 export function useRetry<T>(
-  operation: (...args: any[]) => Promise<T>,
-  options: RetryOptions = {}
+  operation: (...args: unknown[]) => Promise<T>,
+  options: RetryOptions<T> = {}
 ): RetryState<T> {
   const {
     maxRetries = 3,
@@ -41,7 +41,7 @@ export function useRetry<T>(
     error: Error | null;
     isLoading: boolean;
     attempt: number;
-    lastParams: any[] | null;
+    lastParams: unknown[] | null;
   }>({
     data: null,
     error: null,
@@ -51,7 +51,7 @@ export function useRetry<T>(
   });
 
   const execute = useCallback(
-    async (...params: any[]): Promise<T | null> => {
+    async (...params: unknown[]): Promise<T | null> => {
       setState(prev => ({
         ...prev,
         isLoading: true,

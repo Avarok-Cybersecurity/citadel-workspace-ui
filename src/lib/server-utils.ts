@@ -38,6 +38,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       }, 5000);
 
       // Set up event listener
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
       const handler = (message: any) => {
         if (message.LocalDBGetAllKVSuccess && message.LocalDBGetAllKVSuccess.request_id === requestId) {
           clearTimeout(timeout);
@@ -140,6 +141,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       }, 5000);
 
       // Set up event listener
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
       const handler = (message: any) => {
         if (message.LocalDBSetKVSuccess && message.LocalDBSetKVSuccess.request_id === requestId) {
           clearTimeout(timeout);

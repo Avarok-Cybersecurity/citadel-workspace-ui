@@ -8,7 +8,7 @@ import { debugLog } from '@/lib/debug-config';
 
 export interface BroadcastMessage {
   type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message' | 'p2p-notification';
-  data: any;
+  data: unknown;
   timestamp: number;
   tabId: string;
   isLeader?: boolean;
@@ -371,7 +371,7 @@ export class BroadcastChannelService extends PollingService {
   /**
    * Broadcast state synchronization data
    */
-  public broadcastStateSync(data: any): void {
+  public broadcastStateSync(data: unknown): void {
     const message: BroadcastMessage = {
       type: 'state-sync',
       data,
@@ -423,6 +423,7 @@ export class BroadcastChannelService extends PollingService {
    * Called when leader receives a message meant for a different session.
    * BroadcastChannel uses structured clone which supports Uint8Array directly.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- notification is untyped MessageNotification from WASM; accessed via optional chaining
   public broadcastP2PNotification(data: { notification: any; messageBytes: Uint8Array }): void {
     // Only leader broadcasts P2P notifications to followers
     if (!this.isLeader) {

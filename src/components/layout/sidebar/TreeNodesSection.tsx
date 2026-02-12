@@ -9,6 +9,7 @@ import {
   Star,
 } from "lucide-react";
 import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
+import { isVariant } from 'citadel-workspace-client-ts';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -388,7 +389,7 @@ function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     default_permissions: roots[0].default_permissions,
     metadata: [],
     allowed_child_types: [...new Set(roots.map(r =>
-      typeof r.entity_type === 'object' && 'Child' in r.entity_type ? r.entity_type.Child :
+      isVariant(r.entity_type as Record<string, unknown>, 'Child') ? (r.entity_type as { Child: string }).Child :
       getEntityTypeString(r.entity_type)
     ))],
     is_default: false,

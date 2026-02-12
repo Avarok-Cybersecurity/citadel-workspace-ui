@@ -88,7 +88,7 @@ export const SecuritySettings = ({
     updateSecuritySettings(settings);
   };
 
-  const handleSettingChange = (key: keyof SecuritySettingsValues, value: any) => {
+  const handleSettingChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => {
     setSettings(prev => ({
       ...prev,
       [key]: value

@@ -4,6 +4,7 @@ import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
 import { getDefaultNodeContent, getDefaultChildNodeContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { isVariant } from 'citadel-workspace-client-ts';
 import { connectionManager } from '@/lib/connection';
 import { StoredSession } from '@/types/session-types';
 import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
@@ -40,7 +41,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   const node = nodeId ? state.nodes[nodeId] : null;
 
   // Determine whether this node has children (e.g., Office) or is a leaf (e.g., Room)
-  const isLeafNode = node && typeof node.entity_type === 'object' && 'Child' in node.entity_type
+  const isLeafNode = node && isVariant(node.entity_type as Record<string, unknown>, 'Child')
     && (!node.allowed_child_types || node.allowed_child_types.length === 0);
 
   // Determine content to display

@@ -11,6 +11,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
+import { isResponseType } from 'citadel-workspace-client-ts';
+import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { getDefaultSecuritySettings } from "@/lib/security-utils";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
@@ -94,8 +96,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
       try {
         await websocketService.claimSession(session.cid, true);
         debugLog('Login', 'Login: Session claimed successfully (was orphaned)');
-      } catch (claimError: any) {
-        if (claimError?.message?.includes('not orphaned')) {
+      } catch (claimError: unknown) {
+        if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
           debugLog('Login', 'Login: Session is still active (not orphaned), no claim needed');
         } else {
           // Re-throw if it's a different error
@@ -220,20 +222,22 @@ export function Login({ onNext, onCancel }: LoginProps) {
           }
         }, 30000);
 
-        const handler = (message: any) => {
+        const handler = (message: InternalServiceResponse) => {
           debugLog('Login', 'Login response received:', message);
           debugLog('Login', 'Expected requestId:', requestId);
-          
+
           // Check if the message is wrapped in a Response object
-          const response = message.Response || message;
-          
+          const response = (message as Record<string, unknown>).Response
+            ? ((message as Record<string, unknown>).Response as InternalServiceResponse)
+            : message;
+
           // Check if this response matches our request ID
-          if ('ConnectSuccess' in response && response.ConnectSuccess.request_id === requestId) {
+          if (isResponseType(response, 'ConnectSuccess') && response.ConnectSuccess.request_id === requestId) {
             responseReceived = true;
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
             resolve(response.ConnectSuccess.cid);
-          } else if ('SessionAlreadyActive' in response && response.SessionAlreadyActive.request_id === requestId) {
+          } else if (isResponseType(response, 'SessionAlreadyActive') && response.SessionAlreadyActive.request_id === requestId) {
             // Session is already active - redirect to workspace seamlessly
             responseReceived = true;
             clearTimeout(timeout);
@@ -255,7 +259,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
               }
             });
             return; // Don't resolve/reject - redirectToExistingSession handles navigation
-          } else if ('ConnectFailure' in response && response.ConnectFailure.request_id === requestId) {
+          } else if (isResponseType(response, 'ConnectFailure') && response.ConnectFailure.request_id === requestId) {
             responseReceived = true;
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
@@ -387,12 +391,13 @@ export function Login({ onNext, onCancel }: LoginProps) {
         title: "Login successful",
         description: "Connected to workspace successfully",
       });
-    } catch (err: any) {
-      const userFriendlyMessage = getUserFriendlyErrorMessage(err);
+    } catch (err: unknown) {
+      const errArg = err instanceof Error ? err : String(err);
+      const userFriendlyMessage = getUserFriendlyErrorMessage(errArg);
       setError(userFriendlyMessage);
       toast({
         variant: "destructive",
-        title: getErrorTitle(err),
+        title: getErrorTitle(errArg),
         description: userFriendlyMessage,
       });
     } finally {

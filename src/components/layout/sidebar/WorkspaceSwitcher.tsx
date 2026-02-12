@@ -190,8 +190,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       try {
         await websocketService.claimSession(targetSession.cid, true);
         debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Session claimed successfully (was orphaned)');
-      } catch (claimError: any) {
-        if (claimError?.message?.includes('not orphaned')) {
+      } catch (claimError: unknown) {
+        if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
           debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Session is still active (not orphaned), no claim needed');
         } else {
           // Re-throw if it's a different error

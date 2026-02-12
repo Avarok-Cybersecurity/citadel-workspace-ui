@@ -128,7 +128,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
           }
         }, 10000); // Increased timeout
 
-        const handler = (message: any) => {
+        const handler = (message: any) => { // any: WebSocket discriminated union with optional chaining
           debugLog('Join', '[ILM-TRACE] Join: Registration response received');
           debugLog('Join', '[ILM-TRACE] Join: Response type:', Object.keys(message)[0]);
           debugLog('Join', '[ILM-TRACE] Join: Expected requestId:', requestId);
@@ -272,19 +272,21 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
 
       // Show ready status - modal will auto-close and navigate via onComplete callback
       setConnectStatus("ready");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Registration Error:", error); // Add logging
 
       // Close modal on error (unless it's workspace not initialized, which shows its own modal)
-      if (!error.message?.includes('Workspace not initialized')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage?.includes('Workspace not initialized')) {
         setShowConnectModal(false);
       } else {
         setShowConnectModal(false);
       }
 
+      const errorArg = error instanceof Error ? error : String(error);
       toast({
-        title: getErrorTitle(error),
-        description: getUserFriendlyErrorMessage(error),
+        title: getErrorTitle(errorArg),
+        description: getUserFriendlyErrorMessage(errorArg),
         variant: "destructive",
       });
     } finally {

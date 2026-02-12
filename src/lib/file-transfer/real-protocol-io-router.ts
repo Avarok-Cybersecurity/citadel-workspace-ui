@@ -12,6 +12,7 @@ import { eventEmitter } from '../event-emitter';
 import { websocketService } from '../websocket-service';
 import { p2pMessengerManager } from '../p2p';
 import { getSelectedUser } from '../tab-context';
+import { isVariant } from 'citadel-workspace-client-ts';
 import type { IFileTransferIORouter } from './io-router';
 import type {
   SendFileParams,
@@ -397,13 +398,13 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
         let errorMessage: string | undefined;
 
         // Check for completion statuses
-        if ('TransferComplete' in status) {
+        if (isVariant(status, 'TransferComplete')) {
           objectId = status.TransferComplete.object_id.toString();
           success = true;
-        } else if ('ReceptionComplete' in status) {
+        } else if (isVariant(status, 'ReceptionComplete')) {
           objectId = status.ReceptionComplete.object_id.toString();
           success = true;
-        } else if ('Fail' in status) {
+        } else if (isVariant(status, 'Fail')) {
           objectId = status.Fail.object_id.toString();
           success = false;
           errorMessage = status.Fail.message;
@@ -582,7 +583,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
     percentage: number;
     status: 'uploading' | 'downloading' | 'complete' | 'failed';
   } | null {
-    if ('TransferTick' in status) {
+    if (isVariant(status, 'TransferTick')) {
       const tick = status.TransferTick;
       const sent = Number(tick.sent);
       const total = Number(tick.total);
@@ -595,7 +596,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       };
     }
 
-    if ('ReceptionTick' in status) {
+    if (isVariant(status, 'ReceptionTick')) {
       const tick = status.ReceptionTick;
       const received = Number(tick.received);
       const total = Number(tick.total);
@@ -608,7 +609,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       };
     }
 
-    if ('ReceptionBeginning' in status) {
+    if (isVariant(status, 'ReceptionBeginning')) {
       const tick = status.ReceptionBeginning;
       return {
         protocolId: tick.object_id.toString(),

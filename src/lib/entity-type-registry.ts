@@ -9,6 +9,7 @@
 
 import type { ComponentType } from 'react';
 import type { TreeSchema, EntityTypeConfig } from 'citadel-workspace-client-ts';
+import { isVariant } from 'citadel-workspace-client-ts';
 import {
   Building2,
   Briefcase,
@@ -59,8 +60,8 @@ function resolveIcon(iconName: string): ComponentType<{ className?: string }> {
 /** Extract the string name from a NodeEntityType. */
 export function getEntityTypeString(entityType: NodeEntityType): string {
   if (entityType === 'Workspace') return 'Workspace';
-  if (typeof entityType === 'object' && 'Child' in entityType) {
-    return entityType.Child;
+  if (isVariant(entityType as Record<string, unknown>, 'Child')) {
+    return (entityType as { Child: string }).Child;
   }
   return 'Node';
 }

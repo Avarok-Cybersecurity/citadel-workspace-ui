@@ -25,6 +25,20 @@ interface Peer {
   is_registered?: boolean;
 }
 
+/** Shape of a session entry from GetSessionsResponse */
+interface SessionEntry {
+  cid: bigint;
+  username?: string;
+}
+
+/** Shape of a peer entry from ListAllPeersResponse */
+interface PeerEntry {
+  cid: bigint;
+  username?: string;
+  full_name?: string;
+  is_online?: boolean;
+}
+
 interface PeerDiscoveryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -100,6 +114,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // and Alice's modal should immediately show "Connected" (which means "Registered"
   // in P2P terminology - the peer relationship is now established for direct messaging).
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
     const handleRegistrationSuccess = (message: any) => {
       // Handle PeerRegisterSuccess - peer is now registered with us
       if (message.PeerRegisterSuccess) {
@@ -128,6 +143,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // Set up listener for incoming registration notifications
   // Delegate to peerRegistrationStore for persistence and non-disruptive UX
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
     const handleIncomingRegistration = async (message: any) => {
       if (message.PeerRegisterNotification) {
         // Delegate to store - handles persistence, deduplication, and UI updates via badge
@@ -156,11 +172,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       }
     };
 
-    const responsePromise = new Promise<any>((resolve, reject) => {
+    const responsePromise = new Promise<{ sessions?: SessionEntry[]; request_id?: string }>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('GetSessions timed out'));
       }, 5000);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
       const handleMessage = (message: any) => {
         if (message.GetSessionsResponse && message.GetSessionsResponse.request_id === requestId) {
           clearTimeout(timeout);
@@ -176,12 +193,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     const response = await responsePromise;
 
     // Convert sessions to Peer format
-    const sessions = response.sessions || [];
+    const sessions: SessionEntry[] = response.sessions || [];
     debugLog('PeerDiscoveryModal', '[PeerDiscovery] GetSessions returned', sessions.length, 'sessions');
 
     return sessions
-      .filter((s: any) => s.cid.toString() !== currentCid?.toString()) // Filter out self
-      .map((s: any) => ({
+      .filter((s) => s.cid.toString() !== currentCid?.toString()) // Filter out self
+      .map((s) => ({
         cid: s.cid.toString(),
         username: s.username || 'Unknown',
         fullName: undefined,
@@ -204,12 +221,13 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         }
       };
 
-      const responsePromise = new Promise<any>((resolve, reject) => {
+      const responsePromise = new Promise<{ peers?: Record<string, unknown>; request_id?: string }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           broadcastChannelService.clearRequest(requestId);
           reject(new Error('Request timed out'));
         }, 10000);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
         const handleMessage = (message: any) => {
           if (message.ListRegisteredPeersResponse && message.ListRegisteredPeersResponse.request_id === requestId) {
             clearTimeout(timeout);
@@ -263,12 +281,13 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       };
 
       // Set up response handler before sending request
-      const responsePromise = new Promise<any>((resolve, reject) => {
+      const responsePromise = new Promise<{ peer_information?: Record<string, PeerEntry>; request_id?: string }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           broadcastChannelService.clearRequest(requestId);
           reject(new Error('Request timed out'));
         }, 10000);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
         const handleMessage = (message: any) => {
           if (message.ListAllPeersResponse && message.ListAllPeersResponse.request_id === requestId) {
             clearTimeout(timeout);
@@ -291,11 +310,11 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       const response = await responsePromise;
 
       // Process peers - response contains peer_information object
-      const peerInfo = response.peer_information || {};
-      const peerList = Object.values(peerInfo);
+      const peerInfo: Record<string, PeerEntry> = response.peer_information || {};
+      const peerList: PeerEntry[] = Object.values(peerInfo);
       const processedPeers = peerList
-        .filter((p: any) => p.cid !== currentCid) // Filter out self
-        .map((p: any) => ({
+        .filter((p) => p.cid !== currentCid) // Filter out self
+        .map((p) => ({
           cid: p.cid.toString(),
           username: p.username || 'Unknown',
           fullName: p.full_name,

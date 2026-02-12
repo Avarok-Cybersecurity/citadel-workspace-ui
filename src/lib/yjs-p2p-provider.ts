@@ -116,7 +116,9 @@ export class YjsP2PProvider {
   private revision: number = 0;
 
   private messageListener: (() => void) | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Y.Doc 'update' event callback has origin typed as any
   private updateHandler: ((update: Uint8Array, origin: any) => void) | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Awareness 'update' event callback has origin typed as any
   private awarenessHandler: ((update: { added: number[]; updated: number[]; removed: number[] }, origin: any) => void) | null = null;
 
   private connected = false;
@@ -169,6 +171,7 @@ export class YjsP2PProvider {
   // ============================================
 
   private setupUpdateHandler() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Y.Doc 'update' callback origin is any
     this.updateHandler = (update: Uint8Array, origin: any) => {
       if (this.destroyed) return;
       // Don't re-send updates that came from the peer
@@ -686,6 +689,7 @@ export class YjsP2PProvider {
   /**
    * Set local awareness state (cursor position, user info, etc.)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Awareness.setLocalState expects { [x: string]: any } | null
   setLocalState(state: Record<string, any>) {
     this.awareness.setLocalState(state);
   }

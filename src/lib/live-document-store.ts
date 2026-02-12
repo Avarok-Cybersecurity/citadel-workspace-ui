@@ -319,7 +319,7 @@ class LiveDocumentStore {
   /**
    * Decode a value from LocalDB response
    */
-  private decodeValue(value: any): string {
+  private decodeValue(value: unknown): string {
     if (Array.isArray(value)) {
       return bytesToString(value);
     }

@@ -45,7 +45,7 @@ export interface ChannelMessage {
   senderInstanceId: string;
   timestamp: number;
   requestId?: string;
-  payload?: any;
+  payload?: unknown;
   status?: 'processed' | 'error';
   error?: string;
   data?: ProxyResponseData; // Typed data for acknowledgments
@@ -553,7 +553,7 @@ class InstanceChannel {
    * Send an outbound request to the leader
    * Returns a promise that resolves when ACK is received
    */
-  sendToLeader(payload: any, requestId?: string): Promise<AckResult> {
+  sendToLeader(payload: unknown, requestId?: string): Promise<AckResult> {
     const id = requestId || crypto.randomUUID();
 
     return new Promise((resolve, reject) => {
@@ -561,7 +561,7 @@ class InstanceChannel {
       outboundQueue.enqueue(payload, id);
 
       // Set up ACK listener
-      const ackHandler = (event: { requestId: string; status: 'processed' | 'error'; error?: string; data?: any }) => {
+      const ackHandler = (event: { requestId: string; status: 'processed' | 'error'; error?: string; data?: ProxyResponseData }) => {
         if (event.requestId === id) {
           clearTimeout(timeout);
           eventEmitter.off('outbound-ack', ackHandler);
@@ -607,7 +607,7 @@ class InstanceChannel {
   /**
    * Forward an inbound message to a specific instance
    */
-  forwardToInstance(targetInstanceId: string, payload: any): void {
+  forwardToInstance(targetInstanceId: string, payload: unknown): void {
     this.send({
       type: 'inbound-forward',
       targetInstanceId,
@@ -618,7 +618,7 @@ class InstanceChannel {
   /**
    * Broadcast to all instances
    */
-  broadcast(payload: any): void {
+  broadcast(payload: unknown): void {
     this.send({
       type: 'inbound-forward',
       targetInstanceId: '*',

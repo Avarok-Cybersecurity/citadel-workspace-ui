@@ -6,7 +6,7 @@
  */
 
 import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+import type { InternalServiceResponse, ResponseType } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '../event-emitter';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog, errorLog } from '../debug-config';
@@ -131,7 +131,7 @@ export class WebSocketInitialization {
 
         if (broadcastChannelService.getIsLeader()) {
           const messageType = Object.keys(message)[0];
-          const cidRoutedTypes = ['MessageNotification', 'PeerRegisterNotification', 'PeerConnectNotification'];
+          const cidRoutedTypes: ResponseType[] = ['MessageNotification', 'PeerRegisterNotification', 'PeerConnectNotification'];
           if (!cidRoutedTypes.includes(messageType)) {
             broadcastChannelService.broadcastWorkspaceResponse(message);
           } else {

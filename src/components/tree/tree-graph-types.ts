@@ -5,6 +5,7 @@
  */
 
 import type { Node } from "@xyflow/react";
+import { isVariant } from 'citadel-workspace-client-ts';
 
 // Types for workspace hierarchy - imported from workspace client types
 // Re-defining locally to avoid import issues with workspace package resolution
@@ -106,8 +107,8 @@ export function getNodeColorConfig(entityType: NodeEntityType): NodeColorConfig 
   }
 
   // Handle Child types
-  if (typeof entityType === "object" && "Child" in entityType) {
-    const childType = entityType.Child.toLowerCase();
+  if (isVariant(entityType as Record<string, unknown>, 'Child')) {
+    const childType = (entityType as { Child: string }).Child.toLowerCase();
 
     switch (childType) {
       case "office":
@@ -171,8 +172,8 @@ export function getEntityTypeDisplayName(entityType: NodeEntityType): string {
   if (entityType === "Workspace") {
     return "Workspace";
   }
-  if (typeof entityType === "object" && "Child" in entityType) {
-    return entityType.Child;
+  if (isVariant(entityType as Record<string, unknown>, 'Child')) {
+    return (entityType as { Child: string }).Child;
   }
   return "Unknown";
 }

@@ -4,6 +4,7 @@
  */
 
 import type { SecuritySettingsValues } from '@/components/SecuritySettings';
+import { isVariant } from 'citadel-workspace-client-ts';
 
 /**
  * HeaderObfuscatorSettings - matches Rust enum
@@ -86,7 +87,7 @@ export function normalizeHeaderObfuscatorSettings(
   // Handle object cases
   if (typeof settings === "object") {
     // Already properly typed EnabledWithKey object
-    if ('EnabledWithKey' in settings && typeof settings.EnabledWithKey === 'number') {
+    if (isVariant(settings as Record<string, unknown>, 'EnabledWithKey') && typeof (settings as Record<string, unknown>).EnabledWithKey === 'number') {
       return settings as { EnabledWithKey: number };
     }
 

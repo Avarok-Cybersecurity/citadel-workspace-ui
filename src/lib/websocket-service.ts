@@ -378,7 +378,7 @@ class WebSocketService {
    *
    * This is the core send method that all other methods should use.
    */
-  private async _sendRequest(request: any, requestId?: string): Promise<void> {
+  private async _sendRequest(request: Record<string, unknown>, requestId?: string): Promise<void> {
     await this.init();
 
     // DEBUG: Log leadership decision
@@ -418,7 +418,7 @@ class WebSocketService {
    * Send a direct message to the internal service
    * With serde-wasm-bindgen + ts_rs bigint annotations, BigInt CIDs pass directly to WASM
    */
-  async sendMessage(message: any): Promise<void> {
+  async sendMessage(message: Record<string, unknown>): Promise<void> {
     await this._sendRequest(message);
   }
 
@@ -447,7 +447,7 @@ class WebSocketService {
   /**
    * Get the WASM module instance for direct P2P operations
    */
-  async getWasmModule(): Promise<any> {
+  async getWasmModule(): Promise<unknown> {
     await this.init(); // ensure initialized
     
     return this.client?.getWasmModule() ?? null;
@@ -465,7 +465,7 @@ class WebSocketService {
    * Send a raw request using the InternalServiceRequest format
    * SINGLE-WEBSOCKET ARCHITECTURE: Uses _sendRequest which handles leader/follower
    */
-  async sendRequest(request: any): Promise<any> {
+  async sendRequest(request: Record<string, unknown>): Promise<void> {
     await this.init();
     return this._sendRequest(request);
   }

@@ -24,9 +24,9 @@ export const Connect = () => {
       if (response.servers.length > 0) {
         setSelectedServer(response.servers[0].serverAddress);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching known servers:", error);
-      const errorMessage = error.message || error.toString() || "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("Error details:", errorMessage);
       toast({
         title: "Error",
@@ -63,9 +63,9 @@ export const Connect = () => {
       });
       
       navigate(getWorkspacePath());
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error connecting to server:", error);
-      const errorMessage = error.message || error.toString() || "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("Connection error details:", errorMessage);
       toast({
         title: "Connection Failed",

@@ -181,6 +181,7 @@ export class P2PAutoConnectService {
     // Listen for connectedPeers updates from leader (for follower tabs)
     // This allows follower tabs to have synchronized connectedPeers state
     // so WASM ILM queries work correctly on all tabs
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- State sync payload is polymorphic based on type field
     eventEmitter.on('broadcast-state-sync', (data: any) => {
       if (data?.type === 'connected-peers-update' && !instanceManager.isLeader) {
         const { localCid, peerCid, peerUsername, localUsername } = data;
@@ -203,7 +204,7 @@ export class P2PAutoConnectService {
 
     // CRITICAL: Immediately connect to newly registered peers (don't wait for 5-min poll)
     // Handle both incoming and outgoing registrations appropriately
-    eventEmitter.on('p2p:peer-registered', ({ peer, isIncoming, isOutgoing }: { peer: any; isIncoming?: boolean; isOutgoing?: boolean }) => {
+    eventEmitter.on('p2p:peer-registered', ({ peer, isIncoming, isOutgoing }: { peer: { cid?: bigint }; isIncoming?: boolean; isOutgoing?: boolean }) => {
       const peerCid: bigint | undefined = peer?.cid;
       if (peerCid === undefined) return;
 
@@ -254,6 +255,7 @@ export class P2PAutoConnectService {
     });
 
     // Listen for successful P2P connections - INSTANT update
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
     eventEmitter.on('websocket-message', async (message: any) => {
       if (message.PeerConnectSuccess) {
         // CRITICAL: On the leader tab, update connectedPeers for ALL sessions.
@@ -664,9 +666,10 @@ export class P2PAutoConnectService {
 
       this.lastOnlineStatusRefresh = Date.now();
       debugLog('P2pAutoConnectService', `P2PAutoConnect: Refreshed online status, ${this.onlinePeers.size} peers online`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Skip silently if there's no valid user session (expected when not logged in)
-      if (error?.message?.includes('CID 0') || error?.message?.includes('No active')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
         return;
       }
       console.warn('P2PAutoConnect: Failed to refresh online status:', error);
@@ -939,18 +942,19 @@ export class P2PAutoConnectService {
     this.refreshOnlineStatus().catch(() => {}); // Fire-and-forget
     debugLog('P2pAutoConnectService', `[ILM-TRACE] connectToAllRegisteredPeers: onlinePeers=${Array.from(this.onlinePeers).map(c => c.toString().slice(0, 8)).join(',')}`);
 
-    let registeredPeers: any[] = [];
+    let registeredPeers: Array<{ cid: bigint; username?: string }> = [];
 
     try {
       registeredPeers = await p2pRegistrationService.listRegisteredPeers();
       debugLog('P2pAutoConnectService', `P2PAutoConnect: Found ${registeredPeers.length} registered peers via ListRegisteredPeers`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Skip silently if there's no valid user session (expected when not logged in)
-      if (error?.message?.includes('CID 0') || error?.message?.includes('No active')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
         return;
       }
       // If ListRegisteredPeers times out, fall back to GetSessions
-      if (error?.message?.includes('timed out') || error?.message?.includes('timeout')) {
+      if (errorMessage?.includes('timed out') || errorMessage?.includes('timeout')) {
         debugLog('P2pAutoConnectService', 'P2PAutoConnect: ListRegisteredPeers timed out, falling back to GetSessions...');
         registeredPeers = await this.getRegisteredPeersViaGetSessions(currentCid);
         debugLog('P2pAutoConnectService', `P2PAutoConnect: Found ${registeredPeers.length} registered peers via GetSessions fallback`);
@@ -990,7 +994,7 @@ export class P2PAutoConnectService {
    * Fallback: Get registered peers from GetSessions response
    * This is used when ListRegisteredPeers times out
    */
-  private async getRegisteredPeersViaGetSessions(currentCid: bigint): Promise<any[]> {
+  private async getRegisteredPeersViaGetSessions(currentCid: bigint): Promise<Array<{ cid: bigint; username: string }>> {
     try {
       const sessions = await connectionManager.getActiveSessions();
       const mySession = sessions.find(s => s.cid === currentCid);
@@ -1050,7 +1054,7 @@ export class P2PAutoConnectService {
    * In multi-tab scenarios, notifications are broadcast to all tabs, so we must:
    * 1. Verify notification.cid matches our current CID (we are the TARGET)
    */
-  public async handleIncomingPeerConnect(notification: any): Promise<void> {
+  public async handleIncomingPeerConnect(notification: { cid?: bigint; peer_cid?: bigint; peer_username?: string }): Promise<void> {
     // FIXED: notification.cid is TARGET (us), notification.peer_cid is INITIATOR (them)
     // CIDs come as bigint from WASM
     const targetCid: bigint | undefined = notification.cid;

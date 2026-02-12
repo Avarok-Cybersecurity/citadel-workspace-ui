@@ -42,6 +42,12 @@ export interface UserConnectionPreferences {
   autoAcceptRegistrations: boolean;  // Automatically accept P2P registration requests
 }
 
+export interface ConnectionStatus {
+  cid: bigint | string | null;
+  isConnected: boolean;
+  userContext?: { selectedUsername: string | null; selectedServerAddress: string | null; selectedCid?: bigint };
+}
+
 export class ConnectionService {
   private static instance: ConnectionService;
   private messagingService: MessagingService | null = null;
@@ -51,8 +57,8 @@ export class ConnectionService {
   private userPreferences: Map<string, UserConnectionPreferences> = new Map();
   private onConnectionRequestStatusChange: ((request: ConnectionRequest) => void) | null = null;
   private onNewConnectionRequest: ((request: ConnectionRequest) => void) | null = null;
-  private connectionChangeHandlers: Array<(connection: any) => void> = [];
-  private currentConnection: any = null;
+  private connectionChangeHandlers: Array<(connection: ConnectionStatus) => void> = [];
+  private currentConnection: ConnectionStatus | null = null;
 
   private constructor() {
     // Don't initialize MessagingService here to break the circular dependency
@@ -446,7 +452,7 @@ export class ConnectionService {
    * Register a callback to be notified when the connection status changes
    * @param handler Callback function that receives the new connection information
    */
-  public onConnectionChange(handler: (connection: any) => void): void {
+  public onConnectionChange(handler: (connection: ConnectionStatus) => void): void {
     // Add handler to the list
     this.connectionChangeHandlers.push(handler);
 
@@ -460,7 +466,7 @@ export class ConnectionService {
    * Update the current connection status and notify all handlers
    * @param connection The new connection information
    */
-  public updateConnectionStatus(connection: any): void {
+  public updateConnectionStatus(connection: ConnectionStatus): void {
     debugLog('ConnectionService', `[ILM-TRACE] ConnectionService.updateConnectionStatus: cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, handlers=${this.connectionChangeHandlers.length}`);
     this.currentConnection = connection;
 

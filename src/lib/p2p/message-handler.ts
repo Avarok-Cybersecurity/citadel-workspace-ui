@@ -26,6 +26,7 @@ import { p2pRegistrationService } from '../p2p-registration-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+import { isResponseType } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
 
 // ============================================================================
@@ -47,13 +48,13 @@ interface MessageNotificationPayload {
 function isPeerMessage(
   response: InternalServiceResponse
 ): response is InternalServiceResponse & { PeerMessage: PeerMessagePayload } {
-  return 'PeerMessage' in response && response.PeerMessage !== null && typeof response.PeerMessage === 'object';
+  return isResponseType(response, 'PeerMessage');
 }
 
 function isMessageNotification(
   response: InternalServiceResponse
 ): response is InternalServiceResponse & { MessageNotification: MessageNotificationPayload } {
-  return 'MessageNotification' in response && response.MessageNotification !== null && typeof response.MessageNotification === 'object';
+  return isResponseType(response, 'MessageNotification');
 }
 import { MessageAckHandler } from './message-ack-handler';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';

@@ -7,6 +7,15 @@ import * as Y from 'yjs';
 import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
 import { eventEmitter } from '@/lib/event-emitter';
 import { createCollaboratorCursor, type FlashComment, type CursorUser } from './CollaboratorCursor';
+
+/** Shape of awareness state entries set via provider.setLocalState() */
+interface AwarenessState {
+  user?: { name: string; color: string };
+  cursor?: unknown;
+  lastUpdate?: number;
+  flashComment?: FlashComment | null;
+}
+
 import {
   Bold,
   Italic,
@@ -71,7 +80,7 @@ function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButton
   );
 }
 
-function EditorToolbar({ editor }: { editor: any }) {
+function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   if (!editor) return null;
 
   return (
@@ -224,7 +233,8 @@ export function CollaborativeEditor({
       const users: { name: string; isActive: boolean }[] = [];
       const now = Date.now();
 
-      states.forEach((state: any) => {
+      states.forEach((rawState) => {
+        const state = rawState as AwarenessState;
         if (state.user?.name) {
           // User is considered "active" if they have cursor info (indicates they're viewing the doc)
           // or if their state was recently updated (within last 30 seconds)
@@ -276,6 +286,7 @@ export function CollaborativeEditor({
       }),
       ...(provider ? [
         CollaborationCursor.configure({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- CollaborationCursorOptions.provider is typed as `any` in @tiptap/extension-collaboration-cursor
           provider: provider as any,
           user: {
             name: currentUserName,
@@ -348,7 +359,8 @@ export function CollaborativeEditor({
       const states = provider.getStates();
       const newComments: FlashComment[] = [];
 
-      states.forEach((state: any, clientId: number) => {
+      states.forEach((rawState, _clientId) => {
+        const state = rawState as AwarenessState;
         // Skip our own flash comments in the display
         if (state.flashComment && state.user?.name !== currentUserName) {
           newComments.push({

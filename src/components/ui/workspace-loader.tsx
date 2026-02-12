@@ -153,8 +153,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         try {
           await websocketService.claimSession(session.cid, true);
           debugLog('WorkspaceLoader', 'WorkspaceLoader: Session claimed successfully (was orphaned)');
-        } catch (claimError: any) {
-          if (claimError?.message?.includes('not orphaned')) {
+        } catch (claimError: unknown) {
+          if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
             debugLog('WorkspaceLoader', 'WorkspaceLoader: Session is still active (not orphaned), no claim needed');
           } else {
             // Re-throw if it's a different error

@@ -69,14 +69,14 @@ export const Landing = () => {
     try {
       // Using "0" as a valid u64 string representation for the landing page
       await listKnownServers({ cid: "0" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Silently ignore initialization errors on the landing page
       // The WebSocket service will be initialized when needed
-      if (error.message?.includes('WASM client not initialized')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('WASM client not initialized')) {
         debugLog('Landing', 'WebSocket not yet initialized, skipping known servers check');
       } else {
         console.error("Error checking for known servers:", error);
-        const errorMessage = error.message || error.toString() || "Unknown error";
         console.error("Error details:", errorMessage);
       }
     }

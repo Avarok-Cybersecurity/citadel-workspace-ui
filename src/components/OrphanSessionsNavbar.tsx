@@ -171,8 +171,8 @@ export const OrphanSessionsNavbar = () => {
       try {
         await websocketService.claimSession(session.cid, true);
         debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Session claimed successfully (was orphaned)');
-      } catch (claimError: any) {
-        if (claimError?.message?.includes('not orphaned')) {
+      } catch (claimError: unknown) {
+        if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
           debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: Session is still active (not orphaned), no claim needed');
         } else {
           // Re-throw if it's a different error

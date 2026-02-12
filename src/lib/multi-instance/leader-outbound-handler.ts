@@ -18,12 +18,13 @@
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
+import type { ProxyResponseData } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
 
 interface OutboundRequest {
   requestId: string;
   senderInstanceId: string;
-  payload: any;
+  payload: Record<string, unknown>;
 }
 
 // Types of messages that should use ILM (reliability layer)
@@ -58,7 +59,7 @@ class LeaderOutboundHandler {
   private static instance: LeaderOutboundHandler;
 
   private isActive: boolean = false;
-  private websocketSendFn: ((message: any) => Promise<void>) | null = null;
+  private websocketSendFn: ((message: Record<string, unknown>) => Promise<void>) | null = null;
 
   private constructor() {
     this.setupEventListeners();
@@ -93,7 +94,7 @@ class LeaderOutboundHandler {
    * Set the function to use for sending to WebSocket
    * This is injected by websocket-service during initialization
    */
-  setWebSocketSendFunction(fn: (message: any) => Promise<void>): void {
+  setWebSocketSendFunction(fn: (message: Record<string, unknown>) => Promise<void>): void {
     this.websocketSendFn = fn;
     debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] WebSocket send function registered');
   }
@@ -239,7 +240,7 @@ class LeaderOutboundHandler {
    * Send directly (when called from leader itself, bypassing the channel)
    * This is used for internal leader operations
    */
-  async sendDirect(payload: any): Promise<void> {
+  async sendDirect(payload: Record<string, unknown>): Promise<void> {
     if (!this.websocketSendFn) {
       throw new Error('WebSocket send function not set');
     }
@@ -266,7 +267,7 @@ class LeaderOutboundHandler {
   /**
    * Determine if a message requires ILM (Internal Layered Messaging)
    */
-  private requiresILM(payload: any): boolean {
+  private requiresILM(payload: Record<string, unknown>): boolean {
     // Get the message type (first key in the payload)
     const messageType = Object.keys(payload)[0];
 
@@ -296,7 +297,7 @@ class LeaderOutboundHandler {
     requestId: string,
     status: 'processed' | 'error',
     error?: string,
-    data?: any
+    data?: ProxyResponseData
   ): void {
     instanceChannel.sendAck(targetInstanceId, requestId, {
       status,

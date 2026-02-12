@@ -142,6 +142,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     });
 
     // Handle connection success/failure from websocket messages
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebSocket message uses optional chaining on discriminated union; requires isResponseType migration
     this.listen<any>('websocket-message', async (message) => {
       if (message.ConnectSuccess) {
         await this.handleConnectionSuccess(message.ConnectSuccess);
@@ -412,7 +413,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   /**
    * Handle successful connection
    */
-  private async handleConnectionSuccess(connectSuccess: any): Promise<void> {
+  private async handleConnectionSuccess(connectSuccess: { cid?: bigint; username?: string; server_addr?: string }): Promise<void> {
     const cid = connectSuccess.cid?.toString();
     const username = connectSuccess.username;
     const serverAddress = connectSuccess.server_addr;
@@ -434,7 +435,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   /**
    * Handle connection failure
    */
-  private handleConnectionFailure(connectFailure: any): void {
+  private handleConnectionFailure(connectFailure: { message?: string }): void {
     // Connection failure is handled by attemptReconnect's catch block
     console.warn('ServerAutoConnect: Connection failure:', connectFailure.message);
   }
@@ -442,7 +443,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   /**
    * Handle disconnect notification - trigger reconnect if enabled
    */
-  private handleDisconnect(notification: any): void {
+  private handleDisconnect(notification: { cid?: bigint }): void {
     const cid = notification.cid?.toString();
     debugLog('ServerAutoConnectService', `ServerAutoConnect: Disconnect notification for CID ${cid}`);
 

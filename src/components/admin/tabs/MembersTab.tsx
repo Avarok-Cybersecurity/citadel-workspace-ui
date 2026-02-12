@@ -50,10 +50,13 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
     try {
       const domainId = entityId;
 
-      const response = await WorkspaceService.listMembers(domainId);
+      // listMembers() is fire-and-forget (Promise<void>); response below is always void.
+      // Members load asynchronously via workspace events. This branch is dead code.
+      const response: unknown = await WorkspaceService.listMembers(domainId);
 
-      if (response?.ListMembers?.members) {
-        const memberList: MemberData[] = response.ListMembers.members.map((m: any) => ({
+      if (response && typeof response === 'object' && 'ListMembers' in response) {
+        const resp = response as { ListMembers: { members: Array<{ user_id: string; username?: string; name?: string; avatar_url?: string; role?: string }> } };
+        const memberList: MemberData[] = resp.ListMembers.members.map((m) => ({
           userId: m.user_id,
           username: m.username || m.user_id,
           name: m.name,
