@@ -118,7 +118,7 @@ export class P2PMessengerManager extends EventListenerManager {
       this.initPromise = this.loadCachedMessages().then(() => {
         this.isReady = true;
         this.emit('p2p:messages-loaded');
-      }).catch(err => debugLog('P2pMessengerManager', 'Loading cached messages failed:', err));
+      }).catch(err => debugLog('P2PMessengerManager', 'Loading cached messages failed:', err));
     }
   }
 
@@ -138,7 +138,7 @@ export class P2PMessengerManager extends EventListenerManager {
     // WebSocket connection
     this.listen('on-ws-connection-success', async () => {
       if (this.cachedMessagesLoaded) return;
-      debugLog('P2pMessengerManager', '[P2P] WebSocket connected, loading cached messages...');
+      debugLog('P2PMessengerManager', '[P2P] WebSocket connected, loading cached messages...');
       await this.loadCachedMessages();
       if (this.cachedMessagesLoaded) {
         this.isReady = true;

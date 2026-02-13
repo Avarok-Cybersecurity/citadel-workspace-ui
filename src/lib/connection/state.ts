@@ -97,7 +97,7 @@ export class ConnectionState {
   }
 
   setCurrentConnectionInfo(info: CurrentConnectionInfo | null): void {
-    debugLog('State', '[ConnectionState] setCurrentConnectionInfo called:', {
+    debugLog('ConnectionState', '[ConnectionState] setCurrentConnectionInfo called:', {
       newCid: info?.cid?.toString() ?? 'null',
       newUsername: info?.username ?? 'null',
       oldCid: this._currentConnectionInfo?.cid?.toString() ?? 'null',

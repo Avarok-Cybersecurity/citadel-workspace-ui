@@ -135,7 +135,7 @@ export class FileTransferIO extends RealProtocolIORouter {
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
     const { file, transferId } = intent;
     // @human-review SendFile requires websocketService integration
-    debugLog('Io', 'FileTransferIO: Uploading file to server', {
+    debugLog('FileTransferIO', 'FileTransferIO: Uploading file to server', {
       transferId,
       fileName: file.name,
       size: file.size,
@@ -147,7 +147,7 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async downloadFromServer(intent: DownloadFromServerIntent): Promise<void> {
     const { transfer } = intent;
-    debugLog('Io', 'FileTransferIO: Downloading file from server', {
+    debugLog('FileTransferIO', 'FileTransferIO: Downloading file from server', {
       transferId: transfer.id,
       virtualPath: transfer.virtualPath,
     });
@@ -191,7 +191,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       },
     };
 
-    debugLog('Io', 'FileTransferIO: Sending SendFile request', {
+    debugLog('FileTransferIO', 'FileTransferIO: Sending SendFile request', {
       requestId,
       source,
       cid: intent.cid,
@@ -212,7 +212,7 @@ export class FileTransferIO extends RealProtocolIORouter {
         if (success?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          debugLog('Io', 'FileTransferIO: SendFile accepted by protocol');
+          debugLog('FileTransferIO', 'FileTransferIO: SendFile accepted by protocol');
           resolve();
         }
         // Check for SendFileRequestFailure

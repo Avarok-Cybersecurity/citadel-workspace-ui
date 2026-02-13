@@ -40,7 +40,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
             }
           }
         } catch (error) {
-          debugLog('useWorkspaceEventSetup', 'Failed to parse workspace metadata as JSON:', error);
+          debugLog('UseWorkspaceEventSetup', 'Failed to parse workspace metadata as JSON:', error);
           isInitialized = false;
         }
 
@@ -88,7 +88,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
 
         // Fetch workspace list now that connection is active
         await WorkspaceService.listWorkspaces().catch((err: unknown) => {
-          debugLog('useWorkspaceEventSetup', 'Failed to list workspaces:', err);
+          debugLog('UseWorkspaceEventSetup', 'Failed to list workspaces:', err);
         });
       });
 

@@ -68,7 +68,7 @@ export class P2PConnectionState {
     // CRITICAL: Ensure CIDs are actually BigInt
     const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
 
-    debugLog('State', 
+    debugLog('P2PAutoConnectState', 
       `[ILM-DIAG] setPeerConnectedLocal: INPUT localCid type=${typeof localCid}, peerCid type=${typeof peerCid}`
     );
 
@@ -97,10 +97,10 @@ export class P2PConnectionState {
     });
 
     const allKeys = Array.from(this.connectedPeers.keys());
-    debugLog('State', 
+    debugLog('P2PAutoConnectState', 
       `[ILM-DIAG] setPeerConnectedLocal: STORED BIDIRECTIONAL localCid=${localCidBigInt.toString()} ↔ peerCid=${peerCidBigInt.toString()} (local peers: ${localPeerMap.size}, peer peers: ${peerPeerMap.size})`
     );
-    debugLog('State', 
+    debugLog('P2PAutoConnectState', 
       `[ILM-DIAG] setPeerConnectedLocal: ALL MAP KEYS (${allKeys.length}): ${allKeys.map((k) => `${k.toString().slice(0, 8)}...(type=${typeof k})`).join(', ')}`
     );
   }
@@ -124,7 +124,7 @@ export class P2PConnectionState {
       peerPeerMap.delete(localCidBigInt);
     }
 
-    debugLog('State', 
+    debugLog('P2PAutoConnectState', 
       `[P2PAutoConnect] setPeerDisconnected: ${localCidBigInt.toString().slice(0, 8)} -X- ${peerCidBigInt.toString().slice(0, 8)} (BIDIRECTIONAL)`
     );
   }
@@ -280,6 +280,6 @@ export class P2PConnectionState {
 
   set forceInitiatorMode(value: boolean) {
     this._forceInitiatorMode = value;
-    debugLog('State', `P2PAutoConnect: forceInitiatorMode=${value}`);
+    debugLog('P2PAutoConnectState', `P2PAutoConnect: forceInitiatorMode=${value}`);
   }
 }

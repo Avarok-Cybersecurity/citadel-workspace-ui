@@ -248,14 +248,14 @@ export class YjsP2PProvider {
 
     // Prevent sync spam - enforce cooldown
     if (this.syncInProgress || (now - this.lastSyncInitiated < this.SYNC_COOLDOWN)) {
-      debugLog('YjsP2pProvider', `[Yjs] Sync throttled (cooldown: ${Math.ceil((this.SYNC_COOLDOWN - (now - this.lastSyncInitiated)) / 1000)}s remaining)`);
+      debugLog('YjsP2PProvider', `[Yjs] Sync throttled (cooldown: ${Math.ceil((this.SYNC_COOLDOWN - (now - this.lastSyncInitiated)) / 1000)}s remaining)`);
       return;
     }
 
     this.syncInProgress = true;
     this.lastSyncInitiated = now;
 
-    debugLog('YjsP2pProvider', `[Yjs] Initiating sync for document ${this.documentId} with peer ${this.peerCid}`);
+    debugLog('YjsP2PProvider', `[Yjs] Initiating sync for document ${this.documentId} with peer ${this.peerCid}`);
 
     // Send SyncStep1 (our state vector)
     // NOTE: SyncStep1 does NOT require ACK - SyncStep2 is the response
@@ -328,7 +328,7 @@ export class YjsP2PProvider {
   private handleSyncStep1(stateVector: Uint8Array, message: YjsSyncMessage) {
     // Avoid responding to duplicate/old sync messages
     if (this.syncState === 'synced' && this.initialSyncComplete) {
-      debugLog('YjsP2pProvider', `[Yjs] Ignoring SyncStep1 - already synced`);
+      debugLog('YjsP2PProvider', `[Yjs] Ignoring SyncStep1 - already synced`);
       // Just send SyncStep2 with any updates they might need
       const diff = Y.encodeStateAsUpdate(this.doc, stateVector);
       if (diff.length > 2) { // More than empty update
@@ -337,7 +337,7 @@ export class YjsP2PProvider {
       return;
     }
 
-    debugLog('YjsP2pProvider', `[Yjs] Received SyncStep1 from peer`);
+    debugLog('YjsP2PProvider', `[Yjs] Received SyncStep1 from peer`);
 
     // Compute diff that peer needs
     const diff = Y.encodeStateAsUpdate(this.doc, stateVector);
@@ -362,7 +362,7 @@ export class YjsP2PProvider {
   private handleSyncStep2(diff: Uint8Array, message: YjsSyncMessage) {
     // Only log if this is the initial sync or a significant update
     if (!this.initialSyncComplete) {
-      debugLog('YjsP2pProvider', `[Yjs] Initial sync: received ${diff.length} bytes from peer`);
+      debugLog('YjsP2PProvider', `[Yjs] Initial sync: received ${diff.length} bytes from peer`);
     }
 
     // Apply the diff
@@ -415,7 +415,7 @@ export class YjsP2PProvider {
    * Handle full state from creator (divergence recovery)
    */
   private handleFullState(fullState: Uint8Array, message: YjsSyncMessage) {
-    debugLog('YjsP2pProvider', `[Yjs] Received full state from creator (${fullState.length} bytes)`);
+    debugLog('YjsP2PProvider', `[Yjs] Received full state from creator (${fullState.length} bytes)`);
 
     // Apply creator's authoritative state
     this.doc.transact(() => {
@@ -438,11 +438,11 @@ export class YjsP2PProvider {
   private handleRequestFullState(message: YjsSyncMessage) {
     // Only creator should respond
     if (this.ownCid !== this.creatorCid) {
-      debugLog('YjsP2pProvider', `[Yjs] Ignoring full state request - not the creator`);
+      debugLog('YjsP2PProvider', `[Yjs] Ignoring full state request - not the creator`);
       return;
     }
 
-    debugLog('YjsP2pProvider', `[Yjs] Sending full state as creator`);
+    debugLog('YjsP2PProvider', `[Yjs] Sending full state as creator`);
 
     const fullState = Y.encodeStateAsUpdate(this.doc);
     this.sendSyncMessage('full_state', fullState, true);
@@ -479,7 +479,7 @@ export class YjsP2PProvider {
     const pending = this.pendingAcks.get(message.message_id);
     if (pending) {
       this.pendingAcks.delete(message.message_id);
-      debugLog('YjsP2pProvider', `[Yjs] Received ACK for ${message.message_id}`);
+      debugLog('YjsP2PProvider', `[Yjs] Received ACK for ${message.message_id}`);
 
       // Verify hash if we have it
       if (this.merkleTree && message.local_hash) {
@@ -496,7 +496,7 @@ export class YjsP2PProvider {
    * Handle divergence notification
    */
   private handleDivergenceMessage(message: YjsDivergenceMessage) {
-    debugLog('YjsP2pProvider', `[Yjs] Received divergence notification: ${message.action}`);
+    debugLog('YjsP2PProvider', `[Yjs] Received divergence notification: ${message.action}`);
 
     this.syncState = 'diverged';
 
@@ -623,12 +623,12 @@ export class YjsP2PProvider {
 
     // If we're the creator, send full state
     if (this.ownCid === this.creatorCid) {
-      debugLog('YjsP2pProvider', `[Yjs] Creator authority: broadcasting full state`);
+      debugLog('YjsP2PProvider', `[Yjs] Creator authority: broadcasting full state`);
       const fullState = Y.encodeStateAsUpdate(this.doc);
       this.sendSyncMessage('full_state', fullState, true);
     } else {
       // Request full state from creator
-      debugLog('YjsP2pProvider', `[Yjs] Collaborator: requesting full state from creator`);
+      debugLog('YjsP2PProvider', `[Yjs] Collaborator: requesting full state from creator`);
       this.sendSyncMessage('request_full', new Uint8Array(0), false);
     }
   }
@@ -670,7 +670,7 @@ export class YjsP2PProvider {
 
     // Only re-initiate sync if we have many timed out ACKs and haven't synced yet
     if (timedOutCount > 3 && !this.initialSyncComplete) {
-      debugLog('YjsP2pProvider', `[Yjs] Multiple ACK timeouts (${timedOutCount}), attempting resync`);
+      debugLog('YjsP2PProvider', `[Yjs] Multiple ACK timeouts (${timedOutCount}), attempting resync`);
       this.initiateSync();
     }
   }
