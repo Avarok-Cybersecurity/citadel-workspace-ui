@@ -5,7 +5,7 @@
  * and active conversations.
  */
 
-import { Users, UserPlus, MoreVertical, Shield, User, Plus } from "lucide-react";
+import { Users, UserPlus, MoreVertical, Shield, User as UserIcon, Plus } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -52,14 +52,7 @@ import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEve
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-
-interface Member {
-  id: string;
-  name: string;
-  username?: string;
-  role: string;
-  full_name?: string;
-}
+import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 const MEMBERS_TO_SHOW = 5;
 
@@ -71,14 +64,14 @@ export const MembersSection = () => {
   const currentNodeId = params.get("nodeId");
 
   // Members state
-  const [members, setMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
   // Modal state
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMember, setSelectedMember] = useState<WorkspaceMember | null>(null);
   const [showAllMembersDialog, setShowAllMembersDialog] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [permissionModalData, setPermissionModalData] = useState<{
@@ -144,23 +137,23 @@ export const MembersSection = () => {
   // Listen for members loaded event
   useEffect(() => {
     const handleMembersLoaded = (payload: MembersPayload) => {
-      if (payload.members) setMembers(payload.members as unknown as Member[]);
+      if (payload.members) setMembers(payload.members);
     };
     runAsyncSetup(async () => { await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded); });
   }, []);
 
   // Handlers
-  const handleEditMember = (member: Member) => {
+  const handleEditMember = (member: WorkspaceMember) => {
     setSelectedMember(member);
     setShowEditModal(true);
   };
 
-  const handleRemoveMember = (member: Member) => {
+  const handleRemoveMember = (member: WorkspaceMember) => {
     setSelectedMember(member);
     setShowRemoveModal(true);
   };
 
-  const handleManagePermissions = (member: Member) => {
+  const handleManagePermissions = (member: WorkspaceMember) => {
     let domainId = 'workspace-root';
     let domainType = 'workspace';
 
@@ -182,8 +175,9 @@ export const MembersSection = () => {
     navigate(`${location.pathname}?${searchParams.toString()}`);
   };
 
-  const getRoleIcon = (role: string) => (role === "Owner" || role === "Admin") ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />;
-  const getRoleColor = (role: string) => ({ Owner: "bg-purple-600", Admin: "bg-blue-600", Member: "bg-green-600", Guest: "bg-gray-600" }[role] || "bg-gray-500");
+  const getRoleIcon = (role: string) => (role === "owner" || role === "admin") ? <Shield className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />;
+  const getRoleColor = (role: string) => ({ owner: "bg-purple-600", admin: "bg-blue-600", member: "bg-green-600", guest: "bg-gray-600" }[role] || "bg-gray-500");
+  const capitalizeRole = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
 
   const getLocationText = () => {
     if (currentNodeId) {
@@ -244,14 +238,14 @@ export const MembersSection = () => {
                             <TooltipTrigger asChild>
                               <SidebarMenuButton className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors flex-1">
                                 <div className="flex items-center gap-2 flex-1">
-                                  {getRoleIcon(member.role)}
-                                  <span className="flex-1 truncate">{member.name || member.full_name || member.username}</span>
-                                  <Badge variant="secondary" className={`${getRoleColor(member.role)} text-white text-xs`}>{member.role}</Badge>
+                                  {getRoleIcon(member.role || 'member')}
+                                  <span className="flex-1 truncate">{member.displayName || member.username}</span>
+                                  <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-white text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                                 </div>
                               </SidebarMenuButton>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{member.name || member.full_name || member.username}</p>
+                              <p>{member.displayName || member.username}</p>
                               {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
                             </TooltipContent>
                           </Tooltip>
@@ -329,8 +323,8 @@ export const MembersSection = () => {
 
       {/* Modals */}
       <MemberManagementModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} mode="add" domainId={currentNodeId ?? undefined} />
-      <MemberManagementModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedMember(null); }} mode="edit" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
-      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { setShowRemoveModal(false); setSelectedMember(null); }} mode="remove" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username || selectedMember.name, role: selectedMember.role } : undefined} />
+      <MemberManagementModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedMember(null); }} mode="edit" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username, role: selectedMember.role || 'member' } : undefined} />
+      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { setShowRemoveModal(false); setSelectedMember(null); }} mode="remove" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username, role: selectedMember.role || 'member' } : undefined} />
 
       {/* All Members Dialog */}
       <Dialog open={showAllMembersDialog} onOpenChange={setShowAllMembersDialog}>
@@ -341,12 +335,12 @@ export const MembersSection = () => {
               {members.map((member) => (
                 <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[#343A5C] transition-colors">
                   <div className="flex items-center gap-3 flex-1">
-                    {getRoleIcon(member.role)}
+                    {getRoleIcon(member.role || 'member')}
                     <div className="flex-1">
-                      <p className="text-white font-medium">{member.name || member.full_name || member.username}</p>
+                      <p className="text-white font-medium">{member.displayName || member.username}</p>
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
                     </div>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role)} text-white text-xs`}>{member.role}</Badge>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-white text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
                   {state.currentUser?.username !== member.username && (
                     <DropdownMenu>
