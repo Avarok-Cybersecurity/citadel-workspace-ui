@@ -18,6 +18,7 @@ import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
 
 export interface PendingPeerRequest {
   id: string;              // UUID for this request
@@ -53,7 +54,7 @@ class PeerRegistrationStore {
   private pendingRequests: PendingPeerRequest[] = [];
   private outgoingRequests: OutgoingPeerRequest[] = [];
    
-  private pendingKVRequests = new Map<string, { resolve: (value?: any) => void; reject: (error: Error) => void }>();
+  private pendingKVRequests = new Map<string, { resolve: (value?: unknown) => void; reject: (error: Error) => void }>();
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
@@ -561,25 +562,31 @@ class PeerRegistrationStore {
         reject(new Error('Registration request timed out'));
       }, 10000);
 
-      const handleMessage = (message: any) => { // any: WebSocket discriminated union with optional chaining
+      const handleMessage = (raw: unknown) => {
+        const message = narrowWebSocketMessage(raw);
+        if (!message) return;
+
+        // Cast to record for multi-variant optional chaining (message is a discriminated union)
+        const msg = message as Record<string, Record<string, unknown> | undefined>;
+
         // Match by request_id (primary)
         const matchesByRequestId =
-          message.PeerRegisterSuccess?.request_id === registerRequestId ||
-          message.PeerConnectSuccess?.request_id === registerRequestId;
+          msg.PeerRegisterSuccess?.request_id === registerRequestId ||
+          msg.PeerConnectSuccess?.request_id === registerRequestId;
 
         // Match by peer_cid (fallback for simultaneous registration)
         // Use normalized comparison to handle JS precision loss with large u64 values
         // Check BOTH cid and peer_cid fields - in P2P notifications, either could be the target peer
         const responsePeerCid =
-          message.PeerRegisterSuccess?.peer_cid ||
-          message.PeerConnectSuccess?.peer_cid ||
-          message.PeerConnectNotification?.peer_cid;
+          msg.PeerRegisterSuccess?.peer_cid ||
+          msg.PeerConnectSuccess?.peer_cid ||
+          msg.PeerConnectNotification?.peer_cid;
 
         const responseCid =
-          message.PeerConnectNotification?.cid;
+          msg.PeerConnectNotification?.cid;
 
-        const responseNormalized = normalizeCid(responsePeerCid);
-        const responseCidNormalized = normalizeCid(responseCid);
+        const responseNormalized = normalizeCid(responsePeerCid as bigint | string | number | null | undefined);
+        const responseCidNormalized = normalizeCid(responseCid as bigint | string | number | null | undefined);
 
         // Match if either peer_cid OR cid equals our target peer
         const matchesByPeerCid = responseNormalized && responseNormalized === targetNormalized;
@@ -587,15 +594,15 @@ class PeerRegistrationStore {
 
         // Also accept ANY PeerConnectNotification for our session (indicates P2P channel established)
         // This handles the simultaneous registration case where both peers connect
-        const isOurNotification = message.PeerConnectNotification &&
-          (normalizeCid(message.PeerConnectNotification.cid) === normalizeCid(currentCid) ||
-           normalizeCid(message.PeerConnectNotification.peer_cid) === normalizeCid(currentCid));
+        const isOurNotification = msg.PeerConnectNotification &&
+          (normalizeCid(msg.PeerConnectNotification.cid as bigint | string | number | null | undefined) === normalizeCid(currentCid) ||
+           normalizeCid(msg.PeerConnectNotification.peer_cid as bigint | string | number | null | undefined) === normalizeCid(currentCid));
 
         // Debug logging for troubleshooting
-        if (message.PeerRegisterSuccess || message.PeerConnectSuccess || message.PeerConnectNotification) {
+        if (msg.PeerRegisterSuccess || msg.PeerConnectSuccess || msg.PeerConnectNotification) {
           debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Checking response match', {
-            messageType: message.PeerRegisterSuccess ? 'PeerRegisterSuccess' :
-                        message.PeerConnectSuccess ? 'PeerConnectSuccess' : 'PeerConnectNotification',
+            messageType: msg.PeerRegisterSuccess ? 'PeerRegisterSuccess' :
+                        msg.PeerConnectSuccess ? 'PeerConnectSuccess' : 'PeerConnectNotification',
             responsePeerCid,
             responseCid,
             responseNormalized,
@@ -620,12 +627,12 @@ class PeerRegistrationStore {
             targetPeerCid
           });
           resolve();
-        } else if (message.PeerRegisterFailure?.request_id === registerRequestId ||
-                   message.PeerConnectFailure?.request_id === registerRequestId) {
+        } else if (msg.PeerRegisterFailure?.request_id === registerRequestId ||
+                   msg.PeerConnectFailure?.request_id === registerRequestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          const errorMsg = message.PeerRegisterFailure?.message ||
-                          message.PeerConnectFailure?.message ||
+          const errorMsg = (msg.PeerRegisterFailure?.message as string) ||
+                          (msg.PeerConnectFailure?.message as string) ||
                           'Registration failed';
           reject(new Error(errorMsg));
         }
@@ -939,26 +946,31 @@ class PeerRegistrationStore {
       }
     });
 
-    eventEmitter.on('websocket-message', (message: any) => { // any: WebSocket discriminated union with optional chaining
+    eventEmitter.on('websocket-message', (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
+
       // Handle LocalDBSetKV success
-      if (message.LocalDBSetKVSuccess) {
-        const { request_id } = message.LocalDBSetKVSuccess;
-        const pending = this.pendingKVRequests.get(request_id);
+      if (hasVariant(message, 'LocalDBSetKVSuccess')) {
+        const { request_id } = message.LocalDBSetKVSuccess as Record<string, unknown>;
+        const pending = this.pendingKVRequests.get(request_id as string);
         if (pending) {
-          this.pendingKVRequests.delete(request_id);
+          this.pendingKVRequests.delete(request_id as string);
           pending.resolve(undefined);
         }
       }
 
       // Handle LocalDBGetKV success
-      if (message.LocalDBGetKVSuccess) {
-        const { request_id, value } = message.LocalDBGetKVSuccess;
+      if (hasVariant(message, 'LocalDBGetKVSuccess')) {
+        const v = message.LocalDBGetKVSuccess as Record<string, unknown>;
+        const request_id = v.request_id as string;
+        const value = v.value as number[] | undefined;
         const pending = this.pendingKVRequests.get(request_id);
         if (pending) {
           this.pendingKVRequests.delete(request_id);
           try {
-            if (value && value.length > 0) {
-              const decoded = bytesToString(value);
+            if (value && (value as number[]).length > 0) {
+              const decoded = bytesToString(value as number[]);
               const parsed = JSON.parse(decoded);
               pending.resolve(parsed);
             } else {
@@ -972,18 +984,21 @@ class PeerRegistrationStore {
       }
 
       // Handle LocalDB failures
-      if (message.LocalDBSetKVFailure || message.LocalDBGetKVFailure) {
-        const failure = message.LocalDBSetKVFailure || message.LocalDBGetKVFailure;
-        const pending = this.pendingKVRequests.get(failure.request_id);
+      if (hasVariant(message, 'LocalDBSetKVFailure') || hasVariant(message, 'LocalDBGetKVFailure')) {
+        const failure = ((message as Record<string, unknown>).LocalDBSetKVFailure || (message as Record<string, unknown>).LocalDBGetKVFailure) as Record<string, unknown>;
+        const pending = this.pendingKVRequests.get(failure.request_id as string);
         if (pending) {
-          this.pendingKVRequests.delete(failure.request_id);
-          pending.reject(new Error(failure.message || 'LocalDB operation failed'));
+          this.pendingKVRequests.delete(failure.request_id as string);
+          pending.reject(new Error((failure.message as string) || 'LocalDB operation failed'));
         }
       }
 
       // Handle PeerRegisterSuccess - remove from outgoing requests
-      if (message.PeerRegisterSuccess) {
-        const { request_id, cid, peer_cid } = message.PeerRegisterSuccess;
+      if (hasVariant(message, 'PeerRegisterSuccess')) {
+        const v = message.PeerRegisterSuccess as Record<string, unknown>;
+        const request_id = v.request_id as string | undefined;
+        const cid = v.cid as bigint | undefined;
+        const peer_cid = v.peer_cid as bigint | undefined;
         debugLog('PeerRegistrationStore', 'PeerRegistrationStore: PeerRegisterSuccess received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString() });
 
         // Remove from outgoing requests by request_id or peer_cid
@@ -994,8 +1009,12 @@ class PeerRegistrationStore {
       }
 
       // Handle PeerRegisterFailure - remove from outgoing requests
-      if (message.PeerRegisterFailure) {
-        const { request_id, cid, peer_cid, message: errorMsg } = message.PeerRegisterFailure;
+      if (hasVariant(message, 'PeerRegisterFailure')) {
+        const v = message.PeerRegisterFailure as Record<string, unknown>;
+        const request_id = v.request_id as string | undefined;
+        const cid = v.cid as bigint | undefined;
+        const peer_cid = v.peer_cid as bigint | undefined;
+        const errorMsg = v.message as string | undefined;
         debugLog('PeerRegistrationStore', 'PeerRegistrationStore: PeerRegisterFailure received', { request_id, cid: cid?.toString(), peer_cid: peer_cid?.toString(), errorMsg });
 
         // Remove from outgoing requests by peer_cid
@@ -1006,8 +1025,9 @@ class PeerRegistrationStore {
       }
 
       // Handle PeerConnectSuccess - clear pending requests for connected peer
-      if (message.PeerConnectSuccess) {
-        const peer_cid: bigint | undefined = message.PeerConnectSuccess.peer_cid;
+      if (hasVariant(message, 'PeerConnectSuccess')) {
+        const v = message.PeerConnectSuccess as Record<string, unknown>;
+        const peer_cid = v.peer_cid as bigint | undefined;
         if (peer_cid !== undefined) {
           debugLog('PeerRegistrationStore', `[PeerRegistrationStore] Clearing requests for connected peer ${peer_cid.toString()}`);
 

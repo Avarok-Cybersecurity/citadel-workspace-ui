@@ -112,8 +112,7 @@ export type WorkspaceEventType =
 export class WorkspaceEvents {
   private listeners: Map<string, UnlistenFn[]> = new Map();
 
-  // any[] required: overload resolution type erasure for heterogeneous callback signatures
-  private registerListener(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
+  private registerListener(event: WorkspaceEventType, callback: (...args: unknown[]) => void): () => void {
     const unlistenFn = eventEmitter.on(event, callback);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
@@ -135,8 +134,8 @@ export class WorkspaceEvents {
   public onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onWorkspaceEvent(event: 'workspaces:listed', callback: (payload: WorkspacesPayload) => void): () => void;
   public onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: any) => void): () => void; // any: overload catch-all
-  public onWorkspaceEvent(event: WorkspaceEventType, callback: any): () => void { // any: implementation overload type erasure
+  public onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: unknown) => void): () => void;
+  public onWorkspaceEvent(event: WorkspaceEventType, callback: (...args: unknown[]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
@@ -150,7 +149,7 @@ export class WorkspaceEvents {
   public onNodeEvent(event: 'tree:schema:loaded', callback: (payload: { schema: TreeSchema; connection: ConnectionInfo }) => void): () => void;
   public onNodeEvent(event: 'node:types:loaded', callback: (payload: { nodeTypes: unknown[]; connection: ConnectionInfo }) => void): () => void;
   public onNodeEvent(event: WorkspaceEventType, callback: (payload: unknown) => void): () => void;
-  public onNodeEvent(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void { // any: implementation overload type erasure
+  public onNodeEvent(event: WorkspaceEventType, callback: (...args: unknown[]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
@@ -166,22 +165,22 @@ export class WorkspaceEvents {
   public onMemberEvent<T>(event: 'member:removed', callback: (payload: { userId: string, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: 'member:role-updated', callback: (payload: { userId: string, role: string, connection: ConnectionInfo }) => void): () => void;
   public onMemberEvent<T>(event: 'user:permissions:loaded', callback: (payload: { userId: string, role: string, permissions: unknown[], domainId: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: WorkspaceEventType, callback: (payload: any) => void): () => void; // any: overload catch-all
-  public onMemberEvent<T>(event: WorkspaceEventType, callback: any): () => void { // any: implementation overload type erasure
+  public onMemberEvent<T>(event: WorkspaceEventType, callback: (payload: unknown) => void): () => void;
+  public onMemberEvent<T>(event: WorkspaceEventType, callback: (...args: unknown[]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
   // Message events
   public onMessageEvent(event: 'message:received', callback: (payload: MessagePayload) => void): () => void;
   public onMessageEvent(event: 'typing:started' | 'typing:stopped', callback: (payload: TypingPayload) => void): () => void;
-  public onMessageEvent(event: WorkspaceEventType, callback: any): () => void { // any: implementation overload type erasure
+  public onMessageEvent(event: WorkspaceEventType, callback: (...args: unknown[]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
   // Operation events
   public onOperationEvent(event: 'operation:success', callback: (connectionInfo: ConnectionInfo) => void): () => void;
   public onOperationEvent(event: 'operation:error', callback: (payload: ErrorPayload) => void): () => void;
-  public onOperationEvent(event: WorkspaceEventType, callback: any): () => void { // any: implementation overload type erasure
+  public onOperationEvent(event: WorkspaceEventType, callback: (...args: unknown[]) => void): () => void {
     return this.registerListener(event, callback);
   }
 

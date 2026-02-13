@@ -23,6 +23,7 @@ import { mapSecuritySettings } from "@/lib/security-utils";
 import { ConnectLoadingModal, type ConnectStatus } from "./LoadingModal";
 import { safeJSONStringify } from "@/lib/storage-utils";
 import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -128,72 +129,91 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
           }
         }, 10000); // Increased timeout
 
-        const handler = (message: any) => { // any: WebSocket discriminated union with optional chaining
+        const handler = (raw: unknown) => {
+          const message = narrowWebSocketMessage(raw);
+          if (!message) return;
           debugLog('Join', '[ILM-TRACE] Join: Registration response received');
           debugLog('Join', '[ILM-TRACE] Join: Response type:', Object.keys(message)[0]);
           debugLog('Join', '[ILM-TRACE] Join: Expected requestId:', requestId);
-          const msgRequestId = message.ConnectSuccess?.request_id || message.Response?.ConnectSuccess?.request_id;
+          const msgRequestId = hasVariant(message, 'ConnectSuccess')
+            ? (message.ConnectSuccess as Record<string, unknown>).request_id
+            : hasVariant(message, 'Response')
+              ? ((message.Response as Record<string, unknown>)?.ConnectSuccess as Record<string, unknown> | undefined)?.request_id
+              : undefined;
           debugLog('Join', '[ILM-TRACE] Join: Message requestId:', msgRequestId);
           debugLog('Join', '[ILM-TRACE] Join: requestId match:', msgRequestId === requestId);
-          
+
           // Handle both wrapped and unwrapped responses
           // Try direct access first (for messages from internal service)
           // Since connect_after_register is true, we'll receive ConnectSuccess
-          if (message.ConnectSuccess && message.ConnectSuccess.request_id === requestId) {
-            resolved = true;
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            // Store the session for persistence with the CID
-            // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
-            // BEFORE resolving. This prevents race condition where WorkspaceApp's
-            // onConnectionChange fires before tab context is set.
-            debugLog('Join', '[ILM-TRACE] Join: ConnectSuccess matched! CID:', message.ConnectSuccess.cid?.toString());
-            const connectionManager = ConnectionManager.getInstance();
-            (async () => {
-              debugLog('Join', '[ILM-TRACE] Join: Calling handleAuthSuccess...');
-              await connectionManager.handleAuthSuccess({
-                username: formData.username,
-                password: formData.password,
-                fullName: formData.fullName,
-                serverAddress: serverData.serverAddress,
-                serverPassword: serverData.password || "", // Server password from ServerConnect step
-                securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-                cid: message.ConnectSuccess.cid
+          if (hasVariant(message, 'ConnectSuccess')) {
+            const connectSuccess = message.ConnectSuccess as Record<string, unknown>;
+            if (connectSuccess.request_id === requestId) {
+              resolved = true;
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handler);
+              // Store the session for persistence with the CID
+              // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
+              // BEFORE resolving. This prevents race condition where WorkspaceApp's
+              // onConnectionChange fires before tab context is set.
+              debugLog('Join', '[ILM-TRACE] Join: ConnectSuccess matched! CID:', (connectSuccess.cid as bigint | undefined)?.toString());
+              const connectionManager = ConnectionManager.getInstance();
+              (async () => {
+                debugLog('Join', '[ILM-TRACE] Join: Calling handleAuthSuccess...');
+                await connectionManager.handleAuthSuccess({
+                  username: formData.username,
+                  password: formData.password,
+                  fullName: formData.fullName,
+                  serverAddress: serverData.serverAddress,
+                  serverPassword: serverData.password || "", // Server password from ServerConnect step
+                  securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
+                  cid: connectSuccess.cid as bigint
+                });
+                debugLog('Join', '[ILM-TRACE] Join: handleAuthSuccess completed, resolving promise');
+                resolve({ cid: connectSuccess.cid as string });
+              })().catch(err => {
+                console.error('[ILM-TRACE] Join: handleAuthSuccess failed:', err);
+                reject(err);
               });
-              debugLog('Join', '[ILM-TRACE] Join: handleAuthSuccess completed, resolving promise');
-              resolve({ cid: message.ConnectSuccess.cid });
-            })().catch(err => {
-              console.error('[ILM-TRACE] Join: handleAuthSuccess failed:', err);
-              reject(err);
-            });
-          } else if (message.RegisterFailure && message.RegisterFailure.request_id === requestId) {
-            resolved = true;
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            reject(new Error(message.RegisterFailure.message || 'Registration failed'));
-          } else if (message.WorkspaceError && message.WorkspaceError.request_id === requestId) {
-            resolved = true;
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            if (message.WorkspaceError.error === 'WorkspaceNotInitialized') {
-              setShowNotInitializedModal(true);
-              reject(new Error('Workspace not initialized'));
-            } else {
-              reject(new Error(message.WorkspaceError.message || 'Workspace error'));
             }
-          } else if (message.InternalServiceError && message.InternalServiceError.request_id === requestId) {
-            resolved = true;
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handler);
-            reject(new Error(message.InternalServiceError.message || 'Internal service error'));
-          } else {
+          } else if (hasVariant(message, 'RegisterFailure')) {
+            const fail = message.RegisterFailure as Record<string, unknown>;
+            if (fail.request_id === requestId) {
+              resolved = true;
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handler);
+              reject(new Error((fail.message as string) || 'Registration failed'));
+            }
+          } else if (hasVariant(message, 'WorkspaceError')) {
+            const wsError = message.WorkspaceError as Record<string, unknown>;
+            if (wsError.request_id === requestId) {
+              resolved = true;
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handler);
+              if (wsError.error === 'WorkspaceNotInitialized') {
+                setShowNotInitializedModal(true);
+                reject(new Error('Workspace not initialized'));
+              } else {
+                reject(new Error((wsError.message as string) || 'Workspace error'));
+              }
+            }
+          } else if (hasVariant(message, 'InternalServiceError')) {
+            const isError = message.InternalServiceError as Record<string, unknown>;
+            if (isError.request_id === requestId) {
+              resolved = true;
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handler);
+              reject(new Error((isError.message as string) || 'Internal service error'));
+            }
+          } else if (hasVariant(message, 'Response')) {
             // Also check wrapped format (Response.RegisterSuccess)
-            const response = message.Response || message;
-            if (response !== message) {
-              debugLog('Join', '[ILM-TRACE] Join: Checking wrapped format...');
-              // It was wrapped, check again
-              // Since connect_after_register is true, we'll receive ConnectSuccess
-              if (response.ConnectSuccess && response.ConnectSuccess.request_id === requestId) {
+            const response = message.Response as Record<string, unknown>;
+            debugLog('Join', '[ILM-TRACE] Join: Checking wrapped format...');
+            // It was wrapped, check again
+            // Since connect_after_register is true, we'll receive ConnectSuccess
+            if (response.ConnectSuccess) {
+              const wrappedSuccess = response.ConnectSuccess as Record<string, unknown>;
+              if (wrappedSuccess.request_id === requestId) {
                 resolved = true;
                 clearTimeout(timeout);
                 eventEmitter.off('websocket-message', handler);
@@ -201,7 +221,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
                 // BEFORE resolving. This prevents race condition where WorkspaceApp's
                 // onConnectionChange fires before tab context is set.
-                debugLog('Join', '[ILM-TRACE] Join: Wrapped ConnectSuccess matched! CID:', response.ConnectSuccess.cid?.toString());
+                debugLog('Join', '[ILM-TRACE] Join: Wrapped ConnectSuccess matched! CID:', (wrappedSuccess.cid as bigint | undefined)?.toString());
                 const connectionManager = ConnectionManager.getInstance();
                 (async () => {
                   debugLog('Join', '[ILM-TRACE] Join: Calling handleAuthSuccess (wrapped format)...');
@@ -212,24 +232,30 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                     serverAddress: serverData.serverAddress,
                     serverPassword: serverData.password || "", // Server password from ServerConnect step
                     securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
-                    cid: response.ConnectSuccess.cid
+                    cid: wrappedSuccess.cid as bigint
                   });
                   debugLog('Join', '[ILM-TRACE] Join: handleAuthSuccess completed (wrapped), resolving promise');
-                  resolve({ cid: response.ConnectSuccess.cid });
+                  resolve({ cid: wrappedSuccess.cid as string });
                 })().catch(err => {
                   console.error('[ILM-TRACE] Join: handleAuthSuccess failed (wrapped):', err);
                   reject(err);
                 });
-              } else if (response.RegisterFailure && response.RegisterFailure.request_id === requestId) {
+              }
+            } else if (response.RegisterFailure) {
+              const wrappedFail = response.RegisterFailure as Record<string, unknown>;
+              if (wrappedFail.request_id === requestId) {
                 resolved = true;
                 clearTimeout(timeout);
                 eventEmitter.off('websocket-message', handler);
-                reject(new Error(response.RegisterFailure.message || 'Registration failed'));
-              } else if (response.ConnectFailure && response.ConnectFailure.request_id === requestId) {
+                reject(new Error((wrappedFail.message as string) || 'Registration failed'));
+              }
+            } else if (response.ConnectFailure) {
+              const wrappedFail = response.ConnectFailure as Record<string, unknown>;
+              if (wrappedFail.request_id === requestId) {
                 resolved = true;
                 clearTimeout(timeout);
                 eventEmitter.off('websocket-message', handler);
-                reject(new Error(response.ConnectFailure.message || 'Connection after registration failed'));
+                reject(new Error((wrappedFail.message as string) || 'Connection after registration failed'));
               }
             }
           }

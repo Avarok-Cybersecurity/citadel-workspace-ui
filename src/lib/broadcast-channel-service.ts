@@ -2,6 +2,7 @@ import { eventEmitter } from './event-emitter';
 import { getSelectedUser } from './tab-context';
 import { instanceManager } from './multi-instance';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+import type { P2PNotificationData } from '@/types/ws-message-types';
 import { PollingService } from './utils/polling-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
@@ -429,7 +430,7 @@ export class BroadcastChannelService extends PollingService {
    * BroadcastChannel uses structured clone which supports Uint8Array directly.
    */
    
-  public broadcastP2PNotification(data: { notification: any; messageBytes: Uint8Array }): void {
+  public broadcastP2PNotification(data: { notification: P2PNotificationData; messageBytes: Uint8Array }): void {
     // Only leader broadcasts P2P notifications to followers
     if (!this.isLeader) {
       debugLog('BroadcastChannelService', '[BroadcastChannel] broadcastP2PNotification: Not leader, skipping');

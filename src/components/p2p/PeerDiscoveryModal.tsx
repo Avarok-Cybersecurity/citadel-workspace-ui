@@ -16,6 +16,7 @@ import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { getDefaultSecuritySettings } from '@/lib/security-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
 
 interface Peer {
   cid: string;
@@ -115,18 +116,22 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // in P2P terminology - the peer relationship is now established for direct messaging).
   useEffect(() => {
      
-    const handleRegistrationSuccess = (message: any) => {
+    const handleRegistrationSuccess = (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
       // Handle PeerRegisterSuccess - peer is now registered with us
-      if (message.PeerRegisterSuccess) {
-        const peerCid = message.PeerRegisterSuccess.peer_cid?.toString();
+      if (hasVariant(message, 'PeerRegisterSuccess')) {
+        const success = message.PeerRegisterSuccess as Record<string, unknown>;
+        const peerCid = (success.peer_cid as bigint | undefined)?.toString();
         if (peerCid) {
           debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerRegisterSuccess - marking peer as connected:', peerCid);
           setRegisteredPeers(prev => new Set([...prev, peerCid]));
         }
       }
       // Handle PeerConnectSuccess - P2P channel established (also means registered)
-      if (message.PeerConnectSuccess) {
-        const peerCid = message.PeerConnectSuccess.peer_cid?.toString();
+      if (hasVariant(message, 'PeerConnectSuccess')) {
+        const success = message.PeerConnectSuccess as Record<string, unknown>;
+        const peerCid = (success.peer_cid as bigint | undefined)?.toString();
         if (peerCid) {
           debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerConnectSuccess - marking peer as connected:', peerCid);
           setRegisteredPeers(prev => new Set([...prev, peerCid]));
@@ -144,10 +149,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
   // Delegate to peerRegistrationStore for persistence and non-disruptive UX
   useEffect(() => {
      
-    const handleIncomingRegistration = async (message: any) => {
-      if (message.PeerRegisterNotification) {
+    const handleIncomingRegistration = async (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
+      if (hasVariant(message, 'PeerRegisterNotification')) {
         // Delegate to store - handles persistence, deduplication, and UI updates via badge
-        await peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification);
+        await peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification as Record<string, unknown>);
       }
     };
 
@@ -178,11 +185,16 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       }, 5000);
 
        
-      const handleMessage = (message: any) => {
-        if (message.GetSessionsResponse && message.GetSessionsResponse.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          resolve(message.GetSessionsResponse);
+      const handleMessage = (raw: unknown) => {
+        const message = narrowWebSocketMessage(raw);
+        if (!message) return;
+        if (hasVariant(message, 'GetSessionsResponse')) {
+          const resp = message.GetSessionsResponse as Record<string, unknown>;
+          if (resp.request_id === requestId) {
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handleMessage);
+            resolve(resp as { sessions?: SessionEntry[]; request_id?: string });
+          }
         }
       };
 
@@ -228,15 +240,23 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         }, 10000);
 
          
-        const handleMessage = (message: any) => {
-          if (message.ListRegisteredPeersResponse && message.ListRegisteredPeersResponse.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            resolve(message.ListRegisteredPeersResponse);
-          } else if (message.ListRegisteredPeersFailure && message.ListRegisteredPeersFailure.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            reject(new Error(message.ListRegisteredPeersFailure.message || 'Failed to list registered peers'));
+        const handleMessage = (raw: unknown) => {
+          const message = narrowWebSocketMessage(raw);
+          if (!message) return;
+          if (hasVariant(message, 'ListRegisteredPeersResponse')) {
+            const resp = message.ListRegisteredPeersResponse as Record<string, unknown>;
+            if (resp.request_id === requestId) {
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handleMessage);
+              resolve(resp as { peers?: Record<string, unknown>; request_id?: string });
+            }
+          } else if (hasVariant(message, 'ListRegisteredPeersFailure')) {
+            const fail = message.ListRegisteredPeersFailure as Record<string, unknown>;
+            if (fail.request_id === requestId) {
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handleMessage);
+              reject(new Error((fail.message as string) || 'Failed to list registered peers'));
+            }
           }
         };
 
@@ -288,15 +308,23 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         }, 10000);
 
          
-        const handleMessage = (message: any) => {
-          if (message.ListAllPeersResponse && message.ListAllPeersResponse.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            resolve(message.ListAllPeersResponse);
-          } else if (message.ListAllPeersFailure && message.ListAllPeersFailure.request_id === requestId) {
-            clearTimeout(timeout);
-            eventEmitter.off('websocket-message', handleMessage);
-            reject(new Error(message.ListAllPeersFailure.message || 'Failed to list peers'));
+        const handleMessage = (raw: unknown) => {
+          const message = narrowWebSocketMessage(raw);
+          if (!message) return;
+          if (hasVariant(message, 'ListAllPeersResponse')) {
+            const resp = message.ListAllPeersResponse as Record<string, unknown>;
+            if (resp.request_id === requestId) {
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handleMessage);
+              resolve(resp as { peer_information?: Record<string, PeerEntry>; request_id?: string });
+            }
+          } else if (hasVariant(message, 'ListAllPeersFailure')) {
+            const fail = message.ListAllPeersFailure as Record<string, unknown>;
+            if (fail.request_id === requestId) {
+              clearTimeout(timeout);
+              eventEmitter.off('websocket-message', handleMessage);
+              reject(new Error((fail.message as string) || 'Failed to list peers'));
+            }
           }
         };
 

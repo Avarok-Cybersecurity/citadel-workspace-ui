@@ -2,6 +2,7 @@ import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
 
 /**
  * Server info stored in LocalDB
@@ -38,16 +39,19 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       }, 5000);
 
       // Set up event listener
-       
-      const handler = (message: any) => {
-        if (message.LocalDBGetAllKVSuccess && message.LocalDBGetAllKVSuccess.request_id === requestId) {
+
+      const handler = (raw: unknown) => {
+        const message = narrowWebSocketMessage(raw);
+        if (!message) return;
+
+        if (hasVariant(message, 'LocalDBGetAllKVSuccess') && (message.LocalDBGetAllKVSuccess as Record<string, unknown>).request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          
+
           // Extract servers from the response
           const servers: StoredServer[] = [];
-          const kvMap = message.LocalDBGetAllKVSuccess.map;
-          
+          const kvMap = (message.LocalDBGetAllKVSuccess as Record<string, unknown>).map as Record<string, unknown> | undefined;
+
           if (kvMap) {
             // Look for server-related keys
             Object.keys(kvMap).forEach(key => {
@@ -63,8 +67,8 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
                     } else if (parsed.servers) {
                       servers.push(...parsed.servers);
                     }
-                  } else if (typeof value === 'object' && value.servers) {
-                    servers.push(...value.servers);
+                  } else if (typeof value === 'object' && value !== null && (value as Record<string, unknown>).servers) {
+                    servers.push(...(value as Record<string, unknown>).servers as StoredServer[]);
                   }
                 } catch (e) {
                   console.error('Error parsing server data:', e);
@@ -72,12 +76,12 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
               }
             });
           }
-          
+
           resolve({ servers });
-        } else if (message.LocalDBGetAllKVFailure && message.LocalDBGetAllKVFailure.request_id === requestId) {
+        } else if (hasVariant(message, 'LocalDBGetAllKVFailure') && (message.LocalDBGetAllKVFailure as Record<string, unknown>).request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          reject(new Error(message.LocalDBGetAllKVFailure.message || 'Failed to get known servers'));
+          reject(new Error(((message.LocalDBGetAllKVFailure as Record<string, unknown>).message as string) || 'Failed to get known servers'));
         }
       };
 
@@ -141,16 +145,19 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       }, 5000);
 
       // Set up event listener
-       
-      const handler = (message: any) => {
-        if (message.LocalDBSetKVSuccess && message.LocalDBSetKVSuccess.request_id === requestId) {
+
+      const handler = (raw: unknown) => {
+        const message = narrowWebSocketMessage(raw);
+        if (!message) return;
+
+        if (hasVariant(message, 'LocalDBSetKVSuccess') && (message.LocalDBSetKVSuccess as Record<string, unknown>).request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
           resolve();
-        } else if (message.LocalDBSetKVFailure && message.LocalDBSetKVFailure.request_id === requestId) {
+        } else if (hasVariant(message, 'LocalDBSetKVFailure') && (message.LocalDBSetKVFailure as Record<string, unknown>).request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          reject(new Error(message.LocalDBSetKVFailure.message || 'Failed to store known server'));
+          reject(new Error(((message.LocalDBSetKVFailure as Record<string, unknown>).message as string) || 'Failed to store known server'));
         }
       };
 

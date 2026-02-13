@@ -16,6 +16,7 @@ import { EventListenerPollingService } from './utils/polling-service';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 interface ConnectionAttempt {
   sessionKey: string;
@@ -143,7 +144,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
 
     // Handle connection success/failure from websocket messages
      
-    this.listen<any>('websocket-message', async (message) => {
+    this.listen<WebSocketMessage>('websocket-message', async (message) => {
       if (message.ConnectSuccess) {
         await this.handleConnectionSuccess(message.ConnectSuccess);
       }

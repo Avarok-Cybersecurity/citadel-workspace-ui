@@ -287,7 +287,7 @@ export function CollaborativeEditor({
       ...(provider ? [
         CollaborationCursor.configure({
            
-          provider: provider as any,
+          provider: provider as unknown as { awareness: typeof provider.awareness },
           user: {
             name: currentUserName,
             color: userColor,

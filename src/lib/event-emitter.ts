@@ -1,5 +1,5 @@
  
-export type EventHandler<T = any> = (payload: T) => void;
+export type EventHandler<T = unknown> = (payload: T) => void;
 
 /**
  * TypedEventEmitter - A simple typed event emitter for strongly-typed events
@@ -34,7 +34,7 @@ export class EventEmitter {
   private listeners: Map<string, Set<EventHandler>> = new Map();
 
    
-  emit<T = any>(event: string, payload?: T): void {
+  emit<T = unknown>(event: string, payload?: T): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
       handlers.forEach(handler => {
@@ -48,7 +48,7 @@ export class EventEmitter {
   }
 
    
-  on<T = any>(event: string, handler: EventHandler<T>): () => void {
+  on<T = unknown>(event: string, handler: EventHandler<T>): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
@@ -66,7 +66,7 @@ export class EventEmitter {
   }
 
    
-  once<T = any>(event: string, handler: EventHandler<T>): () => void {
+  once<T = unknown>(event: string, handler: EventHandler<T>): () => void {
     const wrappedHandler: EventHandler<T> = (payload) => {
       unsubscribe();
       handler(payload);

@@ -7,6 +7,8 @@ import type { GroupMessage as LocalGroupMessage } from '@/types/workspace-entiti
 import { bytesToString } from './utils/encoding-utils';
 import { isVariant } from 'citadel-workspace-client-ts';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 
 /**
@@ -28,25 +30,29 @@ export class WorkspaceResponseHandler {
 
   private setupMessageHandler(): void {
     // Listen for WebSocket messages
-     
-    eventEmitter.on('websocket-message', (message: any) => {
+
+    eventEmitter.on('websocket-message', (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
       this.handleMessage(message);
     });
   }
 
-   
-  private handleMessage(message: any): void {
+  private handleMessage(message: WebSocketMessage): void {
+    // Cast to record for multi-variant optional chaining (message is a typed discriminated union,
+    // but we need to check many variant keys with optional property access)
+    const msg = message as Record<string, Record<string, unknown> | undefined>;
     // Handle MessageNotification responses (server sends this, not MessageDelivered)
-    if (message.MessageNotification) {
-      debugLog('workspace', 'Received MessageNotification', message.MessageNotification);
+    if (msg.MessageNotification) {
+      debugLog('workspace', 'Received MessageNotification', msg.MessageNotification);
 
       // Check if this is a P2P message (has non-zero peer_cid different from our cid)
       // P2P messages should be handled by p2p-messenger-manager, not workspace handler
       // peer_cid=0 means it's from the workspace server, not a peer
-      const notification = message.MessageNotification;
+      const notification = msg.MessageNotification;
       if (notification.peer_cid && notification.cid) {
-        const peerCidStr = notification.peer_cid.toString();
-        const cidStr = notification.cid.toString();
+        const peerCidStr = String(notification.peer_cid);
+        const cidStr = String(notification.cid);
 
         // If peer_cid is non-zero and different from cid, this is a P2P message from another user
         // Let p2p-messenger-manager handle it (it also listens to websocket-message event)
@@ -57,10 +63,11 @@ export class WorkspaceResponseHandler {
       }
 
       // Extract the message array from notification (field is 'message' not 'contents')
-      if (notification.message && Array.isArray(notification.message)) {
+      const notificationMessage = notification.message;
+      if (notificationMessage && Array.isArray(notificationMessage)) {
         try {
           // Convert array of numbers to Uint8Array
-          const contentBytes = new Uint8Array(notification.message);
+          const contentBytes = new Uint8Array(notificationMessage as number[]);
           // Decode bytes to string
           const contentStr = bytesToString(contentBytes);
 
@@ -81,21 +88,22 @@ export class WorkspaceResponseHandler {
       }
       return;
     }
-    
+
     // Handle MessageDelivered responses from WASM client
-    if (message.MessageDelivered) {
-      debugLog('workspace', 'Received MessageDelivered', message.MessageDelivered);
-      
+    if (msg.MessageDelivered) {
+      debugLog('workspace', 'Received MessageDelivered', msg.MessageDelivered);
+
       // Extract the contents array
-      if (message.MessageDelivered.contents && Array.isArray(message.MessageDelivered.contents)) {
+      const contents = msg.MessageDelivered.contents;
+      if (contents && Array.isArray(contents)) {
         try {
           // Convert array of numbers to Uint8Array
-          const contentBytes = new Uint8Array(message.MessageDelivered.contents);
+          const contentBytes = new Uint8Array(contents as number[]);
           // Decode bytes to string
           const contentStr = bytesToString(contentBytes);
           // Parse the JSON workspace protocol response
           const workspacePayload = JSON.parse(contentStr);
-          
+
           // Process the workspace protocol response
           if (workspacePayload.Response) {
             this.processWorkspaceResponse(workspacePayload.Response);
@@ -106,15 +114,15 @@ export class WorkspaceResponseHandler {
       }
       return;
     }
-    
+
     // Check if it's a direct Response message
-    if (!message.Response) {
+    if (!msg.Response) {
       return;
     }
 
-    const response = message.Response;
+    const response = msg.Response;
     debugLog('workspace', 'Processing direct response', response);
-    this.processWorkspaceResponse(response);
+    this.processWorkspaceResponse(response as WorkspaceProtocolResponse);
   }
   
   private processWorkspaceResponse(response: WorkspaceProtocolResponse): void {

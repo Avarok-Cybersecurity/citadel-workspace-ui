@@ -23,6 +23,9 @@ import {
 import { sha256Sync } from './merkle-tree';
 import { debugLog } from '@/lib/debug-config';
 
+/** Pinch point: Yjs origin values used in this codebase. Replaces Yjs's `any`. */
+type YjsOrigin = string | null | undefined;
+
 // ============================================
 // MESSAGE TYPES
 // ============================================
@@ -117,9 +120,9 @@ export class YjsP2PProvider {
 
   private messageListener: (() => void) | null = null;
    
-  private updateHandler: ((update: Uint8Array, origin: any) => void) | null = null;
+  private updateHandler: ((update: Uint8Array, origin: YjsOrigin) => void) | null = null;
    
-  private awarenessHandler: ((update: { added: number[]; updated: number[]; removed: number[] }, origin: any) => void) | null = null;
+  private awarenessHandler: ((update: { added: number[]; updated: number[]; removed: number[] }, origin: YjsOrigin) => void) | null = null;
 
   private connected = false;
   private destroyed = false;
@@ -172,7 +175,7 @@ export class YjsP2PProvider {
 
   private setupUpdateHandler() {
      
-    this.updateHandler = (update: Uint8Array, origin: any) => {
+    this.updateHandler = (update: Uint8Array, origin: YjsOrigin) => {
       if (this.destroyed) return;
       // Don't re-send updates that came from the peer
       if (origin === 'remote' || origin === 'merkle-reconstruct' || origin === 'creator-resync') return;

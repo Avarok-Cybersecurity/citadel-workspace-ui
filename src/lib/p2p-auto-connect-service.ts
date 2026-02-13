@@ -48,6 +48,8 @@ import { P2P_CONSTANTS } from './constants';
 import { safeJSONStringify } from './storage-utils';
 import { ensureBigInt, ensureBigIntPair } from './utils';
 import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
+import type { BroadcastStateSyncData } from '@/types/ws-message-types';
 
 interface ConnectionAttempt {
   attempts: number;
@@ -181,8 +183,9 @@ export class P2PAutoConnectService {
     // Listen for connectedPeers updates from leader (for follower tabs)
     // This allows follower tabs to have synchronized connectedPeers state
     // so WASM ILM queries work correctly on all tabs
-     
-    eventEmitter.on('broadcast-state-sync', (data: any) => {
+
+    eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
+      const data = raw as BroadcastStateSyncData;
       if (data?.type === 'connected-peers-update' && !instanceManager.isLeader) {
         const { localCid, peerCid, peerUsername, localUsername } = data;
         if (localCid !== undefined && peerCid !== undefined) {
@@ -255,18 +258,22 @@ export class P2PAutoConnectService {
     });
 
     // Listen for successful P2P connections - INSTANT update
-     
-    eventEmitter.on('websocket-message', async (message: any) => {
-      if (message.PeerConnectSuccess) {
+
+    eventEmitter.on('websocket-message', async (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
+
+      if (hasVariant(message, 'PeerConnectSuccess')) {
         // CRITICAL: On the leader tab, update connectedPeers for ALL sessions.
         // ILM runs on the leader and calls getPeersForSession() for any CID.
         //
         // PeerConnectSuccess fields:
         // - cid = INITIATOR's CID (who called PeerConnect)
         // - peer_cid = TARGET's CID (who was connected to)
-        const messageCid: bigint | undefined = message.PeerConnectSuccess.cid;
-        const peerCid: bigint | undefined = message.PeerConnectSuccess.peer_cid;
-        const peerUsername = message.PeerConnectSuccess.peer_username || '';
+        const v = message.PeerConnectSuccess as Record<string, unknown>;
+        const messageCid = v.cid as bigint | undefined;
+        const peerCid = v.peer_cid as bigint | undefined;
+        const peerUsername = (v.peer_username as string) || '';
 
         if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
           // Update leader's central connectedPeers Map for the initiator session
@@ -289,7 +296,7 @@ export class P2PAutoConnectService {
       }
 
       // Handle incoming PeerConnect from another peer
-      if (message.PeerConnectNotification) {
+      if (hasVariant(message, 'PeerConnectNotification')) {
         // CRITICAL: On the leader tab, update connectedPeers for ALL sessions.
         // ILM runs on the leader and calls getPeersForSession() for any CID.
         // Without this, the leader's connectedPeers Map only has entries for the
@@ -298,10 +305,11 @@ export class P2PAutoConnectService {
         // PeerConnectNotification fields:
         // - cid = TARGET's CID (who should accept)
         // - peer_cid = INITIATOR's CID (who called PeerConnect)
+        const notification = message.PeerConnectNotification as Record<string, unknown>;
         if (instanceManager.isLeader) {
-          const targetCid: bigint | undefined = message.PeerConnectNotification.cid;
-          const initiatorCid: bigint | undefined = message.PeerConnectNotification.peer_cid;
-          const peerUsername = message.PeerConnectNotification.peer_username || '';
+          const targetCid = notification.cid as bigint | undefined;
+          const initiatorCid = notification.peer_cid as bigint | undefined;
+          const peerUsername = (notification.peer_username as string) || '';
 
           if (targetCid !== undefined && initiatorCid !== undefined) {
             // Update leader's central connectedPeers Map for the TARGET session
@@ -312,15 +320,16 @@ export class P2PAutoConnectService {
         }
 
         // Now handle the actual acceptance logic (if we are the target)
-        this.handleIncomingPeerConnect(message.PeerConnectNotification).catch((err) => {
+        this.handleIncomingPeerConnect(notification as { cid?: bigint; peer_cid?: bigint; peer_username?: string }).catch((err) => {
           console.error('[P2P-AutoConnect] handleIncomingPeerConnect failed:', err);
         });
       }
 
       // Handle peer disconnect - INSTANT update
-      if (message.PeerDisconnect) {
-        const messageCid: bigint | undefined = message.PeerDisconnect.cid;
-        const peerCid: bigint | undefined = message.PeerDisconnect.peer_cid;
+      if (hasVariant(message, 'PeerDisconnect')) {
+        const v = message.PeerDisconnect as Record<string, unknown>;
+        const messageCid = v.cid as bigint | undefined;
+        const peerCid = v.peer_cid as bigint | undefined;
 
         // On the leader tab, update connectedPeers for ALL sessions (central Map for ILM)
         if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
@@ -343,26 +352,29 @@ export class P2PAutoConnectService {
       // Handle DisconnectNotification with peer_cid - this is sent when a peer's C2S session disconnects
       // The SDK emits PeerSignal::Disconnect to all connected peers, which becomes DisconnectNotification
       // This is different from PeerDisconnect (explicit P2P disconnect request)
-      if (message.DisconnectNotification && message.DisconnectNotification.peer_cid) {
-        const messageCid: bigint | undefined = message.DisconnectNotification.cid;
-        const peerCid: bigint | undefined = message.DisconnectNotification.peer_cid;
+      if (hasVariant(message, 'DisconnectNotification')) {
+        const v = message.DisconnectNotification as Record<string, unknown>;
+        if (v.peer_cid) {
+          const messageCid = v.cid as bigint | undefined;
+          const peerCid = v.peer_cid as bigint | undefined;
 
-        // On the leader tab, update connectedPeers for ALL sessions (central Map for ILM)
-        if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
-          debugLog('P2pAutoConnectService', `[ILM-TRACE] Leader DisconnectNotification: removing peer ${peerCid.toString().slice(0, 8)}... from CID ${messageCid.toString().slice(0, 8)}...`);
-          this.setPeerDisconnected(messageCid, peerCid);
-        }
+          // On the leader tab, update connectedPeers for ALL sessions (central Map for ILM)
+          if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
+            debugLog('P2pAutoConnectService', `[ILM-TRACE] Leader DisconnectNotification: removing peer ${peerCid.toString().slice(0, 8)}... from CID ${messageCid.toString().slice(0, 8)}...`);
+            this.setPeerDisconnected(messageCid, peerCid);
+          }
 
-        // Filter by CID for the rest of the logic (emit events only for our session)
-        const currentCid = await this.getCurrentCid();
-        if (messageCid !== undefined && currentCid && messageCid !== currentCid) {
-          // This message is for a different tab's session, skip remaining logic
-          return;
-        }
+          // Filter by CID for the rest of the logic (emit events only for our session)
+          const currentCid = await this.getCurrentCid();
+          if (messageCid !== undefined && currentCid && messageCid !== currentCid) {
+            // This message is for a different tab's session, skip remaining logic
+            return;
+          }
 
-        if (peerCid !== undefined && currentCid) {
-          debugLog('P2pAutoConnectService', `[P2PAutoConnect] DisconnectNotification: Peer ${peerCid.toString().slice(0, 8)}... session disconnected`);
-          this.handlePeerDisconnect(currentCid, peerCid);
+          if (peerCid !== undefined && currentCid) {
+            debugLog('P2pAutoConnectService', `[P2PAutoConnect] DisconnectNotification: Peer ${peerCid.toString().slice(0, 8)}... session disconnected`);
+            this.handlePeerDisconnect(currentCid, peerCid);
+          }
         }
       }
     });

@@ -40,6 +40,8 @@ import {
   MAX_RECONNECT_DELAY_MS,
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 export class ConnectionManager {
   private static instance: ConnectionManager;
@@ -126,12 +128,16 @@ export class ConnectionManager {
   private setupEventListeners(): void {
     this.state.executeCleanup();
 
-    const wsUnsubscribe = this.io.onEvent('websocket-message', async (message: unknown) => {
+    const wsUnsubscribe = this.io.onEvent('websocket-message', async (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
       await this.handleWebSocketMessage(message);
     });
     this.state.addCleanupFunction(wsUnsubscribe);
 
-    const broadcastUnsubscribe = this.io.onEvent('broadcast-workspace-response', async (message: unknown) => {
+    const broadcastUnsubscribe = this.io.onEvent('broadcast-workspace-response', async (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
       await this.handleWebSocketMessage(message);
     });
     this.state.addCleanupFunction(broadcastUnsubscribe);
@@ -160,75 +166,81 @@ export class ConnectionManager {
   // ============================================================================
 
    
-  private async handleWebSocketMessage(message: any): Promise<void> {
+  private async handleWebSocketMessage(message: WebSocketMessage): Promise<void> {
+    // Cast to record for multi-variant optional chaining (message is a typed discriminated union,
+    // but we need to check many variant keys with optional property access)
+    const msg = message as Record<string, Record<string, unknown> | undefined>;
+
     // Handle LocalDB responses
-    if (message.LocalDBSetKVSuccess) {
-      this.resolveRequest(message.LocalDBSetKVSuccess.request_id, message.LocalDBSetKVSuccess);
-    } else if (message.LocalDBSetKVFailure) {
-      this.rejectRequest(message.LocalDBSetKVFailure.request_id, message.LocalDBSetKVFailure.message);
-    } else if (message.LocalDBGetAllKVSuccess) {
-      this.resolveRequest(message.LocalDBGetAllKVSuccess.request_id, message.LocalDBGetAllKVSuccess);
-    } else if (message.LocalDBGetAllKVFailure) {
-      this.rejectRequest(message.LocalDBGetAllKVFailure.request_id, message.LocalDBGetAllKVFailure.message);
-    } else if (message.GetSessionsResponse) {
-      this.resolveRequest(message.GetSessionsResponse.request_id, message.GetSessionsResponse);
-    } else if (message.ConnectionManagementSuccess) {
+    if (msg.LocalDBSetKVSuccess) {
+      this.resolveRequest(msg.LocalDBSetKVSuccess.request_id as string, msg.LocalDBSetKVSuccess);
+    } else if (msg.LocalDBSetKVFailure) {
+      this.rejectRequest(msg.LocalDBSetKVFailure.request_id as string, msg.LocalDBSetKVFailure.message as string);
+    } else if (msg.LocalDBGetAllKVSuccess) {
+      this.resolveRequest(msg.LocalDBGetAllKVSuccess.request_id as string, msg.LocalDBGetAllKVSuccess);
+    } else if (msg.LocalDBGetAllKVFailure) {
+      this.rejectRequest(msg.LocalDBGetAllKVFailure.request_id as string, msg.LocalDBGetAllKVFailure.message as string);
+    } else if (msg.GetSessionsResponse) {
+      this.resolveRequest(msg.GetSessionsResponse.request_id as string, msg.GetSessionsResponse);
+    } else if (msg.ConnectionManagementSuccess) {
       debugLog('Service', 'ConnectionManager: Received ConnectionManagementSuccess');
-      this.resolveRequest(message.ConnectionManagementSuccess.request_id, message);
-    } else if (message.ConnectionManagementFailure) {
+      this.resolveRequest(msg.ConnectionManagementSuccess.request_id as string, message);
+    } else if (msg.ConnectionManagementFailure) {
       debugLog('Service', 'ConnectionManager: Received ConnectionManagementFailure');
-      this.resolveRequest(message.ConnectionManagementFailure.request_id, message);
+      this.resolveRequest(msg.ConnectionManagementFailure.request_id as string, message);
     }
 
     // Handle successful registration/connection
     // CRITICAL: Only process if this response belongs to this tab
     // Otherwise, broadcasts from other users' sessions will overwrite our connection info
-    const response = message.Response || message;
+    const response = msg.Response || msg;
     if (response.RegisterSuccess || response.ConnectSuccess) {
-      const cid = response.RegisterSuccess?.cid || response.ConnectSuccess?.cid;
-      const requestId = response.RegisterSuccess?.request_id || response.ConnectSuccess?.request_id;
-      debugLog('Service', `[ILM-TRACE] ConnectionManager: Received registration/connection success, CID=${cid?.toString()}, request_id=${requestId}`);
+      const cid = (response.RegisterSuccess as Record<string, unknown> | undefined)?.cid || (response.ConnectSuccess as Record<string, unknown> | undefined)?.cid;
+      const requestId = (response.RegisterSuccess as Record<string, unknown> | undefined)?.request_id || (response.ConnectSuccess as Record<string, unknown> | undefined)?.request_id;
+      const cidBigInt = cid as bigint | undefined;
+      const reqId = requestId as string | undefined;
+      debugLog('Service', `[ILM-TRACE] ConnectionManager: Received registration/connection success, CID=${cidBigInt?.toString()}, request_id=${reqId}`);
 
       // Check if this response belongs to this tab:
       // 1. Matching pending request from this tab's ConnectionManager, OR
       // 2. CID matches this tab's selected session, OR
       // 3. No session selected yet AND no connection info exists (fresh registration)
-      const hasPendingRequest = requestId && this.state.hasPendingRequest(requestId);
+      const hasPendingRequest = reqId && this.state.hasPendingRequest(reqId);
       const tabSelection = await this.io.getSelectedUser();
-      const isOurSession = cid && tabSelection?.selectedCid === cid;
+      const isOurSession = cidBigInt && tabSelection?.selectedCid === cidBigInt;
       const isFreshTab = !tabSelection?.selectedCid && !this.state.currentConnectionInfo;
 
       if (hasPendingRequest || isOurSession || isFreshTab) {
         debugLog('Service', `[ILM-TRACE] ConnectionManager: Processing connection success (hasPending=${hasPendingRequest}, isOurSession=${isOurSession}, isFreshTab=${isFreshTab})`);
         this.state.invalidateCache();
-        if (cid) {
-          debugLog('Service', `[ILM-TRACE] ConnectionManager: Calling handleSuccessfulConnection for CID=${cid.toString()}`);
-          await this.handleSuccessfulConnection(cid, false);
+        if (cidBigInt) {
+          debugLog('Service', `[ILM-TRACE] ConnectionManager: Calling handleSuccessfulConnection for CID=${cidBigInt.toString()}`);
+          await this.handleSuccessfulConnection(cidBigInt, false);
         }
       } else {
-        debugLog('Service', `[ILM-TRACE] ConnectionManager: Ignoring connection success - not our session (requestId=${requestId}, ourCid=${tabSelection?.selectedCid?.toString()}, currentCid=${this.state.currentConnectionInfo?.cid?.toString()})`);
+        debugLog('Service', `[ILM-TRACE] ConnectionManager: Ignoring connection success - not our session (requestId=${reqId}, ourCid=${tabSelection?.selectedCid?.toString()}, currentCid=${this.state.currentConnectionInfo?.cid?.toString()})`);
       }
     }
 
     // Handle successful connection management
     // CRITICAL: Only process if this response belongs to this tab
     if (response.ConnectionManagementSuccess) {
-      const requestId = response.ConnectionManagementSuccess?.request_id;
-      const cid = response.ConnectionManagementSuccess?.cid;
-      debugLog('Service', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', requestId, 'cid:', cid?.toString());
+      const cmReqId = response.ConnectionManagementSuccess.request_id as string | undefined;
+      const cmCid = response.ConnectionManagementSuccess.cid as bigint | undefined;
+      debugLog('Service', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', cmReqId, 'cid:', cmCid?.toString());
 
       // Check if this response belongs to this tab
-      const hasPendingRequest = requestId && this.state.hasPendingRequest(requestId);
+      const hasPendingRequest = cmReqId && this.state.hasPendingRequest(cmReqId);
       const tabSelection = await this.io.getSelectedUser();
-      const isOurSession = cid && tabSelection?.selectedCid === cid;
+      const isOurSession = cmCid && tabSelection?.selectedCid === cmCid;
       const isFreshTab = !tabSelection?.selectedCid && !this.state.currentConnectionInfo;
 
       if (hasPendingRequest || isOurSession || isFreshTab) {
         debugLog('Service', 'ConnectionManager: Processing ConnectionManagementSuccess (hasPending:', hasPendingRequest, ', isOurSession:', isOurSession, ', isFreshTab:', isFreshTab, ')');
         this.state.invalidateCache();
-        if (cid) {
-          debugLog('Service', 'ConnectionManager: Updating connection info with claimed session CID:', cid);
-          await this.handleSuccessfulConnection(cid, false);
+        if (cmCid) {
+          debugLog('Service', 'ConnectionManager: Updating connection info with claimed session CID:', cmCid);
+          await this.handleSuccessfulConnection(cmCid, false);
         }
       } else {
         debugLog('Service', 'ConnectionManager: Ignoring ConnectionManagementSuccess - not our session');
@@ -243,7 +255,7 @@ export class ConnectionManager {
 
     // Handle connection failures
     if (response.ConnectFailure) {
-      await this.handleConnectFailure(response.ConnectFailure);
+      await this.handleConnectFailure(response.ConnectFailure as { message?: string });
     }
   }
 

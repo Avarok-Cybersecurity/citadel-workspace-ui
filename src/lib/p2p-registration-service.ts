@@ -19,6 +19,8 @@ import {
   getDefaultSecuritySettings
 } from './security-utils';
 import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
+import type { WebSocketMessage, BroadcastStateSyncData } from '@/types/ws-message-types';
 
 // Re-export for backward compatibility
 export type { SessionSecuritySettings, HeaderObfuscatorSettings };
@@ -169,8 +171,10 @@ export class P2PRegistrationService {
 
   private setupEventListeners(): void {
     // Listen for WebSocket messages
-     
-    eventEmitter.on('websocket-message', (message: any) => {
+
+    eventEmitter.on('websocket-message', (raw: unknown) => {
+      const message = narrowWebSocketMessage(raw);
+      if (!message) return;
       this.handleWebSocketMessage(message);
     });
 
@@ -185,8 +189,9 @@ export class P2PRegistrationService {
     // Listen for registeredPeers updates from leader (for follower tabs)
     // This allows follower tabs to have synchronized registeredPeers state
     // so the sidebar shows peers registered by the leader
-     
-    eventEmitter.on('broadcast-state-sync', (data: any) => {
+
+    eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
+      const data = raw as BroadcastStateSyncData;
       if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
         const { peerCid, peerUsername, isOutgoing, isIncoming } = data;
         if (peerCid !== undefined) {
@@ -236,47 +241,49 @@ export class P2PRegistrationService {
     }
   }
 
-   
-  private handleWebSocketMessage(message: any): void {
-    if (message.ListAllPeersResponse) {
-      const requestId = message.ListAllPeersResponse.request_id;
+  private handleWebSocketMessage(message: WebSocketMessage): void {
+    // Cast to record for multi-variant optional chaining (message is a typed discriminated union,
+    // but we need to check many variant keys with optional property access)
+    const msg = message as Record<string, Record<string, unknown> | undefined>;
+    if (msg.ListAllPeersResponse) {
+      const requestId = msg.ListAllPeersResponse.request_id as string;
       const pending = this.pendingRequests.get(requestId);
       if (pending) {
-        pending.resolve(message.ListAllPeersResponse);
+        pending.resolve(msg.ListAllPeersResponse);
         this.pendingRequests.delete(requestId);
       }
-    } else if (message.ListAllPeersFailure) {
-      const requestId = message.ListAllPeersFailure.request_id;
+    } else if (msg.ListAllPeersFailure) {
+      const requestId = msg.ListAllPeersFailure.request_id as string;
       const pending = this.pendingRequests.get(requestId);
       if (pending) {
-        pending.reject(new Error(message.ListAllPeersFailure.message || 'Failed to list peers'));
+        pending.reject(new Error((msg.ListAllPeersFailure.message as string) || 'Failed to list peers'));
         this.pendingRequests.delete(requestId);
       }
-    } else if (message.ListRegisteredPeersResponse) {
-      const requestId = message.ListRegisteredPeersResponse.request_id;
+    } else if (msg.ListRegisteredPeersResponse) {
+      const requestId = msg.ListRegisteredPeersResponse.request_id as string;
       const pending = this.pendingRequests.get(requestId);
       if (pending) {
-        pending.resolve(message.ListRegisteredPeersResponse);
+        pending.resolve(msg.ListRegisteredPeersResponse);
         this.pendingRequests.delete(requestId);
       }
-    } else if (message.ListRegisteredPeersFailure) {
-      const requestId = message.ListRegisteredPeersFailure.request_id;
+    } else if (msg.ListRegisteredPeersFailure) {
+      const requestId = msg.ListRegisteredPeersFailure.request_id as string;
       const pending = this.pendingRequests.get(requestId);
       if (pending) {
-        pending.reject(new Error(message.ListRegisteredPeersFailure.message || 'Failed to list registered peers'));
+        pending.reject(new Error((msg.ListRegisteredPeersFailure.message as string) || 'Failed to list registered peers'));
         this.pendingRequests.delete(requestId);
       }
-    } else if (message.PeerRegisterSuccess) {
-      const requestId = message.PeerRegisterSuccess.request_id;
+    } else if (msg.PeerRegisterSuccess) {
+      const requestId = msg.PeerRegisterSuccess.request_id as string;
       const pending = this.pendingRequests.get(requestId);
       if (pending) {
-        pending.resolve(message.PeerRegisterSuccess);
+        pending.resolve(msg.PeerRegisterSuccess);
         this.pendingRequests.delete(requestId);
       }
 
       // Update peer registration status
-      const peerCid: bigint | undefined = message.PeerRegisterSuccess.peer_cid;
-      const peerUsername: string | undefined = message.PeerRegisterSuccess.peer_username;
+      const peerCid = msg.PeerRegisterSuccess.peer_cid as bigint | undefined;
+      const peerUsername = msg.PeerRegisterSuccess.peer_username as string | undefined;
       if (peerCid !== undefined) {
         // Track this as an OUTGOING registration (WE registered with them)
         this.outgoingRegistrations.add(peerCid);
@@ -314,10 +321,10 @@ export class P2PRegistrationService {
           });
         }
       }
-    } else if (message.PeerRegisterFailure) {
-      const requestId = message.PeerRegisterFailure.request_id;
-      const errorMsg = message.PeerRegisterFailure.message || 'Failed to register peer';
-      const peerCid: bigint | undefined = message.PeerRegisterFailure.peer_cid;
+    } else if (msg.PeerRegisterFailure) {
+      const requestId = msg.PeerRegisterFailure.request_id as string;
+      const errorMsg = (msg.PeerRegisterFailure.message as string) || 'Failed to register peer';
+      const peerCid = msg.PeerRegisterFailure.peer_cid as bigint | undefined;
       const pending = this.pendingRequests.get(requestId);
 
       // CRITICAL FIX: "Peer already registered" is NOT an error - it means the registration
@@ -367,20 +374,20 @@ export class P2PRegistrationService {
           this.pendingRequests.delete(requestId);
         }
       }
-    } else if (message.PeerRegisterNotification) {
+    } else if (msg.PeerRegisterNotification) {
       // Handle notification when another peer registers with us
       // NOTE: In PeerRegisterNotification (from peer_event.rs):
       //   - `cid` is OUR CID (the recipient receiving the notification)
       //   - `peer_cid` is the CID of the peer who registered WITH us (the sender)
-      const notificationCid: bigint | undefined = message.PeerRegisterNotification.cid;
-      const peerCid: bigint | undefined = message.PeerRegisterNotification.peer_cid;
-      const peerUsername = message.PeerRegisterNotification.peer_username;
+      const notificationCid = msg.PeerRegisterNotification.cid as bigint | undefined;
+      const peerCid = msg.PeerRegisterNotification.peer_cid as bigint | undefined;
+      const peerUsername = msg.PeerRegisterNotification.peer_username as string | undefined;
 
       debugLog('P2pRegistrationService', '[P2P] Peer registered with us:', {
         cid: notificationCid?.toString(),
         peer_cid: peerCid?.toString(),
         peer_username: peerUsername,
-        request_id: message.PeerRegisterNotification.request_id
+        request_id: msg.PeerRegisterNotification.request_id
       });
 
       if (peerCid !== undefined && notificationCid !== undefined) {
