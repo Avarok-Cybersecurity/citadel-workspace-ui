@@ -48,7 +48,7 @@ import { P2P_CONSTANTS } from './constants';
 import { safeJSONStringify } from './storage-utils';
 import { ensureBigInt, ensureBigIntPair } from './utils';
 import { debugLog } from '@/lib/debug-config';
-import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
+import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import type { BroadcastStateSyncData } from '@/types/ws-message-types';
 
 interface ConnectionAttempt {
@@ -187,7 +187,10 @@ export class P2PAutoConnectService {
     eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
       const data = raw as BroadcastStateSyncData;
       if (data?.type === 'connected-peers-update' && !instanceManager.isLeader) {
-        const { localCid, peerCid, peerUsername, localUsername } = data;
+        const localCid = data.localCid as string | undefined;
+        const peerCid = data.peerCid as string | undefined;
+        const peerUsername = data.peerUsername as string | undefined;
+        const localUsername = data.localUsername as string | undefined;
         if (localCid !== undefined && peerCid !== undefined) {
           const localCidBigInt = BigInt(localCid);
           const peerCidBigInt = BigInt(peerCid);
@@ -270,7 +273,7 @@ export class P2PAutoConnectService {
         // PeerConnectSuccess fields:
         // - cid = INITIATOR's CID (who called PeerConnect)
         // - peer_cid = TARGET's CID (who was connected to)
-        const v = message.PeerConnectSuccess as Record<string, unknown>;
+        const v = getVariant(message, 'PeerConnectSuccess')!;
         const messageCid = v.cid as bigint | undefined;
         const peerCid = v.peer_cid as bigint | undefined;
         const peerUsername = (v.peer_username as string) || '';
@@ -305,7 +308,7 @@ export class P2PAutoConnectService {
         // PeerConnectNotification fields:
         // - cid = TARGET's CID (who should accept)
         // - peer_cid = INITIATOR's CID (who called PeerConnect)
-        const notification = message.PeerConnectNotification as Record<string, unknown>;
+        const notification = getVariant(message, 'PeerConnectNotification')!;
         if (instanceManager.isLeader) {
           const targetCid = notification.cid as bigint | undefined;
           const initiatorCid = notification.peer_cid as bigint | undefined;
@@ -327,7 +330,7 @@ export class P2PAutoConnectService {
 
       // Handle peer disconnect - INSTANT update
       if (hasVariant(message, 'PeerDisconnect')) {
-        const v = message.PeerDisconnect as Record<string, unknown>;
+        const v = getVariant(message, 'PeerDisconnect')!;
         const messageCid = v.cid as bigint | undefined;
         const peerCid = v.peer_cid as bigint | undefined;
 
@@ -353,7 +356,7 @@ export class P2PAutoConnectService {
       // The SDK emits PeerSignal::Disconnect to all connected peers, which becomes DisconnectNotification
       // This is different from PeerDisconnect (explicit P2P disconnect request)
       if (hasVariant(message, 'DisconnectNotification')) {
-        const v = message.DisconnectNotification as Record<string, unknown>;
+        const v = getVariant(message, 'DisconnectNotification')!;
         if (v.peer_cid) {
           const messageCid = v.cid as bigint | undefined;
           const peerCid = v.peer_cid as bigint | undefined;

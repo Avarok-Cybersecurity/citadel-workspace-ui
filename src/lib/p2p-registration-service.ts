@@ -193,10 +193,13 @@ export class P2PRegistrationService {
     eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
       const data = raw as BroadcastStateSyncData;
       if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
-        const { peerCid, peerUsername, isOutgoing, isIncoming } = data;
+        const peerCid = data.peerCid as string | undefined;
+        const peerUsername = data.peerUsername as string | undefined;
+        const isOutgoing = data.isOutgoing as boolean | undefined;
+        const isIncoming = data.isIncoming as boolean | undefined;
         if (peerCid !== undefined) {
           const peerCidBigInt = BigInt(peerCid);
-          debugLog('P2pRegistrationService', `[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername})`);
+          debugLog('P2pRegistrationService', `[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername ?? ''})`);
           // Store locally without re-broadcasting (we're a follower)
           this.setPeerRegisteredLocal(peerCidBigInt, peerUsername || '', isOutgoing, isIncoming);
           // Emit event to trigger sidebar refresh on follower tabs

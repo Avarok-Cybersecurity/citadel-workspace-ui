@@ -18,7 +18,7 @@ import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
+import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 
 export interface PendingPeerRequest {
   id: string;              // UUID for this request
@@ -54,7 +54,8 @@ class PeerRegistrationStore {
   private pendingRequests: PendingPeerRequest[] = [];
   private outgoingRequests: OutgoingPeerRequest[] = [];
    
-  private pendingKVRequests = new Map<string, { resolve: (value?: unknown) => void; reject: (error: Error) => void }>();
+  // PINCH POINT: KV request callbacks bridge Promise<void> and Promise<unknown> resolvers.
+  private pendingKVRequests = new Map<string, { resolve: (value?: any) => void; reject: (error: Error) => void }>();
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
@@ -952,7 +953,7 @@ class PeerRegistrationStore {
 
       // Handle LocalDBSetKV success
       if (hasVariant(message, 'LocalDBSetKVSuccess')) {
-        const { request_id } = message.LocalDBSetKVSuccess as Record<string, unknown>;
+        const { request_id } = getVariant(message, 'LocalDBSetKVSuccess')!;
         const pending = this.pendingKVRequests.get(request_id as string);
         if (pending) {
           this.pendingKVRequests.delete(request_id as string);
@@ -962,7 +963,7 @@ class PeerRegistrationStore {
 
       // Handle LocalDBGetKV success
       if (hasVariant(message, 'LocalDBGetKVSuccess')) {
-        const v = message.LocalDBGetKVSuccess as Record<string, unknown>;
+        const v = getVariant(message, 'LocalDBGetKVSuccess')!;
         const request_id = v.request_id as string;
         const value = v.value as number[] | undefined;
         const pending = this.pendingKVRequests.get(request_id);
@@ -995,7 +996,7 @@ class PeerRegistrationStore {
 
       // Handle PeerRegisterSuccess - remove from outgoing requests
       if (hasVariant(message, 'PeerRegisterSuccess')) {
-        const v = message.PeerRegisterSuccess as Record<string, unknown>;
+        const v = getVariant(message, 'PeerRegisterSuccess')!;
         const request_id = v.request_id as string | undefined;
         const cid = v.cid as bigint | undefined;
         const peer_cid = v.peer_cid as bigint | undefined;
@@ -1010,7 +1011,7 @@ class PeerRegistrationStore {
 
       // Handle PeerRegisterFailure - remove from outgoing requests
       if (hasVariant(message, 'PeerRegisterFailure')) {
-        const v = message.PeerRegisterFailure as Record<string, unknown>;
+        const v = getVariant(message, 'PeerRegisterFailure')!;
         const request_id = v.request_id as string | undefined;
         const cid = v.cid as bigint | undefined;
         const peer_cid = v.peer_cid as bigint | undefined;
@@ -1026,7 +1027,7 @@ class PeerRegistrationStore {
 
       // Handle PeerConnectSuccess - clear pending requests for connected peer
       if (hasVariant(message, 'PeerConnectSuccess')) {
-        const v = message.PeerConnectSuccess as Record<string, unknown>;
+        const v = getVariant(message, 'PeerConnectSuccess')!;
         const peer_cid = v.peer_cid as bigint | undefined;
         if (peer_cid !== undefined) {
           debugLog('PeerRegistrationStore', `[PeerRegistrationStore] Clearing requests for connected peer ${peer_cid.toString()}`);

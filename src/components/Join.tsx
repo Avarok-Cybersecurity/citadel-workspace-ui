@@ -23,7 +23,7 @@ import { mapSecuritySettings } from "@/lib/security-utils";
 import { ConnectLoadingModal, type ConnectStatus } from "./LoadingModal";
 import { safeJSONStringify } from "@/lib/storage-utils";
 import { debugLog } from '@/lib/debug-config';
-import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
+import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -135,19 +135,16 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
           debugLog('Join', '[ILM-TRACE] Join: Registration response received');
           debugLog('Join', '[ILM-TRACE] Join: Response type:', Object.keys(message)[0]);
           debugLog('Join', '[ILM-TRACE] Join: Expected requestId:', requestId);
-          const msgRequestId = hasVariant(message, 'ConnectSuccess')
-            ? (message.ConnectSuccess as Record<string, unknown>).request_id
-            : hasVariant(message, 'Response')
-              ? ((message.Response as Record<string, unknown>)?.ConnectSuccess as Record<string, unknown> | undefined)?.request_id
-              : undefined;
+          const msgRequestId = getVariant(message, 'ConnectSuccess')?.request_id
+            ?? (getVariant(message, 'Response')?.ConnectSuccess as Record<string, unknown> | undefined)?.request_id;
           debugLog('Join', '[ILM-TRACE] Join: Message requestId:', msgRequestId);
           debugLog('Join', '[ILM-TRACE] Join: requestId match:', msgRequestId === requestId);
 
           // Handle both wrapped and unwrapped responses
           // Try direct access first (for messages from internal service)
           // Since connect_after_register is true, we'll receive ConnectSuccess
-          if (hasVariant(message, 'ConnectSuccess')) {
-            const connectSuccess = message.ConnectSuccess as Record<string, unknown>;
+          const connectSuccess = getVariant(message, 'ConnectSuccess');
+          if (connectSuccess) {
             if (connectSuccess.request_id === requestId) {
               resolved = true;
               clearTimeout(timeout);
@@ -177,7 +174,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
               });
             }
           } else if (hasVariant(message, 'RegisterFailure')) {
-            const fail = message.RegisterFailure as Record<string, unknown>;
+            const fail = getVariant(message, 'RegisterFailure')!;
             if (fail.request_id === requestId) {
               resolved = true;
               clearTimeout(timeout);
@@ -185,7 +182,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
               reject(new Error((fail.message as string) || 'Registration failed'));
             }
           } else if (hasVariant(message, 'WorkspaceError')) {
-            const wsError = message.WorkspaceError as Record<string, unknown>;
+            const wsError = getVariant(message, 'WorkspaceError')!;
             if (wsError.request_id === requestId) {
               resolved = true;
               clearTimeout(timeout);
@@ -198,7 +195,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
               }
             }
           } else if (hasVariant(message, 'InternalServiceError')) {
-            const isError = message.InternalServiceError as Record<string, unknown>;
+            const isError = getVariant(message, 'InternalServiceError')!;
             if (isError.request_id === requestId) {
               resolved = true;
               clearTimeout(timeout);
@@ -207,7 +204,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             }
           } else if (hasVariant(message, 'Response')) {
             // Also check wrapped format (Response.RegisterSuccess)
-            const response = message.Response as Record<string, unknown>;
+            const response = getVariant(message, 'Response')!;
             debugLog('Join', '[ILM-TRACE] Join: Checking wrapped format...');
             // It was wrapped, check again
             // Since connect_after_register is true, we'll receive ConnectSuccess

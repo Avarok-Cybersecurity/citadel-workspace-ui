@@ -16,7 +16,7 @@ import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { getDefaultSecuritySettings } from '@/lib/security-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { narrowWebSocketMessage, hasVariant } from '@/lib/ws-message-boundary';
+import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 
 interface Peer {
   cid: string;
@@ -121,7 +121,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       if (!message) return;
       // Handle PeerRegisterSuccess - peer is now registered with us
       if (hasVariant(message, 'PeerRegisterSuccess')) {
-        const success = message.PeerRegisterSuccess as Record<string, unknown>;
+        const success = getVariant(message, 'PeerRegisterSuccess')!;
         const peerCid = (success.peer_cid as bigint | undefined)?.toString();
         if (peerCid) {
           debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerRegisterSuccess - marking peer as connected:', peerCid);
@@ -130,7 +130,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       }
       // Handle PeerConnectSuccess - P2P channel established (also means registered)
       if (hasVariant(message, 'PeerConnectSuccess')) {
-        const success = message.PeerConnectSuccess as Record<string, unknown>;
+        const success = getVariant(message, 'PeerConnectSuccess')!;
         const peerCid = (success.peer_cid as bigint | undefined)?.toString();
         if (peerCid) {
           debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerConnectSuccess - marking peer as connected:', peerCid);
@@ -154,7 +154,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       if (!message) return;
       if (hasVariant(message, 'PeerRegisterNotification')) {
         // Delegate to store - handles persistence, deduplication, and UI updates via badge
-        await peerRegistrationStore.handleIncomingRequest(message.PeerRegisterNotification as Record<string, unknown>);
+        await peerRegistrationStore.handleIncomingRequest(getVariant(message, 'PeerRegisterNotification') as { cid: bigint; peer_cid: bigint; peer_username?: string });
       }
     };
 
@@ -189,7 +189,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         const message = narrowWebSocketMessage(raw);
         if (!message) return;
         if (hasVariant(message, 'GetSessionsResponse')) {
-          const resp = message.GetSessionsResponse as Record<string, unknown>;
+          const resp = getVariant(message, 'GetSessionsResponse')!;
           if (resp.request_id === requestId) {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handleMessage);
@@ -244,14 +244,14 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           const message = narrowWebSocketMessage(raw);
           if (!message) return;
           if (hasVariant(message, 'ListRegisteredPeersResponse')) {
-            const resp = message.ListRegisteredPeersResponse as Record<string, unknown>;
+            const resp = getVariant(message, 'ListRegisteredPeersResponse')!;
             if (resp.request_id === requestId) {
               clearTimeout(timeout);
               eventEmitter.off('websocket-message', handleMessage);
               resolve(resp as { peers?: Record<string, unknown>; request_id?: string });
             }
           } else if (hasVariant(message, 'ListRegisteredPeersFailure')) {
-            const fail = message.ListRegisteredPeersFailure as Record<string, unknown>;
+            const fail = getVariant(message, 'ListRegisteredPeersFailure')!;
             if (fail.request_id === requestId) {
               clearTimeout(timeout);
               eventEmitter.off('websocket-message', handleMessage);
@@ -312,14 +312,14 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           const message = narrowWebSocketMessage(raw);
           if (!message) return;
           if (hasVariant(message, 'ListAllPeersResponse')) {
-            const resp = message.ListAllPeersResponse as Record<string, unknown>;
+            const resp = getVariant(message, 'ListAllPeersResponse')!;
             if (resp.request_id === requestId) {
               clearTimeout(timeout);
               eventEmitter.off('websocket-message', handleMessage);
               resolve(resp as { peer_information?: Record<string, PeerEntry>; request_id?: string });
             }
           } else if (hasVariant(message, 'ListAllPeersFailure')) {
-            const fail = message.ListAllPeersFailure as Record<string, unknown>;
+            const fail = getVariant(message, 'ListAllPeersFailure')!;
             if (fail.request_id === requestId) {
               clearTimeout(timeout);
               eventEmitter.off('websocket-message', handleMessage);

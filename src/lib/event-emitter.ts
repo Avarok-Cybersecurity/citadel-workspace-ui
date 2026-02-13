@@ -31,7 +31,9 @@ export class TypedEventEmitter<T> {
 }
 
 export class EventEmitter {
-  private listeners: Map<string, Set<EventHandler>> = new Map();
+  // PINCH POINT: Internal storage uses any because it holds heterogeneous handler types
+  // across different event names. Type safety is enforced at on<T>/emit<T> call sites.
+  private listeners: Map<string, Set<EventHandler<any>>> = new Map();
 
    
   emit<T = unknown>(event: string, payload?: T): void {
@@ -75,7 +77,7 @@ export class EventEmitter {
     return unsubscribe;
   }
 
-  off(event: string, handler?: EventHandler): void {
+  off(event: string, handler?: EventHandler<any>): void {
     if (!handler) {
       // Remove all handlers for this event
       this.listeners.delete(event);

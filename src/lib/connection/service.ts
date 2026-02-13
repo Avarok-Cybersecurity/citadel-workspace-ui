@@ -224,9 +224,10 @@ export class ConnectionManager {
 
     // Handle successful connection management
     // CRITICAL: Only process if this response belongs to this tab
-    if (response.ConnectionManagementSuccess) {
-      const cmReqId = response.ConnectionManagementSuccess.request_id as string | undefined;
-      const cmCid = response.ConnectionManagementSuccess.cid as bigint | undefined;
+    const cmSuccess = (response.ConnectionManagementSuccess as Record<string, unknown> | undefined);
+    if (cmSuccess) {
+      const cmReqId = cmSuccess.request_id as string | undefined;
+      const cmCid = cmSuccess.cid as bigint | undefined;
       debugLog('Service', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', cmReqId, 'cid:', cmCid?.toString());
 
       // Check if this response belongs to this tab
@@ -248,8 +249,9 @@ export class ConnectionManager {
     }
 
     // Handle disconnect notifications
-    if (response.DisconnectNotification) {
-      debugLog('Service', 'ConnectionManager: Received DisconnectNotification for CID:', response.DisconnectNotification.cid);
+    const disconnectNotification = (response.DisconnectNotification as Record<string, unknown> | undefined);
+    if (disconnectNotification) {
+      debugLog('Service', 'ConnectionManager: Received DisconnectNotification for CID:', disconnectNotification.cid);
       this.state.invalidateCache();
     }
 

@@ -16,6 +16,7 @@ import { EventListenerPollingService } from './utils/polling-service';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { getVariant } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 
 interface ConnectionAttempt {
@@ -145,14 +146,17 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     // Handle connection success/failure from websocket messages
      
     this.listen<WebSocketMessage>('websocket-message', async (message) => {
-      if (message.ConnectSuccess) {
-        await this.handleConnectionSuccess(message.ConnectSuccess);
+      const connectSuccess = getVariant(message, 'ConnectSuccess');
+      if (connectSuccess) {
+        await this.handleConnectionSuccess(connectSuccess as { cid?: bigint; username?: string; server_addr?: string });
       }
-      if (message.ConnectFailure) {
-        this.handleConnectionFailure(message.ConnectFailure);
+      const connectFailure = getVariant(message, 'ConnectFailure');
+      if (connectFailure) {
+        this.handleConnectionFailure(connectFailure as { message?: string });
       }
-      if (message.DisconnectNotification) {
-        this.handleDisconnect(message.DisconnectNotification);
+      const disconnectNotification = getVariant(message, 'DisconnectNotification');
+      if (disconnectNotification) {
+        this.handleDisconnect(disconnectNotification as { cid?: bigint });
       }
     });
 

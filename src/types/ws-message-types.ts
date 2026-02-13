@@ -1,5 +1,24 @@
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import type { WorkspaceEnrichedResponse } from 'citadel-workspace-client-ts';
+
+// TYPE-GAP: These enriched types exist in citadel-workspace-client-ts but are NOT exported
+// from the package barrel. Defined here to complete the WebSocketMessage union.
+interface WorkspaceNotificationEnriched {
+  WorkspaceNotification: {
+    cid: bigint;
+    peer_cid: bigint;
+    message: number[];
+    payload: unknown;
+  };
+}
+
+interface WorkspaceDeliveredEnriched {
+  WorkspaceDelivered: {
+    contents: number[];
+    cid?: bigint;
+    peer_cid?: bigint;
+    payload: unknown;
+  };
+}
 
 // TYPE-GAP: MessageDelivered exists at runtime but NOT in auto-generated InternalServiceResponse.
 // Other "gap" variants (CreateWorkspace, AddMember etc.) arrive embedded in MessageNotification.message
@@ -11,7 +30,8 @@ interface MessageDeliveredVariant {
 // Union of all possible messages on the 'websocket-message' event channel.
 export type WebSocketMessage =
   | InternalServiceResponse
-  | WorkspaceEnrichedResponse
+  | WorkspaceNotificationEnriched
+  | WorkspaceDeliveredEnriched
   | MessageDeliveredVariant;
 
 // Broadcast state sync payloads (from BroadcastChannel, NOT WebSocket).
@@ -27,4 +47,4 @@ export interface P2PNotificationData {
   message: Uint8Array | number[];
 }
 
-export type { InternalServiceResponse, WorkspaceEnrichedResponse };
+export type { InternalServiceResponse };
