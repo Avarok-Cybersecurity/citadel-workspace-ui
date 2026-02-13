@@ -132,13 +132,13 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
         const handler = (raw: unknown) => {
           const message = narrowWebSocketMessage(raw);
           if (!message) return;
-          debugLog('Join', '[ILM-TRACE] Join: Registration response received');
-          debugLog('Join', '[ILM-TRACE] Join: Response type:', Object.keys(message)[0]);
-          debugLog('Join', '[ILM-TRACE] Join: Expected requestId:', requestId);
+          debugLog('Join', 'Registration response received');
+          debugLog('Join', 'Response type:', Object.keys(message)[0]);
+          debugLog('Join', 'Expected requestId:', requestId);
           const msgRequestId = getVariant(message, 'ConnectSuccess')?.request_id
             ?? (getVariant(message, 'Response')?.ConnectSuccess as Record<string, unknown> | undefined)?.request_id;
-          debugLog('Join', '[ILM-TRACE] Join: Message requestId:', msgRequestId);
-          debugLog('Join', '[ILM-TRACE] Join: requestId match:', msgRequestId === requestId);
+          debugLog('Join', 'Message requestId:', msgRequestId);
+          debugLog('Join', 'requestId match:', msgRequestId === requestId);
 
           // Handle both wrapped and unwrapped responses
           // Try direct access first (for messages from internal service)
@@ -153,10 +153,10 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
               // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
               // BEFORE resolving. This prevents race condition where WorkspaceApp's
               // onConnectionChange fires before tab context is set.
-              debugLog('Join', '[ILM-TRACE] Join: ConnectSuccess matched! CID:', (connectSuccess.cid as bigint | undefined)?.toString());
+              debugLog('Join', 'ConnectSuccess matched! CID:', (connectSuccess.cid as bigint | undefined)?.toString());
               const connectionManager = ConnectionManager.getInstance();
               (async () => {
-                debugLog('Join', '[ILM-TRACE] Join: Calling handleAuthSuccess...');
+                debugLog('Join', 'Calling handleAuthSuccess...');
                 await connectionManager.handleAuthSuccess({
                   username: formData.username,
                   password: formData.password,
@@ -166,10 +166,10 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                   securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
                   cid: connectSuccess.cid as bigint
                 });
-                debugLog('Join', '[ILM-TRACE] Join: handleAuthSuccess completed, resolving promise');
+                debugLog('Join', 'handleAuthSuccess completed, resolving promise');
                 resolve({ cid: connectSuccess.cid as string });
               })().catch(err => {
-                console.error('[ILM-TRACE] Join: handleAuthSuccess failed:', err);
+                console.error('[Join] handleAuthSuccess failed:', err);
                 reject(err);
               });
             }
@@ -205,7 +205,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
           } else if (hasVariant(message, 'Response')) {
             // Also check wrapped format (Response.RegisterSuccess)
             const response = getVariant(message, 'Response')!;
-            debugLog('Join', '[ILM-TRACE] Join: Checking wrapped format...');
+            debugLog('Join', 'Checking wrapped format...');
             // It was wrapped, check again
             // Since connect_after_register is true, we'll receive ConnectSuccess
             if (response.ConnectSuccess) {
@@ -218,10 +218,10 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 // CRITICAL: Await handleAuthSuccess to ensure setSelectedUser completes
                 // BEFORE resolving. This prevents race condition where WorkspaceApp's
                 // onConnectionChange fires before tab context is set.
-                debugLog('Join', '[ILM-TRACE] Join: Wrapped ConnectSuccess matched! CID:', (wrappedSuccess.cid as bigint | undefined)?.toString());
+                debugLog('Join', 'Wrapped ConnectSuccess matched! CID:', (wrappedSuccess.cid as bigint | undefined)?.toString());
                 const connectionManager = ConnectionManager.getInstance();
                 (async () => {
-                  debugLog('Join', '[ILM-TRACE] Join: Calling handleAuthSuccess (wrapped format)...');
+                  debugLog('Join', 'Calling handleAuthSuccess (wrapped format)...');
                   await connectionManager.handleAuthSuccess({
                     username: formData.username,
                     password: formData.password,
@@ -231,10 +231,10 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                     securitySettings: mapSecuritySettings(securitySettings), // Map camelCase to snake_case
                     cid: wrappedSuccess.cid as bigint
                   });
-                  debugLog('Join', '[ILM-TRACE] Join: handleAuthSuccess completed (wrapped), resolving promise');
+                  debugLog('Join', 'handleAuthSuccess completed (wrapped), resolving promise');
                   resolve({ cid: wrappedSuccess.cid as string });
                 })().catch(err => {
-                  console.error('[ILM-TRACE] Join: handleAuthSuccess failed (wrapped):', err);
+                  console.error('[Join] handleAuthSuccess failed (wrapped):', err);
                   reject(err);
                 });
               }

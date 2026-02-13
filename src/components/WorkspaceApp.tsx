@@ -88,9 +88,9 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
     let lastProcessedCid: string | null = null;
 
     // Connection change listener - load workspace data when user connects
-    debugLog('WorkspaceApp', '[ILM-TRACE] WorkspaceApp: Subscribing to connection changes');
+    debugLog('WorkspaceApp', 'Subscribing to connection changes');
     connectionService.onConnectionChange(async (connection) => {
-      debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, hasUserContext=${!!connection?.userContext}`);
+      debugLog('WorkspaceApp', `onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, hasUserContext=${!!connection?.userContext}`);
       // CID 0 is the service connection, not a user session - skip it
       const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
@@ -98,7 +98,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         // This prevents flickering when BroadcastChannel broadcasts connection-status for same CID
         const cidString = connection.cid.toString();
         if (lastProcessedCid === cidString) {
-          debugLog('WorkspaceApp', 'WorkspaceApp: Skipping redundant connection update for CID:', cidString);
+          debugLog('WorkspaceApp', 'Skipping redundant connection update for CID:', cidString);
           return;
         }
 
@@ -112,7 +112,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Check if connection includes user context (passed directly by handleAuthSuccess)
         if (connection.userContext?.selectedCid) {
-          debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: Using userContext from connection event: selectedCid=${connection.userContext.selectedCid.toString()}`);
+          debugLog('WorkspaceApp', `Using userContext from connection event: selectedCid=${connection.userContext.selectedCid.toString()}`);
           tabSelection = { selectedCid: connection.userContext.selectedCid };
         } else {
           // Fall back to IndexedDB (may timeout, especially for follower tabs)
@@ -129,7 +129,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
 
               // If we got a result with selectedCid, we're done
               if (tabSelection?.selectedCid) {
-                debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: Got tab context from IndexedDB on attempt ${attempt}: selectedCid=${tabSelection.selectedCid}`);
+                debugLog('WorkspaceApp', `Got tab context from IndexedDB on attempt ${attempt}: selectedCid=${tabSelection.selectedCid}`);
                 break;
               }
 
@@ -137,41 +137,41 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
               // This handles the race condition where connection update arrives before
               // the Join/Login component has called setSelectedUser
               if (attempt < maxRetries) {
-                debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: No tab context yet (attempt ${attempt}/${maxRetries}), waiting ${retryDelayMs}ms...`);
+                debugLog('WorkspaceApp', `No tab context yet (attempt ${attempt}/${maxRetries}), waiting ${retryDelayMs}ms...`);
                 await new Promise(resolve => setTimeout(resolve, retryDelayMs));
               }
             } catch (e: unknown) {
               const errorMsg = e instanceof Error ? e.message : String(e);
               if (attempt < maxRetries) {
-                debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: getSelectedUser failed (attempt ${attempt}/${maxRetries}): ${errorMsg}, retrying...`);
+                debugLog('WorkspaceApp', `getSelectedUser failed (attempt ${attempt}/${maxRetries}): ${errorMsg}, retrying...`);
                 await new Promise(resolve => setTimeout(resolve, retryDelayMs));
               } else {
-                console.warn(`[ILM-TRACE] WorkspaceApp: getSelectedUser failed after all retries: ${errorMsg}`);
+                console.warn(`[WorkspaceApp] getSelectedUser failed after all retries: ${errorMsg}`);
               }
             }
           }
         }
-        debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: tabSelection=${JSON.stringify(tabSelection, (_, v) => typeof v === 'bigint' ? v.toString() : v)}, cidString=${cidString}`);
+        debugLog('WorkspaceApp', `tabSelection=${JSON.stringify(tabSelection, (_, v) => typeof v === 'bigint' ? v.toString() : v)}, cidString=${cidString}`);
 
         // CRITICAL: If tab context is not set, skip processing entirely.
         // This handles the race condition where broadcastConnectionStatus fires
         // before Join.tsx's handleAuthSuccess has completed setSelectedUser.
         // The tab that owns this CID will process it once its context is set.
         if (!tabSelection?.selectedCid) {
-          debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: No tab context yet, skipping connection update for CID ${cidString}`);
-          debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: The owning tab's Join.tsx will handle workspace loading after handleAuthSuccess completes`);
+          debugLog('WorkspaceApp', `No tab context yet, skipping connection update for CID ${cidString}`);
+          debugLog('WorkspaceApp', `The owning tab's Join.tsx will handle workspace loading after handleAuthSuccess completes`);
           return;
         }
 
         // Tab context exists - check if this update is for our CID
         if (tabSelection.selectedCid.toString() !== cidString) {
-          debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: Ignoring connection update for CID ${cidString} (tab has CID ${tabSelection.selectedCid})`);
+          debugLog('WorkspaceApp', `Ignoring connection update for CID ${cidString} (tab has CID ${tabSelection.selectedCid})`);
           return;
         }
 
         lastProcessedCid = cidString;
 
-        debugLog('WorkspaceApp', '[ILM-TRACE] WorkspaceApp: Valid user session detected, CID:', connection.cid?.toString());
+        debugLog('WorkspaceApp', 'Valid user session detected, CID:', connection.cid?.toString());
         // Set the connection ID in the workspace service
         const cidBigInt = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
         WorkspaceService.setConnectionId(cidBigInt);
@@ -179,8 +179,8 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         // Emit session:activated to trigger P2P startup (handled by SessionStartupService)
         // Get username from stored session if available
         const allStoredSessions = connectionManager.getStoredSessionsArray();
-        debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: Looking for CID ${cidString} in ${allStoredSessions.length} stored sessions`);
-        debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: Stored session CIDs: ${allStoredSessions.map(s => s.cid?.toString()).join(', ')}`);
+        debugLog('WorkspaceApp', `Looking for CID ${cidString} in ${allStoredSessions.length} stored sessions`);
+        debugLog('WorkspaceApp', `Stored session CIDs: ${allStoredSessions.map(s => s.cid?.toString()).join(', ')}`);
         // CRITICAL: Convert both sides to strings for comparison
         // session.cid can be bigint, undefined, or string depending on when it was set
         const storedSession = allStoredSessions.find(
@@ -188,10 +188,10 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         );
 
         if (!storedSession) {
-          console.error('[ILM-TRACE] WorkspaceApp: No stored session found for CID:', cidString);
+          console.error('[WorkspaceApp] No stored session found for CID:', cidString);
           return;
         }
-        debugLog('WorkspaceApp', `[ILM-TRACE] WorkspaceApp: Found stored session for ${storedSession.username}`);
+        debugLog('WorkspaceApp', `Found stored session for ${storedSession.username}`);
 
         
         eventEmitter.emit('session:activated', {
@@ -200,7 +200,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
           serverAddress: storedSession.serverAddress,
           activationType: 'connect' as const
         });
-        debugLog('WorkspaceApp', 'WorkspaceApp: Emitted session:activated for connection');
+        debugLog('WorkspaceApp', 'Emitted session:activated for connection');
 
         // Load user registration info based on connection
         // Always use CID for identification when retrieving user data

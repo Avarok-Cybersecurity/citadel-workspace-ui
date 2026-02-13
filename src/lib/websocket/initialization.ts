@@ -50,14 +50,14 @@ export class WebSocketInitialization {
    * Returns when we know if we're leader or follower.
    */
   async waitForLeaderElection(): Promise<void> {
-    debugLog('Initialization', `[ILM-TRACE] waitForLeaderElection: checking initial state isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
+    debugLog('Initialization', `waitForLeaderElection: checking initial state isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
     if (instanceManager.isLeader || instanceManager.leaderId) {
-      debugLog('Initialization', `[ILM-TRACE] waitForLeaderElection: already decided, returning immediately`);
+      debugLog('Initialization', `waitForLeaderElection: already decided, returning immediately`);
       return;
     }
 
     const ELECTION_TIMEOUT_MS = 3000;
-    debugLog('Initialization', `[ILM-TRACE] waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
+    debugLog('Initialization', `waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
 
     return new Promise<void>((resolve) => {
       let resolved = false;
@@ -66,7 +66,7 @@ export class WebSocketInitialization {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);
-          debugLog('Initialization', `[ILM-TRACE] waitForLeaderElection: leader-changed event received: isLeader=${isLeader}, leaderId=${leaderId}`);
+          debugLog('Initialization', `waitForLeaderElection: leader-changed event received: isLeader=${isLeader}, leaderId=${leaderId}`);
           resolve();
         }
       };
@@ -77,7 +77,7 @@ export class WebSocketInitialization {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);
-          debugLog('Initialization', `[ILM-TRACE] waitForLeaderElection: decided during setup, isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
+          debugLog('Initialization', `waitForLeaderElection: decided during setup, isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
           resolve();
         }
       }
@@ -86,9 +86,9 @@ export class WebSocketInitialization {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);
-          debugLog('Initialization', `[ILM-TRACE] waitForLeaderElection: TIMEOUT after ${ELECTION_TIMEOUT_MS}ms - no leader detected`);
+          debugLog('Initialization', `waitForLeaderElection: TIMEOUT after ${ELECTION_TIMEOUT_MS}ms - no leader detected`);
           if (!instanceManager.isLeader && !instanceManager.leaderId) {
-            debugLog('Initialization', `[ILM-TRACE] waitForLeaderElection: Will let InstanceChannel handle election`);
+            debugLog('Initialization', `waitForLeaderElection: Will let InstanceChannel handle election`);
           }
           resolve();
         }

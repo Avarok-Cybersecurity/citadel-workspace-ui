@@ -467,13 +467,13 @@ export class ConnectionService {
    * @param connection The new connection information
    */
   public updateConnectionStatus(connection: ConnectionStatus): void {
-    debugLog('ConnectionService', `[ILM-TRACE] ConnectionService.updateConnectionStatus: cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, handlers=${this.connectionChangeHandlers.length}`);
+    debugLog('ConnectionService', `updateConnectionStatus: cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}, handlers=${this.connectionChangeHandlers.length}`);
     this.currentConnection = connection;
 
     // Notify all registered handlers
     this.connectionChangeHandlers.forEach(handler => {
       try {
-        debugLog('ConnectionService', `[ILM-TRACE] ConnectionService: Calling handler`);
+        debugLog('ConnectionService', `Calling handler`);
         handler(connection);
       } catch (error) {
         console.error('Error in connection change handler:', error);

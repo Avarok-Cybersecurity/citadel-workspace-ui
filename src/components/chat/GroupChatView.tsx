@@ -192,16 +192,17 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           setLoading(false);
           setLoadingMore(false);
           break;
-        case 'new_message':
-          if (event.message) {
+        case 'new_message': {
+          const newMsg = event.message;
+          if (newMsg) {
             setMessages((prev) => {
               // Check for duplicates by message ID
-              const exists = prev.some((m) => m.id === event.message!.id);
+              const exists = prev.some((m) => m.id === newMsg.id);
               if (exists) {
-                debugLog('GroupChatView', '[GroupChatView] Skipping duplicate message:', event.message!.id);
+                debugLog('GroupChatView', '[GroupChatView] Skipping duplicate message:', newMsg.id);
                 return prev;
               }
-              return [...prev, event.message!];
+              return [...prev, newMsg];
             });
             // Scroll to bottom for new messages
             setTimeout(() => {
@@ -209,6 +210,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             }, 100);
           }
           break;
+        }
         case 'message_edited':
           setMessages((prev) =>
             prev.map((m) =>

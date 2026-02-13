@@ -280,6 +280,6 @@ export class P2PConnectionState {
 
   set forceInitiatorMode(value: boolean) {
     this._forceInitiatorMode = value;
-    debugLog('State', `[ILM-TRACE] P2PAutoConnect: forceInitiatorMode=${value}`);
+    debugLog('State', `P2PAutoConnect: forceInitiatorMode=${value}`);
   }
 }

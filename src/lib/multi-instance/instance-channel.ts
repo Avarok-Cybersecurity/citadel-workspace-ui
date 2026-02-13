@@ -246,11 +246,11 @@ class InstanceChannel {
   private handleOutboundRequest(message: ChannelMessage): void {
     // Only leader processes outbound requests
     if (!instanceManager.isLeader) {
-      console.warn('[ILM-TRACE] Received outbound-request but not leader, ignoring');
+      debugLog('InstanceChannel', 'Received outbound-request but not leader, ignoring');
       return;
     }
 
-    debugLog('InstanceChannel', `[ILM-TRACE] Leader received outbound-request from ${message.senderInstanceId}, requestId=${message.requestId}`);
+    debugLog('InstanceChannel', `Leader received outbound-request from ${message.senderInstanceId}, requestId=${message.requestId}`);
 
     // Emit to leader-outbound-handler AND instance-inbound-router
     eventEmitter.emit('channel:outbound-request', {
@@ -336,12 +336,12 @@ class InstanceChannel {
 
   private handleLeaderHeartbeat(message: ChannelMessage): void {
     this.lastLeaderHeartbeat = Date.now();
-    debugLog('InstanceChannel', `[ILM-TRACE] Heartbeat received from ${message.senderInstanceId}, current leaderId=${instanceManager.leaderId}`);
+    debugLog('InstanceChannel', `Heartbeat received from ${message.senderInstanceId}, current leaderId=${instanceManager.leaderId}`);
 
     // Acknowledge the leader if not already known
     // This is critical for new instances to know there's an existing leader
     if (instanceManager.leaderId !== message.senderInstanceId) {
-      debugLog('InstanceChannel', `[ILM-TRACE] Acknowledging leader from heartbeat: ${message.senderInstanceId} (was: ${instanceManager.leaderId})`);
+      debugLog('InstanceChannel', `Acknowledging leader from heartbeat: ${message.senderInstanceId} (was: ${instanceManager.leaderId})`);
       instanceManager.setLeader(false, message.senderInstanceId);
 
       // Emit events for compatibility
@@ -359,7 +359,7 @@ class InstanceChannel {
   private handleInstanceAnnounce(message: ChannelMessage): void {
     const announcePayload = message.payload as Record<string, unknown> | undefined;
     const cid = (announcePayload?.cid as bigint | null) || null;
-    debugLog('InstanceChannel', `[ILM-TRACE] handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
+    debugLog('InstanceChannel', `handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
 
     instanceManager.registerInstance(
       message.senderInstanceId,
@@ -634,7 +634,7 @@ class InstanceChannel {
    * Announce this instance's presence and CID
    */
   announcePresence(): void {
-    debugLog('InstanceChannel', `[ILM-TRACE] announcePresence: instanceId=${instanceManager.instanceId}, cid=${instanceManager.cid?.toString()}`);
+    debugLog('InstanceChannel', `announcePresence: instanceId=${instanceManager.instanceId}, cid=${instanceManager.cid?.toString()}`);
     this.send({
       type: 'instance-announce',
       targetInstanceId: '*',

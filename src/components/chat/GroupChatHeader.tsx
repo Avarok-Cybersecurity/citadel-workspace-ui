@@ -73,11 +73,11 @@ export function GroupChatHeader({
   // Get members sorted by role position
   const sortedMembers = useMemo(() => {
     return [...group.members]
-      .map(member => {
+      .flatMap(member => {
         const role = group.settings.roles.find(r => r.id === member.roleId);
-        return { ...member, role: role! } as GroupMemberWithRole;
+        if (!role) return [];
+        return [{ ...member, role } as GroupMemberWithRole];
       })
-      .filter(m => m.role)
       .sort((a, b) => {
         if (a.role.position !== b.role.position) {
           return b.role.position - a.role.position;

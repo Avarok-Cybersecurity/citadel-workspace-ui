@@ -199,7 +199,7 @@ export class ConnectionManager {
       const requestId = (response.RegisterSuccess as Record<string, unknown> | undefined)?.request_id || (response.ConnectSuccess as Record<string, unknown> | undefined)?.request_id;
       const cidBigInt = cid as bigint | undefined;
       const reqId = requestId as string | undefined;
-      debugLog('Service', `[ILM-TRACE] ConnectionManager: Received registration/connection success, CID=${cidBigInt?.toString()}, request_id=${reqId}`);
+      debugLog('Service', `ConnectionManager: Received registration/connection success, CID=${cidBigInt?.toString()}, request_id=${reqId}`);
 
       // Check if this response belongs to this tab:
       // 1. Matching pending request from this tab's ConnectionManager, OR
@@ -211,14 +211,14 @@ export class ConnectionManager {
       const isFreshTab = !tabSelection?.selectedCid && !this.state.currentConnectionInfo;
 
       if (hasPendingRequest || isOurSession || isFreshTab) {
-        debugLog('Service', `[ILM-TRACE] ConnectionManager: Processing connection success (hasPending=${hasPendingRequest}, isOurSession=${isOurSession}, isFreshTab=${isFreshTab})`);
+        debugLog('Service', `ConnectionManager: Processing connection success (hasPending=${hasPendingRequest}, isOurSession=${isOurSession}, isFreshTab=${isFreshTab})`);
         this.state.invalidateCache();
         if (cidBigInt) {
-          debugLog('Service', `[ILM-TRACE] ConnectionManager: Calling handleSuccessfulConnection for CID=${cidBigInt.toString()}`);
+          debugLog('Service', `ConnectionManager: Calling handleSuccessfulConnection for CID=${cidBigInt.toString()}`);
           await this.handleSuccessfulConnection(cidBigInt, false);
         }
       } else {
-        debugLog('Service', `[ILM-TRACE] ConnectionManager: Ignoring connection success - not our session (requestId=${reqId}, ourCid=${tabSelection?.selectedCid?.toString()}, currentCid=${this.state.currentConnectionInfo?.cid?.toString()})`);
+        debugLog('Service', `ConnectionManager: Ignoring connection success - not our session (requestId=${reqId}, ourCid=${tabSelection?.selectedCid?.toString()}, currentCid=${this.state.currentConnectionInfo?.cid?.toString()})`);
       }
     }
 
@@ -371,8 +371,9 @@ export class ConnectionManager {
   // ============================================================================
 
   public async getActiveSessions(): Promise<ActiveSession[]> {
-    if (this.state.isCacheValid()) {
-      return this.state.cachedSessions!;
+    const cached = this.state.cachedSessions;
+    if (cached && this.state.isCacheValid()) {
+      return cached;
     }
 
     const pending = this.state.pendingGetSessions;
@@ -747,7 +748,7 @@ export class ConnectionManager {
         localStorage.setItem(lastAccessedKey, Date.now().toString());
       }
 
-      debugLog('Service', '[ILM-TRACE] handleAuthSuccess: setting tab context for CID:', params.cid?.toString());
+      debugLog('Service', 'handleAuthSuccess: setting tab context for CID:', params.cid?.toString());
       try {
         await Promise.race([
           this.io.setSelectedUser({
@@ -759,10 +760,10 @@ export class ConnectionManager {
             setTimeout(() => reject(new Error('setSelectedUser timeout')), SET_USER_TIMEOUT_MS)
           ),
         ]);
-        debugLog('Service', '[ILM-TRACE] handleAuthSuccess: tab context set successfully');
+        debugLog('Service', 'handleAuthSuccess: tab context set successfully');
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'setSelectedUser timeout') {
-          console.warn('[ILM-TRACE] handleAuthSuccess: setSelectedUser timed out - continuing anyway');
+          console.warn('[ConnectionService] handleAuthSuccess: setSelectedUser timed out - continuing anyway');
         } else {
           throw err;
         }
@@ -778,7 +779,7 @@ export class ConnectionManager {
 
         this.io.setWorkspaceConnectionId(params.cid);
 
-        debugLog('Service', '[ILM-TRACE] handleAuthSuccess: triggering connection status update for CID:', params.cid.toString());
+        debugLog('Service', 'handleAuthSuccess: triggering connection status update for CID:', params.cid.toString());
         this.io.updateConnectionService({
           cid: params.cid,
           isConnected: true,
@@ -790,7 +791,7 @@ export class ConnectionManager {
         });
       }
 
-      debugLog('Service', '[ILM-TRACE] handleAuthSuccess: completed successfully');
+      debugLog('Service', 'handleAuthSuccess: completed successfully');
     } catch (error) {
       console.error('ConnectionManager: handleAuthSuccess failed:', error);
       throw error;

@@ -203,7 +203,7 @@ export const OrphanSessionsNavbar = () => {
 
       // Start WASM connection manager for this CID (handles leader/follower transitions)
       try {
-        await wasmConnectionManager.start(session.cid!.toString());
+        await wasmConnectionManager.start(session.cid.toString());
         debugLog('OrphanSessionsNavbar', 'OrphanSessionsNavbar: WASM connection manager started for CID:', session.cid?.toString());
       } catch (error) {
         console.error('OrphanSessionsNavbar: Failed to start WASM connection manager:', error);
@@ -213,7 +213,7 @@ export const OrphanSessionsNavbar = () => {
       // CRITICAL: Emit session:activated to trigger P2P reconnection
       // This ensures ILM can deliver queued messages after ClaimSession
       eventEmitter.emit('session:activated', {
-        cid: session.cid!.toString(),
+        cid: session.cid.toString(),
         username: session.username,
         serverAddress: session.server_address,
         activationType: 'claim' as const

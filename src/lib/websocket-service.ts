@@ -384,19 +384,19 @@ class WebSocketService {
 
     // DEBUG: Log leadership decision
     const messageType = Object.keys(request)[0] || 'unknown';
-    debugLog('WebsocketService', `[ILM-TRACE] _sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
+    debugLog('WebsocketService', `_sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
 
     if (instanceManager.isLeader) {
       // LEADER: Send directly via WebSocket
       if (!this.client) {
-        console.error(`[ILM-TRACE] ERROR: Leader without client! Cannot send ${messageType}`);
+        console.error(`[WebSocketService] Leader without client, cannot send ${messageType}`);
         throw new Error('WebSocket client not available (leader without client)');
       }
-      debugLog('WebsocketService', `[ILM-TRACE] [Leader] Sending ${messageType} directly`);
+      debugLog('WebsocketService', `[Leader] Sending ${messageType} directly`);
       await this.client.sendDirectToInternalService(request as InternalServiceRequest);
     } else {
       // FOLLOWER: Proxy through leader via InstanceChannel
-      debugLog('WebsocketService', `[ILM-TRACE] [Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
+      debugLog('WebsocketService', `[Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
       const id = requestId || crypto.randomUUID();
 
       // Register the request with instance inbound router for response routing
@@ -407,11 +407,11 @@ class WebSocketService {
       const result = await instanceChannel.sendToLeader(request, id);
 
       if (result.status === 'error') {
-        console.error(`[ILM-TRACE] [Follower] Proxy FAILED for ${messageType}: ${result.error}`);
+        console.error(`[WebSocketService] Follower proxy failed for ${messageType}: ${result.error}`);
         throw new Error(`Leader failed to send request: ${result.error}`);
       }
 
-      debugLog('WebsocketService', `[ILM-TRACE] [Follower] Request ${messageType} proxied successfully`);
+      debugLog('WebsocketService', `[Follower] Request ${messageType} proxied successfully`);
     }
   }
 
