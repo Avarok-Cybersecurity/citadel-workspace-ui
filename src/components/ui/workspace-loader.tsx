@@ -9,6 +9,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '@/lib/timeout-constants';
 
 interface WorkspaceLoaderProps {
   children: React.ReactNode;
@@ -104,7 +105,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         // Wait for ConnectionManager to be ready (with timeout)
         debugLog('WorkspaceLoader', ' Waiting for ConnectionManager to be ready...');
         const timeoutPromise = new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error('ConnectionManager ready timeout')), 10000)
+          setTimeout(() => reject(new Error('ConnectionManager ready timeout')), TIMEOUT.CLAIM_SESSION_MS)
         );
         await Promise.race([connectionManager.waitForReady(), timeoutPromise]);
         debugLog('WorkspaceLoader', ' ConnectionManager is ready');
@@ -220,7 +221,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
       if (mounted && isLoading && !hasConnection) {
         setLoadingTimeout(true);
       }
-    }, 5000);
+    }, TIMEOUT.SERVER_REQUEST_MS);
 
     return () => {
       mounted = false;

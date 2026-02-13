@@ -43,7 +43,7 @@ export class WorkspaceResponseHandler {
     const msg = message as Record<string, Record<string, unknown> | undefined>;
     // Handle MessageNotification responses (server sends this, not MessageDelivered)
     if (msg.MessageNotification) {
-      debugLog('workspace', 'Received MessageNotification', msg.MessageNotification);
+      debugLog('WorkspaceResponseHandler', 'Received MessageNotification', msg.MessageNotification);
 
       // Check if this is a P2P message (has non-zero peer_cid different from our cid)
       // P2P messages should be handled by p2p-messenger-manager, not workspace handler
@@ -56,7 +56,7 @@ export class WorkspaceResponseHandler {
         // If peer_cid is non-zero and different from cid, this is a P2P message from another user
         // Let p2p-messenger-manager handle it (it also listens to websocket-message event)
         if (peerCidStr !== '0' && peerCidStr !== cidStr) {
-          debugLog('workspace', 'P2P message from peer, skipping workspace parsing', { peer_cid: peerCidStr, cid: cidStr });
+          debugLog('WorkspaceResponseHandler', 'P2P message from peer, skipping workspace parsing', { peer_cid: peerCidStr, cid: cidStr });
           return;
         }
       }
@@ -77,20 +77,20 @@ export class WorkspaceResponseHandler {
           if (workspacePayload.Response) {
             this.processWorkspaceResponse(workspacePayload.Response);
           } else {
-            debugLog('workspace', 'No Response field in payload', workspacePayload);
+            debugLog('WorkspaceResponseHandler', 'No Response field in payload', workspacePayload);
           }
         } catch (decodeError) {
           errorLog('Failed to decode MessageNotification', decodeError);
         }
       } else {
-        debugLog('workspace', 'MessageNotification missing message field', notification);
+        debugLog('WorkspaceResponseHandler', 'MessageNotification missing message field', notification);
       }
       return;
     }
 
     // Handle MessageDelivered responses from WASM client
     if (msg.MessageDelivered) {
-      debugLog('workspace', 'Received MessageDelivered', msg.MessageDelivered);
+      debugLog('WorkspaceResponseHandler', 'Received MessageDelivered', msg.MessageDelivered);
 
       // Extract the contents array
       const contents = msg.MessageDelivered.contents;
@@ -120,12 +120,12 @@ export class WorkspaceResponseHandler {
     }
 
     const response = msg.Response;
-    debugLog('workspace', 'Processing direct response', response);
+    debugLog('WorkspaceResponseHandler', 'Processing direct response', response);
     this.processWorkspaceResponse(response as WorkspaceProtocolResponse);
   }
   
   private processWorkspaceResponse(response: WorkspaceProtocolResponse): void {
-    debugLog('workspace', 'Processing workspace response', response);
+    debugLog('WorkspaceResponseHandler', 'Processing workspace response', response);
 
     // Get connection info if available
     // CID should come from the response or the context, not from websocketService
@@ -138,10 +138,10 @@ export class WorkspaceResponseHandler {
     // The 'in' operator throws TypeError when used on primitives (strings)
     if (typeof response === 'string') {
       if (response === 'WorkspaceNotInitialized') {
-        debugLog('workspace', 'Workspace not initialized (string literal), triggering initialization flow');
+        debugLog('WorkspaceResponseHandler', 'Workspace not initialized (string literal), triggering initialization flow');
         eventEmitter.emit('workspace:not-initialized', connectionInfo);
       } else {
-        debugLog('workspace', 'Unhandled string response:', response);
+        debugLog('WorkspaceResponseHandler', 'Unhandled string response:', response);
       }
       return;
     }
@@ -151,7 +151,7 @@ export class WorkspaceResponseHandler {
     if ('CreateWorkspace' in response) {
       // Handle workspace creation response
       const createWs = (response as Record<string, Record<string, unknown>>).CreateWorkspace;
-      debugLog('workspace', 'CreateWorkspace response', createWs);
+      debugLog('WorkspaceResponseHandler', 'CreateWorkspace response', createWs);
       eventEmitter.emit('workspace:created', {
         workspace: {
           id: createWs.id,
@@ -173,7 +173,7 @@ export class WorkspaceResponseHandler {
       });
     } else if (isVariant(response, 'Workspaces')) {
       // Handle workspace list response (multi-workspace)
-      debugLog('workspace', 'Workspaces list received', response.Workspaces);
+      debugLog('WorkspaceResponseHandler', 'Workspaces list received', response.Workspaces);
       eventEmitter.emit('workspaces:listed', {
         workspaces: response.Workspaces,
         connection: connectionInfo
@@ -205,7 +205,7 @@ export class WorkspaceResponseHandler {
     } else if ('AddMember' in response) {
       // Handle add member response
       const addMember = (response as Record<string, Record<string, unknown>>).AddMember;
-      debugLog('workspace', 'AddMember response', addMember);
+      debugLog('WorkspaceResponseHandler', 'AddMember response', addMember);
       eventEmitter.emit('member:added', {
         member: addMember,
         connection: connectionInfo
@@ -216,7 +216,7 @@ export class WorkspaceResponseHandler {
     } else if ('UpdateMemberRole' in response) {
       // Handle update member role response
       const updateRole = (response as Record<string, Record<string, unknown>>).UpdateMemberRole;
-      debugLog('workspace', 'UpdateMemberRole response', updateRole);
+      debugLog('WorkspaceResponseHandler', 'UpdateMemberRole response', updateRole);
       eventEmitter.emit('member:role-updated', {
         userId: updateRole.user_id,
         role: updateRole.role,
@@ -228,7 +228,7 @@ export class WorkspaceResponseHandler {
     } else if ('RemoveMember' in response) {
       // Handle remove member response
       const removeMember = (response as Record<string, Record<string, unknown>>).RemoveMember;
-      debugLog('workspace', 'RemoveMember response', removeMember);
+      debugLog('WorkspaceResponseHandler', 'RemoveMember response', removeMember);
       eventEmitter.emit('member:removed', {
         userId: removeMember.user_id,
         connection: connectionInfo
@@ -267,7 +267,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'GroupMessageNotification')) {
       // Handle new group message notification
       const { group_id, message } = response.GroupMessageNotification;
-      debugLog('workspace', 'GroupMessageNotification received', { group_id, message });
+      debugLog('WorkspaceResponseHandler', 'GroupMessageNotification received', { group_id, message });
       groupMessagingManager.handleNewMessage(group_id, message);
       eventEmitter.emit('group:message:new', {
         groupId: group_id,
@@ -277,7 +277,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'GroupMessages')) {
       // Handle paginated messages response
       const { group_id, messages, has_more } = response.GroupMessages;
-      debugLog('workspace', 'GroupMessages received', { group_id, count: messages.length, has_more });
+      debugLog('WorkspaceResponseHandler', 'GroupMessages received', { group_id, count: messages.length, has_more });
       groupMessagingManager.handleMessagesLoaded(group_id, messages, has_more);
       eventEmitter.emit('group:messages:loaded', {
         groupId: group_id,
@@ -288,7 +288,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'GroupMessageEdited')) {
       // Handle message edited notification
       const { group_id, message_id, new_content, edited_at } = response.GroupMessageEdited;
-      debugLog('workspace', 'GroupMessageEdited received', { group_id, message_id });
+      debugLog('WorkspaceResponseHandler', 'GroupMessageEdited received', { group_id, message_id });
       groupMessagingManager.handleMessageEdited(group_id, message_id, new_content, edited_at);
       eventEmitter.emit('group:message:edited', {
         groupId: group_id,
@@ -300,7 +300,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'GroupMessageDeleted')) {
       // Handle message deleted notification
       const { group_id, message_id, deleted_by } = response.GroupMessageDeleted;
-      debugLog('workspace', 'GroupMessageDeleted received', { group_id, message_id, deleted_by });
+      debugLog('WorkspaceResponseHandler', 'GroupMessageDeleted received', { group_id, message_id, deleted_by });
       groupMessagingManager.handleMessageDeleted(group_id, message_id);
       eventEmitter.emit('group:message:deleted', {
         groupId: group_id,
@@ -310,7 +310,7 @@ export class WorkspaceResponseHandler {
       });
     } else if (isVariant(response, 'GroupMessage')) {
       // Handle single group message response
-      debugLog('workspace', 'GroupMessage received', response.GroupMessage);
+      debugLog('WorkspaceResponseHandler', 'GroupMessage received', response.GroupMessage);
       eventEmitter.emit('group:message:single', {
         message: response.GroupMessage,
         connection: connectionInfo
@@ -318,7 +318,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'UserPermissions')) {
       // Handle user permissions response
       const { user_id, role, permissions, domain_id } = response.UserPermissions;
-      debugLog('workspace', 'UserPermissions received', { user_id, role, domain_id });
+      debugLog('WorkspaceResponseHandler', 'UserPermissions received', { user_id, role, domain_id });
       eventEmitter.emit('user:permissions:loaded', {
         userId: user_id,
         role,
@@ -329,7 +329,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'MemberRoleUpdated')) {
       // Handle member role update response
       const { user_id, new_role } = response.MemberRoleUpdated;
-      debugLog('workspace', 'MemberRoleUpdated received', { user_id, new_role });
+      debugLog('WorkspaceResponseHandler', 'MemberRoleUpdated received', { user_id, new_role });
       eventEmitter.emit('member:role-updated', {
         userId: user_id,
         role: new_role,
@@ -338,7 +338,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'UserProfileUpdated')) {
       // Handle user profile update response
       const user = response.UserProfileUpdated;
-      debugLog('workspace', 'UserProfileUpdated received', { userId: user.id, name: user.name });
+      debugLog('WorkspaceResponseHandler', 'UserProfileUpdated received', { userId: user.id, name: user.name });
       eventEmitter.emit('user:profile-updated', {
         user,
         connection: connectionInfo
@@ -347,7 +347,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'ServerCapabilities')) {
       // Handle server capabilities response
       const capabilities = response.ServerCapabilities;
-      debugLog('workspace', 'ServerCapabilities received', capabilities);
+      debugLog('WorkspaceResponseHandler', 'ServerCapabilities received', capabilities);
       eventEmitter.emit('server:capabilities:loaded', {
         allowServerFileTransfer: capabilities.allow_server_file_transfer,
         allowServerRevfsStorage: capabilities.allow_server_revfs_storage,
@@ -359,7 +359,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'Node')) {
       // Handle single node response (create/get/update node)
       const node = response.Node;
-      debugLog('workspace', 'Node response received', { id: node.id, name: node.name, entityType: node.entity_type });
+      debugLog('WorkspaceResponseHandler', 'Node response received', { id: node.id, name: node.name, entityType: node.entity_type });
       eventEmitter.emit('node:loaded', {
         node,
         connection: connectionInfo
@@ -368,7 +368,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'Nodes')) {
       // Handle nodes list response
       const nodes = response.Nodes;
-      debugLog('workspace', 'Nodes response received', { count: nodes.length });
+      debugLog('WorkspaceResponseHandler', 'Nodes response received', { count: nodes.length });
       eventEmitter.emit('nodes:loaded', {
         nodes,
         connection: connectionInfo
@@ -376,7 +376,7 @@ export class WorkspaceResponseHandler {
       eventEmitter.emit('workspace:raw-response', response);
     } else if (isVariant(response, 'TreeStructure')) {
       // Handle tree structure response
-      debugLog('workspace', 'TreeStructure response received');
+      debugLog('WorkspaceResponseHandler', 'TreeStructure response received');
       eventEmitter.emit('tree:structure:loaded', {
         root: response.TreeStructure.root,
         connection: connectionInfo
@@ -384,7 +384,7 @@ export class WorkspaceResponseHandler {
       eventEmitter.emit('workspace:raw-response', response);
     } else if (isVariant(response, 'TreeSchema')) {
       // Handle tree schema response
-      debugLog('workspace', 'TreeSchema response received');
+      debugLog('WorkspaceResponseHandler', 'TreeSchema response received');
       eventEmitter.emit('tree:schema:loaded', {
         schema: response.TreeSchema,
         connection: connectionInfo
@@ -392,7 +392,7 @@ export class WorkspaceResponseHandler {
       eventEmitter.emit('workspace:raw-response', response);
     } else if (isVariant(response, 'NodeTypes')) {
       // Handle node types list response
-      debugLog('workspace', 'NodeTypes response received', { count: response.NodeTypes.length });
+      debugLog('WorkspaceResponseHandler', 'NodeTypes response received', { count: response.NodeTypes.length });
       eventEmitter.emit('node:types:loaded', {
         nodeTypes: response.NodeTypes,
         connection: connectionInfo
@@ -401,7 +401,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'NodeDeleted')) {
       // Handle node deletion response
       const { node_id, children_deleted } = response.NodeDeleted;
-      debugLog('workspace', 'NodeDeleted response received', { node_id, childrenDeleted: children_deleted.length });
+      debugLog('WorkspaceResponseHandler', 'NodeDeleted response received', { node_id, childrenDeleted: children_deleted.length });
       eventEmitter.emit('node:deleted', {
         nodeId: node_id,
         childrenDeleted: children_deleted,
@@ -411,7 +411,7 @@ export class WorkspaceResponseHandler {
     } else if (isVariant(response, 'NodeMoved')) {
       // Handle node move response
       const { node_id, old_parent_id, new_parent_id } = response.NodeMoved;
-      debugLog('workspace', 'NodeMoved response received', { node_id, old_parent_id, new_parent_id });
+      debugLog('WorkspaceResponseHandler', 'NodeMoved response received', { node_id, old_parent_id, new_parent_id });
       eventEmitter.emit('node:moved', {
         nodeId: node_id,
         oldParentId: old_parent_id,
@@ -421,7 +421,7 @@ export class WorkspaceResponseHandler {
       eventEmitter.emit('workspace:raw-response', response);
     } else {
       // Log unhandled response types for debugging
-      debugLog('workspace', 'Unhandled response type:', response);
+      debugLog('WorkspaceResponseHandler', 'Unhandled response type:', response);
       // Still emit raw response for protocol-level testing
       eventEmitter.emit('workspace:raw-response', response);
     }

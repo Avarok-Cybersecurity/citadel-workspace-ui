@@ -33,10 +33,10 @@ export class WorkspaceOperations {
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
-      debugLog('websocket', '[Leader] Sending workspace request directly');
+      debugLog('WorkspaceOperations', '[Leader] Sending workspace request directly');
       await client.sendWorkspaceRequest(cid, request as WorkspaceProtocolRequest);
     } else {
-      debugLog('websocket', '[Follower] Proxying workspace request through leader');
+      debugLog('WorkspaceOperations', '[Follower] Proxying workspace request through leader');
 
       const proxyRequest = {
         __workspaceRequestProxy: true,
@@ -53,7 +53,7 @@ export class WorkspaceOperations {
         throw new Error(`Leader failed to send workspace request: ${result.error}`);
       }
 
-      debugLog('websocket', '[Follower] Workspace request proxied successfully');
+      debugLog('WorkspaceOperations', '[Follower] Workspace request proxied successfully');
     }
   }
 }

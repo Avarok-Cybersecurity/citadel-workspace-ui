@@ -17,6 +17,7 @@ import { getDefaultSecuritySettings } from '@/lib/security-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
+import { TIMEOUT } from '@/lib/timeout-constants';
 
 interface Peer {
   cid: string;
@@ -182,7 +183,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
     const responsePromise = new Promise<{ sessions?: SessionEntry[]; request_id?: string }>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('GetSessions timed out'));
-      }, 5000);
+      }, TIMEOUT.SERVER_REQUEST_MS);
 
        
       const handleMessage = (raw: unknown) => {

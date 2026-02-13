@@ -17,6 +17,7 @@ import { StorageLimitModal } from "./StorageLimitModal";
 import { RevfsDisabledModal } from "./RevfsDisabledModal";
 import { VFSPropertiesDialog } from "./VFSPropertiesDialog";
 import { Loader2, Users, FolderOpen, Server, UserCircle2 } from "lucide-react";
+import { INTERVAL } from "@/lib/timeout-constants";
 
 function findNodeByPath(tree: RevfsNode, path: string): RevfsNode | null {
   if (tree.path === path) return tree;
@@ -43,7 +44,7 @@ export const FileManagerContent = () => {
     };
 
     update();
-    const interval = setInterval(update, 2000);
+    const interval = setInterval(update, INTERVAL.HEARTBEAT_MS);
     return () => clearInterval(interval);
   }, []);
 

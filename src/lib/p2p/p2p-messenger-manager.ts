@@ -118,7 +118,7 @@ export class P2PMessengerManager extends EventListenerManager {
       this.initPromise = this.loadCachedMessages().then(() => {
         this.isReady = true;
         this.emit('p2p:messages-loaded');
-      });
+      }).catch(err => debugLog('P2pMessengerManager', 'Loading cached messages failed:', err));
     }
   }
 

@@ -17,6 +17,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { getUserFriendlyErrorMessage } from '@/lib/error-messages';
 import { healthCheckService } from '@/lib/health-check';
 import { getSelectedUser, setSelectedUser } from '@/lib/tab-context';
+import { TIMEOUT } from '@/lib/timeout-constants';
 import { revfsService } from '@/lib/revfs';
 // Import sessionStartupService to ensure it's instantiated (sets up event listeners)
 // P2P startup is now centralized here - triggered by 'session:activated' event
@@ -123,7 +124,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
             try {
               // Use 2 second timeout - IndexedDB can be slow when many operations are in flight
               const timeoutPromise = new Promise<null>((_, reject) =>
-                setTimeout(() => reject(new Error('getSelectedUser timeout')), 2000)
+                setTimeout(() => reject(new Error('getSelectedUser timeout')), TIMEOUT.GET_SELECTED_USER_MS)
               );
               tabSelection = await Promise.race([getSelectedUser(), timeoutPromise]);
 

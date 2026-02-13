@@ -134,7 +134,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     // This prevents race conditions where poll() sees stale cache without the new session
     this.listen('auth:success', () => {
       debugLog('ServerAutoConnectService', 'Auth success detected, starting polling after delay');
-      setTimeout(() => this.startPolling(), 3000);
+      setTimeout(() => this.startPolling(), TIMEOUT.SESSION_MANAGEMENT_MS);
     });
 
     // Stop polling on logout (reuse existing event)

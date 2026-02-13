@@ -43,7 +43,7 @@ export class FilePicker {
       }
     };
 
-    debugLog('websocket', 'Sending PickFile request', request);
+    debugLog('FilePicker', 'Sending PickFile request', request);
 
     return new Promise((resolve, reject) => {
       // Longer timeout for file picker - user interaction can take time

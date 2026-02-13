@@ -68,18 +68,18 @@ export class ConnectionManager {
 
   public async initialize(): Promise<void> {
     if (this.state.isInitialized) {
-      debugLog('Service', 'ConnectionManager already initialized');
+      debugLog('ConnectionService', 'ConnectionManager already initialized');
       return;
     }
 
     try {
-      debugLog('Service', 'ConnectionManager: Initializing...');
+      debugLog('ConnectionService', 'ConnectionManager: Initializing...');
 
       // Step 1: Initialize WebSocket service first
       await this.io.initWebSocket();
 
       // Step 2: Fire-and-forget orphan mode
-      debugLog('Service', 'ConnectionManager: Enabling orphan mode (non-blocking)...');
+      debugLog('ConnectionService', 'ConnectionManager: Enabling orphan mode (non-blocking)...');
       this.io.setOrphanMode(true);
 
       // Step 3: Run parallel operations
@@ -87,28 +87,28 @@ export class ConnectionManager {
         this.getActiveSessions().catch(() => []),
         this.loadStoredSessions(),
         this.io.initPeerRegistrationStore().catch((error) => {
-          debugLog('Service', 'Failed to initialize peer registration store', error);
+          debugLog('ConnectionService', 'Failed to initialize peer registration store', error);
         }),
       ]);
 
       // Clear stored CIDs on page reload
       if (this.state.storedSessions.sessions.length > 0) {
-        debugLog('Service', 'ConnectionManager: Clearing stored CIDs to force fresh connection');
+        debugLog('ConnectionService', 'ConnectionManager: Clearing stored CIDs to force fresh connection');
         this.state.clearSessionCids();
         await this.io.storeSessionsToLocalDB(this.state.storedSessions);
       }
 
       this.state.setInitialized(true);
-      debugLog('Service', 'ConnectionManager: Initialized successfully');
+      debugLog('ConnectionService', 'ConnectionManager: Initialized successfully');
 
       // Step 4: Fire-and-forget server auto-connect
       this.io.initServerAutoConnect().catch((error) => {
-        debugLog('Service', 'Failed to initialize server auto-connect service:', error);
+        debugLog('ConnectionService', 'Failed to initialize server auto-connect service:', error);
       });
 
       this.state.resolveReady();
     } catch (error) {
-      debugLog('Service', 'Initialization failed', error);
+      debugLog('ConnectionService', 'Initialization failed', error);
       this.state.resolveReady();
       throw error;
     }
@@ -147,14 +147,14 @@ export class ConnectionManager {
     const leaderUnsubscribe = this.io.onEvent<{ isLeader: boolean; leaderId: string }>(
       'leader-changed',
       async ({ isLeader, leaderId }) => {
-        debugLog('Service', `ConnectionManager: Leader changed - isLeader: ${isLeader}, leaderId: ${leaderId}`);
+        debugLog('ConnectionService', `ConnectionManager: Leader changed - isLeader: ${isLeader}, leaderId: ${leaderId}`);
         this.state.setLeader(isLeader);
 
         if (isLeader) {
-          debugLog('Service', 'ConnectionManager: Became leader, attempting to establish connection');
+          debugLog('ConnectionService', 'ConnectionManager: Became leader, attempting to establish connection');
           await this.attemptLeaderConnection();
         } else {
-          debugLog('Service', 'ConnectionManager: No longer the leader');
+          debugLog('ConnectionService', 'ConnectionManager: No longer the leader');
         }
       }
     );
@@ -183,10 +183,10 @@ export class ConnectionManager {
     } else if (msg.GetSessionsResponse) {
       this.resolveRequest(msg.GetSessionsResponse.request_id as string, msg.GetSessionsResponse);
     } else if (msg.ConnectionManagementSuccess) {
-      debugLog('Service', 'ConnectionManager: Received ConnectionManagementSuccess');
+      debugLog('ConnectionService', 'ConnectionManager: Received ConnectionManagementSuccess');
       this.resolveRequest(msg.ConnectionManagementSuccess.request_id as string, message);
     } else if (msg.ConnectionManagementFailure) {
-      debugLog('Service', 'ConnectionManager: Received ConnectionManagementFailure');
+      debugLog('ConnectionService', 'ConnectionManager: Received ConnectionManagementFailure');
       this.resolveRequest(msg.ConnectionManagementFailure.request_id as string, message);
     }
 
@@ -199,7 +199,7 @@ export class ConnectionManager {
       const requestId = (response.RegisterSuccess as Record<string, unknown> | undefined)?.request_id || (response.ConnectSuccess as Record<string, unknown> | undefined)?.request_id;
       const cidBigInt = cid as bigint | undefined;
       const reqId = requestId as string | undefined;
-      debugLog('Service', `ConnectionManager: Received registration/connection success, CID=${cidBigInt?.toString()}, request_id=${reqId}`);
+      debugLog('ConnectionService', `ConnectionManager: Received registration/connection success, CID=${cidBigInt?.toString()}, request_id=${reqId}`);
 
       // Check if this response belongs to this tab:
       // 1. Matching pending request from this tab's ConnectionManager, OR
@@ -211,14 +211,14 @@ export class ConnectionManager {
       const isFreshTab = !tabSelection?.selectedCid && !this.state.currentConnectionInfo;
 
       if (hasPendingRequest || isOurSession || isFreshTab) {
-        debugLog('Service', `ConnectionManager: Processing connection success (hasPending=${hasPendingRequest}, isOurSession=${isOurSession}, isFreshTab=${isFreshTab})`);
+        debugLog('ConnectionService', `ConnectionManager: Processing connection success (hasPending=${hasPendingRequest}, isOurSession=${isOurSession}, isFreshTab=${isFreshTab})`);
         this.state.invalidateCache();
         if (cidBigInt) {
-          debugLog('Service', `ConnectionManager: Calling handleSuccessfulConnection for CID=${cidBigInt.toString()}`);
+          debugLog('ConnectionService', `ConnectionManager: Calling handleSuccessfulConnection for CID=${cidBigInt.toString()}`);
           await this.handleSuccessfulConnection(cidBigInt, false);
         }
       } else {
-        debugLog('Service', `ConnectionManager: Ignoring connection success - not our session (requestId=${reqId}, ourCid=${tabSelection?.selectedCid?.toString()}, currentCid=${this.state.currentConnectionInfo?.cid?.toString()})`);
+        debugLog('ConnectionService', `ConnectionManager: Ignoring connection success - not our session (requestId=${reqId}, ourCid=${tabSelection?.selectedCid?.toString()}, currentCid=${this.state.currentConnectionInfo?.cid?.toString()})`);
       }
     }
 
@@ -228,7 +228,7 @@ export class ConnectionManager {
     if (cmSuccess) {
       const cmReqId = cmSuccess.request_id as string | undefined;
       const cmCid = cmSuccess.cid as bigint | undefined;
-      debugLog('Service', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', cmReqId, 'cid:', cmCid?.toString());
+      debugLog('ConnectionService', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', cmReqId, 'cid:', cmCid?.toString());
 
       // Check if this response belongs to this tab
       const hasPendingRequest = cmReqId && this.state.hasPendingRequest(cmReqId);
@@ -237,21 +237,21 @@ export class ConnectionManager {
       const isFreshTab = !tabSelection?.selectedCid && !this.state.currentConnectionInfo;
 
       if (hasPendingRequest || isOurSession || isFreshTab) {
-        debugLog('Service', 'ConnectionManager: Processing ConnectionManagementSuccess (hasPending:', hasPendingRequest, ', isOurSession:', isOurSession, ', isFreshTab:', isFreshTab, ')');
+        debugLog('ConnectionService', 'ConnectionManager: Processing ConnectionManagementSuccess (hasPending:', hasPendingRequest, ', isOurSession:', isOurSession, ', isFreshTab:', isFreshTab, ')');
         this.state.invalidateCache();
         if (cmCid) {
-          debugLog('Service', 'ConnectionManager: Updating connection info with claimed session CID:', cmCid);
+          debugLog('ConnectionService', 'ConnectionManager: Updating connection info with claimed session CID:', cmCid);
           await this.handleSuccessfulConnection(cmCid, false);
         }
       } else {
-        debugLog('Service', 'ConnectionManager: Ignoring ConnectionManagementSuccess - not our session');
+        debugLog('ConnectionService', 'ConnectionManager: Ignoring ConnectionManagementSuccess - not our session');
       }
     }
 
     // Handle disconnect notifications
     const disconnectNotification = (response.DisconnectNotification as Record<string, unknown> | undefined);
     if (disconnectNotification) {
-      debugLog('Service', 'ConnectionManager: Received DisconnectNotification for CID:', disconnectNotification.cid);
+      debugLog('ConnectionService', 'ConnectionManager: Received DisconnectNotification for CID:', disconnectNotification.cid);
       this.state.invalidateCache();
     }
 
@@ -278,27 +278,27 @@ export class ConnectionManager {
   }
 
   private async handleConnectFailure(failure: { message?: string }): Promise<void> {
-    debugLog('Service', 'ConnectionManager: Received ConnectFailure:', failure);
+    debugLog('ConnectionService', 'ConnectionManager: Received ConnectFailure:', failure);
     const errorMessage = failure.message || '';
 
     if (!errorMessage.toLowerCase().includes('session already connected')) {
       return;
     }
 
-    debugLog('Service', 'ConnectionManager: Session already connected error detected');
+    debugLog('ConnectionService', 'ConnectionManager: Session already connected error detected');
     const extractedCid = this.state.extractCidFromErrorMessage(errorMessage);
 
     if (extractedCid) {
-      debugLog('Service', 'ConnectionManager: Existing session CID from message:', extractedCid);
+      debugLog('ConnectionService', 'ConnectionManager: Existing session CID from message:', extractedCid);
       this.io.emitEvent('session-already-connected', { cid: extractedCid, message: errorMessage });
       return;
     }
 
     // Try to find matching session from active sessions
-    debugLog('Service', 'ConnectionManager: No CID in error message, fetching active sessions...');
+    debugLog('ConnectionService', 'ConnectionManager: No CID in error message, fetching active sessions...');
     try {
       const activeSessions = await this.getActiveSessions();
-      debugLog('Service', 'ConnectionManager: Active sessions after error:', activeSessions);
+      debugLog('ConnectionService', 'ConnectionManager: Active sessions after error:', activeSessions);
 
       const activeIndex = this.state.getActiveSessionIndex();
       const currentSession = this.state.storedSessions.sessions[activeIndex];
@@ -311,16 +311,16 @@ export class ConnectionManager {
       );
 
       if (matchingSession) {
-        debugLog('Service', 'ConnectionManager: Found matching active session:', matchingSession);
+        debugLog('ConnectionService', 'ConnectionManager: Found matching active session:', matchingSession);
         this.io.emitEvent('session-already-connected', {
           cid: matchingSession.cid.toString(),
           message: errorMessage,
         });
       } else {
-        debugLog('Service', 'ConnectionManager: No matching active session found');
+        debugLog('ConnectionService', 'ConnectionManager: No matching active session found');
       }
     } catch (error) {
-      debugLog('Service', 'Failed to get active sessions:', error);
+      debugLog('ConnectionService', 'Failed to get active sessions:', error);
     }
   }
 
@@ -330,16 +330,16 @@ export class ConnectionManager {
 
   private async handleSuccessfulConnection(cid: bigint, shouldUpdateStoredSession: boolean = true): Promise<void> {
     this.state.setCurrentConnectionInfo({ cid });
-    debugLog('Service', 'ConnectionManager: Handling successful connection', cid.toString(), 'shouldUpdateStoredSession:', shouldUpdateStoredSession);
+    debugLog('ConnectionService', 'ConnectionManager: Handling successful connection', cid.toString(), 'shouldUpdateStoredSession:', shouldUpdateStoredSession);
 
     this.io.setInstanceCid(cid);
-    debugLog('Service', 'ConnectionManager: Set instanceManager CID to', cid.toString());
+    debugLog('ConnectionService', 'ConnectionManager: Set instanceManager CID to', cid.toString());
 
     this.io.announcePresence();
     this.state.resetReconnectAttempts();
 
     if (!shouldUpdateStoredSession) {
-      debugLog('Service', 'ConnectionManager: Skipping connection notifications - handleAuthSuccess will handle them');
+      debugLog('ConnectionService', 'ConnectionManager: Skipping connection notifications - handleAuthSuccess will handle them');
       return;
     }
 
@@ -353,7 +353,7 @@ export class ConnectionManager {
         session.lastConnected = Date.now();
         sessionUsername = session.username;
         await this.storeSession(session);
-        debugLog('Service', 'ConnectionManager: Updated stored session with CID:', cid.toString());
+        debugLog('ConnectionService', 'ConnectionManager: Updated stored session with CID:', cid.toString());
       }
     }
 
@@ -395,7 +395,7 @@ export class ConnectionManager {
 
   public invalidateSessionCache(): void {
     this.state.invalidateCache();
-    debugLog('Service', 'ConnectionManager: Session cache invalidated');
+    debugLog('ConnectionService', 'ConnectionManager: Session cache invalidated');
   }
 
   private async _fetchActiveSessions(): Promise<ActiveSession[]> {
@@ -439,7 +439,7 @@ export class ConnectionManager {
       const response = await responsePromise;
       return response.sessions || [];
     } catch (error) {
-      debugLog('Service', 'Failed to get active sessions', error);
+      debugLog('ConnectionService', 'Failed to get active sessions', error);
       return [];
     }
   }
@@ -450,28 +450,28 @@ export class ConnectionManager {
 
   public async storeSession(session: StoredSession): Promise<void> {
     try {
-      debugLog('Service', 'ConnectionManager: Storing session for', session.username);
+      debugLog('ConnectionService', 'ConnectionManager: Storing session for', session.username);
       this.state.addOrUpdateSession(session);
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
-      debugLog('Service', 'ConnectionManager: Session stored successfully');
+      debugLog('ConnectionService', 'ConnectionManager: Session stored successfully');
     } catch (error) {
-      debugLog('Service', 'Failed to store session', error);
+      debugLog('ConnectionService', 'Failed to store session', error);
       throw error;
     }
   }
 
   private async loadStoredSessions(): Promise<void> {
     try {
-      debugLog('Service', 'ConnectionManager: Loading stored sessions...');
+      debugLog('ConnectionService', 'ConnectionManager: Loading stored sessions...');
       const loaded = await this.io.loadSessionsFromLocalDB();
       if (loaded) {
         this.state.setStoredSessions(loaded);
-        debugLog('Service', 'ConnectionManager: Loaded', this.state.storedSessions.sessions.length, 'stored sessions');
+        debugLog('ConnectionService', 'ConnectionManager: Loaded', this.state.storedSessions.sessions.length, 'stored sessions');
       } else {
-        debugLog('Service', 'ConnectionManager: No stored sessions found');
+        debugLog('ConnectionService', 'ConnectionManager: No stored sessions found');
       }
     } catch (error) {
-      debugLog('Service', 'Failed to load stored sessions', error);
+      debugLog('ConnectionService', 'Failed to load stored sessions', error);
     }
   }
 
@@ -481,12 +481,12 @@ export class ConnectionManager {
 
   private async attemptLeaderConnection(): Promise<void> {
     if (!this.state.isInitialized) {
-      debugLog('Service', 'ConnectionManager: Not initialized yet, skipping leader connection');
+      debugLog('ConnectionService', 'ConnectionManager: Not initialized yet, skipping leader connection');
       return;
     }
 
     if (!this.state.isLeader) {
-      debugLog('Service', 'ConnectionManager: Not the leader, skipping connection attempt');
+      debugLog('ConnectionService', 'ConnectionManager: Not the leader, skipping connection attempt');
       return;
     }
 
@@ -514,7 +514,7 @@ export class ConnectionManager {
     }
 
     if (!this.state.isLeader && !this.io.getIsLeaderFromBroadcast()) {
-      debugLog('Service', 'ConnectionManager: Not the leader, skipping auto-reconnect');
+      debugLog('ConnectionService', 'ConnectionManager: Not the leader, skipping auto-reconnect');
       return;
     }
 
@@ -523,10 +523,10 @@ export class ConnectionManager {
 
     if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {
       session = this.state.findSession(tabSelection.selectedUsername, tabSelection.selectedServerAddress);
-      debugLog('Service', 'ConnectionManager: Auto-reconnecting with tab-selected user:', tabSelection.selectedUsername);
+      debugLog('ConnectionService', 'ConnectionManager: Auto-reconnecting with tab-selected user:', tabSelection.selectedUsername);
     } else {
-      debugLog('Service', 'ConnectionManager: No tab-specific selection, skipping auto-reconnect');
-      debugLog('Service', 'ConnectionManager: Tab must explicitly select a user via OrphanSessionsNavbar');
+      debugLog('ConnectionService', 'ConnectionManager: No tab-specific selection, skipping auto-reconnect');
+      debugLog('ConnectionService', 'ConnectionManager: Tab must explicitly select a user via OrphanSessionsNavbar');
       return;
     }
 
@@ -536,7 +536,7 @@ export class ConnectionManager {
 
     const connectionKey = this.state.createConnectionKey(session.username, session.serverAddress);
     if (this.state.hasConnectionAttempt(connectionKey)) {
-      debugLog('Service', `ConnectionManager: Connection already in progress for ${connectionKey}`);
+      debugLog('ConnectionService', `ConnectionManager: Connection already in progress for ${connectionKey}`);
       return;
     }
 
@@ -547,8 +547,8 @@ export class ConnectionManager {
     );
 
     if (alreadyActiveSession) {
-      debugLog('Service', 'ConnectionManager: Session already active in backend, skipping Connect to prevent ratchet reset');
-      debugLog('Service', 'ConnectionManager: Active session CID:', alreadyActiveSession.cid.toString());
+      debugLog('ConnectionService', 'ConnectionManager: Session already active in backend, skipping Connect to prevent ratchet reset');
+      debugLog('ConnectionService', 'ConnectionManager: Active session CID:', alreadyActiveSession.cid.toString());
 
       await this.handleSuccessfulConnection(alreadyActiveSession.cid, false);
 
@@ -563,11 +563,11 @@ export class ConnectionManager {
       session.lastConnected = Date.now();
       await this.storeSession(session);
 
-      debugLog('Service', 'ConnectionManager: Reusing existing session instead of reconnecting');
+      debugLog('ConnectionService', 'ConnectionManager: Reusing existing session instead of reconnecting');
       return;
     }
 
-    debugLog('Service', 'ConnectionManager: Attempting auto-reconnect for', session.username);
+    debugLog('ConnectionService', 'ConnectionManager: Attempting auto-reconnect for', session.username);
 
     try {
       this.state.addConnectionAttempt(connectionKey);
@@ -579,12 +579,12 @@ export class ConnectionManager {
 
   private async performAutoReconnect(session: StoredSession, activeSessions: ActiveSession[]): Promise<void> {
     try {
-      debugLog('Service', 'ConnectionManager: Checking service health before reconnect...');
+      debugLog('ConnectionService', 'ConnectionManager: Checking service health before reconnect...');
       try {
         await this.io.waitForHealthy(HEALTH_CHECK_TIMEOUT_MS);
-        debugLog('Service', 'ConnectionManager: Service is healthy, proceeding with reconnect');
+        debugLog('ConnectionService', 'ConnectionManager: Service is healthy, proceeding with reconnect');
       } catch (healthError) {
-        debugLog('Service', 'Service health check failed, attempting anyway:', healthError);
+        debugLog('ConnectionService', 'Service health check failed, attempting anyway:', healthError);
       }
 
       const requestId = crypto.randomUUID();
@@ -600,9 +600,9 @@ export class ConnectionManager {
       session.lastConnected = Date.now();
       await this.storeSession(session);
 
-      debugLog('Service', 'ConnectionManager: Auto-reconnect successful');
+      debugLog('ConnectionService', 'ConnectionManager: Auto-reconnect successful');
     } catch (error: unknown) {
-      debugLog('Service', 'Auto-reconnect failed', error);
+      debugLog('ConnectionService', 'Auto-reconnect failed', error);
       await this.handleAutoReconnectError(error, session, activeSessions);
     }
   }
@@ -628,28 +628,28 @@ export class ConnectionManager {
     if (!this.state.hasReachedMaxReconnectAttempts()) {
       const attempts = this.state.incrementReconnectAttempts();
       const delay = this.state.calculateBackoffDelay(attempts, MAX_RECONNECT_DELAY_MS);
-      debugLog('Service', `ConnectionManager: Will retry in ${delay}ms (attempt ${attempts}/${this.state.maxReconnectAttempts})`);
+      debugLog('ConnectionService', `ConnectionManager: Will retry in ${delay}ms (attempt ${attempts}/${this.state.maxReconnectAttempts})`);
 
       setTimeout(async () => {
         await this.autoReconnect(activeSessions);
       }, delay);
     } else {
-      debugLog('Service', 'ConnectionManager: Max reconnection attempts reached, giving up');
+      debugLog('ConnectionService', 'ConnectionManager: Max reconnection attempts reached, giving up');
     }
   }
 
   private async handleSessionAlreadyConnectedError(error: unknown, session: StoredSession): Promise<void> {
-    debugLog('Service', 'ConnectionManager: Session already connected error - likely stale session');
+    debugLog('ConnectionService', 'ConnectionManager: Session already connected error - likely stale session');
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     const extractedCid = this.state.extractCidFromErrorMessage(errorMessage);
     if (extractedCid) {
-      debugLog('Service', 'ConnectionManager: Existing session CID from message:', extractedCid);
+      debugLog('ConnectionService', 'ConnectionManager: Existing session CID from message:', extractedCid);
       this.io.emitEvent('session-already-connected', { cid: extractedCid, message: errorMessage });
       return;
     }
 
-    debugLog('Service', 'ConnectionManager: No CID in error message, checking active sessions...');
+    debugLog('ConnectionService', 'ConnectionManager: No CID in error message, checking active sessions...');
     try {
       const activeSessions = await this.getActiveSessions();
       const matchingSession = activeSessions.find(
@@ -657,14 +657,14 @@ export class ConnectionManager {
       );
 
       if (matchingSession) {
-        debugLog('Service', 'ConnectionManager: Found active session to claim:', matchingSession);
+        debugLog('ConnectionService', 'ConnectionManager: Found active session to claim:', matchingSession);
         this.io.emitEvent('session-already-connected', {
           cid: matchingSession.cid.toString(),
           message: errorMessage,
         });
       }
     } catch (err) {
-      debugLog('Service', 'Failed to get active sessions:', err);
+      debugLog('ConnectionService', 'Failed to get active sessions:', err);
     }
   }
 
@@ -673,7 +673,7 @@ export class ConnectionManager {
   // ============================================================================
 
   public async triggerAutoConnect(): Promise<void> {
-    debugLog('Service', 'ConnectionManager: Manually triggering auto-connect');
+    debugLog('ConnectionService', 'ConnectionManager: Manually triggering auto-connect');
     const activeSessions = await this.getActiveSessions();
     await this.loadStoredSessions();
 
@@ -684,10 +684,10 @@ export class ConnectionManager {
   }
 
   public async reconnectToStoredSessions(): Promise<void> {
-    debugLog('Service', 'ConnectionManager: Reconnecting to stored sessions');
+    debugLog('ConnectionService', 'ConnectionManager: Reconnecting to stored sessions');
     const currentSession = await this.getTabSelectedSession();
     if (currentSession?.cid) {
-      debugLog('Service', 'ConnectionManager: Disconnecting current session CID:', currentSession.cid);
+      debugLog('ConnectionService', 'ConnectionManager: Disconnecting current session CID:', currentSession.cid);
       await this.io.disconnect(currentSession.cid);
     }
     await new Promise((resolve) => setTimeout(resolve, POST_DISCONNECT_DELAY_MS));
@@ -698,7 +698,7 @@ export class ConnectionManager {
     if (index >= 0 && index < this.state.storedSessions.sessions.length) {
       this.state.setActiveSessionIndex(index);
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
-      debugLog('Service', 'ConnectionManager: Updated active session index to', index);
+      debugLog('ConnectionService', 'ConnectionManager: Updated active session index to', index);
 
       const session = this.state.storedSessions.sessions[index];
       this.io.emitEvent('session-selected', { session, index });
@@ -709,9 +709,9 @@ export class ConnectionManager {
     try {
       this.state.clearSessions();
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
-      debugLog('Service', 'ConnectionManager: Cleared all stored sessions');
+      debugLog('ConnectionService', 'ConnectionManager: Cleared all stored sessions');
     } catch (error) {
-      debugLog('Service', 'Failed to clear sessions', error);
+      debugLog('ConnectionService', 'Failed to clear sessions', error);
       throw error;
     }
   }
@@ -721,11 +721,11 @@ export class ConnectionManager {
   }
 
   public async handleAuthSuccess(params: AuthSuccessParams): Promise<void> {
-    debugLog('Service', 'ConnectionManager: handleAuthSuccess called');
-    debugLog('Service', '  Username:', params.username);
-    debugLog('Service', '  Full Name:', params.fullName);
-    debugLog('Service', '  Server Address:', params.serverAddress);
-    debugLog('Service', '  CID:', params.cid);
+    debugLog('ConnectionService', 'ConnectionManager: handleAuthSuccess called');
+    debugLog('ConnectionService', '  Username:', params.username);
+    debugLog('ConnectionService', '  Full Name:', params.fullName);
+    debugLog('ConnectionService', '  Server Address:', params.serverAddress);
+    debugLog('ConnectionService', '  CID:', params.cid);
 
     const session: StoredSession = {
       username: params.username,
@@ -748,7 +748,7 @@ export class ConnectionManager {
         localStorage.setItem(lastAccessedKey, Date.now().toString());
       }
 
-      debugLog('Service', 'handleAuthSuccess: setting tab context for CID:', params.cid?.toString());
+      debugLog('ConnectionService', 'handleAuthSuccess: setting tab context for CID:', params.cid?.toString());
       try {
         await Promise.race([
           this.io.setSelectedUser({
@@ -760,10 +760,10 @@ export class ConnectionManager {
             setTimeout(() => reject(new Error('setSelectedUser timeout')), SET_USER_TIMEOUT_MS)
           ),
         ]);
-        debugLog('Service', 'handleAuthSuccess: tab context set successfully');
+        debugLog('ConnectionService', 'handleAuthSuccess: tab context set successfully');
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'setSelectedUser timeout') {
-          debugLog('Service', 'handleAuthSuccess: setSelectedUser timed out - continuing anyway');
+          debugLog('ConnectionService', 'handleAuthSuccess: setSelectedUser timed out - continuing anyway');
         } else {
           throw err;
         }
@@ -779,7 +779,7 @@ export class ConnectionManager {
 
         this.io.setWorkspaceConnectionId(params.cid);
 
-        debugLog('Service', 'handleAuthSuccess: triggering connection status update for CID:', params.cid.toString());
+        debugLog('ConnectionService', 'handleAuthSuccess: triggering connection status update for CID:', params.cid.toString());
         this.io.updateConnectionService({
           cid: params.cid,
           isConnected: true,
@@ -791,18 +791,18 @@ export class ConnectionManager {
         });
       }
 
-      debugLog('Service', 'handleAuthSuccess: completed successfully');
+      debugLog('ConnectionService', 'handleAuthSuccess: completed successfully');
     } catch (error) {
-      debugLog('Service', 'handleAuthSuccess failed:', error);
+      debugLog('ConnectionService', 'handleAuthSuccess failed:', error);
       throw error;
     }
   }
 
   public async handleLogout(username: string, serverAddress: string, cid: bigint): Promise<void> {
-    debugLog('Service', 'ConnectionManager: handleLogout called for', username, 'CID:', cid);
+    debugLog('ConnectionService', 'ConnectionManager: handleLogout called for', username, 'CID:', cid);
     this.state.removeSession(username, serverAddress);
     await this.io.storeSessionsToLocalDB(this.state.storedSessions);
-    debugLog('Service', 'ConnectionManager: Session removed for', username);
+    debugLog('ConnectionService', 'ConnectionManager: Session removed for', username);
 
     if (cid) {
       await this.io.disconnect(cid);
@@ -831,28 +831,28 @@ export class ConnectionManager {
 
   public async removeSession(username: string, serverAddress: string): Promise<void> {
     try {
-      debugLog('Service', 'ConnectionManager: Removing session for', username, 'at', serverAddress);
+      debugLog('ConnectionService', 'ConnectionManager: Removing session for', username, 'at', serverAddress);
       this.state.removeSession(username, serverAddress);
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
-      debugLog('Service', 'ConnectionManager: Session removed successfully');
+      debugLog('ConnectionService', 'ConnectionManager: Session removed successfully');
     } catch (error) {
-      debugLog('Service', 'Failed to remove session', error);
+      debugLog('ConnectionService', 'Failed to remove session', error);
       throw error;
     }
   }
 
   public async removeAllSessions(): Promise<void> {
     try {
-      debugLog('Service', 'ConnectionManager: Removing all stored sessions');
+      debugLog('ConnectionService', 'ConnectionManager: Removing all stored sessions');
       this.state.clearSessions();
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
-      debugLog('Service', 'ConnectionManager: All sessions removed successfully');
+      debugLog('ConnectionService', 'ConnectionManager: All sessions removed successfully');
 
       if (this.state.currentConnectionInfo) {
         await this.disconnect();
       }
     } catch (error) {
-      debugLog('Service', 'Failed to remove all sessions', error);
+      debugLog('ConnectionService', 'Failed to remove all sessions', error);
       throw error;
     }
   }
@@ -871,7 +871,7 @@ export class ConnectionManager {
       const serverAddress = session?.serverAddress ?? this.state.currentConnectionInfo?.serverAddress;
 
       if (!cid) {
-        debugLog('Service', 'disconnect() called but no CID available - skipping backend disconnect');
+        debugLog('ConnectionService', 'disconnect() called but no CID available - skipping backend disconnect');
         // Still clear local state
         this.state.setCurrentConnectionInfo(null);
         this.state.invalidateCache();
@@ -880,7 +880,7 @@ export class ConnectionManager {
         return;
       }
 
-      debugLog('Service', 'ConnectionManager: Disconnecting session with CID:', cid.toString());
+      debugLog('ConnectionService', 'ConnectionManager: Disconnecting session with CID:', cid.toString());
 
       if (username && serverAddress) {
         await this.io.markUserDisconnected(username, serverAddress);
@@ -893,7 +893,7 @@ export class ConnectionManager {
       this.io.updateConnectionService({ cid: null, isConnected: false });
       this.io.broadcastConnectionStatus({ isConnected: false });
     } catch (error) {
-      debugLog('Service', 'Failed to disconnect', error);
+      debugLog('ConnectionService', 'Failed to disconnect', error);
       throw error; // Re-throw so callers know disconnect failed
     }
   }
@@ -904,7 +904,7 @@ export class ConnectionManager {
       throw new Error('Session not found');
     }
 
-    debugLog('Service', `ConnectionManager: Switching account to ${username}@${serverAddress} for this tab`);
+    debugLog('ConnectionService', `ConnectionManager: Switching account to ${username}@${serverAddress} for this tab`);
 
     await this.io.setSelectedUser({
       selectedUsername: username,
@@ -929,11 +929,11 @@ export class ConnectionManager {
         session.lastConnected = Date.now();
         await this.storeSession(session);
       } catch (error) {
-        debugLog('Service', 'Failed to switch account', error);
+        debugLog('ConnectionService', 'Failed to switch account', error);
         throw error;
       }
     } else {
-      debugLog('Service', 'ConnectionManager: Follower tab - updating selected user without reconnecting');
+      debugLog('ConnectionService', 'ConnectionManager: Follower tab - updating selected user without reconnecting');
     }
   }
 
@@ -943,10 +943,10 @@ export class ConnectionManager {
       if (session) {
         session.role = role;
         await this.storeSession(session);
-        debugLog('Service', `ConnectionManager: Updated role for ${username} to ${role}`);
+        debugLog('ConnectionService', `ConnectionManager: Updated role for ${username} to ${role}`);
       }
     } catch (error) {
-      debugLog('Service', 'Failed to update session role', error);
+      debugLog('ConnectionService', 'Failed to update session role', error);
     }
   }
 }

@@ -1,9 +1,6 @@
 /**
  * Centralized timeout and interval constants.
  * Extracted from magic numbers scattered across the codebase.
- *
- * For P2P polling, retry backoff, and cache TTL constants,
- * see constants.ts (P2P_CONSTANTS, RETRY_CONSTANTS, etc.)
  */
 
 export const TIMEOUT = {
@@ -71,6 +68,8 @@ export const POLLING = {
   SERVER_POLL_INTERVAL_MS: 60000,
   /** Outgoing request check interval */
   OUTGOING_REQUESTS_INTERVAL_MS: 300000,
+  /** GetSessions polling interval for peer connection state sync (fallback consistency) */
+  GET_SESSIONS_POLL_INTERVAL_MS: 5000,
 } as const;
 
 export const NETWORK = {

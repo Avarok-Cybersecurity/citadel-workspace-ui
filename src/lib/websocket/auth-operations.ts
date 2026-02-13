@@ -135,11 +135,11 @@ export class AuthOperations {
       server_password: serverPassword || null
     };
 
-    debugLog('websocket', 'Sending register options to WASM client', registerOptions);
+    debugLog('AuthOperations', 'Sending register options to WASM client', registerOptions);
 
     const registerRequest = { Register: registerOptions };
 
-    debugLog('websocket', `[Register] isLeader: ${instanceManager.isLeader}`);
+    debugLog('AuthOperations', `[Register] isLeader: ${instanceManager.isLeader}`);
 
     await this.config.sendRequest(registerRequest, requestId);
   }

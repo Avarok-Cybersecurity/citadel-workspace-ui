@@ -78,7 +78,7 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', 'Sending SetConnectionOrphan request', request);
+    debugLog('SessionManagement', 'Sending SetConnectionOrphan request', request);
 
     return requestResponse<SessionManagementResult>({
       request, requestId, timeoutMs: TIMEOUT.SESSION_MANAGEMENT_MS,
@@ -109,7 +109,7 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
+    debugLog('SessionManagement', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
 
     return requestResponse<SessionManagementResult>({
       request, requestId, timeoutMs: TIMEOUT.CLAIM_SESSION_MS,
@@ -132,7 +132,7 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', 'Sending DisconnectOrphan request', request);
+    debugLog('SessionManagement', 'Sending DisconnectOrphan request', request);
 
     return requestResponse<SessionManagementResult>({
       request, requestId, timeoutMs: TIMEOUT.CLAIM_SESSION_MS,
@@ -145,7 +145,7 @@ export class SessionManagement {
   releaseSession(sessionCid: bigint): void {
     const client = this.config.getClient();
     if (!client) {
-      debugLog('websocket', 'Cannot release session - not the leader (no client)');
+      debugLog('SessionManagement', 'Cannot release session - not the leader (no client)');
       return;
     }
 
@@ -156,7 +156,7 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', `Releasing session ${sessionCid.toString()}`);
+    debugLog('SessionManagement', `Releasing session ${sessionCid.toString()}`);
 
     // Fire-and-forget - don't await since tab may be closing
     client.sendDirectToInternalService(request).catch((error: unknown) => {

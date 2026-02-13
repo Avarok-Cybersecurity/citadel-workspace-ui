@@ -139,13 +139,13 @@ class WebSocketService {
     }
 
     if (this.isInitialized) {
-      debugLog('websocket', 'Service already initialized');
+      debugLog('WebSocketService', 'Service already initialized');
       return;
     }
 
     // Prevent concurrent initialization attempts
     if (this.initializationPromise) {
-      debugLog('websocket', 'Service initialization already in progress, waiting...');
+      debugLog('WebSocketService', 'Service initialization already in progress, waiting...');
       return this.initializationPromise;
     }
 
@@ -169,18 +169,18 @@ class WebSocketService {
   }
 
   private async _doInit(): Promise<void> {
-    debugLog('websocket', 'WASM client initialization starting...');
+    debugLog('WebSocketService', 'WASM client initialization starting...');
 
     // Set up WASM debug bridge before initializing client
     const { setupWasmDebugBridge } = await import('./wasm-debug-bridge');
     setupWasmDebugBridge();
 
     // Wait for leader election to settle
-    debugLog('websocket', 'Waiting for leader election to settle...');
+    debugLog('WebSocketService', 'Waiting for leader election to settle...');
     await this.initOps.waitForLeaderElection();
 
     const isLeader = instanceManager.isLeader;
-    debugLog('websocket', `Leader election complete. This tab is ${isLeader ? 'LEADER' : 'FOLLOWER'}`);
+    debugLog('WebSocketService', `Leader election complete. This tab is ${isLeader ? 'LEADER' : 'FOLLOWER'}`);
 
     if (!isLeader) {
       this.initOps.initializeAsFollower();
@@ -314,7 +314,7 @@ class WebSocketService {
    * This clears both local and global state.
    */
   reset(): void {
-    debugLog('websocket', 'Resetting WebSocket service state for reconnection');
+    debugLog('WebSocketService', 'Resetting WebSocket service state for reconnection');
 
     // Clear local state
     this.client = null;
@@ -324,7 +324,7 @@ class WebSocketService {
     // Clear global state to allow re-initialization
     window[GLOBAL_INIT_KEY] = undefined;
 
-    debugLog('websocket', 'WebSocket service state reset complete');
+    debugLog('WebSocketService', 'WebSocket service state reset complete');
   }
 
   isConnected(): boolean {
@@ -385,7 +385,7 @@ class WebSocketService {
 
     // DEBUG: Log leadership decision
     const messageType = Object.keys(request)[0] || 'unknown';
-    debugLog('WebsocketService', `_sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
+    debugLog('WebSocketService', `_sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
 
     if (instanceManager.isLeader) {
       // LEADER: Send directly via WebSocket
@@ -393,11 +393,11 @@ class WebSocketService {
         debugLog('WebSocketService', `Leader without client, cannot send ${messageType}`);
         throw new Error('WebSocket client not available (leader without client)');
       }
-      debugLog('WebsocketService', `[Leader] Sending ${messageType} directly`);
+      debugLog('WebSocketService', `[Leader] Sending ${messageType} directly`);
       await this.client.sendDirectToInternalService(request as InternalServiceRequest);
     } else {
       // FOLLOWER: Proxy through leader via InstanceChannel
-      debugLog('WebsocketService', `[Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
+      debugLog('WebSocketService', `[Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
       const id = requestId || crypto.randomUUID();
 
       // Register the request with instance inbound router for response routing
@@ -412,7 +412,7 @@ class WebSocketService {
         throw new Error(`Leader failed to send request: ${result.error}`);
       }
 
-      debugLog('WebsocketService', `[Follower] Request ${messageType} proxied successfully`);
+      debugLog('WebSocketService', `[Follower] Request ${messageType} proxied successfully`);
     }
   }
 

@@ -44,7 +44,8 @@ import { eventEmitter } from './event-emitter';
 import { instanceManager } from './multi-instance';
 import { broadcastChannelService } from './broadcast-channel-service';
 import { getSelectedUser } from './tab-context';
-import { P2P_CONSTANTS } from './constants';
+import { POLLING } from './timeout-constants';
+import { FRESH_CONNECTION_THRESHOLD_MS } from './p2p-auto-connect/types';
 import { safeJSONStringify } from './storage-utils';
 import { ensureBigInt, ensureBigIntPair } from './utils';
 import { debugLog } from '@/lib/debug-config';
@@ -563,7 +564,7 @@ export class P2PAutoConnectService {
       return;
     }
 
-    debugLog('P2pAutoConnectService', `[P2PAutoConnect] Starting backend polling (interval: ${P2P_CONSTANTS.GET_SESSIONS_POLL_INTERVAL_MS}ms)`);
+    debugLog('P2pAutoConnectService', `[P2PAutoConnect] Starting backend polling (interval: ${POLLING.GET_SESSIONS_POLL_INTERVAL_MS}ms)`);
 
     this.backendPollInterval = setInterval(async () => {
       // Skip if already refreshing (prevent pile-up)
@@ -578,7 +579,7 @@ export class P2PAutoConnectService {
       } finally {
         this.isRefreshing = false;
       }
-    }, P2P_CONSTANTS.GET_SESSIONS_POLL_INTERVAL_MS);
+    }, POLLING.GET_SESSIONS_POLL_INTERVAL_MS);
   }
 
   /**
@@ -1102,8 +1103,6 @@ export class P2PAutoConnectService {
     if (this.isPeerConnectedForSession(currentCid, initiatorCid)) {
       const peerInfo = this.getPeerConnectionInfo(currentCid, initiatorCid);
       const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
-      const FRESH_CONNECTION_THRESHOLD_MS = 5000; // 5 seconds
-
       if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
         // Fresh connection — just stored by the event listener above.
         // The connection is being established right now; don't interfere.

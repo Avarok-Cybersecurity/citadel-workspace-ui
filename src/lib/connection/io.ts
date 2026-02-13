@@ -137,7 +137,7 @@ export class ConnectionIO {
    */
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
     const valueStr = safeJSONStringify(sessions);
-    debugLog('Io', 'ConnectionIO: Storing sessions, serialized:', formatForDebug(valueStr));
+    debugLog('ConnectionIO', 'Storing sessions, serialized:', formatForDebug(valueStr));
     const valueBytes = stringToBytes(valueStr);
     await this.localDBSet(0n, SESSION_STORAGE_KEY, valueBytes);
   }

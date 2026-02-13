@@ -38,7 +38,7 @@ export const AdminSettingsSection = () => {
   const userRole = state.currentUser?.role;
   const isAdmin = userRole === 'Admin' ||
                   userRole === 'admin' ||
-                  (typeof userRole === 'object' && (userRole as Record<string, unknown>)?.Admin !== undefined);
+                  (typeof userRole === 'object' && userRole !== null && (userRole as Record<string, unknown>)?.Admin !== undefined);
 
   if (!isAdmin) {
     return null;

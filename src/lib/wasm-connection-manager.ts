@@ -93,7 +93,7 @@ class WasmConnectionManager {
     const interval = this.getPollingInterval();
     const hidden = typeof document !== 'undefined' ? document.hidden : false;
     const cids = Array.from(this.sessions.keys());
-    debugLog('wasm-connection-manager', 'Starting polling for all sessions', { interval, hidden, cids });
+    debugLog('WasmConnectionManager', 'Starting polling for all sessions', { interval, hidden, cids });
 
     this.pollIntervalId = setInterval(async () => {
       // Poll for ALL active sessions, not just one
@@ -125,7 +125,7 @@ class WasmConnectionManager {
   async addSession(cid: string): Promise<void> {
     // If session already exists, just ensure messenger is open
     if (this.sessions.has(cid)) {
-      debugLog('wasm-connection-manager', 'Session already tracked, ensuring messenger open', { cid });
+      debugLog('WasmConnectionManager', 'Session already tracked, ensuring messenger open', { cid });
       await this.ensureMessengerOpenForSession(cid);
       return;
     }
@@ -138,7 +138,7 @@ class WasmConnectionManager {
     });
 
     debugLog('WasmConnectionManager', `[WASM Connection Manager] Added session: ${cid} (total: ${this.sessions.size})`);
-    debugLog('wasm-connection-manager', 'Added session', { cid, totalSessions: this.sessions.size });
+    debugLog('WasmConnectionManager', 'Added session', { cid, totalSessions: this.sessions.size });
 
     // Start if not already running
     if (!this.isRunning) {
@@ -160,7 +160,7 @@ class WasmConnectionManager {
     if (this.sessions.has(cid)) {
       this.sessions.delete(cid);
       debugLog('WasmConnectionManager', `[WASM Connection Manager] Removed session: ${cid} (remaining: ${this.sessions.size})`);
-      debugLog('wasm-connection-manager', 'Removed session', { cid, remainingSessions: this.sessions.size });
+      debugLog('WasmConnectionManager', 'Removed session', { cid, remainingSessions: this.sessions.size });
 
       // Clear currentCid if it was the removed session
       if (this.currentCid === cid) {
@@ -188,7 +188,7 @@ class WasmConnectionManager {
     this.isRunning = false;
     this.currentCid = null;
     this.sessions.clear();
-    debugLog('wasm-connection-manager', 'Stopped all sessions');
+    debugLog('WasmConnectionManager', 'Stopped all sessions');
   }
 
   /**
@@ -214,7 +214,7 @@ class WasmConnectionManager {
       if (session) {
         session.consecutiveFailures = 0;
         session.circuitBreakerOpen = false;
-        debugLog('wasm-connection-manager', 'Circuit breaker reset for session', { cid });
+        debugLog('WasmConnectionManager', 'Circuit breaker reset for session', { cid });
       }
     } else {
       // Reset all sessions
@@ -222,7 +222,7 @@ class WasmConnectionManager {
         session.consecutiveFailures = 0;
         session.circuitBreakerOpen = false;
       }
-      debugLog('wasm-connection-manager', 'Circuit breaker reset for all sessions');
+      debugLog('WasmConnectionManager', 'Circuit breaker reset for all sessions');
     }
 
     // Restart polling if stopped
@@ -247,7 +247,7 @@ class WasmConnectionManager {
   private async ensureMessengerOpenForSession(cid: string): Promise<void> {
     const session = this.sessions.get(cid);
     if (!session) {
-      debugLog('wasm-connection-manager', 'Session not found, skipping', { cid });
+      debugLog('WasmConnectionManager', 'Session not found, skipping', { cid });
       return;
     }
 
@@ -255,7 +255,7 @@ class WasmConnectionManager {
     if (session.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
       if (!session.circuitBreakerOpen) {
         session.circuitBreakerOpen = true;
-        debugLog('wasm-connection-manager', 'Circuit breaker opened for session', {
+        debugLog('WasmConnectionManager', 'Circuit breaker opened for session', {
           failures: session.consecutiveFailures,
           cid
         });
@@ -266,13 +266,13 @@ class WasmConnectionManager {
     try {
       const wasOpened = await websocketService.ensureMessengerOpen(BigInt(cid));
       if (wasOpened) {
-        debugLog('wasm-connection-manager', 'Messenger reopened for session', { cid });
+        debugLog('WasmConnectionManager', 'Messenger reopened for session', { cid });
       }
       // Reset failure count on success
       session.consecutiveFailures = 0;
     } catch (error) {
       session.consecutiveFailures++;
-      debugLog('wasm-connection-manager', 'Failed to ensure messenger open for session', {
+      debugLog('WasmConnectionManager', 'Failed to ensure messenger open for session', {
         cid,
         failures: session.consecutiveFailures,
         maxFailures: MAX_CONSECUTIVE_FAILURES,

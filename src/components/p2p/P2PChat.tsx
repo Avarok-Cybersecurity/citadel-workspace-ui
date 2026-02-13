@@ -130,7 +130,9 @@ export function P2PChat({
             setTabActivity(prev => ({ ...prev, [tab.id]: true }));
           }
         }
-      } catch (e) { /* Not a JSON/yjs message */ }
+      } catch (err) {
+        debugLog('P2PChat', 'Error:', err);
+      }
     };
     eventEmitter.on('p2p:raw-message', handleRawMessage);
     return () => { eventEmitter.off('p2p:raw-message', handleRawMessage); };
