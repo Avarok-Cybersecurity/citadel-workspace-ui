@@ -12,10 +12,10 @@ import { p2pAutoConnectService } from './lib/p2p-auto-connect-service';
 import { websocketService } from './lib/websocket-service';
 import { connectionManager } from './lib/connection/service';
 if (import.meta.env.DEV) {
-  (window as unknown as { __p2pRegistrationService: typeof p2pRegistrationService }).__p2pRegistrationService = p2pRegistrationService;
-  (window as unknown as { __p2pAutoConnectService: typeof p2pAutoConnectService }).__p2pAutoConnectService = p2pAutoConnectService;
-  (window as unknown as { __websocketService: typeof websocketService }).__websocketService = websocketService;
-  (window as unknown as { __connectionManager: typeof connectionManager }).__connectionManager = connectionManager;
+  window.__p2pRegistrationService = p2pRegistrationService;
+  window.__p2pAutoConnectService = p2pAutoConnectService;
+  window.__websocketService = websocketService;
+  window.__connectionManager = connectionManager;
 }
 
 // Initialize instance inbound router (routes WebSocket responses to correct instance)

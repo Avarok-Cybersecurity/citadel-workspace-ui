@@ -20,6 +20,19 @@ import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 
 // ============================================================================
+// Protocol Boundary Adapter
+// ============================================================================
+
+/**
+ * Adapts a locally-constructed request object to the WASM-generated InternalServiceRequest type.
+ * The cast is needed because locally-built object literals are structurally compatible at runtime
+ * but TypeScript cannot verify structural compatibility with WASM-generated nominal types.
+ */
+function toInternalServiceRequest(request: Record<string, unknown>): InternalServiceRequest {
+  return request as unknown as InternalServiceRequest;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -263,7 +276,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
+        await client.sendDirectToInternalService(toInternalServiceRequest(request));
 
         // For now, return the request ID as the group ID
         // The actual group ID will come from the GroupCreated response
@@ -300,7 +313,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
+        await client.sendDirectToInternalService(toInternalServiceRequest(request));
 
         // If roleId specified, store it locally for when member joins
         if (roleId) {
@@ -336,7 +349,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
         throw new Error('WebSocket client not initialized');
       }
 
-      await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
+      await client.sendDirectToInternalService(toInternalServiceRequest(request));
 
       // Remove from local state
       setGroups(prev => prev.filter(g => g.id !== groupId));
@@ -370,7 +383,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
           throw new Error('WebSocket client not initialized');
         }
 
-        await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
+        await client.sendDirectToInternalService(toInternalServiceRequest(request));
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to kick member';
         setError(errorMsg);
@@ -438,7 +451,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
         throw new Error('WebSocket client not initialized');
       }
 
-      await client.sendDirectToInternalService(request as unknown as InternalServiceRequest);
+      await client.sendDirectToInternalService(toInternalServiceRequest(request));
       // Groups will be updated via events
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : 'Failed to refresh groups';

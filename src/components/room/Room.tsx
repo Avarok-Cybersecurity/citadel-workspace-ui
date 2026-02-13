@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
 import { MDXProvider } from '@mdx-js/react';
-import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { useToast } from '@/hooks/use-toast';
@@ -83,11 +82,11 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
         debugLog('Room', 'Compiling Room MDX content...');
         const result = await evaluate(content, {
           ...runtime,
-          useMDXComponents: () => components as unknown as MDXComponents,
+          useMDXComponents: () => components,
           baseUrl: window.location.origin
         });
         debugLog('Room', 'Room MDX compilation successful');
-        setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
+        setCompiledContent(result.default({ components: components }));
       } catch (error) {
         debugLog('Room', 'Error compiling Room MDX:', error);
       }
@@ -227,7 +226,7 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
         </div>
       ) : content ? (
         <div className="mb-6 prose prose-invert prose-sm md:prose-base max-w-none">
-          <MDXProvider components={components as unknown as MDXComponents}>
+          <MDXProvider components={components}>
             {compiledContent}
           </MDXProvider>
         </div>

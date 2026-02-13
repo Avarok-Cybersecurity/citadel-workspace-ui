@@ -825,6 +825,5 @@ fileTransferService.initialize().catch(err => {
 
 // Expose for testing
 if (typeof window !== 'undefined') {
-  (window as unknown as { __fileTransferService: FileTransferService }).__fileTransferService =
-    fileTransferService;
+  window.__fileTransferService = fileTransferService;
 }

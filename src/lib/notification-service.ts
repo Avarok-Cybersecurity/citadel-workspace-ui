@@ -367,7 +367,7 @@ export const notificationService = NotificationService.getInstance();
 
 // Expose on window for debugging (dev only)
 if (typeof window !== 'undefined' && import.meta.env.DEV) {
-  (window as unknown as Record<string, unknown>).notificationService = notificationService;
+  window.notificationService = notificationService;
 }
 
 export default NotificationService;

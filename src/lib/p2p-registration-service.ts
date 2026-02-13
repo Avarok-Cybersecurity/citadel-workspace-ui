@@ -23,6 +23,16 @@ import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage, BroadcastStateSyncData } from '@/types/ws-message-types';
 import { TIMEOUT, POLLING } from './timeout-constants';
 
+/**
+ * Adapts a locally-defined SessionSecuritySettings to the WASM-generated type.
+ * The cast is needed because our local SessionSecuritySettings type (from security-utils)
+ * is structurally compatible at runtime but TypeScript cannot verify compatibility
+ * with the generated type from @avarok/citadel-protocol-types.
+ */
+function toGeneratedSecuritySettings(settings: SessionSecuritySettings): GeneratedSessionSecuritySettings {
+  return settings as unknown as GeneratedSessionSecuritySettings;
+}
+
 // Re-export for backward compatibility
 export type { SessionSecuritySettings, HeaderObfuscatorSettings };
 
@@ -732,8 +742,7 @@ export class P2PRegistrationService {
         request_id: requestId,
         cid: currentCid, // Use the tab-aware CID
         peer_cid: peerCid,
-        // Cast local SessionSecuritySettings to generated type (structurally compatible at runtime)
-        session_security_settings: (options.sessionSecuritySettings || this.DEFAULT_SESSION_SECURITY) as unknown as GeneratedSessionSecuritySettings,
+        session_security_settings: toGeneratedSecuritySettings(options.sessionSecuritySettings || this.DEFAULT_SESSION_SECURITY),
         connect_after_register: options.connectAfterRegister ?? false,
         peer_session_password: null
       }

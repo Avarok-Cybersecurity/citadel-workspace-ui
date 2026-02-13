@@ -8,6 +8,16 @@ import { eventEmitter } from './event-emitter';
 import { debugLog } from '@/lib/debug-config';
 
 /**
+ * Adapts a locally-constructed WorkspaceProtocolRequestTS to the WASM-generated
+ * WorkspaceProtocolRequest type. The cast is needed because our TypeScript-side
+ * request type (WorkspaceProtocolRequestTS) is structurally compatible at runtime
+ * but TypeScript cannot verify compatibility with the WASM code-generated type.
+ */
+function toWasmWorkspaceRequest(request: WorkspaceProtocolRequestTS): WorkspaceProtocolRequest {
+  return request as unknown as WorkspaceProtocolRequest;
+}
+
+/**
  * Workspace Service
  * 
  * Provides methods for interacting with workspace protocol via the message command.
@@ -108,7 +118,7 @@ export class WorkspaceService {
           };
         } else {
           // For other request types, pass through as-is
-          request = tsRequest as unknown as WorkspaceProtocolRequest;
+          request = toWasmWorkspaceRequest(tsRequest);
         }
       } else {
         throw new Error('Invalid workspace protocol payload');
@@ -687,5 +697,5 @@ export default WorkspaceService.getInstance();
 
 // Expose for testing - allows protocol-level integration tests
 if (typeof window !== 'undefined') {
-  (window as unknown as Record<string, unknown>).__workspaceService = WorkspaceService.getInstance();
+  window.__workspaceService = WorkspaceService.getInstance();
 }

@@ -64,47 +64,59 @@ export interface ProtocolWarningPayload {
   connection: ConnectionInfo;
 }
 
-// Define all event types
-export type WorkspaceEventType =
+// Event map: maps each event string to its payload type
+export interface WorkspaceEventMap {
   // Workspace events
-  | 'workspace:loading'
-  | 'workspace:loaded'
-  | 'workspace:created'
-  | 'workspace:not-initialized'
-  | 'workspaces:listed'
+  'workspace:loading': ConnectionInfo;
+  'workspace:loaded': WorkspacePayload;
+  'workspace:created': WorkspacePayload;
+  'workspace:not-initialized': ConnectionInfo;
+  'workspaces:listed': WorkspacesPayload;
   // Member events
-  | 'member:adding'
-  | 'member:added'
-  | 'member:loading'
-  | 'member:updating_role'
-  | 'member:updating_permissions'
-  | 'member:removing'
-  | 'member:removed'
-  | 'member:loaded'
-  | 'members:loading'
-  | 'members:loaded'
-  | 'members:reload'
-  | 'member:role-updated'
-  | 'user:permissions:loaded'
+  'member:adding': { user_id: string; domain_id?: string; connection: ConnectionInfo };
+  'member:added': { member: User; connection: ConnectionInfo };
+  'member:loading': { user_id: string; connection: ConnectionInfo };
+  'member:updating_role': { user_id: string; connection: ConnectionInfo };
+  'member:updating_permissions': { userId: string; domainId: string; connection: ConnectionInfo };
+  'member:removing': { userId: string; domainId?: string; connection: ConnectionInfo };
+  'member:removed': { userId: string; connection: ConnectionInfo };
+  'member:loaded': MemberPayload;
+  'members:loading': { domainId?: string; connection: ConnectionInfo };
+  'members:loaded': MembersPayload;
+  'members:reload': ConnectionInfo;
+  'member:role-updated': { userId: string; role: string; connection: ConnectionInfo };
+  'user:permissions:loaded': { userId: string; role: string; permissions: unknown[]; domainId: string; connection: ConnectionInfo };
   // Message events
-  | 'message:received'
-  | 'typing:started'
-  | 'typing:stopped'
+  'message:received': MessagePayload;
+  'typing:started': TypingPayload;
+  'typing:stopped': TypingPayload;
   // Node events (generic hierarchy)
-  | 'node:loaded'
-  | 'node:deleted'
-  | 'node:moved'
-  | 'nodes:loading'
-  | 'nodes:loaded'
-  | 'tree:structure:loaded'
-  | 'tree:schema:loaded'
-  | 'node:types:loaded'
+  'node:loaded': { node: DomainNode; connection: ConnectionInfo };
+  'node:deleted': { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo };
+  'node:moved': { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo };
+  'nodes:loading': ConnectionInfo;
+  'nodes:loaded': { nodes: DomainNode[]; connection: ConnectionInfo };
+  'tree:structure:loaded': { root: TreeNode; connection: ConnectionInfo };
+  'tree:schema:loaded': { schema: TreeSchema; connection: ConnectionInfo };
+  'node:types:loaded': { nodeTypes: unknown[]; connection: ConnectionInfo };
   // Operation events
-  | 'operation:success'
-  | 'operation:error'
-  | 'operation:deleted'
+  'operation:success': ConnectionInfo;
+  'operation:error': ErrorPayload;
+  'operation:deleted': ConnectionInfo;
   // Protocol events
-  | 'protocol:warning';
+  'protocol:warning': ProtocolWarningPayload;
+}
+
+// Define all event types
+export type WorkspaceEventType = keyof WorkspaceEventMap;
+
+// Subset types for each method category
+type WorkspaceEventKeys = 'workspace:loading' | 'workspace:loaded' | 'workspace:created' | 'workspace:not-initialized' | 'workspaces:listed' | 'members:reload';
+type NodeEventKeys = 'node:loaded' | 'node:deleted' | 'node:moved' | 'nodes:loading' | 'nodes:loaded' | 'tree:structure:loaded' | 'tree:schema:loaded' | 'node:types:loaded';
+type MemberEventKeys = 'member:adding' | 'member:added' | 'member:loading' | 'member:updating_role' | 'member:updating_permissions' | 'member:removing' | 'member:removed' | 'member:loaded' | 'members:loading' | 'members:loaded' | 'members:reload' | 'member:role-updated' | 'user:permissions:loaded';
+type MessageEventKeys = 'message:received' | 'typing:started' | 'typing:stopped';
+type OperationEventKeys = 'operation:success' | 'operation:error' | 'operation:deleted';
+type ProtocolEventKeys = 'protocol:warning';
 
 /**
  * Helper class to manage workspace event listeners
@@ -112,10 +124,9 @@ export type WorkspaceEventType =
 export class WorkspaceEvents {
   private listeners: Map<string, UnlistenFn[]> = new Map();
 
-  // PINCH POINT: Implementation accepts any callback type to bridge overloaded signatures.
-  // TypeScript overloads require the implementation to accept ALL overload parameter types.
-  private registerListener(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
-    const unlistenFn = eventEmitter.on(event, callback);
+  // Single internal cast to bridge the type-safe public API to the untyped eventEmitter.on()
+  private registerListener<K extends WorkspaceEventType>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
+    const unlistenFn = eventEmitter.on(event, callback as (payload: unknown) => void);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
@@ -131,63 +142,32 @@ export class WorkspaceEvents {
   }
 
   // Workspace events
-  public onWorkspaceEvent(event: 'workspace:loaded', callback: (payload: WorkspacePayload) => void): () => void;
-  public onWorkspaceEvent(event: 'workspace:loading', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onWorkspaceEvent(event: 'workspace:not-initialized', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onWorkspaceEvent(event: 'workspaces:listed', callback: (payload: WorkspacesPayload) => void): () => void;
-  public onWorkspaceEvent(event: 'members:reload', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onWorkspaceEvent(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
-  public onWorkspaceEvent(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
+  public onWorkspaceEvent<K extends WorkspaceEventKeys>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
   // Node events (generic hierarchy)
-  public onNodeEvent(event: 'node:loaded', callback: (payload: { node: DomainNode; connection: ConnectionInfo }) => void): () => void;
-  public onNodeEvent(event: 'nodes:loaded', callback: (payload: { nodes: DomainNode[]; connection: ConnectionInfo }) => void): () => void;
-  public onNodeEvent(event: 'nodes:loading', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onNodeEvent(event: 'node:deleted', callback: (payload: { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo }) => void): () => void;
-  public onNodeEvent(event: 'node:moved', callback: (payload: { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo }) => void): () => void;
-  public onNodeEvent(event: 'tree:structure:loaded', callback: (payload: { root: TreeNode; connection: ConnectionInfo }) => void): () => void;
-  public onNodeEvent(event: 'tree:schema:loaded', callback: (payload: { schema: TreeSchema; connection: ConnectionInfo }) => void): () => void;
-  public onNodeEvent(event: 'node:types:loaded', callback: (payload: { nodeTypes: unknown[]; connection: ConnectionInfo }) => void): () => void;
-  public onNodeEvent(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
-  public onNodeEvent(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
+  public onNodeEvent<K extends NodeEventKeys>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
   // Member events
-  public onMemberEvent<T>(event: 'member:loaded', callback: (payload: MemberPayload) => void): () => void;
-  public onMemberEvent<T>(event: 'members:loaded', callback: (payload: MembersPayload) => void): () => void;
-  public onMemberEvent<T>(event: 'member:adding', callback: (payload: { user_id: string, domain_id?: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'member:loading' | 'member:updating_role', callback: (payload: { user_id: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'member:updating_permissions', callback: (payload: { userId: string, domainId: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'member:removing', callback: (payload: { userId: string, domainId?: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'members:loading', callback: (payload: { domainId?: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'member:added', callback: (payload: { member: User, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'member:removed', callback: (payload: { userId: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'member:role-updated', callback: (payload: { userId: string, role: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: 'user:permissions:loaded', callback: (payload: { userId: string, role: string, permissions: unknown[], domainId: string, connection: ConnectionInfo }) => void): () => void;
-  public onMemberEvent<T>(event: WorkspaceEventType, callback: (payload: any) => void): () => void;
-  public onMemberEvent<T>(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
+  public onMemberEvent<K extends MemberEventKeys>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
   // Message events
-  public onMessageEvent(event: 'message:received', callback: (payload: MessagePayload) => void): () => void;
-  public onMessageEvent(event: 'typing:started' | 'typing:stopped', callback: (payload: TypingPayload) => void): () => void;
-  public onMessageEvent(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
+  public onMessageEvent<K extends MessageEventKeys>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
   // Operation events
-  public onOperationEvent(event: 'operation:success', callback: (connectionInfo: ConnectionInfo) => void): () => void;
-  public onOperationEvent(event: 'operation:error', callback: (payload: ErrorPayload) => void): () => void;
-  public onOperationEvent(event: WorkspaceEventType, callback: (...args: any[]) => void): () => void {
+  public onOperationEvent<K extends OperationEventKeys>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
     return this.registerListener(event, callback);
   }
 
   // Protocol events
-  public onProtocolEvent(event: 'protocol:warning', callback: (payload: ProtocolWarningPayload) => void): () => void {
+  public onProtocolEvent<K extends ProtocolEventKeys>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
     return this.registerListener(event, callback);
   }
 

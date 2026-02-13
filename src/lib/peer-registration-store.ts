@@ -21,6 +21,15 @@ import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from './timeout-constants';
 
+/**
+ * Adapts a locally-constructed request object to the WASM-generated InternalServiceRequest type.
+ * The cast is needed because locally-built object literals are structurally compatible at runtime
+ * but TypeScript cannot verify structural compatibility with WASM-generated nominal types.
+ */
+function toInternalServiceRequest(request: Record<string, unknown>): InternalServiceRequest {
+  return request as unknown as InternalServiceRequest;
+}
+
 export interface PendingPeerRequest {
   id: string;              // UUID for this request
   peer_cid: bigint;        // CID of the requesting peer
@@ -55,8 +64,7 @@ class PeerRegistrationStore {
   private pendingRequests: PendingPeerRequest[] = [];
   private outgoingRequests: OutgoingPeerRequest[] = [];
    
-  // PINCH POINT: KV request callbacks bridge Promise<void> and Promise<unknown> resolvers.
-  private pendingKVRequests = new Map<string, { resolve: (value?: any) => void; reject: (error: Error) => void }>();
+  private pendingKVRequests = new Map<string, { resolve: (value?: unknown) => void; reject: (error: Error) => void }>();
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
@@ -243,7 +251,7 @@ class PeerRegistrationStore {
       }
     };
 
-    await client.sendDirectToInternalService(registerRequest as unknown as InternalServiceRequest);
+    await client.sendDirectToInternalService(toInternalServiceRequest(registerRequest));
     debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Resent PeerRegister to', request.peerUsername);
   }
 
@@ -719,14 +727,14 @@ class PeerRegistrationStore {
       }
     };
 
-    return new Promise((resolve, reject) => {
-      this.pendingKVRequests.set(requestId, { resolve, reject });
+    return new Promise<void>((resolve, reject) => {
+      this.pendingKVRequests.set(requestId, { resolve: () => resolve(), reject });
 
       const client = websocketService.getClient();
       if (!client) {
         this.pendingKVRequests.delete(requestId);
         debugLog('PeerRegistrationStore', 'No WebSocket client - skipping persist');
-        resolve(undefined);
+        resolve();
         return;
       }
 
@@ -828,14 +836,14 @@ class PeerRegistrationStore {
       }
     };
 
-    return new Promise((resolve, reject) => {
-      this.pendingKVRequests.set(requestId, { resolve, reject });
+    return new Promise<void>((resolve, reject) => {
+      this.pendingKVRequests.set(requestId, { resolve: () => resolve(), reject });
 
       const client = websocketService.getClient();
       if (!client) {
         this.pendingKVRequests.delete(requestId);
         debugLog('PeerRegistrationStore', 'No WebSocket client - skipping outgoing persist');
-        resolve(undefined);
+        resolve();
         return;
       }
 

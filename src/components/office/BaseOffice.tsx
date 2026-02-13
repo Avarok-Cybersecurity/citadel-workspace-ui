@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
-import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
@@ -103,11 +102,11 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         debugLog('BaseOffice', 'Compiling MDX content...');
         const result = await evaluate(content, {
           ...runtime,
-          useMDXComponents: () => components as unknown as MDXComponents,
+          useMDXComponents: () => components,
           baseUrl: window.location.origin
         });
         debugLog('BaseOffice', 'MDX compilation successful');
-        setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
+        setCompiledContent(result.default({ components: components }));
       } catch (error) {
         debugLog('BaseOffice', 'Error compiling MDX:', error);
       }
@@ -176,7 +175,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     </div>
   ) : (
     <div className="px-4 pt-6 pb-2 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-none">
-      <MDXProvider components={components as unknown as MDXComponents}>
+      <MDXProvider components={components}>
         {compiledContent}
       </MDXProvider>
     </div>

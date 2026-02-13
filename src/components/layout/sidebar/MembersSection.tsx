@@ -28,7 +28,7 @@ import {
 import { MemberManagementModal } from "@/components/member/MemberManagementModal";
 import WorkspaceService from "@/lib/workspace-service";
 import { Badge } from "@/components/ui/badge";
-import { workspaceEvents } from "@/lib/workspace-events";
+import { workspaceEvents, type MembersPayload } from "@/lib/workspace-events";
 import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
 import {
   Tooltip,
@@ -143,8 +143,8 @@ export const MembersSection = () => {
 
   // Listen for members loaded event
   useEffect(() => {
-    const handleMembersLoaded = (payload: { members?: Member[] }) => {
-      if (payload.members) setMembers(payload.members);
+    const handleMembersLoaded = (payload: MembersPayload) => {
+      if (payload.members) setMembers(payload.members as unknown as Member[]);
     };
     runAsyncSetup(async () => { await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded); });
   }, []);
