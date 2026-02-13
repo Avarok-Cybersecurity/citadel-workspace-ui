@@ -3,6 +3,7 @@ import { eventEmitter } from './event-emitter';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
+import { TIMEOUT } from './timeout-constants';
 
 /**
  * Server info stored in LocalDB
@@ -36,7 +37,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('List known servers request timed out'));
-      }, 5000);
+      }, TIMEOUT.LOCALDB_REQUEST_MS);
 
       // Set up event listener
 
@@ -72,7 +73,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
                     servers.push(...(value as Record<string, unknown>).servers as StoredServer[]);
                   }
                 } catch (e) {
-                  console.error('Error parsing server data:', e);
+                  debugLog('ServerUtils', 'Error parsing server data:', e);
                 }
               }
             });
@@ -109,7 +110,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
         });
     });
   } catch (error) {
-    console.error('Error in listKnownServers:', error);
+    debugLog('ServerUtils', 'Error in listKnownServers:', error);
     // Return empty array on error to prevent UI crashes
     return { servers: [] };
   }
@@ -146,7 +147,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('Store known server request timed out'));
-      }, 5000);
+      }, TIMEOUT.LOCALDB_REQUEST_MS);
 
       // Set up event listener
 
@@ -193,7 +194,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
         });
     });
   } catch (error) {
-    console.error('Error in storeKnownServer:', error);
+    debugLog('ServerUtils', 'Error in storeKnownServer:', error);
     throw error;
   }
 }

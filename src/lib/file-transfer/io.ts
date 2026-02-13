@@ -29,6 +29,7 @@ import type {
   FilePickerResult,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 /**
  * @deprecated Use RealProtocolIORouter with IFileTransferIORouter interface instead.
@@ -202,7 +203,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('SendFile request timed out'));
-      }, 30000);
+      }, TIMEOUT.FILE_SEND_MS);
 
       const handleMessage = (message: unknown) => {
         const msg = message as Record<string, unknown>;
@@ -222,7 +223,7 @@ export class FileTransferIO extends RealProtocolIORouter {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
           const errorMsg = failure.message || 'SendFile failed';
-          console.error('FileTransferIO: SendFile failed', errorMsg);
+          debugLog('FileTransferIO', 'SendFile failed', errorMsg);
           reject(new Error(errorMsg));
         }
       };

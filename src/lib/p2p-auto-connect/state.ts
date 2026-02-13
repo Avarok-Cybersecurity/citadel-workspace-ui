@@ -139,8 +139,8 @@ export class P2PConnectionState {
     if (!peerMap) {
       const allCids = Array.from(this.connectedPeers.keys());
       if (allCids.length > 0) {
-        console.warn(
-          `[ILM-DIAG] getPeersForSession: NO ENTRY for CID ${localCidBigInt.toString().slice(0, 8)}... (type=${typeof localCid}→${typeof localCidBigInt}), but connectedPeers has entries for: ${allCids.map((c) => `${c.toString().slice(0, 8)}(type=${typeof c})`).join(', ')}`
+        debugLog('P2PAutoConnectState',
+          `getPeersForSession: NO ENTRY for CID ${localCidBigInt.toString().slice(0, 8)}... (type=${typeof localCid}→${typeof localCidBigInt}), but connectedPeers has entries for: ${allCids.map((c) => `${c.toString().slice(0, 8)}(type=${typeof c})`).join(', ')}`
         );
       }
       return [];

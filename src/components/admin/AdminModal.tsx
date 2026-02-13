@@ -14,6 +14,7 @@ import { ChatSettingsTab } from './tabs/ChatSettingsTab';
 import { AdminModalProps, EntityData } from './types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { debugLog } from '@/lib/debug-config';
 
 export function AdminModal({
   isOpen,
@@ -55,7 +56,7 @@ export function AdminModal({
           }
         }
       } catch (error) {
-        console.error('Failed to load entity:', error);
+        debugLog('AdminModal', 'Failed to load entity:', error);
       } finally {
         setLoading(false);
       }

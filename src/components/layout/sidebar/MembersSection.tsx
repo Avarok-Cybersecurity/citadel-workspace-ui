@@ -51,6 +51,7 @@ import { PeerListRow } from "./PeerListRow";
 import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface Member {
   id: string;
@@ -107,12 +108,12 @@ export const MembersSection = () => {
 
   // Initial load
   useEffect(() => {
-    updatePendingCount().catch(console.error);
+    updatePendingCount().catch((err: unknown) => debugLog('MembersSection', 'Failed to update pending count:', err));
   }, [updatePendingCount]);
 
   // Listen for pending request updates
   useEventListener('peer-requests:updated', () => {
-    updatePendingCount().catch(console.error);
+    updatePendingCount().catch((err: unknown) => debugLog('MembersSection', 'Failed to update pending count:', err));
   });
 
   // Listen for notification card clicks
@@ -132,7 +133,7 @@ export const MembersSection = () => {
       try {
         await WorkspaceService.listMembers(activeDomainId);
       } catch (error) {
-        console.error("Error loading members:", error);
+        debugLog('MembersSection', 'Error loading members:', error);
       } finally {
         setIsLoadingMembers(false);
       }

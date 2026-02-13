@@ -3,7 +3,6 @@ import { WorkspaceProtocolPayloadTS, WorkspaceProtocolResponseTS } from '@/types
 import { websocketService } from './websocket-service';
 import { debugLog, errorLog } from './debug-config';
 import { groupMessagingManager } from './group-messaging-manager';
-import type { GroupMessage as LocalGroupMessage } from '@/types/workspace-entities';
 import { bytesToString } from './utils/encoding-utils';
 import { isVariant } from 'citadel-workspace-client-ts';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
@@ -269,8 +268,7 @@ export class WorkspaceResponseHandler {
       // Handle new group message notification
       const { group_id, message } = response.GroupMessageNotification;
       debugLog('workspace', 'GroupMessageNotification received', { group_id, message });
-      // Cast generated GroupMessage to local GroupMessage (structurally identical at runtime)
-      groupMessagingManager.handleNewMessage(group_id, message as unknown as LocalGroupMessage);
+      groupMessagingManager.handleNewMessage(group_id, message);
       eventEmitter.emit('group:message:new', {
         groupId: group_id,
         message,
@@ -280,8 +278,7 @@ export class WorkspaceResponseHandler {
       // Handle paginated messages response
       const { group_id, messages, has_more } = response.GroupMessages;
       debugLog('workspace', 'GroupMessages received', { group_id, count: messages.length, has_more });
-      // Cast generated GroupMessage[] to local GroupMessage[] (structurally identical at runtime)
-      groupMessagingManager.handleMessagesLoaded(group_id, messages as unknown as LocalGroupMessage[], has_more);
+      groupMessagingManager.handleMessagesLoaded(group_id, messages, has_more);
       eventEmitter.emit('group:messages:loaded', {
         groupId: group_id,
         messages,

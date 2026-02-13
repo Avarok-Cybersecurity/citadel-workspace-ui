@@ -15,6 +15,7 @@ import {
   leaderOutboundHandler,
   instanceInboundRouter
 } from '../multi-instance';
+import { INTERVAL } from '../timeout-constants';
 
 // Global state key for preventing multiple WASM client initializations
 export const GLOBAL_INIT_KEY = '__citadel_wasm_client_init__';
@@ -56,7 +57,7 @@ export class WebSocketInitialization {
       return;
     }
 
-    const ELECTION_TIMEOUT_MS = 3000;
+    const ELECTION_TIMEOUT_MS = INTERVAL.LEADER_ELECTION_MS;
     debugLog('Initialization', `waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
 
     return new Promise<void>((resolve) => {

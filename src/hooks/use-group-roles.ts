@@ -16,6 +16,7 @@ import {
   DEFAULT_MEMBER_PERMISSIONS,
   canManageUser,
 } from '@/types/group';
+import { debugLog } from '@/lib/debug-config';
 
 // ============================================================================
 // Types
@@ -201,7 +202,7 @@ export function useGroupRoles(
 
       // Cannot delete built-in or default roles
       if (!roleToDelete || roleToDelete.isBuiltIn || roleToDelete.isDefault) {
-        console.warn('[useGroupRoles] Cannot delete built-in or default role');
+        debugLog('UseGroupRoles', 'Cannot delete built-in or default role');
         return settings;
       }
 

@@ -87,7 +87,7 @@ export class ConnectionManager {
         this.getActiveSessions().catch(() => []),
         this.loadStoredSessions(),
         this.io.initPeerRegistrationStore().catch((error) => {
-          console.warn('ConnectionManager: Failed to initialize peer registration store', error);
+          debugLog('Service', 'Failed to initialize peer registration store', error);
         }),
       ]);
 
@@ -103,12 +103,12 @@ export class ConnectionManager {
 
       // Step 4: Fire-and-forget server auto-connect
       this.io.initServerAutoConnect().catch((error) => {
-        console.warn('ConnectionManager: Failed to initialize server auto-connect service:', error);
+        debugLog('Service', 'Failed to initialize server auto-connect service:', error);
       });
 
       this.state.resolveReady();
     } catch (error) {
-      console.error('ConnectionManager: Initialization failed', error);
+      debugLog('Service', 'Initialization failed', error);
       this.state.resolveReady();
       throw error;
     }
@@ -320,7 +320,7 @@ export class ConnectionManager {
         debugLog('Service', 'ConnectionManager: No matching active session found');
       }
     } catch (error) {
-      console.error('ConnectionManager: Failed to get active sessions:', error);
+      debugLog('Service', 'Failed to get active sessions:', error);
     }
   }
 
@@ -439,7 +439,7 @@ export class ConnectionManager {
       const response = await responsePromise;
       return response.sessions || [];
     } catch (error) {
-      console.error('ConnectionManager: Failed to get active sessions', error);
+      debugLog('Service', 'Failed to get active sessions', error);
       return [];
     }
   }
@@ -455,7 +455,7 @@ export class ConnectionManager {
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
       debugLog('Service', 'ConnectionManager: Session stored successfully');
     } catch (error) {
-      console.error('ConnectionManager: Failed to store session', error);
+      debugLog('Service', 'Failed to store session', error);
       throw error;
     }
   }
@@ -471,7 +471,7 @@ export class ConnectionManager {
         debugLog('Service', 'ConnectionManager: No stored sessions found');
       }
     } catch (error) {
-      console.error('ConnectionManager: Failed to load stored sessions', error);
+      debugLog('Service', 'Failed to load stored sessions', error);
     }
   }
 
@@ -584,7 +584,7 @@ export class ConnectionManager {
         await this.io.waitForHealthy(HEALTH_CHECK_TIMEOUT_MS);
         debugLog('Service', 'ConnectionManager: Service is healthy, proceeding with reconnect');
       } catch (healthError) {
-        console.warn('ConnectionManager: Service health check failed, attempting anyway:', healthError);
+        debugLog('Service', 'Service health check failed, attempting anyway:', healthError);
       }
 
       const requestId = crypto.randomUUID();
@@ -602,7 +602,7 @@ export class ConnectionManager {
 
       debugLog('Service', 'ConnectionManager: Auto-reconnect successful');
     } catch (error: unknown) {
-      console.error('ConnectionManager: Auto-reconnect failed', error);
+      debugLog('Service', 'Auto-reconnect failed', error);
       await this.handleAutoReconnectError(error, session, activeSessions);
     }
   }
@@ -664,7 +664,7 @@ export class ConnectionManager {
         });
       }
     } catch (err) {
-      console.error('ConnectionManager: Failed to get active sessions:', err);
+      debugLog('Service', 'Failed to get active sessions:', err);
     }
   }
 
@@ -711,7 +711,7 @@ export class ConnectionManager {
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
       debugLog('Service', 'ConnectionManager: Cleared all stored sessions');
     } catch (error) {
-      console.error('ConnectionManager: Failed to clear sessions', error);
+      debugLog('Service', 'Failed to clear sessions', error);
       throw error;
     }
   }
@@ -763,7 +763,7 @@ export class ConnectionManager {
         debugLog('Service', 'handleAuthSuccess: tab context set successfully');
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'setSelectedUser timeout') {
-          console.warn('[ConnectionService] handleAuthSuccess: setSelectedUser timed out - continuing anyway');
+          debugLog('Service', 'handleAuthSuccess: setSelectedUser timed out - continuing anyway');
         } else {
           throw err;
         }
@@ -793,7 +793,7 @@ export class ConnectionManager {
 
       debugLog('Service', 'handleAuthSuccess: completed successfully');
     } catch (error) {
-      console.error('ConnectionManager: handleAuthSuccess failed:', error);
+      debugLog('Service', 'handleAuthSuccess failed:', error);
       throw error;
     }
   }
@@ -836,7 +836,7 @@ export class ConnectionManager {
       await this.io.storeSessionsToLocalDB(this.state.storedSessions);
       debugLog('Service', 'ConnectionManager: Session removed successfully');
     } catch (error) {
-      console.error('ConnectionManager: Failed to remove session', error);
+      debugLog('Service', 'Failed to remove session', error);
       throw error;
     }
   }
@@ -852,7 +852,7 @@ export class ConnectionManager {
         await this.disconnect();
       }
     } catch (error) {
-      console.error('ConnectionManager: Failed to remove all sessions', error);
+      debugLog('Service', 'Failed to remove all sessions', error);
       throw error;
     }
   }
@@ -871,7 +871,7 @@ export class ConnectionManager {
       const serverAddress = session?.serverAddress ?? this.state.currentConnectionInfo?.serverAddress;
 
       if (!cid) {
-        console.warn('ConnectionManager: disconnect() called but no CID available - skipping backend disconnect');
+        debugLog('Service', 'disconnect() called but no CID available - skipping backend disconnect');
         // Still clear local state
         this.state.setCurrentConnectionInfo(null);
         this.state.invalidateCache();
@@ -893,7 +893,7 @@ export class ConnectionManager {
       this.io.updateConnectionService({ cid: null, isConnected: false });
       this.io.broadcastConnectionStatus({ isConnected: false });
     } catch (error) {
-      console.error('ConnectionManager: Failed to disconnect', error);
+      debugLog('Service', 'Failed to disconnect', error);
       throw error; // Re-throw so callers know disconnect failed
     }
   }
@@ -929,7 +929,7 @@ export class ConnectionManager {
         session.lastConnected = Date.now();
         await this.storeSession(session);
       } catch (error) {
-        console.error('ConnectionManager: Failed to switch account', error);
+        debugLog('Service', 'Failed to switch account', error);
         throw error;
       }
     } else {
@@ -946,7 +946,7 @@ export class ConnectionManager {
         debugLog('Service', `ConnectionManager: Updated role for ${username} to ${role}`);
       }
     } catch (error) {
-      console.error('ConnectionManager: Failed to update session role', error);
+      debugLog('Service', 'Failed to update session role', error);
     }
   }
 }

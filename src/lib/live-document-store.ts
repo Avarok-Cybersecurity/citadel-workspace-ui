@@ -3,6 +3,7 @@ import { websocketService } from './websocket-service';
 import { sha256Sync } from './merkle-tree';
 import type { RevisionEntry } from '@/types/p2p-types';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
+import { debugLog } from './debug-config';
 
 // Document metadata stored in LocalDB
 export interface DocumentMetadata {
@@ -69,7 +70,7 @@ class LiveDocumentStore {
       }
       this.initialized = true;
     } catch (error) {
-      console.error('[LiveDocStore] Failed to initialize:', error);
+      debugLog('LiveDocumentStore', 'Failed to initialize:', error);
       this.initialized = true; // Continue anyway
     }
   }
@@ -143,7 +144,7 @@ class LiveDocumentStore {
   async updateDocumentState(docId: string, ydoc: Y.Doc): Promise<void> {
     const existing = this.documentsCache.get(docId);
     if (!existing) {
-      console.warn('[LiveDocStore] Document not found:', docId);
+      debugLog('LiveDocumentStore', 'Document not found:', docId);
       return;
     }
 
@@ -228,7 +229,7 @@ class LiveDocumentStore {
         return doc;
       }
     } catch (error) {
-      console.error('[LiveDocStore] Failed to load document:', docId, error);
+      debugLog('LiveDocumentStore', 'Failed to load document:', docId, error);
     }
 
     return null;

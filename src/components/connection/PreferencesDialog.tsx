@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { debugLog } from '@/lib/debug-config';
 import {
   Dialog,
   DialogContent,
@@ -34,7 +35,7 @@ export const PreferencesDialog = () => {
         const autoAcceptRegistrations = await p2pRegistrationService.getAutoAcceptSetting();
         setPreferences({ autoAcceptRegistrations });
       } catch (error) {
-        console.error("Failed to load connection preferences:", error);
+        debugLog('PreferencesDialog', 'Failed to load connection preferences:', error);
       } finally {
         setLoading(false);
       }
@@ -54,7 +55,7 @@ export const PreferencesDialog = () => {
         description: `Auto-accept is now ${checked ? "enabled" : "disabled"}`,
       });
     } catch (error) {
-      console.error("Failed to update auto-accept preference:", error);
+      debugLog('PreferencesDialog', 'Failed to update auto-accept preference:', error);
       // Revert the UI state on error
       setPreferences((prev) => ({ ...prev, autoAcceptRegistrations: !checked }));
       toast({

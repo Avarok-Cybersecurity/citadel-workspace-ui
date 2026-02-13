@@ -71,7 +71,7 @@ export class MessageAckHandler {
         this.config.notifyMessageStatusListeners(messageId, newStatus);
       });
     } else {
-      console.warn('[P2P] handleMessageAck: Message NOT FOUND in any conversation!', payload.message_id.slice(0, 8));
+      debugLog('MessageAckHandler', 'handleMessageAck: Message NOT FOUND in any conversation!', payload.message_id.slice(0, 8));
     }
   }
 

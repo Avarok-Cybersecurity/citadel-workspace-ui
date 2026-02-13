@@ -709,7 +709,7 @@ export class FileTransferService {
         eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, finalTransfer);
       }
     } catch (error) {
-      console.error('FileTransferService: Error streaming file', error);
+      debugLog('FileTransferService', 'Error streaming file', error);
       transfer.state = 'error';
       transfer.errorMessage = error instanceof Error ? error.message : 'Streaming failed';
       transfer.updatedAt = Date.now();
@@ -749,7 +749,7 @@ export class FileTransferService {
         `FileTransferService: File reassembled successfully: ${transfer.fileName} (${blob.size} bytes)`
       );
     } catch (error) {
-      console.error('FileTransferService: Error reassembling file', error);
+      debugLog('FileTransferService', 'Error reassembling file', error);
       transfer.state = 'error';
       transfer.errorMessage = error instanceof Error ? error.message : 'Reassembly failed';
       transfer.updatedAt = Date.now();
@@ -820,7 +820,7 @@ export const fileTransferService = FileTransferService.getInstance();
 
 // Auto-initialize
 fileTransferService.initialize().catch(err => {
-  console.error('FileTransferService: Auto-initialization failed:', err);
+  debugLog('FileTransferService', 'Auto-initialization failed:', err);
 });
 
 // Expose for testing

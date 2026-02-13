@@ -20,6 +20,7 @@ import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { PollingService } from '../utils/polling-service';
 import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface QueuedMessage {
   requestId: string;
@@ -57,7 +58,7 @@ export function isEnsureMessengerOpenResponse(data: unknown): data is { wasOpene
   );
 }
 
-const ACK_TIMEOUT_MS = 5000;
+const ACK_TIMEOUT_MS = TIMEOUT.SERVER_REQUEST_MS;
 const MAX_RETRIES = 3;
 const CHECK_INTERVAL_MS = 1000;
 
@@ -150,7 +151,7 @@ class OutboundQueue extends PollingService {
     debugLog('OutboundQueue', `[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
 
     if (result.status === 'error') {
-      console.error(`[OutboundQueue] Message failed: ${requestId}`, result.error);
+      debugLog('OutboundQueue', `Message failed: ${requestId}`, result.error);
       eventEmitter.emit('outbound-error', {
         requestId,
         error: result.error,
@@ -196,7 +197,7 @@ class OutboundQueue extends PollingService {
 
   private handleTimeout(requestId: string, message: QueuedMessage): void {
     if (message.retryCount >= MAX_RETRIES) {
-      console.error(`[OutboundQueue] Max retries exceeded for ${requestId}, giving up`);
+      debugLog('OutboundQueue', `Max retries exceeded for ${requestId}, giving up`);
 
       this.queue.delete(requestId);
 

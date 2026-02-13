@@ -127,7 +127,7 @@ export class MessageHandler {
         } else if (message instanceof Uint8Array) {
           messageBytes = message;
         } else {
-          console.error('Unexpected PeerMessage format (expected array or Uint8Array):', typeof message);
+          debugLog('P2PMessageHandler', 'Unexpected PeerMessage format (expected array or Uint8Array):', typeof message);
           return;
         }
         const command = deserializeP2PCommand(messageBytes);
@@ -136,7 +136,7 @@ export class MessageHandler {
           await this.handleP2PCommand(command, peerCidBigint);
         }
       } catch (error) {
-        console.error('Failed to deserialize P2P command:', error);
+        debugLog('P2PMessageHandler', 'Failed to deserialize P2P command:', error);
       }
     }
   }
@@ -192,7 +192,7 @@ export class MessageHandler {
       } else if (rawMessage instanceof Uint8Array) {
         contentBytes = rawMessage;
       } else {
-        console.error('Unexpected message format (expected array or Uint8Array):', typeof rawMessage);
+        debugLog('P2PMessageHandler', 'Unexpected message format (expected array or Uint8Array):', typeof rawMessage);
         return;
       }
 
@@ -231,13 +231,13 @@ export class MessageHandler {
       const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(peerCidBigint);
 
       if (!isAlreadyRegistered && !isAlreadyConnected) {
-        console.error(`[P2P] Received message from unregistered peer ${peerCidBigint.toString()} - protocol violation`);
+        debugLog('P2PMessageHandler', `Received message from unregistered peer ${peerCidBigint.toString()} - protocol violation`);
       }
 
       const command = deserializeP2PCommand(contentBytes);
       await this.handleP2PCommand(command, peerCidBigint, notificationCidBigint);
     } catch (error) {
-      console.error('Failed to deserialize P2P command:', error);
+      debugLog('P2PMessageHandler', 'Failed to deserialize P2P command:', error);
     }
   }
 
@@ -257,21 +257,21 @@ export class MessageHandler {
         if (isMessagingLayerPayload(command.payload)) {
           await this.handleMessagingLayerCommand(command.payload, peerCid, recipientCid);
         } else {
-          console.warn('[P2P] handleP2PCommand: MessagingLayerCommand payload failed type check');
+          debugLog('P2PMessageHandler', 'handleP2PCommand: MessagingLayerCommand payload failed type check');
         }
         break;
 
       case P2PCommandType.MessageAck:
-        debugLog('MessageHandler', '[P2P] handleP2PCommand: MessageAck branch reached');
+        debugLog('P2PMessageHandler', 'handleP2PCommand: MessageAck branch reached');
         if (isMessageAckPayload(command.payload)) {
           await this.handleMessageAck(command.payload);
         } else {
-          console.warn('[P2P] handleP2PCommand: MessageAck payload failed type check', command.payload);
+          debugLog('P2PMessageHandler', 'handleP2PCommand: MessageAck payload failed type check', command.payload);
         }
         break;
 
       default:
-        console.warn('[P2P] handleP2PCommand: Unknown command type:', command.type);
+        debugLog('P2PMessageHandler', 'handleP2PCommand: Unknown command type:', command.type);
     }
   }
 
@@ -342,7 +342,7 @@ export class MessageHandler {
       case MessagingLayerType.FileTransferComplete:
       case MessagingLayerType.FileTransferCancel:
       case MessagingLayerType.FileTransferChunk:
-        debugLog('MessageHandler', '[P2P] Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
+        debugLog('P2PMessageHandler', 'Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
         const effectiveRecipientCid = recipientCid || await this.config.getCurrentCid();
         eventEmitter.emit('p2p:file-transfer-message', {
           layer,
@@ -384,10 +384,10 @@ export class MessageHandler {
       try {
         await this.config.sendMessageAck(message.id, 'delivered', peerCid, recipientCid);
       } catch (error) {
-        debugLog('MessageHandler', '[P2P] Delivery ACK send failed (non-blocking):', error);
+        debugLog('P2PMessageHandler', 'Delivery ACK send failed (non-blocking):', error);
       }
 
-      debugLog('MessageHandler', '[P2P] Notifying listeners of new message:', message.id);
+      debugLog('P2PMessageHandler', 'Notifying listeners of new message:', message.id);
       this.config.notifyMessageListeners(message);
 
       eventEmitter.emit('p2p:message-received', {
@@ -413,7 +413,7 @@ export class MessageHandler {
         );
       }
     } else {
-      debugLog('MessageHandler', '[P2P] Skipping duplicate message notification:', message.id);
+      debugLog('P2PMessageHandler', 'Skipping duplicate message notification:', message.id);
     }
   }
 

@@ -83,7 +83,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
         onClose();
       },
       onError: (error) => {
-        console.error("Connection retry failed:", error);
+        debugLog('ConnectionRetryModal', 'Connection retry failed:', error);
       },
       onRetry: (attemptNum) => {
         debugLog('ConnectionRetryModal', `Retry attempt ${attemptNum} of ${maxRetries}`);

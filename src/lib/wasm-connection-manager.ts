@@ -20,9 +20,10 @@
 
 import { websocketService } from './websocket-service';
 import { debugLog } from './debug-config';
+import { INTERVAL } from './timeout-constants';
 
-const POLL_INTERVAL_VISIBLE_MS = 5000; // 5 seconds when tab is visible
-const POLL_INTERVAL_HIDDEN_MS = 30000; // 30 seconds when tab is hidden
+const POLL_INTERVAL_VISIBLE_MS = INTERVAL.LEADER_TIMEOUT_MS; // 5 seconds when tab is visible
+const POLL_INTERVAL_HIDDEN_MS = INTERVAL.HEALTH_CHECK_MS; // 30 seconds when tab is hidden
 const MAX_CONSECUTIVE_FAILURES = 5; // Circuit breaker threshold
 
 interface SessionState {

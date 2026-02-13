@@ -92,7 +92,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       const currentSession = await connectionManager.getTabSelectedSession();
 
       if (!currentSession) {
-        console.error('TopBar: No current session found');
+        debugLog('TopBar', 'No current session found');
         setDisconnectStatus("error");
         setDisconnectError("No active session found");
         return;
@@ -103,13 +103,13 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       const cid = tabSelection?.selectedCid ?? currentSession.cid;
 
       if (!cid) {
-        console.error('TopBar: No CID found for session');
+        debugLog('TopBar', 'No CID found for session');
         setDisconnectStatus("error");
         setDisconnectError("No active session CID found");
         return;
       }
 
-      debugLog('TopBar', 'TopBar: Fully signing out user', currentSession.username, 'CID:', cid.toString());
+      debugLog('TopBar', 'Fully signing out user', currentSession.username, 'CID:', cid.toString());
 
       // Full disconnect via WebSocket - pass the session info explicitly
       await connectionManager.disconnect({
@@ -131,7 +131,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
       setDisconnectStatus("ready");
 
     } catch (error) {
-      console.error('TopBar: Sign out failed', error);
+      debugLog('TopBar', 'Sign out failed', error);
       setDisconnectStatus("error");
       setDisconnectError("An error occurred while signing out");
     }

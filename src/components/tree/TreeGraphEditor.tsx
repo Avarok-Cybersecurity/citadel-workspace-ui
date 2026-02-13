@@ -103,7 +103,7 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
 
       // Validate move does not create a cycle
       if (wouldCreateCycle(treeStructure, moveSourceNodeId, targetNodeId)) {
-        console.error("Cannot move node: would create a cycle");
+        debugLog('TreeGraphEditor', 'Cannot move node: would create a cycle');
         setMoveSourceNodeId(null);
         return;
       }

@@ -3,6 +3,7 @@ import { FileText, Save, Download, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useState, useCallback } from 'react';
+import { debugLog } from '@/lib/debug-config';
 
 interface LiveDocumentViewProps {
   documentId: string;
@@ -111,7 +112,7 @@ export function LiveDocumentView({
             </div>
           }
           onError={(error) => {
-            console.error('[LiveDocumentView] CollaborativeEditor crashed:', error);
+            debugLog('LiveDocumentView', 'CollaborativeEditor crashed:', error);
           }}
         >
           <CollaborativeEditor

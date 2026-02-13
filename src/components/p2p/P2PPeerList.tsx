@@ -9,6 +9,7 @@ import { UserPlus, MessageCircle, Circle, Users, CheckCircle } from 'lucide-reac
 import { Badge } from '@/components/ui/badge';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
@@ -81,7 +82,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       loadPeers();
       loadAvailablePeers();
     };
-    initPeers().catch(console.error);
+    initPeers().catch(err => debugLog('P2PPeerList', 'Failed to init peers:', err));
 
     // Subscribe to message updates (uses messenger's internal event system)
     const unsubscribeMessage = messenger.onMessage(() => {
@@ -125,7 +126,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       setNewPeerCid('');
       loadPeers();
     } catch (error) {
-      console.error('Failed to add peer:', error);
+      debugLog('P2PPeerList', 'Failed to add peer:', error);
     } finally {
       setIsAddingPeer(false);
     }

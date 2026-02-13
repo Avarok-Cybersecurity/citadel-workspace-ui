@@ -152,7 +152,7 @@ export class ConnectionIO {
         const jsonStr = bytesToString(result.value);
         return JSON.parse(jsonStr) as StoredSessions;
       } catch (decodeError) {
-        console.error('ConnectionIO: Failed to decode stored sessions:', decodeError);
+        debugLog('ConnectionIO', 'Failed to decode stored sessions:', decodeError);
         return null;
       }
     }

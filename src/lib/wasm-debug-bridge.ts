@@ -129,7 +129,7 @@ export function setupWasmDebugBridge() {
   // Set up the WebSocket disconnection callback
   // This is called by the WASM module when the WebSocket connection dies
   window.onWasmWebSocketDisconnected = (reason: string) => {
-    console.error('[WASM Bridge] WebSocket disconnected:', reason);
+    debugLog('WasmDebugBridge', 'WebSocket disconnected:', reason);
 
     // Emit connection-failure event to show the retry modal
     eventEmitter.emit('connection-failure', {

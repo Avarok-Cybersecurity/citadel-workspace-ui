@@ -6,6 +6,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import { debugLog } from '../debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface FilePickerConfig {
   init: () => Promise<void>;
@@ -49,7 +50,7 @@ export class FilePicker {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('File picker timed out'));
-      }, 120000); // 2 minute timeout
+      }, TIMEOUT.FILE_PICKER_MS); // 2 minute timeout
 
       const handleMessage = (message: Record<string, unknown>) => {
         const msg = message as {

@@ -105,13 +105,13 @@ class LeaderOutboundHandler {
    */
   async handleOutboundRequest(request: OutboundRequest): Promise<void> {
     if (!this.isActive) {
-      console.warn('[LeaderOutboundHandler] Received request but not active (not leader)');
+      debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Not leader');
       return;
     }
 
     if (!this.websocketSendFn) {
-      console.error('[LeaderOutboundHandler] WebSocket send function not set');
+      debugLog('LeaderOutboundHandler', 'WebSocket send function not set');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
       return;
     }
@@ -119,7 +119,7 @@ class LeaderOutboundHandler {
     try {
       // Validate sender
       if (!this.isValidSender(request.senderInstanceId)) {
-        console.warn(`[LeaderOutboundHandler] Invalid sender: ${request.senderInstanceId}`);
+        debugLog('LeaderOutboundHandler', `Invalid sender: ${request.senderInstanceId}`);
         this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Invalid sender');
         return;
       }
@@ -134,7 +134,7 @@ class LeaderOutboundHandler {
         const client = websocketService.getClient();
 
         if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for workspace request');
+          debugLog('LeaderOutboundHandler', 'No WASM client available for workspace request');
           this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
           return;
         }
@@ -156,7 +156,7 @@ class LeaderOutboundHandler {
         const client = websocketService.getClient();
 
         if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for openMessenger');
+          debugLog('LeaderOutboundHandler', 'No WASM client available for openMessenger');
           this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
           return;
         }
@@ -176,7 +176,7 @@ class LeaderOutboundHandler {
         const client = websocketService.getClient();
 
         if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for ensureMessenger');
+          debugLog('LeaderOutboundHandler', 'No WASM client available for ensureMessenger');
           this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
           return;
         }
@@ -197,7 +197,7 @@ class LeaderOutboundHandler {
         const client = websocketService.getClient();
 
         if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for sendP2PMessage');
+          debugLog('LeaderOutboundHandler', 'No WASM client available for sendP2PMessage');
           this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
           return;
         }
@@ -232,7 +232,7 @@ class LeaderOutboundHandler {
       debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[LeaderOutboundHandler] Failed to process ${request.requestId}:`, error);
+      debugLog('LeaderOutboundHandler', `Failed to process ${request.requestId}:`, error);
       this.sendAck(request.senderInstanceId, request.requestId, 'error', errorMessage);
     }
   }

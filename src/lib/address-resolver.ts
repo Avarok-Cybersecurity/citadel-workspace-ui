@@ -1,4 +1,5 @@
 import { debugLog } from '@/lib/debug-config';
+import { NETWORK } from './timeout-constants';
 /**
  * Address Resolver
  *
@@ -8,7 +9,7 @@ import { debugLog } from '@/lib/debug-config';
  * - Default port is 12349 if not specified
  */
 
-const DEFAULT_PORT = 12349;
+const DEFAULT_PORT = NETWORK.WORKSPACE_SERVER_PORT;
 
 // IPv4 regex: matches 0-255 in each octet
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -182,7 +183,7 @@ async function resolveDNS(hostname: string): Promise<string> {
     return resolvedIP;
   } catch (error) {
     if (error instanceof Error) {
-      console.error(`DNS resolution error for '${hostname}':`, error.message);
+      debugLog('AddressResolver', `DNS resolution error for '${hostname}':`, error.message);
       throw new Error(`Cannot resolve hostname '${hostname}': ${error.message}`);
     }
     throw error;

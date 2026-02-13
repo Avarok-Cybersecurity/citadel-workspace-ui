@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -53,7 +54,7 @@ export function HierarchySidebar() {
       const typeName = getEntityTypeString(node.entity_type);
       toastSuccess(toast, `${typeName} Deleted`, `${node.name} has been deleted successfully`);
     } catch (error) {
-      console.error('Error deleting node:', error);
+      debugLog('HierarchySidebar', 'Error deleting node:', error);
       toastError(toast, 'Error', 'Failed to delete node. Please try again.');
     }
   }, [selectedNodeId, navigate, toast]);
@@ -92,7 +93,7 @@ export function HierarchySidebar() {
       const typeName = getEntityTypeString(node.entity_type);
       toastSuccess(toast, `Default ${typeName} Updated`, `${node.name} is now the default`);
     } catch (error) {
-      console.error('Error setting default:', error);
+      debugLog('HierarchySidebar', 'Error setting default:', error);
       toastError(toast, 'Error', 'Failed to set as default. Please try again.');
     }
   }, [toast]);

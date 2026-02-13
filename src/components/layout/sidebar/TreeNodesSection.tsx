@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
+import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -501,7 +502,7 @@ export function TreeNodesSection({
     try {
       await onNodeDelete(nodeToDelete);
     } catch (error) {
-      console.error("Error deleting node:", error);
+      debugLog('TreeNodesSection', 'Error deleting node:', error);
     } finally {
       setNodeToDelete(null);
     }

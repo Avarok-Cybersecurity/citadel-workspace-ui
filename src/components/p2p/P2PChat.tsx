@@ -11,6 +11,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { notificationService } from '@/lib/notification-service';
 import { MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { debugLog } from '@/lib/debug-config';
 import { ChatTabBar, ChatTab, MESSAGES_TAB, createLiveDocumentTab } from './ChatTabBar';
 import { useMarkdownFormat } from './MarkdownToolbar';
 import { LiveDocumentView } from './LiveDocumentView';
@@ -171,7 +172,7 @@ export function P2PChat({
       await messenger.sendMessage(peerCid, inputMessage, { messageType });
       setInputMessage('');
     } catch (error) {
-      console.error('Failed to send message:', error);
+      debugLog('P2PChat', 'Failed to send message:', error);
       toast({ variant: 'destructive', title: 'Failed to send message', description: 'Check your connection and try again.' });
     }
   };
@@ -201,7 +202,7 @@ export function P2PChat({
       setShowDocModal(false);
       setInputMessage('');
     } catch (error) {
-      console.error('Failed to create live document:', error);
+      debugLog('P2PChat', 'Failed to create live document:', error);
     }
   }, [peerCid, currentUserCid, handleOpenDocument, messenger]);
 

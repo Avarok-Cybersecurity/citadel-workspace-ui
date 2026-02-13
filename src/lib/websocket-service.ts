@@ -3,6 +3,7 @@ import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { connectionManager } from './connection';
 import { debugLog, errorLog } from './debug-config';
 import type { SessionSecuritySettings } from './security-utils';
+import { NETWORK } from './timeout-constants';
 
 // New multi-instance architecture imports
 import { instanceManager, instanceChannel, instanceInboundRouter } from './multi-instance';
@@ -54,7 +55,7 @@ class WebSocketService {
 
   constructor(config: WebSocketServiceConfig = {}) {
     this.config = {
-      websocketUrl: config.websocketUrl || import.meta.env.VITE_WS_URL || 'ws://localhost:12345',
+      websocketUrl: config.websocketUrl || import.meta.env.VITE_WS_URL || `ws://localhost:${NETWORK.INTERNAL_SERVICE_PORT}`,
       messageHandler: config.messageHandler,
       errorHandler: config.errorHandler,
     };
@@ -389,7 +390,7 @@ class WebSocketService {
     if (instanceManager.isLeader) {
       // LEADER: Send directly via WebSocket
       if (!this.client) {
-        console.error(`[WebSocketService] Leader without client, cannot send ${messageType}`);
+        debugLog('WebSocketService', `Leader without client, cannot send ${messageType}`);
         throw new Error('WebSocket client not available (leader without client)');
       }
       debugLog('WebsocketService', `[Leader] Sending ${messageType} directly`);
@@ -407,7 +408,7 @@ class WebSocketService {
       const result = await instanceChannel.sendToLeader(request, id);
 
       if (result.status === 'error') {
-        console.error(`[WebSocketService] Follower proxy failed for ${messageType}: ${result.error}`);
+        debugLog('WebSocketService', `Follower proxy failed for ${messageType}: ${result.error}`);
         throw new Error(`Leader failed to send request: ${result.error}`);
       }
 

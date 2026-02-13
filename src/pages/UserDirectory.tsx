@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { formatRelativeTime } from '@/lib/date-utils';
 import { UserRole } from '@/types/workspace-entities';
+import { debugLog } from '@/lib/debug-config';
 import {
   Dialog,
   DialogContent,
@@ -93,10 +94,10 @@ export const UserDirectory = () => {
         description: `Connection request sent to ${selectedUser.displayName}`,
         className: 'bg-[#343A5C] border-purple-800 text-purple-200',
       });
-      
+
       setRequestDialogOpen(false);
     } catch (error) {
-      console.error('Failed to send connection request:', error);
+      debugLog('UserDirectory', 'Failed to send connection request:', error);
       toast({
         title: 'Error',
         description: 'Failed to send connection request',

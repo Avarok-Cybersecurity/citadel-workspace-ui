@@ -169,7 +169,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 debugLog('Join', 'handleAuthSuccess completed, resolving promise');
                 resolve({ cid: connectSuccess.cid as string });
               })().catch(err => {
-                console.error('[Join] handleAuthSuccess failed:', err);
+                debugLog('Join', 'handleAuthSuccess failed:', err);
                 reject(err);
               });
             }
@@ -234,7 +234,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                   debugLog('Join', 'handleAuthSuccess completed (wrapped), resolving promise');
                   resolve({ cid: wrappedSuccess.cid as string });
                 })().catch(err => {
-                  console.error('[Join] handleAuthSuccess failed (wrapped):', err);
+                  debugLog('Join', 'handleAuthSuccess failed (wrapped):', err);
                   reject(err);
                 });
               }
@@ -296,7 +296,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
       // Show ready status - modal will auto-close and navigate via onComplete callback
       setConnectStatus("ready");
     } catch (error: unknown) {
-      console.error("Registration Error:", error); // Add logging
+      debugLog('Join', 'Registration Error:', error);
 
       // Close modal on error (unless it's workspace not initialized, which shows its own modal)
       const errorMessage = error instanceof Error ? error.message : String(error);

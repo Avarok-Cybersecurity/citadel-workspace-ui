@@ -9,6 +9,7 @@ import { requestResponse, requestResponseSoft } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
 import { getDefaultSecuritySettings } from '../security-utils';
 import { stringToBytes } from '../utils/encoding-utils';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface P2PConfig {
   init: () => Promise<void>;
@@ -93,7 +94,7 @@ export class P2POperations {
     };
 
     await requestResponse<true>({
-      request: peerConnectRequest, requestId, timeoutMs: 30000,
+      request: peerConnectRequest, requestId, timeoutMs: TIMEOUT.P2P_CONNECT_REQUEST_MS,
       sendRequest: this.config.sendMessage,
       operationName: 'PeerConnect',
       matcher: {
@@ -146,7 +147,7 @@ export class P2POperations {
     };
 
     await requestResponseSoft({
-      request: acceptRequest, requestId, timeoutMs: 10000,
+      request: acceptRequest, requestId, timeoutMs: TIMEOUT.P2P_ACCEPT_REQUEST_MS,
       sendRequest: this.config.sendMessage,
       operationName: 'PeerConnectAccept',
       matchSuccess: (msg) => {
@@ -164,8 +165,8 @@ export class P2POperations {
         }
         return undefined;
       },
-      onTimeout: () => console.warn('PeerConnectAccept timed out - continuing with PeerConnect fallback'),
-      onFailure: (error) => console.warn('PeerConnectAccept failed:', error, '- will use PeerConnect fallback'),
+      onTimeout: () => debugLog('P2POperations', 'PeerConnectAccept timed out - continuing with PeerConnect fallback'),
+      onFailure: (error) => debugLog('P2POperations', 'PeerConnectAccept failed:', error, '- will use PeerConnect fallback'),
     });
   }
 
@@ -192,7 +193,7 @@ export class P2POperations {
     };
 
     await requestResponse<true>({
-      request: peerDisconnectRequest, requestId, timeoutMs: 10000,
+      request: peerDisconnectRequest, requestId, timeoutMs: TIMEOUT.P2P_DISCONNECT_MS,
       sendRequest: this.config.sendMessage,
       operationName: 'PeerDisconnect',
       matcher: {

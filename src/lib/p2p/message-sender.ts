@@ -78,7 +78,7 @@ export class MessageSender {
         });
         debugLog('MessageSender', `Successfully registered peer ${recipientCid.toString()}`);
       } catch (error) {
-        console.error(`Failed to register peer ${recipientCid.toString()}:`, error);
+        debugLog('MessageSender', `Failed to register peer ${recipientCid.toString()}:`, error);
         throw new Error(`Failed to register peer for P2P communication: ${error}`);
       }
     } else {
@@ -149,7 +149,7 @@ export class MessageSender {
       message.status = 'failed';
       message.error = error instanceof Error ? error.message : 'Failed to send';
       this.config.notifyMessageStatusListeners(messageId, 'failed');
-      console.error(`[P2P] Message ${messageId} FAILED after ${Date.now() - sendStartTime}ms:`, error);
+      debugLog('MessageSender', `Message ${messageId} FAILED after ${Date.now() - sendStartTime}ms:`, error);
       throw error;
     }
 

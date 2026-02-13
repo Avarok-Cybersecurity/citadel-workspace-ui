@@ -124,7 +124,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         const success = getVariant(message, 'PeerRegisterSuccess')!;
         const peerCid = (success.peer_cid as bigint | undefined)?.toString();
         if (peerCid) {
-          debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerRegisterSuccess - marking peer as connected:', peerCid);
+          debugLog('PeerDiscoveryModal', 'PeerRegisterSuccess - marking peer as connected:', peerCid);
           setRegisteredPeers(prev => new Set([...prev, peerCid]));
         }
       }
@@ -133,7 +133,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         const success = getVariant(message, 'PeerConnectSuccess')!;
         const peerCid = (success.peer_cid as bigint | undefined)?.toString();
         if (peerCid) {
-          debugLog('PeerDiscoveryModal', '[PeerDiscoveryModal] PeerConnectSuccess - marking peer as connected:', peerCid);
+          debugLog('PeerDiscoveryModal', 'PeerConnectSuccess - marking peer as connected:', peerCid);
           setRegisteredPeers(prev => new Set([...prev, peerCid]));
         }
       }
@@ -206,7 +206,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
     // Convert sessions to Peer format
     const sessions: SessionEntry[] = response.sessions || [];
-    debugLog('PeerDiscoveryModal', '[PeerDiscovery] GetSessions returned', sessions.length, 'sessions');
+    debugLog('PeerDiscoveryModal', 'GetSessions returned', sessions.length, 'sessions');
 
     return sessions
       .filter((s) => s.cid.toString() !== currentCid?.toString()) // Filter out self
@@ -276,7 +276,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       }
       setRegisteredPeers(registered);
     } catch (error) {
-      console.error('Failed to load registered peers:', error);
+      debugLog('PeerDiscoveryModal', 'Failed to load registered peers:', error);
     }
   }, [currentCid]);
 
@@ -353,19 +353,19 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
       // Try to get registered peers but don't block on it
       loadRegisteredPeers().catch(err => {
-        console.warn('Could not load registered peers:', err);
+        debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err);
         // Continue anyway - we can still show peers without registration status
       });
 
       // If ListAllPeers returns empty, try GetSessions as fallback
       // GetSessions queries the internal service's session map directly
       if (processedPeers.length === 0) {
-        debugLog('PeerDiscoveryModal', '[PeerDiscovery] ListAllPeers returned empty, trying GetSessions fallback...');
+        debugLog('PeerDiscoveryModal', 'ListAllPeers returned empty, trying GetSessions fallback...');
         const sessionPeers = await discoverPeersViaGetSessions();
         if (sessionPeers.length > 0) {
           setPeers(sessionPeers);
           loadRegisteredPeers().catch(err => {
-            console.warn('Could not load registered peers:', err);
+            debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err);
           });
           toastSuccess(toast, "Peers Discovered", `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`);
           return;
@@ -375,21 +375,21 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         toastSuccess(toast, "Peers Discovered", `Found ${processedPeers.length} other user${processedPeers.length > 1 ? 's' : ''} in the workspace`);
       }
     } catch (error) {
-      console.error('Failed to discover peers via ListAllPeers:', error);
+      debugLog('PeerDiscoveryModal', 'Failed to discover peers via ListAllPeers:', error);
       // Try GetSessions as fallback on error
       try {
-        debugLog('PeerDiscoveryModal', '[PeerDiscovery] ListAllPeers failed, trying GetSessions fallback...');
+        debugLog('PeerDiscoveryModal', 'ListAllPeers failed, trying GetSessions fallback...');
         const sessionPeers = await discoverPeersViaGetSessions();
         if (sessionPeers.length > 0) {
           setPeers(sessionPeers);
           loadRegisteredPeers().catch(err => {
-            console.warn('Could not load registered peers:', err);
+            debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err);
           });
           toastSuccess(toast, "Peers Discovered", `Found ${sessionPeers.length} other user${sessionPeers.length > 1 ? 's' : ''} via session lookup`);
           return;
         }
       } catch (fallbackError) {
-        console.error('GetSessions fallback also failed:', fallbackError);
+        debugLog('PeerDiscoveryModal', 'GetSessions fallback also failed:', fallbackError);
       }
       toastError(toast, "Discovery Failed", "Could not discover peers in the workspace");
     } finally {
@@ -476,7 +476,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
       // The peerRegistrationStore handles PeerRegisterSuccess/Failure events
       // and will automatically remove from outgoing + update UI via event emitter
     } catch (error) {
-      console.error('Failed to send registration request:', error);
+      debugLog('PeerDiscoveryModal', 'Failed to send registration request:', error);
       toastError(toast, "Request Failed", "Could not send registration request");
     }
   };

@@ -5,6 +5,7 @@
  */
 
 import { requestResponse } from './request-response';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface LocalDBConfig {
   init: () => Promise<void>;
@@ -27,7 +28,7 @@ export class LocalDBOperations {
     };
 
     return requestResponse<{ value: number[] }>({
-      request, requestId, timeoutMs: 5000,
+      request, requestId, timeoutMs: TIMEOUT.LOCALDB_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'LocalDBGetKV',
       matcher: {
@@ -56,7 +57,7 @@ export class LocalDBOperations {
     };
 
     await requestResponse<true>({
-      request, requestId, timeoutMs: 5000,
+      request, requestId, timeoutMs: TIMEOUT.LOCALDB_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'LocalDBSetKV',
       matcher: {
@@ -83,7 +84,7 @@ export class LocalDBOperations {
     };
 
     await requestResponse<true>({
-      request, requestId, timeoutMs: 5000,
+      request, requestId, timeoutMs: TIMEOUT.LOCALDB_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'LocalDBDeleteKV',
       matcher: {
@@ -110,7 +111,7 @@ export class LocalDBOperations {
     };
 
     return requestResponse<string[]>({
-      request, requestId, timeoutMs: 5000,
+      request, requestId, timeoutMs: TIMEOUT.LOCALDB_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'LocalDBGetAllKV',
       matcher: {

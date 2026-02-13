@@ -7,6 +7,7 @@
 
 import { requestResponse } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface DisconnectConfig {
   init: () => Promise<void>;
@@ -40,7 +41,7 @@ export class DisconnectOperations {
     debugLog('websocket', 'Sending Disconnect request', request);
 
     await requestResponse<true>({
-      request, requestId, timeoutMs: 30000,
+      request, requestId, timeoutMs: TIMEOUT.DISCONNECT_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'Disconnect',
       matcher: {
@@ -90,7 +91,7 @@ export class DisconnectOperations {
     debugLog('websocket', 'Sending Deregister request', request);
 
     await requestResponse<true>({
-      request, requestId, timeoutMs: 30000,
+      request, requestId, timeoutMs: TIMEOUT.DISCONNECT_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'Deregister',
       matcher: {

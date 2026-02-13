@@ -126,7 +126,7 @@ export const WorkspaceEventHandler: React.FC<{
         debugLog('WorkspaceEventHandler', `Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
 
         if (!payload.contents) {
-          console.warn('Received message event without contents');
+          debugLog('WorkspaceEventHandler', 'Received message event without contents');
           return;
         }
 
@@ -202,7 +202,7 @@ export const WorkspaceEventHandler: React.FC<{
           needsWorkspaceInitialization: payload.message.includes('No workspace found')
         }));
 
-        console.error(`Operation error:`, payload.message);
+        debugLog('WorkspaceEventHandler', 'Operation error:', payload.message);
 
         if (payload.message.includes('No workspace found')) {
           debugLog('WorkspaceEventHandler', 'Workspace initialization needed - showing modal');
@@ -225,7 +225,7 @@ export const WorkspaceEventHandler: React.FC<{
 
     const setupProtocolWarningHandling = async () => {
       await workspaceEvents.onProtocolEvent('protocol:warning', (payload: ProtocolWarningPayload) => {
-        console.warn(`Protocol warning: ${payload.message}`, {
+        debugLog('WorkspaceEventHandler', `Protocol warning: ${payload.message}`, {
           requestType: payload.requestType,
           connectionInfo: payload.connection
         });
@@ -271,7 +271,7 @@ export const WorkspaceEventHandler: React.FC<{
     try {
       throw new Error('sendMessage not implemented - use WorkspaceService.sendWorkspaceRequest instead');
     } catch (error) {
-      console.error('Error sending message:', error);
+      debugLog('WorkspaceEventHandler', 'Error sending message:', error);
       setState(prev => ({
         ...prev,
         error: `Failed to send message: ${error}`
@@ -300,7 +300,7 @@ export const WorkspaceEventHandler: React.FC<{
         debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization');
       })
       .catch(error => {
-        console.error('Error reloading workspace after initialization:', error);
+        debugLog('WorkspaceEventHandler', 'Error reloading workspace after initialization:', error);
       });
   };
 

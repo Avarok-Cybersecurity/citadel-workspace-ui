@@ -4,6 +4,7 @@ import { DialogContent, DialogHeader, DialogTitle, DialogDescription, Dialog } f
 import { Image, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface MediaUploaderProps {
   open: boolean;
@@ -75,7 +76,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
       };
       reader.readAsDataURL(file);
     } catch (error) {
-      console.error('Error handling file:', error);
+      debugLog('MediaUploader', 'Error handling file:', error);
       toast({
         title: 'Upload failed',
         description: 'There was a problem uploading your image',

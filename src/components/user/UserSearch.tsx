@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { debugLog } from '@/lib/debug-config';
 import { Search, User, UserPlus, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -113,7 +114,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
         setResults(filteredMembers);
       } catch (error) {
-        console.error('Error searching users:', error);
+        debugLog('UserSearch', 'Error searching users:', error);
       } finally {
         setLoading(false);
       }

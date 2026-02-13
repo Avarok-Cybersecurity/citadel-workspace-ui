@@ -58,12 +58,12 @@ export class AuthOperations {
           await this.config.claimSession(existingSession.cid, false);
           return;
         } else {
-          console.warn(`[Connect] Session exists but not orphaned - disconnecting first`);
+          debugLog('AuthOperations', '[Connect] Session exists but not orphaned - disconnecting first');
           await this.config.disconnect(existingSession.cid);
         }
       }
     } catch (error) {
-      console.warn(`[Connect] Session check failed, proceeding with Connect:`, error);
+      debugLog('AuthOperations', '[Connect] Session check failed, proceeding with Connect:', error);
     }
 
     // Proceed with Connect request
@@ -96,7 +96,7 @@ export class AuthOperations {
       await this.config.sendRequest(connectRequest, requestId);
       debugLog('AuthOperations', `[Connect] Connect request sent successfully for ${username}`);
     } catch (sendError) {
-      console.error(`[Connect] FAILED to send Connect request:`, sendError);
+      debugLog('AuthOperations', '[Connect] FAILED to send Connect request:', sendError);
       throw sendError;
     }
   }

@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { listKnownServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 export const Connect = () => {
   const navigate = useNavigate();
@@ -25,9 +26,9 @@ export const Connect = () => {
         setSelectedServer(response.servers[0].serverAddress);
       }
     } catch (error: unknown) {
-      console.error("Error fetching known servers:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Error details:", errorMessage);
+      debugLog('Connect', 'Error fetching known servers:', error);
+      debugLog('Connect', 'Error details:', errorMessage);
       toast({
         title: "Error",
         description: "Failed to load saved workspaces",
@@ -64,9 +65,9 @@ export const Connect = () => {
       
       navigate(getWorkspacePath());
     } catch (error: unknown) {
-      console.error("Error connecting to server:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Connection error details:", errorMessage);
+      debugLog('Connect', 'Error connecting to server:', error);
+      debugLog('Connect', 'Connection error details:', errorMessage);
       toast({
         title: "Connection Failed",
         description: `Failed to connect to ${selectedServer}: ${errorMessage}`,

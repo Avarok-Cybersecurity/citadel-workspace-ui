@@ -75,7 +75,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
         setGroups(parsed);
       }
     } catch (e) {
-      console.error('[useGroupConversations] Failed to load from storage:', e);
+      debugLog('UseGroupConversations', 'Failed to load from storage:', e);
     }
     setLoading(false);
   }, []);
@@ -86,7 +86,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
       } catch (e) {
-        console.error('[useGroupConversations] Failed to save to storage:', e);
+        debugLog('UseGroupConversations', 'Failed to save to storage:', e);
       }
     }
   }, [groups, loading]);

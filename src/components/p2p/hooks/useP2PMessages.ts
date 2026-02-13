@@ -11,6 +11,7 @@ import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { P2PMessage, PeerPresence } from '@/lib/p2p';
 
@@ -115,7 +116,7 @@ export function useP2PMessages({
         if (message.senderCid === peerCid) {
           if (activeTabIdRef.current !== 'messages') onUnreadMessage();
           if (document.visibilityState === 'visible' && activeTabIdRef.current === 'messages') {
-            messenger.markMessagesAsRead(peerCid, [message.id]).catch(console.error);
+            messenger.markMessagesAsRead(peerCid, [message.id]).catch(err => debugLog('useP2PMessages', 'Error:', err));
           }
         }
       }
@@ -175,7 +176,7 @@ export function useP2PMessages({
     setIsRegistered(p2pRegistrationService.isPeerRegistered(peerCid));
 
     if (document.visibilityState === 'visible') {
-      messenger.markMessagesAsRead(peerCid).catch(console.error);
+      messenger.markMessagesAsRead(peerCid).catch(err => debugLog('useP2PMessages', 'Error:', err));
     }
 
     const refreshTimeout = setTimeout(() => {
@@ -196,7 +197,7 @@ export function useP2PMessages({
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        messenger.markMessagesAsRead(peerCid).catch(console.error);
+        messenger.markMessagesAsRead(peerCid).catch(err => debugLog('useP2PMessages', 'Error:', err));
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -246,7 +247,7 @@ export function useP2PMessages({
         setHasMorePages(false);
       }
     } catch (error) {
-      console.error('[useP2PMessages] Failed to load older messages:', error);
+      debugLog('useP2PMessages', 'Failed to load older messages:', error);
     } finally {
       setIsLoadingMore(false);
     }
@@ -264,7 +265,7 @@ export function useP2PMessages({
     try {
       await messenger.resendMessage(peerCid, message.id);
     } catch (error) {
-      console.error('Failed to retry message:', error);
+      debugLog('useP2PMessages', 'Failed to retry message:', error);
     }
   }, [peerCid, messenger]);
 

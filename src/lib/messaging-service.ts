@@ -128,7 +128,7 @@ export class MessagingService {
 
       return sentMessage;
     } catch (error: unknown) {
-      console.error('Error sending message:', error);
+      debugLog('MessagingService', 'Error sending message:', error);
 
       // Show error notification
       this.notificationService.addSystemNotification(
@@ -165,7 +165,7 @@ export class MessagingService {
       // Attempt to send the message again
       return await this.sendMessage(message.recipientId, message.content);
     } catch (error) {
-      console.error('Error resending message:', error);
+      debugLog('MessagingService', 'Error resending message:', error);
       return {
         ...message,
         error: 'Failed to resend message'
@@ -178,7 +178,7 @@ export class MessagingService {
       // For now, just log this action
       debugLog('MessagingService', `Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
     } catch (error) {
-      console.error('Error sending typing indicator:', error);
+      debugLog('MessagingService', 'Error sending typing indicator:', error);
     }
   }
 

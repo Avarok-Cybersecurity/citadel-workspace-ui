@@ -64,7 +64,7 @@ export function formatForDebug(obj: unknown): unknown {
   }
   
   // Handle objects
-  if (typeof obj === 'object') {
+  if (typeof obj === 'object' && obj !== null) {
     const formatted: Record<string, unknown> = {};
     
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {

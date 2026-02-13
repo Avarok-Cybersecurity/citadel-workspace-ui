@@ -6,6 +6,7 @@ import type { P2PNotificationData } from '@/types/ws-message-types';
 import { PollingService } from './utils/polling-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { INTERVAL } from './timeout-constants';
 
 export interface BroadcastMessage {
   type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message' | 'p2p-notification';
@@ -28,9 +29,19 @@ interface LeaderElectionMessage {
   priority: number;
 }
 
+function isLeaderElectionMessage(data: unknown): data is LeaderElectionMessage {
+  if (typeof data !== 'object' || data === null) return false;
+  const record = data as Record<string, unknown>;
+  return (
+    typeof record.tabId === 'string' &&
+    typeof record.timestamp === 'number' &&
+    typeof record.priority === 'number'
+  );
+}
+
 const CHANNEL_NAME = 'citadel-workspace-sync';
 const REQUEST_EXPIRY_MS = 30 * 60 * 1000;
-const CLEANUP_INTERVAL_MS = 60000;
+const CLEANUP_INTERVAL_MS = INTERVAL.CLEANUP_MS;
 
 /**
  * BroadcastChannelService handles cross-tab communication for workspace state synchronization
@@ -91,7 +102,7 @@ export class BroadcastChannelService extends PollingService {
 
   private initialize(): void {
     if (typeof BroadcastChannel === 'undefined') {
-      console.warn('BroadcastChannel API not supported in this browser');
+      debugLog('BroadcastChannelService', 'BroadcastChannel API not supported in this browser');
       return;
     }
 
@@ -102,7 +113,7 @@ export class BroadcastChannelService extends PollingService {
       this.startPolling();
       debugLog('BroadcastChannelService', `BroadcastChannelService: Initialized with tabId ${this.tabId}`);
     } catch (error) {
-      console.error('BroadcastChannelService: Failed to initialize', error);
+      debugLog('BroadcastChannelService', 'Failed to initialize', error);
     }
   }
 
@@ -145,7 +156,7 @@ export class BroadcastChannelService extends PollingService {
     };
 
     this.channel.addEventListener('messageerror', (event: MessageEvent) => {
-      console.error('BroadcastChannelService: Channel error', event);
+      debugLog('BroadcastChannelService', 'Channel error', event);
     });
   }
 
@@ -197,15 +208,19 @@ export class BroadcastChannelService extends PollingService {
   }
 
   private handleLeaderElection(message: BroadcastMessage): void {
-    const electionData = message.data as unknown as LeaderElectionMessage;
-    
+    if (!isLeaderElectionMessage(message.data)) {
+      debugLog('BroadcastChannelService', 'Invalid leader election message data, ignoring');
+      return;
+    }
+    const electionData = message.data;
+
     if (message.isLeader) {
       // Another tab is claiming leadership
       this.lastLeaderHeartbeat = Date.now();
-      
+
       if (this.isLeader && electionData.tabId !== this.tabId) {
         // We're no longer the leader
-        debugLog('BroadcastChannelService', `BroadcastChannelService: Tab ${electionData.tabId} is now the leader`);
+        debugLog('BroadcastChannelService', `Tab ${electionData.tabId} is now the leader`);
         this.isLeader = false;
         eventEmitter.emit('leader-changed', { isLeader: false, leaderId: electionData.tabId });
       }
@@ -339,7 +354,7 @@ export class BroadcastChannelService extends PollingService {
    */
   public broadcastWorkspaceResponse(response: InternalServiceResponse): void {
     if (!this.isLeader) {
-      console.warn('BroadcastChannelService: Only the leader can broadcast workspace responses');
+      debugLog('BroadcastChannelService', 'Only the leader can broadcast workspace responses');
       return;
     }
     // Debug: log what type of response is being broadcast
@@ -465,7 +480,7 @@ export class BroadcastChannelService extends PollingService {
     try {
       this.channel.postMessage(message);
     } catch (error) {
-      console.error('BroadcastChannelService: Failed to broadcast message', error);
+      debugLog('BroadcastChannelService', 'Failed to broadcast message', error);
     }
   }
 

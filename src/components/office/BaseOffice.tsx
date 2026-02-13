@@ -75,7 +75,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         className: "bg-[#343A5C] border-purple-800 text-purple-200",
       });
     } catch (error) {
-      console.error('Failed to save MDX content:', error);
+      debugLog('BaseOffice', 'Failed to save MDX content:', error);
       toast({
         title: "Error saving changes",
         description: "There was a problem saving your changes. Please try again.",
@@ -109,7 +109,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         debugLog('BaseOffice', 'MDX compilation successful');
         setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
-        console.error('Error compiling MDX:', error);
+        debugLog('BaseOffice', 'Error compiling MDX:', error);
       }
     };
 

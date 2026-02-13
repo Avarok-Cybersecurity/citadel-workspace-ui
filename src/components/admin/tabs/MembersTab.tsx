@@ -21,6 +21,7 @@ import { PermissionManager } from '@/components/permissions/PermissionManager';
 import { Loader2, UserMinus, Shield } from 'lucide-react';
 import { getUserInitials } from '@/lib/workspace-metadata-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 const ROLE_COLORS: Record<UserRole, string> = {
   Admin: 'bg-red-500',
@@ -78,7 +79,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
         }
       }
     } catch (error) {
-      console.error('Failed to load members:', error);
+      debugLog('MembersTab', 'Failed to load members:', error);
       toast({
         title: 'Error',
         description: 'Failed to load members',
@@ -106,7 +107,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
         className: 'bg-[#343A5C] border-purple-800 text-purple-200',
       });
     } catch (error) {
-      console.error('Failed to update role:', error);
+      debugLog('MembersTab', 'Failed to update role:', error);
       toast({
         title: 'Error',
         description: 'Failed to update member role',
@@ -135,7 +136,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
         className: 'bg-[#343A5C] border-purple-800 text-purple-200',
       });
     } catch (error) {
-      console.error('Failed to remove member:', error);
+      debugLog('MembersTab', 'Failed to remove member:', error);
       toast({
         title: 'Error',
         description: 'Failed to remove member',

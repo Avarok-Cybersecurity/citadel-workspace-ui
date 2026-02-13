@@ -1,6 +1,5 @@
 import { SecurityLevel } from '@/types';
 import { WorkspaceProtocolPayloadTS, WorkspaceProtocolRequestTS, GroupMessageTypeTS, PermissionTS, UpdateOperationTS, UserRoleTS } from '@/types/workspace-protocol';
-import { GroupMessageType } from '@/types/workspace-entities';
 import { websocketService } from './websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { isVariant } from 'citadel-workspace-client-ts';
@@ -120,10 +119,10 @@ export class WorkspaceService {
 
     } catch (error) {
       if (error instanceof Error) {
-        console.error(`[WorkspaceService] Error sending request:`, error.message);
+        debugLog('WorkspaceService', 'Error sending request:', error.message);
         throw error;
       } else {
-        console.error(`[WorkspaceService] Unknown error sending request:`, error);
+        debugLog('WorkspaceService', 'Unknown error sending request:', error);
         throw new Error('An unknown error occurred while sending the workspace request.');
       }
     }

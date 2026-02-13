@@ -32,8 +32,9 @@ import { MessageHandler } from './message-handler';
 import { MessageSender } from './message-sender';
 import { ConversationManager } from './conversation-manager';
 import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
-const CHECKSTATE_TIMEOUT = 3000;
+const CHECKSTATE_TIMEOUT = TIMEOUT.CHECKSTATE_MS;
 
 export class P2PMessengerManager extends EventListenerManager {
   private static instance: P2PMessengerManager;
@@ -344,7 +345,7 @@ export class P2PMessengerManager extends EventListenerManager {
         }
       }
     } catch (error) {
-      console.warn('[P2P] syncConnectionsFromBackend: Failed to sync connections:', error);
+      debugLog('P2PMessengerManager', 'syncConnectionsFromBackend: Failed to sync connections:', error);
     }
   }
 

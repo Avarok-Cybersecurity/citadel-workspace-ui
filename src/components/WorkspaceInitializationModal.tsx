@@ -130,10 +130,10 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                     await WorkspaceService.getUserPermissions(username, 'workspace-root');
                     debugLog('WorkspaceInitializationModal', 'User permissions loaded after workspace initialization for:', username);
                 } else {
-                    console.warn('No username available to load permissions');
+                    debugLog('WorkspaceInitializationModal', 'No username available to load permissions');
                 }
             } catch (permErr) {
-                console.warn('Failed to load user permissions after initialization:', permErr);
+                debugLog('WorkspaceInitializationModal', 'Failed to load user permissions after initialization:', permErr);
                 // Don't fail the initialization, just warn
             }
 
@@ -149,7 +149,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             // Call success callback
             onSuccess();
         } catch (err: unknown) {
-            console.error("Failed to initialize workspace:", err);
+            debugLog('WorkspaceInitializationModal', 'Failed to initialize workspace:', err);
             const errArg = err instanceof Error ? err : String(err);
             const userFriendlyMessage = getUserFriendlyErrorMessage(errArg);
             setError(userFriendlyMessage);

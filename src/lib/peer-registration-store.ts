@@ -19,6 +19,7 @@ import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
+import { TIMEOUT } from './timeout-constants';
 
 export interface PendingPeerRequest {
   id: string;              // UUID for this request
@@ -43,7 +44,7 @@ export interface OutgoingPeerRequest {
 
 const STORAGE_KEY = 'pending_peer_requests';
 const OUTGOING_STORAGE_KEY = 'outgoing_peer_requests';
-const REQUEST_TIMEOUT_MS = 5000;
+const REQUEST_TIMEOUT_MS = TIMEOUT.LOCALDB_REQUEST_MS;
 // Outgoing request poll loop - default 5m, but 30s for testing
 const OUTGOING_POLL_INTERVAL_MS = 5 * 60 * 1000;
 // How long since last send before we resend (matches poll interval)
@@ -115,7 +116,7 @@ class PeerRegistrationStore {
     debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Starting outgoing request poll loop (interval:', OUTGOING_POLL_INTERVAL_MS, 'ms)');
     this.pollIntervalId = setInterval(() => {
       this.pollAndResend().catch(err => {
-        console.error('PeerRegistrationStore: Poll loop error:', err);
+        debugLog('PeerRegistrationStore', 'Poll loop error:', err);
       });
     }, OUTGOING_POLL_INTERVAL_MS);
   }
@@ -173,7 +174,7 @@ class PeerRegistrationStore {
 
       // Skip if toCid is invalid (defensive - should be filtered on load)
       if (!request.toCid) {
-        console.warn('PeerRegistrationStore: Removing invalid request without toCid');
+        debugLog('PeerRegistrationStore', 'Removing invalid request without toCid');
         toRemove.push(request.id);
         continue;
       }
@@ -199,10 +200,10 @@ class PeerRegistrationStore {
             needsPersist = true;
           } else if (errorMsg.includes('Ratchet does not exist')) {
             // Ratchet error means peer relationship is broken - remove stale request
-            console.warn(`PeerRegistrationStore: Ratchet error for ${request.peerUsername}, removing stale request`);
+            debugLog('PeerRegistrationStore', `Ratchet error for ${request.peerUsername}, removing stale request`);
             toRemove.push(request.id);
           } else {
-            console.error('PeerRegistrationStore: Failed to resend to', request.peerUsername, ':', errorMsg);
+            debugLog('PeerRegistrationStore', 'Failed to resend to', request.peerUsername, ':', errorMsg);
           }
         }
       }
@@ -344,11 +345,11 @@ class PeerRegistrationStore {
   public async addOutgoingRequest(request: OutgoingPeerRequest): Promise<void> {
     // Validate required fields - toCid is mandatory
     if (!request.toCid) {
-      console.error('PeerRegistrationStore: Cannot add outgoing request without toCid');
+      debugLog('PeerRegistrationStore', 'Cannot add outgoing request without toCid');
       return;
     }
     if (!request.fromCid) {
-      console.error('PeerRegistrationStore: Cannot add outgoing request without fromCid');
+      debugLog('PeerRegistrationStore', 'Cannot add outgoing request without fromCid');
       return;
     }
 
@@ -423,12 +424,12 @@ class PeerRegistrationStore {
     const notificationTargetCid: bigint | undefined = notification.cid;
 
     if (peerCid === undefined) {
-      console.warn('PeerRegistrationStore: Invalid notification - missing peer_cid');
+      debugLog('PeerRegistrationStore', 'Invalid notification - missing peer_cid');
       return;
     }
 
     if (notificationTargetCid === undefined) {
-      console.warn('PeerRegistrationStore: Invalid notification - missing target cid');
+      debugLog('PeerRegistrationStore', 'Invalid notification - missing target cid');
       return;
     }
 
@@ -480,8 +481,8 @@ class PeerRegistrationStore {
       request.peer_username,
       request.peer_cid.toString(),
       request.id,
-      () => this.acceptRequest(request.id).catch(console.error),
-      () => this.declineRequest(request.id).catch(console.error),
+      () => this.acceptRequest(request.id).catch((err: unknown) => debugLog('PeerRegistrationStore', 'accept request failed:', err)),
+      () => this.declineRequest(request.id).catch((err: unknown) => debugLog('PeerRegistrationStore', 'decline request failed:', err)),
       () => eventEmitter.emit('open-pending-requests-modal'),
       request.cid.toString() // Recipient's CID for per-session notification badges
     );
@@ -561,7 +562,7 @@ class PeerRegistrationStore {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('Registration request timed out'));
-      }, 10000);
+      }, TIMEOUT.PEER_REGISTER_MS);
 
       const handleMessage = (raw: unknown) => {
         const message = narrowWebSocketMessage(raw);
@@ -658,7 +659,7 @@ class PeerRegistrationStore {
 
     // Trigger auto-connect to the newly registered peer
     p2pAutoConnectService.connectToPeer(request.peer_cid).catch((err) => {
-      console.warn('PeerRegistrationStore: Auto-connect after accept failed:', err);
+      debugLog('PeerRegistrationStore', 'Auto-connect after accept failed:', err);
     });
   }
 
@@ -724,14 +725,14 @@ class PeerRegistrationStore {
       const client = websocketService.getClient();
       if (!client) {
         this.pendingKVRequests.delete(requestId);
-        console.warn('PeerRegistrationStore: No WebSocket client - skipping persist');
+        debugLog('PeerRegistrationStore', 'No WebSocket client - skipping persist');
         resolve(undefined);
         return;
       }
 
       client.sendDirectToInternalService(request)
         .catch(error => {
-          console.error('PeerRegistrationStore: Failed to persist:', error);
+          debugLog('PeerRegistrationStore', 'Failed to persist:', error);
           this.pendingKVRequests.delete(requestId);
           reject(error);
         });
@@ -739,7 +740,7 @@ class PeerRegistrationStore {
       setTimeout(() => {
         if (this.pendingKVRequests.has(requestId)) {
           this.pendingKVRequests.delete(requestId);
-          console.warn('PeerRegistrationStore: Persist timed out');
+          debugLog('PeerRegistrationStore', 'Persist timed out');
           resolve(undefined); // Don't fail on timeout
         }
       }, REQUEST_TIMEOUT_MS);
@@ -778,7 +779,7 @@ class PeerRegistrationStore {
           resolve(undefined);
         },
         reject: () => {
-          console.warn('PeerRegistrationStore: Failed to load from LocalDB');
+          debugLog('PeerRegistrationStore', 'Failed to load from LocalDB');
           resolve(undefined);
         }
       });
@@ -786,14 +787,14 @@ class PeerRegistrationStore {
       const client = websocketService.getClient();
       if (!client) {
         this.pendingKVRequests.delete(requestId);
-        console.warn('PeerRegistrationStore: No WebSocket client - skipping load');
+        debugLog('PeerRegistrationStore', 'No WebSocket client - skipping load');
         resolve(undefined);
         return;
       }
 
       client.sendDirectToInternalService(request)
         .catch(error => {
-          console.warn('PeerRegistrationStore: Failed to send load request:', error);
+          debugLog('PeerRegistrationStore', 'Failed to send load request:', error);
           this.pendingKVRequests.delete(requestId);
           resolve(undefined);
         });
@@ -801,7 +802,7 @@ class PeerRegistrationStore {
       setTimeout(() => {
         if (this.pendingKVRequests.has(requestId)) {
           this.pendingKVRequests.delete(requestId);
-          console.warn('PeerRegistrationStore: Load timed out');
+          debugLog('PeerRegistrationStore', 'Load timed out');
           resolve(undefined);
         }
       }, REQUEST_TIMEOUT_MS);
@@ -833,14 +834,14 @@ class PeerRegistrationStore {
       const client = websocketService.getClient();
       if (!client) {
         this.pendingKVRequests.delete(requestId);
-        console.warn('PeerRegistrationStore: No WebSocket client - skipping outgoing persist');
+        debugLog('PeerRegistrationStore', 'No WebSocket client - skipping outgoing persist');
         resolve(undefined);
         return;
       }
 
       client.sendDirectToInternalService(request)
         .catch(error => {
-          console.error('PeerRegistrationStore: Failed to persist outgoing:', error);
+          debugLog('PeerRegistrationStore', 'Failed to persist outgoing:', error);
           this.pendingKVRequests.delete(requestId);
           reject(error);
         });
@@ -848,7 +849,7 @@ class PeerRegistrationStore {
       setTimeout(() => {
         if (this.pendingKVRequests.has(requestId)) {
           this.pendingKVRequests.delete(requestId);
-          console.warn('PeerRegistrationStore: Outgoing persist timed out');
+          debugLog('PeerRegistrationStore', 'Outgoing persist timed out');
           resolve(undefined);
         }
       }, REQUEST_TIMEOUT_MS);
@@ -878,7 +879,7 @@ class PeerRegistrationStore {
             const validRequests = (data as OutgoingPeerRequest[]).filter((r: OutgoingPeerRequest) => r.toCid && r.fromCid);
             const invalidCount = data.length - validRequests.length;
             if (invalidCount > 0) {
-              console.warn(`PeerRegistrationStore: Filtered out ${invalidCount} invalid outgoing requests (missing toCid or fromCid)`);
+              debugLog('PeerRegistrationStore', `Filtered out ${invalidCount} invalid outgoing requests (missing toCid or fromCid)`);
             }
             this.outgoingRequests = validRequests;
             debugLog('PeerRegistrationStore', 'PeerRegistrationStore: Loaded', validRequests.length, 'valid outgoing requests');
@@ -887,7 +888,7 @@ class PeerRegistrationStore {
           resolve(undefined);
         },
         reject: () => {
-          console.warn('PeerRegistrationStore: Failed to load outgoing from LocalDB');
+          debugLog('PeerRegistrationStore', 'Failed to load outgoing from LocalDB');
           resolve(undefined);
         }
       });
@@ -895,14 +896,14 @@ class PeerRegistrationStore {
       const client = websocketService.getClient();
       if (!client) {
         this.pendingKVRequests.delete(requestId);
-        console.warn('PeerRegistrationStore: No WebSocket client - skipping outgoing load');
+        debugLog('PeerRegistrationStore', 'No WebSocket client - skipping outgoing load');
         resolve(undefined);
         return;
       }
 
       client.sendDirectToInternalService(request)
         .catch(error => {
-          console.warn('PeerRegistrationStore: Failed to send outgoing load request:', error);
+          debugLog('PeerRegistrationStore', 'Failed to send outgoing load request:', error);
           this.pendingKVRequests.delete(requestId);
           resolve(undefined);
         });
@@ -910,7 +911,7 @@ class PeerRegistrationStore {
       setTimeout(() => {
         if (this.pendingKVRequests.has(requestId)) {
           this.pendingKVRequests.delete(requestId);
-          console.warn('PeerRegistrationStore: Outgoing load timed out');
+          debugLog('PeerRegistrationStore', 'Outgoing load timed out');
           resolve(undefined);
         }
       }, REQUEST_TIMEOUT_MS);
@@ -978,7 +979,7 @@ class PeerRegistrationStore {
               pending.resolve(null);
             }
           } catch (error) {
-            console.error('PeerRegistrationStore: Failed to parse LocalDB value:', error);
+            debugLog('PeerRegistrationStore', 'Failed to parse LocalDB value:', error);
             pending.resolve(null);
           }
         }
@@ -1005,7 +1006,7 @@ class PeerRegistrationStore {
         // Remove from outgoing requests by request_id or peer_cid
         const peerCidBigInt: bigint | undefined = peer_cid;
         if (peerCidBigInt !== undefined) {
-          this.removeOutgoingRequestByPeer(peerCidBigInt).catch(console.error);
+          this.removeOutgoingRequestByPeer(peerCidBigInt).catch((err: unknown) => debugLog('PeerRegistrationStore', 'removeOutgoingRequestByPeer failed:', err));
         }
       }
 
@@ -1021,7 +1022,7 @@ class PeerRegistrationStore {
         // Remove from outgoing requests by peer_cid
         const peerCidBigInt: bigint | undefined = peer_cid;
         if (peerCidBigInt !== undefined) {
-          this.removeOutgoingRequestByPeer(peerCidBigInt).catch(console.error);
+          this.removeOutgoingRequestByPeer(peerCidBigInt).catch((err: unknown) => debugLog('PeerRegistrationStore', 'removeOutgoingRequestByPeer failed:', err));
         }
       }
 
@@ -1033,8 +1034,8 @@ class PeerRegistrationStore {
           debugLog('PeerRegistrationStore', `[PeerRegistrationStore] Clearing requests for connected peer ${peer_cid.toString()}`);
 
           // Clear both incoming and outgoing requests
-          this.removeRequestByPeerCid(peer_cid).catch(console.error);
-          this.removeOutgoingRequestByPeer(peer_cid).catch(console.error);
+          this.removeRequestByPeerCid(peer_cid).catch((err: unknown) => debugLog('PeerRegistrationStore', 'removeRequestByPeerCid failed:', err));
+          this.removeOutgoingRequestByPeer(peer_cid).catch((err: unknown) => debugLog('PeerRegistrationStore', 'removeOutgoingRequestByPeer failed:', err));
 
           // Emit update event to refresh UI
           eventEmitter.emit('peer-requests:updated');

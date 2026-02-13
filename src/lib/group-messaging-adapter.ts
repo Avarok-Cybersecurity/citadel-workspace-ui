@@ -16,7 +16,7 @@ import {
   GroupMessageEvent,
 } from './group-messaging-manager';
 import WorkspaceService from './workspace-service';
-import { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
+import type { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
 import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import type { MessageType } from '@/types/message-protocol';
 
@@ -38,9 +38,9 @@ function mapMessageTypeToGroupMessageType(messageType: MessageType): GroupMessag
  */
 function mapGroupMessageTypeToMessageType(groupType: GroupMessageType): MessageType {
   switch (groupType) {
-    case GroupMessageType.Markdown:
+    case 'Markdown':
       return 'markdown';
-    case GroupMessageType.Text:
+    case 'Text':
     default:
       return 'text';
   }
@@ -168,35 +168,10 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
     this._isLoading = true;
 
     try {
-      // getGroupMessages returns void; response arrives via event system
-      // Cast to expected shape for runtime checking (TYPE-GAP: protocol sends response asynchronously)
-      const response = await WorkspaceService.getGroupMessages(this._groupId) as unknown as
-        { GroupMessages?: { messages: GroupMessage[]; has_more: boolean } } | void;
-
-      if (response && 'GroupMessages' in response && response.GroupMessages) {
-        const groupMessages: GroupMessage[] = response.GroupMessages.messages || [];
-        this._hasMoreMessages = response.GroupMessages.has_more || false;
-
-        // Update group messaging manager
-        groupMessagingManager.handleMessagesLoaded(
-          this._groupId,
-          groupMessages,
-          this._hasMoreMessages,
-          false
-        );
-
-        // Convert to ChatMessage format
-        this.messages = groupMessages.map((msg) =>
-          convertGroupMessageToChatMessage(msg, this._currentUserId)
-        );
-
-        // Notify subscribers
-        this.notifySubscribers({
-          type: 'messages_loaded',
-          messages: this.messages,
-          hasMore: this._hasMoreMessages,
-        });
-      }
+      // getGroupMessages returns void; response arrives via event system (group:messages:loaded)
+      // The workspace-response-handler calls groupMessagingManager.handleMessagesLoaded()
+      // and emits the event that triggers UI updates
+      await WorkspaceService.getGroupMessages(this._groupId);
     } finally {
       this._isLoading = false;
     }
@@ -213,47 +188,13 @@ export class GroupMessagingAdapter extends ChatMessagingAdapter {
       // Get oldest timestamp for pagination
       const oldestTimestamp = groupMessagingManager.getOldestTimestamp(this._groupId);
 
-      // getGroupMessages returns void; response arrives via event system
-      // Cast to expected shape for runtime checking (TYPE-GAP: protocol sends response asynchronously)
-      const response = await WorkspaceService.getGroupMessages(
-        this._groupId,
-        oldestTimestamp
-      ) as unknown as { GroupMessages?: { messages: GroupMessage[]; has_more: boolean } } | void;
+      // getGroupMessages returns void; response arrives via event system (group:messages:loaded)
+      // The workspace-response-handler calls groupMessagingManager.handleMessagesLoaded()
+      // and emits the event that triggers UI updates
+      await WorkspaceService.getGroupMessages(this._groupId, oldestTimestamp);
 
-      if (response && 'GroupMessages' in response && response.GroupMessages) {
-        const groupMessages: GroupMessage[] = response.GroupMessages.messages || [];
-        this._hasMoreMessages = response.GroupMessages.has_more || false;
-
-        if (groupMessages.length === 0) {
-          this._hasMoreMessages = false;
-          return false;
-        }
-
-        // Update group messaging manager (prepend older messages)
-        groupMessagingManager.handleMessagesLoaded(
-          this._groupId,
-          groupMessages,
-          this._hasMoreMessages,
-          true // prepend
-        );
-
-        // Convert and prepend to local messages
-        const olderMessages = groupMessages.map((msg) =>
-          convertGroupMessageToChatMessage(msg, this._currentUserId)
-        );
-        this.messages = [...olderMessages, ...this.messages];
-
-        // Notify subscribers
-        this.notifySubscribers({
-          type: 'messages_loaded',
-          messages: this.messages,
-          hasMore: this._hasMoreMessages,
-        });
-
-        return this._hasMoreMessages;
-      }
-
-      return false;
+      // Return current hasMore state (updated via event handler)
+      return this._hasMoreMessages;
     } finally {
       this._isLoading = false;
     }

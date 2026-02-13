@@ -177,7 +177,7 @@ export class ConversationManager {
         });
       }
     } catch (error) {
-      console.error('Failed to load cached messages:', error);
+      debugLog('ConversationManager', 'Failed to load cached messages:', error);
     }
   }
 }

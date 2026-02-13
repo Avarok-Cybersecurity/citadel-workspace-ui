@@ -85,7 +85,7 @@ export function normalizeHeaderObfuscatorSettings(
   }
 
   // Handle object cases
-  if (typeof settings === "object") {
+  if (typeof settings === "object" && settings !== null) {
     // Already properly typed EnabledWithKey object
     if (isVariant(settings as Record<string, unknown>, 'EnabledWithKey') && typeof (settings as Record<string, unknown>).EnabledWithKey === 'number') {
       return settings as { EnabledWithKey: number };

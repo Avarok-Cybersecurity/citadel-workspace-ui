@@ -8,6 +8,7 @@ import { AdminTabProps } from '../types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { Loader2 } from 'lucide-react';
+import { debugLog } from '@/lib/debug-config';
 
 export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
   const { state } = useWorkspace();
@@ -96,7 +97,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
       setOriginalDescription(description);
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to update entity:', error);
+      debugLog('GeneralTab', 'Failed to update entity:', error);
       toast({
         title: 'Error',
         description: `Failed to update ${entityType}. Please try again.`,

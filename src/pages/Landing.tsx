@@ -76,8 +76,8 @@ export const Landing = () => {
       if (errorMessage?.includes('WASM client not initialized')) {
         debugLog('Landing', 'WebSocket not yet initialized, skipping known servers check');
       } else {
-        console.error("Error checking for known servers:", error);
-        console.error("Error details:", errorMessage);
+        debugLog('Landing', 'Error checking for known servers:', error);
+        debugLog('Landing', 'Error details:', errorMessage);
       }
     }
   }, []);
@@ -106,7 +106,7 @@ export const Landing = () => {
       debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
-      console.error("[Landing] Error during post-registration setup:", error);
+      debugLog('Landing', 'Error during post-registration setup:', error);
       toastError(toast, "Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after registration");
     }
   };
@@ -130,7 +130,7 @@ export const Landing = () => {
       debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
-      console.error("[Landing] Error during post-login setup:", error);
+      debugLog('Landing', 'Error during post-login setup:', error);
       toastError(toast, "Login Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after login");
     }
   };

@@ -9,6 +9,7 @@
  */
 
 import type { RevfsNode, RevfsPendingOp, TreeKey } from '@/types/revfs-types';
+import { debugLog } from '@/lib/debug-config';
 
 export interface PendingAck {
   resolve: (success: boolean) => void;
@@ -90,7 +91,7 @@ export class RevfsState {
       try {
         listener(key, tree);
       } catch (err) {
-        console.error('[RevfsState] Listener error:', err);
+        debugLog('RevfsState', 'Listener error:', err);
       }
     }
   }

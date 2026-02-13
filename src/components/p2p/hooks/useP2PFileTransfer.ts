@@ -38,7 +38,7 @@ export function useP2PFileTransfer({
         description: `Sending ${file.name} to ${peerName}`,
       });
     } catch (error) {
-      console.error('Failed to send file:', error);
+      debugLog('useP2PFileTransfer', 'Failed to send file:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to send file',
@@ -52,7 +52,7 @@ export function useP2PFileTransfer({
     try {
       await fileTransferService.acceptTransfer(transferId);
     } catch (error) {
-      console.error('Failed to accept transfer:', error);
+      debugLog('useP2PFileTransfer', 'Failed to accept transfer:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to accept file',
@@ -65,7 +65,7 @@ export function useP2PFileTransfer({
     try {
       await fileTransferService.declineTransfer(transferId);
     } catch (error) {
-      console.error('Failed to decline transfer:', error);
+      debugLog('useP2PFileTransfer', 'Failed to decline transfer:', error);
     }
   }, []);
 
@@ -73,7 +73,7 @@ export function useP2PFileTransfer({
     try {
       await fileTransferService.cancelTransfer(transferId);
     } catch (error) {
-      console.error('Failed to cancel transfer:', error);
+      debugLog('useP2PFileTransfer', 'Failed to cancel transfer:', error);
     }
   }, []);
 

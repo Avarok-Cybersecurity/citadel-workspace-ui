@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/popover';
 import type { GroupRole, CreateGroupState } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
+import { debugLog } from '@/lib/debug-config';
 
 // ============================================================================
 // Types
@@ -160,7 +161,7 @@ export function CreateGroupDialog({
       setSelectedMembers([]);
       onOpenChange(false);
     } catch (error) {
-      console.error('[CreateGroupDialog] Failed to create group:', error);
+      debugLog('CreateGroupDialog', 'Failed to create group:', error);
     } finally {
       setIsCreating(false);
     }

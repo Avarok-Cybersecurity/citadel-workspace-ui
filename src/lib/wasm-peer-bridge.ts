@@ -59,7 +59,7 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
 
   try {
     if (!p2pAutoConnectService) {
-      console.warn(`[P2P][WasmPeerBridge] CALL #${callCount} - p2pAutoConnectService NOT AVAILABLE!`);
+      debugLog('WasmPeerBridge', `CALL #${callCount} - p2pAutoConnectService NOT AVAILABLE!`);
       return new BigUint64Array(0);
     }
 
@@ -77,7 +77,7 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
     // Convert bigint array to BigUint64Array for WASM
     return new BigUint64Array(peers);
   } catch (error) {
-    console.error(`[P2P][WasmPeerBridge] CALL #${callCount} Error:`, error);
+    debugLog('WasmPeerBridge', `CALL #${callCount} Error:`, error);
     return new BigUint64Array(0);
   }
 }
@@ -99,6 +99,6 @@ export function initWasmPeerBridge(): void {
     window.__citadel_get_peers_for_session = __citadel_get_peers_for_session;
     debugLog('WasmPeerBridge', '[WasmPeerBridge] Initialized - global callback registered');
   } else {
-    console.warn('[WasmPeerBridge] Window not available - skipping initialization');
+    debugLog('WasmPeerBridge', 'Window not available - skipping initialization');
   }
 }

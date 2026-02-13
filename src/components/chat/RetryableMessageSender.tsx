@@ -65,7 +65,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
           // Send typing indicator via messaging service
           await messagingService.sendTypingIndicator(recipientId, true);
         } catch (error) {
-          console.error('Failed to send typing indicator:', error);
+          debugLog('RetryableMessageSender', 'Failed to send typing indicator:', error);
         }
       }
 
@@ -81,7 +81,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
           // Stop typing indicator via messaging service
           await messagingService.sendTypingIndicator(recipientId, false);
         } catch (error) {
-          console.error('Failed to clear typing indicator:', error);
+          debugLog('RetryableMessageSender', 'Failed to clear typing indicator:', error);
         }
       }, 3000); // 3 seconds of inactivity to consider stopped typing
     };
@@ -99,7 +99,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
       // Send typing:stopped event via messaging service
       messagingService.sendTypingIndicator(recipientId, false)
         .catch(error => {
-          console.error('Failed to clear typing indicator:', error);
+          debugLog('RetryableMessageSender', 'Failed to clear typing indicator:', error);
         });
     }
 
@@ -128,7 +128,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
       // Stop typing indicator via messaging service
       await messagingService.sendTypingIndicator(recipientId, false);
     } catch (error) {
-      console.error('Failed to clear typing indicator:', error);
+      debugLog('RetryableMessageSender', 'Failed to clear typing indicator:', error);
     }
 
     // Execute the send operation

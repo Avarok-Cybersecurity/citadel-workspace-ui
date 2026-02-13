@@ -23,10 +23,11 @@ import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
+import { INTERVAL, TIMEOUT } from '../timeout-constants';
 
 const CHANNEL_NAME = 'citadel-instance-channel';
-const HEARTBEAT_INTERVAL_MS = 2000;
-const LEADER_TIMEOUT_MS = 5000;
+const HEARTBEAT_INTERVAL_MS = INTERVAL.HEARTBEAT_MS;
+const LEADER_TIMEOUT_MS = INTERVAL.LEADER_TIMEOUT_MS;
 
 export type ChannelMessageType =
   | 'outbound-request'
@@ -76,7 +77,7 @@ class InstanceChannel {
 
   private initialize(): void {
     if (typeof BroadcastChannel === 'undefined') {
-      console.error('[InstanceChannel] BroadcastChannel API not supported');
+      debugLog('InstanceChannel', 'BroadcastChannel API not supported');
       return;
     }
 
@@ -90,7 +91,7 @@ class InstanceChannel {
 
       debugLog('InstanceChannel', '[InstanceChannel] Initialized');
     } catch (error) {
-      console.error('[InstanceChannel] Failed to initialize:', error);
+      debugLog('InstanceChannel', 'Failed to initialize:', error);
     }
   }
 
@@ -137,7 +138,7 @@ class InstanceChannel {
     };
 
     this.channel.addEventListener('messageerror', (event: MessageEvent) => {
-      console.error('[InstanceChannel] Channel error:', event);
+      debugLog('InstanceChannel', 'Channel error:', event);
     });
   }
 
@@ -393,14 +394,14 @@ class InstanceChannel {
   private handleSessionRelease(message: ChannelMessage): void {
     // Only leader processes session release requests
     if (!instanceManager.isLeader) {
-      console.warn('[InstanceChannel] Received session-release but not leader');
+      debugLog('InstanceChannel', 'Received session-release but not leader');
       return;
     }
 
     const releasePayload = message.payload as Record<string, unknown> | undefined;
     const releaseCid = releasePayload?.cid;
     if (!releaseCid) {
-      console.warn('[InstanceChannel] Received session-release without CID');
+      debugLog('InstanceChannel', 'Received session-release without CID');
       return;
     }
 
@@ -536,7 +537,7 @@ class InstanceChannel {
    */
   send(message: Omit<ChannelMessage, 'senderInstanceId' | 'timestamp'> & { senderInstanceId?: string; timestamp?: number }): void {
     if (!this.channel) {
-      console.error('[InstanceChannel] Channel not available');
+      debugLog('InstanceChannel', 'Channel not available');
       return;
     }
 
@@ -549,7 +550,7 @@ class InstanceChannel {
     try {
       this.channel.postMessage(fullMessage);
     } catch (error) {
-      console.error('[InstanceChannel] Failed to send message:', error);
+      debugLog('InstanceChannel', 'Failed to send message:', error);
     }
   }
 
@@ -582,7 +583,7 @@ class InstanceChannel {
         eventEmitter.off('outbound-ack', ackHandler);
         // Resolve with timeout error (don't hang forever)
         resolve({ status: 'error', error: 'Timeout waiting for ACK from leader' });
-      }, 30000);
+      }, TIMEOUT.OUTBOUND_ACK_MS);
 
       // Send to leader
       this.send({

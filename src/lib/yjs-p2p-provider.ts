@@ -23,6 +23,12 @@ import {
 import { sha256Sync } from './merkle-tree';
 import { debugLog } from '@/lib/debug-config';
 
+// Yjs-specific timing constants (local to this module)
+const YJS_ACK_TIMEOUT_MS = 5000;
+const YJS_SYNC_COOLDOWN_MS = 10000;
+const YJS_SYNC_RESET_DELAY_MS = 2000;
+const YJS_HEALTH_CHECK_INTERVAL_MS = 5000;
+
 /** Pinch point: Yjs origin values used in this codebase. Replaces Yjs's `any`. */
 type YjsOrigin = string | null | undefined;
 
@@ -129,13 +135,13 @@ export class YjsP2PProvider {
   private initialSyncComplete = false;
 
   // Retry configuration
-  private readonly ACK_TIMEOUT = 5000; // 5 seconds
+  private readonly ACK_TIMEOUT = YJS_ACK_TIMEOUT_MS;
   private readonly MAX_RETRIES = 3;
   private ackCheckInterval: ReturnType<typeof setInterval> | null = null;
 
   // Sync debounce to prevent infinite loops
   private lastSyncInitiated: number = 0;
-  private readonly SYNC_COOLDOWN = 10000; // 10 seconds minimum between sync initiations
+  private readonly SYNC_COOLDOWN = YJS_SYNC_COOLDOWN_MS;
   private syncInProgress = false;
 
   constructor(
@@ -261,7 +267,7 @@ export class YjsP2PProvider {
     // Reset sync in progress after a short delay
     setTimeout(() => {
       this.syncInProgress = false;
-    }, 2000);
+    }, YJS_SYNC_RESET_DELAY_MS);
   }
 
   // ============================================
@@ -396,7 +402,7 @@ export class YjsP2PProvider {
     if (message.doc_hash && this.merkleTree) {
       const localHash = this.merkleTree.getRootHash();
       if (localHash !== message.doc_hash) {
-        console.warn(`[Yjs] Hash mismatch after update! Local: ${localHash}, Remote: ${message.doc_hash}`);
+        debugLog('YjsP2PProvider', `Hash mismatch after update! Local: ${localHash}, Remote: ${message.doc_hash}`);
         this.handleHashMismatch(message.doc_hash);
       }
     }
@@ -479,7 +485,7 @@ export class YjsP2PProvider {
       if (this.merkleTree && message.local_hash) {
         const localHash = this.merkleTree.getRootHash();
         if (localHash !== message.local_hash) {
-          console.warn(`[Yjs] Hash mismatch in ACK! Local: ${localHash}, Remote: ${message.local_hash}`);
+          debugLog('YjsP2PProvider', `Hash mismatch in ACK! Local: ${localHash}, Remote: ${message.local_hash}`);
           this.handleHashMismatch(message.local_hash);
         }
       }
@@ -598,8 +604,8 @@ export class YjsP2PProvider {
       BigInt(this.ownCid),
       BigInt(this.peerCid),
       JSON.stringify(message)
-    ).catch(error => {
-      console.error('[Yjs] Failed to send message:', error);
+    ).catch((error: unknown) => {
+      debugLog('YjsP2PProvider', 'Failed to send message:', error);
     });
   }
 
@@ -611,7 +617,7 @@ export class YjsP2PProvider {
    * Handle hash mismatch - initiate divergence recovery
    */
   private handleHashMismatch(remoteHash: string) {
-    console.warn(`[Yjs] Hash mismatch detected, initiating divergence recovery`);
+    debugLog('YjsP2PProvider', 'Hash mismatch detected, initiating divergence recovery');
 
     this.syncState = 'diverged';
 
@@ -635,7 +641,7 @@ export class YjsP2PProvider {
     // Check less frequently to reduce overhead
     this.ackCheckInterval = setInterval(() => {
       this.checkPendingAcks();
-    }, 5000); // Check every 5 seconds instead of every 1 second
+    }, YJS_HEALTH_CHECK_INTERVAL_MS); // Check every 5 seconds instead of every 1 second
   }
 
   private checkPendingAcks() {
@@ -647,14 +653,14 @@ export class YjsP2PProvider {
         timedOutCount++;
 
         if (pending.retryCount < this.MAX_RETRIES) {
-          console.warn(`[Yjs] ACK timeout for ${messageId}, retry ${pending.retryCount + 1}/${this.MAX_RETRIES}`);
+          debugLog('YjsP2PProvider', `ACK timeout for ${messageId}, retry ${pending.retryCount + 1}/${this.MAX_RETRIES}`);
           pending.retryCount++;
           pending.sentAt = now;
 
           // DON'T re-initiate full sync on every ACK timeout
           // Just log it - the sync may have already completed via another message
         } else {
-          console.warn(`[Yjs] ACK timeout for ${messageId} - giving up (peer may be offline)`);
+          debugLog('YjsP2PProvider', `ACK timeout for ${messageId} - giving up (peer may be offline)`);
           this.pendingAcks.delete(messageId);
           // Don't trigger divergence recovery - just clear the pending ACK
           // The next actual interaction will trigger proper sync if needed

@@ -67,7 +67,7 @@ export class PresenceManager {
    */
   public async sendPresenceUpdate(recipientCid: bigint, presence: MessagingLayer): Promise<void> {
     if (!isPresenceUpdate(presence)) {
-      console.error('Invalid presence layer type');
+      debugLog('PresenceManager', 'Invalid presence layer type');
       return;
     }
 
@@ -179,7 +179,7 @@ export class PresenceManager {
       const layer = createTyping();
       await this.config.sendCommand(recipientCid, layer);
     } catch (error) {
-      console.error('Failed to send typing indicator:', error);
+      debugLog('PresenceManager', 'Failed to send typing indicator:', error);
     }
   }
 

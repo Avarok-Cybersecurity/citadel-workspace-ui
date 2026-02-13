@@ -89,7 +89,7 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
         debugLog('Room', 'Room MDX compilation successful');
         setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
       } catch (error) {
-        console.error('Error compiling Room MDX:', error);
+        debugLog('Room', 'Error compiling Room MDX:', error);
       }
     };
 
@@ -111,7 +111,7 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
 
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to save Room MDX content:', error);
+      debugLog('Room', 'Failed to save Room MDX content:', error);
       toast({
         title: "Error saving changes",
         description: "There was a problem saving your changes. Please try again.",

@@ -78,7 +78,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
 
       // Ensure storedSessions has the expected structure
       if (!storedSessions || !storedSessions.sessions || !Array.isArray(storedSessions.sessions)) {
-        console.warn('No stored sessions found or invalid format');
+        debugLog('WorkspaceSwitcher', 'No stored sessions found or invalid format');
         setAvailableWorkspaces([]);
         return;
       }
@@ -106,7 +106,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
           w.username === tabSelectedUser.selectedUsername &&
           w.serverAddress === tabSelectedUser.selectedServerAddress
         );
-        debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Using tab-selected user:', tabSelectedUser.selectedUsername);
+        debugLog('WorkspaceSwitcher', 'Using tab-selected user:', tabSelectedUser.selectedUsername);
       }
 
       // Fall back to the workspace with active connection if no tab selection
@@ -189,10 +189,10 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       // Claim the session if it's orphaned (use ClaimSession protocol instead of Connect)
       try {
         await websocketService.claimSession(targetSession.cid, true);
-        debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Session claimed successfully (was orphaned)');
+        debugLog('WorkspaceSwitcher', 'Session claimed successfully (was orphaned)');
       } catch (claimError: unknown) {
         if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
-          debugLog('WorkspaceSwitcher', 'WorkspaceSwitcher: Session is still active (not orphaned), no claim needed');
+          debugLog('WorkspaceSwitcher', 'Session is still active (not orphaned), no claim needed');
         } else {
           // Re-throw if it's a different error
           throw claimError;
@@ -245,7 +245,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       }, 100);
 
     } catch (error) {
-      console.error('Failed to switch workspace:', error);
+      debugLog('WorkspaceSwitcher', 'Failed to switch workspace:', error);
       toastError(toast, "Switch Failed", "Could not switch to the selected workspace");
 
       // Reset animation state on error

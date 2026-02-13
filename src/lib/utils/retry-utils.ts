@@ -4,6 +4,8 @@
  * Provides reusable retry logic with exponential backoff.
  */
 
+import { INTERVAL } from '../timeout-constants';
+
 export interface RetryOptions {
   /** Base delay in milliseconds (default: 1000) */
   baseDelayMs?: number;
@@ -19,7 +21,7 @@ export interface RetryOptions {
 
 const DEFAULT_OPTIONS: Required<RetryOptions> = {
   baseDelayMs: 1000,
-  maxDelayMs: 30000,
+  maxDelayMs: INTERVAL.HEALTH_CHECK_MS,
   maxAttempts: Infinity,
   jitter: 0,
   onRetry: () => {}

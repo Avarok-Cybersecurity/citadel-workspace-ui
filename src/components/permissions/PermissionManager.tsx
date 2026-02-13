@@ -25,6 +25,7 @@ import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { User, UserRole } from '@/types/workspace-entities';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { debugLog } from '@/lib/debug-config';
 
 interface PermissionManagerProps {
   userId: string;
@@ -103,7 +104,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
         setInheritedPermissions(new Set(['ViewContent', 'ReadMessages']));
       }
     } catch (error) {
-      console.error('Error loading permissions:', error);
+      debugLog('PermissionManager', 'Error loading permissions:', error);
       // Fall back to defaults
       const rolePermissions = getRoleDefaultPermissions(selectedRole);
       setSelectedPermissions(new Set(rolePermissions));
@@ -163,7 +164,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
         onClose();
       }
     } catch (error) {
-      console.error('Error saving permissions:', error);
+      debugLog('PermissionManager', 'Error saving permissions:', error);
       toastError(toast, "Error", "Failed to update permissions. Please try again.");
     } finally {
       setIsLoading(false);

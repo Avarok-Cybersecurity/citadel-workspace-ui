@@ -18,7 +18,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Send, MoreVertical, Edit2, Trash2, Reply, Loader2 } from 'lucide-react';
-import { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
+import type { GroupMessage } from '@/types/workspace-entities';
 import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import WorkspaceService from '@/lib/workspace-service';
 import { groupMessagingManager, GroupMessageEvent } from '@/lib/group-messaging-manager';
@@ -170,7 +170,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       try {
         await WorkspaceService.getGroupMessages(groupId);
       } catch (error) {
-        console.error('Failed to load messages:', error);
+        debugLog('GroupChatView', 'Failed to load messages:', error);
         toast({
           title: 'Failed to load messages',
           description: 'Please try again later.',
@@ -199,7 +199,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
               // Check for duplicates by message ID
               const exists = prev.some((m) => m.id === newMsg.id);
               if (exists) {
-                debugLog('GroupChatView', '[GroupChatView] Skipping duplicate message:', newMsg.id);
+                debugLog('GroupChatView', 'Skipping duplicate message:', newMsg.id);
                 return prev;
               }
               return [...prev, newMsg];
@@ -240,7 +240,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
     try {
       await WorkspaceService.getGroupMessages(groupId, oldestTimestamp);
     } catch (error) {
-      console.error('Failed to load more messages:', error);
+      debugLog('GroupChatView', 'Failed to load more messages:', error);
       setLoadingMore(false);
     }
   }, [groupId, hasMore, loadingMore]);
@@ -260,7 +260,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       setInputValue('');
       setReplyToId(null);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      debugLog('GroupChatView', 'Failed to send message:', error);
       toast({
         title: 'Failed to send message',
         description: 'Please try again.',
@@ -280,7 +280,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       setEditingId(null);
       setEditContent('');
     } catch (error) {
-      console.error('Failed to edit message:', error);
+      debugLog('GroupChatView', 'Failed to edit message:', error);
       toast({
         title: 'Failed to edit message',
         description: 'Please try again.',
@@ -294,7 +294,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
     try {
       await WorkspaceService.deleteGroupMessage(groupId, messageId);
     } catch (error) {
-      console.error('Failed to delete message:', error);
+      debugLog('GroupChatView', 'Failed to delete message:', error);
       toast({
         title: 'Failed to delete message',
         description: 'Please try again.',

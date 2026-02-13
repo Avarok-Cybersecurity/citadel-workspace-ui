@@ -13,9 +13,10 @@ import type { P2PCommand, P2PMessagingLayerPayload } from '@/types/p2p-types';
 import { RevfsOpfsStorage } from './opfs-storage';
 import { eventEmitter } from '../event-emitter';
 import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 /** Timeout for backend file operations (30 seconds) */
-const BACKEND_TIMEOUT_MS = 30000;
+const BACKEND_TIMEOUT_MS = TIMEOUT.FILE_SEND_MS;
 
 export interface RevfsIODeps {
   sendP2PMessageReliable: (localCid: bigint, peerCid: bigint, message: Uint8Array) => Promise<void>;
@@ -55,10 +56,10 @@ export class RevfsIO {
 
   private async sendRevfsOp(peerCid: bigint, operation: RevfsOperation): Promise<RevfsIntentResult> {
     try {
-      debugLog('RevfsIo', `[revfs] sendRevfsOp: op=${operation.op_type} path=${operation.path} peerCid=${peerCid}`);
+      debugLog('RevfsIO', `sendRevfsOp: op=${operation.op_type} path=${operation.path} peerCid=${peerCid}`);
       const localCid = await this.deps.getCurrentCid();
       if (!localCid) throw new Error('No local CID available');
-      debugLog('RevfsIo', `[revfs] sendRevfsOp: localCid=${localCid}`);
+      debugLog('RevfsIO', `sendRevfsOp: localCid=${localCid}`);
 
       const payload: P2PMessagingLayerPayload = {
         layer: {
@@ -77,12 +78,12 @@ export class RevfsIO {
       };
 
       const bytes = serializeP2PCommand(command);
-      debugLog('RevfsIo', `[revfs] sendRevfsOp: sending ${bytes.length} bytes to peer ${peerCid}`);
+      debugLog('RevfsIO', `sendRevfsOp: sending ${bytes.length} bytes to peer ${peerCid}`);
       await this.deps.sendP2PMessageReliable(localCid, peerCid, bytes);
-      debugLog('RevfsIo', `[revfs] sendRevfsOp: sent successfully`);
+      debugLog('RevfsIO', 'sendRevfsOp: sent successfully');
       return { type: 'send-revfs-op', success: true };
     } catch (err) {
-      console.error('[RevfsIO] sendRevfsOp failed:', err);
+      debugLog('RevfsIO', 'sendRevfsOp failed:', err);
       return { type: 'send-revfs-op', success: false };
     }
   }
@@ -92,7 +93,7 @@ export class RevfsIO {
       await this.storage.saveTree(key, tree);
       return { type: 'persist-tree', success: true };
     } catch (err) {
-      console.error('[RevfsIO] persistTree failed:', err);
+      debugLog('RevfsIO', 'persistTree failed:', err);
       return { type: 'persist-tree', success: false };
     }
   }
@@ -107,7 +108,7 @@ export class RevfsIO {
       await this.storage.savePendingOps(key, ops);
       return { type: 'persist-pending-ops', success: true };
     } catch (err) {
-      console.error('[RevfsIO] persistPendingOps failed:', err);
+      debugLog('RevfsIO', 'persistPendingOps failed:', err);
       return { type: 'persist-pending-ops', success: false };
     }
   }
@@ -131,7 +132,7 @@ export class RevfsIO {
   ): Promise<RevfsIntentResult> {
     const requestId = crypto.randomUUID();
     const isServerStorage = peerCid === null;
-    debugLog('RevfsIo', `[RevfsIO] backendSendFile: source=${source} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
+    debugLog('RevfsIO', `backendSendFile: source=${source} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
     const request = {
       SendFile: {
@@ -147,7 +148,7 @@ export class RevfsIO {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
-        console.error('[RevfsIO] backendSendFile timed out');
+        debugLog('RevfsIO', 'backendSendFile timed out');
         resolve({ type: 'backend-send-file', success: false });
       }, BACKEND_TIMEOUT_MS);
 
@@ -159,7 +160,7 @@ export class RevfsIO {
         if (success?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          debugLog('RevfsIo', '[RevfsIO] backendSendFile success');
+          debugLog('RevfsIO', 'backendSendFile success');
           resolve({ type: 'backend-send-file', success: true, virtualDir });
         }
 
@@ -168,7 +169,7 @@ export class RevfsIO {
         if (failure?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          console.error('[RevfsIO] backendSendFile failed:', failure.message);
+          debugLog('RevfsIO', 'backendSendFile failed:', failure.message);
           resolve({ type: 'backend-send-file', success: false });
         }
       };
@@ -178,7 +179,7 @@ export class RevfsIO {
       this.deps.sendInternalServiceRequest(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        console.error('[RevfsIO] backendSendFile request error:', error);
+        debugLog('RevfsIO', 'backendSendFile request error:', error);
         resolve({ type: 'backend-send-file', success: false });
       });
     });
@@ -195,7 +196,7 @@ export class RevfsIO {
   ): Promise<RevfsIntentResult> {
     const requestId = crypto.randomUUID();
     const isServerStorage = peerCid === null;
-    debugLog('RevfsIo', `[RevfsIO] backendDownloadFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
+    debugLog('RevfsIO', `backendDownloadFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
     const request = {
       DownloadFile: {
@@ -211,7 +212,7 @@ export class RevfsIO {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
-        console.error('[RevfsIO] backendDownloadFile timed out');
+        debugLog('RevfsIO', 'backendDownloadFile timed out');
         resolve({ type: 'backend-download-file', success: false });
       }, BACKEND_TIMEOUT_MS);
 
@@ -231,10 +232,10 @@ export class RevfsIO {
           eventEmitter.off('websocket-message', handleMessage);
           if (status.success) {
             const downloadPath = status.response?.download_path;
-            debugLog('RevfsIo', '[RevfsIO] backendDownloadFile success:', downloadPath);
+            debugLog('RevfsIO', 'backendDownloadFile success:', downloadPath);
             resolve({ type: 'backend-download-file', success: true, downloadPath });
           } else {
-            console.error('[RevfsIO] backendDownloadFile transfer failed');
+            debugLog('RevfsIO', 'backendDownloadFile transfer failed');
             resolve({ type: 'backend-download-file', success: false });
           }
         }
@@ -244,7 +245,7 @@ export class RevfsIO {
         if (failure?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          console.error('[RevfsIO] backendDownloadFile failed:', failure.message);
+          debugLog('RevfsIO', 'backendDownloadFile failed:', failure.message);
           resolve({ type: 'backend-download-file', success: false });
         }
       };
@@ -254,7 +255,7 @@ export class RevfsIO {
       this.deps.sendInternalServiceRequest(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        console.error('[RevfsIO] backendDownloadFile request error:', error);
+        debugLog('RevfsIO', 'backendDownloadFile request error:', error);
         resolve({ type: 'backend-download-file', success: false });
       });
     });
@@ -270,7 +271,7 @@ export class RevfsIO {
   ): Promise<RevfsIntentResult> {
     const requestId = crypto.randomUUID();
     const isServerStorage = peerCid === null;
-    debugLog('RevfsIo', `[RevfsIO] backendDeleteFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
+    debugLog('RevfsIO', `backendDeleteFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
     const request = {
       DeleteVirtualFile: {
@@ -284,7 +285,7 @@ export class RevfsIO {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
-        console.error('[RevfsIO] backendDeleteFile timed out');
+        debugLog('RevfsIO', 'backendDeleteFile timed out');
         resolve({ type: 'backend-delete-file', success: false });
       }, BACKEND_TIMEOUT_MS);
 
@@ -296,7 +297,7 @@ export class RevfsIO {
         if (success?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          debugLog('RevfsIo', '[RevfsIO] backendDeleteFile success');
+          debugLog('RevfsIO', 'backendDeleteFile success');
           resolve({ type: 'backend-delete-file', success: true });
         }
 
@@ -305,7 +306,7 @@ export class RevfsIO {
         if (failure?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          console.error('[RevfsIO] backendDeleteFile failed:', failure.message);
+          debugLog('RevfsIO', 'backendDeleteFile failed:', failure.message);
           resolve({ type: 'backend-delete-file', success: false });
         }
       };
@@ -315,7 +316,7 @@ export class RevfsIO {
       this.deps.sendInternalServiceRequest(request).catch(error => {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        console.error('[RevfsIO] backendDeleteFile request error:', error);
+        debugLog('RevfsIO', 'backendDeleteFile request error:', error);
         resolve({ type: 'backend-delete-file', success: false });
       });
     });

@@ -57,12 +57,9 @@ export enum MessageType {
   System = 'system'
 }
 
-// Group message type enum (matches Rust GroupMessageType)
-export enum GroupMessageType {
-  Text = 'Text',
-  Markdown = 'Markdown',
-  System = 'System'
-}
+// Re-export generated GroupMessageType (string literal union: "Text" | "Markdown" | "System")
+// This replaces the local enum to maintain type compatibility with generated GroupMessage
+export type { GroupMessageType } from 'citadel-workspace-client-ts';
 
 // Group message read status
 export interface GroupMessageReadBy {
@@ -71,18 +68,8 @@ export interface GroupMessageReadBy {
   read_at: number;
 }
 
-// Group message interface (matches Rust GroupMessage - generated type uses bigint for u64 fields)
-export interface GroupMessage {
-  id: string;
-  group_id: string;
-  sender_id: string;
-  sender_name: string;
-  message_type: GroupMessageType;
-  content: string;
-  timestamp: bigint;
-  reply_to: string | null;
-  reply_count: number;
-  mentions: string[];
-  edited_at: bigint | null;
-  read_by?: GroupMessageReadBy[];  // Users who have read this message
+// Extend generated GroupMessage with local-only fields
+import type { GroupMessage as GeneratedGroupMessage } from 'citadel-workspace-client-ts';
+export interface GroupMessage extends GeneratedGroupMessage {
+  read_by?: GroupMessageReadBy[];
 }

@@ -8,6 +8,7 @@ import { AdminTabProps } from '../types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Loader2, MessageSquare, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { debugLog } from '@/lib/debug-config';
 
 export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps) {
   const { state } = useWorkspace();
@@ -62,7 +63,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
       setOriginalRules(chatRules);
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to update chat settings:', error);
+      debugLog('ChatSettingsTab', 'Failed to update chat settings:', error);
       toast({
         title: 'Error',
         description: 'Failed to update chat settings',

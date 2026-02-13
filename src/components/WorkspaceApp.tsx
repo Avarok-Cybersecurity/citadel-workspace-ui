@@ -56,7 +56,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         // It listens for 'session:activated' events and triggers P2P connection
         // This centralized approach ensures P2P works after ClaimSession too
       } catch (error) {
-        console.error('Failed to initialize ConnectionManager:', error);
+        debugLog('WorkspaceApp', 'Failed to initialize ConnectionManager:', error);
         // Don't prevent app from loading if initialization fails
         // User will see connection error when they try to connect
       }
@@ -146,7 +146,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
                 debugLog('WorkspaceApp', `getSelectedUser failed (attempt ${attempt}/${maxRetries}): ${errorMsg}, retrying...`);
                 await new Promise(resolve => setTimeout(resolve, retryDelayMs));
               } else {
-                console.warn(`[WorkspaceApp] getSelectedUser failed after all retries: ${errorMsg}`);
+                debugLog('WorkspaceApp', `getSelectedUser failed after all retries: ${errorMsg}`);
               }
             }
           }
@@ -188,7 +188,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
         );
 
         if (!storedSession) {
-          console.error('[WorkspaceApp] No stored session found for CID:', cidString);
+          debugLog('WorkspaceApp', 'No stored session found for CID:', cidString);
           return;
         }
         debugLog('WorkspaceApp', `Found stored session for ${storedSession.username}`);
@@ -209,7 +209,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
             debugLog('WorkspaceApp', 'User registration info loaded:', userInfo);
           })
           .catch(error => {
-            console.error('Error loading user registration info:', error);
+            debugLog('WorkspaceApp', 'Error loading user registration info:', error);
           });
 
         // Load workspace data
@@ -224,7 +224,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
             debugLog('WorkspaceApp', 'Nodes loading initiated');
           })
           .catch((error) => {
-            console.error('Error loading workspace data:', error);
+            debugLog('WorkspaceApp', 'Error loading workspace data:', error);
             notificationService.addSystemNotification(
               'Workspace Error',
               `Could not load workspace data: ${error.message}`,
@@ -248,7 +248,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for WebSocket connection failures
     const handleConnectionFailure = (event: { error: string }) => {
-      console.error('WebSocket connection failure:', event.error);
+      debugLog('WorkspaceApp', 'WebSocket connection failure:', event.error);
       setConnectionError(event.error);
       setShowConnectionRetry(true);
     };
@@ -275,7 +275,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
                 description: "Please try logging in again"
               });
             } catch (error) {
-              console.error('Failed to disconnect orphan sessions:', error);
+              debugLog('WorkspaceApp', 'Failed to disconnect orphan sessions:', error);
             }
           }}>
             Clear Sessions
@@ -334,7 +334,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
                 return;
               }
             } catch (error) {
-              console.error('Failed to claim orphan session during retry:', error);
+              debugLog('WorkspaceApp', 'Failed to claim orphan session during retry:', error);
               throw error;
             }
           }

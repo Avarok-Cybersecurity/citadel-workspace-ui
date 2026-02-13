@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -47,7 +48,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
           const active = await connectionManager.getActiveSessions();
           setActiveSessions(active);
         } catch (error) {
-          console.error('Failed to load active sessions:', error);
+          debugLog('AccountManagementDialog', 'Failed to load active sessions:', error);
         }
       };
       runAsyncSetup(loadActiveSessions);

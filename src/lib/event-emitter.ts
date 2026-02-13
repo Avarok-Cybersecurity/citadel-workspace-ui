@@ -1,4 +1,5 @@
- 
+import { debugLog } from './debug-config';
+
 export type EventHandler<T = unknown> = (payload: T) => void;
 
 /**
@@ -13,7 +14,7 @@ export class TypedEventEmitter<T> {
       try {
         callback(event);
       } catch (error) {
-        console.error('Error in typed event handler:', error);
+        debugLog('EventEmitter', 'Error in typed event handler:', error);
       }
     });
   }
@@ -43,7 +44,7 @@ export class EventEmitter {
         try {
           handler(payload);
         } catch (error) {
-          console.error(`Error in event handler for ${event}:`, error);
+          debugLog('EventEmitter', `Error in event handler for ${event}:`, error);
         }
       });
     }

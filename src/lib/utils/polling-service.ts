@@ -17,6 +17,8 @@
  * }
  */
 
+import { debugLog } from '../debug-config';
+
 export abstract class PollingService {
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
   private isPaused = false;
@@ -31,7 +33,7 @@ export abstract class PollingService {
     this.pollingInterval = setInterval(() => {
       if (!this.isPaused) {
         this.poll().catch((error) => {
-          console.error(`[${this.constructor.name}] Polling error:`, error);
+          debugLog('PollingService', `[${this.constructor.name}] Polling error:`, error);
         });
       }
     }, this.getPollingIntervalMs());
@@ -81,7 +83,7 @@ export abstract class PollingService {
     try {
       await this.poll();
     } catch (error) {
-      console.error(`[${this.constructor.name}] Manual poll error:`, error);
+      debugLog('PollingService', `[${this.constructor.name}] Manual poll error:`, error);
     }
   }
 
@@ -112,7 +114,6 @@ export abstract class PollingService {
  * Provides unified lifecycle management.
  */
 import { EventListenerManager } from './event-listener-manager';
-import { debugLog } from '@/lib/debug-config';
 
 export abstract class EventListenerPollingService extends EventListenerManager {
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -141,7 +142,7 @@ export abstract class EventListenerPollingService extends EventListenerManager {
     this.pollingInterval = setInterval(() => {
       if (!this.isPaused) {
         this.poll().catch((error) => {
-          console.error(`[${this.constructor.name}] Polling error:`, error);
+          debugLog('PollingService', `[${this.constructor.name}] Polling error:`, error);
         });
       }
     }, this.getPollingIntervalMs());
@@ -171,7 +172,7 @@ export abstract class EventListenerPollingService extends EventListenerManager {
     try {
       await this.poll();
     } catch (error) {
-      console.error(`[${this.constructor.name}] Manual poll error:`, error);
+      debugLog('PollingService', `[${this.constructor.name}] Manual poll error:`, error);
     }
   }
 

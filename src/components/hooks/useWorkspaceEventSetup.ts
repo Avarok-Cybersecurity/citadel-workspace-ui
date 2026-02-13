@@ -7,6 +7,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import { bytesToString } from '@/lib/utils/encoding-utils';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface UseWorkspaceEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -39,7 +40,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
             }
           }
         } catch (error) {
-          console.warn('Failed to parse workspace metadata as JSON:', error);
+          debugLog('useWorkspaceEventSetup', 'Failed to parse workspace metadata as JSON:', error);
           isInitialized = false;
         }
 
@@ -87,7 +88,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
 
         // Fetch workspace list now that connection is active
         await WorkspaceService.listWorkspaces().catch((err: unknown) => {
-          console.warn('[WorkspaceEventSetup] Failed to list workspaces:', err);
+          debugLog('useWorkspaceEventSetup', 'Failed to list workspaces:', err);
         });
       });
 

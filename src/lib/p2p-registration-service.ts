@@ -21,6 +21,7 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage, BroadcastStateSyncData } from '@/types/ws-message-types';
+import { TIMEOUT, POLLING } from './timeout-constants';
 
 // Re-export for backward compatibility
 export type { SessionSecuritySettings, HeaderObfuscatorSettings };
@@ -89,11 +90,11 @@ export class P2PRegistrationService {
   private isCheckingPeers = false;
 
   // Default polling interval (30 seconds)
-  private readonly POLLING_INTERVAL = 30000;
+  private readonly POLLING_INTERVAL = POLLING.P2P_REGISTRATION_INTERVAL_MS;
 
   // Timeout for peer listing operations - must be longer than backend SDK timeout (5s)
   // to avoid frontend timing out while backend is still processing
-  private readonly PEER_LIST_TIMEOUT = 6000;
+  private readonly PEER_LIST_TIMEOUT = TIMEOUT.PEER_LIST_MS;
 
   // LocalDB key for auto-accept setting
   private static readonly AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';
@@ -139,7 +140,7 @@ export class P2PRegistrationService {
         return tabSelection.selectedCid;
       }
     } catch (e) {
-      console.warn('[P2P] getCurrentCid: getSelectedUser failed:', e);
+      debugLog('P2pRegistrationService', 'getCurrentCid: getSelectedUser failed:', e);
     }
 
     // 3) Tab session from stored sessions (with timeout to prevent hangs)
@@ -153,7 +154,7 @@ export class P2PRegistrationService {
         return tabSession.cid;
       }
     } catch (e) {
-      console.warn('[P2P] getCurrentCid: getTabSelectedSession failed:', e);
+      debugLog('P2pRegistrationService', 'getCurrentCid: getTabSelectedSession failed:', e);
     }
 
     // 4) Legacy global connection CID
@@ -423,7 +424,7 @@ export class P2PRegistrationService {
         // CRITICAL: Use notificationCid (recipient's CID from notification) instead of getCurrentCid()
         // This ensures correct behavior in multi-tab scenarios
         this.handleIncomingRegistrationWithCid(notificationCid, peerCid, peerUsername).catch(error => {
-          console.error('[P2P] Failed to handle incoming registration:', error);
+          debugLog('P2pRegistrationService', 'Failed to handle incoming registration:', error);
         });
       }
 
@@ -463,7 +464,7 @@ export class P2PRegistrationService {
         });
         debugLog('P2pRegistrationService', '[P2P] DEBUG: handleIncomingRequest completed successfully');
       } catch (error) {
-        console.error('[P2P] DEBUG: handleIncomingRequest threw error:', error);
+        debugLog('P2pRegistrationService', 'DEBUG: handleIncomingRequest threw error:', error);
         throw error;
       }
     }
@@ -557,7 +558,7 @@ export class P2PRegistrationService {
         // This is expected when user is not logged in - don't spam the console
         return;
       }
-      console.error('Error checking and registering peers:', error);
+      debugLog('P2pRegistrationService', 'Error checking and registering peers:', error);
     } finally {
       this.isCheckingPeers = false;
     }
@@ -621,7 +622,7 @@ export class P2PRegistrationService {
         if (!errorMessage?.includes('timed out')) {
           throw error; // Non-timeout errors propagate immediately
         }
-        console.warn(`[P2P] ListRegisteredPeers attempt ${i + 1}/${maxRetries} timed out, retrying...`);
+        debugLog('P2pRegistrationService', `ListRegisteredPeers attempt ${i + 1}/${maxRetries} timed out, retrying...`);
         await new Promise(r => setTimeout(r, 500)); // Fixed 500ms backoff (was 1-3s)
       }
     }
@@ -638,7 +639,7 @@ export class P2PRegistrationService {
     debugLog('P2pRegistrationService', `[P2P] listRegisteredPeers: currentCid=${currentCid?.toString() ?? 'null'}`);
     // CID 0 is the service connection, not a user session - skip P2P requests
     if (!currentCid || currentCid === 0n) {
-      console.warn('[P2P] listRegisteredPeers: No active user session, CID is null or 0');
+      debugLog('P2pRegistrationService', 'listRegisteredPeers: No active user session, CID is null or 0');
       throw new Error('No active user session (CID 0 is service connection)');
     }
 
@@ -842,9 +843,9 @@ export class P2PRegistrationService {
     
     for (let i = 0; i < unregisteredPeers.length; i += CONCURRENT_REGISTRATIONS) {
       const batch = unregisteredPeers.slice(i, i + CONCURRENT_REGISTRATIONS);
-      const registrationPromises = batch.map(peer => 
+      const registrationPromises = batch.map(peer =>
         this.registerPeer(peer.cid, options).catch(error => {
-          console.error(`Failed to register peer ${peer.cid}:`, error);
+          debugLog('P2pRegistrationService', `Failed to register peer ${peer.cid}:`, error);
         })
       );
       
@@ -920,7 +921,7 @@ export class P2PRegistrationService {
         debugLog('P2pRegistrationService', '[P2P Registration] No active session, skipping sync of cached peer data');
         return;
       }
-      console.warn('[P2P Registration] Failed to validate peers against server, skipping sync:', errorMessage);
+      debugLog('P2pRegistrationService', '[P2P Registration] Failed to validate peers against server, skipping sync:', errorMessage);
       return;
     }
 
@@ -992,7 +993,7 @@ export class P2PRegistrationService {
       if (errorMessage?.includes('Key not found')) {
         debugLog('P2pRegistrationService', '[P2P] Auto-accept setting not found, using default: false');
       } else {
-        console.warn('[P2P] Failed to get auto-accept setting:', error);
+        debugLog('P2pRegistrationService', 'Failed to get auto-accept setting:', error);
       }
     }
     return false; // Default: manual approval required
@@ -1015,7 +1016,7 @@ export class P2PRegistrationService {
       );
       debugLog('P2pRegistrationService', `[P2P] Auto-accept setting saved: ${autoAccept}`);
     } catch (error) {
-      console.error('[P2P] Failed to save auto-accept setting:', error);
+      debugLog('P2pRegistrationService', 'Failed to save auto-accept setting:', error);
       throw error;
     }
   }

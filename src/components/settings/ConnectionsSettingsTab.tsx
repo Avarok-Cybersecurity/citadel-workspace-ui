@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { debugLog } from '@/lib/debug-config';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +23,7 @@ export function ConnectionsSettingsTab() {
       const enabled = await serverAutoConnectService.getEnabled();
       setAutoReconnect(enabled);
     } catch (error) {
-      console.error('Failed to load auto-reconnect setting:', error);
+      debugLog('ConnectionsSettingsTab', 'Failed to load auto-reconnect setting:', error);
     } finally {
       setLoading(false);
     }

@@ -10,6 +10,7 @@ import WorkspaceService from './workspace-service';
 import { connectionManager } from './connection';
 import { EventListenerManager } from './utils/event-listener-manager';
 import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT, INTERVAL } from './timeout-constants';
 
 /**
  * Permission enum matching Rust Permission type from citadel-workspace-types
@@ -246,7 +247,7 @@ class PermissionsService extends EventListenerManager {
     // Check cache first (unless force refresh)
     if (!forceRefresh) {
       const cached = this.cache.get(domainId);
-      if (cached && Date.now() - cached.lastUpdated < 60000) { // 1 minute cache
+      if (cached && Date.now() - cached.lastUpdated < INTERVAL.PERMISSION_CACHE_MS) { // 1 minute cache
         return cached;
       }
     }
@@ -259,7 +260,7 @@ class PermissionsService extends EventListenerManager {
 
     const userId = this.getCurrentUserId();
     if (!userId) {
-      console.warn('[PermissionsService] No current user, cannot fetch permissions');
+      debugLog('PermissionsService', 'No current user, cannot fetch permissions');
       return null;
     }
 
@@ -272,7 +273,7 @@ class PermissionsService extends EventListenerManager {
         return new Promise<DomainPermissions>((resolve, reject) => {
           const timeout = setTimeout(() => {
             reject(new Error('Permission fetch timeout'));
-          }, 10000);
+          }, TIMEOUT.PERMISSION_FETCH_MS);
 
           const handler = (payload: { domainId: string }) => {
             if (payload.domainId === domainId) {

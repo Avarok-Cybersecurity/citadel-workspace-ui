@@ -227,7 +227,7 @@ export class P2PAutoConnectService {
           this.onlinePeers.add(peerCid);
           debugLog('P2pAutoConnectService', `P2PAutoConnect: Mutual registration complete with ${peerCid.toString().slice(0, 8)}... (they registered back), initiating immediate connection`);
           this.connectToPeer(peerCid).catch((err) => {
-            console.error(`P2PAutoConnect: Failed to connect after mutual registration ${peerCid.toString().slice(0, 8)}...:`, err);
+            debugLog('P2pAutoConnectService', `Failed to connect after mutual registration ${peerCid.toString().slice(0, 8)}...:`, err);
           });
         } else {
           // They registered with us first, we need to accept and register back
@@ -242,7 +242,7 @@ export class P2PAutoConnectService {
       this.onlinePeers.add(peerCid);
       debugLog('P2pAutoConnectService', `P2PAutoConnect: Outgoing registration to ${peerCid.toString().slice(0, 8)}... confirmed, initiating immediate connection`);
       this.connectToPeer(peerCid).catch((err) => {
-        console.error(`P2PAutoConnect: Failed to connect to newly registered peer ${peerCid.toString().slice(0, 8)}...:`, err);
+        debugLog('P2pAutoConnectService', `Failed to connect to newly registered peer ${peerCid.toString().slice(0, 8)}...:`, err);
       });
     });
 
@@ -324,7 +324,7 @@ export class P2PAutoConnectService {
 
         // Now handle the actual acceptance logic (if we are the target)
         this.handleIncomingPeerConnect(notification as { cid?: bigint; peer_cid?: bigint; peer_username?: string }).catch((err) => {
-          console.error('[P2P-AutoConnect] handleIncomingPeerConnect failed:', err);
+          debugLog('P2pAutoConnectService', 'handleIncomingPeerConnect failed:', err);
         });
       }
 
@@ -512,7 +512,7 @@ export class P2PAutoConnectService {
       // Include type information to help debug key mismatches
       const allCids = Array.from(this.connectedPeers.keys());
       if (allCids.length > 0) {
-        console.warn(`[ILM-DIAG] getPeersForSession: NO ENTRY for CID ${localCidBigInt.toString().slice(0, 8)}... (type=${typeof localCid}→${typeof localCidBigInt}), but connectedPeers has entries for: ${allCids.map(c => `${c.toString().slice(0, 8)}(type=${typeof c})`).join(', ')}`);
+        debugLog('P2pAutoConnectService', `[ILM-DIAG] getPeersForSession: NO ENTRY for CID ${localCidBigInt.toString().slice(0, 8)}... (type=${typeof localCid}→${typeof localCidBigInt}), but connectedPeers has entries for: ${allCids.map(c => `${c.toString().slice(0, 8)}(type=${typeof c})`).join(', ')}`);
       }
       return [];
     }
@@ -645,7 +645,7 @@ export class P2PAutoConnectService {
       // Only warn on unexpected errors, skip silently for expected "no session" errors
       const errMsg = String(error);
       if (!errMsg.includes('CID 0') && !errMsg.includes('No active')) {
-        console.warn('[P2PAutoConnect] Backend poll failed:', error);
+        debugLog('P2pAutoConnectService', 'Backend poll failed:', error);
       }
     }
   }
@@ -687,7 +687,7 @@ export class P2PAutoConnectService {
       if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
         return;
       }
-      console.warn('P2PAutoConnect: Failed to refresh online status:', error);
+      debugLog('P2pAutoConnectService', 'Failed to refresh online status:', error);
     }
   }
 
@@ -820,7 +820,7 @@ export class P2PAutoConnectService {
 
     const currentCid = await this.getCurrentCid();
     if (!currentCid) {
-      console.warn('P2PAutoConnect: No current CID, cannot connect');
+      debugLog('P2pAutoConnectService', 'No current CID, cannot connect');
       debugLog('P2pAutoConnectService', 'connectToPeer: ABORT - no currentCid');
       return;
     }
@@ -932,8 +932,8 @@ export class P2PAutoConnectService {
       attempt.timeout = setTimeout(() => this.connectToPeer(peerCid), nextDelay);
       this.connectionAttempts.set(peerCid, attempt);
 
-      console.warn(
-        `P2PAutoConnect: Connect failed for ${peerCid.toString().slice(0, 8)}..., ` +
+      debugLog('P2pAutoConnectService',
+        `Connect failed for ${peerCid.toString().slice(0, 8)}..., ` +
           `retry in ${nextDelay / 1000}s (attempt ${attempt.attempts})`
       );
     }
@@ -954,7 +954,7 @@ export class P2PAutoConnectService {
 
     // OPTIMIZATION: Kick off non-blocking online status refresh (uses caching internally)
     // Each connectToPeer() will use cached status or try optimistically
-    this.refreshOnlineStatus().catch(() => {}); // Fire-and-forget
+    this.refreshOnlineStatus().catch(err => debugLog('P2pAutoConnectService', 'refreshOnlineStatus failed:', err)); // Fire-and-forget
     debugLog('P2pAutoConnectService', `connectToAllRegisteredPeers: onlinePeers=${Array.from(this.onlinePeers).map(c => c.toString().slice(0, 8)).join(',')}`);
 
     let registeredPeers: Array<{ cid?: bigint; username?: string }> = [];
@@ -974,7 +974,7 @@ export class P2PAutoConnectService {
         registeredPeers = await this.getRegisteredPeersViaGetSessions(currentCid);
         debugLog('P2pAutoConnectService', `P2PAutoConnect: Found ${registeredPeers.length} registered peers via GetSessions fallback`);
       } else {
-        console.error('P2PAutoConnect: Failed to list registered peers:', error);
+        debugLog('P2pAutoConnectService', 'Failed to list registered peers:', error);
         return;
       }
     }
@@ -992,7 +992,7 @@ export class P2PAutoConnectService {
         // Don't await - let each run independently
         // Pass forceInitiator explicitly to avoid race condition with flag reset
         this.connectToPeer(peerCid, shouldForceInitiator).catch((err) => {
-          console.error(`P2PAutoConnect: Failed to initiate connection to ${peerCid}:`, err);
+          debugLog('P2pAutoConnectService', `Failed to initiate connection to ${peerCid}:`, err);
         });
       }
     }
@@ -1036,7 +1036,7 @@ export class P2PAutoConnectService {
 
       return peers;
     } catch (error) {
-      console.error('P2PAutoConnect: GetSessions fallback failed:', error);
+      debugLog('P2pAutoConnectService', 'GetSessions fallback failed:', error);
       return [];
     }
   }
@@ -1077,7 +1077,7 @@ export class P2PAutoConnectService {
     const peerUsername = notification.peer_username || '';
 
     if (initiatorCid === undefined || targetCid === undefined) {
-      console.warn('P2PAutoConnect: Invalid PeerConnectNotification - missing cid or peer_cid');
+      debugLog('P2pAutoConnectService', 'Invalid PeerConnectNotification - missing cid or peer_cid');
       return;
     }
 
@@ -1086,7 +1086,7 @@ export class P2PAutoConnectService {
     const currentCid = await this.getCurrentCid();
 
     if (!currentCid) {
-      console.warn('P2PAutoConnect: No current CID, cannot process incoming connection');
+      debugLog('P2pAutoConnectService', 'No current CID, cannot process incoming connection');
       return;
     }
 
@@ -1112,7 +1112,7 @@ export class P2PAutoConnectService {
         // Older connection — but peer is explicitly sending PeerConnect, meaning they believe
         // the connection is dead (e.g., after TCP drop with orphan mode where PeerDisconnect
         // was NOT sent). Trust the peer's signal: clear stale local state and accept.
-        console.warn(`P2PAutoConnect: Local connectedPeers has ${initiatorCid.toString().slice(0, 8)}... but peer is reconnecting. Clearing stale state.`);
+        debugLog('P2pAutoConnectService', `Local connectedPeers has ${initiatorCid.toString().slice(0, 8)}... but peer is reconnecting. Clearing stale state.`);
         this.setPeerDisconnected(currentCid, initiatorCid);
       }
     }
@@ -1146,7 +1146,7 @@ export class P2PAutoConnectService {
         debugLog('P2pAutoConnectService', `P2PAutoConnect: Channel already exists for ${initiatorCid.toString().slice(0, 8)}...`);
         eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });
       } else {
-        console.warn(`P2PAutoConnect: Failed to accept connection from ${initiatorCid.toString().slice(0, 8)}...:`, error);
+        debugLog('P2pAutoConnectService', `Failed to accept connection from ${initiatorCid.toString().slice(0, 8)}...:`, error);
         // Remove from connected since accept failed
         this.setPeerDisconnected(currentCid, initiatorCid);
       }
@@ -1265,7 +1265,7 @@ export class P2PAutoConnectService {
     }
 
     this.connectToAllRegisteredPeers().catch((err) => {
-      console.error('P2PAutoConnect: Poll failed:', err);
+      debugLog('P2pAutoConnectService', 'Poll failed:', err);
     });
   }
 
@@ -1357,7 +1357,7 @@ export class P2PAutoConnectService {
     // Start connection in background (don't await)
     debugLog('P2pAutoConnectService', `P2PAutoConnect: Starting background connection to ${peerCid.toString().slice(0, 8)}...`);
     this.connectToPeer(peerCid).catch((err) => {
-      console.error(`P2PAutoConnect: Background connection failed for ${peerCid.toString().slice(0, 8)}...:`, err);
+      debugLog('P2pAutoConnectService', `Background connection failed for ${peerCid.toString().slice(0, 8)}...:`, err);
     });
   }
 
@@ -1393,7 +1393,7 @@ export class P2PAutoConnectService {
           resolve(true);
         } else if (Date.now() - startTime > timeoutMs) {
           clearInterval(checkInterval);
-          console.warn(`P2PAutoConnect: Timeout waiting for ${peerCid.toString().slice(0, 8)}... to connect`);
+          debugLog('P2pAutoConnectService', `Timeout waiting for ${peerCid.toString().slice(0, 8)}... to connect`);
           resolve(false);
         }
       }, 500);

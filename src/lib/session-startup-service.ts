@@ -159,7 +159,7 @@ class SessionStartupService {
         await wasmConnectionManager.start(event.cid);
         debugLog('SessionStartupService', 'SessionStartup: WASM connection manager started for CID:', event.cid.slice(0, 8) + '...');
       } catch (error) {
-        console.error('SessionStartup: Failed to start WASM connection manager:', error);
+        debugLog('SessionStartupService', 'Failed to start WASM connection manager:', error);
         // Don't fail the entire startup - P2P may still work without ILM
       }
 
@@ -184,7 +184,7 @@ class SessionStartupService {
       eventEmitter.emit('session:startup-complete', event);
       debugLog('SessionStartupService', `SessionStartup: Startup sequence complete for ${event.username}`);
     } catch (error) {
-      console.error('SessionStartup: Error during startup sequence:', error);
+      debugLog('SessionStartupService', 'Error during startup sequence:', error);
       // Emit error event but don't re-throw - session is still active
       eventEmitter.emit('session:startup-error', { ...event, error });
     }

@@ -21,6 +21,7 @@ import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
 import { debugLog } from '@/lib/debug-config';
+import { INTERVAL } from '../timeout-constants';
 import type { ResponseType } from 'citadel-workspace-client-ts';
 
 // Debug: Log when this module is loaded
@@ -38,7 +39,7 @@ const BROADCAST_MESSAGE_TYPES = [
 const CID_FIELDS = ['cid', 'peer_cid', 'session_cid'];
 
 // Timeout for request tracking (5 minutes)
-const REQUEST_TRACKING_TIMEOUT_MS = 5 * 60 * 1000;
+const REQUEST_TRACKING_TIMEOUT_MS = INTERVAL.REQUEST_TRACKING_MS;
 
 class InstanceInboundRouter {
   private static instance: InstanceInboundRouter;
@@ -111,7 +112,7 @@ class InstanceInboundRouter {
           this.pendingRequestMap.delete(requestId);
         }
       }
-    }, 60000); // Clean up every minute
+    }, INTERVAL.CLEANUP_MS); // Clean up every minute
   }
 
   /**
@@ -134,7 +135,7 @@ class InstanceInboundRouter {
   routeMessage(message: Record<string, unknown>): void {
     if (!this.isActive) {
       // We're not the leader - this shouldn't happen
-      console.warn('[ILM-Router] routeMessage called but not leader');
+      debugLog('InstanceInboundRouter', 'routeMessage called but not leader');
       return;
     }
 
@@ -228,8 +229,8 @@ class InstanceInboundRouter {
 
         // For other messages, log a warning but still process locally
         const knownInstances = instanceManager.getAllInstances();
-        console.warn(`[ILM-Router] No instance owns CID ${targetCid}, message may be lost`);
-        console.warn(`[ILM-Router] Known instances: ${knownInstances.map(i => `${i.instanceId}→${i.cid?.toString()}`).join(', ')}`);
+        debugLog('InstanceInboundRouter', `No instance owns CID ${targetCid}, message may be lost`);
+        debugLog('InstanceInboundRouter', `Known instances: ${knownInstances.map(i => `${i.instanceId}→${i.cid?.toString()}`).join(', ')}`);
 
         // Still process locally in case it's relevant
         // (e.g., session status updates that leader should know about)

@@ -141,7 +141,7 @@ export class ConnectionService {
 
       return request;
     } catch (error) {
-      console.error('Failed to send registration request:', error);
+      debugLog('ConnectionService', 'Failed to send registration request:', error);
       throw error;
     }
   }
@@ -179,7 +179,7 @@ export class ConnectionService {
       }, 1000);
 
     } catch (error) {
-      console.error('Failed to initiate P2P connection:', error);
+      debugLog('ConnectionService', 'Failed to initiate P2P connection:', error);
       throw error;
     }
   }
@@ -221,7 +221,7 @@ export class ConnectionService {
       }
 
     } catch (error) {
-      console.error('Failed to accept connection request:', error);
+      debugLog('ConnectionService', 'Failed to accept connection request:', error);
       throw error;
     }
   }
@@ -252,7 +252,7 @@ export class ConnectionService {
       }
 
     } catch (error) {
-      console.error('Failed to reject connection request:', error);
+      debugLog('ConnectionService', 'Failed to reject connection request:', error);
       throw error;
     }
   }
@@ -283,7 +283,7 @@ export class ConnectionService {
       }
 
     } catch (error) {
-      console.error('Failed to cancel connection request:', error);
+      debugLog('ConnectionService', 'Failed to cancel connection request:', error);
       throw error;
     }
   }
@@ -476,7 +476,7 @@ export class ConnectionService {
         debugLog('ConnectionService', `Calling handler`);
         handler(connection);
       } catch (error) {
-        console.error('Error in connection change handler:', error);
+        debugLog('ConnectionService', 'Error in connection change handler:', error);
       }
     });
   }

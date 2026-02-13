@@ -17,6 +17,7 @@ import { fileTransferService } from '@/lib/file-transfer';
 import { peerPairKey, serverTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
 import { eventEmitter } from '@/lib/event-emitter';
 import workspaceService from '@/lib/workspace-service';
+import { debugLog } from '@/lib/debug-config';
 
 /** Default storage quota: 100 MB */
 const DEFAULT_QUOTA_BYTES = 100 * 1024 * 1024;
@@ -244,7 +245,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     // Query server capabilities
     capabilitiesQueried.current = true;
     workspaceService.getServerCapabilities().catch((err) => {
-      console.warn('[useServerRevfsTree] Failed to query server capabilities:', err);
+      debugLog('UseServerRevfsTree', 'Failed to query server capabilities:', err);
       // Keep default capabilities on error
     });
 

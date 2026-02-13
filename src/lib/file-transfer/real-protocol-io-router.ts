@@ -30,6 +30,7 @@ import type {
 } from './io-router-types';
 import type { FileTransfer } from './types';
 import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 // Response/notification types from internal service
 interface FileTransferRequestNotification {
@@ -146,7 +147,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('SendFile request timed out'));
-      }, 30000);
+      }, TIMEOUT.FILE_SEND_MS);
 
       const handleMessage = (message: Record<string, unknown>) => {
         const success = message.SendFileRequestSuccess as SendFileSuccessResponse | undefined;
@@ -171,7 +172,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
           eventEmitter.off('websocket-message', handleMessage);
 
           const errorMsg = failure.message || 'SendFile failed';
-          console.error('RealProtocolIORouter: SendFile failed', errorMsg);
+          debugLog('RealProtocolIORouter', 'SendFile failed', errorMsg);
           reject(new Error(errorMsg));
         }
       };
@@ -285,7 +286,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('DownloadFile request timed out'));
-      }, 60000); // 60s timeout for downloads
+      }, TIMEOUT.FILE_DOWNLOAD_MS); // 60s timeout for downloads
 
       const handleMessage = (message: Record<string, unknown>) => {
         const success = message.DownloadFileSuccess as { request_id?: string } | undefined;
@@ -304,7 +305,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
           const errorMsg = failure.message || 'DownloadFile failed';
-          console.error('RealProtocolIORouter: DownloadFile failed', errorMsg);
+          debugLog('RealProtocolIORouter', 'DownloadFile failed', errorMsg);
           reject(new Error(errorMsg));
         }
       };

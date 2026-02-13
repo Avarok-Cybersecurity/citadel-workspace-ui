@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { debugLog } from '@/lib/debug-config';
 import { Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +29,7 @@ export function GeneralSettingsTab() {
       }
       setIsLoading(false);
     };
-    loadUser().catch(console.error);
+    loadUser().catch((err: unknown) => debugLog('GeneralSettingsTab', 'Failed to load user:', err));
   }, []);
 
   // Handle profile updates
@@ -67,7 +68,7 @@ export function GeneralSettingsTab() {
       );
       // The response handler will emit 'user:profile-updated' which updates state
     } catch (error) {
-      console.error('Failed to update profile:', error);
+      debugLog('GeneralSettingsTab', 'Failed to update profile:', error);
       toast({
         title: 'Error',
         description: 'Failed to save profile. Please try again.',

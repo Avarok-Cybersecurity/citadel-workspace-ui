@@ -12,6 +12,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { debugLog } from '../debug-config';
 
 export interface ResponseMatcher<T> {
   /** Return extracted data on success match, undefined to skip */
@@ -116,7 +117,7 @@ export function requestResponseSoft(options: {
 
     sendRequest(request, requestId).catch(error => {
       cleanup();
-      console.warn(`Failed to send ${operationName}:`, error);
+      debugLog('RequestResponse', `Failed to send ${operationName}:`, error);
       resolve();
     });
   });

@@ -47,7 +47,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         freshPeers = await p2pRegistrationService.listRegisteredPeers();
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
-        console.warn(`[P2P] useRegisteredPeers: listRegisteredPeers failed (${errorMessage}), using cached peers`);
+        debugLog('UseRegisteredPeers', `listRegisteredPeers failed (${errorMessage}), using cached peers`);
       }
 
       // Merge cached and fresh peers
@@ -98,7 +98,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           return { cid: cidStr, username: displayName, isOnline, isConnected };
         }));
       } catch (mapError) {
-        console.error(`[P2P] useRegisteredPeers: Promise.all mapping failed:`, mapError);
+        debugLog('UseRegisteredPeers', 'Promise.all mapping failed:', mapError);
         peerList = peersToUse.map(p => {
           const cidStr = p.cid?.toString() || '';
           const displayName = (p.username && p.username !== 'Unknown')
@@ -126,7 +126,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         }
       }
     } catch (error) {
-      console.error('[P2P] useRegisteredPeers: Failed to load peers:', error);
+      debugLog('UseRegisteredPeers', 'Failed to load peers:', error);
     } finally {
       setIsLoading(false);
     }

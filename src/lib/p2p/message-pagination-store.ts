@@ -38,7 +38,7 @@ export class MessagePaginationStore {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (!errorMessage.includes('Key not found')) {
-        console.warn('[P2P] Failed to delete old format:', error);
+        debugLog('MessagePaginationStore', 'Failed to delete old format:', error);
       }
       // Key not found is fine - means already migrated or fresh install
     }
@@ -73,7 +73,7 @@ export class MessagePaginationStore {
             results.push(metadata);
           }
         } catch (e) {
-          console.warn(`[P2P] Failed to load metadata for key ${key}:`, e);
+          debugLog('MessagePaginationStore', `Failed to load metadata for key ${key}:`, e);
         }
       }
 
@@ -83,7 +83,7 @@ export class MessagePaginationStore {
       if (errorMessage.includes('Key not found') || errorMessage.includes('No keys found')) {
         debugLog('MessagePaginationStore', '[P2P] No paginated conversations found');
       } else {
-        console.error('[P2P] Failed to load metadata:', error);
+        debugLog('MessagePaginationStore', 'Failed to load metadata:', error);
       }
     }
 

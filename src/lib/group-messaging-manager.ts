@@ -5,7 +5,7 @@
  * Provides a reactive interface for UI components to subscribe to message updates.
  */
 
-import { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
+import type { GroupMessage } from '@/types/workspace-entities';
 import { TypedEventEmitter } from './event-emitter';
 import { debugLog } from '@/lib/debug-config';
 

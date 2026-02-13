@@ -119,7 +119,7 @@ export class CheckStateManager {
       await this.config.sendToP2P(peerCid, bytes);
       debugLog('CheckstateManager', '[P2P] Sent CheckStateResponse to peer:', peerCid);
     } catch (error) {
-      console.error('[P2P] Failed to send CheckStateResponse:', error);
+      debugLog('CheckstateManager', 'Failed to send CheckStateResponse:', error);
     }
   }
 
