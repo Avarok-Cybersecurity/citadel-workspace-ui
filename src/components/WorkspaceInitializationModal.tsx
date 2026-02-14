@@ -11,17 +11,7 @@ import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages
 import { workspaceEvents } from "@/lib/workspace-events";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-
-interface WorkspaceInitializationModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSuccess: () => void;
-    workspaceName?: string;
-    workspaceId?: string;
-    serverAddress?: string;
-    username?: string;
-    fullName?: string;
-}
+import type { WorkspaceInitializationModalProps } from './workspace-init-types';
 
 export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModalProps> = ({
     isOpen,
@@ -40,7 +30,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setMasterPassword(e.target.value);
-        setError(null); // Clear error on input change
+        setError(null);
     };
 
     const validateForm = (): boolean => {
@@ -62,14 +52,10 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
         setError(null);
 
         try {
-            // Create metadata to mark workspace as initialized
-            const metadata = {
-                initialized: true
-            };
+            const metadata = { initialized: true };
             const metadataBytes = new TextEncoder().encode(JSON.stringify(metadata));
             const metadataArray = Array.from(metadataBytes);
 
-            // Always use UpdateWorkspace since the server creates the root workspace on startup
             const request: WorkspaceProtocolRequestTS = {
                 UpdateWorkspace: {
                     workspace_master_password: masterPassword,
@@ -79,52 +65,42 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 }
             };
 
-            // Send the request through the workspace service
             const payload: WorkspaceProtocolPayloadTS = { Request: request };
-            
-            // Create a promise that resolves when we get a response
+
             const responsePromise = new Promise<void>((resolve, reject) => {
                 let unsubscribeWorkspace: (() => void) | null = null;
                 let unsubscribeError: (() => void) | null = null;
                 let timeoutId: NodeJS.Timeout | null = null;
-                
+
                 const cleanup = () => {
                     if (unsubscribeWorkspace) unsubscribeWorkspace();
                     if (unsubscribeError) unsubscribeError();
                     if (timeoutId) clearTimeout(timeoutId);
                 };
-                
-                // Listen for workspace response
+
                 runAsyncSetup(async () => {
-                    unsubscribeWorkspace = await workspaceEvents.onWorkspaceEvent('workspace:loaded', (payload) => {
+                    unsubscribeWorkspace = await workspaceEvents.onWorkspaceEvent('workspace:loaded', () => {
                         cleanup();
                         resolve();
                     });
                 });
 
-                // Also listen for errors
                 runAsyncSetup(async () => {
                     unsubscribeError = await workspaceEvents.onOperationEvent('operation:error', (error) => {
                         cleanup();
                         reject(new Error(error.message || 'Failed to initialize workspace'));
                     });
                 });
-                
-                // Timeout after 10 seconds
+
                 timeoutId = setTimeout(() => {
                     cleanup();
                     reject(new Error('Request timed out'));
                 }, 10000);
             });
-            
-            // Send the request
+
             await WorkspaceService.sendWorkspaceRequest(payload);
-            
-            // Wait for the response
             await responsePromise;
 
-            // Get the user's permissions to update their role (they should now be Admin)
-            // Use the username prop passed to this modal (not userService which may have "Loading..." placeholder)
             try {
                 if (username) {
                     await WorkspaceService.getUserPermissions(username, 'workspace-root');
@@ -134,19 +110,14 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 }
             } catch (permErr) {
                 debugLog('WorkspaceInitializationModal', 'Failed to load user permissions after initialization:', permErr);
-                // Don't fail the initialization, just warn
             }
 
-            // Only show success toast if we got here without error
             toast({
                 title: "Workspace Initialized",
                 description: "You are now the workspace administrator.",
             });
 
-            // Clear form
             setMasterPassword("");
-
-            // Call success callback
             onSuccess();
         } catch (err: unknown) {
             debugLog('WorkspaceInitializationModal', 'Failed to initialize workspace:', err);
@@ -264,4 +235,4 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             </Card>
         </div>
     );
-}; 
+};

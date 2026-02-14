@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { workspaceEvents, type ErrorPayload, type ConnectionInfo, type ProtocolWarningPayload, type MessagePayload } from '../lib/workspace-events';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
@@ -7,16 +6,14 @@ import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
 import { connectionManager } from '../lib/connection';
-// P2P startup is now centralized in SessionStartupService, but we still need stop() for cleanup
-import { p2pRegistrationService } from '../lib/p2p-registration-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 
-// Import extracted hooks
 import {
   useWorkspaceEventSetup,
   useMemberEventSetup,
   useEventEmitterSetup,
   useNodeEventSetup,
+  useMessageEventSetup,
 } from './hooks';
 import { debugLog } from '@/lib/debug-config';
 
@@ -68,9 +65,6 @@ export interface WorkspaceEventState {
 /**
  * Component that handles workspace events and provides a central place
  * for managing workspace state updates.
- *
- * This component doesn't render anything visible but acts as an event manager
- * to update application state based on events from the Rust backend.
  */
 export const WorkspaceEventHandler: React.FC<{
   onStateChange?: (state: WorkspaceEventState) => void;
@@ -81,31 +75,20 @@ export const WorkspaceEventHandler: React.FC<{
     workspaces: [],
     nodes: {},
     treeSchema: null,
-    loading: {
-      workspace: false,
-      members: false,
-      nodes: false,
-    },
+    loading: { workspace: false, members: false, nodes: false },
     needsWorkspaceInitialization: false,
     messages: {
       byPeer: loadFromStorage<Record<string, Array<{
-        content: string;
-        timestamp: number;
-        id?: string;
-        pending?: boolean;
+        content: string; timestamp: number; id?: string; pending?: boolean;
       }>>>('workspace-messages', {}),
       lastMessageTimestamp: Date.now(),
     },
-    typing: {
-      peerIds: [],
-      lastUpdated: Date.now(),
-    }
+    typing: { peerIds: [], lastUpdated: Date.now() }
   });
 
   const [showInitModal, setShowInitModal] = useState(false);
   const [initModalDismissed, setInitModalDismissed] = useState(false);
 
-  // Watch for initialization requirement and show modal
   useEffect(() => {
     if (state.needsWorkspaceInitialization && !showInitModal && !initModalDismissed) {
       debugLog('WorkspaceEventHandler', 'Workspace needs initialization - showing modal');
@@ -118,190 +101,33 @@ export const WorkspaceEventHandler: React.FC<{
   useMemberEventSetup({ setState });
   useNodeEventSetup({ setState });
   useEventEmitterSetup({ setState });
+  useMessageEventSetup({ setState, setShowInitModal });
 
-  // Set up remaining event listeners (messages, errors, protocol warnings)
-  useEffect(() => {
-    const setupMessageListeners = async () => {
-      await workspaceEvents.onMessageEvent('message:received', (payload: MessagePayload) => {
-        debugLog('WorkspaceEventHandler', `Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
-
-        if (!payload.contents) {
-          debugLog('WorkspaceEventHandler', 'Received message event without contents');
-          return;
-        }
-
-        const peerCidStr = (payload.peerCid ?? 0n).toString();
-
-        setState(prev => {
-          const peerMessages = prev.messages.byPeer[peerCidStr] || [];
-          const updatedTypingPeerIds = prev.typing.peerIds.filter(id => id !== peerCidStr);
-
-          return {
-            ...prev,
-            messages: {
-              ...prev.messages,
-              byPeer: {
-                ...prev.messages.byPeer,
-                [peerCidStr]: [
-                  ...peerMessages,
-                  {
-                    content: payload.contents as string,
-                    timestamp: Date.now(),
-                    id: payload.connection.request_id
-                  }
-                ]
-              },
-              lastMessageTimestamp: Date.now()
-            },
-            typing: {
-              ...prev.typing,
-              peerIds: updatedTypingPeerIds,
-              lastUpdated: Date.now()
-            },
-            lastRequestId: payload.connection.request_id
-          };
-        });
-      });
-
-      await workspaceEvents.onMessageEvent('typing:started', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
-        const peerCidStr = payload.peerCid.toString();
-        setState(prev => {
-          if (!prev.typing.peerIds.includes(peerCidStr)) {
-            return {
-              ...prev,
-              typing: {
-                peerIds: [...prev.typing.peerIds, peerCidStr],
-                lastUpdated: Date.now()
-              },
-              lastRequestId: payload.connection.request_id
-            };
-          }
-          return prev;
-        });
-      });
-
-      await workspaceEvents.onMessageEvent('typing:stopped', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
-        const peerCidStr = payload.peerCid.toString();
-        setState(prev => ({
-          ...prev,
-          typing: {
-            peerIds: prev.typing.peerIds.filter(id => id !== peerCidStr),
-            lastUpdated: Date.now()
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-      });
-    };
-
-    const setupErrorHandling = async () => {
-      await workspaceEvents.onOperationEvent('operation:error', (payload: ErrorPayload) => {
-        setState(prev => ({
-          ...prev,
-          error: payload.message,
-          lastRequestId: payload.connection.request_id,
-          needsWorkspaceInitialization: payload.message.includes('No workspace found')
-        }));
-
-        debugLog('WorkspaceEventHandler', 'Operation error:', payload.message);
-
-        if (payload.message.includes('No workspace found')) {
-          debugLog('WorkspaceEventHandler', 'Workspace initialization needed - showing modal');
-          setShowInitModal(true);
-        } else {
-          setTimeout(() => {
-            setState(prev => ({ ...prev, error: undefined }));
-          }, 5000);
-        }
-      });
-
-      await workspaceEvents.onOperationEvent('operation:success', (connectionInfo: ConnectionInfo) => {
-        debugLog('WorkspaceEventHandler', `Operation successful (CID: ${connectionInfo.cid}, request ID: ${connectionInfo.request_id})`);
-        setState(prev => ({
-          ...prev,
-          lastRequestId: connectionInfo.request_id
-        }));
-      });
-    };
-
-    const setupProtocolWarningHandling = async () => {
-      await workspaceEvents.onProtocolEvent('protocol:warning', (payload: ProtocolWarningPayload) => {
-        debugLog('WorkspaceEventHandler', `Protocol warning: ${payload.message}`, {
-          requestType: payload.requestType,
-          connectionInfo: payload.connection
-        });
-
-        setState(prev => ({
-          ...prev,
-          protocolWarning: {
-            message: payload.message,
-            requestType: payload.requestType,
-            timestamp: Date.now(),
-          },
-          lastRequestId: payload.connection.request_id
-        }));
-
-        setTimeout(() => {
-          setState(prev => ({ ...prev, protocolWarning: undefined }));
-        }, 10000);
-      });
-    };
-
-    const initializeEvents = async () => {
-      await setupMessageListeners();
-      await setupErrorHandling();
-      await setupProtocolWarningHandling();
-      debugLog('WorkspaceEventHandler', 'Workspace event listeners initialized');
-    };
-
-    runAsyncSetup(initializeEvents);
-
-    return () => {
-      runAsyncSetup(async () => { workspaceEvents.cleanupAllListeners(); });
-      p2pRegistrationService.stop();
-    };
-  }, []);
-
-  // Persist messages to local storage whenever they change
+  // Persist messages to local storage
   useEffect(() => {
     saveToStorage('workspace-messages', state.messages.byPeer);
   }, [state.messages.byPeer]);
 
-  // Function to send a message to a peer
   const sendMessage = async (_content: string, _recipientId: string) => {
     try {
       throw new Error('sendMessage not implemented - use WorkspaceService.sendWorkspaceRequest instead');
     } catch (error) {
       debugLog('WorkspaceEventHandler', 'Error sending message:', error);
-      setState(prev => ({
-        ...prev,
-        error: `Failed to send message: ${error}`
-      }));
+      setState(prev => ({ ...prev, error: `Failed to send message: ${error}` }));
       return false;
     }
   };
 
-  // Notify parent component of state changes
   useEffect(() => {
-    if (onStateChange) {
-      onStateChange(state);
-    }
+    if (onStateChange) onStateChange(state);
   }, [state, onStateChange]);
 
   const handleWorkspaceInitialized = () => {
     setShowInitModal(false);
-    setState(prev => ({
-      ...prev,
-      needsWorkspaceInitialization: false,
-      error: undefined
-    }));
-
+    setState(prev => ({ ...prev, needsWorkspaceInitialization: false, error: undefined }));
     WorkspaceService.loadWorkspace()
-      .then(() => {
-        debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization');
-      })
-      .catch(error => {
-        debugLog('WorkspaceEventHandler', 'Error reloading workspace after initialization:', error);
-      });
+      .then(() => debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization'))
+      .catch(error => debugLog('WorkspaceEventHandler', 'Error reloading workspace after initialization:', error));
   };
 
   return (
@@ -311,10 +137,7 @@ export const WorkspaceEventHandler: React.FC<{
       </WorkspaceProvider>
       <WorkspaceInitializationModal
         isOpen={showInitModal}
-        onClose={() => {
-          setShowInitModal(false);
-          setInitModalDismissed(true);
-        }}
+        onClose={() => { setShowInitModal(false); setInitModalDismissed(true); }}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}
         workspaceId={state.workspace?.id || 'root'}

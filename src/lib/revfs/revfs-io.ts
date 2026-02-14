@@ -3,6 +3,8 @@
  *
  * Executes RevfsIntents by calling the appropriate external services.
  * This is the ONLY module that performs side effects for RE-VFS.
+ *
+ * Network I/O (backend file operations) is delegated to revfs-io-network.ts.
  */
 
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
@@ -11,12 +13,8 @@ import { MessagingLayerType } from '@/types/messaging-layer';
 import { P2PCommandType, serializeP2PCommand } from '@/types/p2p-types';
 import type { P2PCommand, P2PMessagingLayerPayload } from '@/types/p2p-types';
 import { RevfsOpfsStorage } from './opfs-storage';
-import { eventEmitter } from '../event-emitter';
 import { debugLog } from '@/lib/debug-config';
-import { TIMEOUT } from '../timeout-constants';
-
-/** Timeout for backend file operations (30 seconds) */
-const BACKEND_TIMEOUT_MS = TIMEOUT.FILE_SEND_MS;
+import { backendSendFile, backendDownloadFile, backendDeleteFile } from './revfs-io-network';
 
 export interface RevfsIODeps {
   sendP2PMessageReliable: (localCid: bigint, peerCid: bigint, message: Uint8Array) => Promise<void>;
@@ -46,11 +44,11 @@ export class RevfsIO {
       case 'load-pending-ops':
         return this.loadPendingOps(intent.treeKey);
       case 'backend-send-file':
-        return this.backendSendFile(intent.cid, intent.peerCid, intent.source, intent.virtualDir);
+        return backendSendFile(this.deps, intent.cid, intent.peerCid, intent.source, intent.virtualDir);
       case 'backend-download-file':
-        return this.backendDownloadFile(intent.cid, intent.peerCid, intent.virtualDir);
+        return backendDownloadFile(this.deps, intent.cid, intent.peerCid, intent.virtualDir);
       case 'backend-delete-file':
-        return this.backendDeleteFile(intent.cid, intent.peerCid, intent.virtualDir);
+        return backendDeleteFile(this.deps, intent.cid, intent.peerCid, intent.virtualDir);
     }
   }
 
@@ -116,209 +114,5 @@ export class RevfsIO {
   private async loadPendingOps(key: string): Promise<RevfsIntentResult> {
     const ops = await this.storage.loadPendingOps(key);
     return { type: 'load-pending-ops', ops };
-  }
-
-  // ============================================================================
-  // Backend File Operations (wired to WASM client)
-  // ============================================================================
-
-  /**
-   * Send a file via the Citadel protocol.
-   * - If peerCid is bigint: file is stored in peer's virtual file system (P2P)
-   * - If peerCid is null: file is stored on server (server storage)
-   */
-  private async backendSendFile(
-    cid: bigint, peerCid: bigint | null, source: string, virtualDir: string,
-  ): Promise<RevfsIntentResult> {
-    const requestId = crypto.randomUUID();
-    const isServerStorage = peerCid === null;
-    debugLog('RevfsIO', `backendSendFile: source=${source} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
-
-    const request = {
-      SendFile: {
-        request_id: requestId,
-        source,
-        cid,
-        peer_cid: peerCid, // null for server storage
-        chunk_size: null, // Use default
-        transfer_type: 'FileTransfer',
-      },
-    };
-
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        debugLog('RevfsIO', 'backendSendFile timed out');
-        resolve({ type: 'backend-send-file', success: false });
-      }, BACKEND_TIMEOUT_MS);
-
-      const handleMessage = (message: unknown) => {
-        const msg = message as Record<string, unknown>;
-
-        // Check for SendFileRequestSuccess
-        const success = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
-        if (success?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          debugLog('RevfsIO', 'backendSendFile success');
-          resolve({ type: 'backend-send-file', success: true, virtualDir });
-        }
-
-        // Check for SendFileRequestFailure
-        const failure = msg.SendFileRequestFailure as { request_id?: string; message?: string } | undefined;
-        if (failure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          debugLog('RevfsIO', 'backendSendFile failed:', failure.message);
-          resolve({ type: 'backend-send-file', success: false });
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      this.deps.sendInternalServiceRequest(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        debugLog('RevfsIO', 'backendSendFile request error:', error);
-        resolve({ type: 'backend-send-file', success: false });
-      });
-    });
-  }
-
-  /**
-   * Download a file via the Citadel protocol.
-   * - If peerCid is bigint: download from peer's virtual file system (P2P)
-   * - If peerCid is null: download from server storage
-   * Returns the local download path on success.
-   */
-  private async backendDownloadFile(
-    cid: bigint, peerCid: bigint | null, virtualDir: string,
-  ): Promise<RevfsIntentResult> {
-    const requestId = crypto.randomUUID();
-    const isServerStorage = peerCid === null;
-    debugLog('RevfsIO', `backendDownloadFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
-
-    const request = {
-      DownloadFile: {
-        request_id: requestId,
-        virtual_directory: virtualDir,
-        cid,
-        peer_cid: peerCid, // null for server storage
-        security_level: 'Standard',
-        delete_on_pull: false,
-      },
-    };
-
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        debugLog('RevfsIO', 'backendDownloadFile timed out');
-        resolve({ type: 'backend-download-file', success: false });
-      }, BACKEND_TIMEOUT_MS);
-
-      const handleMessage = (message: unknown) => {
-        const msg = message as Record<string, unknown>;
-
-        // Check for FileTransferStatusNotification with download completion
-        const status = msg.FileTransferStatusNotification as {
-          cid?: bigint;
-          peer_cid?: bigint;
-          success?: boolean;
-          response?: { download_path?: string };
-        } | undefined;
-
-        if (status && status.cid === cid) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          if (status.success) {
-            const downloadPath = status.response?.download_path;
-            debugLog('RevfsIO', 'backendDownloadFile success:', downloadPath);
-            resolve({ type: 'backend-download-file', success: true, downloadPath });
-          } else {
-            debugLog('RevfsIO', 'backendDownloadFile transfer failed');
-            resolve({ type: 'backend-download-file', success: false });
-          }
-        }
-
-        // Check for DownloadFileFailure
-        const failure = msg.DownloadFileFailure as { request_id?: string; message?: string } | undefined;
-        if (failure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          debugLog('RevfsIO', 'backendDownloadFile failed:', failure.message);
-          resolve({ type: 'backend-download-file', success: false });
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      this.deps.sendInternalServiceRequest(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        debugLog('RevfsIO', 'backendDownloadFile request error:', error);
-        resolve({ type: 'backend-download-file', success: false });
-      });
-    });
-  }
-
-  /**
-   * Delete a file via the Citadel protocol.
-   * - If peerCid is bigint: delete from peer's virtual file system (P2P)
-   * - If peerCid is null: delete from server storage
-   */
-  private async backendDeleteFile(
-    cid: bigint, peerCid: bigint | null, virtualDir: string,
-  ): Promise<RevfsIntentResult> {
-    const requestId = crypto.randomUUID();
-    const isServerStorage = peerCid === null;
-    debugLog('RevfsIO', `backendDeleteFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
-
-    const request = {
-      DeleteVirtualFile: {
-        request_id: requestId,
-        virtual_directory: virtualDir,
-        cid,
-        peer_cid: peerCid, // null for server storage
-      },
-    };
-
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        debugLog('RevfsIO', 'backendDeleteFile timed out');
-        resolve({ type: 'backend-delete-file', success: false });
-      }, BACKEND_TIMEOUT_MS);
-
-      const handleMessage = (message: unknown) => {
-        const msg = message as Record<string, unknown>;
-
-        // Check for DeleteVirtualFileSuccess
-        const success = msg.DeleteVirtualFileSuccess as { request_id?: string } | undefined;
-        if (success?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          debugLog('RevfsIO', 'backendDeleteFile success');
-          resolve({ type: 'backend-delete-file', success: true });
-        }
-
-        // Check for DeleteVirtualFileFailure
-        const failure = msg.DeleteVirtualFileFailure as { request_id?: string; message?: string } | undefined;
-        if (failure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          debugLog('RevfsIO', 'backendDeleteFile failed:', failure.message);
-          resolve({ type: 'backend-delete-file', success: false });
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      this.deps.sendInternalServiceRequest(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        debugLog('RevfsIO', 'backendDeleteFile request error:', error);
-        resolve({ type: 'backend-delete-file', success: false });
-      });
-    });
   }
 }

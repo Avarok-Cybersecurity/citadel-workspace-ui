@@ -5,36 +5,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Card, 
+import {
+  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle 
+  CardTitle
 } from '@/components/ui/card';
-import { UserRole } from '@/types/workspace-entities';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Badge } from '@/components/ui/badge';
+import type { UserData, UserSearchProps } from './user-search-types';
+import { getRoleBadgeClass } from './user-search-types';
 
-export interface UserData {
-  id: string;
-  displayName: string;
-  avatarUrl?: string;
-  email?: string;
-  role?: UserRole;
-  isOnline?: boolean;
-  lastActive?: number;
-}
-
-interface UserSearchProps {
-  onUserSelect?: (user: UserData) => void;
-  enableInvite?: boolean;
-  className?: string;
-  placeholder?: string;
-  exclude?: string[]; // User IDs to exclude from results
-  initialFocus?: boolean;
-}
+// Re-export types for backward compatibility
+export type { UserData } from './user-search-types';
 
 export const UserSearch: React.FC<UserSearchProps> = ({
   onUserSelect,
@@ -63,7 +48,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        resultsRef.current && 
+        resultsRef.current &&
         !resultsRef.current.contains(event.target as Node) &&
         inputRef.current &&
         !inputRef.current.contains(event.target as Node)
@@ -89,14 +74,11 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       setLoading(true);
 
       try {
-        // In a real implementation, we would call an API to search users
-        // For now, we'll filter the workspace members from state
         const members = Object.values(state.members || {});
-        
-        // Filter by search term and exclude specified users
+
         const filteredMembers = members
-          .filter(member => 
-            !exclude.includes(member.id) && 
+          .filter(member =>
+            !exclude.includes(member.id) &&
             (
               member.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
               (member.email && member.email.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -108,8 +90,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
             avatarUrl: member.avatarUrl,
             email: member.email,
             role: member.role,
-            isOnline: Math.random() > 0.5, // Simulate online status (replace with real data)
-            lastActive: Date.now() - Math.floor(Math.random() * 1000000) // Simulate last active time
+            isOnline: Math.random() > 0.5,
+            lastActive: Date.now() - Math.floor(Math.random() * 1000000)
           }));
 
         setResults(filteredMembers);
@@ -121,7 +103,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     };
 
     const debounceTimeout = setTimeout(searchUsers, 300);
-    
+
     return () => {
       clearTimeout(debounceTimeout);
     };
@@ -143,12 +125,10 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     setSearchTerm('');
     inputRef.current?.focus();
   };
-  
-  // Fallback users when searching for the first time or no results
+
   const getRecentUsers = (): UserData[] => {
     const members = Object.values(state.members || {});
-    
-    // Return a few recent members, excluding specified users
+
     return members
       .filter(member => !exclude.includes(member.id))
       .slice(0, 5)
@@ -158,25 +138,9 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         avatarUrl: member.avatarUrl,
         email: member.email,
         role: member.role,
-        isOnline: Math.random() > 0.5, // Simulate online status
-        lastActive: Date.now() - Math.floor(Math.random() * 1000000) // Simulate last active
+        isOnline: Math.random() > 0.5,
+        lastActive: Date.now() - Math.floor(Math.random() * 1000000)
       }));
-  };
-
-  // Get role badge class
-  const getRoleBadgeClass = (role?: UserRole) => {
-    switch (role) {
-      case UserRole.Owner:
-        return 'bg-purple-500 hover:bg-purple-600';
-      case UserRole.Admin:
-        return 'bg-blue-500 hover:bg-blue-600';
-      case UserRole.Member:
-        return 'bg-green-500 hover:bg-green-600';
-      case UserRole.Guest:
-        return 'bg-gray-500 hover:bg-gray-600';
-      default:
-        return 'bg-gray-500 hover:bg-gray-600';
-    }
   };
 
   return (
@@ -205,8 +169,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       </div>
 
       {showResults && (
-        <Card 
-          ref={resultsRef} 
+        <Card
+          ref={resultsRef}
           className="absolute z-50 w-full mt-1 bg-[#343A5C] border-gray-700 text-white shadow-lg overflow-hidden"
         >
           <CardHeader className="p-3 border-b border-gray-700">
@@ -226,7 +190,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
               ) : (
                 <ul className="divide-y divide-gray-700">
                   {(results.length > 0 ? results : searchTerm ? [] : getRecentUsers()).map((user) => (
-                    <li 
+                    <li
                       key={user.id}
                       className="hover:bg-[#444A6C] transition-colors p-3 cursor-pointer"
                       onClick={() => handleSelectUser(user)}

@@ -15,13 +15,11 @@ import {
   useNodesState,
   useEdgesState,
   type Node,
-  type Edge,
   BackgroundVariant,
   Panel,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { TreeGraphNode } from "./TreeGraphNode";
 import { TreeGraphContextMenu } from "./TreeGraphContextMenu";
 import {
   treeNodeToFlowElements,
@@ -29,51 +27,11 @@ import {
   wouldCreateCycle,
   findNodeInTree,
 } from "./tree-graph-utils";
-import type { TreeGraphEditorProps, ContextMenuState, TreeFlowNode } from "./tree-graph-types";
+import type { TreeGraphEditorProps, ContextMenuState } from "./tree-graph-types";
 import { cn } from "@/lib/utils";
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { debugLog } from '@/lib/debug-config';
-import { isVariant } from 'citadel-workspace-client-ts';
-
-/**
- * Node types registry for React Flow.
- * Type assertion needed as TreeGraphNode has more specific types than NodeTypes expects.
- */
-const nodeTypes = {
-  treeNode: TreeGraphNode,
-} as const;
-
-/**
- * MiniMap node color function
- */
-function getMinimapNodeColor(node: Node): string {
-  const entityType = (node.data as TreeFlowNode["data"])?.entityType;
-
-  if (entityType === "Workspace") {
-    return "#7c3aed";
-  }
-
-  if (isVariant(entityType as Record<string, unknown>, 'Child')) {
-    const childType = (entityType as { Child: string }).Child.toLowerCase();
-    switch (childType) {
-      case "office":
-        return "#2563eb";
-      case "room":
-        return "#16a34a";
-      case "department":
-        return "#ea580c";
-      case "team":
-        return "#0891b2";
-      case "project":
-        return "#db2777";
-      default:
-        return "#475569";
-    }
-  }
-
-  return "#475569";
-}
+import { nodeTypes, getMinimapNodeColor } from "./tree-graph-node-types";
 
 export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
   treeStructure,

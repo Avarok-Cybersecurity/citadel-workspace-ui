@@ -1,0 +1,116 @@
+/**
+ * Permission node sections: ChildNodePermissionSection, ParentNodePermissionSection
+ */
+
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { usePermissions } from '@/contexts/PermissionsContext';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { getEntityMetadata, type NodeEntityType } from '@/lib/entity-type-registry';
+import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
+
+/**
+ * Child node permission section -- icon derived from entity-type-registry.
+ */
+export function ChildNodePermissionSection({
+  nodeId,
+  nodeName,
+  entityType,
+}: {
+  nodeId: string;
+  nodeName: string;
+  entityType: NodeEntityType;
+}) {
+  const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
+  const role = getRole(nodeId);
+  const metadata = getEntityMetadata(entityType);
+  const Icon = metadata.icon;
+
+  useEffect(() => {
+    runAsyncSetup(async () => {
+      await fetchPermissionsForDomain(nodeId);
+    });
+  }, [nodeId, fetchPermissionsForDomain]);
+
+  return (
+    <AccordionItem value={`child-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-teal-500/30 ml-4">
+      <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
+        <div className="flex items-center gap-3">
+          <Icon className="h-4 w-4 text-teal-400" />
+          <span>{nodeName}</span>
+          <RoleBadge role={role} />
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="pl-6">
+        <GroupedPermissionTable domainId={nodeId} />
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+/**
+ * Parent node permission section with nested children -- icon derived from entity-type-registry.
+ */
+export function ParentNodePermissionSection({
+  nodeId,
+  nodeName,
+  entityType,
+  children,
+}: {
+  nodeId: string;
+  nodeName: string;
+  entityType: NodeEntityType;
+  children: Array<{ id: string; name: string; entityType: NodeEntityType }>;
+}) {
+  const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
+  const role = getRole(nodeId);
+  const metadata = getEntityMetadata(entityType);
+  const Icon = metadata.icon;
+
+  useEffect(() => {
+    runAsyncSetup(async () => {
+      await fetchPermissionsForDomain(nodeId);
+    });
+  }, [nodeId, fetchPermissionsForDomain]);
+
+  return (
+    <AccordionItem value={`node-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-blue-500/30 ml-2">
+      <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
+        <div className="flex items-center gap-3">
+          <Icon className="h-4 w-4 text-blue-400" />
+          <span>{nodeName}</span>
+          <RoleBadge role={role} />
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="pl-4">
+        <div className="mb-4">
+          <GroupedPermissionTable domainId={nodeId} />
+        </div>
+
+        {children.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-gray-400 mb-2 pl-2">Children</h4>
+            <Accordion type="multiple" className="w-full">
+              {children.map((child) => (
+                <ChildNodePermissionSection
+                  key={child.id}
+                  nodeId={child.id}
+                  nodeName={child.name}
+                  entityType={child.entityType}
+                />
+              ))}
+            </Accordion>
+          </div>
+        )}
+      </AccordionContent>
+    </AccordionItem>
+  );
+}

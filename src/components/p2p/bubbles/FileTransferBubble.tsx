@@ -1,8 +1,9 @@
-import { File, FileImage, FileText, FileVideo, FileAudio, Download, X, Check, Clock, AlertCircle, Ban, Zap } from 'lucide-react';
+import { Download, X, Check, Zap } from 'lucide-react';
 import { getBubbleStyles } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import type { FileTransferBubbleProps } from './types';
 import { debugLog } from '@/lib/debug-config';
+import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -12,18 +13,18 @@ import { debugLog } from '@/lib/debug-config';
  * - uploading: "Uploading to server..." + progress bar
  * - staged: "File ready, waiting for acceptance..." + Cancel button
  * - transferring: Progress bar with percentage
- * - complete: "✓ Sent successfully"
- * - declined: "✗ Transfer declined"
+ * - complete: "Sent successfully"
+ * - declined: "Transfer declined"
  * - cancelled: "Transfer cancelled"
- * - expired: "⚠ Request expired"
+ * - expired: "Request expired"
  * - error: Error message
  *
  * States (receiver view):
  * - pending/staged: Accept/Decline buttons
  * - transferring: "Downloading..." + progress bar
- * - complete: "✓ Downloaded" (clickable to open)
- * - declined: "✗ You declined this file"
- * - cancelled: "⚠ Sender cancelled transfer"
+ * - complete: "Downloaded" (clickable to open)
+ * - declined: "You declined this file"
+ * - cancelled: "Sender cancelled transfer"
  */
 export function FileTransferBubble({
   message,
@@ -54,127 +55,7 @@ export function FileTransferBubble({
   const fileType = message.file_type || 'application/octet-stream';
   const transferMode = message.transfer_mode || 'async';
 
-  // Get appropriate file icon based on MIME type
-  const getFileIcon = () => {
-    if (fileType.startsWith('image/')) return <FileImage className="h-5 w-5" />;
-    if (fileType.startsWith('video/')) return <FileVideo className="h-5 w-5" />;
-    if (fileType.startsWith('audio/')) return <FileAudio className="h-5 w-5" />;
-    if (fileType.startsWith('text/') || fileType.includes('pdf')) return <FileText className="h-5 w-5" />;
-    return <File className="h-5 w-5" />;
-  };
-
-  // Format file size
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
-
-  // Get status icon and text based on state
-  const getStatusContent = () => {
-    switch (state) {
-      case 'pending':
-        if (isOwn) {
-          return {
-            icon: <Clock className="h-4 w-4 text-yellow-400" />,
-            text: 'Waiting for acceptance...',
-            showCancel: true
-          };
-        }
-        return {
-          icon: <Download className="h-4 w-4 text-sky-400" />,
-          text: 'wants to send you a file',
-          showAcceptDecline: true
-        };
-
-      case 'uploading':
-        return {
-          icon: <Clock className="h-4 w-4 text-sky-400 animate-spin" />,
-          text: 'Uploading to server...',
-          showProgress: true
-        };
-
-      case 'staged':
-        if (isOwn) {
-          return {
-            icon: <Check className="h-4 w-4 text-green-400" />,
-            text: 'File ready, waiting for acceptance...',
-            showCancel: true
-          };
-        }
-        return {
-          icon: <Download className="h-4 w-4 text-sky-400" />,
-          text: 'File ready to download',
-          showAcceptDecline: true
-        };
-
-      case 'transferring':
-        return {
-          icon: <Download className="h-4 w-4 text-sky-400 animate-pulse" />,
-          text: isOwn ? 'Sending...' : 'Downloading...',
-          showProgress: true
-        };
-
-      case 'complete':
-        if (isOwn) {
-          return {
-            icon: <Check className="h-4 w-4 text-green-400" />,
-            text: 'Sent successfully'
-          };
-        }
-        return {
-          icon: <Check className="h-4 w-4 text-green-400" />,
-          text: 'Downloaded',
-          clickable: true
-        };
-
-      case 'declined':
-        if (isOwn) {
-          return {
-            icon: <X className="h-4 w-4 text-red-400" />,
-            text: 'Transfer declined'
-          };
-        }
-        return {
-          icon: <X className="h-4 w-4 text-gray-400" />,
-          text: 'You declined this file'
-        };
-
-      case 'cancelled':
-        if (isOwn) {
-          return {
-            icon: <Ban className="h-4 w-4 text-gray-400" />,
-            text: 'Transfer cancelled'
-          };
-        }
-        return {
-          icon: <AlertCircle className="h-4 w-4 text-yellow-400" />,
-          text: 'Sender cancelled transfer'
-        };
-
-      case 'expired':
-        return {
-          icon: <Clock className="h-4 w-4 text-orange-400" />,
-          text: 'Request expired'
-        };
-
-      case 'error':
-        return {
-          icon: <AlertCircle className="h-4 w-4 text-red-400" />,
-          text: message.error || 'Transfer failed'
-        };
-
-      default:
-        return {
-          icon: <File className="h-4 w-4" />,
-          text: 'Unknown state'
-        };
-    }
-  };
-
-  const status = getStatusContent();
+  const status = getStatusContent(state, isOwn, message);
 
   const handleClick = () => {
     if (status.clickable && onOpen && message.virtual_path) {
@@ -225,7 +106,7 @@ export function FileTransferBubble({
                 className="h-10 w-10 object-cover rounded"
               />
             ) : (
-              getFileIcon()
+              getFileIcon(fileType)
             )}
           </div>
 

@@ -1,4 +1,3 @@
-import { useState, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,17 +7,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Upload, X, FileImage, FileText, FileVideo, FileAudio, File, Zap, Cloud, FolderOpen } from 'lucide-react';
+import { Paperclip, Upload, Zap, Cloud } from 'lucide-react';
 import type { FileTransferMode } from '@/types/messaging-layer';
-import { fileTransferService } from '@/lib/file-transfer';
-import { debugLog } from '@/lib/debug-config';
+import { useFileTransfer } from './useFileTransfer';
+import { FileDropZone } from './FileDropZone';
 
 interface FileTransferModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSendFile: (file: File, mode: FileTransferMode) => Promise<void>;
   onSendWithNativePicker?: (mode: FileTransferMode) => Promise<void>;
-  peerCid: string; // Required for native picker flow
+  peerCid: string;
   maxFileSizeMb?: number;
 }
 
@@ -30,157 +29,29 @@ export function FileTransferModal({
   peerCid,
   maxFileSizeMb = 100,
 }: FileTransferModalProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  // Default to P2P mode since async mode (server upload) is not yet implemented
-  const [transferMode, setTransferMode] = useState<FileTransferMode>('p2p');
-  const [isDragging, setIsDragging] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [isPickingFile, setIsPickingFile] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [nativePickerAvailable, setNativePickerAvailable] = useState<boolean | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
-
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
-
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-purple-400" />;
-    if (mimeType.startsWith('video/')) return <FileVideo className="h-8 w-8 text-blue-400" />;
-    if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-green-400" />;
-    if (mimeType.startsWith('text/') || mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-orange-400" />;
-    return <File className="h-8 w-8 text-gray-400" />;
-  };
-
-  const handleFileSelect = useCallback((file: File) => {
-    setError(null);
-
-    if (file.size > maxFileSizeBytes) {
-      setError(`File size (${formatBytes(file.size)}) exceeds maximum of ${formatBytes(maxFileSizeBytes)}`);
-      return;
-    }
-
-    setSelectedFile(file);
-
-    // Generate preview for images
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewUrl(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setPreviewUrl(null);
-    }
-  }, [maxFileSizeBytes]);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  }, [handleFileSelect]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleBrowseClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Native file picker handler - uses internal-service's PickFile API
-  const handleNativePickerClick = useCallback(async () => {
-    setError(null);
-    setIsPickingFile(true);
-
-    try {
-      // Call the native file picker via fileTransferService
-      const transferId = await fileTransferService.sendFileWithNativePicker(
-        peerCid,
-        'Select a file to send',
-        undefined // No extension filter for now
-      );
-
-      debugLog('FileTransferModal', 'FileTransferModal: Native file transfer started', { transferId });
-
-      // Close modal on success
-      handleRemoveFile();
-      onClose();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to pick file';
-
-      // Check if native picker is unavailable
-      if (errorMessage.includes('native-dialogs feature is disabled') ||
-          errorMessage.includes('File picker not available')) {
-        setNativePickerAvailable(false);
-        setError('Native file picker not available in this environment. Use drag & drop or browse instead.');
-      } else if (errorMessage.includes('cancelled') || errorMessage.includes('canceled')) {
-        // User cancelled - not an error
-        debugLog('FileTransferModal', 'FileTransferModal: File picker cancelled');
-      } else {
-        setError(errorMessage);
-      }
-    } finally {
-      setIsPickingFile(false);
-    }
-  }, [peerCid, onClose]);
-
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleSend = async () => {
-    if (!selectedFile) return;
-
-    setIsSending(true);
-    setError(null);
-
-    try {
-      await onSendFile(selectedFile, transferMode);
-      handleRemoveFile();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send file');
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleClose = () => {
-    if (!isSending) {
-      handleRemoveFile();
-      onClose();
-    }
-  };
+  const {
+    selectedFile,
+    previewUrl,
+    transferMode,
+    setTransferMode,
+    isDragging,
+    isSending,
+    isPickingFile,
+    error,
+    nativePickerAvailable,
+    fileInputRef,
+    maxFileSizeBytes,
+    formatBytes,
+    handleDrop,
+    handleDragOver,
+    handleDragLeave,
+    handleInputChange,
+    handleBrowseClick,
+    handleNativePickerClick,
+    handleRemoveFile,
+    handleSend,
+    handleClose,
+  } = useFileTransfer({ onClose, onSendFile, peerCid, maxFileSizeMb });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -198,102 +69,23 @@ export function FileTransferModal({
         </DialogHeader>
 
         <div className="py-4 space-y-4">
-          {/* Drop zone */}
-          {!selectedFile && (
-            <div className="space-y-3">
-              {/* Native file picker button - primary option when available */}
-              {nativePickerAvailable !== false && (
-                <button
-                  onClick={handleNativePickerClick}
-                  disabled={isPickingFile || isSending}
-                  className="w-full flex items-center gap-3 p-4 rounded-lg border border-[#6E59A5] bg-[#6E59A5]/10 hover:bg-[#6E59A5]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="p-2 rounded-lg bg-[#6E59A5]/20">
-                    <FolderOpen className="h-5 w-5 text-purple-400" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <span className="font-medium text-white">
-                      {isPickingFile ? 'Opening file picker...' : 'Browse Files'}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Uses native file picker with full path access
-                    </p>
-                  </div>
-                </button>
-              )}
+          <FileDropZone
+            selectedFile={selectedFile}
+            previewUrl={previewUrl}
+            isDragging={isDragging}
+            isSending={isSending}
+            isPickingFile={isPickingFile}
+            nativePickerAvailable={nativePickerAvailable}
+            maxFileSizeBytes={maxFileSizeBytes}
+            formatBytes={formatBytes}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onBrowseClick={handleBrowseClick}
+            onNativePickerClick={handleNativePickerClick}
+            onRemoveFile={handleRemoveFile}
+          />
 
-              {/* Divider */}
-              {nativePickerAvailable !== false && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-[#3a3f5c]" />
-                  <span className="text-xs text-gray-500">or</span>
-                  <div className="flex-1 h-px bg-[#3a3f5c]" />
-                </div>
-              )}
-
-              {/* Drag & drop zone - fallback option */}
-              <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={handleBrowseClick}
-                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                  isDragging
-                    ? 'border-purple-500 bg-purple-500/10'
-                    : 'border-[#3a3f5c] hover:border-[#6E59A5] hover:bg-[#262C4A]'
-                }`}
-              >
-                <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                <p className="text-sm text-gray-300">
-                  Drop file here or <span className="text-purple-400">browse</span>
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Maximum file size: {formatBytes(maxFileSizeBytes)}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* File preview */}
-          {selectedFile && (
-            <div className="bg-[#262C4A] rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                {/* Preview or icon */}
-                <div className="flex-shrink-0">
-                  {previewUrl ? (
-                    <img
-                      src={previewUrl}
-                      alt={selectedFile.name}
-                      className="h-16 w-16 object-cover rounded-lg"
-                    />
-                  ) : (
-                    <div className="h-16 w-16 flex items-center justify-center bg-[#1C1D28] rounded-lg">
-                      {getFileIcon(selectedFile.type)}
-                    </div>
-                  )}
-                </div>
-
-                {/* File info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {formatBytes(selectedFile.size)} • {selectedFile.type || 'Unknown type'}
-                  </p>
-                </div>
-
-                {/* Remove button */}
-                <button
-                  onClick={handleRemoveFile}
-                  className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                  disabled={isSending}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -305,7 +97,6 @@ export function FileTransferModal({
           <div className="space-y-2">
             <p className="text-sm text-gray-300 font-medium">Transfer Method</p>
 
-            {/* Async (Server) option */}
             <button
               onClick={() => setTransferMode('async')}
               className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-colors ${
@@ -332,7 +123,6 @@ export function FileTransferModal({
               </div>
             </button>
 
-            {/* P2P option */}
             <button
               onClick={() => setTransferMode('p2p')}
               className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-colors ${
@@ -355,7 +145,6 @@ export function FileTransferModal({
             </button>
           </div>
 
-          {/* Error message */}
           {error && (
             <p className="text-sm text-red-400 bg-red-400/10 p-2 rounded">
               {error}

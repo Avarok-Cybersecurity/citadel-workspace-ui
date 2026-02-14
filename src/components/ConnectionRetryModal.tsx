@@ -8,59 +8,34 @@ import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-
-interface ConnectionRetryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  errorMessage?: string;
-  onRetry?: () => Promise<void>;
-  maxRetries?: number;
-  maxBackoffSeconds?: number; // Maximum backoff time in seconds (default: 300 = 5 minutes)
-}
+import type { ConnectionRetryModalProps } from './connection-retry-types';
+import { getRetryDelay } from './connection-retry-types';
 
 export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   isOpen,
   onClose,
   errorMessage = "Failed to connect to the workspace server",
   onRetry,
-  maxRetries = 10, // Increased for longer server startup times
-  maxBackoffSeconds = 300 // 5 minutes max
+  maxRetries = 10,
+  maxBackoffSeconds = 300
 }) => {
   const userFriendlyError = errorMessage ? getUserFriendlyErrorMessage(errorMessage) : "Unable to connect to the workspace server.";
   const [countdown, setCountdown] = useState(0);
   const [hasInitialized, setHasInitialized] = useState(false);
   const { toast } = useToast();
 
-  // Use ref to store retry function to prevent useEffect re-triggering
-  // when the retry callback reference changes (which happens on every state update)
   const retryFnRef = useRef<(() => Promise<unknown>) | null>(null);
-
-  // Track if a retry is currently in progress to prevent overlapping retries
   const retryInProgressRef = useRef(false);
-
-  // Use ref to store execute function to prevent useEffect re-triggering
-  // when the execute callback reference changes (which happens on every state update)
   const executeFnRef = useRef<(() => Promise<unknown>) | null>(null);
 
-  // Memoize the retry operation to prevent reference changes on every render
-  // This stabilizes the execute/retry functions from useRetry
   const retryOperation = useCallback(async () => {
     if (onRetry) {
       return onRetry();
     }
-    // Default retry logic - reset state and attempt to reconnect
-    // Reset clears global WASM state to allow fresh initialization
     websocketService.reset();
     await websocketService.init();
     return true;
   }, [onRetry]);
-
-  // Calculate retry delay based on attempt number (exponential backoff)
-  // Starts at 2s, then 4s, 8s, 16s, 32s, 64s, 128s, 256s (capped at maxBackoffSeconds)
-  const getRetryDelay = (attempt: number) => {
-    const baseDelay = 2000; // Start with 2 seconds
-    return Math.min(baseDelay * Math.pow(2, attempt - 1), maxBackoffSeconds * 1000);
-  };
 
   const {
     attempt,
@@ -72,8 +47,6 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     retryOperation,
     {
       maxRetries,
-      // Set to 0 - the modal handles exponential backoff via countdown timer
-      // useRetry's delay would cause double-waiting (countdown + delay)
       retryDelay: 0,
       onSuccess: () => {
         toast({
@@ -91,54 +64,43 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     }
   );
 
-  // Keep the function refs up to date
   useEffect(() => {
     retryFnRef.current = retryConnection;
     executeFnRef.current = execute;
   }, [retryConnection, execute]);
 
-  // Initialize retry when modal opens
   useEffect(() => {
     if (isOpen && !hasInitialized && attempt === 0) {
       setHasInitialized(true);
-      // Start the first connection attempt using ref to avoid dependency on changing callback
       const executeFn = executeFnRef.current;
       if (executeFn) {
         runAsyncSetup(() => executeFn());
       }
     }
 
-    // Reset when modal closes
     if (!isOpen && hasInitialized) {
       setHasInitialized(false);
     }
-    // NOTE: Intentionally NOT including execute in deps to prevent infinite re-triggering.
-    // The executeFnRef.current always has the latest execute function.
   }, [isOpen, hasInitialized, attempt]);
 
-  // Handle countdown timer for auto-retry
   useEffect(() => {
-    // Only start countdown after first attempt fails and we have more retries left
     if (!isOpen || isLoading || attempt === 0 || attempt >= maxRetries) return;
 
-    const retryDelay = getRetryDelay(attempt);
+    const retryDelayMs = getRetryDelay(attempt, maxBackoffSeconds);
     const startTime = Date.now();
-    setCountdown(Math.ceil(retryDelay / 1000));
+    setCountdown(Math.ceil(retryDelayMs / 1000));
 
-    // Flag to track if this effect triggered a retry (prevents double-trigger)
     let hasTriggeredRetry = false;
 
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
-      const remainingSeconds = Math.ceil((retryDelay - elapsed) / 1000);
+      const remainingSeconds = Math.ceil((retryDelayMs - elapsed) / 1000);
       setCountdown(Math.max(remainingSeconds, 0));
 
-      // Trigger retry only once per effect cycle and if no retry is in progress
-      if (elapsed >= retryDelay && attempt < maxRetries && !hasTriggeredRetry && !retryInProgressRef.current) {
+      if (elapsed >= retryDelayMs && attempt < maxRetries && !hasTriggeredRetry && !retryInProgressRef.current) {
         hasTriggeredRetry = true;
         retryInProgressRef.current = true;
 
-        // Use the ref to call retry (avoids dependency on changing callback reference)
         const retryFn = retryFnRef.current;
         if (retryFn) {
           runAsyncSetup(async () => {
@@ -155,19 +117,15 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     const interval = setInterval(updateProgress, 100);
 
     return () => clearInterval(interval);
-    // NOTE: Intentionally NOT including retryConnection in deps to prevent infinite re-triggering
-    // The retryFnRef.current always has the latest retry function
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, attempt, maxRetries, isLoading]);
 
-  // Listen for successful connection events
   useEventListener('connection-success', () => {
     onClose();
   }, [onClose]);
 
   const handleManualRetry = () => {
     setCountdown(0);
-    // Use ref for consistency with auto-retry path to avoid race conditions
     const retryFn = retryFnRef.current;
     if (retryFn && !retryInProgressRef.current) {
       retryInProgressRef.current = true;
@@ -199,7 +157,6 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Retry status */}
           <div className="text-sm text-muted-foreground">
             {isLoading ? (
               <div className="flex items-center gap-2">
@@ -221,7 +178,6 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
             )}
           </div>
 
-          {/* Countdown with spinner */}
           {!isLoading && attempt > 0 && attempt < maxRetries && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
@@ -239,7 +195,6 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
             </div>
           )}
 
-          {/* Error details */}
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {error.message}

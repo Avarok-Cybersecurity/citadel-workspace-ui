@@ -5,10 +5,10 @@
  * Provides timeout-based retry logic and max retry handling.
  *
  * Flow:
- * 1. Instance calls enqueue(payload) → returns requestId
+ * 1. Instance calls enqueue(payload) -> returns requestId
  * 2. Message sent to leader via InstanceChannel
  * 3. Leader processes and sends ACK { status: 'processed' | 'error', error?: string }
- * 4. Instance calls acknowledge(requestId, status) → removes from queue
+ * 4. Instance calls acknowledge(requestId, status) -> removes from queue
  *
  * Timeout/Retry:
  * - If no ACK within ACK_TIMEOUT_MS, message is retried
@@ -21,42 +21,10 @@ import { instanceManager } from './instance-manager';
 import { PollingService } from '../utils/polling-service';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
+import type { QueuedMessage, AckResult } from './outbound-queue-types';
 
-export interface QueuedMessage {
-  requestId: string;
-  payload: unknown;
-  instanceId: string;
-  timestamp: number;
-  retryCount: number;
-  timeoutId?: ReturnType<typeof setTimeout>;
-}
-
-/**
- * Known proxy response data shapes.
- * When adding new proxy operations that return data, add their shape here.
- */
-export type ProxyResponseData =
-  | { wasOpened: boolean }         // ensureMessengerOpen response
-  | { success: boolean }           // generic operation result
-  | Record<string, unknown>;       // fallback for other operations
-
-export interface AckResult {
-  status: 'processed' | 'error';
-  error?: string;
-  data?: ProxyResponseData;
-}
-
-/**
- * Type guard for ensureMessengerOpen response
- */
-export function isEnsureMessengerOpenResponse(data: unknown): data is { wasOpened: boolean } {
-  return (
-    data !== null &&
-    typeof data === 'object' &&
-    'wasOpened' in data &&
-    typeof (data as { wasOpened: unknown }).wasOpened === 'boolean'
-  );
-}
+export type { QueuedMessage, AckResult, ProxyResponseData } from './outbound-queue-types';
+export { isEnsureMessengerOpenResponse } from './outbound-queue-types';
 
 const ACK_TIMEOUT_MS = TIMEOUT.SERVER_REQUEST_MS;
 const MAX_RETRIES = 3;
@@ -94,25 +62,16 @@ class OutboundQueue extends PollingService {
     });
   }
 
-  /**
-   * Start the timeout checker
-   */
   start(): void {
     this.startPolling();
     debugLog('OutboundQueue', '[OutboundQueue] Started timeout checker');
   }
 
-  /**
-   * Stop the timeout checker
-   */
   stop(): void {
     this.stopPolling();
     debugLog('OutboundQueue', '[OutboundQueue] Stopped timeout checker');
   }
 
-  /**
-   * Enqueue a message for sending
-   */
   enqueue(payload: unknown, requestId?: string): string {
     const id = requestId || crypto.randomUUID();
 
@@ -130,9 +89,6 @@ class OutboundQueue extends PollingService {
     return id;
   }
 
-  /**
-   * Acknowledge a message (remove from queue)
-   */
   acknowledge(requestId: string, result: AckResult): void {
     const message = this.queue.get(requestId);
 

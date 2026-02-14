@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, ChevronDown, Check, X } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -22,10 +22,14 @@ import { Separator } from '@/components/ui/separator';
 import WorkspaceService from '@/lib/workspace-service';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { User, UserRole } from '@/types/workspace-entities';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
+import {
+  PERMISSION_CATEGORIES,
+  ROLE_HIERARCHY,
+  getRoleDefaultPermissions,
+} from './permission-constants';
 
 interface PermissionManagerProps {
   userId: string;
@@ -33,44 +37,6 @@ interface PermissionManagerProps {
   domainType: string;
   onClose?: () => void;
 }
-
-// Permission categories for better organization
-const PERMISSION_CATEGORIES = {
-  Content: [
-    { id: 'ViewContent', label: 'View Content', description: 'Can view content in this domain' },
-    { id: 'EditContent', label: 'Edit Content', description: 'Can modify content' },
-    { id: 'EditMdx', label: 'Edit MDX', description: 'Can edit MDX documents' },
-  ],
-  Messaging: [
-    { id: 'SendMessages', label: 'Send Messages', description: 'Can send messages' },
-    { id: 'ReadMessages', label: 'Read Messages', description: 'Can read messages' },
-  ],
-  Files: [
-    { id: 'UploadFiles', label: 'Upload Files', description: 'Can upload files' },
-    { id: 'DownloadFiles', label: 'Download Files', description: 'Can download files' },
-  ],
-  Members: [
-    { id: 'AddUsers', label: 'Add Users', description: 'Can add new members' },
-    { id: 'RemoveUsers', label: 'Remove Users', description: 'Can remove members' },
-    { id: 'BanUser', label: 'Ban Users', description: 'Can ban users from domain' },
-  ],
-  Management: [
-    { id: 'CreateNode', label: 'Create Nodes', description: 'Can create new nodes' },
-    { id: 'DeleteNode', label: 'Delete Nodes', description: 'Can delete nodes' },
-    { id: 'UpdateNode', label: 'Update Nodes', description: 'Can update node settings' },
-  ],
-  System: [
-    { id: 'ManageDomains', label: 'Manage Domains', description: 'Full domain management' },
-    { id: 'ConfigureSystem', label: 'Configure System', description: 'System configuration' },
-  ],
-};
-
-const ROLE_HIERARCHY = [
-  { value: 'Admin', label: 'Administrator', color: 'bg-red-500' },
-  { value: 'Owner', label: 'Owner', color: 'bg-orange-500' },
-  { value: 'Member', label: 'Member', color: 'bg-blue-500' },
-  { value: 'Guest', label: 'Guest', color: 'bg-gray-500' },
-];
 
 export const PermissionManager: React.FC<PermissionManagerProps> = ({
   userId,
@@ -92,47 +58,17 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
 
   const loadUserPermissions = async () => {
     try {
-      // Load actual permissions from backend
       await WorkspaceService.getUserPermissions(userId, domainId);
-      // The response will be handled by the workspace event handler
-      // For now, set defaults until we get the response
       const rolePermissions = getRoleDefaultPermissions(selectedRole);
       setSelectedPermissions(new Set(rolePermissions));
 
-      // Simulate inherited permissions from parent domains
       if (domainType !== 'workspace') {
         setInheritedPermissions(new Set(['ViewContent', 'ReadMessages']));
       }
     } catch (error) {
       debugLog('PermissionManager', 'Error loading permissions:', error);
-      // Fall back to defaults
       const rolePermissions = getRoleDefaultPermissions(selectedRole);
       setSelectedPermissions(new Set(rolePermissions));
-    }
-  };
-
-  const getRoleDefaultPermissions = (role: string): string[] => {
-    switch (role) {
-      case 'Admin':
-        return Object.values(PERMISSION_CATEGORIES).flat().map(p => p.id);
-      case 'Owner':
-        return [
-          'ViewContent', 'EditContent', 'EditMdx',
-          'SendMessages', 'ReadMessages',
-          'UploadFiles', 'DownloadFiles',
-          'AddUsers', 'RemoveUsers',
-          'CreateNode', 'DeleteNode', 'UpdateNode',
-        ];
-      case 'Member':
-        return [
-          'ViewContent', 'EditContent',
-          'SendMessages', 'ReadMessages',
-          'UploadFiles', 'DownloadFiles',
-        ];
-      case 'Guest':
-        return ['ViewContent', 'ReadMessages'];
-      default:
-        return [];
     }
   };
 
@@ -155,9 +91,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Update the user's role via backend
       await WorkspaceService.updateMemberRole(userId, selectedRole);
-
       toastSuccess(toast, "Permissions Updated", `User role updated to ${selectedRole}.`);
 
       if (onClose) {

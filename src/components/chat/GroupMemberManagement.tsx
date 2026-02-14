@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
-import { UserMinus, Crown, Shield, User } from 'lucide-react';
+import { UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -17,16 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Table,
   TableBody,
   TableCell,
@@ -34,35 +24,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { GroupConversation, GroupMemberWithRole, GroupRole } from '@/types/group';
+import type { GroupMemberWithRole } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface GroupMemberManagementProps {
-  group: GroupConversation;
-  /** Callback when a member's role is changed */
-  onRoleChange: (memberCid: string, roleId: string) => Promise<void>;
-  /** Callback when a member is kicked */
-  onKickMember: (memberCid: string) => Promise<void>;
-}
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const AVATAR_COLORS = [
-  '#FFD700', // Gold - Owner
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
+import { getRoleIcon, getAvatarColor } from './GroupMemberManagementHelpers';
+import type { GroupMemberManagementProps } from './GroupMemberManagementHelpers';
+import { KickConfirmDialog } from './KickConfirmDialog';
 
 // ============================================================================
 // Component
@@ -86,11 +52,9 @@ export function GroupMemberManagement({
         return [{ ...member, role } as GroupMemberWithRole];
       })
       .sort((a, b) => {
-        // Owner first (highest position)
         if (a.role.position !== b.role.position) {
           return b.role.position - a.role.position;
         }
-        // Then alphabetical
         return a.username.localeCompare(b.username);
       });
   }, [group.members, group.settings.roles]);
@@ -101,23 +65,6 @@ export function GroupMemberManagement({
       .filter(r => !r.isBuiltIn)
       .sort((a, b) => b.position - a.position);
   }, [group.settings.roles]);
-
-  // Get role icon based on position
-  const getRoleIcon = (role: GroupRole) => {
-    if (role.position >= 100) {
-      return <Crown className="h-4 w-4 text-amber-500" />;
-    }
-    if (role.position >= 50) {
-      return <Shield className="h-4 w-4 text-purple-400" />;
-    }
-    return <User className="h-4 w-4 text-gray-400" />;
-  };
-
-  // Get avatar color
-  const getAvatarColor = (member: GroupMemberWithRole, index: number): string => {
-    if (member.role?.color) return member.role.color;
-    return AVATAR_COLORS[index % AVATAR_COLORS.length];
-  };
 
   // Handle role change
   const handleRoleChange = useCallback(
@@ -184,14 +131,12 @@ export function GroupMemberManagement({
                     {/* Member Info */}
                     <TableCell className="py-3">
                       <div className="flex items-center gap-3">
-                        {/* Avatar */}
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white"
                           style={{ backgroundColor: getAvatarColor(member, index) }}
                         >
                           {member.username[0]?.toUpperCase() || '?'}
                         </div>
-                        {/* Name & Role Icon */}
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-white font-medium">
                             {member.username}
@@ -263,7 +208,7 @@ export function GroupMemberManagement({
                             <UserMinus className="h-4 w-4" />
                           </Button>
                         ) : (
-                          <div className="h-7 w-7" /> // Placeholder for alignment
+                          <div className="h-7 w-7" />
                         )}
                       </TableCell>
                     )}
@@ -276,34 +221,12 @@ export function GroupMemberManagement({
       </ScrollArea>
 
       {/* Kick Confirmation Dialog */}
-      <AlertDialog open={!!memberToKick} onOpenChange={() => setMemberToKick(null)}>
-        <AlertDialogContent className="bg-[#1C2333] border-[#2D3548]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">
-              Kick "{memberToKick?.username}"?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
-              This member will be removed from the group. They can be re-invited
-              later by a group admin.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={isKicking}
-              className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleKickConfirm}
-              disabled={isKicking}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {isKicking ? 'Kicking...' : 'Kick Member'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <KickConfirmDialog
+        member={memberToKick}
+        isKicking={isKicking}
+        onOpenChange={() => setMemberToKick(null)}
+        onConfirm={handleKickConfirm}
+      />
     </div>
   );
 }

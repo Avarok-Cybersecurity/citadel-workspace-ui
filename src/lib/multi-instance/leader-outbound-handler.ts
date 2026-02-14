@@ -16,11 +16,15 @@
  */
 
 import { eventEmitter } from '../event-emitter';
-import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
-import type { ProxyResponseData } from './outbound-queue';
+import type { ProxyResponseData } from './outbound-queue-types';
+import {
+  handleWorkspaceRequestProxy,
+  handleOpenMessengerProxy,
+  handleEnsureMessengerProxy,
+  handleSendP2PMessageProxy,
+} from './leader-proxy-handlers';
 import { debugLog } from '@/lib/debug-config';
-import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 
 interface OutboundRequest {
   requestId: string;
@@ -31,7 +35,6 @@ interface OutboundRequest {
 // Types of messages that should use ILM (reliability layer)
 const ILM_REQUIRED_TYPES = [
   'Message', // P2P messages need ILM
-  // Add other message types that need guaranteed delivery
 ];
 
 // Types that can bypass ILM
@@ -53,7 +56,6 @@ const BYPASS_ILM_TYPES = [
   'PeerDisconnect',
   'ListAllPeers',
   'ListRegisteredPeers',
-  // Most queries and management operations don't need ILM
 ];
 
 class LeaderOutboundHandler {
@@ -74,12 +76,10 @@ class LeaderOutboundHandler {
   }
 
   private setupEventListeners(): void {
-    // Listen for outbound requests from InstanceChannel
     eventEmitter.on('channel:outbound-request', async (request: OutboundRequest) => {
       await this.handleOutboundRequest(request);
     });
 
-    // Listen for leader status changes
     eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
       this.isActive = data.isLeader;
 
@@ -91,18 +91,11 @@ class LeaderOutboundHandler {
     });
   }
 
-  /**
-   * Set the function to use for sending to WebSocket
-   * This is injected by websocket-service during initialization
-   */
   setWebSocketSendFunction(fn: (message: Record<string, unknown>) => Promise<void>): void {
     this.websocketSendFn = fn;
     debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] WebSocket send function registered');
   }
 
-  /**
-   * Handle an outbound request from any instance
-   */
   async handleOutboundRequest(request: OutboundRequest): Promise<void> {
     if (!this.isActive) {
       debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
@@ -117,118 +110,37 @@ class LeaderOutboundHandler {
     }
 
     try {
-      // Validate sender
       if (!this.isValidSender(request.senderInstanceId)) {
         debugLog('LeaderOutboundHandler', `Invalid sender: ${request.senderInstanceId}`);
         this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Invalid sender');
         return;
       }
 
-      // Check for workspace request proxy (special handling for follower workspace requests)
+      // Delegate proxy requests to specialized handlers
       if (request.payload?.__workspaceRequestProxy) {
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling workspace request proxy from ${request.senderInstanceId}`);
-
-        // Import websocket service to call sendWorkspaceRequest on WASM client
-        // Note: Lazy import to avoid circular dependency
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          debugLog('LeaderOutboundHandler', 'No WASM client available for workspace request');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        // Convert CID back to BigInt and send
-        const cid = BigInt(request.payload.cid as string | number | bigint | boolean);
-        await client.sendWorkspaceRequest(cid, request.payload.request as WorkspaceProtocolRequest);
-
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Workspace request proxy processed for ${request.requestId}`);
+        await handleWorkspaceRequestProxy(request, this.sendAck.bind(this));
         return;
       }
-
-      // Check for openMessengerFor proxy
       if (request.payload?.__openMessengerProxy) {
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling openMessenger proxy from ${request.senderInstanceId}`);
-
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          debugLog('LeaderOutboundHandler', 'No WASM client available for openMessenger');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        await client.openMessengerFor(request.payload.cid as string);
-
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] openMessenger proxy processed for ${request.requestId}`);
+        await handleOpenMessengerProxy(request, this.sendAck.bind(this));
         return;
       }
-
-      // Check for ensureMessengerOpen proxy
       if (request.payload?.__ensureMessengerProxy) {
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling ensureMessenger proxy from ${request.senderInstanceId}`);
-
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          debugLog('LeaderOutboundHandler', 'No WASM client available for ensureMessenger');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        const wasOpened = await client.ensureMessengerOpen(request.payload.cid as string);
-
-        // Send ACK with result data
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { wasOpened });
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] ensureMessenger proxy processed for ${request.requestId}`);
+        await handleEnsureMessengerProxy(request, this.sendAck.bind(this));
         return;
       }
-
-      // Check for sendP2PMessageReliable proxy
       if (request.payload?.__sendP2PMessageProxy) {
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Handling sendP2PMessage proxy from ${request.senderInstanceId}`);
-
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          debugLog('LeaderOutboundHandler', 'No WASM client available for sendP2PMessage');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        // Convert Array back to Uint8Array
-        const messageBytes = new Uint8Array(request.payload.message as ArrayLike<number>);
-        await client.sendP2PMessageReliable(
-          request.payload.localCid as string,
-          request.payload.peerCid as string,
-          messageBytes,
-          request.payload.securityLevel as 'Standard' | 'Reinforced' | 'High' | 'Extreme' | undefined
-        );
-
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] sendP2PMessage proxy processed for ${request.requestId}`);
+        await handleSendP2PMessageProxy(request, this.sendAck.bind(this));
         return;
       }
 
-      // Determine routing (ILM vs bypass)
       const requiresIlm = this.requiresILM(request.payload);
-
-      debugLog('LeaderOutboundHandler', 
+      debugLog('LeaderOutboundHandler',
         `[LeaderOutboundHandler] Processing ${request.requestId} from ${request.senderInstanceId} (ILM: ${requiresIlm})`
       );
 
-      // Send to WebSocket
       await this.websocketSendFn(request.payload);
-
-      // Send ACK
       this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-
       debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -237,10 +149,6 @@ class LeaderOutboundHandler {
     }
   }
 
-  /**
-   * Send directly (when called from leader itself, bypassing the channel)
-   * This is used for internal leader operations
-   */
   async sendDirect(payload: Record<string, unknown>): Promise<void> {
     if (!this.websocketSendFn) {
       throw new Error('WebSocket send function not set');
@@ -249,34 +157,20 @@ class LeaderOutboundHandler {
     await this.websocketSendFn(payload);
   }
 
-  /**
-   * Check if sender is valid
-   * Currently just checks if instanceId is non-empty
-   * Could be extended to check against known instances
-   */
   private isValidSender(senderInstanceId: string): boolean {
     if (!senderInstanceId || senderInstanceId.trim() === '') {
       return false;
     }
-
-    // Could add more validation:
-    // - Check against known instances
-    // - Validate sender CID matches their claimed session
     return true;
   }
 
-  /**
-   * Determine if a message requires ILM (Internal Layered Messaging)
-   */
   private requiresILM(payload: Record<string, unknown>): boolean {
-    // Get the message type (first key in the payload)
     const messageType = Object.keys(payload)[0];
 
     if (!messageType) {
       return false;
     }
 
-    // Check against explicit lists
     if (ILM_REQUIRED_TYPES.includes(messageType)) {
       return true;
     }
@@ -285,14 +179,10 @@ class LeaderOutboundHandler {
       return false;
     }
 
-    // Default: use ILM for unknown types (safer)
     debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Unknown message type "${messageType}", using ILM`);
     return true;
   }
 
-  /**
-   * Send ACK back to sender via InstanceChannel
-   */
   private sendAck(
     targetInstanceId: string,
     requestId: string,
@@ -307,9 +197,6 @@ class LeaderOutboundHandler {
     });
   }
 
-  /**
-   * Check if this handler is currently active (leader)
-   */
   isHandlerActive(): boolean {
     return this.isActive;
   }
