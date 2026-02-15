@@ -13,6 +13,9 @@ env:
   PARENT_REPO: Avarok-Cybersecurity/citadel-workspace
   PARENT_BRANCH: u64-to-bigint-optimization
   SKIP_WASM_BUILD: "1"
+  # Match parent repo's directory name so docker containers get expected names
+  # (e.g., citadel-workspace-server-1 instead of parent-server-1)
+  COMPOSE_PROJECT_NAME: citadel-workspace
 
 jobs:
   unit-tests:
