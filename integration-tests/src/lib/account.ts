@@ -40,9 +40,12 @@ export async function createAccount(page: Page, username: string, options: Creat
   await waitForAppReady(page, 30000);
 
   // Click "Join Workspace" button
+  // Use force:true to bypass Playwright's stability check. In multi-tab tests,
+  // BroadcastChannel leader election can cause continuous re-renders that keep
+  // the button "not stable" indefinitely.
   const joinBtn = page.locator('button:has-text("Join Workspace")');
   if (await joinBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await joinBtn.click();
+    await joinBtn.click({ force: true });
     await sleep(1000);
   }
 
