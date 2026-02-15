@@ -122,6 +122,18 @@ async function loginWithCredentials(
     await passwordInput.fill(password);
     await sleep(300);
 
+    // Fill server address via Advanced Options
+    const advancedBtn = page.locator('button:has-text("Advanced Options")');
+    if (await advancedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await advancedBtn.click();
+      await sleep(300);
+      const serverInput = page.locator('input#server');
+      if (await serverInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await serverInput.fill(config.WORKSPACE_SERVER);
+        await sleep(300);
+      }
+    }
+
     // Click Connect button
     const connectBtn = page.locator('button[type="submit"]:has-text("Connect")');
     await connectBtn.click();
