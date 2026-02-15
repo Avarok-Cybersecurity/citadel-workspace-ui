@@ -8,7 +8,7 @@ import { config } from './config.js';
 import { sleep } from './utils.js';
 import { closeAnyModals, checkForErrors, waitForWorkspaceLoaded } from './modals.js';
 import { takeScreenshot } from './screenshots.js';
-import { clearBrowserStorage } from './browser.js';
+import { clearBrowserStorage, waitForAppReady } from './browser.js';
 
 /**
  * Create a new user account
@@ -22,20 +22,22 @@ export async function createAccount(page: Page, username: string, options: Creat
 
   console.log(`\n=== Creating account: ${username} ===`);
 
-  // Use 'commit' instead of 'load' because WASM loading can take a long time
+  // Use 'commit' instead of 'load' because WASM loading can take a long time.
+  // On cold start, Vite dev server optimizes dependencies which can take 10-30s.
   await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
 
-  // Wait for page to settle after commit
-  await sleep(2000);
+  // Wait for the React app to actually render (handles Vite cold start)
+  await waitForAppReady(page, 60000);
 
   // CRITICAL: Clear all browser storage after navigation to avoid stale session/peer data
   // from previous test runs. This prevents P2PAutoConnect from trying to connect to
   // non-existent peers from old sessions.
   await clearBrowserStorage(page);
 
-  // Reload the page to ensure the app starts fresh without stale state
+  // Reload the page to ensure the app starts fresh without stale state.
+  // Second load should be fast since Vite deps are already optimized.
   await page.reload({ waitUntil: 'commit', timeout: 60000 });
-  await sleep(2000);
+  await waitForAppReady(page, 30000);
 
   // Click "Join Workspace" button
   const joinBtn = page.locator('button:has-text("Join Workspace")');

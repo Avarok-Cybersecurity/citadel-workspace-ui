@@ -55,6 +55,7 @@ export {
   createBrowser,
   setupConsoleCapture,
   clearBrowserStorage,
+  waitForAppReady,
   wakeUpTab,
   createIsolatedContexts,
   createSeparateBrowsers,
