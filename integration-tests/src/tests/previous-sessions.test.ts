@@ -217,7 +217,9 @@ async function clickSessionIcon(page: Page, username: string): Promise<boolean> 
 }
 
 /**
- * Disconnect a session via the navbar
+ * Disconnect a session via the navbar.
+ * Navigates to landing page and waits for OrphanSessionsNavbar to render
+ * before interacting with session icons.
  */
 async function disconnectViaNavbar(
   page: Page,
@@ -226,13 +228,30 @@ async function disconnectViaNavbar(
 ): Promise<boolean> {
   console.log(`\n=== ${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} ${username} via navbar ===`);
 
-  // Hover over the session icon to reveal disconnect button
+  // Ensure we're on the landing page where OrphanSessionsNavbar renders
+  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
+  await waitForAppReady(page, 30000);
+
+  // Wait for the session icon with retry logic (async GetSessions can take time in CI)
   const icon = page.locator(`[data-testid="session-icon-${username}"]`);
-  if (!(await icon.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log('  Session icon not found');
+  let iconFound = false;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    iconFound = await icon.isVisible({ timeout: 8000 }).catch(() => false);
+    if (iconFound) break;
+    if (attempt < 3) {
+      console.log(`  Session icon not visible on attempt ${attempt}, reloading...`);
+      await page.reload({ waitUntil: 'networkidle', timeout: 30000 });
+      await sleep(3000);
+    }
+  }
+
+  if (!iconFound) {
+    console.log('  Session icon not found after retries');
     return false;
   }
 
+  // Hover to reveal disconnect button
   await icon.hover();
   await sleep(500);
 
