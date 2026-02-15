@@ -19,6 +19,7 @@ import {
   setupConsoleCapture,
   UxIssueTracker,
   waitForWorkspaceLoaded,
+  waitForAppReady,
   closeAnyModals,
   checkForErrors,
   TestHarness,
@@ -119,7 +120,7 @@ async function disconnectSession(page: Page, username: string, _uxTracker: UxIss
     // If no session icons found, try navigating to landing page and checking there
     console.log('  No session icons found in current page, navigating to landing...');
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(3000);
+    await waitForAppReady(page, 30000);
 
     // Try again after navigating to landing - use specific data-testid selectors
     const sessionIconOnLanding = page.locator(`[data-testid="session-icon-${username}"]`);
@@ -202,7 +203,7 @@ async function loginWithCredentials(
     if (!(await loginBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
       console.log('  Not on landing page, navigating...');
       await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-      await sleep(2000);
+      await waitForAppReady(page, 30000);
     }
 
     // Click "Login Workspace" button
@@ -390,7 +391,7 @@ async function runTest(): Promise<boolean> {
     // After disconnect, we should be on the landing page or still on office
     // Navigate to landing explicitly to ensure clean state
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(2000);
+    await waitForAppReady(page, 30000);
 
     // ========== STEP 3: Login with credentials ==========
     console.log('\n' + '─'.repeat(50));
@@ -434,7 +435,7 @@ async function runTest(): Promise<boolean> {
 
     // Navigate to landing explicitly
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(2000);
+    await waitForAppReady(page, 30000);
 
     // ========== STEP 5: Login again ==========
     console.log('\n' + '─'.repeat(50));

@@ -19,6 +19,7 @@ import {
   takeScreenshot,
   setupConsoleCapture,
   waitForWorkspaceLoaded,
+  waitForAppReady,
   closeAnyModals,
   TestHarness,
   runTestMain,
@@ -78,7 +79,7 @@ async function navigateToFileManager(page: Page): Promise<boolean> {
   } else {
     // Direct URL navigation
     await page.goto(`${config.BASE_URL}/?section=files`, { waitUntil: 'commit', timeout: 30000 });
-    await sleep(3000);
+    await waitForAppReady(page, 30000);
   }
 
   // Verify file manager loaded

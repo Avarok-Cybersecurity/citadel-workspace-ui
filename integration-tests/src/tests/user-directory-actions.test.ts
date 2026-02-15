@@ -17,6 +17,7 @@ import {
   takeScreenshot,
   setupConsoleCapture,
   waitForWorkspaceLoaded,
+  waitForAppReady,
   closeAnyModals,
   TestHarness,
   runTestMain,
@@ -72,7 +73,7 @@ async function navigateToDirectory(page: Page): Promise<boolean> {
 
   // Try direct URL navigation
   await page.goto(`${config.BASE_URL}/?section=directory`, { waitUntil: 'commit', timeout: 30000 });
-  await sleep(3000);
+  await waitForAppReady(page, 30000);
 
   // Verify directory loaded
   const directoryContent = page.locator('text="Directory", text="Members", text="Users"').first();

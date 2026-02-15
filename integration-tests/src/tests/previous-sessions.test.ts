@@ -19,6 +19,7 @@ import {
   takeScreenshot,
   setupConsoleCapture,
   waitForWorkspaceLoaded,
+  waitForAppReady,
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
@@ -280,7 +281,7 @@ async function loginWithCredentials(
 
   // Navigate to landing page
   await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-  await sleep(2000);
+  await waitForAppReady(page, 30000);
 
   // Click "Login Workspace" button
   const loginBtn = page.locator('button:has-text("Login Workspace")');
@@ -375,7 +376,7 @@ async function runTest(): Promise<boolean> {
       if (i > 0) {
         // Navigate to landing for subsequent sessions
         await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-        await sleep(2000);
+        await waitForAppReady(page, 30000);
       }
 
       results.sessionsCreated[i] = await createAccount(page, USERS[i], {
@@ -400,7 +401,7 @@ async function runTest(): Promise<boolean> {
 
     // Navigate to landing to see all sessions
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(3000);
+    await waitForAppReady(page, 30000);
 
     // Use retry logic to wait for all sessions to appear first.
     // The navbar, label, and scroll container only render AFTER sessions are loaded
@@ -454,7 +455,7 @@ async function runTest(): Promise<boolean> {
 
     // Navigate back to landing
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(3000);
+    await waitForAppReady(page, 30000);
 
     // USERS[0] should now be first since we just clicked on it
     const orderAfterClick = await getSessionOrder(page);
@@ -504,7 +505,7 @@ async function runTest(): Promise<boolean> {
 
       // Verify session is back in navbar
       await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-      await sleep(2000);
+      await waitForAppReady(page, 30000);
 
       const userBackInNavbar = await sessionExistsInNavbar(page, disconnectUser);
       console.log(`  Reconnect success: ${results.reconnectAfterDisconnect}`);
