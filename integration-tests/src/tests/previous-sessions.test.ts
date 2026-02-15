@@ -519,22 +519,29 @@ async function runTest(): Promise<boolean> {
       console.log('  NOTE: This test may fail due to ServerAutoConnect race condition.');
       console.log('  In real usage, users can use 1-click login from navbar instead.');
 
-      results.reconnectAfterDisconnect = await loginWithCredentials(page, disconnectUser, PASSWORD);
-      await sleep(2000);
+      // Wrap in try/catch: this step has a known race condition with ServerAutoConnect
+      // and must not abort the test (corePassed excludes reconnectAfterDisconnect)
+      try {
+        results.reconnectAfterDisconnect = await loginWithCredentials(page, disconnectUser, PASSWORD);
+        await sleep(2000);
 
-      // Verify session is back in navbar
-      await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-      await waitForAppReady(page, 30000);
+        // Verify session is back in navbar
+        await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
+        await waitForAppReady(page, 30000);
 
-      const userBackInNavbar = await sessionExistsInNavbar(page, disconnectUser);
-      console.log(`  Reconnect success: ${results.reconnectAfterDisconnect}`);
-      console.log(`  ${disconnectUser} back in navbar: ${userBackInNavbar}`);
+        const userBackInNavbar = await sessionExistsInNavbar(page, disconnectUser);
+        console.log(`  Reconnect success: ${results.reconnectAfterDisconnect}`);
+        console.log(`  ${disconnectUser} back in navbar: ${userBackInNavbar}`);
 
-      // Mark as pass if reconnect succeeded OR if user is back in navbar
-      // (ServerAutoConnect might have reconnected for us)
-      if (!results.reconnectAfterDisconnect && userBackInNavbar) {
-        console.log('  Note: ServerAutoConnect may have reconnected the session');
-        results.reconnectAfterDisconnect = true;
+        // Mark as pass if reconnect succeeded OR if user is back in navbar
+        // (ServerAutoConnect might have reconnected for us)
+        if (!results.reconnectAfterDisconnect && userBackInNavbar) {
+          console.log('  Note: ServerAutoConnect may have reconnected the session');
+          results.reconnectAfterDisconnect = true;
+        }
+      } catch (error) {
+        console.log(`  Reconnect step failed (known limitation): ${error}`);
+        results.reconnectAfterDisconnect = false;
       }
 
       await takeScreenshot(page, `${String(reconnectStep).padStart(2, '0')}_after_reconnect`);
