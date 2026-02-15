@@ -50,12 +50,12 @@ interface TestResults {
 
   // Step 6: Chat settings tab navigation
   chatTabActive: boolean;
-  chatToggleVisible: boolean;
+  chatTabContentCorrect: boolean;
 
-  // Step 7: Create room and test room admin modal
-  roomCreated: boolean;
-  roomAdminModalOpens: boolean;
-  roomGeneralTabWorks: boolean;
+  // Step 7: Room admin modal (only tested when rooms exist in sidebar)
+  roomCreated?: boolean;
+  roomAdminModalOpens?: boolean;
+  roomGeneralTabWorks?: boolean;
 }
 
 // ============================================================================
@@ -193,10 +193,7 @@ async function runTest(): Promise<boolean> {
     memberListVisible: false,
     advancedToggleVisible: false,
     chatTabActive: false,
-    chatToggleVisible: false,
-    roomCreated: false,
-    roomAdminModalOpens: false,
-    roomGeneralTabWorks: false,
+    chatTabContentCorrect: false,
   };
 
   try {
@@ -394,18 +391,18 @@ async function runTest(): Promise<boolean> {
       if (isWorkspaceMsg) {
         // Workspace entities correctly show info message instead of toggle
         console.log('  Chat tab shows workspace message (correct for workspace entities)');
-        results.chatToggleVisible = true;  // Mark as pass — correct behavior for workspace
+        results.chatTabContentCorrect = true;
       } else {
         // Non-workspace: wait for the chat toggle to appear
         try {
           await dialog.locator('[data-testid="chat-enabled-toggle"]').waitFor({ state: 'visible', timeout: 5000 });
-          results.chatToggleVisible = true;
+          results.chatTabContentCorrect = true;
         } catch {
-          results.chatToggleVisible = false;
+          results.chatTabContentCorrect = false;
         }
       }
 
-      console.log(`  Chat toggle visible: ${results.chatToggleVisible ? 'PASS' : 'FAIL'}`);
+      console.log(`  Chat tab content correct: ${results.chatTabContentCorrect ? 'PASS' : 'FAIL'}`);
 
       // Close the modal
       await page.keyboard.press('Escape');
@@ -454,13 +451,9 @@ async function runTest(): Promise<boolean> {
         results.roomGeneralTabWorks = false;
       }
     } else {
-      // No rooms visible - this is expected for a fresh workspace
-      // Mark room tests as N/A (passed) since room admin modal uses same component as office
-      console.log('  No rooms visible in sidebar - marking room tests as N/A');
-      console.log('  (Room admin modal uses same AdminModal component as office - already tested)');
-      results.roomCreated = true;  // N/A
-      results.roomAdminModalOpens = true;  // N/A
-      results.roomGeneralTabWorks = true;  // N/A
+      // No rooms visible — room admin tests excluded from pass/fail count
+      console.log('  No rooms visible in sidebar — room admin tests skipped');
+      console.log('  (Room results excluded from pass/fail count)');
     }
 
     await takeScreenshot(page, 'admin_09_rooms_final');
@@ -472,17 +465,19 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS SUMMARY');
     console.log('='.repeat(60));
 
-    const passCount = Object.values(results).filter(Boolean).length;
-    const totalCount = Object.keys(results).length;
+    // Only count defined results (optional room fields excluded when no rooms exist)
+    const definedEntries = Object.entries(results).filter(([, v]) => v !== undefined);
+    const passCount = definedEntries.filter(([, v]) => v === true).length;
+    const totalCount = definedEntries.length;
     const allPassed = passCount === totalCount;
 
     console.log(`\nPassed: ${passCount}/${totalCount}`);
     console.log(`Status: ${allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}`);
 
-    Object.entries(results).forEach(([key, value]) => {
+    for (const [key, value] of definedEntries) {
       const status = value ? '✓' : '✗';
       console.log(`  ${status} ${key}: ${value ? 'PASS' : 'FAIL'}`);
-    });
+    }
 
     await takeScreenshot(page, 'admin_10_final');
 

@@ -50,7 +50,6 @@ interface TestResults {
   nodesListedWithFilter: boolean;
   fullTreeStructureLoaded: boolean;
   nodeUpdated: boolean;
-  nodeMoved: boolean;
   deleteWithoutCascadeFailed: boolean;
   deleteWithCascadeSucceeded: boolean;
 
@@ -625,7 +624,6 @@ async function runTest(): Promise<boolean> {
     nodesListedWithFilter: false,
     fullTreeStructureLoaded: false,
     nodeUpdated: false,
-    nodeMoved: false,
     deleteWithoutCascadeFailed: false,
     deleteWithCascadeSucceeded: false,
     cycleCreationPrevented: false,
@@ -815,18 +813,12 @@ async function runTest(): Promise<boolean> {
     }
 
     // ========================================================================
-    // STEP 10: Test MoveNode (Note: UI may not support this directly)
+    // STEP 10: MoveNode (not implemented in UI — excluded from results)
     // ========================================================================
     console.log('\n' + '-'.repeat(50));
-    console.log('STEP 10: Test MoveNode');
+    console.log('STEP 10: MoveNode — SKIPPED (no UI support)');
     console.log('-'.repeat(50));
-
-    // MoveNode is typically an admin/advanced operation
-    // The UI may not expose this directly, so we'll mark it as skipped
-    // if the UI doesn't support drag-drop or move operations
-    console.log('  NOTE: MoveNode test requires drag-drop UI or admin panel');
-    console.log('  Skipping MoveNode UI test - would be tested via direct protocol call');
-    results.nodeMoved = true; // Mark as passing since this is a protocol-level feature
+    console.log('  MoveNode requires drag-drop UI or admin panel — not yet implemented');
 
     // ========================================================================
     // STEP 11: Test Delete Without Cascade (Should Fail if Has Children)
@@ -851,17 +843,30 @@ async function runTest(): Promise<boolean> {
         // We don't use the result directly since we check sidebar state after
         await deleteNodeViaUI(page, TEST_OFFICE_2_NAME, 'Office');
 
-        // If the office still has children and deletion requires confirmation,
-        // the UI is properly enforcing the cascade rule
         // Check if office still exists after delete attempt
         const officeExistsAfterDelete = await nodeExistsInSidebar(page, TEST_OFFICE_2_NAME);
         console.log(`  Office still exists after delete attempt: ${officeExistsAfterDelete}`);
 
-        // The delete should either fail OR succeed with cascade warning
-        // We consider the test passing if the UI handles it properly
-        results.deleteWithoutCascadeFailed = true; // UI handles this via confirmation
-        results.orphanNodePrevented = true; // UI doesn't allow orphaning children
-        console.log(`  Delete without cascade test: PASSED (UI handles cascade confirmation)`);
+        if (officeExistsAfterDelete) {
+          // Delete was blocked because office has children — correct behavior
+          results.deleteWithoutCascadeFailed = true;
+          results.orphanNodePrevented = true;
+          console.log('  Delete without cascade correctly blocked (office has children)');
+        } else {
+          // Office was deleted — check if children were also cleaned up
+          const tempRoomExists = await nodeExistsInSidebar(page, 'TempRoom');
+          if (!tempRoomExists) {
+            // Cascade delete happened — not expected for "without cascade"
+            results.deleteWithoutCascadeFailed = false;
+            results.orphanNodePrevented = true;
+            console.log('  FAIL: Delete cascaded (unexpected for non-cascade delete)');
+          } else {
+            // Office deleted but children remain — orphan created
+            results.deleteWithoutCascadeFailed = false;
+            results.orphanNodePrevented = false;
+            console.log('  FAIL: Office deleted but children orphaned');
+          }
+        }
       }
     }
 
@@ -947,7 +952,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Nodes Listed With Filter:   ${results.nodesListedWithFilter ? 'PASS' : 'FAIL'}`);
     console.log(`  Full Tree Structure:        ${results.fullTreeStructureLoaded ? 'PASS' : 'FAIL'}`);
     console.log(`  Node Updated:               ${results.nodeUpdated ? 'PASS' : 'FAIL'}`);
-    console.log(`  Node Moved:                 ${results.nodeMoved ? 'PASS' : 'SKIP'}`);
 
     console.log('\nDelete Operations:');
     console.log(`  Delete Without Cascade:     ${results.deleteWithoutCascadeFailed ? 'PASS' : 'FAIL'}`);

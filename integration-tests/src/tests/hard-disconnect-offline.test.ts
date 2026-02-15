@@ -269,7 +269,7 @@ async function runTest(): Promise<boolean> {
       { maxRetries: 3, verifyTimeout: 15000, retryDelay: 3000 }
     );
     if (!warmupDelivered) {
-      console.log('  WARNING: Alice→Bob warmup failed - ILM channel may still be blocked');
+      console.log('  Alice→Bob warmup failed — ILM channel may not be established');
     }
 
     console.log('  Sending verified warmup Bob→Alice (confirms reverse ILM channel)...');
@@ -279,7 +279,14 @@ async function runTest(): Promise<boolean> {
       { maxRetries: 3, verifyTimeout: 15000, retryDelay: 3000 }
     );
     if (!reverseWarmupDelivered) {
-      console.log('  WARNING: Bob→Alice warmup failed - reverse ILM channel may still be blocked');
+      console.log('  Bob→Alice warmup failed — reverse ILM channel may not be established');
+    }
+
+    if (!warmupDelivered && !reverseWarmupDelivered) {
+      console.log('  FAIL: Both warmup messages failed — ILM channels not established');
+      results.initialMessaging.user1Received = false;
+      results.initialMessaging.user2Received = false;
+      throw new Error('Both warmup messages failed — P2P channels not established');
     }
 
     // Test bidirectional messaging with retry logic
@@ -298,7 +305,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Initial messaging: Alice->Bob=${results.initialMessaging.user2Received}, Bob->Alice=${results.initialMessaging.user1Received}`);
 
     if (!results.initialMessaging.user1Received || !results.initialMessaging.user2Received) {
-      console.log('  WARNING: Initial messaging failed - P2P channel may not be fully established');
+      throw new Error('Initial bidirectional messaging failed — P2P channel not established');
     }
 
     await takeScreenshot(page1, `${USER1}_initial_messaging`);

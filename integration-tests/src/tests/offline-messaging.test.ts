@@ -196,6 +196,10 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
     results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker);
 
+    if (!results.p2pAccept) {
+      throw new Error('P2P accept failed — cannot proceed with messaging tests');
+    }
+
     // Wait for ACTUAL P2P connection instead of fixed sleep
     console.log('\n  Waiting for P2P connection to establish...');
     const p2pConnected1 = await waitForP2PConnection(page1, USER1, USER2, 30000);
@@ -442,23 +446,18 @@ async function runTest(): Promise<boolean> {
       results.offlineDelivery.message2Received &&
       results.offlineDelivery.message3Received;
 
-    // Core test: P2P setup, bidirectional messaging, disconnect, orphan verification.
-    // These are deterministic and must always pass.
-    const corePassed =
+    // All checks are mandatory — no separate "core" vs "extended" split
+    const allPassed =
       results.accountCreation.user1 &&
       results.accountCreation.user2 &&
       results.p2pRegistration &&
+      results.p2pAccept &&
       results.conversationOpen.user1 &&
       results.conversationOpen.user2 &&
       results.initialMessaging.user1Received &&
       results.initialMessaging.user2Received &&
       results.disconnection.user2Disconnected &&
-      results.disconnection.sessionOrphaned;
-
-    // Extended test: ClaimSession recovery + offline delivery + post-reconnect messaging.
-    // ClaimSession can fail due to SDK timing/session state issues (known flaky).
-    // When ClaimSession fails, offline delivery and post-reconnect messaging are skipped.
-    const allPassed = corePassed &&
+      results.disconnection.sessionOrphaned &&
       results.reconnection.claimSessionSuccess &&
       offlineDeliverySuccess;
 
@@ -487,18 +486,14 @@ async function runTest(): Promise<boolean> {
     console.log(`  Alice -> Bob:           ${results.postReconnectMessaging.user2Received ? 'PASS' : 'FAIL'}`);
     console.log(`  Bob -> Alice:           ${results.postReconnectMessaging.user1Received ? 'PASS' : 'FAIL'}`);
 
-    if (corePassed && !allPassed) {
-      console.log('\n  NOTE: Core test PASSED. ClaimSession/offline delivery failed (known SDK flakiness).');
-    }
-
-    harness.finalize(corePassed, results);
+    harness.finalize(allPassed, results);
 
     if (!process.env.IN_CI) {
       console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
       await sleep(20000);
     }
 
-    return corePassed;
+    return allPassed;
 
   } catch (error) {
     console.error('\nTest error:', error);
