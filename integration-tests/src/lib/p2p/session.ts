@@ -810,67 +810,80 @@ export async function reconnectViaClaimSession(
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Reconnecting via ClaimSession ===`);
 
-  try {
-    // Navigate to landing page
-    const config = await import('../config.js');
-    await page.goto(config.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-    await sleep(3000);
+  const config = await import('../config.js');
 
-    await takeScreenshot(page, `${username}_landing_for_reconnect`);
+  // Retry loop — mirrors assertSessionInOrphanNavbar pattern
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      // Navigate to landing page
+      await page.goto(config.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
+      await sleep(3000);
 
-    // Look for the session button using data-testid
-    // The OrphanSessionIcon component has data-testid="session-button-{username}"
-    const sessionButton = page.locator(`[data-testid="session-button-${username}"]`);
+      await takeScreenshot(page, `${username}_landing_for_reconnect_attempt${attempt}`);
 
-    let sessionFound = false;
+      // Look for the session button using data-testid
+      const sessionButton = page.locator(`[data-testid="session-button-${username}"]`);
 
-    if (await sessionButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      console.log(`  Found session button for ${username}`);
-      await sessionButton.click();
-      sessionFound = true;
-    } else {
-      // Try alternative: look for the session icon container
-      const sessionIcon = page.locator(`[data-testid="session-icon-${username}"]`);
-      if (await sessionIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
-        console.log(`  Found session icon for ${username}, clicking...`);
-        await sessionIcon.click();
+      let sessionFound = false;
+
+      if (await sessionButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+        console.log(`  Found session button for ${username}`);
+        await sessionButton.click();
         sessionFound = true;
       } else {
-        // Last resort: look for any session with matching text
-        const anySession = page.locator(`[data-testid*="session"]:has-text("${username.slice(0, 10)}")`).first();
-        if (await anySession.isVisible({ timeout: 2000 }).catch(() => false)) {
-          console.log(`  Found session via text match`);
-          await anySession.click();
+        // Try alternative: look for the session icon container
+        const sessionIcon = page.locator(`[data-testid="session-icon-${username}"]`);
+        if (await sessionIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
+          console.log(`  Found session icon for ${username}, clicking...`);
+          await sessionIcon.click();
           sessionFound = true;
+        } else {
+          // Last resort: look for any session with matching text
+          const anySession = page.locator(`[data-testid*="session"]:has-text("${username.slice(0, 10)}")`).first();
+          if (await anySession.isVisible({ timeout: 2000 }).catch(() => false)) {
+            console.log(`  Found session via text match`);
+            await anySession.click();
+            sessionFound = true;
+          }
         }
       }
-    }
 
-    if (!sessionFound) {
-      console.log('  No session icons found for user');
-      if (uxTracker) {
-        uxTracker.log('major', 'functional', `No session icons found for ${username} on landing page`);
+      if (!sessionFound) {
+        if (attempt < 3) {
+          console.log(`  No session icons found on attempt ${attempt}, reloading...`);
+          await sleep(3000 + attempt * 1000);
+          continue;
+        }
+        console.log('  No session icons found after all attempts');
+        if (uxTracker) {
+          uxTracker.log('major', 'functional', `No session icons found for ${username} on landing page`);
+        }
+        await takeScreenshot(page, `${username}_no_sessions`);
+        return false;
       }
-      await takeScreenshot(page, `${username}_no_sessions`);
-      return false;
+
+      await sleep(3000);
+
+      // Wait for workspace to load after claiming session
+      const loaded = await waitForWorkspaceLoaded(page, 45000);
+      if (!loaded) {
+        console.log('  Workspace did not load after claiming session');
+        await takeScreenshot(page, `${username}_reconnect_failed`);
+        return false;
+      }
+
+      console.log(`  ${username} reconnected successfully via ClaimSession`);
+      await takeScreenshot(page, `${username}_reconnected`);
+      return true;
+    } catch (error) {
+      console.log(`  Error during reconnect attempt ${attempt}: ${error}`);
+      if (attempt === 3) {
+        await takeScreenshot(page, `${username}_reconnect_error`);
+        return false;
+      }
+      await sleep(3000 + attempt * 1000);
     }
-
-    await sleep(3000);
-
-    // Wait for workspace to load after claiming session
-    const loaded = await waitForWorkspaceLoaded(page, 45000);
-    if (!loaded) {
-      console.log('  Workspace did not load after claiming session');
-      await takeScreenshot(page, `${username}_reconnect_failed`);
-      return false;
-    }
-
-    console.log(`  ${username} reconnected successfully via ClaimSession`);
-    await takeScreenshot(page, `${username}_reconnected`);
-    return true;
-  } catch (error) {
-    console.log(`  Error during reconnect: ${error}`);
-    await takeScreenshot(page, `${username}_reconnect_error`);
-    return false;
   }
+
+  return false;
 }

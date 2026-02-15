@@ -299,8 +299,10 @@ async function runTest(): Promise<boolean> {
     results.disconnection.sessionOrphaned = await assertSessionInOrphanNavbar(tempCheckPage, USER2, uxTracker);
     console.log(`  Session orphaned: ${results.disconnection.sessionOrphaned}`);
 
-    await tempCheckPage.close();
-    await sleep(1000);
+    // DO NOT close tempCheckPage — closing triggers beforeunload → ReleaseSession,
+    // which destroys Bob's orphaned session on the internal service. The page is
+    // cleaned up when the browser closes at end of test.
+    // See: instance-channel.ts beforeunload handler + session-management.ts releaseSession
 
     // ========== STEP 8: Alice Sends Offline Messages ==========
     console.log('\n' + '─'.repeat(50));

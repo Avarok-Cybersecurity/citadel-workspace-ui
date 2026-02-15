@@ -20,6 +20,7 @@ import {
   setupConsoleCapture,
   waitForWorkspaceLoaded,
   waitForAppReady,
+  loginAfterDisconnect,
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
@@ -304,63 +305,6 @@ async function disconnectViaNavbar(
   return false;
 }
 
-/**
- * Login with credentials to reconnect a session
- */
-async function loginWithCredentials(
-  page: Page,
-  username: string,
-  password: string
-): Promise<boolean> {
-  console.log(`\n=== Logging in as ${username} ===`);
-
-  // Navigate to landing page
-  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-  await waitForAppReady(page, 30000);
-
-  // Click "Login Workspace" button
-  const loginBtn = page.locator('button:has-text("Login Workspace")');
-  if (!(await loginBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log('  Login button not found');
-    return false;
-  }
-
-  await loginBtn.click();
-  await sleep(1000);
-
-  // Fill credentials
-  const usernameInput = page.locator('input#username');
-  const passwordInput = page.locator('input#password');
-
-  await usernameInput.fill(username);
-  await sleep(300);
-  await passwordInput.fill(password);
-  await sleep(300);
-
-  // Click Advanced Options to reveal server address field
-  const advancedBtn = page.locator('button:has-text("Advanced Options")');
-  if (await advancedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await advancedBtn.click();
-    await sleep(300);
-
-    // Fill server address from config (same as createAccount)
-    const serverInput = page.locator('input#server');
-    if (await serverInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await serverInput.fill(config.WORKSPACE_SERVER);
-      await sleep(300);
-    }
-  }
-
-  // Click Connect
-  const connectBtn = page.locator('button[type="submit"]:has-text("Connect")');
-  await connectBtn.click();
-  await sleep(5000);
-
-  // Verify workspace loaded
-  const loaded = await waitForWorkspaceLoaded(page, 30000);
-  return loaded;
-}
-
 
 // ============================================================================
 // Main Test
@@ -528,7 +472,7 @@ async function runTest(): Promise<boolean> {
     console.log(`STEP ${reconnectStep}: Test Reconnect After Disconnect`);
     console.log('─'.repeat(50));
 
-    results.reconnectAfterDisconnect = await loginWithCredentials(page, disconnectUser, PASSWORD);
+    results.reconnectAfterDisconnect = await loginAfterDisconnect(page, disconnectUser, PASSWORD, uxTracker, config.WORKSPACE_SERVER);
     await sleep(2000);
 
     // Verify session is back in navbar
@@ -574,7 +518,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     // Try to login with deregistered account - should fail
-    const canLoginAfterDeregister = await loginWithCredentials(page, deregisterUser, PASSWORD);
+    const canLoginAfterDeregister = await loginAfterDisconnect(page, deregisterUser, PASSWORD, uxTracker, config.WORKSPACE_SERVER);
     results.deregisterPermanent = !canLoginAfterDeregister;
 
     console.log(`  Can login after deregister: ${canLoginAfterDeregister}`);
