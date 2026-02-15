@@ -20,6 +20,7 @@ import {
   TestHarness,
   runTestMain,
   clearBrowserStorage,
+  waitForAppReady,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -63,10 +64,10 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
 
   try {
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(2000);
+    await waitForAppReady(page, 60000);
     await clearBrowserStorage(page);
     await page.reload({ waitUntil: 'commit', timeout: 60000 });
-    await sleep(2000);
+    await waitForAppReady(page, 30000);
 
     // Click "Join Workspace"
     const joinBtn = page.locator('button:has-text("Join Workspace")');
@@ -251,7 +252,7 @@ async function testLoginConfigureButton(page: Page): Promise<{
   try {
     // Navigate to landing page
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(2000);
+    await waitForAppReady(page, 30000);
 
     // Click "Login Workspace"
     const loginBtn = page.locator('button:has-text("Login Workspace")');
