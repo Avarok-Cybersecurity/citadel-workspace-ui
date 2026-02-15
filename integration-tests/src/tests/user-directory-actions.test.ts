@@ -13,6 +13,7 @@ import { Page } from 'playwright';
 import {
   sleep,
   createBrowser,
+  createIsolatedContexts,
   createAccount,
   takeScreenshot,
   setupConsoleCapture,
@@ -179,7 +180,8 @@ async function runTest(): Promise<boolean> {
   });
   const uxTracker = harness.uxTracker;
 
-  const { browser, context } = await createBrowser();
+  const { browser } = await createBrowser();
+  const [context1, context2] = await createIsolatedContexts(browser, 2);
 
   const results: TestResults = {
     accountCreation: { user1: false, user2: false },
@@ -193,8 +195,8 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    const page1 = await context.newPage();
-    const page2 = await context.newPage();
+    const page1 = await context1.newPage();
+    const page2 = await context2.newPage();
     setupConsoleCapture(page1, 'Alice', ['error', 'Error']);
     setupConsoleCapture(page2, 'Bob', ['error', 'Error']);
 
