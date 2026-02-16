@@ -76,6 +76,44 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 // ============================================================================
 
 /**
+ * Quick single-attempt login — for testing that deregistered accounts CANNOT login.
+ * Unlike loginAfterDisconnect, this has no retry logic and fails fast (~20s max).
+ */
+async function tryLoginQuick(page: Page, username: string, password: string): Promise<boolean> {
+  try {
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
+    await waitForAppReady(page, 15000);
+
+    const loginBtn = page.locator('button:has-text("Login Workspace")');
+    if (!await loginBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log('  tryLoginQuick: Login button not found');
+      return false;
+    }
+    await loginBtn.click();
+    await sleep(1000);
+
+    await page.locator('input#username').fill(username);
+    await page.locator('input#password').fill(password);
+
+    const advancedBtn = page.locator('button:has-text("Advanced Options")');
+    if (await advancedBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await advancedBtn.click();
+      await sleep(300);
+      const serverInput = page.locator('input#server');
+      if (await serverInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await serverInput.fill(config.WORKSPACE_SERVER);
+      }
+    }
+
+    await page.locator('button[type="submit"]:has-text("Connect")').click();
+    await sleep(3000);
+    return await waitForWorkspaceLoaded(page, 15000);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get the count of session icons in the Previous Sessions navbar
  */
 async function getSessionCount(page: Page): Promise<number> {
@@ -517,8 +555,10 @@ async function runTest(): Promise<boolean> {
     console.log(`STEP ${permanentStep}: Verify Deregister is Permanent (cannot login)`);
     console.log('─'.repeat(50));
 
-    // Try to login with deregistered account - should fail
-    const canLoginAfterDeregister = await loginAfterDisconnect(page, deregisterUser, PASSWORD, uxTracker, config.WORKSPACE_SERVER);
+    // Try to login with deregistered account — should fail.
+    // Use a quick single-attempt login (not loginAfterDisconnect which has
+    // extensive retry logic that would burn minutes on expected failures).
+    const canLoginAfterDeregister = await tryLoginQuick(page, deregisterUser, PASSWORD);
     results.deregisterPermanent = !canLoginAfterDeregister;
 
     console.log(`  Can login after deregister: ${canLoginAfterDeregister}`);
