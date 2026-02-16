@@ -31,7 +31,7 @@ import {
   waitForP2PChannelReady,
   disconnectViaTcpDrop,
   assertSessionInOrphanNavbar,
-  reconnectViaClaimSession,
+  waitForWorkspaceLoaded,
   takeScreenshot,
   setupConsoleCapture,
   verifyOfflineMessagesWithRetry,
@@ -339,13 +339,31 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 9: Bob Reconnects via ClaimSession');
     console.log('─'.repeat(50));
 
-    // Reuse tempCheckPage (which already shows Bob's orphan session as leader tab)
-    // instead of creating a new page. A new page would become a follower tab and
-    // not see the orphan sessions that the leader tab loaded.
+    // Reuse tempCheckPage which already shows Bob's orphan session.
+    // CRITICAL: Do NOT call reconnectViaClaimSession() here — it calls page.goto()
+    // which triggers beforeunload → ReleaseSession, destroying the orphan session.
+    // Instead, click the session button directly on tempCheckPage.
     const reconnectPage = tempCheckPage;
     setupConsoleCapture(reconnectPage, 'Bob-Reconnect', ['P2P', 'error', 'Error', 'ILM']);
 
-    results.reconnection.claimSessionSuccess = await reconnectViaClaimSession(reconnectPage, USER2, uxTracker);
+    // Click the orphan session button directly (already visible from STEP 7)
+    const sessionButton = reconnectPage.locator(`[data-testid="session-button-${USER2}"]`);
+    const sessionIcon = reconnectPage.locator(`[data-testid="session-icon-${USER2}"]`);
+    let claimClicked = false;
+    if (await sessionButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await sessionButton.click();
+      claimClicked = true;
+    } else if (await sessionIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await sessionIcon.click();
+      claimClicked = true;
+    }
+    if (claimClicked) {
+      await sleep(3000);
+      results.reconnection.claimSessionSuccess = await waitForWorkspaceLoaded(reconnectPage, 45000);
+    } else {
+      console.log(`  Session button not visible on tempCheckPage for ${USER2}`);
+      results.reconnection.claimSessionSuccess = false;
+    }
     results.reconnection.user2Reconnected = results.reconnection.claimSessionSuccess;
     console.log(`  ClaimSession: ${results.reconnection.claimSessionSuccess ? 'SUCCESS' : 'FAILED'}`);
 

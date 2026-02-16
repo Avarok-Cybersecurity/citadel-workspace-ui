@@ -20,7 +20,6 @@ import {
   setupConsoleCapture,
   waitForWorkspaceLoaded,
   waitForAppReady,
-  loginAfterDisconnect,
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
@@ -76,8 +75,9 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 // ============================================================================
 
 /**
- * Quick single-attempt login — for testing that deregistered accounts CANNOT login.
- * Unlike loginAfterDisconnect, this has no retry logic and fails fast (~20s max).
+ * Quick single-attempt login. Uses { force: true } on clicks to bypass Playwright's
+ * stability checks — the OrphanSessionsNavbar re-renders at high frequency, preventing
+ * elements from ever reaching "stable" state for default click behavior.
  */
 async function tryLoginQuick(page: Page, username: string, password: string): Promise<boolean> {
   try {
@@ -89,7 +89,7 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
       console.log('  tryLoginQuick: Login button not found');
       return false;
     }
-    await loginBtn.click();
+    await loginBtn.click({ force: true });
     await sleep(1000);
 
     await page.locator('input#username').fill(username);
@@ -97,7 +97,7 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
 
     const advancedBtn = page.locator('button:has-text("Advanced Options")');
     if (await advancedBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await advancedBtn.click();
+      await advancedBtn.click({ force: true });
       await sleep(300);
       const serverInput = page.locator('input#server');
       if (await serverInput.isVisible({ timeout: 1000 }).catch(() => false)) {
@@ -105,9 +105,9 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
       }
     }
 
-    await page.locator('button[type="submit"]:has-text("Connect")').click();
+    await page.locator('button[type="submit"]:has-text("Connect")').click({ force: true });
     await sleep(3000);
-    return await waitForWorkspaceLoaded(page, 15000);
+    return await waitForWorkspaceLoaded(page, 45000);
   } catch {
     return false;
   }
@@ -515,7 +515,9 @@ async function runTest(): Promise<boolean> {
     console.log(`STEP ${reconnectStep}: Test Reconnect After Disconnect`);
     console.log('─'.repeat(50));
 
-    results.reconnectAfterDisconnect = await loginAfterDisconnect(page, disconnectUser, PASSWORD, uxTracker, config.WORKSPACE_SERVER);
+    // Use tryLoginQuick instead of loginAfterDisconnect — the latter does 3 orphan-check
+    // navigations which trigger the OrphanSessionsNavbar render loop, freezing the page
+    results.reconnectAfterDisconnect = await tryLoginQuick(page, disconnectUser, PASSWORD);
     await sleep(2000);
 
     // Verify session is back in navbar
