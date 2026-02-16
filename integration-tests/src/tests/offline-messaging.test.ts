@@ -339,9 +339,10 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 9: Bob Reconnects via ClaimSession');
     console.log('─'.repeat(50));
 
-    // Create new page for Bob in Bob's browser
-    const bobContext = browsers[1].contexts()[0];
-    const reconnectPage = await bobContext.newPage();
+    // Reuse tempCheckPage (which already shows Bob's orphan session as leader tab)
+    // instead of creating a new page. A new page would become a follower tab and
+    // not see the orphan sessions that the leader tab loaded.
+    const reconnectPage = tempCheckPage;
     setupConsoleCapture(reconnectPage, 'Bob-Reconnect', ['P2P', 'error', 'Error', 'ILM']);
 
     results.reconnection.claimSessionSuccess = await reconnectViaClaimSession(reconnectPage, USER2, uxTracker);
