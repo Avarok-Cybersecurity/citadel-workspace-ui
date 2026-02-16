@@ -492,7 +492,12 @@ async function runTest(): Promise<boolean> {
 
     const disconnectUser = USERS[1];
     const disconnectSuccess = await disconnectViaNavbar(page, disconnectUser, 'disconnect');
-    await sleep(5000);
+    await sleep(3000);
+
+    // Reload page to clear any disconnect-related modal/processing state
+    // that can cause page unresponsiveness in CI
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
+    await waitForAppReady(page, 30000);
 
     // Verify session is removed from navbar
     const userStillExists = await sessionExistsInNavbar(page, disconnectUser);
