@@ -82,8 +82,7 @@ export class TestHarness {
   /**
    * Finalize the test: print UX issues, log completion observation, write report.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  finalize(passed: boolean, results: Record<string, any>): void {
+  finalize(passed: boolean, results: Record<string, unknown>): void {
     this.printUxIssues();
 
     const uxIssues = this.uxTracker.getIssues();
