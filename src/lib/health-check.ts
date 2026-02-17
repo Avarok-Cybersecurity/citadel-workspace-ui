@@ -1,6 +1,8 @@
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
 import { PollingService } from './utils/polling-service';
+import { INTERVAL } from './timeout-constants';
+import { debugLog } from './debug-config';
 
 export interface ServiceHealth {
   isHealthy: boolean;
@@ -8,7 +10,7 @@ export interface ServiceHealth {
   error?: string;
 }
 
-const DEFAULT_INTERVAL_MS = 30000;
+const DEFAULT_INTERVAL_MS = INTERVAL.HEALTH_CHECK_MS;
 
 class HealthCheckService extends PollingService {
   private static instance: HealthCheckService;
@@ -71,7 +73,7 @@ class HealthCheckService extends PollingService {
     this.stopPolling();
 
     // Initial check
-    this.checkHealth().catch(console.error);
+    this.checkHealth().catch((err: unknown) => debugLog('HealthCheck', 'checkHealth failed:', err));
 
     // Start periodic checks via base class
     this.startPolling();

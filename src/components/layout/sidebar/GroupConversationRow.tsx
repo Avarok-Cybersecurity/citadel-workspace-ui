@@ -67,11 +67,11 @@ export function GroupConversationRow({
   // Get members with their roles, sorted by position
   const sortedMembers = useMemo(() => {
     return [...group.members]
-      .map(member => {
+      .flatMap(member => {
         const role = group.settings.roles.find(r => r.id === member.roleId);
-        return { ...member, role: role! } as GroupMemberWithRole;
+        if (!role) return []; // Filter out members with missing roles
+        return [{ ...member, role } as GroupMemberWithRole];
       })
-      .filter(m => m.role) // Filter out members with missing roles
       .sort((a, b) => {
         // Owner first (highest position)
         if (a.role.position !== b.role.position) {

@@ -4,6 +4,7 @@ import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, trackRequest, runAsyncSetup } from './event-setup-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -16,10 +17,8 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       await workspaceEvents.onMemberEvent('members:loading', (payload) => {
         setLoading(setState, 'members', true, payload.connection.request_id);
 
-        if (payload.officeId) {
-          console.info(`Loading members for office: ${payload.officeId}, request ID: ${payload.connection.request_id}`);
-        } else if (payload.roomId) {
-          console.info(`Loading members for room: ${payload.roomId}, request ID: ${payload.connection.request_id}`);
+        if (payload.domainId) {
+          debugLog('UseMemberEventSetup', `Loading members for domain: ${payload.domainId}, request ID: ${payload.connection.request_id}`);
         }
       });
 
@@ -33,7 +32,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 m.username === prev.currentUser?.username
             );
             if (currentUserMember && currentUserMember.role) {
-              console.info(`Updating current user role to: ${currentUserMember.role}`);
+              debugLog('UseMemberEventSetup', `Updating current user role to: ${currentUserMember.role}`);
               updatedCurrentUser = {
                 ...prev.currentUser,
                 role: currentUserMember.role,
@@ -64,18 +63,18 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
 
       // Member added event
       await workspaceEvents.onMemberEvent('member:added', (payload: { member: unknown; connection: ConnectionInfo }) => {
-        console.info('Member added:', payload.member);
+        debugLog('UseMemberEventSetup', 'Member added:', payload.member);
         trackRequest(setState, payload.connection.request_id);
       });
 
       // Member role updated event
       await workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; connection: ConnectionInfo }) => {
-        console.info('Member role updated:', payload.userId, payload.role);
+        debugLog('UseMemberEventSetup', 'Member role updated:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
           let updatedCurrentUser = prev.currentUser;
           if (prev.currentUser && (prev.currentUser.username === payload.userId || prev.currentUser.id === payload.userId)) {
-            console.info(`Updating current user role to: ${payload.role}`);
+            debugLog('UseMemberEventSetup', `Updating current user role to: ${payload.role}`);
             updatedCurrentUser = {
               ...prev.currentUser,
               role: payload.role
@@ -99,7 +98,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
 
       // User permissions loaded event - updates currentUser's role
       await workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: { userId: string; role: string; connection?: ConnectionInfo }) => {
-        console.info('User permissions loaded:', payload.userId, payload.role);
+        debugLog('UseMemberEventSetup', 'User permissions loaded:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
           let updatedCurrentUser = prev.currentUser;
@@ -114,7 +113,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           );
 
           if (isCurrentUser && prev.currentUser) {
-            console.info(`Updating current user role from permissions to: ${payload.role}`);
+            debugLog('UseMemberEventSetup', `Updating current user role from permissions to: ${payload.role}`);
             updatedCurrentUser = {
               ...prev.currentUser,
               // Also update username if it was 'Loading...'
@@ -141,21 +140,17 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
 
       // Member removed event
       await workspaceEvents.onMemberEvent('member:removed', (payload: { userId: string; connection: ConnectionInfo }) => {
-        console.info('Member removed:', payload.userId);
+        debugLog('UseMemberEventSetup', 'Member removed:', payload.userId);
         trackRequest(setState, payload.connection.request_id);
       });
 
       // Members reload event
       await workspaceEvents.onWorkspaceEvent('members:reload', async () => {
-        console.info('Reloading members list...');
-        // Backend requires exactly ONE of office_id or room_id (room takes precedence)
+        debugLog('UseMemberEventSetup', 'Reloading members list...');
         const params = new URLSearchParams(window.location.search);
-        const officeId = params.get("officeId");
-        const roomId = params.get("roomId");
-        if (roomId) {
-          await WorkspaceService.listMembers(undefined, roomId);
-        } else if (officeId) {
-          await WorkspaceService.listMembers(officeId, undefined);
+        const domainId = params.get("nodeId");
+        if (domainId) {
+          await WorkspaceService.listMembers(domainId);
         }
       });
     };

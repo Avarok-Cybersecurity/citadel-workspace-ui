@@ -5,8 +5,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { TopBar } from "./sidebar/TopBar";
-import { OfficesSection } from "./sidebar/OfficesSection";
-import { RoomsSection } from "./sidebar/RoomsSection";
+import { HierarchySidebar } from "./sidebar/HierarchySidebar";
 import { MembersSection } from "./sidebar/MembersSection";
 import { FilesSection } from "./sidebar/FilesSection";
 import { AdminSettingsSection } from "./sidebar/AdminSettingsSection";
@@ -25,8 +24,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
         <Sidebar className="pt-14 bg-[#262C4A]/95 transition-transform duration-300 ease-in-out">
           <SidebarContent>
-            <OfficesSection />
-            <RoomsSection />
+            <HierarchySidebar />
             <MembersSection />
             <FilesSection />
             <AdminSettingsSection />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, ChevronDown, Check, X } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -22,56 +22,21 @@ import { Separator } from '@/components/ui/separator';
 import WorkspaceService from '@/lib/workspace-service';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { User, UserRole } from '@/types/workspace-entities';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { debugLog } from '@/lib/debug-config';
+import {
+  PERMISSION_CATEGORIES,
+  ROLE_HIERARCHY,
+  getRoleDefaultPermissions,
+} from './permission-constants';
 
 interface PermissionManagerProps {
   userId: string;
   domainId: string;
-  domainType: 'workspace' | 'office' | 'room';
+  domainType: string;
   onClose?: () => void;
 }
-
-// Permission categories for better organization
-const PERMISSION_CATEGORIES = {
-  Content: [
-    { id: 'ViewContent', label: 'View Content', description: 'Can view content in this domain' },
-    { id: 'EditContent', label: 'Edit Content', description: 'Can modify content' },
-    { id: 'EditMdx', label: 'Edit MDX', description: 'Can edit MDX documents' },
-  ],
-  Messaging: [
-    { id: 'SendMessages', label: 'Send Messages', description: 'Can send messages' },
-    { id: 'ReadMessages', label: 'Read Messages', description: 'Can read messages' },
-  ],
-  Files: [
-    { id: 'UploadFiles', label: 'Upload Files', description: 'Can upload files' },
-    { id: 'DownloadFiles', label: 'Download Files', description: 'Can download files' },
-  ],
-  Members: [
-    { id: 'AddUsers', label: 'Add Users', description: 'Can add new members' },
-    { id: 'RemoveUsers', label: 'Remove Users', description: 'Can remove members' },
-    { id: 'BanUser', label: 'Ban Users', description: 'Can ban users from domain' },
-  ],
-  Management: [
-    { id: 'CreateRoom', label: 'Create Rooms', description: 'Can create new rooms' },
-    { id: 'DeleteRoom', label: 'Delete Rooms', description: 'Can delete rooms' },
-    { id: 'UpdateRoom', label: 'Update Rooms', description: 'Can update room settings' },
-    { id: 'CreateOffice', label: 'Create Offices', description: 'Can create new offices' },
-    { id: 'DeleteOffice', label: 'Delete Offices', description: 'Can delete offices' },
-    { id: 'UpdateOffice', label: 'Update Offices', description: 'Can update office settings' },
-  ],
-  System: [
-    { id: 'ManageDomains', label: 'Manage Domains', description: 'Full domain management' },
-    { id: 'ConfigureSystem', label: 'Configure System', description: 'System configuration' },
-  ],
-};
-
-const ROLE_HIERARCHY = [
-  { value: 'Admin', label: 'Administrator', color: 'bg-red-500' },
-  { value: 'Owner', label: 'Owner', color: 'bg-orange-500' },
-  { value: 'Member', label: 'Member', color: 'bg-blue-500' },
-  { value: 'Guest', label: 'Guest', color: 'bg-gray-500' },
-];
 
 export const PermissionManager: React.FC<PermissionManagerProps> = ({
   userId,
@@ -93,47 +58,17 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
 
   const loadUserPermissions = async () => {
     try {
-      // Load actual permissions from backend
       await WorkspaceService.getUserPermissions(userId, domainId);
-      // The response will be handled by the workspace event handler
-      // For now, set defaults until we get the response
       const rolePermissions = getRoleDefaultPermissions(selectedRole);
       setSelectedPermissions(new Set(rolePermissions));
 
-      // Simulate inherited permissions from parent domains
       if (domainType !== 'workspace') {
         setInheritedPermissions(new Set(['ViewContent', 'ReadMessages']));
       }
     } catch (error) {
-      console.error('Error loading permissions:', error);
-      // Fall back to defaults
+      debugLog('PermissionManager', 'Error loading permissions:', error);
       const rolePermissions = getRoleDefaultPermissions(selectedRole);
       setSelectedPermissions(new Set(rolePermissions));
-    }
-  };
-
-  const getRoleDefaultPermissions = (role: string): string[] => {
-    switch (role) {
-      case 'Admin':
-        return Object.values(PERMISSION_CATEGORIES).flat().map(p => p.id);
-      case 'Owner':
-        return [
-          'ViewContent', 'EditContent', 'EditMdx',
-          'SendMessages', 'ReadMessages',
-          'UploadFiles', 'DownloadFiles',
-          'AddUsers', 'RemoveUsers',
-          'CreateRoom', 'DeleteRoom', 'UpdateRoom',
-        ];
-      case 'Member':
-        return [
-          'ViewContent', 'EditContent',
-          'SendMessages', 'ReadMessages',
-          'UploadFiles', 'DownloadFiles',
-        ];
-      case 'Guest':
-        return ['ViewContent', 'ReadMessages'];
-      default:
-        return [];
     }
   };
 
@@ -156,34 +91,21 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Update the user's role via backend
-      await WorkspaceService.updateMemberRole(userId, selectedRole as any);
-
+      await WorkspaceService.updateMemberRole(userId, selectedRole);
       toastSuccess(toast, "Permissions Updated", `User role updated to ${selectedRole}.`);
 
       if (onClose) {
         onClose();
       }
     } catch (error) {
-      console.error('Error saving permissions:', error);
+      debugLog('PermissionManager', 'Error saving permissions:', error);
       toastError(toast, "Error", "Failed to update permissions. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getDomainIcon = () => {
-    switch (domainType) {
-      case 'workspace':
-        return '🏢';
-      case 'office':
-        return '🏛️';
-      case 'room':
-        return '🚪';
-      default:
-        return '📁';
-    }
-  };
+  const DomainIcon = getEntityMetadata(domainType).icon;
 
   return (
     <Card className="w-full max-w-lg bg-[#343A5C] border-purple-800 max-h-[80vh] flex flex-col">
@@ -192,8 +114,8 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           <Shield className="h-4 w-4" />
           Permission Manager
         </CardTitle>
-        <CardDescription className="text-gray-300 text-sm">
-          {getDomainIcon()} {domainType} permissions
+        <CardDescription className="text-gray-300 text-sm flex items-center gap-1">
+          <DomainIcon className="h-4 w-4" /> {getEntityMetadata(domainType).label} permissions
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col flex-1 overflow-hidden space-y-3 pt-0">

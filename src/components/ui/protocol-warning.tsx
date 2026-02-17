@@ -20,7 +20,7 @@ export const ProtocolWarning: React.FC = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [state.protocolWarning?.timestamp]);
+  }, [state.protocolWarning]);
   
   if (!state.protocolWarning || !visible) {
     return null;

@@ -29,7 +29,7 @@ interface UsePermissionResult {
  *
  * @example
  * ```tsx
- * const { allowed, loading, reason } = usePermission(officeId, Permission.EditMdx);
+ * const { allowed, loading, reason } = usePermission(nodeId, Permission.EditMdx);
  *
  * if (loading) return <Spinner />;
  * if (!allowed) return <Tooltip content={reason}><DisabledButton /></Tooltip>;

@@ -1,6 +1,9 @@
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
+import { debugLog } from '@/lib/debug-config';
+import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
+import { TIMEOUT } from './timeout-constants';
 
 /**
  * Server info stored in LocalDB
@@ -23,7 +26,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
     
     if (!client) {
       // Don't try to initialize here - let ConnectionManager handle it
-      console.log('WebSocket client not available yet, returning empty servers list');
+      debugLog('ServerUtils', 'WebSocket client not available yet, returning empty servers list');
       return { servers: [] };
     }
     
@@ -34,18 +37,23 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('List known servers request timed out'));
-      }, 5000);
+      }, TIMEOUT.LOCALDB_REQUEST_MS);
 
       // Set up event listener
-      const handler = (message: any) => {
-        if (message.LocalDBGetAllKVSuccess && message.LocalDBGetAllKVSuccess.request_id === requestId) {
+
+      const handler = (raw: unknown) => {
+        const message = narrowWebSocketMessage(raw);
+        if (!message) return;
+
+        const getAllKVSuccess = getVariant(message, 'LocalDBGetAllKVSuccess');
+        if (getAllKVSuccess && getAllKVSuccess.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          
+
           // Extract servers from the response
           const servers: StoredServer[] = [];
-          const kvMap = message.LocalDBGetAllKVSuccess.map;
-          
+          const kvMap = getAllKVSuccess.map as Record<string, unknown> | undefined;
+
           if (kvMap) {
             // Look for server-related keys
             Object.keys(kvMap).forEach(key => {
@@ -61,21 +69,24 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
                     } else if (parsed.servers) {
                       servers.push(...parsed.servers);
                     }
-                  } else if (typeof value === 'object' && value.servers) {
-                    servers.push(...value.servers);
+                  } else if (typeof value === 'object' && value !== null && (value as Record<string, unknown>).servers) {
+                    servers.push(...(value as Record<string, unknown>).servers as StoredServer[]);
                   }
                 } catch (e) {
-                  console.error('Error parsing server data:', e);
+                  debugLog('ServerUtils', 'Error parsing server data:', e);
                 }
               }
             });
           }
-          
+
           resolve({ servers });
-        } else if (message.LocalDBGetAllKVFailure && message.LocalDBGetAllKVFailure.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handler);
-          reject(new Error(message.LocalDBGetAllKVFailure.message || 'Failed to get known servers'));
+        } else {
+          const getAllKVFailure = getVariant(message, 'LocalDBGetAllKVFailure');
+          if (getAllKVFailure && getAllKVFailure.request_id === requestId) {
+            clearTimeout(timeout);
+            eventEmitter.off('websocket-message', handler);
+            reject(new Error((getAllKVFailure.message as string) || 'Failed to get known servers'));
+          }
         }
       };
 
@@ -86,12 +97,12 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       const request = {
         LocalDBGetAllKV: {
           request_id: requestId,
-          cid: parseInt(options.cid) || 0,
+          cid: BigInt(options.cid || '0'),
           peer_cid: null
         }
       };
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
@@ -99,7 +110,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
         });
     });
   } catch (error) {
-    console.error('Error in listKnownServers:', error);
+    debugLog('ServerUtils', 'Error in listKnownServers:', error);
     // Return empty array on error to prevent UI crashes
     return { servers: [] };
   }
@@ -136,18 +147,24 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('Store known server request timed out'));
-      }, 5000);
+      }, TIMEOUT.LOCALDB_REQUEST_MS);
 
       // Set up event listener
-      const handler = (message: any) => {
-        if (message.LocalDBSetKVSuccess && message.LocalDBSetKVSuccess.request_id === requestId) {
+
+      const handler = (raw: unknown) => {
+        const message = narrowWebSocketMessage(raw);
+        if (!message) return;
+
+        const setKVSuccess = getVariant(message, 'LocalDBSetKVSuccess');
+        const setKVFailure = getVariant(message, 'LocalDBSetKVFailure');
+        if (setKVSuccess && setKVSuccess.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
           resolve();
-        } else if (message.LocalDBSetKVFailure && message.LocalDBSetKVFailure.request_id === requestId) {
+        } else if (setKVFailure && setKVFailure.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
-          reject(new Error(message.LocalDBSetKVFailure.message || 'Failed to store known server'));
+          reject(new Error((setKVFailure.message as string) || 'Failed to store known server'));
         }
       };
 
@@ -162,14 +179,14 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       const request = {
         LocalDBSetKV: {
           request_id: requestId,
-          cid: parseInt(cid) || 0,
+          cid: BigInt(cid || '0'),
           peer_cid: null,
           key: 'known_servers',
           value: bytes
         }
       };
 
-      client.sendDirectToInternalService(request as any)
+      client.sendDirectToInternalService(request)
         .catch(error => {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
@@ -177,7 +194,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
         });
     });
   } catch (error) {
-    console.error('Error in storeKnownServer:', error);
+    debugLog('ServerUtils', 'Error in storeKnownServer:', error);
     throw error;
   }
 }

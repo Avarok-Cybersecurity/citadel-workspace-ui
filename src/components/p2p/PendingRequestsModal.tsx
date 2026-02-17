@@ -19,6 +19,7 @@ import { UserPlus, UserX, Loader2, Clock } from 'lucide-react';
 import { peerRegistrationStore, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { useToast, useEventListener } from '@/hooks';
 import { formatDistanceToNow } from 'date-fns';
+import { debugLog } from '@/lib/debug-config';
 
 interface PendingRequestsModalProps {
   isOpen: boolean;
@@ -41,12 +42,12 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   // Initial load
   useEffect(() => {
-    loadRequests().catch(console.error);
+    loadRequests().catch(err => debugLog('PendingRequestsModal', 'Error:', err));
   }, [loadRequests]);
 
   // Listen for updates
   useEventListener('peer-requests:updated', () => {
-    loadRequests().catch(console.error);
+    loadRequests().catch(err => debugLog('PendingRequestsModal', 'Error:', err));
   });
 
   const handleAccept = async (request: PendingPeerRequest) => {

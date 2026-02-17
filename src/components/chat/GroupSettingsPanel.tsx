@@ -13,49 +13,16 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import type { GroupConversation, GroupSettings as GroupSettingsType } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { GroupMemberManagement } from './GroupMemberManagement';
 import { GroupRoleManagement } from './GroupRoleManagement';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface GroupSettingsPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  group: GroupConversation;
-  /** Callback when group name is changed */
-  onNameChange: (name: string) => Promise<void>;
-  /** Callback when settings are changed */
-  onSettingsChange: (settings: GroupSettingsType) => void;
-  /** Callback when a member's role is changed */
-  onMemberRoleChange: (memberCid: string, roleId: string) => Promise<void>;
-  /** Callback when a member is kicked */
-  onKickMember: (memberCid: string) => Promise<void>;
-  /** Callback when the group is deleted */
-  onDeleteGroup: () => Promise<void>;
-}
-
-// ============================================================================
-// Component
-// ============================================================================
+import { GroupDeleteConfirmDialog } from './GroupDeleteConfirmDialog';
+import type { GroupSettingsPanelProps } from './group-settings-types';
 
 export function GroupSettingsPanel({
   open,
@@ -67,7 +34,7 @@ export function GroupSettingsPanel({
   onKickMember,
   onDeleteGroup,
 }: GroupSettingsPanelProps) {
-  const { can, isOwner } = useGroupPermissions(group);
+  const { can } = useGroupPermissions(group);
   const [activeTab, setActiveTab] = useState('members');
   const [groupName, setGroupName] = useState(group.name);
   const [isSaving, setIsSaving] = useState(false);
@@ -248,34 +215,13 @@ export function GroupSettingsPanel({
         </Tabs>
 
         {/* Delete Confirmation Dialog */}
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <AlertDialogContent className="bg-[#1C2333] border-[#2D3548]">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-white">
-                Delete "{group.name}"?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-400">
-                This action cannot be undone. All messages, members, and settings
-                will be permanently deleted.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel
-                disabled={isDeleting}
-                className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
-              >
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Group'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <GroupDeleteConfirmDialog
+          open={showDeleteConfirm}
+          onOpenChange={setShowDeleteConfirm}
+          groupName={group.name}
+          isDeleting={isDeleting}
+          onConfirm={handleDeleteConfirm}
+        />
       </SheetContent>
     </Sheet>
   );

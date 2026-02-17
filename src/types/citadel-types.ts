@@ -1,17 +1,20 @@
-export type SecurityLevel = 'Standard' | 'Reinforced' | 'High' | 'Extreme';
-export type SecrecyMode = 'Perfect' | 'BestEffort';
-export type EncryptionAlgorithm = 'AES_GCM_256' | 'ChaCha20Poly_1305' | 'KyberHybrid' | 'Ascon80pq';
-export type KemAlgorithm = 'Kyber';
-export type SigAlgorithm = 'None' |'Falcon1024' | 'Dilithium5';
+// Re-export crypto/protocol types from the canonical source (SSOT)
+// These types are auto-generated from Rust enums via ts-rs in @avarok/citadel-protocol-types
+export type {
+  SecurityLevel,
+  SecrecyMode,
+  EncryptionAlgorithm,
+  KemAlgorithm,
+  SigAlgorithm,
+  UdpMode,
+} from '@avarok/citadel-protocol-types';
 
+// ConnectMode is locally defined as a simple enum for UI usage.
+// The canonical ConnectMode is a tagged union with force_login field,
+// which is handled at the protocol layer.
 export enum ConnectMode {
   Fetch = "Fetch",
   Standard = "Standard"
-}
-
-export enum UdpMode {
-  Enabled = "Enabled",
-  Disabled = "Disabled"
 }
 
 export function stringToUint8Array(str: string): Uint8Array {

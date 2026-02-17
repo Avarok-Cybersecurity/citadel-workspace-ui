@@ -1,0 +1,120 @@
+/**
+ * WebSocket Service - Initialization Logic
+ *
+ * Handles WebSocket client initialization, leader/follower election,
+ * and WASM debug bridge setup.
+ */
+
+import type { WorkspaceClient } from 'citadel-workspace-client-ts';
+import { debugLog } from '../debug-config';
+import { instanceManager } from '../multi-instance';
+import { GLOBAL_INIT_KEY } from '../websocket';
+import type { WebSocketServiceCore } from './core';
+
+/**
+ * Initialize the WebSocket service.
+ * Handles dedup via global state and concurrent init prevention.
+ */
+export async function initService(service: WebSocketServiceCore): Promise<void> {
+  if (window[GLOBAL_INIT_KEY]?.initialized) {
+    service.isInitialized = true;
+    if (window[GLOBAL_INIT_KEY].client) {
+      service.client = window[GLOBAL_INIT_KEY].client;
+    }
+    return;
+  }
+
+  if (service.isInitialized) {
+    debugLog('WebSocketService', 'Service already initialized');
+    return;
+  }
+
+  if (service.initializationPromise) {
+    debugLog('WebSocketService', 'Service initialization already in progress, waiting...');
+    return service.initializationPromise;
+  }
+
+  service.initializationPromise = doInit(service);
+  window[GLOBAL_INIT_KEY] = {
+    promise: service.initializationPromise,
+    initialized: false,
+    client: null,
+  };
+
+  try {
+    await service.initializationPromise;
+    if (window[GLOBAL_INIT_KEY]) {
+      window[GLOBAL_INIT_KEY].initialized = true;
+    }
+  } catch (error) {
+    window[GLOBAL_INIT_KEY] = undefined;
+    throw error;
+  }
+}
+
+async function doInit(service: WebSocketServiceCore): Promise<void> {
+  debugLog('WebSocketService', 'WASM client initialization starting...');
+
+  const { setupWasmDebugBridge } = await import('../wasm-debug-bridge');
+  setupWasmDebugBridge();
+
+  debugLog('WebSocketService', 'Waiting for leader election to settle...');
+  await service.initOps.waitForLeaderElection();
+
+  const isLeader = instanceManager.isLeader;
+  debugLog('WebSocketService', `Leader election complete. This tab is ${isLeader ? 'LEADER' : 'FOLLOWER'}`);
+
+  if (!isLeader) {
+    service.initOps.initializeAsFollower();
+    service.isInitialized = true;
+    service.client = null;
+    return;
+  }
+
+  service.client = await service.initOps.createWebSocketAsLeader();
+  service.isInitialized = true;
+}
+
+/**
+ * Wait for WebSocket initialization to complete.
+ * Returns immediately if already initialized.
+ */
+export async function waitForInit(service: WebSocketServiceCore): Promise<void> {
+  if (service.isInitialized && service.client) {
+    return;
+  }
+
+  if (window[GLOBAL_INIT_KEY]?.initialized && window[GLOBAL_INIT_KEY]?.client) {
+    service.isInitialized = true;
+    service.client = window[GLOBAL_INIT_KEY].client as WorkspaceClient;
+    return;
+  }
+
+  if (service.initializationPromise) {
+    await service.initializationPromise;
+    return;
+  }
+
+  if (window[GLOBAL_INIT_KEY]?.promise) {
+    await window[GLOBAL_INIT_KEY].promise;
+    if (window[GLOBAL_INIT_KEY]?.client) {
+      service.client = window[GLOBAL_INIT_KEY].client as WorkspaceClient;
+      service.isInitialized = true;
+    }
+    return;
+  }
+
+  await initService(service);
+}
+
+/**
+ * Reset the WebSocket service state to allow re-initialization.
+ */
+export function resetService(service: WebSocketServiceCore): void {
+  debugLog('WebSocketService', 'Resetting WebSocket service state for reconnection');
+  service.client = null;
+  service.isInitialized = false;
+  service.initializationPromise = null;
+  window[GLOBAL_INIT_KEY] = undefined;
+  debugLog('WebSocketService', 'WebSocket service state reset complete');
+}

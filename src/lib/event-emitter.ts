@@ -1,4 +1,6 @@
-export type EventHandler<T = any> = (payload: T) => void;
+import { debugLog } from './debug-config';
+
+export type EventHandler<T = unknown> = (payload: T) => void;
 
 /**
  * TypedEventEmitter - A simple typed event emitter for strongly-typed events
@@ -12,7 +14,7 @@ export class TypedEventEmitter<T> {
       try {
         callback(event);
       } catch (error) {
-        console.error('Error in typed event handler:', error);
+        debugLog('EventEmitter', 'Error in typed event handler:', error);
       }
     });
   }
@@ -30,22 +32,26 @@ export class TypedEventEmitter<T> {
 }
 
 export class EventEmitter {
-  private listeners: Map<string, Set<EventHandler>> = new Map();
+  // PINCH POINT: Internal storage uses any because it holds heterogeneous handler types
+  // across different event names. Type safety is enforced at on<T>/emit<T> call sites.
+  private listeners: Map<string, Set<EventHandler<any>>> = new Map();
 
-  emit<T = any>(event: string, payload?: T): void {
+   
+  emit<T = unknown>(event: string, payload?: T): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
       handlers.forEach(handler => {
         try {
           handler(payload);
         } catch (error) {
-          console.error(`Error in event handler for ${event}:`, error);
+          debugLog('EventEmitter', `Error in event handler for ${event}:`, error);
         }
       });
     }
   }
 
-  on<T = any>(event: string, handler: EventHandler<T>): () => void {
+   
+  on<T = unknown>(event: string, handler: EventHandler<T>): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
@@ -62,7 +68,8 @@ export class EventEmitter {
     };
   }
 
-  once<T = any>(event: string, handler: EventHandler<T>): () => void {
+   
+  once<T = unknown>(event: string, handler: EventHandler<T>): () => void {
     const wrappedHandler: EventHandler<T> = (payload) => {
       unsubscribe();
       handler(payload);
@@ -71,7 +78,7 @@ export class EventEmitter {
     return unsubscribe;
   }
 
-  off(event: string, handler?: EventHandler): void {
+  off(event: string, handler?: EventHandler<any>): void {
     if (!handler) {
       // Remove all handlers for this event
       this.listeners.delete(event);

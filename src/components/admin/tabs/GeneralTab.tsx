@@ -8,6 +8,7 @@ import { AdminTabProps } from '../types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { Loader2 } from 'lucide-react';
+import { debugLog } from '@/lib/debug-config';
 
 export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
   const { state } = useWorkspace();
@@ -29,22 +30,13 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
           setDescription(state.workspace.description || '');
           setOriginalName(state.workspace.name);
           setOriginalDescription(state.workspace.description || '');
-        } else if (entityType === 'office') {
-          const office = state.offices[entityId];
-          if (office) {
-            setName(office.name);
-            setDescription(office.description || '');
-            setOriginalName(office.name);
-            setOriginalDescription(office.description || '');
-          }
-        } else if (entityType === 'room') {
-          // state.rooms is Record<string, Room> (roomId -> Room)
-          const room = state.rooms[entityId];
-          if (room) {
-            setName(room.name);
-            setDescription(room.description || '');
-            setOriginalName(room.name);
-            setOriginalDescription(room.description || '');
+        } else {
+          const node = state.nodes[entityId];
+          if (node) {
+            setName(node.name);
+            setDescription(node.description || '');
+            setOriginalName(node.name);
+            setOriginalDescription(node.description || '');
           }
         }
       } finally {
@@ -53,7 +45,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
     };
 
     loadData();
-  }, [entityType, entityId, state.workspace, state.offices, state.rooms]);
+  }, [entityType, entityId, state.workspace, state.nodes]);
 
   useEffect(() => {
     setHasChanges(name !== originalName || description !== originalDescription);
@@ -91,10 +83,8 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
     try {
       if (entityType === 'workspace') {
         await WorkspaceService.updateWorkspace(name, description);
-      } else if (entityType === 'office') {
-        await WorkspaceService.updateOffice(entityId, { name, description });
-      } else if (entityType === 'room') {
-        await WorkspaceService.updateRoom(entityId, { name, description });
+      } else {
+        await WorkspaceService.updateNode(entityId, { name, description });
       }
 
       toast({
@@ -107,7 +97,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
       setOriginalDescription(description);
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to update entity:', error);
+      debugLog('GeneralTab', 'Failed to update entity:', error);
       toast({
         title: 'Error',
         description: `Failed to update ${entityType}. Please try again.`,

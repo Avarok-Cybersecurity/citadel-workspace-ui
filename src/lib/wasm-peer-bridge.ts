@@ -38,6 +38,7 @@
  */
 
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Global function callable from WASM via wasm_bindgen.
@@ -58,7 +59,7 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
 
   try {
     if (!p2pAutoConnectService) {
-      console.warn(`[P2P][WasmPeerBridge] CALL #${callCount} - p2pAutoConnectService NOT AVAILABLE!`);
+      debugLog('WasmPeerBridge', `CALL #${callCount} - p2pAutoConnectService NOT AVAILABLE!`);
       return new BigUint64Array(0);
     }
 
@@ -69,14 +70,14 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
     if (now - lastLogTime > LOG_INTERVAL_MS || peers.length > 0) {
       lastLogTime = now;
       // ILM-DIAG: Log full CID for comparison with setPeerConnected logs
-      console.log(`[ILM-DIAG][WasmPeerBridge] QUERY localCid=${localCid.toString()} -> ${peers.length} peers`,
+      debugLog('WasmPeerBridge', `[ILM-DIAG][WasmPeerBridge] QUERY localCid=${localCid.toString()} -> ${peers.length} peers`,
         peers.length > 0 ? peers : '(none)');
     }
 
     // Convert bigint array to BigUint64Array for WASM
     return new BigUint64Array(peers);
   } catch (error) {
-    console.error(`[P2P][WasmPeerBridge] CALL #${callCount} Error:`, error);
+    debugLog('WasmPeerBridge', `CALL #${callCount} Error:`, error);
     return new BigUint64Array(0);
   }
 }
@@ -96,8 +97,8 @@ declare global {
 export function initWasmPeerBridge(): void {
   if (typeof window !== 'undefined') {
     window.__citadel_get_peers_for_session = __citadel_get_peers_for_session;
-    console.log('[WasmPeerBridge] Initialized - global callback registered');
+    debugLog('WasmPeerBridge', '[WasmPeerBridge] Initialized - global callback registered');
   } else {
-    console.warn('[WasmPeerBridge] Window not available - skipping initialization');
+    debugLog('WasmPeerBridge', 'Window not available - skipping initialization');
   }
 }

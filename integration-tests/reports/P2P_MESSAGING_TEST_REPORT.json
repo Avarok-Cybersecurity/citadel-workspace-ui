@@ -1,9 +1,8 @@
 {
-  "timestamp": "2026-02-04T23:36:22.113Z",
-  "users": {
-    "user1": "msg_alice_1770248019169",
-    "user2": "msg_bob_1770248019169"
-  },
+  "timestamp": "2026-02-09T01:11:07.139Z",
+  "testName": "P2P Messaging Test",
+  "user1": "msg_alice_1770599303311",
+  "user2": "msg_bob_1770599303311",
   "results": {
     "accountCreation": {
       "user1": true,

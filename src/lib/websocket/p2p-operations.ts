@@ -9,6 +9,7 @@ import { requestResponse, requestResponseSoft } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
 import { getDefaultSecuritySettings } from '../security-utils';
 import { stringToBytes } from '../utils/encoding-utils';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface P2PConfig {
   init: () => Promise<void>;
@@ -37,7 +38,7 @@ export class P2POperations {
       throw new Error('Target CID (peer_cid) is required to send P2P message');
     }
 
-    console.log('[P2P] sendP2PMessage called with:', {
+    debugLog('P2POperations', '[P2P] sendP2PMessage called with:', {
       cid: cid.toString(),
       cidType: typeof cid,
       targetCid: targetCid.toString(),
@@ -56,11 +57,11 @@ export class P2POperations {
       }
     };
 
-    console.log('[P2P] messageRequest before conversion:', JSON.stringify(messageRequest, (key, value) =>
+    debugLog('P2POperations', '[P2P] messageRequest before conversion:', JSON.stringify(messageRequest, (key, value) =>
       typeof value === 'bigint' ? value.toString() : value
     ));
 
-    debugLog('websocket', 'Sending P2P message', { cid: cid.toString(), targetCid: targetCid.toString(), messageLength: message.length });
+    debugLog('P2POperations', 'Sending P2P message', { cid: cid.toString(), targetCid: targetCid.toString(), messageLength: message.length });
 
     await this.config.sendMessage(messageRequest);
   }
@@ -79,7 +80,7 @@ export class P2POperations {
       throw new Error('Cannot open P2P connection to self');
     }
 
-    debugLog('websocket', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
+    debugLog('P2POperations', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
 
     const requestId = crypto.randomUUID();
     const peerConnectRequest = {
@@ -93,14 +94,14 @@ export class P2POperations {
     };
 
     await requestResponse<true>({
-      request: peerConnectRequest, requestId, timeoutMs: 30000,
+      request: peerConnectRequest, requestId, timeoutMs: TIMEOUT.P2P_CONNECT_REQUEST_MS,
       sendRequest: this.config.sendMessage,
       operationName: 'PeerConnect',
       matcher: {
         matchSuccess: (msg) => {
           const r = msg as { PeerConnectSuccess?: { request_id: string } };
           if (r.PeerConnectSuccess?.request_id === requestId) {
-            debugLog('websocket', 'P2P connection established', { targetCid: targetCid.toString() });
+            debugLog('P2POperations', 'P2P connection established', { targetCid: targetCid.toString() });
             return true;
           }
           return undefined;
@@ -130,7 +131,7 @@ export class P2POperations {
       throw new Error('CID and peerCid are required to accept P2P connection');
     }
 
-    debugLog('websocket', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
+    debugLog('P2POperations', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
 
     const requestId = crypto.randomUUID();
     const acceptRequest = {
@@ -146,13 +147,13 @@ export class P2POperations {
     };
 
     await requestResponseSoft({
-      request: acceptRequest, requestId, timeoutMs: 10000,
+      request: acceptRequest, requestId, timeoutMs: TIMEOUT.P2P_ACCEPT_REQUEST_MS,
       sendRequest: this.config.sendMessage,
       operationName: 'PeerConnectAccept',
       matchSuccess: (msg) => {
         const r = msg as { PeerConnectAcceptSuccess?: { request_id: string } };
         if (r.PeerConnectAcceptSuccess?.request_id === requestId) {
-          debugLog('websocket', 'P2P connection accept sent', { peerCid });
+          debugLog('P2POperations', 'P2P connection accept sent', { peerCid });
           return true;
         }
         return false;
@@ -164,8 +165,8 @@ export class P2POperations {
         }
         return undefined;
       },
-      onTimeout: () => console.warn('PeerConnectAccept timed out - continuing with PeerConnect fallback'),
-      onFailure: (error) => console.warn('PeerConnectAccept failed:', error, '- will use PeerConnect fallback'),
+      onTimeout: () => debugLog('P2POperations', 'PeerConnectAccept timed out - continuing with PeerConnect fallback'),
+      onFailure: (error) => debugLog('P2POperations', 'PeerConnectAccept failed:', error, '- will use PeerConnect fallback'),
     });
   }
 
@@ -184,7 +185,7 @@ export class P2POperations {
       throw new Error('Peer CID is required to disconnect P2P');
     }
 
-    debugLog('websocket', 'Disconnecting P2P connection', { localCid: localCid.toString(), peerCid: peerCid.toString() });
+    debugLog('P2POperations', 'Disconnecting P2P connection', { localCid: localCid.toString(), peerCid: peerCid.toString() });
 
     const requestId = crypto.randomUUID();
     const peerDisconnectRequest = {
@@ -192,7 +193,7 @@ export class P2POperations {
     };
 
     await requestResponse<true>({
-      request: peerDisconnectRequest, requestId, timeoutMs: 10000,
+      request: peerDisconnectRequest, requestId, timeoutMs: TIMEOUT.P2P_DISCONNECT_MS,
       sendRequest: this.config.sendMessage,
       operationName: 'PeerDisconnect',
       matcher: {
@@ -202,13 +203,13 @@ export class P2POperations {
             DisconnectNotification?: { request_id?: string; peer_cid?: bigint };
           };
           if (r.PeerDisconnectSuccess?.request_id === requestId) {
-            debugLog('websocket', 'P2P disconnect successful', { peerCid: peerCid.toString() });
+            debugLog('P2POperations', 'P2P disconnect successful', { peerCid: peerCid.toString() });
             return true;
           }
           if (r.DisconnectNotification) {
             const n = r.DisconnectNotification;
             if (n.request_id === requestId || n.peer_cid === peerCid) {
-              debugLog('websocket', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
+              debugLog('P2POperations', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
               return true;
             }
           }

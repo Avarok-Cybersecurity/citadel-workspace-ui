@@ -15,6 +15,7 @@ import {
   createCheckState,
   createCheckStateResponse,
 } from '@/types/messaging-layer';
+import { debugLog } from '@/lib/debug-config';
 
 export interface CheckStateConfig {
   /** Timeout for CheckState response (ms) */
@@ -54,7 +55,7 @@ export class CheckStateManager {
   public markPeerReady(peerCid: bigint): void {
     if (!this.peerReadyState.get(peerCid)) {
       this.peerReadyState.set(peerCid, true);
-      console.log(`[P2P] Marked peer ${peerCid.toString().slice(0, 8)}... as ready`);
+      debugLog('CheckstateManager', `[P2P] Marked peer ${peerCid.toString().slice(0, 8)}... as ready`);
     }
   }
 
@@ -74,7 +75,7 @@ export class CheckStateManager {
    * Handle received CheckStateResponse - resolve pending promise
    */
   public handleCheckStateResponse(peerCid: bigint): void {
-    console.log('[P2P] Received CheckStateResponse from peer:', peerCid);
+    debugLog('CheckstateManager', '[P2P] Received CheckStateResponse from peer:', peerCid);
     this.peerReadyState.set(peerCid, true);
     const pending = this.pendingCheckStates.get(peerCid);
     if (pending) {
@@ -87,12 +88,12 @@ export class CheckStateManager {
    * Handle received CheckState - send CheckStateResponse
    */
   public async handleCheckState(peerCid: bigint): Promise<void> {
-    console.log('[P2P] Received CheckState from peer:', peerCid, '- responding Ready');
+    debugLog('CheckstateManager', '[P2P] Received CheckState from peer:', peerCid, '- responding Ready');
 
     // Queue for flush when tab becomes visible (handles browser throttling in background tabs)
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
       this.pendingCheckStateResponses.push(peerCid);
-      console.log(`[P2P] Tab hidden - queued CheckState response for ${peerCid}`);
+      debugLog('CheckstateManager', `[P2P] Tab hidden - queued CheckState response for ${peerCid}`);
     }
     // Always try to respond immediately (best effort - may be throttled in background)
     await this.sendCheckStateResponse(peerCid);
@@ -116,9 +117,9 @@ export class CheckStateManager {
     try {
       const bytes = serializeP2PCommand(command);
       await this.config.sendToP2P(peerCid, bytes);
-      console.log('[P2P] Sent CheckStateResponse to peer:', peerCid);
+      debugLog('CheckstateManager', '[P2P] Sent CheckStateResponse to peer:', peerCid);
     } catch (error) {
-      console.error('[P2P] Failed to send CheckStateResponse:', error);
+      debugLog('CheckstateManager', 'Failed to send CheckStateResponse:', error);
     }
   }
 
@@ -132,11 +133,11 @@ export class CheckStateManager {
   public async ensurePeerReady(peerCid: bigint): Promise<void> {
     // If already confirmed ready, skip handshake
     if (this.peerReadyState.get(peerCid)) {
-      console.log('[P2P] Peer already marked as ready:', peerCid);
+      debugLog('CheckstateManager', '[P2P] Peer already marked as ready:', peerCid);
       return;
     }
 
-    console.log('[P2P] Initiating CheckState handshake with peer:', peerCid);
+    debugLog('CheckstateManager', '[P2P] Initiating CheckState handshake with peer:', peerCid);
 
     const currentCid = await this.config.getCurrentCid();
     if (!currentCid) {
@@ -169,7 +170,7 @@ export class CheckStateManager {
     try {
       const bytes = serializeP2PCommand(command);
       await this.config.sendToP2P(peerCid, bytes);
-      console.log('[P2P] Sent CheckState to peer:', peerCid);
+      debugLog('CheckstateManager', '[P2P] Sent CheckState to peer:', peerCid);
     } catch (error) {
       // Clean up pending state on send failure
       this.pendingCheckStates.delete(peerCid);
@@ -178,7 +179,7 @@ export class CheckStateManager {
 
     // Wait for response
     await readyPromise;
-    console.log('[P2P] Peer confirmed ready:', peerCid);
+    debugLog('CheckstateManager', '[P2P] Peer confirmed ready:', peerCid);
   }
 
   /**
@@ -192,7 +193,7 @@ export class CheckStateManager {
       return true;
     } catch (error) {
       if (error instanceof Error && error.message.includes('did not respond to CheckState')) {
-        console.log(`[P2P] CheckState timeout for ${peerCid}, proceeding with send anyway (transport layer handles reliability)`);
+        debugLog('CheckstateManager', `[P2P] CheckState timeout for ${peerCid}, proceeding with send anyway (transport layer handles reliability)`);
         return false;
       }
       throw error;  // Re-throw other errors
@@ -205,10 +206,10 @@ export class CheckStateManager {
   public flushPendingCheckStateResponses(): void {
     if (this.pendingCheckStateResponses.length === 0) return;
 
-    console.log(`[P2P] Flushing ${this.pendingCheckStateResponses.length} pending CheckState responses`);
+    debugLog('CheckstateManager', `[P2P] Flushing ${this.pendingCheckStateResponses.length} pending CheckState responses`);
     for (const peerCid of this.pendingCheckStateResponses) {
       this.sendCheckStateResponse(peerCid).catch(error => {
-        console.debug('[P2P] Failed to send queued CheckStateResponse:', error);
+        debugLog('CheckstateManager', '[P2P] Failed to send queued CheckStateResponse:', error);
       });
     }
     this.pendingCheckStateResponses = [];

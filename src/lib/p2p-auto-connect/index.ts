@@ -17,4 +17,5 @@ export {
 } from './types';
 
 // State Management
-export { P2PConnectionState } from './state';
+export { ConnectedPeersState } from './connected-peers';
+export { P2PConnectionState } from './tracking';

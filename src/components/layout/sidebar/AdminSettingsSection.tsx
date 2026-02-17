@@ -38,7 +38,7 @@ export const AdminSettingsSection = () => {
   const userRole = state.currentUser?.role;
   const isAdmin = userRole === 'Admin' ||
                   userRole === 'admin' ||
-                  (typeof userRole === 'object' && (userRole as Record<string, unknown>)?.Admin !== undefined);
+                  (typeof userRole === 'object' && userRole !== null && (userRole as Record<string, unknown>)?.Admin !== undefined);
 
   if (!isAdmin) {
     return null;
@@ -106,8 +106,8 @@ export const AdminSettingsSection = () => {
             <div className="flex items-start gap-3 p-2 bg-amber-500/10 rounded">
               <Settings className="h-4 w-4 text-amber-400 mt-0.5" />
               <div>
-                <p className="font-medium">Create & Manage Offices/Rooms</p>
-                <p className="text-sm text-gray-400">Create, edit, and delete offices and rooms</p>
+                <p className="font-medium">Create & Manage Nodes</p>
+                <p className="text-sm text-gray-400">Create, edit, and delete hierarchy nodes</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-2 bg-amber-500/10 rounded">

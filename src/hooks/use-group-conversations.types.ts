@@ -1,0 +1,60 @@
+/**
+ * Types for useGroupConversations hook
+ */
+
+import type {
+  GroupConversation,
+} from '@/types/group';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface UseGroupConversationsResult {
+  /** All group conversations */
+  groups: GroupConversation[];
+  /** Loading state */
+  loading: boolean;
+  /** Error message if any */
+  error: string | null;
+  /** Create a new group */
+  createGroup: (
+    name: string,
+    initialMembers: Array<{ cid: string; username: string; roleId?: string }>
+  ) => Promise<string>;
+  /** Invite a peer to a group */
+  invitePeer: (groupId: string, peerCid: string, roleId?: string) => Promise<void>;
+  /** Leave a group */
+  leaveGroup: (groupId: string) => Promise<void>;
+  /** Kick a member from a group */
+  kickMember: (groupId: string, memberCid: string) => Promise<void>;
+  /** Update a member's role */
+  updateMemberRole: (groupId: string, memberCid: string, roleId: string) => Promise<void>;
+  /** Get a specific group by ID */
+  getGroup: (groupId: string) => GroupConversation | undefined;
+  /** Mark messages as read for a group */
+  markAsRead: (groupId: string) => void;
+  /** Refresh groups from server */
+  refresh: () => Promise<void>;
+}
+
+// ============================================================================
+// Protocol Boundary Adapter
+// ============================================================================
+
+import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
+
+/**
+ * Adapts a locally-constructed request object to the WASM-generated InternalServiceRequest type.
+ * The cast is needed because locally-built object literals are structurally compatible at runtime
+ * but TypeScript cannot verify structural compatibility with WASM-generated nominal types.
+ */
+export function toInternalServiceRequest(request: Record<string, unknown>): InternalServiceRequest {
+  return request as unknown as InternalServiceRequest;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+export const STORAGE_KEY = 'citadel_group_conversations';

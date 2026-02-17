@@ -15,6 +15,7 @@
 import {
   sleep,
   createBrowser,
+  createIsolatedContexts,
   createAccount,
   takeScreenshot,
   setupConsoleCapture,
@@ -105,8 +106,9 @@ async function runTest(): Promise<boolean> {
   console.log(`Test Room: ${TEST_ROOM}`);
   console.log('');
 
-  // Setup browser with shared context (single WebSocket for both tabs)
-  const { browser, context } = await createBrowser();
+  // Setup browser with isolated contexts (separate storage per user to avoid IndexedDB conflicts)
+  const { browser } = await createBrowser();
+  const [context1, context2] = await createIsolatedContexts(browser, 2);
 
   const results: TestResults = {
     accountCreation: { user1: false, user2: false },
@@ -131,8 +133,8 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    const page1 = await context.newPage();
-    const page2 = await context.newPage();
+    const page1 = await context1.newPage();
+    const page2 = await context2.newPage();
 
     // Setup console capture
     setupConsoleCapture(page1, 'Alice', ['group', 'chat', 'message', 'error']);

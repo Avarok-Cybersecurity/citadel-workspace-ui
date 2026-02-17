@@ -15,6 +15,7 @@ import {
   PERMISSION_CATEGORIES,
 } from '@/lib/permissions-service';
 import { eventEmitter } from '@/lib/event-emitter';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Context type definition
@@ -78,7 +79,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
-      console.error('[PermissionsContext] Error fetching permissions:', err);
+      debugLog('PermissionsContext', 'Error fetching permissions:', err);
       return null;
     } finally {
       setLoading(false);

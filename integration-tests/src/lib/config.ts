@@ -50,7 +50,7 @@ export const config: TestConfig = {
   WORKSPACE_SERVER: externalConfig.workspaceServer
     ? `${externalConfig.workspaceServer.host}:${externalConfig.workspaceServer.port}`
     : '127.0.0.1:12349',
-  WORKSPACE_PASSWORD: externalConfig.workspacePassword ?? 'SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME',
+  WORKSPACE_PASSWORD: externalConfig.workspacePassword ?? process.env.WORKSPACE_MASTER_PASSWORD ?? 'dev-local-workspace-password',
   DEFAULT_PASSWORD: externalConfig.defaultPassword ?? 'test12345',
   SCREENSHOTS_DIR: path.join(process.cwd(), 'screenshots'),
   LOGS_DIR: path.join(process.cwd(), 'logs'),

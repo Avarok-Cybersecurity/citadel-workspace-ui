@@ -1,4 +1,5 @@
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
+import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
 // Re-export runAsyncSetup from canonical location for backward compatibility
 export { runAsyncSetup } from '@/lib/utils/async-utils';
 
@@ -25,33 +26,35 @@ export function trackRequest(setState: SetState, requestId?: string): void {
   }
 }
 
-/** Upsert an entity into the offices or rooms map by its id. */
-export function upsertEntity(
+/** Upsert a DomainNode into the nodes map by its id. */
+export function upsertNode(
   setState: SetState,
-  stateKey: 'offices' | 'rooms',
-  entity: { id: string },
+  node: DomainNode,
   requestId?: string,
 ): void {
   setState(prev => ({
     ...prev,
-    [stateKey]: { ...prev[stateKey], [entity.id]: entity },
+    nodes: { ...prev.nodes, [node.id]: node },
     ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
   }));
 }
 
-/** Remove an entity from the offices or rooms map by id. */
-export function removeEntity(
+/** Remove a node and its cascaded children from the nodes map. */
+export function removeNode(
   setState: SetState,
-  stateKey: 'offices' | 'rooms',
-  entityId: string,
+  nodeId: string,
+  childrenDeleted: string[],
   requestId?: string,
 ): void {
   setState(prev => {
-    const updated = { ...prev[stateKey] };
-    delete updated[entityId];
+    const updated = { ...prev.nodes };
+    delete updated[nodeId];
+    for (const childId of childrenDeleted) {
+      delete updated[childId];
+    }
     return {
       ...prev,
-      [stateKey]: updated,
+      nodes: updated,
       ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
     };
   });

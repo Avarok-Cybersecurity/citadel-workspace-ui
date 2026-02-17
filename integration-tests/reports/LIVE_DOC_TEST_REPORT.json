@@ -1,17 +1,20 @@
 {
-  "timestamp": "2026-02-05T00:28:07.827Z",
-  "users": {
-    "user1": "livedoc_a_1770251171758",
-    "user2": "livedoc_b_1770251171758"
-  },
-  "document": "TestDoc_1770251171758",
+  "timestamp": "2026-02-08T00:23:49.112Z",
+  "testName": "Live Doc Bidirectional Sync Test",
+  "user1": "livedoc_a_1770510110078",
+  "user2": "livedoc_b_1770510110078",
+  "docTitle": "TestDoc_1770510110078",
   "results": {
     "accountCreation": true,
     "p2pRegistration": true,
     "p2pAccept": true,
     "docCreated": true,
     "user1ToUser2Sync": true,
-    "user2ToUser1Sync": true
+    "user2ToUser1Sync": true,
+    "liveDocBubbleVisible": false,
+    "content1Final": "Hello from User 1! And hello from User 2!livedoc_b_1770510110078",
+    "content2Final": "Hello from User 1!"
   },
+  "uxIssues": [],
   "passed": true
 }

@@ -60,59 +60,10 @@ export interface WorkspaceProtocolRequestTS {
     workspace_master_password: string;
   };
 
-  // Office operations
-  CreateOffice?: {
-    workspace_id: string;
-    name: string;
-    description: string;
-    mdx_content?: string;
-    metadata?: number[];
-    is_default?: boolean;
-  };
-  GetOffice?: {
-    office_id: string;
-  };
-  UpdateOffice?: {
-    office_id: string;
-    name?: string;
-    description?: string;
-    mdx_content?: string;
-    metadata?: number[];
-    is_default?: boolean;
-  };
-  DeleteOffice?: {
-    office_id: string;
-  };
-  ListOffices?: null;
-
-  // Room operations
-  CreateRoom?: {
-    office_id: string;
-    name: string;
-    description: string;
-    mdx_content?: string;
-  };
-  GetRoom?: {
-    room_id: string;
-  };
-  UpdateRoom?: {
-    room_id: string;
-    name?: string;
-    description?: string;
-    mdx_content?: string;
-  };
-  DeleteRoom?: {
-    room_id: string;
-  };
-  ListRooms?: {
-    office_id: string;
-  };
-
   // Member operations
   AddMember?: {
     user_id: string;
-    office_id?: string;
-    room_id?: string;
+    domain_id?: string;
     role: UserRoleTS;
     metadata?: number[];
   };
@@ -132,12 +83,10 @@ export interface WorkspaceProtocolRequestTS {
   };
   RemoveMember?: {
     user_id: string;
-    office_id?: string;
-    room_id?: string;
+    domain_id?: string;
   };
   ListMembers?: {
-    office_id?: string;
-    room_id?: string;
+    domain_id?: string;
   };
 
   // Group messaging operations
@@ -179,6 +128,53 @@ export interface WorkspaceProtocolRequestTS {
 
   // Server capabilities query
   GetServerCapabilities?: null;
+
+  // Generic tree node operations
+  CreateNode?: {
+    parent_id: string | null;
+    entity_type: { Child: string } | 'Workspace';
+    name: string;
+    description: string;
+    mdx_content?: string;
+    metadata?: number[];
+    is_default?: boolean;
+  };
+  GetNode?: {
+    node_id: string;
+  };
+  UpdateNode?: {
+    node_id: string;
+    name?: string;
+    description?: string;
+    mdx_content?: string;
+    rules?: string;
+    chat_enabled?: boolean;
+    is_default?: boolean;
+  };
+  DeleteNode?: {
+    node_id: string;
+    cascade: boolean;
+  };
+  MoveNode?: {
+    node_id: string;
+    new_parent_id: string | null;
+  };
+  ListNodes?: {
+    parent_id?: string | null;
+    depth?: number;
+    entity_types?: Array<{ Child: string } | 'Workspace'>;
+  };
+  GetTreeStructure?: {
+    root_id?: string | null;
+    max_depth?: number;
+  };
+  GetTreeSchema?: null;
+  UpdateTreeSchema?: {
+    schema: {
+      rules: Array<{ parent_type: string; allowed_child_types: string[] }>;
+      max_depth?: number | null;
+    };
+  };
 }
 
 // Group message type enum
@@ -206,28 +202,6 @@ export interface GroupMessageTS {
 /**
  * Simplified type definitions for workspace entities
  */
-export interface OfficeTS {
-  id: string;
-  name: string;
-  description: string;
-  mdx_content?: string;
-  rules?: string;
-  chat_enabled: boolean;
-  chat_channel_id?: string;
-  is_default?: boolean; // Whether this is the default office (navigated to on login)
-}
-
-export interface RoomTS {
-  id: string;
-  office_id: string;
-  name: string;
-  description?: string;
-  mdx_content?: string;
-  rules?: string;
-  chat_enabled: boolean;
-  chat_channel_id?: string;
-}
-
 export interface UserTS {
   id: string;
   username: string;
@@ -244,8 +218,15 @@ export enum UserRoleTS {
 }
 
 export enum PermissionTS {
-  ViewOffice = 'view_office',
-  EditOffice = 'edit_office'
+  ViewContent = 'ViewContent',
+  EditContent = 'EditContent',
+  CreateNode = 'CreateNode',
+  DeleteNode = 'DeleteNode',
+  UpdateNode = 'UpdateNode',
+  EditNodeConfig = 'EditNodeConfig',
+  AddNode = 'AddNode',
+  UpdateNodeSettings = 'UpdateNodeSettings',
+  ManageNodeMembers = 'ManageNodeMembers'
 }
 
 /**
@@ -256,11 +237,7 @@ export type WorkspaceProtocolResponseTS =
   | { error: string }
   | { workspace_initialized: boolean }
   | { WorkspaceNotInitialized: true }
-  | { offices: OfficeTS[] }
-  | { rooms: RoomTS[] }
   | { members: UserTS[] }
-  | { office: OfficeTS }
-  | { room: RoomTS }
   | { member: UserTS }
   // Group messaging responses
   | { GroupMessageNotification: { group_id: string; message: GroupMessageTS } }

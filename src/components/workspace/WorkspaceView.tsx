@@ -2,19 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
-import { getDefaultOfficeContent, getDefaultRoomContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
+import { getDefaultNodeContent, getDefaultChildNodeContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { isVariant } from 'citadel-workspace-client-ts';
 import { connectionManager } from '@/lib/connection';
 import { StoredSession } from '@/types/session-types';
 import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 interface WorkspaceViewProps {
-  officeId?: string | null;
-  roomId?: string | null;
+  nodeId?: string | null;
 }
 
-export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }) => {
+export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   const { state } = useWorkspace();
   const location = useLocation();
   const [tabSelection, setTabSelection] = useState<TabUserContext | null>(null);
@@ -37,24 +37,26 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }
   const peerCid = params.get('channel');
   const peerName = params.get('p2pUser');
 
-  // Get office and room data
-  const office = officeId ? state.offices[officeId] : null;
-  const room = roomId ? state.rooms[roomId] : null;
+  // Get entity data from unified node hierarchy
+  const node = nodeId ? state.nodes[nodeId] : null;
+
+  // Determine whether this node has children (e.g., Office) or is a leaf (e.g., Room)
+  const isLeafNode = node && isVariant(node.entity_type as Record<string, unknown>, 'Child')
+    && (!node.allowed_child_types || node.allowed_child_types.length === 0);
 
   // Determine content to display
   const getInitialContent = () => {
-    if (room) {
-      return getDefaultRoomContent(room.name, room.description);
+    if (node && isLeafNode) {
+      return getDefaultChildNodeContent(node.name, node.description);
     }
-    if (office) {
-      return getDefaultOfficeContent(office.name);
+    if (node) {
+      return getDefaultNodeContent(node.name);
     }
     return getDefaultMDXShowcase();
   };
 
   // Determine entity details
-  const entityTitle = room ? room.name : (office?.name || "Welcome to Your Workspace");
-  const entityType = room ? "room" : "office";
+  const entityTitle = node?.name || "Welcome to Your Workspace";
 
   // When P2P chat is active, show the chat view
   if (showP2P && peerCid) {
@@ -85,8 +87,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ officeId, roomId }
     <BaseOffice
       title={entityTitle}
       getInitialContent={getInitialContent}
-      officeId={entityType === "office" && officeId ? officeId : undefined}
-      roomId={entityType === "room" && roomId ? roomId : undefined}
+      nodeId={nodeId || undefined}
     />
   );
 };

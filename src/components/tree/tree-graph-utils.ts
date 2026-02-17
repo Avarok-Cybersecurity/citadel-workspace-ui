@@ -8,6 +8,7 @@
 import type { Edge } from "@xyflow/react";
 import dagre from "dagre";
 import type { TreeFlowNode, TreeNodeData, TreeNode, DomainNode, NodeEntityType } from "./tree-graph-types";
+import { isVariant } from 'citadel-workspace-client-ts';
 
 /**
  * Layout configuration for dagre
@@ -242,8 +243,8 @@ export function getEntityTypeString(entityType: NodeEntityType): string {
   if (entityType === "Workspace") {
     return "Workspace";
   }
-  if (typeof entityType === "object" && "Child" in entityType) {
-    return entityType.Child;
+  if (isVariant(entityType as Record<string, unknown>, 'Child')) {
+    return (entityType as { Child: string }).Child;
   }
   return "Unknown";
 }

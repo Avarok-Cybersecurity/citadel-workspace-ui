@@ -5,6 +5,8 @@
  * Provides a centralized way to track pending requests and correlate responses.
  */
 
+import { TIMEOUT } from '../timeout-constants';
+
 export interface PendingRequest<T> {
   resolve: (value: T) => void;
   reject: (reason: Error) => void;
@@ -27,7 +29,7 @@ export class RequestTracker<T = unknown> {
   private readonly onTimeout?: (requestId: string) => void;
 
   constructor(options: RequestTrackerOptions = {}) {
-    this.defaultTimeoutMs = options.defaultTimeoutMs ?? 10000;
+    this.defaultTimeoutMs = options.defaultTimeoutMs ?? TIMEOUT.CLAIM_SESSION_MS;
     this.onTimeout = options.onTimeout;
   }
 

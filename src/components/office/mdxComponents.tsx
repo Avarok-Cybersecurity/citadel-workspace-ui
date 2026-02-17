@@ -1,7 +1,4 @@
-import { MDXProvider } from '@mdx-js/react';
-import { compile } from '@mdx-js/mdx';
-import * as runtime from 'react/jsx-runtime';
-import { evaluate } from '@mdx-js/mdx';
+import type { MDXComponents } from 'mdx/types';
 import { Highlight, themes } from "prism-react-renderer";
 import Table from '../Table';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
-export const components = {
+export const components: MDXComponents = {
   h1: ({ children }: { children?: React.ReactNode }) => (
     <h1 className="text-4xl font-bold mb-4 text-white">{children}</h1>
   ),
@@ -34,7 +31,7 @@ export const components = {
   img: ({ src, alt }: { src?: string; alt?: string }) => (
     <img src={src} alt={alt} className="max-w-full h-auto rounded-lg shadow-lg my-4" />
   ),
-  table: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+  table: ({ children, ...props }: React.DetailedHTMLProps<React.TableHTMLAttributes<HTMLTableElement>, HTMLTableElement>) => (
     <div className="my-6 w-full overflow-y-auto">
       <Table {...props} className="w-full border border-gray-800">
         {children}
@@ -43,17 +40,17 @@ export const components = {
   ),
   thead: TableHeader,
   tbody: TableBody,
-  tr: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+  tr: ({ children, ...props }: React.DetailedHTMLProps<React.HTMLAttributes<HTMLTableRowElement>, HTMLTableRowElement>) => (
     <TableRow {...props} className="hover:bg-[#E5DEFF]/10 transition-colors">
       {children}
     </TableRow>
   ),
-  th: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+  th: ({ children, ...props }: React.DetailedHTMLProps<React.ThHTMLAttributes<HTMLTableHeaderCellElement>, HTMLTableHeaderCellElement>) => (
     <TableHead {...props} className="border-b border-gray-800 bg-gray-900/50 text-white font-medium p-4">
       {children}
     </TableHead>
   ),
-  td: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+  td: ({ children, ...props }: React.DetailedHTMLProps<React.TdHTMLAttributes<HTMLTableDataCellElement>, HTMLTableDataCellElement>) => (
     <TableCell {...props} className="border-b border-gray-800 text-gray-300 p-4">
       {children}
     </TableCell>

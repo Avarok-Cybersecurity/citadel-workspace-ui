@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
 import type { FileTransferMode } from '@/types/messaging-layer';
+import { debugLog } from '@/lib/debug-config';
 
 interface UseP2PFileTransferProps {
   peerCid: bigint;
@@ -37,7 +38,7 @@ export function useP2PFileTransfer({
         description: `Sending ${file.name} to ${peerName}`,
       });
     } catch (error) {
-      console.error('Failed to send file:', error);
+      debugLog('UseP2PFileTransfer', 'Failed to send file:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to send file',
@@ -51,7 +52,7 @@ export function useP2PFileTransfer({
     try {
       await fileTransferService.acceptTransfer(transferId);
     } catch (error) {
-      console.error('Failed to accept transfer:', error);
+      debugLog('UseP2PFileTransfer', 'Failed to accept transfer:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to accept file',
@@ -64,7 +65,7 @@ export function useP2PFileTransfer({
     try {
       await fileTransferService.declineTransfer(transferId);
     } catch (error) {
-      console.error('Failed to decline transfer:', error);
+      debugLog('UseP2PFileTransfer', 'Failed to decline transfer:', error);
     }
   }, []);
 
@@ -72,12 +73,12 @@ export function useP2PFileTransfer({
     try {
       await fileTransferService.cancelTransfer(transferId);
     } catch (error) {
-      console.error('Failed to cancel transfer:', error);
+      debugLog('UseP2PFileTransfer', 'Failed to cancel transfer:', error);
     }
   }, []);
 
   const handleOpenFile = useCallback((downloadPath: string) => {
-    console.log('Opening file:', downloadPath);
+    debugLog('UseP2PFileTransfer', 'Opening file:', downloadPath);
     toast({
       title: 'File Ready',
       description: `File saved to: ${downloadPath}`,

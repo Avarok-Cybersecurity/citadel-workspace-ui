@@ -3,32 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps, MemberData, UserRole, USER_ROLES } from '../types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { PermissionManager } from '@/components/permissions/PermissionManager';
-import { Loader2, UserMinus, Shield } from 'lucide-react';
-import { getUserInitials } from '@/lib/workspace-metadata-service';
+import { Loader2, Shield } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-
-const ROLE_COLORS: Record<UserRole, string> = {
-  Admin: 'bg-red-500',
-  Owner: 'bg-orange-500',
-  Member: 'bg-blue-500',
-  Guest: 'bg-gray-500',
-  Banned: 'bg-black',
-};
+import { debugLog } from '@/lib/debug-config';
+import { MemberRow, ROLE_COLORS } from './MemberRow';
 
 export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   const { state } = useWorkspace();
@@ -48,19 +33,15 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   const loadMembers = async () => {
     setLoading(true);
     try {
-      let officeId: string | undefined;
-      let roomId: string | undefined;
+      const domainId = entityId;
 
-      if (entityType === 'office') {
-        officeId = entityId;
-      } else if (entityType === 'room') {
-        roomId = entityId;
-      }
+      // listMembers() is fire-and-forget (Promise<void>); response below is always void.
+      // Members load asynchronously via workspace events. This branch is dead code.
+      const response: unknown = await WorkspaceService.listMembers(domainId);
 
-      const response = await WorkspaceService.listMembers(officeId, roomId);
-
-      if (response?.ListMembers?.members) {
-        const memberList: MemberData[] = response.ListMembers.members.map((m: any) => ({
+      if (response && typeof response === 'object' && 'ListMembers' in response) {
+        const resp = response as { ListMembers: { members: Array<{ user_id: string; username?: string; name?: string; avatar_url?: string; role?: string }> } };
+        const memberList: MemberData[] = resp.ListMembers.members.map((m) => ({
           userId: m.user_id,
           username: m.username || m.user_id,
           name: m.name,
@@ -82,7 +63,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
         }
       }
     } catch (error) {
-      console.error('Failed to load members:', error);
+      debugLog('MembersTab', 'Failed to load members:', error);
       toast({
         title: 'Error',
         description: 'Failed to load members',
@@ -110,7 +91,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
         className: 'bg-[#343A5C] border-purple-800 text-purple-200',
       });
     } catch (error) {
-      console.error('Failed to update role:', error);
+      debugLog('MembersTab', 'Failed to update role:', error);
       toast({
         title: 'Error',
         description: 'Failed to update member role',
@@ -129,16 +110,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
     if (!memberToRemove) return;
 
     try {
-      let officeId: string | undefined;
-      let roomId: string | undefined;
-
-      if (entityType === 'office') {
-        officeId = entityId;
-      } else if (entityType === 'room') {
-        roomId = entityId;
-      }
-
-      await WorkspaceService.removeMember(memberToRemove.userId, officeId, roomId);
+      await WorkspaceService.removeMember(memberToRemove.userId, entityId);
 
       setMembers(prev => prev.filter(m => m.userId !== memberToRemove.userId));
 
@@ -148,7 +120,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
         className: 'bg-[#343A5C] border-purple-800 text-purple-200',
       });
     } catch (error) {
-      console.error('Failed to remove member:', error);
+      debugLog('MembersTab', 'Failed to remove member:', error);
       toast({
         title: 'Error',
         description: 'Failed to remove member',
@@ -225,80 +197,15 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
             </div>
           ) : (
             members.map((member) => (
-              <div
+              <MemberRow
                 key={member.userId}
-                className="flex items-center justify-between p-3 bg-[#444A6C] rounded-lg"
-                data-testid={`member-row-${member.userId}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={member.avatarUrl || ''} />
-                    <AvatarFallback className="bg-[#343A5C] text-white">
-                      {getUserInitials(member.name || member.username)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="text-white font-medium">
-                      {member.name || member.username}
-                    </div>
-                    {member.name && (
-                      <div className="text-gray-400 text-sm">@{member.username}</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {showAdvanced ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAdvancedPermissions(member)}
-                      className="border-purple-600 text-purple-400 hover:bg-purple-600/20"
-                      data-testid={`member-permissions-${member.userId}`}
-                    >
-                      <Shield className="h-4 w-4 mr-1" />
-                      Permissions
-                    </Button>
-                  ) : (
-                    <Select
-                      value={member.role}
-                      onValueChange={(value) => handleRoleChange(member.userId, value as UserRole)}
-                      disabled={updatingRoles.has(member.userId)}
-                    >
-                      <SelectTrigger
-                        className="w-32 bg-[#343A5C] border-gray-600 text-white"
-                        data-testid={`member-role-select-${member.userId}`}
-                      >
-                        {updatingRoles.has(member.userId) ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <SelectValue />
-                        )}
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#444A6C] border-gray-600">
-                        {USER_ROLES.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]}`} />
-                              {role}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setMemberToRemove(member)}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
-                    data-testid={`member-remove-${member.userId}`}
-                  >
-                    <UserMinus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                member={member}
+                showAdvanced={showAdvanced}
+                isUpdatingRole={updatingRoles.has(member.userId)}
+                onRoleChange={handleRoleChange}
+                onAdvancedPermissions={handleAdvancedPermissions}
+                onRemove={setMemberToRemove}
+              />
             ))
           )}
         </div>

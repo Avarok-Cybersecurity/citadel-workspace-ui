@@ -50,7 +50,7 @@ interface TestResults {
   workspaceRootDepthZero: boolean;
   officeDepthOne: boolean;
   roomDepthTwo: boolean;
-  customNodeDepthThree: boolean;
+  customNodeDepthThree?: boolean;
 
   // Deep Hierarchy Tests
   deepHierarchyCreated: boolean;
@@ -160,7 +160,6 @@ async function runTest(): Promise<boolean> {
     workspaceRootDepthZero: false,
     officeDepthOne: false,
     roomDepthTwo: false,
-    customNodeDepthThree: false,
     deepHierarchyCreated: false,
     deepHierarchyDepthsCorrect: false,
     deepHierarchyTreeStructure: false,
@@ -268,9 +267,8 @@ async function runTest(): Promise<boolean> {
           createdNodeIds.push(customResult.nodeId);
           results.customNodeDepthThree = await verifyNodeDepth(page, customResult.nodeId, 3);
         } else {
-          console.log(`  WARNING: Custom node creation failed: ${customResult.error}`);
-          console.log('  (This may be expected if custom node types are not enabled)');
-          results.customNodeDepthThree = true; // Mark as pass - schema may not allow this
+          console.log(`  Custom node creation failed: ${customResult.error}`);
+          console.log('  Custom node depth test excluded from pass/fail (schema may not support custom nodes)');
         }
       }
     }
@@ -605,7 +603,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Workspace Root Depth 0:       ${results.workspaceRootDepthZero ? 'PASS' : 'FAIL'}`);
     console.log(`  Office Depth 1:               ${results.officeDepthOne ? 'PASS' : 'FAIL'}`);
     console.log(`  Room Depth 2:                 ${results.roomDepthTwo ? 'PASS' : 'FAIL'}`);
-    console.log(`  Custom Node Depth 3:          ${results.customNodeDepthThree ? 'PASS' : 'SKIP'}`);
+    console.log(`  Custom Node Depth 3:          ${results.customNodeDepthThree === undefined ? 'SKIP' : results.customNodeDepthThree ? 'PASS' : 'FAIL'}`);
 
     console.log('\nDeep Hierarchy Tests:');
     console.log(`  Deep Hierarchy Created:       ${results.deepHierarchyCreated ? 'PASS' : 'FAIL'}`);

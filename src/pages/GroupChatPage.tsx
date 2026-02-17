@@ -5,21 +5,19 @@
  * Uses P2P messaging infrastructure for group communication.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
+import { GroupMessageList } from './GroupMessageList';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation, GroupSettings, GroupMessage } from '@/types/group';
-import { websocketService } from '@/lib/websocket-service';
-import { eventEmitter } from '@/lib/event-emitter';
-import { ensureBigInt } from '@/lib/utils';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { useGroupChatEvents } from './useGroupChatEvents';
 import { Send, Loader2 } from 'lucide-react';
 
 // ============================================================================
@@ -65,63 +63,8 @@ export function GroupChatPage() {
     setGroup(loadedGroup);
   }, [groupId, getGroup, navigate, toast]);
 
-  // Listen for group updates
-  useEffect(() => {
-    if (!groupId) return;
-
-    const handleGroupUpdate = () => {
-      const updatedGroup = getGroup(groupId);
-      if (updatedGroup) {
-        setGroup(updatedGroup);
-      }
-    };
-
-    const handleGroupDeleted = (data: { groupId: string }) => {
-      if (data.groupId === groupId) {
-        toast({
-          title: 'Group deleted',
-          description: 'This group has been deleted.',
-        });
-        navigate('/workspace');
-      }
-    };
-
-    const handleMessageReceived = (data: {
-      groupId: string;
-      senderId: bigint | string;
-      senderName: string;
-      content: string;
-    }) => {
-      if (data.groupId === groupId) {
-        const newMessage: GroupMessage = {
-          id: crypto.randomUUID(),
-          groupId: data.groupId,
-          senderId: ensureBigInt(data.senderId),
-          senderName: data.senderName,
-          messageType: 'Text',
-          content: data.content,
-          timestamp: Date.now(),
-          replyCount: 0,
-          mentions: [],
-        };
-        setMessages(prev => [...prev, newMessage]);
-      }
-    };
-
-    eventEmitter.on('group:member-joined', handleGroupUpdate);
-    eventEmitter.on('group:member-left', handleGroupUpdate);
-    eventEmitter.on('group:member-kicked', handleGroupUpdate);
-    eventEmitter.on('group:deleted', handleGroupDeleted);
-    eventEmitter.on('group:message-received', handleMessageReceived);
-
-    return () => {
-      eventEmitter.off('group:member-joined', handleGroupUpdate);
-      eventEmitter.off('group:member-left', handleGroupUpdate);
-      eventEmitter.off('group:member-kicked', handleGroupUpdate);
-      eventEmitter.off('group:deleted', handleGroupDeleted);
-      eventEmitter.off('group:message-received', handleMessageReceived);
-    };
-  }, [groupId, getGroup, navigate, toast]);
+  // Listen for group updates, deletions, and incoming messages
+  useGroupChatEvents({ groupId, getGroup, setGroup, setMessages });
 
   // Handlers
   const handleLeaveGroup = useCallback(async () => {
@@ -158,7 +101,7 @@ export function GroupChatPage() {
   );
 
   const handleDeleteGroup = useCallback(async () => {
-    // TODO: Implement group deletion via backend
+    // @human-review Group deletion requires backend GroupEnd API integration
     navigate('/workspace');
   }, [navigate]);
 
@@ -170,8 +113,8 @@ export function GroupChatPage() {
       const connectionInfo = (await import("./../lib/connection")).connectionManager.getConnectionInfo(); const cid = connectionInfo?.cid || null;
       if (!cid) throw new Error('Not connected');
 
-      // TODO: Send via backend GroupMessage API
-      // For now, add locally as demo
+      // @human-review Group messaging requires backend GroupMessage API integration
+      // Currently adds messages locally only
       const newMessage: GroupMessage = {
         id: crypto.randomUUID(),
         groupId,
@@ -237,39 +180,7 @@ export function GroupChatPage() {
       />
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4">
-        {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <p>No messages yet. Start the conversation!</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map(message => (
-              <div
-                key={message.id}
-                className="flex items-start gap-3 group"
-              >
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white bg-[#6E59A5]"
-                >
-                  {message.senderName[0]?.toUpperCase() || '?'}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-white">
-                      {message.senderName}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-300">{message.content}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+      <GroupMessageList messages={messages} />
 
       {/* Message Input */}
       <div className="p-4 border-t border-[#2D3548]">

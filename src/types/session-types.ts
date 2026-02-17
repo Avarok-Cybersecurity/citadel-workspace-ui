@@ -42,7 +42,7 @@ export interface ConnectionInfo {
  */
 export interface LocalDBKVPair {
   key: string;
-  value: any;
+  value: number[];
 }
 
 /**
@@ -52,7 +52,7 @@ export interface LocalDBSetKVRequest {
   cid: bigint;
   peer_cid?: bigint;
   key: string;
-  value: any;
+  value: number[];
   request_id: string;
 }
 
@@ -83,14 +83,14 @@ export interface LocalDBGetKVSuccess {
   cid: bigint;
   peer_cid?: bigint;
   key: string;
-  value: any;
+  value: number[];
   request_id: string;
 }
 
 export interface LocalDBGetAllKVSuccess {
   cid: bigint;
   peer_cid?: bigint;
-  map: { [key: string]: any };
+  map: Record<string, number[]>;
   request_id: string;
 }
 

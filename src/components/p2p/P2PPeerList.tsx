@@ -5,23 +5,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UserPlus, MessageCircle, Circle, Users, CheckCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
+import { DEMO_PEERS } from './P2PPeerListHelpers';
+import type { PeerInfo } from './P2PPeerListHelpers';
+import { ConversationPeerItem } from './ConversationPeerItem';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
   selectedPeerCid?: string;
-}
-
-interface PeerInfo {
-  cid: string;
-  name: string;
-  isConnected: boolean;
-  unreadCount: number;
-  lastMessage?: string;
-  lastMessageTime?: number;
 }
 
 export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps) {
@@ -30,22 +24,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   const [showAvailablePeers, setShowAvailablePeers] = useState(false);
   const [newPeerCid, setNewPeerCid] = useState('');
   const [isAddingPeer, setIsAddingPeer] = useState(false);
-  
+
   const messenger = P2PMessengerManager.getInstance();
 
-  // Add demo peer for Kathy McCooper
-  const DEMO_PEERS: PeerInfo[] = [
-    {
-      cid: 'demo-peer-kathy',
-      name: 'Kathy McCooper',
-      isConnected: true,
-      unreadCount: 0,
-      lastMessage: 'Hey! How\'s the project going?',
-      lastMessageTime: Date.now() - 1000 * 60 * 5 // 5 minutes ago
-    }
-  ];
-
-  // Define loadPeers before it's used in effects
   const loadPeers = useCallback(() => {
     const conversations = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
@@ -53,7 +34,6 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       const peerCidStr = conv.peerCid.toString();
       return {
         cid: peerCidStr,
-        // Use stored username if available, otherwise fallback to truncated CID
         name: conv.peerUsername || `User ${peerCidStr.slice(0, 8)}...`,
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
@@ -62,33 +42,24 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       };
     });
 
-    // Add demo peers
     const allPeers = [...DEMO_PEERS, ...peerList];
-
-    // Sort by last message time
     allPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
     setPeers(allPeers);
   }, [messenger]);
 
-  // Initialize peers on mount
   useEffect(() => {
-    // Wait for LocalDB to load before loading peers
     const initPeers = async () => {
       await messenger.waitForReady();
-      // Sync connection status from backend BEFORE loading peers
-      // This ensures status dots are accurate on page reload
       await messenger.syncConnectionsFromBackend();
       loadPeers();
       loadAvailablePeers();
     };
-    initPeers().catch(console.error);
+    initPeers().catch(err => debugLog('P2PPeerList', 'Failed to init peers:', err));
 
-    // Subscribe to message updates (uses messenger's internal event system)
     const unsubscribeMessage = messenger.onMessage(() => {
       loadPeers();
     });
 
-    // Subscribe to connection changes (uses messenger's internal event system)
     const unsubscribeConnection = messenger.onConnectionChange(() => {
       loadPeers();
     });
@@ -97,18 +68,14 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       unsubscribeMessage();
       unsubscribeConnection();
     };
-  }, []);
+  }, [loadPeers, messenger]);
 
-  // Handle peer updates from registration service
   const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
     setAvailablePeers(data.allPeers);
     loadPeers();
-  }, []);
+  }, [loadPeers]);
 
-  // Listen for peer updates
   useEventListener<{ allPeers: Peer[]; registeredPeers: Peer[] }>('p2p:peers-updated', handlePeersUpdated);
-
-  // Listen for messages-loaded event in case init completes after mount
   useEventListener('p2p:messages-loaded', loadPeers);
 
   const loadAvailablePeers = () => {
@@ -125,26 +92,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       setNewPeerCid('');
       loadPeers();
     } catch (error) {
-      console.error('Failed to add peer:', error);
+      debugLog('P2PPeerList', 'Failed to add peer:', error);
     } finally {
       setIsAddingPeer(false);
-    }
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (days === 1) {
-      return 'Yesterday';
-    } else if (days < 7) {
-      return date.toLocaleDateString([], { weekday: 'short' });
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   };
 
@@ -167,7 +117,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           </Button>
         </div>
       </div>
-      
+
       <div className="flex-1 p-0 flex flex-col">
         <div className="p-4 border-b border-[#262C4A]/50">
           <form
@@ -233,7 +183,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                             {peerCidStr.slice(0, 16)}...
                           </div>
                         </div>
-                        
+
                         {peer.isRegistered ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         ) : (
@@ -256,55 +206,12 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
             ) : (
               <div className="space-y-1">
                 {peers.map((peer) => (
-                  <Button
+                  <ConversationPeerItem
                     key={peer.cid}
-                    variant="ghost"
-                    className={`w-full justify-start h-auto py-2 px-3 text-left hover:bg-[#262C4A]/50 ${
-                      selectedPeerCid === peer.cid ? 'bg-[#262C4A] text-white' : 'text-gray-300'
-                    }`}
-                    onClick={() => onSelectPeer(peer.cid)}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="relative">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback>{peer.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <Circle
-                          className={`absolute bottom-0 right-0 h-3 w-3 ${
-                            peer.isConnected ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400'
-                          }`}
-                        />
-                      </div>
-                      
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm truncate">
-                            {peer.name}
-                          </span>
-                          {peer.lastMessageTime && (
-                            <span className="text-xs text-muted-foreground">
-                              {formatTime(peer.lastMessageTime)}
-                            </span>
-                          )}
-                        </div>
-                        
-                        {peer.lastMessage && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            {peer.lastMessage}
-                          </p>
-                        )}
-                      </div>
-
-                      {peer.unreadCount > 0 && (
-                        <Badge
-                          variant="default"
-                          className="h-5 min-w-[20px] rounded-full text-xs"
-                        >
-                          {peer.unreadCount}
-                        </Badge>
-                      )}
-                    </div>
-                  </Button>
+                    peer={peer}
+                    isSelected={selectedPeerCid === peer.cid}
+                    onSelect={onSelectPeer}
+                  />
                 ))}
               </div>
             )}

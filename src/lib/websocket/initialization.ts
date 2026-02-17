@@ -6,7 +6,7 @@
  */
 
 import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+import type { InternalServiceResponse, InternalServiceRequest, ResponseType } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '../event-emitter';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog, errorLog } from '../debug-config';
@@ -15,6 +15,7 @@ import {
   leaderOutboundHandler,
   instanceInboundRouter
 } from '../multi-instance';
+import { INTERVAL } from '../timeout-constants';
 
 // Global state key for preventing multiple WASM client initializations
 export const GLOBAL_INIT_KEY = '__citadel_wasm_client_init__';
@@ -50,14 +51,14 @@ export class WebSocketInitialization {
    * Returns when we know if we're leader or follower.
    */
   async waitForLeaderElection(): Promise<void> {
-    console.log(`[ILM-TRACE] waitForLeaderElection: checking initial state isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
+    debugLog('WebSocketInit', `waitForLeaderElection: checking initial state isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
     if (instanceManager.isLeader || instanceManager.leaderId) {
-      console.log(`[ILM-TRACE] waitForLeaderElection: already decided, returning immediately`);
+      debugLog('WebSocketInit', `waitForLeaderElection: already decided, returning immediately`);
       return;
     }
 
-    const ELECTION_TIMEOUT_MS = 3000;
-    console.log(`[ILM-TRACE] waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
+    const ELECTION_TIMEOUT_MS = INTERVAL.LEADER_ELECTION_MS;
+    debugLog('WebSocketInit', `waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
 
     return new Promise<void>((resolve) => {
       let resolved = false;
@@ -66,7 +67,7 @@ export class WebSocketInitialization {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);
-          console.log(`[ILM-TRACE] waitForLeaderElection: leader-changed event received: isLeader=${isLeader}, leaderId=${leaderId}`);
+          debugLog('WebSocketInit', `waitForLeaderElection: leader-changed event received: isLeader=${isLeader}, leaderId=${leaderId}`);
           resolve();
         }
       };
@@ -77,7 +78,7 @@ export class WebSocketInitialization {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);
-          console.log(`[ILM-TRACE] waitForLeaderElection: decided during setup, isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
+          debugLog('WebSocketInit', `waitForLeaderElection: decided during setup, isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}`);
           resolve();
         }
       }
@@ -86,9 +87,9 @@ export class WebSocketInitialization {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);
-          console.log(`[ILM-TRACE] waitForLeaderElection: TIMEOUT after ${ELECTION_TIMEOUT_MS}ms - no leader detected`);
+          debugLog('WebSocketInit', `waitForLeaderElection: TIMEOUT after ${ELECTION_TIMEOUT_MS}ms - no leader detected`);
           if (!instanceManager.isLeader && !instanceManager.leaderId) {
-            console.log(`[ILM-TRACE] waitForLeaderElection: Will let InstanceChannel handle election`);
+            debugLog('WebSocketInit', `waitForLeaderElection: Will let InstanceChannel handle election`);
           }
           resolve();
         }
@@ -100,17 +101,17 @@ export class WebSocketInitialization {
    * Initialize as follower (no WebSocket).
    */
   initializeAsFollower(): void {
-    debugLog('websocket', 'Follower tab: Skipping WebSocket creation, will proxy through leader');
+    debugLog('WebSocketInit', 'Follower tab: Skipping WebSocket creation, will proxy through leader');
 
     eventEmitter.on('instance:leader-changed', async ({ isLeader: newIsLeader }: { isLeader: boolean; leaderId: string }) => {
       if (newIsLeader) {
-        debugLog('websocket', 'Became leader! Creating WebSocket connection...');
+        debugLog('WebSocketInit', 'Became leader! Creating WebSocket connection...');
         await this.createWebSocketAsLeader();
       }
     });
 
     eventEmitter.emit('on-ws-connection-success');
-    debugLog('websocket', 'Follower initialization complete');
+    debugLog('WebSocketInit', 'Follower initialization complete');
   }
 
   /**
@@ -121,7 +122,7 @@ export class WebSocketInitialization {
       websocketUrl: this.config.websocketUrl,
       messageHandler: (rawMessage: InternalServiceResponse) => {
         const message = rawMessage;
-        debugLog('websocket', 'Message received from WASM client', message);
+        debugLog('WebSocketInit', 'Message received from WASM client', message);
 
         if (instanceManager.isLeader) {
           instanceInboundRouter.routeMessage(message);
@@ -130,12 +131,12 @@ export class WebSocketInitialization {
         }
 
         if (broadcastChannelService.getIsLeader()) {
-          const messageType = Object.keys(message)[0];
-          const cidRoutedTypes = ['MessageNotification', 'PeerRegisterNotification', 'PeerConnectNotification'];
-          if (!cidRoutedTypes.includes(messageType)) {
+          const messageType = Object.keys(message)[0] as ResponseType | undefined;
+          const cidRoutedTypes: ResponseType[] = ['MessageNotification', 'PeerRegisterNotification', 'PeerConnectNotification'];
+          if (!messageType || !cidRoutedTypes.includes(messageType)) {
             broadcastChannelService.broadcastWorkspaceResponse(message);
           } else {
-            debugLog('websocket', `Skipping legacy broadcast for CID-routed ${messageType} (handled by instanceInboundRouter)`);
+            debugLog('WebSocketInit', `Skipping legacy broadcast for CID-routed ${messageType} (handled by instanceInboundRouter)`);
           }
         }
 
@@ -147,7 +148,7 @@ export class WebSocketInitialization {
     };
 
     try {
-      debugLog('websocket', 'Creating WorkspaceClient with config', clientConfig);
+      debugLog('WebSocketInit', 'Creating WorkspaceClient with config', clientConfig);
       const client = new WorkspaceClient(clientConfig);
       await client.init();
 
@@ -158,16 +159,16 @@ export class WebSocketInitialization {
       }
 
       leaderOutboundHandler.setWebSocketSendFunction(async (message: unknown) => {
-        await client.sendDirectToInternalService(message);
+        await client.sendDirectToInternalService(message as InternalServiceRequest);
       });
-      debugLog('websocket', 'Registered send function with leader outbound handler');
+      debugLog('WebSocketInit', 'Registered send function with leader outbound handler');
 
       this.setupDisconnectionHandler(client);
       this.setupSessionReleaseHandler();
 
       this.config.onClientCreated(client);
 
-      debugLog('websocket', 'WASM client initialization completed successfully');
+      debugLog('WebSocketInit', 'WASM client initialization completed successfully');
       return client;
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
@@ -181,24 +182,24 @@ export class WebSocketInitialization {
 
   private setupDisconnectionHandler(client: WorkspaceClient): void {
     eventEmitter.on('websocket-disconnected', async () => {
-      debugLog('websocket', 'WebSocket disconnected event received, stopping message processing and resetting state');
+      debugLog('WebSocketInit', 'WebSocket disconnected event received, stopping message processing and resetting state');
       client.stopMessageProcessing();
       try {
         await client.close();
-        debugLog('websocket', 'WASM client closed successfully');
+        debugLog('WebSocketInit', 'WASM client closed successfully');
       } catch (closeError) {
-        debugLog('websocket', 'WASM client close error (ignored):', closeError);
+        debugLog('WebSocketInit', 'WASM client close error (ignored):', closeError);
       }
 
       this.config.onClientReset();
       window[GLOBAL_INIT_KEY] = undefined;
-      debugLog('websocket', 'WebSocket service state reset after disconnection');
+      debugLog('WebSocketInit', 'WebSocket service state reset after disconnection');
     });
   }
 
   private setupSessionReleaseHandler(): void {
     eventEmitter.on('session:release-request', ({ cid }: { cid: bigint }) => {
-      debugLog('websocket', `Session release requested for CID ${cid.toString()}`);
+      debugLog('WebSocketInit', `Session release requested for CID ${cid.toString()}`);
       this.config.releaseSession(cid);
     });
   }

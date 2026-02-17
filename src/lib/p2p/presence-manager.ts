@@ -13,6 +13,7 @@ import {
 } from '@/types/messaging-layer';
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { PeerPresence } from './p2p-types';
+import { debugLog } from '@/lib/debug-config';
 
 export type PresenceListener = (peerCid: bigint, presence: PeerPresence) => void;
 export type TypingListener = (peerCid: bigint, isTyping: boolean) => void;
@@ -66,7 +67,7 @@ export class PresenceManager {
    */
   public async sendPresenceUpdate(recipientCid: bigint, presence: MessagingLayer): Promise<void> {
     if (!isPresenceUpdate(presence)) {
-      console.error('Invalid presence layer type');
+      debugLog('PresenceManager', 'Invalid presence layer type');
       return;
     }
 
@@ -110,7 +111,7 @@ export class PresenceManager {
     try {
       await this.sendPresenceUpdate(peerCid, createOnline());
     } catch (error) {
-      console.debug('[P2P] Failed to broadcast Online presence on connect:', error);
+      debugLog('PresenceManager', '[P2P] Failed to broadcast Online presence on connect:', error);
     }
   }
 
@@ -178,7 +179,7 @@ export class PresenceManager {
       const layer = createTyping();
       await this.config.sendCommand(recipientCid, layer);
     } catch (error) {
-      console.error('Failed to send typing indicator:', error);
+      debugLog('PresenceManager', 'Failed to send typing indicator:', error);
     }
   }
 

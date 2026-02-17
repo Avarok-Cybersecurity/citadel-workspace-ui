@@ -1,0 +1,55 @@
+/**
+ * Types, constants, and helpers for GroupMemberManagement component.
+ */
+
+import { Crown, Shield, User } from 'lucide-react';
+import { createElement } from 'react';
+import type { GroupConversation, GroupMemberWithRole, GroupRole } from '@/types/group';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface GroupMemberManagementProps {
+  group: GroupConversation;
+  /** Callback when a member's role is changed */
+  onRoleChange: (memberCid: string, roleId: string) => Promise<void>;
+  /** Callback when a member is kicked */
+  onKickMember: (memberCid: string) => Promise<void>;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+export const AVATAR_COLORS = [
+  '#FFD700', // Gold - Owner
+  '#6E59A5', // Purple
+  '#4F46E5', // Indigo
+  '#10B981', // Emerald
+  '#F59E0B', // Amber
+  '#EF4444', // Red
+  '#8B5CF6', // Violet
+  '#EC4899', // Pink
+];
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/** Get role icon based on position in hierarchy */
+export function getRoleIcon(role: GroupRole): React.ReactElement {
+  if (role.position >= 100) {
+    return createElement(Crown, { className: 'h-4 w-4 text-amber-500' });
+  }
+  if (role.position >= 50) {
+    return createElement(Shield, { className: 'h-4 w-4 text-purple-400' });
+  }
+  return createElement(User, { className: 'h-4 w-4 text-gray-400' });
+}
+
+/** Get avatar color from role or cycle through palette */
+export function getAvatarColor(member: GroupMemberWithRole, index: number): string {
+  if (member.role?.color) return member.role.color;
+  return AVATAR_COLORS[index % AVATAR_COLORS.length];
+}

@@ -23,7 +23,7 @@ export const SecurityLevelSelect = ({ value = 'Standard', onChange }: SecurityLe
       </Label>
       <div className="relative">
         <Select 
-          value={value} 
+          value={typeof value === 'string' ? value : 'Standard'}
           onValueChange={handleValueChange}
           defaultValue={'Standard'}
         >

@@ -149,6 +149,12 @@ export default defineConfig(({ mode }) => {
 
     esbuild: {
       target: "esnext",
+      // In production: strip console.log and console.debug (treat as pure/side-effect-free).
+      // console.error and console.warn are preserved for runtime error visibility.
+      ...(mode === 'production' ? {
+        pure: ['console.log', 'console.debug', 'console.info'],
+        drop: ['debugger'],
+      } : {}),
     },
     
     // Configure WASM mime type

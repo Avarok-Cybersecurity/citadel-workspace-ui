@@ -28,6 +28,7 @@ import {
   waitForWorkspaceLoaded,
   hasOffices,
   createOffice,
+  createRoom,
   startDiagnostics,
   TestHarness,
   runTestMain,
@@ -41,7 +42,6 @@ import {
 interface TestResults {
   accountCreation: boolean;
   workspaceLoaded: boolean;
-  isAdminAfterInit: boolean;
 
   // Office Chat Tests
   officeNavigation: boolean;
@@ -106,7 +106,6 @@ async function runTest(): Promise<boolean> {
   const results: TestResults = {
     accountCreation: false,
     workspaceLoaded: false,
-    isAdminAfterInit: false,
     officeNavigation: false,
     officeChatEnabled: false,
     officeChatTabSwitch: false,
@@ -166,7 +165,8 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     // Look for admin indicators in the UI
-    // The first user who initializes the workspace should become admin
+    // Check admin status as UX observation only (no reliable UI indicator exists)
+    let adminVisible = false;
     const adminIndicators = [
       page.locator('[data-testid="admin-badge"]'),
       page.locator('.admin-indicator'),
@@ -177,16 +177,15 @@ async function runTest(): Promise<boolean> {
 
     for (const indicator of adminIndicators) {
       if (await indicator.isVisible({ timeout: 2000 }).catch(() => false)) {
-        results.isAdminAfterInit = true;
+        adminVisible = true;
         console.log('  Admin status confirmed via UI indicator');
         break;
       }
     }
 
-    if (!results.isAdminAfterInit) {
-      console.log('  WARNING: Admin status not visually confirmed in UI');
-      console.log('  NOTE: User should have admin permissions after initializing workspace');
+    if (!adminVisible) {
       uxTracker.log('suggestion', 'functional', 'Admin status indicator not visible in UI after workspace initialization');
+      console.log('  Admin status not visually confirmed (UX observation, not a test failure)');
     }
 
     await takeScreenshot(page, `${USER1}_admin_status`);
@@ -207,6 +206,14 @@ async function runTest(): Promise<boolean> {
         console.log(`  WARNING: Could not create office. This may be a permissions issue.`);
         console.log(`  NOTE: The first user needs to initialize the workspace to gain admin permissions.`);
         uxTracker.log('major', 'functional', 'Cannot create office - may need workspace initialization or admin permissions');
+      } else {
+        // Create room under the office (new generic node system doesn't auto-create rooms)
+        console.log(`  Creating room "${TEST_ROOM}" under "${TEST_OFFICE}"...`);
+        const roomCreated = await createRoom(page, USER1, TEST_ROOM, TEST_OFFICE, 'Random discussions');
+        if (!roomCreated) {
+          console.log(`  WARNING: Could not create room "${TEST_ROOM}"`);
+          uxTracker.log('major', 'functional', `Cannot create room "${TEST_ROOM}" under "${TEST_OFFICE}"`);
+        }
       }
     }
 
@@ -352,7 +359,6 @@ async function runTest(): Promise<boolean> {
     console.log('\nCore Functionality:');
     console.log(`  Account Creation:           ${results.accountCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Workspace Loaded:           ${results.workspaceLoaded ? 'PASS' : 'FAIL'}`);
-    console.log(`  Admin After Init:           ${results.isAdminAfterInit ? 'PASS' : 'CHECK'}`);
 
     console.log('\nOffice Chat:');
     console.log(`  Navigate to Office:         ${results.officeNavigation ? 'PASS' : 'FAIL'}`);

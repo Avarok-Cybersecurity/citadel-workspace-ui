@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
-import { Office, Room, User } from '../types/workspace-entities';
+import { User } from '../types/workspace-entities';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
+import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 
 // Define the shape of our workspace state
 export interface WorkspaceState {
@@ -19,14 +20,13 @@ export interface WorkspaceState {
     displayName?: string;
     avatarUrl?: string; // Base64 data URL for avatar image
   };
-  offices: Record<string, Office>;
-  rooms: Record<string, Room>;
   members: Record<string, User>;
+  nodes: Record<string, DomainNode>;
+  treeSchema: TreeSchema | null;
   loading: {
     workspace: boolean;
-    offices: boolean;
-    rooms: boolean;
     members: boolean;
+    nodes: boolean;
   };
   error?: string;
   protocolWarning?: {
@@ -55,14 +55,13 @@ const initialState: WorkspaceState = {
   workspace: undefined,
   workspaces: [],
   currentUser: undefined,
-  offices: {},
-  rooms: {},
   members: {},
+  nodes: {},
+  treeSchema: null,
   loading: {
     workspace: false,
-    offices: false,
-    rooms: false,
     members: false,
+    nodes: false,
   },
   messages: {
     byPeer: {},

@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
-import type { MDXComponents } from 'mdx/types';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
-import { useLocation } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
@@ -20,27 +18,23 @@ import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 
 interface BaseOfficeProps {
   title: string;
-  getInitialContent: (currentRoom: string | null) => string;
-  officeId?: string;
-  roomId?: string;
+  getInitialContent: () => string;
+  nodeId?: string;
 }
 
-export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseOfficeProps) => {
-  const location = useLocation();
-  const currentRoom = new URLSearchParams(location.search).get("room");
+export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps) => {
   const { state } = useWorkspace();
 
-  // Get the office or room data from workspace state
-  const officeData = officeId ? state.offices[officeId] : null;
-  const roomData = roomId ? state.rooms[roomId] : null;
-  const entityData = roomData || officeData;
+  // Get the entity data from workspace state (unified node hierarchy)
+  const entityData = nodeId ? state.nodes[nodeId] : null;
 
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(
-    entityData?.mdx_content || getInitialContent(currentRoom)
+    entityData?.mdx_content || getInitialContent()
   );
   const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,14 +51,10 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
   }, []);
 
   // Determine if we're in a loading state
-  const isLoading = roomId
-    ? state.loading.rooms && !roomData
-    : officeId
-    ? state.loading.offices && !officeData
-    : false;
+  const isLoading = state.loading.nodes && !entityData;
 
-  // Determine the domain ID for permission checks (room takes precedence over office)
-  const domainId = roomId || officeId;
+  // Determine the domain ID for permission checks
+  const domainId = nodeId;
 
   // Check if user can edit the MDX content using the permissions system
   const { allowed: canEditMdx, reason: editDeniedReason, loading: permissionLoading } = usePermission(
@@ -74,37 +64,17 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
 
   const handleSave = async () => {
     try {
-      if (roomId) {
-        // Update the room with new mdx_content via workspace protocol
-        await WorkspaceService.updateRoom(roomId, {
-          mdxContent: content
-        });
-
-        toast({
-          title: "Changes saved",
-          description: `The ${roomData?.name || title} room page has been updated`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
-      } else if (officeId) {
-        // Update the office with new mdx_content via workspace protocol
-        await WorkspaceService.updateOffice(officeId, {
-          mdxContent: content
-        });
-
-        toast({
-          title: "Changes saved",
-          description: `The ${officeData?.name || title} office page has been updated`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
-      } else {
-        toast({
-          title: "Changes saved",
-          description: `The ${title.toLowerCase()} page has been updated`,
-          className: "bg-[#343A5C] border-purple-800 text-purple-200",
-        });
+      if (nodeId) {
+        await WorkspaceService.updateNode(nodeId, { mdxContent: content });
       }
+
+      toast({
+        title: "Changes saved",
+        description: `The ${entityData?.name || title} page has been updated`,
+        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      });
     } catch (error) {
-      console.error('Failed to save MDX content:', error);
+      debugLog('BaseOffice', 'Failed to save MDX content:', error);
       toast({
         title: "Error saving changes",
         description: "There was a problem saving your changes. Please try again.",
@@ -115,30 +85,30 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
     setIsEditing(false);
   };
 
-  // Update content when entity data changes or when room changes
+  // Update content when entity data changes
   useEffect(() => {
     if (entityData?.mdx_content) {
       setContent(entityData.mdx_content);
       setIsNewContent(false);
     } else {
-      setContent(getInitialContent(currentRoom));
+      setContent(getInitialContent());
       setIsNewContent(true);
     }
-  }, [entityData, currentRoom, getInitialContent]);
+  }, [entityData, getInitialContent]);
 
   useEffect(() => {
     const compileContent = async () => {
       try {
-        console.info('Compiling MDX content...');
+        debugLog('BaseOffice', 'Compiling MDX content...');
         const result = await evaluate(content, {
           ...runtime,
-          useMDXComponents: () => components as unknown as MDXComponents,
+          useMDXComponents: () => components,
           baseUrl: window.location.origin
         });
-        console.info('MDX compilation successful');
-        setCompiledContent(result.default({ components: components as unknown as MDXComponents }));
+        debugLog('BaseOffice', 'MDX compilation successful');
+        setCompiledContent(result.default({ components: components }));
       } catch (error) {
-        console.error('Error compiling MDX:', error);
+        debugLog('BaseOffice', 'Error compiling MDX:', error);
       }
     };
 
@@ -205,7 +175,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
     </div>
   ) : (
     <div className="px-4 pt-6 pb-2 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-none">
-      <MDXProvider components={components as unknown as MDXComponents}>
+      <MDXProvider components={components}>
         {compiledContent}
       </MDXProvider>
     </div>
@@ -260,7 +230,7 @@ export const BaseOffice = ({ title, getInitialContent, officeId, roomId }: BaseO
             groupId={chatChannelId}
             currentUserId={currentUserId}
             currentUserName={currentUserName}
-            rules={entityData?.rules}
+            rules={entityData?.rules ?? undefined}
           />
         </TabsContent>
       </Tabs>
