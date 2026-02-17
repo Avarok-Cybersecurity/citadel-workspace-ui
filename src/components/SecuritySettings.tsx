@@ -15,6 +15,7 @@ import {
   KemAlgorithm,
   SigAlgorithm
 } from "@/types";
+import { debugLog } from '@/lib/debug-config';
 
 export interface SecuritySettingsValues {
   securityLevel: SecurityLevel;
@@ -48,7 +49,7 @@ export const SecuritySettings = ({
     securityLevel: 'Standard',
     secrecyMode: 'BestEffort',
     encryptionAlgorithm: 'AES_GCM_256',
-    kemAlgorithm: 'Kyber',
+    kemAlgorithm: 'MlKem',
     sigAlgorithm: 'None',
     headerObfuscatorSettings: {},
     storeCredentials: false,
@@ -66,7 +67,7 @@ export const SecuritySettings = ({
 
   const { mutate: updateSecuritySettings } = useMutation({
     mutationFn: (newSettings: SecuritySettingsValues) => {
-      console.info('Updating security settings:', JSON.stringify(newSettings));
+      debugLog('SecuritySettings', 'Updating security settings:', JSON.stringify(newSettings));
       return Promise.resolve(newSettings);
     },
     onSuccess: (updatedSettings) => {
@@ -87,7 +88,7 @@ export const SecuritySettings = ({
     updateSecuritySettings(settings);
   };
 
-  const handleSettingChange = (key: keyof SecuritySettingsValues, value: any) => {
+  const handleSettingChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => {
     setSettings(prev => ({
       ...prev,
       [key]: value
@@ -108,7 +109,7 @@ export const SecuritySettings = ({
           <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-visible">
             <SecurityLevelSelect
               value={settings.securityLevel}
-              onChange={(value) => handleSettingChange('securityLevel', value)}
+              onChange={(value) => handleSettingChange('securityLevel', value as SecurityLevel)}
             />
 
             <SecurityModeSelect

@@ -28,6 +28,8 @@ import type {
   SendFileViaProtocolIntent,
   FilePickerResult,
 } from './types';
+import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 /**
  * @deprecated Use RealProtocolIORouter with IFileTransferIORouter interface instead.
@@ -132,8 +134,8 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
     const { file, transferId } = intent;
-    // TODO: Implement actual SendFile request via websocketService
-    console.log('FileTransferIO: Uploading file to server', {
+    // @human-review SendFile requires websocketService integration
+    debugLog('FileTransferIO', 'FileTransferIO: Uploading file to server', {
       transferId,
       fileName: file.name,
       size: file.size,
@@ -145,12 +147,12 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async downloadFromServer(intent: DownloadFromServerIntent): Promise<void> {
     const { transfer } = intent;
-    console.log('FileTransferIO: Downloading file from server', {
+    debugLog('FileTransferIO', 'FileTransferIO: Downloading file from server', {
       transferId: transfer.id,
       virtualPath: transfer.virtualPath,
     });
 
-    // TODO: Implement actual DownloadFile request via websocketService
+    // @human-review DownloadFile requires websocketService integration
     // For now, simulate with delay - caller will handle state update
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
@@ -189,7 +191,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       },
     };
 
-    console.log('FileTransferIO: Sending SendFile request', {
+    debugLog('FileTransferIO', 'FileTransferIO: Sending SendFile request', {
       requestId,
       source,
       cid: intent.cid,
@@ -201,7 +203,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('SendFile request timed out'));
-      }, 30000);
+      }, TIMEOUT.FILE_SEND_MS);
 
       const handleMessage = (message: unknown) => {
         const msg = message as Record<string, unknown>;
@@ -210,7 +212,7 @@ export class FileTransferIO extends RealProtocolIORouter {
         if (success?.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
-          console.log('FileTransferIO: SendFile accepted by protocol');
+          debugLog('FileTransferIO', 'FileTransferIO: SendFile accepted by protocol');
           resolve();
         }
         // Check for SendFileRequestFailure
@@ -221,7 +223,7 @@ export class FileTransferIO extends RealProtocolIORouter {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
           const errorMsg = failure.message || 'SendFile failed';
-          console.error('FileTransferIO: SendFile failed', errorMsg);
+          debugLog('FileTransferIO', 'SendFile failed', errorMsg);
           reject(new Error(errorMsg));
         }
       };

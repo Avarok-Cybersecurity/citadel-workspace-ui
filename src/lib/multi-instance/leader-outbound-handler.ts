@@ -16,19 +16,25 @@
  */
 
 import { eventEmitter } from '../event-emitter';
-import { instanceManager } from './instance-manager';
 import { instanceChannel } from './instance-channel';
+import type { ProxyResponseData } from './outbound-queue-types';
+import {
+  handleWorkspaceRequestProxy,
+  handleOpenMessengerProxy,
+  handleEnsureMessengerProxy,
+  handleSendP2PMessageProxy,
+} from './leader-proxy-handlers';
+import { debugLog } from '@/lib/debug-config';
 
 interface OutboundRequest {
   requestId: string;
   senderInstanceId: string;
-  payload: any;
+  payload: Record<string, unknown>;
 }
 
 // Types of messages that should use ILM (reliability layer)
 const ILM_REQUIRED_TYPES = [
   'Message', // P2P messages need ILM
-  // Add other message types that need guaranteed delivery
 ];
 
 // Types that can bypass ILM
@@ -39,8 +45,6 @@ const BYPASS_ILM_TYPES = [
   'LocalDBGetAllKV',
   'GetWorkspace',
   'ListWorkspaces',
-  'ListOffices',
-  'ListRooms',
   'ListMembers',
   'GetMemberInfo',
   'Connect',
@@ -52,14 +56,13 @@ const BYPASS_ILM_TYPES = [
   'PeerDisconnect',
   'ListAllPeers',
   'ListRegisteredPeers',
-  // Most queries and management operations don't need ILM
 ];
 
 class LeaderOutboundHandler {
   private static instance: LeaderOutboundHandler;
 
   private isActive: boolean = false;
-  private websocketSendFn: ((message: any) => Promise<void>) | null = null;
+  private websocketSendFn: ((message: Record<string, unknown>) => Promise<void>) | null = null;
 
   private constructor() {
     this.setupEventListeners();
@@ -73,174 +76,80 @@ class LeaderOutboundHandler {
   }
 
   private setupEventListeners(): void {
-    // Listen for outbound requests from InstanceChannel
     eventEmitter.on('channel:outbound-request', async (request: OutboundRequest) => {
       await this.handleOutboundRequest(request);
     });
 
-    // Listen for leader status changes
     eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
       this.isActive = data.isLeader;
 
       if (this.isActive) {
-        console.log('[LeaderOutboundHandler] Activated as leader');
+        debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] Activated as leader');
       } else {
-        console.log('[LeaderOutboundHandler] Deactivated (no longer leader)');
+        debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] Deactivated (no longer leader)');
       }
     });
   }
 
-  /**
-   * Set the function to use for sending to WebSocket
-   * This is injected by websocket-service during initialization
-   */
-  setWebSocketSendFunction(fn: (message: any) => Promise<void>): void {
+  setWebSocketSendFunction(fn: (message: Record<string, unknown>) => Promise<void>): void {
     this.websocketSendFn = fn;
-    console.log('[LeaderOutboundHandler] WebSocket send function registered');
+    debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] WebSocket send function registered');
   }
 
-  /**
-   * Handle an outbound request from any instance
-   */
   async handleOutboundRequest(request: OutboundRequest): Promise<void> {
     if (!this.isActive) {
-      console.warn('[LeaderOutboundHandler] Received request but not active (not leader)');
+      debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Not leader');
       return;
     }
 
     if (!this.websocketSendFn) {
-      console.error('[LeaderOutboundHandler] WebSocket send function not set');
+      debugLog('LeaderOutboundHandler', 'WebSocket send function not set');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
       return;
     }
 
     try {
-      // Validate sender
       if (!this.isValidSender(request.senderInstanceId)) {
-        console.warn(`[LeaderOutboundHandler] Invalid sender: ${request.senderInstanceId}`);
+        debugLog('LeaderOutboundHandler', `Invalid sender: ${request.senderInstanceId}`);
         this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Invalid sender');
         return;
       }
 
-      // Check for workspace request proxy (special handling for follower workspace requests)
+      // Delegate proxy requests to specialized handlers
       if (request.payload?.__workspaceRequestProxy) {
-        console.log(`[LeaderOutboundHandler] Handling workspace request proxy from ${request.senderInstanceId}`);
-
-        // Import websocket service to call sendWorkspaceRequest on WASM client
-        // Note: Lazy import to avoid circular dependency
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for workspace request');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        // Convert CID back to BigInt and send
-        const cid = BigInt(request.payload.cid);
-        await client.sendWorkspaceRequest(cid, request.payload.request);
-
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        console.log(`[LeaderOutboundHandler] Workspace request proxy processed for ${request.requestId}`);
+        await handleWorkspaceRequestProxy(request, this.sendAck.bind(this));
         return;
       }
-
-      // Check for openMessengerFor proxy
       if (request.payload?.__openMessengerProxy) {
-        console.log(`[LeaderOutboundHandler] Handling openMessenger proxy from ${request.senderInstanceId}`);
-
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for openMessenger');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        await client.openMessengerFor(request.payload.cid);
-
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        console.log(`[LeaderOutboundHandler] openMessenger proxy processed for ${request.requestId}`);
+        await handleOpenMessengerProxy(request, this.sendAck.bind(this));
         return;
       }
-
-      // Check for ensureMessengerOpen proxy
       if (request.payload?.__ensureMessengerProxy) {
-        console.log(`[LeaderOutboundHandler] Handling ensureMessenger proxy from ${request.senderInstanceId}`);
-
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for ensureMessenger');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        const wasOpened = await client.ensureMessengerOpen(request.payload.cid);
-
-        // Send ACK with result data
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { wasOpened });
-        console.log(`[LeaderOutboundHandler] ensureMessenger proxy processed for ${request.requestId}`);
+        await handleEnsureMessengerProxy(request, this.sendAck.bind(this));
         return;
       }
-
-      // Check for sendP2PMessageReliable proxy
       if (request.payload?.__sendP2PMessageProxy) {
-        console.log(`[LeaderOutboundHandler] Handling sendP2PMessage proxy from ${request.senderInstanceId}`);
-
-        const { websocketService } = await import('../websocket-service');
-        const client = websocketService.getClient();
-
-        if (!client) {
-          console.error('[LeaderOutboundHandler] No WASM client available for sendP2PMessage');
-          this.sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
-          return;
-        }
-
-        // Convert Array back to Uint8Array
-        const messageBytes = new Uint8Array(request.payload.message);
-        await client.sendP2PMessageReliable(
-          request.payload.localCid,
-          request.payload.peerCid,
-          messageBytes,
-          request.payload.securityLevel
-        );
-
-        this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-        console.log(`[LeaderOutboundHandler] sendP2PMessage proxy processed for ${request.requestId}`);
+        await handleSendP2PMessageProxy(request, this.sendAck.bind(this));
         return;
       }
 
-      // Determine routing (ILM vs bypass)
       const requiresIlm = this.requiresILM(request.payload);
-
-      console.log(
+      debugLog('LeaderOutboundHandler',
         `[LeaderOutboundHandler] Processing ${request.requestId} from ${request.senderInstanceId} (ILM: ${requiresIlm})`
       );
 
-      // Send to WebSocket
       await this.websocketSendFn(request.payload);
-
-      // Send ACK
       this.sendAck(request.senderInstanceId, request.requestId, 'processed');
-
-      console.log(`[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
+      debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[LeaderOutboundHandler] Failed to process ${request.requestId}:`, error);
+      debugLog('LeaderOutboundHandler', `Failed to process ${request.requestId}:`, error);
       this.sendAck(request.senderInstanceId, request.requestId, 'error', errorMessage);
     }
   }
 
-  /**
-   * Send directly (when called from leader itself, bypassing the channel)
-   * This is used for internal leader operations
-   */
-  async sendDirect(payload: any): Promise<void> {
+  async sendDirect(payload: Record<string, unknown>): Promise<void> {
     if (!this.websocketSendFn) {
       throw new Error('WebSocket send function not set');
     }
@@ -248,34 +157,20 @@ class LeaderOutboundHandler {
     await this.websocketSendFn(payload);
   }
 
-  /**
-   * Check if sender is valid
-   * Currently just checks if instanceId is non-empty
-   * Could be extended to check against known instances
-   */
   private isValidSender(senderInstanceId: string): boolean {
     if (!senderInstanceId || senderInstanceId.trim() === '') {
       return false;
     }
-
-    // Could add more validation:
-    // - Check against known instances
-    // - Validate sender CID matches their claimed session
     return true;
   }
 
-  /**
-   * Determine if a message requires ILM (Internal Layered Messaging)
-   */
-  private requiresILM(payload: any): boolean {
-    // Get the message type (first key in the payload)
+  private requiresILM(payload: Record<string, unknown>): boolean {
     const messageType = Object.keys(payload)[0];
 
     if (!messageType) {
       return false;
     }
 
-    // Check against explicit lists
     if (ILM_REQUIRED_TYPES.includes(messageType)) {
       return true;
     }
@@ -284,20 +179,16 @@ class LeaderOutboundHandler {
       return false;
     }
 
-    // Default: use ILM for unknown types (safer)
-    console.log(`[LeaderOutboundHandler] Unknown message type "${messageType}", using ILM`);
+    debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Unknown message type "${messageType}", using ILM`);
     return true;
   }
 
-  /**
-   * Send ACK back to sender via InstanceChannel
-   */
   private sendAck(
     targetInstanceId: string,
     requestId: string,
     status: 'processed' | 'error',
     error?: string,
-    data?: any
+    data?: ProxyResponseData
   ): void {
     instanceChannel.sendAck(targetInstanceId, requestId, {
       status,
@@ -306,9 +197,6 @@ class LeaderOutboundHandler {
     });
   }
 
-  /**
-   * Check if this handler is currently active (leader)
-   */
   isHandlerActive(): boolean {
     return this.isActive;
   }

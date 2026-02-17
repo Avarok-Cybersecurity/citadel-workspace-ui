@@ -6,6 +6,7 @@
 
 import { requestResponse } from './request-response';
 import { debugLog } from '../debug-config';
+import { TIMEOUT } from '../timeout-constants';
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
 
 export interface SessionManagementConfig {
@@ -77,10 +78,10 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', 'Sending SetConnectionOrphan request', request);
+    debugLog('SessionManagement', 'Sending SetConnectionOrphan request', request);
 
     return requestResponse<SessionManagementResult>({
-      request, requestId, timeoutMs: 3000,
+      request, requestId, timeoutMs: TIMEOUT.SESSION_MANAGEMENT_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'SetConnectionOrphan',
       matcher: this.connectionManagementMatcher(requestId),
@@ -88,8 +89,8 @@ export class SessionManagement {
   }
 
   setOrphanModeNonBlocking(enabled: boolean): void {
-    this.setOrphanMode(enabled).catch(err => {
-      console.warn('[SessionManagement] setOrphanMode failed (non-blocking):', err.message);
+    this.setOrphanMode(enabled).catch((err: Error) => {
+      debugLog('SessionManagement', 'setOrphanMode failed (non-blocking):', err.message);
     });
   }
 
@@ -108,10 +109,10 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
+    debugLog('SessionManagement', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
 
     return requestResponse<SessionManagementResult>({
-      request, requestId, timeoutMs: 10000,
+      request, requestId, timeoutMs: TIMEOUT.CLAIM_SESSION_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'ClaimSession',
       matcher: this.connectionManagementMatcher(requestId),
@@ -131,10 +132,10 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', 'Sending DisconnectOrphan request', request);
+    debugLog('SessionManagement', 'Sending DisconnectOrphan request', request);
 
     return requestResponse<SessionManagementResult>({
-      request, requestId, timeoutMs: 10000,
+      request, requestId, timeoutMs: TIMEOUT.CLAIM_SESSION_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'DisconnectOrphan',
       matcher: this.connectionManagementMatcher(requestId),
@@ -144,7 +145,7 @@ export class SessionManagement {
   releaseSession(sessionCid: bigint): void {
     const client = this.config.getClient();
     if (!client) {
-      debugLog('websocket', 'Cannot release session - not the leader (no client)');
+      debugLog('SessionManagement', 'Cannot release session - not the leader (no client)');
       return;
     }
 
@@ -155,11 +156,11 @@ export class SessionManagement {
       }
     };
 
-    debugLog('websocket', `Releasing session ${sessionCid.toString()}`);
+    debugLog('SessionManagement', `Releasing session ${sessionCid.toString()}`);
 
     // Fire-and-forget - don't await since tab may be closing
-    client.sendDirectToInternalService(request).catch(error => {
-      console.error('[SessionManagement] Failed to release session:', error);
+    client.sendDirectToInternalService(request).catch((error: unknown) => {
+      debugLog('SessionManagement', 'Failed to release session:', error);
     });
   }
 }

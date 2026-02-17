@@ -43,6 +43,7 @@ export {
   closeAnyModals,
   checkForErrors,
   waitForWorkspaceLoaded,
+  waitForTreeDataLoaded,
   checkToastState,
   assertNoToastConflict,
   dismissAllToasts,
@@ -54,6 +55,7 @@ export {
   createBrowser,
   setupConsoleCapture,
   clearBrowserStorage,
+  waitForAppReady,
   wakeUpTab,
   createIsolatedContexts,
   createSeparateBrowsers,
@@ -116,6 +118,7 @@ export {
   checkRulesBanner,
   hasOffices,
   createOffice,
+  createRoom,
 } from './group-chat.js';
 
 // Diagnostics - Console error/warning collector and white-screen detector
@@ -184,6 +187,7 @@ export {
   // UI-based helpers (use these instead of protocol ones)
   createOfficeViaUI,
   createRoomViaUI,
+  navigateToNodeViaUI,
   navigateToOfficeViaUI,
   deleteNodeViaUI,
   nodeExistsInUI,

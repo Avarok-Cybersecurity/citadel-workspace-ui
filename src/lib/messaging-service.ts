@@ -3,6 +3,7 @@ import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection';
+import { debugLog } from '@/lib/debug-config';
 
 export interface MessageRequest {
   cid: string;
@@ -126,13 +127,13 @@ export class MessagingService {
       };
 
       return sentMessage;
-    } catch (error: any) {
-      console.error('Error sending message:', error);
+    } catch (error: unknown) {
+      debugLog('MessagingService', 'Error sending message:', error);
 
       // Show error notification
       this.notificationService.addSystemNotification(
         'Message Failed',
-        `Failed to send message to recipient: ${error.message || 'Unknown error'}`,
+        `Failed to send message to recipient: ${error instanceof Error ? error.message : 'Unknown error'}`,
         NotificationPriority.HIGH
       );
 
@@ -140,7 +141,7 @@ export class MessagingService {
       const failedMessage: Message = {
         ...pendingMessage,
         status: 'failed',
-        error: error.message || 'Failed to send message'
+        error: (error instanceof Error ? error.message : String(error)) || 'Failed to send message'
       };
 
       return failedMessage;
@@ -164,7 +165,7 @@ export class MessagingService {
       // Attempt to send the message again
       return await this.sendMessage(message.recipientId, message.content);
     } catch (error) {
-      console.error('Error resending message:', error);
+      debugLog('MessagingService', 'Error resending message:', error);
       return {
         ...message,
         error: 'Failed to resend message'
@@ -175,9 +176,9 @@ export class MessagingService {
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
     try {
       // For now, just log this action
-      console.info(`Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
+      debugLog('MessagingService', `Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
     } catch (error) {
-      console.error('Error sending typing indicator:', error);
+      debugLog('MessagingService', 'Error sending typing indicator:', error);
     }
   }
 

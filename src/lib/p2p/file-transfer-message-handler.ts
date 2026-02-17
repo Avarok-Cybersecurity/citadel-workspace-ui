@@ -8,6 +8,7 @@ import type { P2PMessagingLayerPayload } from '@/types/p2p-types';
 import { isFileTransferRequest } from '@/types/messaging-layer';
 import { eventEmitter } from '../event-emitter';
 import type { P2PMessage, P2PConversation } from './p2p-types';
+import { debugLog } from '@/lib/debug-config';
 
 export interface FileTransferMessageHandlerConfig {
   /** Get or create conversation */
@@ -58,7 +59,7 @@ export class FileTransferMessageHandler {
     conversation.messages.push(message);
     conversation.lastMessageIndex = Math.max(conversation.lastMessageIndex, payload.index);
 
-    console.log(`[P2P] Stored file transfer message in conversation with ${peerCid.toString().slice(0, 8)}...`);
+    debugLog('FileTransferMessageHandler', `[P2P] Stored file transfer message in conversation with ${peerCid.toString().slice(0, 8)}...`);
 
     this.config.notifyMessageListeners(message);
 

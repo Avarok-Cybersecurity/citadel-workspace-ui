@@ -5,10 +5,10 @@
  * Provides timeout-based retry logic and max retry handling.
  *
  * Flow:
- * 1. Instance calls enqueue(payload) → returns requestId
+ * 1. Instance calls enqueue(payload) -> returns requestId
  * 2. Message sent to leader via InstanceChannel
  * 3. Leader processes and sends ACK { status: 'processed' | 'error', error?: string }
- * 4. Instance calls acknowledge(requestId, status) → removes from queue
+ * 4. Instance calls acknowledge(requestId, status) -> removes from queue
  *
  * Timeout/Retry:
  * - If no ACK within ACK_TIMEOUT_MS, message is retried
@@ -19,44 +19,14 @@
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { PollingService } from '../utils/polling-service';
+import { debugLog } from '@/lib/debug-config';
+import { TIMEOUT } from '../timeout-constants';
+import type { QueuedMessage, AckResult } from './outbound-queue-types';
 
-export interface QueuedMessage {
-  requestId: string;
-  payload: unknown;
-  instanceId: string;
-  timestamp: number;
-  retryCount: number;
-  timeoutId?: ReturnType<typeof setTimeout>;
-}
+export type { QueuedMessage, AckResult, ProxyResponseData } from './outbound-queue-types';
+export { isEnsureMessengerOpenResponse } from './outbound-queue-types';
 
-/**
- * Known proxy response data shapes.
- * When adding new proxy operations that return data, add their shape here.
- */
-export type ProxyResponseData =
-  | { wasOpened: boolean }         // ensureMessengerOpen response
-  | { success: boolean }           // generic operation result
-  | Record<string, unknown>;       // fallback for other operations
-
-export interface AckResult {
-  status: 'processed' | 'error';
-  error?: string;
-  data?: ProxyResponseData;
-}
-
-/**
- * Type guard for ensureMessengerOpen response
- */
-export function isEnsureMessengerOpenResponse(data: unknown): data is { wasOpened: boolean } {
-  return (
-    data !== null &&
-    typeof data === 'object' &&
-    'wasOpened' in data &&
-    typeof (data as { wasOpened: unknown }).wasOpened === 'boolean'
-  );
-}
-
-const ACK_TIMEOUT_MS = 5000;
+const ACK_TIMEOUT_MS = TIMEOUT.SERVER_REQUEST_MS;
 const MAX_RETRIES = 3;
 const CHECK_INTERVAL_MS = 1000;
 
@@ -92,25 +62,16 @@ class OutboundQueue extends PollingService {
     });
   }
 
-  /**
-   * Start the timeout checker
-   */
   start(): void {
     this.startPolling();
-    console.log('[OutboundQueue] Started timeout checker');
+    debugLog('OutboundQueue', '[OutboundQueue] Started timeout checker');
   }
 
-  /**
-   * Stop the timeout checker
-   */
   stop(): void {
     this.stopPolling();
-    console.log('[OutboundQueue] Stopped timeout checker');
+    debugLog('OutboundQueue', '[OutboundQueue] Stopped timeout checker');
   }
 
-  /**
-   * Enqueue a message for sending
-   */
   enqueue(payload: unknown, requestId?: string): string {
     const id = requestId || crypto.randomUUID();
 
@@ -123,19 +84,16 @@ class OutboundQueue extends PollingService {
     };
 
     this.queue.set(id, message);
-    console.log(`[OutboundQueue] Enqueued message: ${id} (queue size: ${this.queue.size})`);
+    debugLog('OutboundQueue', `[OutboundQueue] Enqueued message: ${id} (queue size: ${this.queue.size})`);
 
     return id;
   }
 
-  /**
-   * Acknowledge a message (remove from queue)
-   */
   acknowledge(requestId: string, result: AckResult): void {
     const message = this.queue.get(requestId);
 
     if (!message) {
-      console.log(`[OutboundQueue] ACK for unknown requestId: ${requestId}`);
+      debugLog('OutboundQueue', `[OutboundQueue] ACK for unknown requestId: ${requestId}`);
       return;
     }
 
@@ -146,10 +104,10 @@ class OutboundQueue extends PollingService {
     this.queue.delete(requestId);
 
     const latency = Date.now() - message.timestamp;
-    console.log(`[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
+    debugLog('OutboundQueue', `[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
 
     if (result.status === 'error') {
-      console.error(`[OutboundQueue] Message failed: ${requestId}`, result.error);
+      debugLog('OutboundQueue', `Message failed: ${requestId}`, result.error);
       eventEmitter.emit('outbound-error', {
         requestId,
         error: result.error,
@@ -195,7 +153,7 @@ class OutboundQueue extends PollingService {
 
   private handleTimeout(requestId: string, message: QueuedMessage): void {
     if (message.retryCount >= MAX_RETRIES) {
-      console.error(`[OutboundQueue] Max retries exceeded for ${requestId}, giving up`);
+      debugLog('OutboundQueue', `Max retries exceeded for ${requestId}, giving up`);
 
       this.queue.delete(requestId);
 
@@ -211,7 +169,7 @@ class OutboundQueue extends PollingService {
     message.retryCount++;
     message.timestamp = Date.now();
 
-    console.log(`[OutboundQueue] Retrying ${requestId} (attempt ${message.retryCount}/${MAX_RETRIES})`);
+    debugLog('OutboundQueue', `[OutboundQueue] Retrying ${requestId} (attempt ${message.retryCount}/${MAX_RETRIES})`);
 
     eventEmitter.emit('outbound-retry', {
       requestId,
@@ -223,7 +181,7 @@ class OutboundQueue extends PollingService {
   onLeaderChange(newLeaderId: string): void {
     if (this.queue.size === 0) return;
 
-    console.log(`[OutboundQueue] Leader changed to ${newLeaderId}, retrying ${this.queue.size} pending messages`);
+    debugLog('OutboundQueue', `[OutboundQueue] Leader changed to ${newLeaderId}, retrying ${this.queue.size} pending messages`);
 
     for (const [requestId, message] of this.queue) {
       message.timestamp = Date.now();
@@ -258,7 +216,7 @@ class OutboundQueue extends PollingService {
       }
     }
     this.queue.clear();
-    console.log('[OutboundQueue] Cleared all pending messages');
+    debugLog('OutboundQueue', '[OutboundQueue] Cleared all pending messages');
   }
 
   destroy(): void {

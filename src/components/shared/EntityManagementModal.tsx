@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { debugLog } from '@/lib/debug-config';
 
 export interface FieldConfig {
   id: string;
@@ -117,7 +118,7 @@ export function EntityManagementModal<TMode extends string>({
       await onSubmit(formData);
       onClose();
     } catch (error) {
-      console.error(`Error managing ${entityName}:`, error);
+      debugLog('EntityManagementModal', `Error managing ${entityName}:`, error);
       toast({
         title: "Error",
         description: `Failed to ${mode} ${entityName}. Please try again.`,

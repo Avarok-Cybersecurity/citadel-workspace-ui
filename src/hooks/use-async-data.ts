@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { debugLog } from '@/lib/debug-config';
 
 export interface AsyncDataState<T> {
   /** The fetched data, null if not yet loaded or on error */
@@ -196,7 +197,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 
   const refetch = useCallback(async () => {
     // For actions, refetch doesn't make sense without args
-    console.warn('useAsyncAction: refetch() called without arguments. Use execute() with args instead.');
+    debugLog('UseAsyncAction', 'refetch() called without arguments. Use execute() with args instead.');
   }, []);
 
   const reset = useCallback(() => {

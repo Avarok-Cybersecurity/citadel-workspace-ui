@@ -3,6 +3,8 @@
  * Handles extraction and processing of workspace metadata including logos
  */
 
+import { debugLog } from './debug-config';
+
 // Interface for workspace logo information
 export interface WorkspaceLogo {
   type: 'image' | 'initials';
@@ -27,7 +29,7 @@ export function getWorkspaceLogo(workspaceName: string, metadata?: Record<string
         };
       }
     } catch (error) {
-      console.error('Error parsing workspace logo from metadata:', error);
+      debugLog('WorkspaceMetadataService', 'Error parsing workspace logo from metadata:', error);
     }
   }
   

@@ -118,16 +118,18 @@ async function runTest(): Promise<boolean> {
       return false;
     }
 
-    // Navigate to General office if visible
+    // Navigate to General office if visible (optional — not a test criterion)
     try {
       const generalOffice = page.locator('text=General').first();
       if (await generalOffice.isVisible({ timeout: 3000 })) {
         await generalOffice.click();
         await sleep(1000);
         console.log('  Clicked General office');
+      } else {
+        console.log('  General office not visible — skipping');
       }
-    } catch {
-      // General office might not be visible, that's OK
+    } catch (e) {
+      console.log(`  General office click failed: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     await takeScreenshot(page, `${USERNAME}_phase2_in_office`);
@@ -202,9 +204,11 @@ async function runTest(): Promise<boolean> {
         await generalOffice.click();
         await sleep(1000);
         console.log('  Clicked General office after reconnection');
+      } else {
+        console.log('  General office not visible after reconnection — skipping');
       }
-    } catch {
-      // General office might not be visible
+    } catch (e) {
+      console.log(`  General office click failed after reconnection: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     await takeScreenshot(page, `${USERNAME}_phase5_in_office`);

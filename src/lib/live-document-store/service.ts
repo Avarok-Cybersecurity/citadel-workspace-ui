@@ -1,0 +1,236 @@
+/**
+ * Live Document Store - Service
+ *
+ * Singleton for managing live document persistence via LocalDB.
+ * Maintains an in-memory cache and delegates I/O to persistence helpers.
+ */
+
+import * as Y from 'yjs';
+import { sha256Sync } from '@/lib/merkle-tree';
+import { debugLog } from '@/lib/debug-config';
+import type { RevisionEntry } from '@/types/p2p-types';
+
+import type { DocumentMetadata, StoredDocument } from './types';
+import {
+  loadDocumentFromDB,
+  saveDocumentToDB,
+  loadIndexFromDB,
+  saveIndexToDB,
+  deleteDocumentFromDB,
+} from './persistence';
+
+export class LiveDocumentStore {
+  private static instance: LiveDocumentStore;
+  private documentsCache: Map<string, StoredDocument> = new Map();
+  private initialized = false;
+
+  private constructor() {}
+
+  static getInstance(): LiveDocumentStore {
+    if (!LiveDocumentStore.instance) {
+      LiveDocumentStore.instance = new LiveDocumentStore();
+    }
+    return LiveDocumentStore.instance;
+  }
+
+  /** Initialize the store by loading the document index from LocalDB */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    try {
+      const index = await loadIndexFromDB();
+      for (const docId of index) {
+        const doc = await loadDocumentFromDB(docId);
+        if (doc) {
+          this.documentsCache.set(docId, doc);
+        }
+      }
+      this.initialized = true;
+    } catch (error) {
+      debugLog('LiveDocumentStore', 'Failed to initialize:', error);
+      this.initialized = true; // Continue anyway
+    }
+  }
+
+  /** Create a new document */
+  async createDocument(
+    title: string,
+    peerCid: string,
+    creatorCid: string,
+    initialDoc?: Y.Doc,
+  ): Promise<DocumentMetadata> {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+
+    const doc = initialDoc || new Y.Doc();
+    const state = Y.encodeStateAsUpdate(doc);
+    const rootHash = sha256Sync(state);
+
+    const metadata: DocumentMetadata = {
+      id,
+      title,
+      peerCid,
+      creatorCid,
+      createdAt: now,
+      updatedAt: now,
+      rootHash,
+      revision: 0,
+    };
+
+    const initialRevision: RevisionEntry = {
+      revision: 0,
+      rootHash,
+      timestamp: now,
+    };
+
+    const storedDoc: StoredDocument = {
+      metadata,
+      state: Array.from(state),
+      revisionChain: [initialRevision],
+    };
+
+    this.documentsCache.set(id, storedDoc);
+    await this.saveDocument(id, storedDoc);
+    await this.updateIndex();
+
+    return metadata;
+  }
+
+  /** Save a document's current state */
+  async saveDocument(docId: string, doc: StoredDocument): Promise<void> {
+    await saveDocumentToDB(docId, doc);
+    this.documentsCache.set(docId, doc);
+  }
+
+  /** Update a document's Yjs state */
+  async updateDocumentState(docId: string, ydoc: Y.Doc): Promise<void> {
+    const existing = this.documentsCache.get(docId);
+    if (!existing) {
+      debugLog('LiveDocumentStore', 'Document not found:', docId);
+      return;
+    }
+
+    const state = Y.encodeStateAsUpdate(ydoc);
+    const rootHash = sha256Sync(state);
+    const now = Date.now();
+    const newRevision = (existing.metadata.revision ?? 0) + 1;
+
+    const revisionEntry: RevisionEntry = {
+      revision: newRevision,
+      rootHash,
+      timestamp: now,
+      prevHash: existing.metadata.rootHash,
+    };
+
+    // Keep last 100 revisions
+    const revisionChain = [...(existing.revisionChain || []), revisionEntry].slice(-100);
+
+    const updatedDoc: StoredDocument = {
+      metadata: {
+        ...existing.metadata,
+        updatedAt: now,
+        rootHash,
+        revision: newRevision,
+      },
+      state: Array.from(state),
+      revisionChain,
+    };
+
+    await this.saveDocument(docId, updatedDoc);
+  }
+
+  /** Get the revision chain for a document */
+  async getRevisionChain(docId: string): Promise<RevisionEntry[]> {
+    const doc = await this.loadDocument(docId);
+    return doc?.revisionChain || [];
+  }
+
+  /** Get the current root hash for a document */
+  async getRootHash(docId: string): Promise<string | null> {
+    const doc = await this.loadDocument(docId);
+    return doc?.metadata.rootHash || null;
+  }
+
+  /** Get the creator CID for a document */
+  async getCreatorCid(docId: string): Promise<string | null> {
+    const doc = await this.loadDocument(docId);
+    return doc?.metadata.creatorCid || null;
+  }
+
+  /** Check if a CID is the creator of a document */
+  async isCreator(docId: string, cid: string): Promise<boolean> {
+    const creatorCid = await this.getCreatorCid(docId);
+    return creatorCid === cid;
+  }
+
+  /** Load a document (cache-first, then LocalDB) */
+  async loadDocument(docId: string): Promise<StoredDocument | null> {
+    const cached = this.documentsCache.get(docId);
+    if (cached) return cached;
+
+    const doc = await loadDocumentFromDB(docId);
+    if (doc) {
+      this.documentsCache.set(docId, doc);
+    }
+    return doc;
+  }
+
+  /** Load a document into a Y.Doc instance */
+  async loadIntoYDoc(docId: string, targetDoc?: Y.Doc): Promise<Y.Doc | null> {
+    const stored = await this.loadDocument(docId);
+    if (!stored) return null;
+
+    const doc = targetDoc || new Y.Doc();
+    const state = new Uint8Array(stored.state);
+    Y.applyUpdate(doc, state);
+
+    return doc;
+  }
+
+  /** Get document metadata */
+  async getDocumentMetadata(docId: string): Promise<DocumentMetadata | null> {
+    const doc = await this.loadDocument(docId);
+    return doc?.metadata || null;
+  }
+
+  /** List all documents for a peer */
+  async listDocumentsForPeer(peerCid: string): Promise<DocumentMetadata[]> {
+    await this.initialize();
+
+    const docs: DocumentMetadata[] = [];
+    this.documentsCache.forEach((doc) => {
+      if (doc.metadata.peerCid === peerCid) {
+        docs.push(doc.metadata);
+      }
+    });
+
+    docs.sort((a, b) => b.updatedAt - a.updatedAt);
+    return docs;
+  }
+
+  /** List all documents */
+  async listAllDocuments(): Promise<DocumentMetadata[]> {
+    await this.initialize();
+
+    const docs: DocumentMetadata[] = [];
+    this.documentsCache.forEach((doc) => {
+      docs.push(doc.metadata);
+    });
+
+    docs.sort((a, b) => b.updatedAt - a.updatedAt);
+    return docs;
+  }
+
+  /** Delete a document */
+  async deleteDocument(docId: string): Promise<void> {
+    this.documentsCache.delete(docId);
+    await deleteDocumentFromDB(docId);
+    await this.updateIndex();
+  }
+
+  /** Update the document index in LocalDB */
+  private async updateIndex(): Promise<void> {
+    const docIds = Array.from(this.documentsCache.keys());
+    await saveIndexToDB(docIds);
+  }
+}

@@ -1,6 +1,3 @@
-// HMR Test - containerized UI with polling
-console.log("App.tsx loading...");
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,17 +11,11 @@ import { Connect } from "./pages/Connect";
 import UserDirectory from "./pages/UserDirectory";
 import WorkspaceApp from "./components/WorkspaceApp";
 import { WorkspaceLoader } from "./components/ui/workspace-loader";
-import { FileUploadProgress } from "./components/files/FileUploadProgress";
 import { GroupChatPage } from "./pages/GroupChatPage";
-
-console.log("App.tsx loaded, imports completed");
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  console.log("App component rendering");
-  
-  // Let's restore the full app now
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -62,11 +53,10 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-        <FileUploadProgress />
       </WorkspaceApp>
     </TooltipProvider>
   </QueryClientProvider>
   );
 };
 
-export default App;// Container change test
+export default App;

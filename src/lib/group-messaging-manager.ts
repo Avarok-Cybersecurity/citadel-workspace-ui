@@ -5,8 +5,9 @@
  * Provides a reactive interface for UI components to subscribe to message updates.
  */
 
-import { GroupMessage, GroupMessageType } from '@/types/workspace-entities';
+import type { GroupMessage } from '@/types/workspace-entities';
 import { TypedEventEmitter } from './event-emitter';
+import { debugLog } from '@/lib/debug-config';
 
 export interface GroupMessageEvent {
   type: 'new_message' | 'message_edited' | 'message_deleted' | 'messages_loaded';
@@ -80,7 +81,7 @@ class GroupMessagingManagerClass {
 
     // Check for duplicate message by ID
     if (current.messages.some(m => m.id === message.id)) {
-      console.log('[GroupMessagingManager] Skipping duplicate message:', message.id);
+      debugLog('GroupMessagingManager', '[GroupMessagingManager] Skipping duplicate message:', message.id);
       return;
     }
 
@@ -111,7 +112,8 @@ class GroupMessagingManagerClass {
     const current = this.getMessages(groupId);
 
     // Sort messages by timestamp (oldest first)
-    const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+    // Convert bigint comparison to number for Array.sort (which requires number return)
+    const sortedMessages = [...messages].sort((a, b) => Number(a.timestamp - b.timestamp));
 
     let newMessages: GroupMessage[];
     if (prepend) {
@@ -143,7 +145,7 @@ class GroupMessagingManagerClass {
     groupId: string,
     messageId: string,
     newContent: string,
-    editedAt: number
+    editedAt: bigint
   ): void {
     const current = this.getMessages(groupId);
 
@@ -230,7 +232,7 @@ class GroupMessagingManagerClass {
   /**
    * Get oldest timestamp for pagination
    */
-  public getOldestTimestamp(groupId: string): number | undefined {
+  public getOldestTimestamp(groupId: string): bigint | undefined {
     const state = this.getMessages(groupId);
     if (state.messages.length === 0) return undefined;
     return state.messages[0].timestamp;

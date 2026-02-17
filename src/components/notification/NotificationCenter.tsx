@@ -67,7 +67,7 @@ const NotificationCenter = () => {
     return () => {
       unregister();
     };
-  }, [open]);
+  }, [open, notificationService]);
   
   // Filter notifications based on the active tab
   const filteredNotifications = activeTab === 'all' 
@@ -109,7 +109,7 @@ const NotificationCenter = () => {
           </div>
         </SheetHeader>
         
-        <Tabs defaultValue="all" value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+        <Tabs defaultValue="all" value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | NotificationType)}>
           <TabsList className="grid grid-cols-4 mt-4 mb-6 bg-[#444A6C]">
             <TabsTrigger value="all" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
               All {unreadCount > 0 && `(${unreadCount})`}

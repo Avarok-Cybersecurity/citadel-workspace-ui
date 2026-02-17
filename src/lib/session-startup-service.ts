@@ -40,6 +40,7 @@ import { eventEmitter } from './event-emitter';
 import { p2pRegistrationService } from './p2p-registration-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { wasmConnectionManager } from './wasm-connection-manager';
+import { debugLog } from '@/lib/debug-config';
 
 export interface SessionActivatedEvent {
   cid: string;
@@ -71,8 +72,8 @@ class SessionStartupService {
 
   private setupEventListeners(): void {
     eventEmitter.on('session:activated', async (event: SessionActivatedEvent) => {
-      // ILM-TRACE: Log incoming event for debugging
-      console.log(`[ILM-TRACE] session:activated received: cid=${event.cid?.slice(0, 8)}, type=${event.activationType}, user=${event.username}`);
+      // Log incoming event for debugging
+      debugLog('SessionStartupService', `session:activated received: cid=${event.cid?.slice(0, 8)}, type=${event.activationType}, user=${event.username}`);
 
       // For 'claim' and 'login' types, ALWAYS run the startup sequence even if same CID
       // - ClaimSession: User is reconnecting after TCP drop - must re-establish P2P connections
@@ -80,14 +81,14 @@ class SessionStartupService {
       // Both scenarios preserve the CID, so we can't use CID matching to block them.
       // This is critical for ILM to deliver queued messages after reconnection.
       const isReconnection = event.activationType === 'claim' || event.activationType === 'login';
-      console.log(`[ILM-TRACE] isReconnection=${isReconnection} (type=${event.activationType}), lastActivatedCid=${this.lastActivatedCid?.slice(0, 8)}, isStartingUp=${this.isStartingUp}`);
+      debugLog('SessionStartupService', `isReconnection=${isReconnection} (type=${event.activationType}), lastActivatedCid=${this.lastActivatedCid?.slice(0, 8)}, isStartingUp=${this.isStartingUp}`);
 
       // Prevent duplicate activations for same CID (except for ClaimSession and Login)
       // Only block duplicate 'connect' events (initial registration) - these should not happen
       // in normal operation but could occur due to event system bugs.
       if (!isReconnection && this.lastActivatedCid === event.cid) {
-        console.log('SessionStartup: Session already activated for CID:', event.cid.slice(0, 8) + '...');
-        console.log('[ILM-TRACE] BLOCKED: Duplicate CID (non-reconnection)');
+        debugLog('SessionStartupService', 'SessionStartup: Session already activated for CID:', event.cid.slice(0, 8) + '...');
+        debugLog('SessionStartupService', 'BLOCKED: Duplicate CID (non-reconnection)');
         return;
       }
 
@@ -97,8 +98,8 @@ class SessionStartupService {
       if (this.isStartingUp) {
         if (isReconnection) {
           // Allow reconnection events to preempt - wait for current startup to finish, then re-run
-          console.log(`SessionStartup: ${event.activationType} event will wait for current startup, then re-run for CID:`, event.cid.slice(0, 8) + '...');
-          console.log('[ILM-TRACE] RECONNECTION WAITING: Will run after current startup completes');
+          debugLog('SessionStartupService', `SessionStartup: ${event.activationType} event will wait for current startup, then re-run for CID:`, event.cid.slice(0, 8) + '...');
+          debugLog('SessionStartupService', 'RECONNECTION WAITING: Will run after current startup completes');
           // Queue this to run after current startup finishes
           // We use a short delay to let the current startup complete
           setTimeout(() => {
@@ -107,16 +108,16 @@ class SessionStartupService {
           }, 100);
           return;
         }
-        console.log('SessionStartup: Startup already in progress, skipping for CID:', event.cid.slice(0, 8) + '...');
-        console.log('[ILM-TRACE] BLOCKED: Concurrent startup in progress (non-reconnection)');
+        debugLog('SessionStartupService', 'SessionStartup: Startup already in progress, skipping for CID:', event.cid.slice(0, 8) + '...');
+        debugLog('SessionStartupService', 'BLOCKED: Concurrent startup in progress (non-reconnection)');
         return;
       }
 
       this.lastActivatedCid = event.cid;
       this.isStartingUp = true;
 
-      console.log(`SessionStartup: Activating session for ${event.username} (${event.activationType}), CID: ${event.cid.slice(0, 8)}...`);
-      console.log('[ILM-TRACE] PROCEEDING with startup sequence');
+      debugLog('SessionStartupService', `SessionStartup: Activating session for ${event.username} (${event.activationType}), CID: ${event.cid.slice(0, 8)}...`);
+      debugLog('SessionStartupService', 'PROCEEDING with startup sequence');
 
       try {
         await this.runStartupSequence(event);
@@ -138,8 +139,16 @@ class SessionStartupService {
       // By resetting state, we ensure fresh PeerConnect calls that properly
       // establish bidirectional channels.
       if (event.activationType === 'claim' || event.activationType === 'login') {
-        console.log(`[ILM-TRACE] SessionStartup: Resetting connection state for ${event.activationType}`);
+        debugLog('SessionStartupService', `SessionStartup: Resetting connection state for ${event.activationType}`);
         await p2pAutoConnectService.resetConnectionState();
+      }
+
+      // 0.25. For login reconnections, wait for SDK stabilization after prior session cleanup
+      // The backend needs time for the old Connection's channel drops to propagate through
+      // the protocol layer before we establish a new P2P session
+      if (event.activationType === 'login') {
+        debugLog('SessionStartupService', 'SessionStartup: Waiting 2s for SDK stabilization after login');
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       // 0.5. CRITICAL: Start WASM connection manager to open ILM messenger handle
@@ -148,34 +157,34 @@ class SessionStartupService {
       // inbound messages, causing outbound messages to block waiting for ACKs.
       try {
         await wasmConnectionManager.start(event.cid);
-        console.log('SessionStartup: WASM connection manager started for CID:', event.cid.slice(0, 8) + '...');
+        debugLog('SessionStartupService', 'SessionStartup: WASM connection manager started for CID:', event.cid.slice(0, 8) + '...');
       } catch (error) {
-        console.error('SessionStartup: Failed to start WASM connection manager:', error);
+        debugLog('SessionStartupService', 'Failed to start WASM connection manager:', error);
         // Don't fail the entire startup - P2P may still work without ILM
       }
 
       // 1. Start P2P registration service (idempotent - won't restart if already running)
       // This handles peer discovery and registration notifications
       await p2pRegistrationService.start({ autoRegisterAll: false });
-      console.log('SessionStartup: P2P Registration Service started');
+      debugLog('SessionStartupService', 'SessionStartup: P2P Registration Service started');
 
       // 2. Connect to all registered peers
       // CRITICAL: This is what was missing after ClaimSession!
       // Without this, Alice's ILM never sees Bob as connected
       await p2pAutoConnectService.connectToAllRegisteredPeers();
-      console.log('SessionStartup: P2P Auto-Connect initiated for all registered peers');
+      debugLog('SessionStartupService', 'SessionStartup: P2P Auto-Connect initiated for all registered peers');
 
       // 3. Track reconnection completion time for grace period logic
       if (event.activationType === 'claim' || event.activationType === 'login') {
         this.lastReconnectionCompletedAt = Date.now();
-        console.log(`SessionStartup: Reconnection completed, grace period started (${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
+        debugLog('SessionStartupService', `SessionStartup: Reconnection completed, grace period started (${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
       }
 
       // 4. Emit completion event for any listeners that need to know startup is done
       eventEmitter.emit('session:startup-complete', event);
-      console.log(`SessionStartup: Startup sequence complete for ${event.username}`);
+      debugLog('SessionStartupService', `SessionStartup: Startup sequence complete for ${event.username}`);
     } catch (error) {
-      console.error('SessionStartup: Error during startup sequence:', error);
+      debugLog('SessionStartupService', 'Error during startup sequence:', error);
       // Emit error event but don't re-throw - session is still active
       eventEmitter.emit('session:startup-error', { ...event, error });
     }
@@ -188,7 +197,7 @@ class SessionStartupService {
   public reset(): void {
     this.lastActivatedCid = null;
     this.isStartingUp = false;
-    console.log('SessionStartup: Service state reset');
+    debugLog('SessionStartupService', 'SessionStartup: Service state reset');
   }
 
   /**
@@ -215,7 +224,7 @@ class SessionStartupService {
     if (this.lastReconnectionCompletedAt > 0) {
       const elapsed = Date.now() - this.lastReconnectionCompletedAt;
       if (elapsed < SessionStartupService.RECONNECTION_GRACE_PERIOD_MS) {
-        console.log(`[SessionStartup] Within reconnection grace period (${elapsed}ms of ${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
+        debugLog('SessionStartupService', `[SessionStartup] Within reconnection grace period (${elapsed}ms of ${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
         return true;
       }
     }

@@ -4,7 +4,7 @@
  * Shared type definitions for the AdminModal component and its tabs.
  */
 
-export type AdminEntityType = 'workspace' | 'office' | 'room';
+export type AdminEntityType = string;
 
 export type AdminTabType = 'general' | 'members' | 'chat';
 

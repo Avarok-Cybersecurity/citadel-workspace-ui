@@ -1,10 +1,3 @@
-/**
- * GroupRoleEditor Component
- *
- * Dialog for creating or editing a group role.
- * Allows setting name, position, color, and permissions.
- */
-
 import { useState, useCallback, useMemo } from 'react';
 import {
   Dialog,
@@ -19,77 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import type { GroupRole, GroupPermissions } from '@/types/group';
+import type { GroupPermissions } from '@/types/group';
 import { DEFAULT_MEMBER_PERMISSIONS } from '@/types/group';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface GroupRoleEditorProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** Role to edit, or null for creating a new role */
-  role: GroupRole | null;
-  /** Existing roles (for position validation) */
-  existingRoles: GroupRole[];
-  /** Suggested position for new roles */
-  suggestedPosition: number;
-  /** Callback when role is saved */
-  onSave: (role: Omit<GroupRole, 'id' | 'isBuiltIn'>) => void;
-}
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const PRESET_COLORS = [
-  '#FFD700', // Gold
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-  '#3B82F6', // Blue
-  '#14B8A6', // Teal
-];
-
-const PERMISSION_LABELS: Record<keyof GroupPermissions, { label: string; description: string }> = {
-  sendMessages: {
-    label: 'Send Messages',
-    description: 'Can send messages in the group chat',
-  },
-  viewMemberList: {
-    label: 'View Member List',
-    description: 'Can see all members of the group',
-  },
-  inviteMembers: {
-    label: 'Invite Members',
-    description: 'Can invite new people to the group',
-  },
-  kickMembers: {
-    label: 'Kick Members',
-    description: 'Can remove members from the group (respects hierarchy)',
-  },
-  manageRoles: {
-    label: 'Manage Roles',
-    description: 'Can create, edit, and delete roles below their own',
-  },
-  assignRoles: {
-    label: 'Assign Roles',
-    description: 'Can assign roles to members (roles below their own)',
-  },
-  editGroupSettings: {
-    label: 'Edit Group Settings',
-    description: 'Can change group name and default role',
-  },
-  deleteGroup: {
-    label: 'Delete Group',
-    description: 'Can permanently delete the group',
-  },
-};
+import { PRESET_COLORS, PERMISSION_LABELS } from './GroupRoleEditorConstants';
+import type { GroupRoleEditorProps } from './GroupRoleEditorConstants';
 
 // ============================================================================
 // Component
@@ -118,7 +44,6 @@ export function GroupRoleEditor({
   // Validation
   const isPositionValid = useMemo(() => {
     if (position < 1 || position > 99) return false;
-    // Check if position is unique (excluding current role if editing)
     return !existingRoles.some(
       r => r.position === position && r.id !== role?.id
     );

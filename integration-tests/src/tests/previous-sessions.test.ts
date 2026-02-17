@@ -19,6 +19,7 @@ import {
   takeScreenshot,
   setupConsoleCapture,
   waitForWorkspaceLoaded,
+  waitForAppReady,
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
@@ -40,7 +41,7 @@ interface TestResults {
   disconnectRemovesSession: boolean;
   reconnectAfterDisconnect: boolean;
 
-  // Deregister flow (uses last USER, only if SESSION_COUNT >= 3)
+  // Deregister flow (uses USERS[2])
   deregisterRemovesSession: boolean;
   deregisterPermanent: boolean;
 
@@ -59,8 +60,8 @@ interface TestResults {
 // Test Configuration
 // ============================================================================
 
-// Session count: 2 in CI (resource limits), 3 locally
-const SESSION_COUNT = isCI ? 2 : 3;
+// All 3 sessions required: disconnect (USERS[1]), deregister (USERS[2]), 1-click login (USERS[0])
+const SESSION_COUNT = 3;
 
 const timestamp = Date.now();
 // Generate usernames dynamically: prev_sess_a_XXX, prev_sess_b_XXX, etc.
@@ -72,6 +73,45 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Quick single-attempt login. Uses { force: true } on clicks to bypass Playwright's
+ * stability checks — the OrphanSessionsNavbar re-renders at high frequency, preventing
+ * elements from ever reaching "stable" state for default click behavior.
+ */
+async function tryLoginQuick(page: Page, username: string, password: string): Promise<boolean> {
+  try {
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
+    await waitForAppReady(page, 15000);
+
+    const loginBtn = page.locator('button:has-text("Login Workspace")');
+    if (!await loginBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log('  tryLoginQuick: Login button not found');
+      return false;
+    }
+    await loginBtn.click({ force: true });
+    await sleep(1000);
+
+    await page.locator('input#username').fill(username);
+    await page.locator('input#password').fill(password);
+
+    const advancedBtn = page.locator('button:has-text("Advanced Options")');
+    if (await advancedBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await advancedBtn.click({ force: true });
+      await sleep(300);
+      const serverInput = page.locator('input#server');
+      if (await serverInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await serverInput.fill(config.WORKSPACE_SERVER);
+      }
+    }
+
+    await page.locator('button[type="submit"]:has-text("Connect")').click({ force: true });
+    await sleep(3000);
+    return await waitForWorkspaceLoaded(page, 45000);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Get the count of session icons in the Previous Sessions navbar
@@ -216,7 +256,9 @@ async function clickSessionIcon(page: Page, username: string): Promise<boolean> 
 }
 
 /**
- * Disconnect a session via the navbar
+ * Disconnect a session via the navbar.
+ * Navigates to landing page and waits for OrphanSessionsNavbar to render
+ * before interacting with session icons.
  */
 async function disconnectViaNavbar(
   page: Page,
@@ -225,38 +267,71 @@ async function disconnectViaNavbar(
 ): Promise<boolean> {
   console.log(`\n=== ${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} ${username} via navbar ===`);
 
-  // Hover over the session icon to reveal disconnect button
+  // Ensure we're on the landing page where OrphanSessionsNavbar renders
+  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
+  await waitForAppReady(page, 30000);
+
+  // Wait for the session icon with retry logic (async GetSessions can take time in CI)
   const icon = page.locator(`[data-testid="session-icon-${username}"]`);
-  if (!(await icon.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log('  Session icon not found');
+  let iconFound = false;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    iconFound = await icon.isVisible({ timeout: 8000 }).catch(() => false);
+    if (iconFound) break;
+    if (attempt < 3) {
+      console.log(`  Session icon not visible on attempt ${attempt}, reloading...`);
+      await page.reload({ waitUntil: 'networkidle', timeout: 30000 });
+      await sleep(3000);
+    }
+  }
+
+  if (!iconFound) {
+    console.log('  Session icon not found after retries');
     return false;
   }
 
-  await icon.hover();
-  await sleep(500);
-
-  // Click the disconnect button
+  // Hover to reveal disconnect button (with retry — CI CSS transitions can lag)
   const disconnectBtn = page.locator(`[data-testid="disconnect-button-${username}"]`);
-  if (!(await disconnectBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
-    console.log('  Disconnect button not visible');
+  let btnVisible = false;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await icon.hover();
+    await sleep(1000);
+    btnVisible = await disconnectBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    if (btnVisible) break;
+    if (attempt < 3) {
+      console.log(`  Disconnect button not visible on attempt ${attempt}, re-hovering...`);
+    }
+  }
+
+  if (!btnVisible) {
+    console.log('  Disconnect button not visible after retries');
     return false;
   }
 
   await disconnectBtn.click();
   await sleep(1000);
 
-  // Handle the confirmation modal
+  // Handle the confirmation modal — scope selector to dialog to avoid matching the overlay button
+  const dialogSelector = 'div[role="alertdialog"], div[role="dialog"], [data-testid="confirm-dialog"]';
+  const dialog = page.locator(dialogSelector).first();
+  const dialogVisible = await dialog.isVisible({ timeout: 5000 }).catch(() => false);
+
   if (action === 'deregister') {
-    const deregisterBtn = page.locator('button:has-text("Deregister")');
-    if (await deregisterBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // Look for Deregister button, scoped to dialog if visible
+    const scope = dialogVisible ? dialog : page;
+    const deregisterBtn = scope.locator('button:has-text("Deregister")').first();
+    if (await deregisterBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       await deregisterBtn.click();
       await sleep(3000);
       console.log('  Deregistered successfully');
       return true;
     }
   } else {
-    const confirmBtn = page.locator('button:has-text("Disconnect")').first();
-    if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // Look for Disconnect confirmation button — exclude the overlay button via :not([data-testid])
+    const scope = dialogVisible ? dialog : page;
+    const confirmBtn = scope.locator('button:has-text("Disconnect"):not([data-testid])').first();
+    if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       await confirmBtn.click();
       await sleep(2000);
       console.log('  Disconnected successfully');
@@ -266,63 +341,6 @@ async function disconnectViaNavbar(
 
   console.log('  Confirmation button not found');
   return false;
-}
-
-/**
- * Login with credentials to reconnect a session
- */
-async function loginWithCredentials(
-  page: Page,
-  username: string,
-  password: string
-): Promise<boolean> {
-  console.log(`\n=== Logging in as ${username} ===`);
-
-  // Navigate to landing page
-  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-  await sleep(2000);
-
-  // Click "Login Workspace" button
-  const loginBtn = page.locator('button:has-text("Login Workspace")');
-  if (!(await loginBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log('  Login button not found');
-    return false;
-  }
-
-  await loginBtn.click();
-  await sleep(1000);
-
-  // Fill credentials
-  const usernameInput = page.locator('input#username');
-  const passwordInput = page.locator('input#password');
-
-  await usernameInput.fill(username);
-  await sleep(300);
-  await passwordInput.fill(password);
-  await sleep(300);
-
-  // Click Advanced Options to reveal server address field
-  const advancedBtn = page.locator('button:has-text("Advanced Options")');
-  if (await advancedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await advancedBtn.click();
-    await sleep(300);
-
-    // Fill server address from config (same as createAccount)
-    const serverInput = page.locator('input#server');
-    if (await serverInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await serverInput.fill(config.WORKSPACE_SERVER);
-      await sleep(300);
-    }
-  }
-
-  // Click Connect
-  const connectBtn = page.locator('button[type="submit"]:has-text("Connect")');
-  await connectBtn.click();
-  await sleep(5000);
-
-  // Verify workspace loaded
-  const loaded = await waitForWorkspaceLoaded(page, 30000);
-  return loaded;
 }
 
 
@@ -375,7 +393,7 @@ async function runTest(): Promise<boolean> {
       if (i > 0) {
         // Navigate to landing for subsequent sessions
         await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-        await sleep(2000);
+        await waitForAppReady(page, 30000);
       }
 
       results.sessionsCreated[i] = await createAccount(page, USERS[i], {
@@ -400,7 +418,7 @@ async function runTest(): Promise<boolean> {
 
     // Navigate to landing to see all sessions
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(3000);
+    await waitForAppReady(page, 30000);
 
     // Use retry logic to wait for all sessions to appear first.
     // The navbar, label, and scroll container only render AFTER sessions are loaded
@@ -454,7 +472,7 @@ async function runTest(): Promise<boolean> {
 
     // Navigate back to landing
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(3000);
+    await waitForAppReady(page, 30000);
 
     // USERS[0] should now be first since we just clicked on it
     const orderAfterClick = await getSessionOrder(page);
@@ -466,130 +484,113 @@ async function runTest(): Promise<boolean> {
 
     await takeScreenshot(page, `${String(orderStep).padStart(2, '0')}_ordering`);
 
-    // ========== Test disconnect removes session (requires SESSION_COUNT >= 2) ==========
+    // ========== Test disconnect removes session ==========
     let disconnectStep = orderStep + 1;
-    if (SESSION_COUNT >= 2) {
-      console.log('\n' + '─'.repeat(50));
-      console.log(`STEP ${disconnectStep}: Test Disconnect Removes Session from Navbar`);
-      console.log('─'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
+    console.log(`STEP ${disconnectStep}: Test Disconnect Removes Session from Navbar`);
+    console.log('─'.repeat(50));
 
-      const disconnectUser = USERS[1]; // Second user
-      const disconnectSuccess = await disconnectViaNavbar(page, disconnectUser, 'disconnect');
-      await sleep(5000); // Wait for backend to fully clean up session
+    const disconnectUser = USERS[1];
+    const disconnectSuccess = await disconnectViaNavbar(page, disconnectUser, 'disconnect');
+    await sleep(3000);
 
-      // Verify session is removed from navbar
-      const userStillExists = await sessionExistsInNavbar(page, disconnectUser);
-      results.disconnectRemovesSession = disconnectSuccess && !userStillExists;
+    // Reload page to clear any disconnect-related modal/processing state
+    // that can cause page unresponsiveness in CI
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
+    await waitForAppReady(page, 30000);
 
-      console.log(`  Disconnect success: ${disconnectSuccess}`);
-      console.log(`  ${disconnectUser} still in navbar: ${userStillExists}`);
-      console.log(`  Test passed: ${results.disconnectRemovesSession}`);
+    // Verify session is removed from navbar
+    const userStillExists = await sessionExistsInNavbar(page, disconnectUser);
+    results.disconnectRemovesSession = disconnectSuccess && !userStillExists;
 
-      await takeScreenshot(page, `${String(disconnectStep).padStart(2, '0')}_after_disconnect`);
+    console.log(`  Disconnect success: ${disconnectSuccess}`);
+    console.log(`  ${disconnectUser} still in navbar: ${userStillExists}`);
+    console.log(`  Test passed: ${results.disconnectRemovesSession}`);
 
-      // ========== Test reconnect after disconnect ==========
-      // NOTE: This test has a known race condition with ServerAutoConnect.
-      // ServerAutoConnect tries to reconnect sessions on page navigation,
-      // which can race with the explicit login attempt.
-      // In real usage, the user can simply use 1-click login from the navbar.
-      const reconnectStep = disconnectStep + 1;
-      console.log('\n' + '─'.repeat(50));
-      console.log(`STEP ${reconnectStep}: Test Reconnect After Disconnect (Known Limitation)`);
-      console.log('─'.repeat(50));
-      console.log('  NOTE: This test may fail due to ServerAutoConnect race condition.');
-      console.log('  In real usage, users can use 1-click login from navbar instead.');
+    await takeScreenshot(page, `${String(disconnectStep).padStart(2, '0')}_after_disconnect`);
 
-      results.reconnectAfterDisconnect = await loginWithCredentials(page, disconnectUser, PASSWORD);
-      await sleep(2000);
+    // ========== Test reconnect after disconnect ==========
+    const reconnectStep = disconnectStep + 1;
+    console.log('\n' + '─'.repeat(50));
+    console.log(`STEP ${reconnectStep}: Test Reconnect After Disconnect`);
+    console.log('─'.repeat(50));
 
-      // Verify session is back in navbar
-      await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-      await sleep(2000);
+    // Use tryLoginQuick instead of loginAfterDisconnect — the latter does 3 orphan-check
+    // navigations which trigger the OrphanSessionsNavbar render loop, freezing the page
+    results.reconnectAfterDisconnect = await tryLoginQuick(page, disconnectUser, PASSWORD);
+    await sleep(2000);
 
-      const userBackInNavbar = await sessionExistsInNavbar(page, disconnectUser);
-      console.log(`  Reconnect success: ${results.reconnectAfterDisconnect}`);
-      console.log(`  ${disconnectUser} back in navbar: ${userBackInNavbar}`);
+    // Verify session is back in navbar
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
+    await waitForAppReady(page, 30000);
 
-      // Mark as pass if reconnect succeeded OR if user is back in navbar
-      // (ServerAutoConnect might have reconnected for us)
-      if (!results.reconnectAfterDisconnect && userBackInNavbar) {
-        console.log('  Note: ServerAutoConnect may have reconnected the session');
-        results.reconnectAfterDisconnect = true;
-      }
+    const userBackInNavbar = await sessionExistsInNavbar(page, disconnectUser);
+    console.log(`  Reconnect success: ${results.reconnectAfterDisconnect}`);
+    console.log(`  ${disconnectUser} back in navbar: ${userBackInNavbar}`);
 
-      await takeScreenshot(page, `${String(reconnectStep).padStart(2, '0')}_after_reconnect`);
-      disconnectStep = reconnectStep;
-    } else {
-      console.log('\n' + '─'.repeat(50));
-      console.log(`STEP ${disconnectStep}: SKIPPED - Disconnect test (requires 2+ sessions)`);
-      console.log('─'.repeat(50));
-      results.disconnectRemovesSession = true; // Mark as passed since we're skipping
-      results.reconnectAfterDisconnect = true; // Mark as passed since we're skipping
+    // Accept reconnect via either explicit login or ServerAutoConnect
+    if (!results.reconnectAfterDisconnect && userBackInNavbar) {
+      console.log('  ServerAutoConnect reconnected the session');
+      results.reconnectAfterDisconnect = true;
     }
 
-    // ========== Test deregister permanently removes session (requires SESSION_COUNT >= 3) ==========
+    await takeScreenshot(page, `${String(reconnectStep).padStart(2, '0')}_after_reconnect`);
+    disconnectStep = reconnectStep;
+
+    // ========== Test deregister permanently removes session ==========
     const deregisterStep = disconnectStep + 1;
-    if (SESSION_COUNT >= 3) {
-      console.log('\n' + '─'.repeat(50));
-      console.log(`STEP ${deregisterStep}: Test Deregister Permanently Removes Session`);
-      console.log('─'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
+    console.log(`STEP ${deregisterStep}: Test Deregister Permanently Removes Session`);
+    console.log('─'.repeat(50));
 
-      const deregisterUser = USERS[SESSION_COUNT - 1]; // Last user
-      const deregisterSuccess = await disconnectViaNavbar(page, deregisterUser, 'deregister');
-      await sleep(2000);
+    const deregisterUser = USERS[2]; // Third user
+    const deregisterSuccess = await disconnectViaNavbar(page, deregisterUser, 'deregister');
+    await sleep(2000);
 
-      // Verify session is removed from navbar
-      const userStillExists = await sessionExistsInNavbar(page, deregisterUser);
-      results.deregisterRemovesSession = deregisterSuccess && !userStillExists;
+    // Verify session is removed from navbar
+    const deregUserStillExists = await sessionExistsInNavbar(page, deregisterUser);
+    results.deregisterRemovesSession = deregisterSuccess && !deregUserStillExists;
 
-      console.log(`  Deregister success: ${deregisterSuccess}`);
-      console.log(`  ${deregisterUser} still in navbar: ${userStillExists}`);
+    console.log(`  Deregister success: ${deregisterSuccess}`);
+    console.log(`  ${deregisterUser} still in navbar: ${deregUserStillExists}`);
 
-      await takeScreenshot(page, `${String(deregisterStep).padStart(2, '0')}_after_deregister`);
+    await takeScreenshot(page, `${String(deregisterStep).padStart(2, '0')}_after_deregister`);
 
-      // ========== Verify deregister is permanent ==========
-      const permanentStep = deregisterStep + 1;
-      console.log('\n' + '─'.repeat(50));
-      console.log(`STEP ${permanentStep}: Verify Deregister is Permanent (cannot login)`);
-      console.log('─'.repeat(50));
+    // ========== Verify deregister is permanent ==========
+    const permanentStep = deregisterStep + 1;
+    console.log('\n' + '─'.repeat(50));
+    console.log(`STEP ${permanentStep}: Verify Deregister is Permanent (cannot login)`);
+    console.log('─'.repeat(50));
 
-      // Try to login with deregistered account - should fail
-      const canLoginAfterDeregister = await loginWithCredentials(page, deregisterUser, PASSWORD);
-      results.deregisterPermanent = !canLoginAfterDeregister;
+    // Try to login with deregistered account — should fail.
+    // Use a quick single-attempt login (not loginAfterDisconnect which has
+    // extensive retry logic that would burn minutes on expected failures).
+    const canLoginAfterDeregister = await tryLoginQuick(page, deregisterUser, PASSWORD);
+    results.deregisterPermanent = !canLoginAfterDeregister;
 
-      console.log(`  Can login after deregister: ${canLoginAfterDeregister}`);
-      console.log(`  Deregister is permanent: ${results.deregisterPermanent}`);
+    console.log(`  Can login after deregister: ${canLoginAfterDeregister}`);
+    console.log(`  Deregister is permanent: ${results.deregisterPermanent}`);
 
-      await takeScreenshot(page, `${String(permanentStep).padStart(2, '0')}_deregister_permanent`);
-    } else {
-      console.log('\n' + '─'.repeat(50));
-      console.log(`STEP ${deregisterStep}: SKIPPED - Deregister test (requires 3+ sessions)`);
-      console.log('─'.repeat(50));
-      results.deregisterRemovesSession = true; // Mark as passed since we're skipping
-      results.deregisterPermanent = true; // Mark as passed since we're skipping
-    }
+    await takeScreenshot(page, `${String(permanentStep).padStart(2, '0')}_deregister_permanent`);
 
     // ========== RESULTS ==========
     console.log('\n' + '='.repeat(60));
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    // Core tests that must pass
+    // All tests must pass — no optional checks
     const allSessionsCreated = results.sessionsCreated.every(Boolean);
-    const corePassed =
+    const allPassed =
       allSessionsCreated &&
       results.navbarVisible &&
       results.allSessionsInNavbar &&
       results.disconnectRemovesSession &&
+      results.reconnectAfterDisconnect &&
       results.deregisterRemovesSession &&
       results.deregisterPermanent &&
       results.oneClickLoginWorks &&
       results.previousSessionsLabel &&
       results.scrollContainerExists;
-
-    // Reconnect test has known race condition with ServerAutoConnect
-    // Users can use 1-click login from navbar as alternative
-    const allPassed = corePassed && results.reconnectAfterDisconnect;
 
     console.log('\nSession Creation:');
     results.sessionsCreated.forEach((created, i) => {
@@ -607,13 +608,8 @@ async function runTest(): Promise<boolean> {
     console.log(`  Reconnect After Disconnect:${results.reconnectAfterDisconnect ? 'PASS' : 'FAIL'}`);
 
     console.log('\nDeregister Flow:');
-    if (SESSION_COUNT >= 3) {
-      console.log(`  Deregister Removes:        ${results.deregisterRemovesSession ? 'PASS' : 'FAIL'}`);
-      console.log(`  Deregister Permanent:      ${results.deregisterPermanent ? 'PASS' : 'FAIL'}`);
-    } else {
-      console.log(`  Deregister Removes:        SKIPPED (requires 3+ sessions)`);
-      console.log(`  Deregister Permanent:      SKIPPED (requires 3+ sessions)`);
-    }
+    console.log(`  Deregister Removes:        ${results.deregisterRemovesSession ? 'PASS' : 'FAIL'}`);
+    console.log(`  Deregister Permanent:      ${results.deregisterPermanent ? 'PASS' : 'FAIL'}`);
 
     console.log('\n1-Click Login:');
     console.log(`  1-Click Login Works:       ${results.oneClickLoginWorks ? 'PASS' : 'FAIL'}`);
@@ -621,19 +617,12 @@ async function runTest(): Promise<boolean> {
     console.log('\nOrdering:');
     console.log(`  Most Recent First:         ${results.mostRecentFirst ? 'PASS' : 'CHECK'}`);
 
-    // Log the test result - consider test passing if core tests pass
-    const testPassed = corePassed; // Reconnect is known limitation, core tests are required
-
-    if (corePassed && !allPassed) {
-      console.log('\nNote: Core tests PASSED. Reconnect has known limitation.');
-    }
-
-    harness.finalize(testPassed, { ...results, corePassed, allPassed });
+    harness.finalize(allPassed, results);
 
     console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
     await sleep(15000);
 
-    return testPassed;
+    return allPassed;
 
   } catch (error) {
     console.error('\nTest error:', error);

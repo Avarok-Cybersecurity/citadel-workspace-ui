@@ -3,6 +3,7 @@
  *
  * Context menu for tree node operations: create, edit, delete, move.
  * Permission-aware: disables editing operations for non-admins.
+ * Child type options derived from entity-type-registry (SSOT).
  */
 
 import React from "react";
@@ -21,19 +22,17 @@ import {
   Pencil,
   Trash2,
   Move,
-  Building2,
-  Home,
-  DoorOpen,
-  Users,
-  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getEntityMetadata } from "@/lib/entity-type-registry";
 import type { ContextMenuState } from "./tree-graph-types";
 
 interface TreeGraphContextMenuProps {
   menuState: ContextMenuState;
   canEdit: boolean;
   isWorkspaceNode: boolean;
+  /** Allowed child types from the node's schema or tree schema rules */
+  allowedChildTypes?: string[];
   onClose: () => void;
   onCreateChild: (entityType: string) => void;
   onEdit: () => void;
@@ -42,18 +41,11 @@ interface TreeGraphContextMenuProps {
   children: React.ReactNode;
 }
 
-const CHILD_TYPE_OPTIONS = [
-  { name: "Office", icon: Home },
-  { name: "Room", icon: DoorOpen },
-  { name: "Department", icon: Users },
-  { name: "Team", icon: Users },
-  { name: "Project", icon: FolderKanban },
-];
-
 export const TreeGraphContextMenu: React.FC<TreeGraphContextMenuProps> = ({
   menuState,
   canEdit,
   isWorkspaceNode,
+  allowedChildTypes,
   onClose,
   onCreateChild,
   onEdit,
@@ -61,6 +53,12 @@ export const TreeGraphContextMenu: React.FC<TreeGraphContextMenuProps> = ({
   onMove,
   children,
 }) => {
+  // Derive child type options from entity-type-registry
+  const childTypeOptions = (allowedChildTypes ?? []).map(typeName => {
+    const metadata = getEntityMetadata(typeName);
+    return { name: typeName, icon: metadata.icon };
+  });
+
   return (
     <ContextMenu onOpenChange={(open) => !open && onClose()}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
@@ -75,14 +73,14 @@ export const TreeGraphContextMenu: React.FC<TreeGraphContextMenuProps> = ({
           }}
         >
           {/* Create child node */}
-          {canEdit && (
+          {canEdit && childTypeOptions.length > 0 && (
             <ContextMenuSub>
               <ContextMenuSubTrigger className="flex items-center gap-2 text-slate-100 hover:bg-slate-700 focus:bg-slate-700">
                 <Plus className="h-4 w-4 text-green-400" />
                 <span>Create Child</span>
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="bg-slate-800 border-slate-600">
-                {CHILD_TYPE_OPTIONS.map(({ name, icon: Icon }) => (
+                {childTypeOptions.map(({ name, icon: Icon }) => (
                   <ContextMenuItem
                     key={name}
                     className="flex items-center gap-2 text-slate-100 hover:bg-slate-700 focus:bg-slate-700"

@@ -1,0 +1,32 @@
+/**
+ * Channel Types
+ *
+ * Message types, channel interfaces, and constants for inter-instance communication.
+ */
+
+import type { ProxyResponseData } from './outbound-queue';
+
+export const CHANNEL_NAME = 'citadel-instance-channel';
+
+export type ChannelMessageType =
+  | 'outbound-request'
+  | 'outbound-ack'
+  | 'inbound-forward'
+  | 'leader-election'
+  | 'leader-heartbeat'
+  | 'instance-announce'
+  | 'instance-goodbye'
+  | 'session-release'
+  | 'cid-update';
+
+export interface ChannelMessage {
+  type: ChannelMessageType;
+  targetInstanceId: string; // '*' for broadcast, 'leader' for current leader, or specific instanceId
+  senderInstanceId: string;
+  timestamp: number;
+  requestId?: string;
+  payload?: unknown;
+  status?: 'processed' | 'error';
+  error?: string;
+  data?: ProxyResponseData; // Typed data for acknowledgments
+}

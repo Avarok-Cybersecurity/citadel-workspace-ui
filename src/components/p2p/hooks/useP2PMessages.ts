@@ -5,33 +5,17 @@
  * Handles conversation loading, event listeners, and message operations.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { debugLog } from '@/lib/debug-config';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { P2PMessage, PeerPresence } from '@/lib/p2p';
-
-interface UseP2PMessagesProps {
-  peerCid: bigint;
-  activeTabIdRef: React.MutableRefObject<string>;
-  scrollRef: React.RefObject<HTMLDivElement>;
-  onUnreadMessage: () => void;
-}
-
-interface UseP2PMessagesReturn {
-  messages: P2PMessage[];
-  peerTyping: boolean;
-  peerPresence: PeerPresence;
-  isConnected: boolean;
-  isRegistered: boolean;
-  isLoadingMore: boolean;
-  hasMorePages: boolean;
-  handleScroll: (event: React.UIEvent<HTMLDivElement>) => void;
-  handleRetryMessage: (message: P2PMessage) => Promise<void>;
-}
+import type { UseP2PMessagesProps, UseP2PMessagesReturn } from './useP2PMessages-types';
+import { mergeMessages, prependMessages } from './useP2PMessages-types';
 
 export function useP2PMessages({
   peerCid,
@@ -68,26 +52,14 @@ export function useP2PMessages({
       if (metadata) {
         const latestMessages = await messenger.loadLatestMessages(peerCid);
         if (latestMessages.length > 0) {
-          setMessages(prev => {
-            if (prev.length === 0) return [...latestMessages];
-            const existingIds = new Set(prev.map(m => m.id));
-            const newFromStorage = latestMessages.filter(m => !existingIds.has(m.id));
-            if (newFromStorage.length === 0) return prev;
-            return [...prev, ...newFromStorage].sort((a, b) => a.timestamp - b.timestamp);
-          });
+          setMessages(prev => mergeMessages(prev, latestMessages));
         }
         setCurrentPage(metadata.latestPage);
         setHasMorePages(metadata.latestPage > 0);
       } else {
         const conversation = messenger.getConversation(peerCid);
         if (conversation) {
-          setMessages(prev => {
-            if (prev.length === 0) return [...conversation.messages];
-            const existingIds = new Set(prev.map(m => m.id));
-            const newFromCache = conversation.messages.filter(m => !existingIds.has(m.id));
-            if (newFromCache.length === 0) return prev;
-            return [...prev, ...newFromCache].sort((a, b) => a.timestamp - b.timestamp);
-          });
+          setMessages(prev => mergeMessages(prev, conversation.messages));
           setPeerPresence(conversation.presence);
         }
         setCurrentPage(null);
@@ -115,7 +87,7 @@ export function useP2PMessages({
         if (message.senderCid === peerCid) {
           if (activeTabIdRef.current !== 'messages') onUnreadMessage();
           if (document.visibilityState === 'visible' && activeTabIdRef.current === 'messages') {
-            messenger.markMessagesAsRead(peerCid, [message.id]).catch(console.error);
+            messenger.markMessagesAsRead(peerCid, [message.id]).catch(err => debugLog('UseP2PMessages', 'Error:', err));
           }
         }
       }
@@ -175,28 +147,19 @@ export function useP2PMessages({
     setIsRegistered(p2pRegistrationService.isPeerRegistered(peerCid));
 
     if (document.visibilityState === 'visible') {
-      messenger.markMessagesAsRead(peerCid).catch(console.error);
+      messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
     }
 
     const refreshTimeout = setTimeout(() => {
       const conversation = messenger.getConversation(peerCid);
       if (conversation && conversation.messages.length > 0) {
-        setMessages(prev => {
-          if (prev.length < conversation.messages.length) {
-            const existingIds = new Set(prev.map(m => m.id));
-            const newFromCache = conversation.messages.filter(m => !existingIds.has(m.id));
-            if (newFromCache.length > 0) {
-              return [...prev, ...newFromCache].sort((a, b) => a.timestamp - b.timestamp);
-            }
-          }
-          return prev;
-        });
+        setMessages(prev => mergeMessages(prev, conversation.messages));
       }
     }, 500);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        messenger.markMessagesAsRead(peerCid).catch(console.error);
+        messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -214,7 +177,7 @@ export function useP2PMessages({
       clearTimeout(refreshTimeout);
       messenger.stopTypingPolling(peerCid);
     };
-  }, [peerCid, activeTabIdRef, onUnreadMessage]);
+  }, [peerCid, activeTabIdRef, onUnreadMessage, messenger]);
 
   const loadOlderMessages = useCallback(async () => {
     if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) return;
@@ -226,12 +189,7 @@ export function useP2PMessages({
         const scrollElement = scrollRef.current;
         const previousScrollHeight = scrollElement?.scrollHeight || 0;
 
-        setMessages(prev => {
-          const existingIds = new Set(prev.map(m => m.id));
-          const newMessages = olderPage.messages.filter(m => !existingIds.has(m.id));
-          if (newMessages.length === 0) return prev;
-          return [...newMessages, ...prev].sort((a, b) => a.timestamp - b.timestamp);
-        });
+        setMessages(prev => prependMessages(prev, olderPage.messages));
 
         requestAnimationFrame(() => {
           if (scrollElement) {
@@ -246,11 +204,11 @@ export function useP2PMessages({
         setHasMorePages(false);
       }
     } catch (error) {
-      console.error('[useP2PMessages] Failed to load older messages:', error);
+      debugLog('UseP2PMessages', 'Failed to load older messages:', error);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, currentPage, hasMorePages, peerCid, scrollRef]);
+  }, [isLoadingMore, currentPage, hasMorePages, peerCid, scrollRef, messenger]);
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
@@ -264,9 +222,9 @@ export function useP2PMessages({
     try {
       await messenger.resendMessage(peerCid, message.id);
     } catch (error) {
-      console.error('Failed to retry message:', error);
+      debugLog('UseP2PMessages', 'Failed to retry message:', error);
     }
-  }, [peerCid]);
+  }, [peerCid, messenger]);
 
   return {
     messages,

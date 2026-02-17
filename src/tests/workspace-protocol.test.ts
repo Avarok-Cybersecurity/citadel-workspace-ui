@@ -7,6 +7,7 @@ import {
   serializeWorkspacePayload,
   deserializeWorkspacePayload
 } from '../types/workspace-protocol';
+import { debugLog } from '@/lib/debug-config';
 
 describe('Workspace Protocol', () => {
   it('should create a message payload correctly', () => {
@@ -31,17 +32,17 @@ describe('Workspace Protocol', () => {
     const payload = createMessagePayload(testData);
 
     // Check payload type before serialization
-    console.info('Original payload:', payload);
-    console.info('Original contents type:', payload.Request?.Message?.contents?.constructor.name);
+    debugLog('WorkspaceProtocolTest', 'Original payload:', payload);
+    debugLog('WorkspaceProtocolTest', 'Original contents type:', payload.Request?.Message?.contents?.constructor.name);
 
     // Serialize
     const serialized = serializeWorkspacePayload(payload);
-    console.info('Serialized type:', serialized?.constructor.name);
+    debugLog('WorkspaceProtocolTest', 'Serialized type:', serialized?.constructor.name);
 
     // Deserialize
     const deserialized = deserializeWorkspacePayload(serialized);
-    console.info('Deserialized payload:', deserialized);
-    console.info('Deserialized contents type:', deserialized.Request?.Message?.contents?.constructor.name);
+    debugLog('WorkspaceProtocolTest', 'Deserialized payload:', deserialized);
+    debugLog('WorkspaceProtocolTest', 'Deserialized contents type:', deserialized.Request?.Message?.contents?.constructor.name);
 
     // Verify the structure is preserved (uses Pascal case to match Rust serialization)
     expect(deserialized).toHaveProperty('Request');
@@ -59,16 +60,16 @@ describe('Workspace Protocol', () => {
     const emptyData = new Uint8Array(0);
     const payload = createMessagePayload(emptyData);
 
-    console.info('Empty payload:', payload);
-    console.info('Empty contents type:', payload.Request?.Message?.contents?.constructor.name);
+    debugLog('WorkspaceProtocolTest', 'Empty payload:', payload);
+    debugLog('WorkspaceProtocolTest', 'Empty contents type:', payload.Request?.Message?.contents?.constructor.name);
 
     // Serialize and then deserialize
     const serialized = serializeWorkspacePayload(payload);
     const deserialized = deserializeWorkspacePayload(serialized);
 
-    console.info('Deserialized empty payload:', deserialized);
-    console.info('Deserialized empty contents:', deserialized.Request?.Message?.contents);
-    console.info('Deserialized empty contents type:',
+    debugLog('WorkspaceProtocolTest', 'Deserialized empty payload:', deserialized);
+    debugLog('WorkspaceProtocolTest', 'Deserialized empty contents:', deserialized.Request?.Message?.contents);
+    debugLog('WorkspaceProtocolTest', 'Deserialized empty contents type:',
       deserialized.Request?.Message?.contents ?
         deserialized.Request?.Message?.contents.constructor.name : 'undefined');
 

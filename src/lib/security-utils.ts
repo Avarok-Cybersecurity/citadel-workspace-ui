@@ -4,6 +4,7 @@
  */
 
 import type { SecuritySettingsValues } from '@/components/SecuritySettings';
+import { isVariant } from 'citadel-workspace-client-ts';
 
 /**
  * HeaderObfuscatorSettings - matches Rust enum
@@ -37,7 +38,7 @@ export function getDefaultSecuritySettings(): SessionSecuritySettings {
     secrecy_mode: "BestEffort",
     crypto_params: {
       encryption_algorithm: "AES_GCM_256",
-      kem_algorithm: "Kyber",
+      kem_algorithm: "MlKem",
       sig_algorithm: "None",
     },
     header_obfuscator_settings: "Disabled"
@@ -51,7 +52,7 @@ export function getDefaultSecuritySettings(): SessionSecuritySettings {
  */
 export function mapSecuritySettings(settings: SecuritySettingsValues): SessionSecuritySettings {
   return {
-    security_level: settings.securityLevel,
+    security_level: typeof settings.securityLevel === 'string' ? settings.securityLevel : 'Standard',
     secrecy_mode: settings.secrecyMode,
     crypto_params: {
       encryption_algorithm: settings.encryptionAlgorithm,
@@ -84,9 +85,9 @@ export function normalizeHeaderObfuscatorSettings(
   }
 
   // Handle object cases
-  if (typeof settings === "object") {
+  if (typeof settings === "object" && settings !== null) {
     // Already properly typed EnabledWithKey object
-    if ('EnabledWithKey' in settings && typeof settings.EnabledWithKey === 'number') {
+    if (isVariant(settings as Record<string, unknown>, 'EnabledWithKey') && typeof (settings as Record<string, unknown>).EnabledWithKey === 'number') {
       return settings as { EnabledWithKey: number };
     }
 

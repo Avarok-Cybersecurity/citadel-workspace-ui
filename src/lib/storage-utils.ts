@@ -6,6 +6,7 @@
  */
 
 import { openDB, IDBPDatabase, DBSchema } from 'idb';
+import { debugLog } from './debug-config';
 
 // ============================================================================
 // Database Schema
@@ -134,7 +135,7 @@ export function saveToStorage<T>(key: string, data: T): void {
     const serializedData = JSON.stringify(data, bigIntToString);
     localStorage.setItem(key, serializedData);
   } catch (error) {
-    console.error(`Error saving to storage with key '${key}':`, error);
+    debugLog('StorageUtils', `Error saving to storage with key '${key}':`, error);
   }
 }
 
@@ -151,7 +152,7 @@ export function loadFromStorage<T>(key: string, defaultValue: T): T {
     }
     return JSON.parse(serializedData, stringToBigInt) as T;
   } catch (error) {
-    console.error(`Error loading from storage with key '${key}':`, error);
+    debugLog('StorageUtils', `Error loading from storage with key '${key}':`, error);
     return defaultValue;
   }
 }

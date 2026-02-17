@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import type { ReactNode } from 'react';
 import { AlertCircle, MoreVertical, Reply, Edit2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -13,30 +14,34 @@ import { BubbleFooter } from './BubbleFooter';
 import { getInitials } from '@/components/chat/shared';
 import type { BaseBubbleProps } from './types';
 
+type ChildrenProps = { children?: ReactNode };
+type LinkProps = { href?: string; children?: ReactNode };
+type CodeProps = { inline?: boolean; children?: ReactNode };
+
 // Custom components for markdown rendering in chat bubbles
 const markdownComponents = {
   // Headers - smaller for chat context
-  h1: ({ children }: any) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-  h2: ({ children }: any) => <h2 className="text-base font-semibold mb-1.5">{children}</h2>,
-  h3: ({ children }: any) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+  h1: ({ children }: ChildrenProps) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+  h2: ({ children }: ChildrenProps) => <h2 className="text-base font-semibold mb-1.5">{children}</h2>,
+  h3: ({ children }: ChildrenProps) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
 
   // Paragraphs
-  p: ({ children }: any) => <p className="text-sm mb-2 last:mb-0">{children}</p>,
+  p: ({ children }: ChildrenProps) => <p className="text-sm mb-2 last:mb-0">{children}</p>,
 
   // Lists
-  ul: ({ children }: any) => <ul className="list-disc list-inside text-sm mb-2 pl-2">{children}</ul>,
-  ol: ({ children }: any) => <ol className="list-decimal list-inside text-sm mb-2 pl-2">{children}</ol>,
-  li: ({ children }: any) => <li className="mb-0.5">{children}</li>,
+  ul: ({ children }: ChildrenProps) => <ul className="list-disc list-inside text-sm mb-2 pl-2">{children}</ul>,
+  ol: ({ children }: ChildrenProps) => <ol className="list-decimal list-inside text-sm mb-2 pl-2">{children}</ol>,
+  li: ({ children }: ChildrenProps) => <li className="mb-0.5">{children}</li>,
 
   // Links
-  a: ({ href, children }: any) => (
+  a: ({ href, children }: LinkProps) => (
     <a href={href} className="text-purple-300 hover:text-purple-200 underline" target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   ),
 
   // Code
-  code: ({ inline, children }: any) =>
+  code: ({ inline, children }: CodeProps) =>
     inline ? (
       <code className="bg-black/30 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
     ) : (
@@ -44,12 +49,12 @@ const markdownComponents = {
         {children}
       </code>
     ),
-  pre: ({ children }: any) => (
+  pre: ({ children }: ChildrenProps) => (
     <pre className="bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto mb-2">{children}</pre>
   ),
 
   // Block quotes
-  blockquote: ({ children }: any) => (
+  blockquote: ({ children }: ChildrenProps) => (
     <blockquote className="border-l-2 border-purple-400/50 pl-2 italic text-sm opacity-90 mb-2">
       {children}
     </blockquote>
@@ -59,11 +64,11 @@ const markdownComponents = {
   hr: () => <hr className="border-t border-white/20 my-2" />,
 
   // Bold and italic (handled automatically by markdown)
-  strong: ({ children }: any) => <strong className="font-bold">{children}</strong>,
-  em: ({ children }: any) => <em className="italic">{children}</em>,
+  strong: ({ children }: ChildrenProps) => <strong className="font-bold">{children}</strong>,
+  em: ({ children }: ChildrenProps) => <em className="italic">{children}</em>,
 
   // Strikethrough
-  del: ({ children }: any) => <del className="line-through opacity-70">{children}</del>,
+  del: ({ children }: ChildrenProps) => <del className="line-through opacity-70">{children}</del>,
 };
 
 export function MarkdownBubble({

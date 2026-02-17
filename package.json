@@ -8,7 +8,7 @@
     "dev:docker": "vite --host 0.0.0.0 --force",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "lint": "npx eslint .",
+    "lint": "npx eslint . --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -123,7 +123,7 @@ export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessag
       <span className="text-xs opacity-70" data-testid="message-timestamp">
         {formatTime(message.timestamp)}
       </span>
-      {message.edited_at && (
+      {message.edited_at != null && (
         <span className="text-xs text-gray-500 italic">(edited)</span>
       )}
       {isOwn && statusIcon && (

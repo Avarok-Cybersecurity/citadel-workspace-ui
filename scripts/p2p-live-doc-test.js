@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 const APP_URL = 'http://localhost:5173';
 const WORKSPACE_SERVER = '127.0.0.1:12349';
-const WORKSPACE_PASSWORD = 'SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME';
+const WORKSPACE_PASSWORD = 'dev-local-workspace-password';
 const USER_PASSWORD = 'test12345';
 const TIMESTAMP = Date.now();
 const USER1_USERNAME = `synctest1_${TIMESTAMP}`;

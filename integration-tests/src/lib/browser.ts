@@ -371,6 +371,37 @@ export async function createSeparateBrowsers(
 }
 
 /**
+ * Wait for the React app to fully render on the landing page.
+ *
+ * On cold start (first page load), Vite dev server optimizes dependencies
+ * which can take 10-30s. This function waits for the React app to mount
+ * and render the landing page buttons before returning.
+ *
+ * @param page - Playwright page that has been navigated to the app URL
+ * @param timeout - Maximum time to wait for the app to render (default 60s)
+ */
+export async function waitForAppReady(page: Page, timeout = 60000): Promise<void> {
+  console.log('  Waiting for React app to render...');
+  const startTime = Date.now();
+
+  // Wait for ANY of the known landing page elements to appear.
+  // These are rendered by React, so their presence confirms the app has mounted.
+  await page.waitForSelector(
+    [
+      'button:has-text("Join Workspace")',
+      'button:has-text("Login Workspace")',
+      // Workspace page indicators (if already logged in)
+      '[data-sidebar="sidebar"]',
+      '[data-testid="workspace-name"]',
+    ].join(', '),
+    { timeout }
+  );
+
+  const elapsed = Date.now() - startTime;
+  console.log(`  React app ready (${elapsed}ms)`);
+}
+
+/**
  * Setup console log capture for a page
  */
 export function setupConsoleCapture(page: Page, label: string, filterKeywords: string[] = []): string[] {

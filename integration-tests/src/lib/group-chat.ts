@@ -8,6 +8,8 @@ import type { Page } from 'playwright';
 import { sleep } from './utils.js';
 import { takeScreenshot } from './screenshots.js';
 import type { UxIssueTracker } from './ux-tracker.js';
+import { waitForTreeDataLoaded } from './modals.js';
+import { createNodeViaProtocol, listNodesViaProtocol, updateNodeViaProtocol } from './tree-helpers.js';
 
 export interface GroupChatOptions {
   uxTracker?: UxIssueTracker | null;
@@ -28,7 +30,7 @@ export async function navigateToOffice(
     // Try multiple selectors for the office button in the sidebar
     const selectors = [
       `[data-sidebar="menu-button"]:has-text("${officeName}")`,
-      `[data-testid="office-${officeName}"]`,
+      `[data-testid^="tree-node-"]:has-text("${officeName}")`,
       `button:has-text("${officeName}")`,
       `a:has-text("${officeName}")`,
     ];
@@ -45,8 +47,8 @@ export async function navigateToOffice(
       }
     }
 
-    // Try expanding offices section first
-    const officesHeader = page.locator('text="OFFICES", [data-testid="offices-section"]').first();
+    // Try expanding hierarchy section first
+    const officesHeader = page.locator('text="HIERARCHY", [data-testid="hierarchy-section"]').first();
     if (await officesHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
       await officesHeader.click();
       await sleep(1000);
@@ -86,7 +88,7 @@ export async function navigateToRoom(
 
   try {
     // Look for the room in the sidebar or room list
-    const roomLink = page.locator(`[data-testid="room-${roomName}"], a:has-text("${roomName}"), button:has-text("${roomName}")`).first();
+    const roomLink = page.locator(`[data-sidebar="menu-button"]:has-text("${roomName}"), a:has-text("${roomName}"), button:has-text("${roomName}")`).first();
 
     if (await roomLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       await roomLink.click();
@@ -391,39 +393,35 @@ export async function checkRulesBanner(page: Page, username: string): Promise<st
 }
 
 /**
- * Check if any offices exist in the sidebar
+ * Check if any offices (child nodes) exist in the sidebar.
+ * The workspace root node is always present, so we check for tree nodes
+ * at depth > 0 by looking for nodes that are NOT the workspace root.
  */
 export async function hasOffices(page: Page, username: string): Promise<boolean> {
-  console.log(`\n=== ${username}: Checking if offices exist ===`);
+  console.log(`\n=== ${username}: Checking if child nodes (offices) exist ===`);
 
   try {
-    // Check for "No offices yet" message
-    const noOfficesMsg = page.locator('text="No offices yet"').first();
-    const noOffices = await noOfficesMsg.isVisible({ timeout: 2000 }).catch(() => false);
-
-    if (noOffices) {
-      console.log(`  No offices found (empty state)`);
+    // Check for the "No nodes yet" empty-state message
+    const noNodesMsg = page.locator('text=No nodes yet').first();
+    if (await noNodesMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log(`  No nodes found (empty state)`);
       return false;
     }
 
-    // Check for known offices from the config (General, Engineering, etc.)
-    // These are loaded from workspaces.json and should have chat_enabled: true
-    const knownOffices = ['General', 'Engineering', 'Landing Page', 'Tutorials', 'Welcome'];
+    // Count tree-node testid elements. The workspace root is always one,
+    // so >1 means at least one child (office) exists.
+    const treeNodes = page.locator('[data-testid^="tree-node-"]:not([data-testid^="tree-node-menu-"]):not([data-testid^="tree-node-toggle-"])');
+    const count = await treeNodes.count();
+    console.log(`  Found ${count} tree node(s) in sidebar`);
 
-    for (const officeName of knownOffices) {
-      const officeBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
-      if (await officeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        console.log(`  Found office: ${officeName}`);
-        return true;
-      }
+    // 0 = loading or error, 1 = only workspace root, >1 = has children
+    if (count > 1) {
+      console.log(`  Child nodes exist`);
+      return true;
     }
 
-    // Fallback: Check for any office items in the sidebar
-    const officeList = page.locator('[data-sidebar="menu-button"]').first();
-    const hasItems = await officeList.isVisible({ timeout: 2000 }).catch(() => false);
-
-    console.log(`  Offices exist: ${hasItems}`);
-    return hasItems;
+    console.log(`  No child nodes (offices) found`);
+    return false;
   } catch (error) {
     console.log(`  ERROR checking offices: ${error}`);
     return false;
@@ -431,7 +429,8 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
 }
 
 /**
- * Create a new office via the UI
+ * Create a new top-level node (e.g. office) via the hierarchy sidebar UI.
+ * Waits for tree data to load before clicking, with retry logic for the modal.
  */
 export async function createOffice(
   page: Page,
@@ -440,48 +439,66 @@ export async function createOffice(
   description: string = '',
   options: GroupChatOptions = {}
 ): Promise<boolean> {
-  console.log(`\n=== ${username}: Creating office "${officeName}" ===`);
+  console.log(`\n=== ${username}: Creating node "${officeName}" ===`);
 
   try {
-    // Try different selectors for the add button (same selectors as office-room-crud.test.ts)
-    console.log('  Looking for Add Office button...');
-    const selectors = [
-      '[data-testid="add-office-button"]',
-      '.offices-section button:has(svg)',
-      'button[aria-label*="office" i]:has(svg)',
-      'section:has-text("OFFICES") button:has(svg)',
+    // Wait for tree data to be loaded before attempting to click the add button.
+    // This prevents the race condition where handleNodeCreate(null) runs before
+    // state.treeSchema is populated, causing the modal to not open.
+    console.log('  Waiting for tree data to load...');
+    await waitForTreeDataLoaded(page, 15000);
+
+    const addBtnSelectors = [
+      '[data-testid="add-node-button"]',
+      '[data-testid="add-root-node-button"]',
     ];
 
-    let clicked = false;
-    for (const selector of selectors) {
-      const btn = page.locator(selector).first();
-      if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await btn.click();
-        await sleep(500);
-        console.log(`  Clicked Add Office button (${selector})`);
-        clicked = true;
+    // Retry loop: click add button, wait for modal, retry if modal doesn't appear
+    let modalVisible = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        console.log(`  Retry ${attempt}: Modal did not appear, retrying...`);
+        await page.keyboard.press('Escape');
+        await sleep(1000);
+      }
+
+      // Click add-node button
+      let clicked = false;
+      for (const selector of addBtnSelectors) {
+        const btn = page.locator(selector).first();
+        if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await btn.click();
+          await sleep(500);
+          console.log(`  Clicked Add Node button (${selector})`);
+          clicked = true;
+          break;
+        }
+      }
+
+      if (!clicked) {
+        console.log(`  WARNING: Could not find add node button`);
+        return false;
+      }
+
+      // Wait for the NodeManagementModal name input to appear
+      const nameInput = page.locator('input#name, input[id="name"]').first();
+      if (await nameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+        modalVisible = true;
         break;
       }
     }
 
-    if (!clicked) {
-      console.log(`  WARNING: Could not find add office button`);
+    if (!modalVisible) {
+      console.log(`  WARNING: Node name input not found after retries`);
       return false;
     }
 
-    await sleep(1000);
-
-    // Fill in office name - use id selector since the input has id="name"
+    // Fill in node name
     const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await nameInput.fill(officeName);
-      await sleep(300);
-    } else {
-      console.log(`  WARNING: Office name input not found`);
-      return false;
-    }
+    await nameInput.fill(officeName);
+    await sleep(300);
 
-    // Fill in description - use id selector since textarea has id="description"
+    // Fill in description
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
       if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
@@ -490,39 +507,112 @@ export async function createOffice(
       }
     }
 
-    // Click Create Office button
-    const createBtn = page.locator('button:has-text("Create Office"), button:has-text("Update Office")').first();
+    // Click Create button
+    const createBtn = page.locator('button:has-text("Create")').first();
     if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await createBtn.click();
       await sleep(3000);
     } else {
-      console.log(`  WARNING: Create Office button not found`);
+      console.log(`  WARNING: Create button not found`);
       return false;
     }
 
-    // Check for success or error
+    // Check for permission error
     const errorAlert = page.locator('text="Permission denied"').first();
     if (await errorAlert.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log(`  ERROR: Permission denied when creating office`);
+      console.log(`  ERROR: Permission denied when creating node`);
       if (options.uxTracker) {
-        options.uxTracker.log('major', 'functional', 'Cannot create office: Permission denied');
+        options.uxTracker.log('major', 'functional', 'Cannot create node: Permission denied');
       }
-      // Close any dialogs
       await page.keyboard.press('Escape');
       return false;
     }
 
-    // Check if office was created
-    const officeInList = page.locator(`button:has-text("${officeName}")`).first();
-    if (await officeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
-      console.log(`  Office "${officeName}" created successfully`);
+    // Verify node was created
+    const nodeInList = page.locator(`button:has-text("${officeName}")`).first();
+    if (await nodeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
+      console.log(`  Node "${officeName}" created successfully`);
+
+      // Enable chat on the newly created node so group messaging tests work.
+      // CreateNode doesn't auto-enable chat; we need to find the node ID and update it.
+      try {
+        const nodes = await listNodesViaProtocol(page);
+        const createdNode = nodes.find(n => n.name === officeName);
+        if (createdNode) {
+          console.log(`  Enabling chat on node "${officeName}" (${createdNode.id})...`);
+          await updateNodeViaProtocol(page, createdNode.id, { chat_enabled: true });
+          await sleep(1000);
+          console.log(`  Chat enabled on "${officeName}"`);
+        } else {
+          console.log(`  WARNING: Could not find node "${officeName}" to enable chat`);
+        }
+      } catch (chatError) {
+        console.log(`  WARNING: Failed to enable chat: ${chatError}`);
+      }
+
       return true;
     }
 
-    console.log(`  WARNING: Office creation status unclear`);
+    console.log(`  WARNING: Node creation status unclear`);
     return false;
   } catch (error) {
-    console.log(`  ERROR creating office: ${error}`);
+    console.log(`  ERROR creating node: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Create a child node (room) under a parent node via protocol.
+ * Finds the parent by name, creates the child with entity_type { Child: "Room" },
+ * and enables chat on it.
+ */
+export async function createRoom(
+  page: Page,
+  username: string,
+  roomName: string,
+  parentNodeName: string,
+  description: string = '',
+  _options: GroupChatOptions = {}
+): Promise<boolean> {
+  console.log(`\n=== ${username}: Creating room "${roomName}" under "${parentNodeName}" ===`);
+
+  try {
+    // Find parent node by name
+    const nodes = await listNodesViaProtocol(page);
+    const parentNode = nodes.find(n => n.name === parentNodeName);
+    if (!parentNode) {
+      console.log(`  WARNING: Parent node "${parentNodeName}" not found`);
+      return false;
+    }
+
+    // Create child node via protocol
+    const result = await createNodeViaProtocol(
+      page,
+      parentNode.id,
+      { Child: 'Room' },
+      roomName,
+      description
+    );
+
+    if (!result.success) {
+      console.log(`  WARNING: Failed to create room: ${result.error}`);
+      return false;
+    }
+
+    console.log(`  Room "${roomName}" created (ID: ${result.nodeId})`);
+
+    // Enable chat on the room
+    if (result.nodeId) {
+      await updateNodeViaProtocol(page, result.nodeId, { chat_enabled: true });
+      await sleep(1000);
+      console.log(`  Chat enabled on room "${roomName}"`);
+    }
+
+    // Wait for UI to reflect the new node
+    await sleep(1000);
+    return true;
+  } catch (error) {
+    console.log(`  ERROR creating room: ${error}`);
     return false;
   }
 }

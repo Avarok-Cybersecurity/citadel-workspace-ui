@@ -105,7 +105,7 @@ export class FileTransferState {
     if (!this.progressCallbacks.has(transferId)) {
       this.progressCallbacks.set(transferId, []);
     }
-    this.progressCallbacks.get(transferId)!.push(callback);
+    this.progressCallbacks.get(transferId)?.push(callback);
 
     // Return unsubscribe function
     return () => {

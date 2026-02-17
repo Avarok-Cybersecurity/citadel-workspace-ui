@@ -5,17 +5,19 @@
 
 /**
  * Format a timestamp to HH:MM format
+ * Accepts number or bigint (bigint from WASM u64 timestamps)
  */
-export function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
+export function formatTime(timestamp: number | bigint): string {
+  const date = new Date(Number(timestamp));
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 /**
  * Format a date with relative labels (Today, Yesterday, or date string)
+ * Accepts number or bigint (bigint from WASM u64 timestamps)
  */
-export function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
+export function formatDate(timestamp: number | bigint): string {
+  const date = new Date(Number(timestamp));
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -45,7 +47,7 @@ export function getInitials(name: string): string {
 /**
  * Group messages by date for display with date separators
  */
-export function groupMessagesByDate<T extends { timestamp: number }>(
+export function groupMessagesByDate<T extends { timestamp: number | bigint }>(
   messages: T[]
 ): Record<string, T[]> {
   return messages.reduce((acc, message) => {

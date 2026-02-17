@@ -1,0 +1,216 @@
+/**
+ * Connection Auto-Reconnect
+ *
+ * Handles auto-reconnect logic, leader connection attempts,
+ * and session-already-connected error recovery.
+ */
+
+import type { ConnectionState } from './state';
+import type { ConnectionIO } from './io';
+import type { StoredSession, ActiveSession } from '@/types/session-types';
+import { storeSession } from './session-management';
+import {
+  HEALTH_CHECK_TIMEOUT_MS,
+  MAX_RECONNECT_DELAY_MS,
+} from './constants';
+import { debugLog } from '@/lib/debug-config';
+
+/**
+ * Attempt leader connection if conditions are met.
+ */
+export async function attemptLeaderConnection(
+  state: ConnectionState,
+  io: ConnectionIO,
+  getActiveSessions: () => Promise<ActiveSession[]>,
+  doAutoReconnect: (sessions: ActiveSession[]) => Promise<void>,
+): Promise<void> {
+  if (!state.isInitialized) {
+    debugLog('ConnectionService', 'ConnectionManager: Not initialized yet, skipping leader connection');
+    return;
+  }
+  if (!state.isLeader) {
+    debugLog('ConnectionService', 'ConnectionManager: Not the leader, skipping connection attempt');
+    return;
+  }
+
+  const activeSessions = await getActiveSessions();
+  await doAutoReconnect(activeSessions);
+}
+
+/**
+ * Auto-reconnect to a stored session if appropriate.
+ */
+export async function autoReconnect(
+  activeSessions: ActiveSession[],
+  state: ConnectionState,
+  io: ConnectionIO,
+  getActiveSessions: () => Promise<ActiveSession[]>,
+  handleSuccessConn: (cid: bigint, shouldUpdate: boolean) => Promise<void>,
+): Promise<void> {
+  if (state.storedSessions.sessions.length === 0) return;
+
+  if (!state.isLeader && !io.getIsLeaderFromBroadcast()) {
+    debugLog('ConnectionService', 'ConnectionManager: Not the leader, skipping auto-reconnect');
+    return;
+  }
+
+  const tabSelection = await io.getSelectedUser();
+  let session: StoredSession | undefined;
+
+  if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {
+    session = state.findSession(tabSelection.selectedUsername, tabSelection.selectedServerAddress);
+    debugLog('ConnectionService', 'ConnectionManager: Auto-reconnecting with tab-selected user:', tabSelection.selectedUsername);
+  } else {
+    debugLog('ConnectionService', 'ConnectionManager: No tab-specific selection, skipping auto-reconnect');
+    return;
+  }
+
+  if (!session) return;
+
+  const connectionKey = state.createConnectionKey(session.username, session.serverAddress);
+  if (state.hasConnectionAttempt(connectionKey)) {
+    debugLog('ConnectionService', `ConnectionManager: Connection already in progress for ${connectionKey}`);
+    return;
+  }
+
+  // Check if session is already active
+  const freshActiveSessions = await getActiveSessions();
+  const alreadyActive = freshActiveSessions.find(
+    (s) => s.username === session!.username && s.server_address === session!.serverAddress
+  );
+
+  if (alreadyActive) {
+    await reuseExistingSession(alreadyActive, session, state, io, handleSuccessConn);
+    return;
+  }
+
+  debugLog('ConnectionService', 'ConnectionManager: Attempting auto-reconnect for', session.username);
+  try {
+    state.addConnectionAttempt(connectionKey);
+    await performAutoReconnect(session, activeSessions, state, io, handleSuccessConn, getActiveSessions);
+  } finally {
+    state.removeConnectionAttempt(connectionKey);
+  }
+}
+
+async function reuseExistingSession(
+  activeSession: ActiveSession,
+  session: StoredSession,
+  state: ConnectionState,
+  io: ConnectionIO,
+  handleSuccessConn: (cid: bigint, shouldUpdate: boolean) => Promise<void>,
+): Promise<void> {
+  debugLog('ConnectionService', 'ConnectionManager: Session already active, skipping Connect to prevent ratchet reset');
+  await handleSuccessConn(activeSession.cid, false);
+
+  state.setCurrentConnectionInfo({
+    cid: activeSession.cid,
+    username: session.username,
+    serverAddress: session.serverAddress,
+    fullName: session.fullName,
+  });
+
+  session.cid = activeSession.cid;
+  session.lastConnected = Date.now();
+  await storeSession(session, state, io);
+  debugLog('ConnectionService', 'ConnectionManager: Reusing existing session instead of reconnecting');
+}
+
+async function performAutoReconnect(
+  session: StoredSession,
+  activeSessions: ActiveSession[],
+  state: ConnectionState,
+  io: ConnectionIO,
+  handleSuccessConn: (cid: bigint, shouldUpdate: boolean) => Promise<void>,
+  getActiveSessions: () => Promise<ActiveSession[]>,
+): Promise<void> {
+  try {
+    try {
+      await io.waitForHealthy(HEALTH_CHECK_TIMEOUT_MS);
+    } catch (healthError) {
+      debugLog('ConnectionService', 'Service health check failed, attempting anyway:', healthError);
+    }
+
+    const requestId = crypto.randomUUID();
+    await io.connect({
+      requestId,
+      username: session.username,
+      password: session.password,
+      sessionSecuritySettings: session.sessionSecuritySettings,
+    });
+
+    session.lastConnected = Date.now();
+    await storeSession(session, state, io);
+    debugLog('ConnectionService', 'ConnectionManager: Auto-reconnect successful');
+  } catch (error: unknown) {
+    debugLog('ConnectionService', 'Auto-reconnect failed', error);
+    await handleAutoReconnectError(error, session, activeSessions, state, io, handleSuccessConn, getActiveSessions);
+  }
+}
+
+async function handleAutoReconnectError(
+  error: unknown,
+  session: StoredSession,
+  activeSessions: ActiveSession[],
+  state: ConnectionState,
+  io: ConnectionIO,
+  handleSuccessConn: (cid: bigint, shouldUpdate: boolean) => Promise<void>,
+  getActiveSessions: () => Promise<ActiveSession[]>,
+): Promise<void> {
+  io.updateConnectionService({ cid: null, isConnected: false });
+  io.broadcastConnectionStatus({ isConnected: false });
+
+  const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (
+    errorMessage.includes('session already connected') ||
+    errorMessage.includes('localhost is already trying to connect')
+  ) {
+    await handleSessionAlreadyConnectedError(error, session, state, io, getActiveSessions);
+    state.resetReconnectAttempts();
+    return;
+  }
+
+  if (!state.hasReachedMaxReconnectAttempts()) {
+    const attempts = state.incrementReconnectAttempts();
+    const delay = state.calculateBackoffDelay(attempts, MAX_RECONNECT_DELAY_MS);
+    debugLog('ConnectionService', `ConnectionManager: Will retry in ${delay}ms (attempt ${attempts}/${state.maxReconnectAttempts})`);
+
+    setTimeout(async () => {
+      await autoReconnect(activeSessions, state, io, getActiveSessions, handleSuccessConn);
+    }, delay);
+  } else {
+    debugLog('ConnectionService', 'ConnectionManager: Max reconnection attempts reached, giving up');
+  }
+}
+
+async function handleSessionAlreadyConnectedError(
+  error: unknown,
+  session: StoredSession,
+  state: ConnectionState,
+  io: ConnectionIO,
+  getActiveSessions: () => Promise<ActiveSession[]>,
+): Promise<void> {
+  debugLog('ConnectionService', 'ConnectionManager: Session already connected error - likely stale session');
+
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const extractedCid = state.extractCidFromErrorMessage(errorMessage);
+  if (extractedCid) {
+    io.emitEvent('session-already-connected', { cid: extractedCid, message: errorMessage });
+    return;
+  }
+
+  try {
+    const sessions = await getActiveSessions();
+    const match = sessions.find(
+      (s) => s.username === session.username && s.server_address === session.serverAddress
+    );
+    if (match) {
+      io.emitEvent('session-already-connected', {
+        cid: match.cid.toString(),
+        message: errorMessage,
+      });
+    }
+  } catch (err) {
+    debugLog('ConnectionService', 'Failed to get active sessions:', err);
+  }
+}

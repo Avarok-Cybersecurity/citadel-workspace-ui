@@ -5,6 +5,6 @@
     "host": "127.0.0.1",
     "port": 12349
   },
-  "workspacePassword": "SUPER_SECRET_ADMIN_PASSWORD_CHANGE_ME",
+  "workspacePassword": "dev-local-workspace-password",
   "defaultPassword": "test12345"
 }

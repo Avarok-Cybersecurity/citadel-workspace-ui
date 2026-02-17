@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { debugLog } from '@/lib/debug-config';
 import { Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@ import { useToast, useEventListener } from '@/hooks';
 import { AvatarUpload } from './AvatarUpload';
 import WorkspaceService from '@/lib/workspace-service';
 import userService from '@/lib/user-service';
+import type { User } from 'citadel-workspace-client-ts';
 
 export function GeneralSettingsTab() {
   const { toast } = useToast();
@@ -27,14 +29,14 @@ export function GeneralSettingsTab() {
       }
       setIsLoading(false);
     };
-    loadUser().catch(console.error);
+    loadUser().catch((err: unknown) => debugLog('GeneralSettingsTab', 'Failed to load user:', err));
   }, []);
 
   // Handle profile updates
   // MetadataValue is a tagged enum: { type: "String", content: "..." }
-  const handleProfileUpdate = useCallback((data: { user: any }) => {
+  const handleProfileUpdate = useCallback((data: { user: User }) => {
     const avatarMeta = data.user.metadata?.avatar;
-    const avatar = avatarMeta?.content || avatarMeta?.String;
+    const avatar = (avatarMeta && 'content' in avatarMeta && typeof avatarMeta.content === 'string') ? avatarMeta.content : undefined;
     if (avatar) {
       setAvatarData(avatar);
       setOriginalAvatarData(avatar);
@@ -51,7 +53,7 @@ export function GeneralSettingsTab() {
   }, [toast]);
 
   // Listen for profile updates
-  useEventListener<{ user: any }>('user:profile-updated', handleProfileUpdate);
+  useEventListener<{ user: User }>('user:profile-updated', handleProfileUpdate);
 
   const hasChanges = displayName !== originalDisplayName || avatarData !== originalAvatarData;
 
@@ -66,7 +68,7 @@ export function GeneralSettingsTab() {
       );
       // The response handler will emit 'user:profile-updated' which updates state
     } catch (error) {
-      console.error('Failed to update profile:', error);
+      debugLog('GeneralSettingsTab', 'Failed to update profile:', error);
       toast({
         title: 'Error',
         description: 'Failed to save profile. Please try again.',

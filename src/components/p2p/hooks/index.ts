@@ -6,3 +6,4 @@
 
 export { useP2PFileTransfer } from './useP2PFileTransfer';
 export { useP2PMessages } from './useP2PMessages';
+export { useP2PTabs } from './useP2PTabs';

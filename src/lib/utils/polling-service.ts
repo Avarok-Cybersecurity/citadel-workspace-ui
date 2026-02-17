@@ -17,6 +17,8 @@
  * }
  */
 
+import { debugLog } from '../debug-config';
+
 export abstract class PollingService {
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
   private isPaused = false;
@@ -31,12 +33,12 @@ export abstract class PollingService {
     this.pollingInterval = setInterval(() => {
       if (!this.isPaused) {
         this.poll().catch((error) => {
-          console.error(`[${this.constructor.name}] Polling error:`, error);
+          debugLog('PollingService', `[${this.constructor.name}] Polling error:`, error);
         });
       }
     }, this.getPollingIntervalMs());
 
-    console.log(`[${this.constructor.name}] Started polling (interval: ${this.getPollingIntervalMs()}ms)`);
+    debugLog('PollingService', `[${this.constructor.name}] Started polling (interval: ${this.getPollingIntervalMs()}ms)`);
   }
 
   /**
@@ -47,7 +49,7 @@ export abstract class PollingService {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
       this.isPaused = false;
-      console.log(`[${this.constructor.name}] Stopped polling`);
+      debugLog('PollingService', `[${this.constructor.name}] Stopped polling`);
     }
   }
 
@@ -81,7 +83,7 @@ export abstract class PollingService {
     try {
       await this.poll();
     } catch (error) {
-      console.error(`[${this.constructor.name}] Manual poll error:`, error);
+      debugLog('PollingService', `[${this.constructor.name}] Manual poll error:`, error);
     }
   }
 
@@ -140,7 +142,7 @@ export abstract class EventListenerPollingService extends EventListenerManager {
     this.pollingInterval = setInterval(() => {
       if (!this.isPaused) {
         this.poll().catch((error) => {
-          console.error(`[${this.constructor.name}] Polling error:`, error);
+          debugLog('PollingService', `[${this.constructor.name}] Polling error:`, error);
         });
       }
     }, this.getPollingIntervalMs());
@@ -170,7 +172,7 @@ export abstract class EventListenerPollingService extends EventListenerManager {
     try {
       await this.poll();
     } catch (error) {
-      console.error(`[${this.constructor.name}] Manual poll error:`, error);
+      debugLog('PollingService', `[${this.constructor.name}] Manual poll error:`, error);
     }
   }
 

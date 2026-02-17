@@ -2,6 +2,7 @@ import NotificationService, { NotificationPriority } from './notification-servic
 import { websocketService } from './websocket-service';
 import { getTabData, setTabData, removeTabData } from './tab-context';
 import { connectionManager } from './connection';
+import { debugLog } from '@/lib/debug-config';
 
 // Interface for user registration information
 export interface UserRegistrationInfo {
@@ -93,7 +94,7 @@ export class UserService {
 
       return placeholderUser;
     } catch (error) {
-      console.error('Error loading user registration:', error);
+      debugLog('UserService', 'Error loading user registration:', error);
       this.notificationService.addSystemNotification(
         'User Profile Error',
         `Could not load user profile: ${error}`,
@@ -142,7 +143,7 @@ export class UserService {
       try {
         handler(currentUser);
       } catch (error) {
-        console.error('Error in user change handler:', error);
+        debugLog('UserService', 'Error in user change handler:', error);
       }
     });
   }

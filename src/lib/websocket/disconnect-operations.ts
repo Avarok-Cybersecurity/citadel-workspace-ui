@@ -7,6 +7,7 @@
 
 import { requestResponse } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface DisconnectConfig {
   init: () => Promise<void>;
@@ -37,10 +38,10 @@ export class DisconnectOperations {
       Disconnect: { request_id: requestId, cid }
     };
 
-    debugLog('websocket', 'Sending Disconnect request', request);
+    debugLog('DisconnectOperations', 'Sending Disconnect request', request);
 
     await requestResponse<true>({
-      request, requestId, timeoutMs: 30000,
+      request, requestId, timeoutMs: TIMEOUT.DISCONNECT_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'Disconnect',
       matcher: {
@@ -51,7 +52,7 @@ export class DisconnectOperations {
           if (response.DisconnectNotification) {
             const n = response.DisconnectNotification;
             if (n.request_id === requestId || (n.request_id === null && n.cid === cid)) {
-              debugLog('websocket', 'Disconnect successful for CID:', cid.toString());
+              debugLog('DisconnectOperations', 'Disconnect successful for CID:', cid.toString());
               return true;
             }
           }
@@ -87,10 +88,10 @@ export class DisconnectOperations {
       Deregister: { request_id: requestId, cid }
     };
 
-    debugLog('websocket', 'Sending Deregister request', request);
+    debugLog('DisconnectOperations', 'Sending Deregister request', request);
 
     await requestResponse<true>({
-      request, requestId, timeoutMs: 30000,
+      request, requestId, timeoutMs: TIMEOUT.DISCONNECT_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'Deregister',
       matcher: {
@@ -99,7 +100,7 @@ export class DisconnectOperations {
             DeregisterSuccess?: { request_id: string };
           };
           if (response.DeregisterSuccess?.request_id === requestId) {
-            debugLog('websocket', 'Deregister successful for CID:', cid.toString());
+            debugLog('DisconnectOperations', 'Deregister successful for CID:', cid.toString());
             return true;
           }
           return undefined;

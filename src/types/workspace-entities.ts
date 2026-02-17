@@ -23,34 +23,6 @@ export interface User extends Entity {
   lastActive?: number; // Timestamp of last activity
 }
 
-// Office entity
-export interface Office extends Entity {
-  name: string;
-  description?: string;
-  mdx_content?: string;
-  ownerId: string;
-  members?: Record<string, User>;
-  rooms?: Record<string, Room>;
-  rules?: string;
-  chat_enabled: boolean;
-  chat_channel_id?: string;
-  is_default?: boolean; // Whether this is the default office (navigated to on login)
-}
-
-// Room entity
-export interface Room extends Entity {
-  name: string;
-  description?: string;
-  mdx_content?: string;
-  officeId: string;
-  ownerId: string;
-  members?: Record<string, User>;
-  isPrivate: boolean;
-  rules?: string;
-  chat_enabled: boolean;
-  chat_channel_id?: string;
-}
-
 // Role enumeration for users
 export enum UserRole {
   Owner = 'owner',
@@ -61,14 +33,13 @@ export enum UserRole {
 
 // Permission settings for users
 export interface UserPermissions {
-  canCreateRooms: boolean;
-  canDeleteRooms: boolean;
+  canCreateNodes: boolean;
+  canDeleteNodes: boolean;
   canInviteMembers: boolean;
   canRemoveMembers: boolean;
-  canUpdateOffice: boolean;
-  canUpdateRooms: boolean;
+  canUpdateNodes: boolean;
   canEditMdxContent: boolean;
-  domainId: string; // ID of the domain these permissions apply to (office or room)
+  domainId: string; // ID of the domain these permissions apply to
 }
 
 // Message types
@@ -76,8 +47,7 @@ export interface Message extends Entity {
   content: string;
   senderId: string;
   receiverId?: string;
-  roomId?: string;
-  officeId?: string;
+  nodeId?: string;
   type: MessageType;
 }
 
@@ -87,12 +57,9 @@ export enum MessageType {
   System = 'system'
 }
 
-// Group message type enum (matches Rust GroupMessageType)
-export enum GroupMessageType {
-  Text = 'Text',
-  Markdown = 'Markdown',
-  System = 'System'
-}
+// Re-export generated GroupMessageType (string literal union: "Text" | "Markdown" | "System")
+// This replaces the local enum to maintain type compatibility with generated GroupMessage
+export type { GroupMessageType } from 'citadel-workspace-client-ts';
 
 // Group message read status
 export interface GroupMessageReadBy {
@@ -101,18 +68,8 @@ export interface GroupMessageReadBy {
   read_at: number;
 }
 
-// Group message interface (matches Rust GroupMessage)
-export interface GroupMessage {
-  id: string;
-  group_id: string;
-  sender_id: string;
-  sender_name: string;
-  message_type: GroupMessageType;
-  content: string;
-  timestamp: number;
-  reply_to?: string;
-  reply_count: number;
-  mentions: string[];
-  edited_at?: number;
-  read_by?: GroupMessageReadBy[];  // Users who have read this message
+// Extend generated GroupMessage with local-only fields
+import type { GroupMessage as GeneratedGroupMessage } from 'citadel-workspace-client-ts';
+export interface GroupMessage extends GeneratedGroupMessage {
+  read_by?: GroupMessageReadBy[];
 }

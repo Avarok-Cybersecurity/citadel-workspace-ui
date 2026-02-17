@@ -47,7 +47,8 @@ export {
 } from './constants';
 
 // State Management
-export { ConnectionState } from './state';
+export { ConnectionStateCore } from './state-core';
+export { ConnectionState } from './state-cache';
 
 // I/O Operations
 export { ConnectionIO, connectionIO } from './io';

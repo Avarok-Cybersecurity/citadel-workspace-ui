@@ -1,3 +1,5 @@
+import { debugLog } from '@/lib/debug-config';
+import { NETWORK } from './timeout-constants';
 /**
  * Address Resolver
  *
@@ -7,7 +9,7 @@
  * - Default port is 12349 if not specified
  */
 
-const DEFAULT_PORT = 12349;
+const DEFAULT_PORT = NETWORK.WORKSPACE_SERVER_PORT;
 
 // IPv4 regex: matches 0-255 in each octet
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -126,7 +128,7 @@ async function resolveDNS(hostname: string): Promise<string> {
   // Check well-known local hostnames first
   if (lowerHostname in LOCAL_HOSTNAMES) {
     const resolved = LOCAL_HOSTNAMES[lowerHostname];
-    console.log(`DNS resolved (local): ${hostname} -> ${resolved}`);
+    debugLog('AddressResolver', `DNS resolved (local): ${hostname} -> ${resolved}`);
     return resolved;
   }
 
@@ -134,7 +136,7 @@ async function resolveDNS(hostname: string): Promise<string> {
   // See: https://developers.google.com/speed/public-dns/docs/doh/json
   const dnsUrl = `https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=A`;
 
-  console.log(`DNS resolution: Querying Google DNS for '${hostname}'...`);
+  debugLog('AddressResolver', `DNS resolution: Querying Google DNS for '${hostname}'...`);
 
   try {
     const response = await fetch(dnsUrl, {
@@ -177,11 +179,11 @@ async function resolveDNS(hostname: string): Promise<string> {
     }
 
     const resolvedIP = aRecord.data;
-    console.log(`DNS resolved (Google DoH): ${hostname} -> ${resolvedIP}`);
+    debugLog('AddressResolver', `DNS resolved (Google DoH): ${hostname} -> ${resolvedIP}`);
     return resolvedIP;
   } catch (error) {
     if (error instanceof Error) {
-      console.error(`DNS resolution error for '${hostname}':`, error.message);
+      debugLog('AddressResolver', `DNS resolution error for '${hostname}':`, error.message);
       throw new Error(`Cannot resolve hostname '${hostname}': ${error.message}`);
     }
     throw error;
@@ -215,15 +217,15 @@ export async function resolveServerAddress(serverAddr: string): Promise<string> 
   // If already an IP address, return with port
   if (isIPAddress(host)) {
     const result = isIPv6(host) ? `[${host}]:${effectivePort}` : `${host}:${effectivePort}`;
-    console.log(`Address resolver: ${serverAddr} -> ${result} (already IP)`);
+    debugLog('AddressResolver', `Address resolver: ${serverAddr} -> ${result} (already IP)`);
     return result;
   }
 
   // Resolve hostname via DNS
-  console.log(`Address resolver: Resolving hostname ${host}...`);
+  debugLog('AddressResolver', `Address resolver: Resolving hostname ${host}...`);
   const resolvedIP = await resolveDNS(host);
   const result = `${resolvedIP}:${effectivePort}`;
-  console.log(`Address resolver: ${serverAddr} -> ${result} (DNS resolved)`);
+  debugLog('AddressResolver', `Address resolver: ${serverAddr} -> ${result} (DNS resolved)`);
   return result;
 }
 

@@ -37,7 +37,7 @@ export class MessengerOperations {
       throw new Error('CID is required to open messenger');
     }
 
-    debugLog('websocket', 'Opening messenger handle for CID', { cid: cid.toString() });
+    debugLog('MessengerOperations', 'Opening messenger handle for CID', { cid: cid.toString() });
 
     if (instanceManager.isLeader) {
       const client = this.config.getClient();
@@ -46,7 +46,7 @@ export class MessengerOperations {
       }
       await client.openMessengerFor(cid.toString());
     } else {
-      debugLog('websocket', '[Follower] Proxying openMessengerFor through leader');
+      debugLog('MessengerOperations', '[Follower] Proxying openMessengerFor through leader');
 
       const proxyRequest = {
         __openMessengerProxy: true,
@@ -85,7 +85,7 @@ export class MessengerOperations {
       }
       return await client.ensureMessengerOpen(cid.toString());
     } else {
-      debugLog('websocket', '[Follower] Proxying ensureMessengerOpen through leader');
+      debugLog('MessengerOperations', '[Follower] Proxying ensureMessengerOpen through leader');
 
       const proxyRequest = {
         __ensureMessengerProxy: true,
@@ -127,7 +127,7 @@ export class MessengerOperations {
       throw new Error('Peer CID is required to send reliable P2P message');
     }
 
-    debugLog('websocket', 'Sending reliable P2P message', {
+    debugLog('MessengerOperations', 'Sending reliable P2P message', {
       localCid: localCid.toString(),
       peerCid: peerCid.toString(),
       messageLength: message.length,
@@ -141,7 +141,7 @@ export class MessengerOperations {
       }
       await client.sendP2PMessageReliable(localCid.toString(), peerCid.toString(), message, securityLevel);
     } else {
-      debugLog('websocket', '[Follower] Proxying sendP2PMessageReliable through leader');
+      debugLog('MessengerOperations', '[Follower] Proxying sendP2PMessageReliable through leader');
 
       // Convert Uint8Array to Array for serialization over BroadcastChannel
       const proxyRequest = {

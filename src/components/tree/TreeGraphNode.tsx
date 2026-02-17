@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { TreeNodeData, NodeEntityType } from "./tree-graph-types";
 import { getNodeColorConfig, getEntityTypeDisplayName } from "./tree-graph-types";
+import { isVariant } from 'citadel-workspace-client-ts';
 
 /**
  * Props passed to the custom node component by React Flow
@@ -35,8 +36,8 @@ function getEntityTypeIcon(entityType: NodeEntityType): React.ReactNode {
     return <Building2 className="h-4 w-4" />;
   }
 
-  if (typeof entityType === "object" && "Child" in entityType) {
-    const childType = entityType.Child.toLowerCase();
+  if (isVariant(entityType as Record<string, unknown>, 'Child')) {
+    const childType = (entityType as { Child: string }).Child.toLowerCase();
 
     switch (childType) {
       case "office":
