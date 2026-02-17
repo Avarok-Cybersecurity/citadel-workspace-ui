@@ -82,7 +82,7 @@ export class TestHarness {
   /**
    * Finalize the test: print UX issues, log completion observation, write report.
    */
-  finalize(passed: boolean, results: Record<string, unknown>): void {
+  finalize(passed: boolean, results: Record<string, any>): void {
     this.printUxIssues();
 
     const uxIssues = this.uxTracker.getIssues();
