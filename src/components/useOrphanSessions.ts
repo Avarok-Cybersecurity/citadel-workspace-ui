@@ -45,7 +45,7 @@ export function useOrphanSessions() {
     workspaceName: "",
   });
 
-  const loadActiveSessions = async () => {
+  const loadActiveSessions = useCallback(async () => {
     try {
       await connectionManager.waitForReady();
       const activeSessions = await connectionManager.getActiveSessions();
@@ -91,7 +91,7 @@ export function useOrphanSessions() {
       debugLog('OrphanSessionsNavbar', 'Failed to load active sessions:', error);
       setSessions([]);
     }
-  };
+  }, []);
 
   const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
     try {

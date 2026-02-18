@@ -35,6 +35,7 @@ export function HierarchySidebar() {
   const handleNodeSelect = useCallback((nodeId: string) => {
     const newParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);
+    newParams.delete('section');
     navigate(buildWorkspacePath(newParams));
   }, [location.search, navigate]);
 

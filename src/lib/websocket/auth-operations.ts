@@ -132,7 +132,12 @@ export class AuthOperations {
         header_obfuscator_settings: settings.header_obfuscator_settings,
         crypto_params: settings.crypto_params,
       },
-      server_password: serverPassword || null
+      // Note: server_password is the Citadel protocol PreSharedKey for C2S connection,
+      // NOT the workspace master password. The workspace master password is validated
+      // at the workspace protocol layer (CreateWorkspace/JoinWorkspace), not here.
+      server_password: serverPassword
+        ? { passwords: [stringToBytes(serverPassword)] }
+        : null
     };
 
     debugLog('AuthOperations', 'Sending register options to WASM client', registerOptions);

@@ -109,6 +109,7 @@ export function TreeNodesSection({
       } else {
         const params = new URLSearchParams(location.search);
         params.set("nodeId", nodeId);
+        params.delete("section");
         navigate(buildWorkspacePath(params));
       }
       setOpenMobile(false);
