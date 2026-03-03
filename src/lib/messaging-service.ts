@@ -3,6 +3,7 @@ import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection';
+import { p2pMessengerManager } from './p2p';
 import { debugLog } from '@/lib/debug-config';
 
 export interface MessageRequest {
@@ -175,14 +176,11 @@ export class MessagingService {
 
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
     try {
-      const cid = connectionManager.getConnectionInfo()?.cid;
-      if (cid) {
-        // Send typing status as a control message via P2P
-        await websocketService.sendP2PMessage(
-          BigInt(cid),
-          BigInt(recipientId),
-          isTyping ? '__typing:start' : '__typing:stop'
-        );
+      if (isTyping) {
+        // Use the proper P2PMessengerManager typing API
+        p2pMessengerManager.startTypingPolling(BigInt(recipientId), () => '');
+      } else {
+        p2pMessengerManager.stopTypingPolling(BigInt(recipientId));
       }
     } catch (error) {
       debugLog('MessagingService', 'Error sending typing indicator:', error);

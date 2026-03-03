@@ -7,6 +7,7 @@ import { createCollaboratorCursor, type FlashComment, type CursorUser } from './
 import { MessageSquare } from 'lucide-react';
 import { useCollaborativeEditor } from './useCollaborativeEditor';
 import { EditorToolbar } from './EditorToolbar';
+import { eventEmitter } from '@/lib/event-emitter';
 
 interface CollaborativeEditorProps {
   documentId: string;
@@ -112,6 +113,8 @@ export function CollaborativeEditor({
       timestamp: Date.now(),
     };
 
+    // Emit the comment so useCollaborativeEditor broadcasts it via awareness
+    eventEmitter.emit('flash-comment:send', comment);
     setContextMenu(null);
   }, [contextMenu, editor, currentUserCid, currentUserName, userColor, setContextMenu]);
 
@@ -162,12 +165,12 @@ export function CollaborativeEditor({
             w-2 h-2 rounded-full
             ${syncState === 'synced' ? 'bg-green-500' :
               syncState === 'syncing' ? 'bg-yellow-500 animate-pulse' :
-              'bg-gray-500'}
+                'bg-gray-500'}
           `} />
           <span className="text-xs text-gray-400">
             {syncState === 'synced' ? 'Synced' :
-             syncState === 'syncing' ? 'Syncing...' :
-             'Connecting...'}
+              syncState === 'syncing' ? 'Syncing...' :
+                'Connecting...'}
           </span>
         </div>
       </div>
