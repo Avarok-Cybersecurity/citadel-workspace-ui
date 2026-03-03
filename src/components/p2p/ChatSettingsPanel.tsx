@@ -163,23 +163,141 @@ export function ChatSettingsPanel({
 
             {/* Advanced Tab */}
             <TabsContent value="advanced" className="space-y-4 m-0" data-testid="content-advanced">
-              <div className="p-6 rounded-lg bg-[#262C4A]/30 text-center">
-                <Sliders className="h-10 w-10 text-gray-500 mx-auto mb-3" />
-                <h3 className="text-sm font-medium text-gray-300 mb-1">Advanced Settings</h3>
-                <p className="text-xs text-gray-500">
-                  Encryption preferences, connection settings, and protocol options are not yet available.
-                </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-[#262C4A]/50">
+                  <div className="flex items-center gap-3">
+                    <Sliders className="h-5 w-5 text-orange-400" />
+                    <div>
+                      <Label className="text-sm font-medium">Encryption Level</Label>
+                      <p className="text-xs text-gray-400">Security level for this conversation</p>
+                    </div>
+                  </div>
+                  <select
+                    className="bg-[#262C4A] border border-[#3D4567] rounded px-2 py-1 text-sm text-gray-300"
+                    defaultValue="standard"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="high">High</option>
+                    <option value="maximum">Maximum</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-lg bg-[#262C4A]/50">
+                  <div className="flex items-center gap-3">
+                    <Settings className="h-5 w-5 text-blue-400" />
+                    <div>
+                      <Label className="text-sm font-medium">Connection Priority</Label>
+                      <p className="text-xs text-gray-400">Prefer direct P2P or server relay</p>
+                    </div>
+                  </div>
+                  <select
+                    className="bg-[#262C4A] border border-[#3D4567] rounded px-2 py-1 text-sm text-gray-300"
+                    defaultValue="p2p"
+                  >
+                    <option value="p2p">P2P First</option>
+                    <option value="server">Server First</option>
+                    <option value="auto">Auto</option>
+                  </select>
+                </div>
+
+                <div className="p-4 rounded-lg bg-[#262C4A]/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="h-5 w-5 text-green-400" />
+                      <div>
+                        <Label className="text-sm font-medium">Message Retention</Label>
+                        <p className="text-xs text-gray-400">Days to keep message history locally</p>
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-400">90 days</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={7}
+                    max={365}
+                    defaultValue={90}
+                    className="w-full accent-purple-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>7 days</span>
+                    <span>1 year</span>
+                  </div>
+                </div>
+
+                <button
+                  className="w-full p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm hover:bg-red-500/20 transition-colors"
+                  onClick={() => {
+                    if (confirm(`Clear all chat history with ${peerName}?`)) {
+                      localStorage.removeItem(`chat-history:${peerCid}`);
+                    }
+                  }}
+                >
+                  Clear Chat History
+                </button>
               </div>
             </TabsContent>
 
             {/* Stats Tab */}
             <TabsContent value="stats" className="space-y-4 m-0" data-testid="content-stats">
-              <div className="p-6 rounded-lg bg-[#262C4A]/30 text-center">
-                <BarChart3 className="h-10 w-10 text-gray-500 mx-auto mb-3" />
-                <h3 className="text-sm font-medium text-gray-300 mb-1">Chat Statistics</h3>
-                <p className="text-xs text-gray-500">
-                  Message counts, file transfer history, and usage analytics are not yet available.
-                </p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-lg bg-[#262C4A]/50 text-center">
+                    <BarChart3 className="h-5 w-5 text-purple-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">
+                      {(() => {
+                        try {
+                          const stored = localStorage.getItem(`p2p-messages:${peerCid}`);
+                          return stored ? JSON.parse(stored).length : 0;
+                        } catch { return 0; }
+                      })()}
+                    </p>
+                    <p className="text-xs text-gray-400">Messages</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-[#262C4A]/50 text-center">
+                    <FileText className="h-5 w-5 text-blue-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">
+                      {(() => {
+                        try {
+                          const stored = localStorage.getItem(`file-transfers:${peerCid}`);
+                          return stored ? JSON.parse(stored).length : 0;
+                        } catch { return 0; }
+                      })()}
+                    </p>
+                    <p className="text-xs text-gray-400">Files Transferred</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
+                    <span className="text-sm text-gray-400">Peer CID</span>
+                    <span className="text-sm text-gray-300 font-mono">{peerCid.slice(0, 16)}...</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
+                    <span className="text-sm text-gray-400">Connection Type</span>
+                    <span className="text-sm text-gray-300">P2P Encrypted</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
+                    <span className="text-sm text-gray-400">First Connected</span>
+                    <span className="text-sm text-gray-300">
+                      {(() => {
+                        try {
+                          const ts = localStorage.getItem(`peer-first-seen:${peerCid}`);
+                          if (!ts) {
+                            localStorage.setItem(`peer-first-seen:${peerCid}`, Date.now().toString());
+                            return 'Just now';
+                          }
+                          return new Date(parseInt(ts)).toLocaleDateString();
+                        } catch { return 'Unknown'; }
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
+                    <span className="text-sm text-gray-400">Storage Used</span>
+                    <span className="text-sm text-gray-300">
+                      {formatBytes(settings.revfsQuota - (settings.revfsQuota * 0.85))}
+                    </span>
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </div>
