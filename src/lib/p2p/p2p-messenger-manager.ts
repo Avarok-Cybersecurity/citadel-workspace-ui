@@ -177,4 +177,17 @@ export class P2PMessengerManager extends EventListenerManager {
   public async autoRegisterPeerWithCid(peerCid: bigint, ownCid: bigint | null | undefined): Promise<void> { if (!ownCid) throw new Error('No CID provided for registration'); return autoRegisterPeer(() => resolveCurrentCid(), (e, d) => this.emit(e, d), peerCid, ownCid); }
 }
 
-export const p2pMessengerManager = P2PMessengerManager.getInstance();
+// Lazy singleton — deferred to first access to avoid circular dependency TDZ.
+// The constructor accesses websocketService which may not be initialized during
+// module evaluation due to circular imports.
+let _p2pInstance: P2PMessengerManager | null = null;
+export function getP2PMessengerManager(): P2PMessengerManager {
+  if (!_p2pInstance) { _p2pInstance = P2PMessengerManager.getInstance(); }
+  return _p2pInstance;
+}
+// Backward-compatible alias (accessed lazily via Proxy for existing destructured imports)
+export const p2pMessengerManager = new Proxy({} as P2PMessengerManager, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getP2PMessengerManager(), prop, receiver);
+  },
+});

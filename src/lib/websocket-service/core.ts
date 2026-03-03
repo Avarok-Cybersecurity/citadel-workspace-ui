@@ -5,7 +5,10 @@
  */
 
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
-import { connectionManager } from '../connection';
+// Namespace import to break circular dependency:
+// THIS FILE → connection/index.ts → io.ts → io-websocket.ts → websocket-service (cycle)
+// Property access on the namespace object is a live binding, deferred to call time.
+import * as connModule from '../connection';
 import { NETWORK } from '../timeout-constants';
 import type { SessionSecuritySettings } from '../security-utils';
 import type { WebSocketServiceConfig } from './types';
@@ -176,7 +179,7 @@ export class WebSocketServiceCore {
   }
 
   async getConnectionInfo(): Promise<{ cid: bigint } | null> {
-    return connectionManager.getConnectionInfo();
+    return connModule.connectionManager.getConnectionInfo();
   }
 
   // ============== LocalDB ==============

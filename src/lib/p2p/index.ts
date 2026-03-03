@@ -51,4 +51,4 @@ export { FileTransferMessageHandler } from './file-transfer-message-handler';
 export type { FileTransferMessageHandlerConfig } from './file-transfer-message-handler';
 
 // Main Manager (to be updated)
-export { P2PMessengerManager, p2pMessengerManager } from './p2p-messenger-manager';
+export { P2PMessengerManager, p2pMessengerManager, getP2PMessengerManager } from './p2p-messenger-manager';

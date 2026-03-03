@@ -5,7 +5,12 @@
  * Part of the ConnectionIO class (SBIO pattern).
  */
 
-import { websocketService } from '../websocket-service';
+// Namespace import breaks circular dependency:
+// websocket-service/index.ts → core.ts → connection/ → io.ts → THIS FILE → websocket-service (TDZ)
+// With `import *`, the namespace object is created immediately but its properties are
+// live bindings — reading `wsModule.websocketService` is deferred until call time,
+// by which point the cycle has fully resolved and the singleton is initialized.
+import * as wsModule from '../websocket-service';
 import { safeJSONStringify } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
@@ -48,23 +53,23 @@ export class ConnectionIOWebSocket {
   // ============================================================================
 
   async initWebSocket(): Promise<void> {
-    await websocketService.init();
+    await wsModule.websocketService.init();
   }
 
   setOrphanMode(enabled: boolean): void {
-    websocketService.setOrphanModeNonBlocking(enabled);
+    wsModule.websocketService.setOrphanModeNonBlocking(enabled);
   }
 
   async sendWebSocketMessage(message: unknown): Promise<void> {
-    await websocketService.sendMessage(message as Record<string, unknown>);
+    await wsModule.websocketService.sendMessage(message as Record<string, unknown>);
   }
 
   isWebSocketConnected(): boolean {
-    return websocketService.isConnected();
+    return wsModule.websocketService.isConnected();
   }
 
   async waitForWebSocketInit(): Promise<void> {
-    await websocketService.waitForInit();
+    await wsModule.websocketService.waitForInit();
   }
 
   async connect(params: {
@@ -73,7 +78,7 @@ export class ConnectionIOWebSocket {
     password: string;
     sessionSecuritySettings?: SessionSecuritySettings;
   }): Promise<void> {
-    await websocketService.connect(
+    await wsModule.websocketService.connect(
       params.requestId,
       params.username,
       params.password,
@@ -82,11 +87,11 @@ export class ConnectionIOWebSocket {
   }
 
   async disconnect(cid: bigint): Promise<void> {
-    await websocketService.disconnect(cid);
+    await wsModule.websocketService.disconnect(cid);
   }
 
   async claimSession(cid: bigint, onlyIfOrphaned: boolean): Promise<unknown> {
-    return websocketService.claimSession(cid, onlyIfOrphaned);
+    return wsModule.websocketService.claimSession(cid, onlyIfOrphaned);
   }
 
   // ============================================================================
@@ -94,11 +99,11 @@ export class ConnectionIOWebSocket {
   // ============================================================================
 
   async localDBSet(cid: bigint, key: string, value: number[]): Promise<void> {
-    await websocketService.sendLocalDBSet(cid, key, value);
+    await wsModule.websocketService.sendLocalDBSet(cid, key, value);
   }
 
   async localDBGet(cid: bigint, key: string): Promise<{ value: number[] } | null> {
-    return websocketService.sendLocalDBGet(cid, key);
+    return wsModule.websocketService.sendLocalDBGet(cid, key);
   }
 
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
