@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,12 +14,10 @@ interface AppLayoutProps {
 }
 
 export const AppLayout = ({ children }: AppLayoutProps) => {
-  const [currentWorkspace] = useState("AVAROK CYBERSECURITY");
-
   return (
     <SidebarProvider>
       <div className="h-screen flex w-full bg-[#444A6C] text-white overflow-hidden">
-        <TopBar currentWorkspace={currentWorkspace} />
+        <TopBar />
 
         <Sidebar className="pt-14 bg-[#262C4A]/95 transition-transform duration-300 ease-in-out">
           <SidebarContent>

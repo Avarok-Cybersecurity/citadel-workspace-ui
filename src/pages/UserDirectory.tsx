@@ -31,13 +31,12 @@ export const UserDirectory = () => {
     avatarUrl: member.avatarUrl,
     email: member.email,
     role: member.role,
-    isOnline: Math.random() > 0.5,
-    lastActive: Date.now() - Math.floor(Math.random() * 10000000),
+    isOnline: connectionService.canMessageUser(member.id),
+    lastActive: 0,
   }));
 
   const filteredMembers = allMembers.filter(member => {
     if (tab === 'online') return member.isOnline;
-    if (tab === 'favorites') return Math.random() > 0.7;
     return true;
   });
 
@@ -123,7 +122,7 @@ export const UserDirectory = () => {
               <div>
                 <CardTitle>Workspace Directory</CardTitle>
                 <CardDescription className="text-gray-400">
-                  {filteredMembers.length} {tab === 'online' ? 'online' : tab === 'favorites' ? 'favorite' : ''} members
+                  {filteredMembers.length} {tab === 'online' ? 'online ' : ''}members
                 </CardDescription>
               </div>
               <div className="flex items-center space-x-2">
@@ -139,18 +138,17 @@ export const UserDirectory = () => {
                 <TabsList className="bg-[#444A6C] w-full">
                   <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">All</TabsTrigger>
                   <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">Online</TabsTrigger>
-                  <TabsTrigger value="favorites" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">Favorites</TabsTrigger>
                 </TabsList>
               </div>
 
-              {['all', 'online', 'favorites'].map(tabValue => (
+              {['all', 'online'].map(tabValue => (
                 <TabsContent key={tabValue} value={tabValue} className="m-0">
                   <div className="divide-y divide-gray-700">
                     {filteredMembers.map((member) => (
                       <MemberListItem
                         key={member.id}
                         member={member}
-                        variant={tabValue as 'all' | 'online' | 'favorites'}
+                        variant={tabValue as 'all' | 'online'}
                         onSendMessage={handleSendMessage}
                         onInvite={handleInviteUser}
                       />

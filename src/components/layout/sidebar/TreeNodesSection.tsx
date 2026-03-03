@@ -166,7 +166,7 @@ export function TreeNodesSection({
         </div>
         <SidebarGroupContent>
           <div className="px-3 py-2 text-sm text-muted-foreground">
-            {isLoading ? "Loading..." : "No nodes yet. Create one!"}
+            {isLoading ? "Loading..." : "Your workspace is empty. Click the + button to create your first space."}
           </div>
         </SidebarGroupContent>
       </SidebarGroup>

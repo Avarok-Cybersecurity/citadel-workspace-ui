@@ -14,7 +14,6 @@ export const Connect = () => {
   const [servers, setServers] = useState<StoredServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
 
   // Memoize the fetchServers function to prevent it from being recreated on each render
   const fetchServers = useCallback(async () => {
@@ -62,7 +61,7 @@ export const Connect = () => {
         title: "Connecting",
         description: `Connecting to ${selectedServer}...`,
       });
-      
+
       navigate(getWorkspacePath());
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -92,7 +91,7 @@ export const Connect = () => {
         ) : servers.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-white mb-4">No saved workspaces found</p>
-            <Button 
+            <Button
               onClick={() => navigate("/")}
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
@@ -109,11 +108,10 @@ export const Connect = () => {
                 {servers.map((server) => (
                   <div
                     key={server.serverAddress}
-                    className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${
-                      selectedServer === server.serverAddress
-                        ? "bg-purple-700/50 border border-purple-500"
-                        : "bg-[#221F26]/70 hover:bg-[#221F26] border border-purple-400/20"
-                    }`}
+                    className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${selectedServer === server.serverAddress
+                      ? "bg-purple-700/50 border border-purple-500"
+                      : "bg-[#221F26]/70 hover:bg-[#221F26] border border-purple-400/20"
+                      }`}
                     onClick={() => setSelectedServer(server.serverAddress)}
                   >
                     <Server className="w-5 h-5 text-purple-300 mr-3" />
@@ -131,18 +129,6 @@ export const Connect = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200 uppercase">
-                Profile Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#221F26]/70 border border-purple-400/20 rounded-md p-2 text-white"
-                placeholder="Enter your profile password"
-              />
-            </div>
 
             <div className="flex justify-end gap-4 mt-8">
               <Button

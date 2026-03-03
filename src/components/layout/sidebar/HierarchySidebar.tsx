@@ -36,6 +36,10 @@ export function HierarchySidebar() {
     const newParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);
     newParams.delete('section');
+    // Clear P2P chat overlay when navigating to a different node
+    newParams.delete('showP2P');
+    newParams.delete('channel');
+    newParams.delete('p2pUser');
     navigate(buildWorkspacePath(newParams));
   }, [location.search, navigate]);
 

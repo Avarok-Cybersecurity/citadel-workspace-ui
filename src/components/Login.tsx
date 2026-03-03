@@ -107,6 +107,17 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="server" className="text-gray-300">Server Address</Label>
+                <Input
+                  id="server"
+                  placeholder="workspace.example.com:12349"
+                  value={server}
+                  onChange={(e) => setServer(e.target.value)}
+                  className="bg-[#3B3D57] border-[#4D4F6C] text-white"
+                />
+              </div>
+
               <Button
                 type="button"
                 variant="ghost"
@@ -119,17 +130,6 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
               {isAdvancedOpen && (
                 <div className="space-y-4 p-3 bg-[#343650] rounded-md overflow-y-auto max-h-96">
-                  <div className="space-y-2">
-                    <Label htmlFor="server" className="text-gray-300">Server Address</Label>
-                    <Input
-                      id="server"
-                      placeholder="127.0.0.1:12349"
-                      value={server}
-                      onChange={(e) => setServer(e.target.value)}
-                      className="bg-[#3B3D57] border-[#4D4F6C] text-white"
-                    />
-                  </div>
-
                   <div className="flex items-center justify-between">
                     <Label htmlFor="quick-security" className="text-gray-300 cursor-pointer">
                       Configure Security Settings
