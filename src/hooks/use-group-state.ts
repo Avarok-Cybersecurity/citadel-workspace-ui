@@ -102,8 +102,41 @@ export function useGroupState(): GroupState {
       inviterUsername: string;
     }) => {
       debugLog('UseGroupConversations', '[useGroupConversations] Invite received:', data);
-      // For now, auto-accept invites - in future, show invite dialog
-      // @human-review Invite acceptance flow needs dialog UI and backend accept/reject
+
+      // Auto-accept: create the group entry locally so the user can start interacting
+      const defaultRoles = createDefaultRoles();
+      const defaultRole = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
+
+      const newGroup: GroupConversation = {
+        id: data.groupId,
+        name: data.groupName || `${data.inviterUsername}'s Group`,
+        ownerId: BigInt(data.inviterId),
+        members: [
+          {
+            cid: BigInt(data.inviterId),
+            username: data.inviterUsername,
+            roleId: defaultRoles[0].id,
+            joinedAt: Date.now(),
+          },
+        ],
+        settings: {
+          roles: defaultRoles,
+          defaultRoleId: defaultRole?.id || defaultRoles[2].id,
+        },
+        unreadCount: 1,
+      };
+
+      setGroups(prev => {
+        // Don't add if already exists
+        if (prev.some(g => g.id === data.groupId)) return prev;
+        return [...prev, newGroup];
+      });
+
+      // Notify the user
+      eventEmitter.emit('notification:show', {
+        title: 'Group Invitation',
+        description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
+      });
     };
 
     const handleGroupMemberJoined = (data: {

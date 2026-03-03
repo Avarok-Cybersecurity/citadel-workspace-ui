@@ -10,6 +10,7 @@ import { formatRelativeTime } from "../../lib/date-utils";
 import { RetryableMessageSender } from "./RetryableMessageSender";
 import { TypingIndicator } from "./TypingIndicator";
 import { MessagingService, Message as MessageType } from "../../lib/messaging-service";
+import { connectionManager } from '@/lib/connection';
 
 interface Message {
   id?: string;
@@ -27,13 +28,6 @@ interface ChatAreaProps {
   recipientId: string;
 }
 
-// Sample user data (in a real app, this would come from authentication or user service)
-const CURRENT_USER = {
-  id: "current-user",
-  name: "You",
-  avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6"
-};
-
 export const ChatArea = ({ recipientId }: ChatAreaProps) => {
   const { state } = useWorkspace();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,17 +35,19 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const messagingService = MessagingService.getInstance();
-  
+
+  // Get real user info from connection
+  const connectionInfo = connectionManager.getConnectionInfo();
+  const currentUserId = connectionInfo?.cid ? String(connectionInfo.cid) : 'current-user';
+  const currentUserName = connectionInfo?.username || 'You';
+
   // Initialize with any existing messages from the current conversation
   useEffect(() => {
-    // In a real implementation, we would fetch conversation history
-    // For now, we're starting with an empty conversation
     setMessages([]);
-    
+
     // Set up handlers for new messages and typing indicators
     const handleNewMessage = (message: MessageType) => {
-      if (message.recipientId === CURRENT_USER.id && message.senderId === recipientId) {
-        // Message is from the current chat partner to us
+      if (message.recipientId === currentUserId && message.senderId === recipientId) {
         const newMessage: Message = {
           id: message.id,
           content: message.content,
@@ -59,68 +55,52 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
           sender: {
             id: message.senderId,
             name: getPeerName(message.senderId),
-            avatar: getPeerAvatar(message.senderId)
+            avatar: ''
           }
         };
         setMessages(prev => [...prev, newMessage]);
-      } else if (message.senderId === CURRENT_USER.id && message.recipientId === recipientId) {
-        // Our message sent to the current chat partner (status updates)
-        setMessages(prev => prev.map(msg => 
-          msg.id === message.id 
+      } else if (message.senderId === currentUserId && message.recipientId === recipientId) {
+        setMessages(prev => prev.map(msg =>
+          msg.id === message.id
             ? {
-                ...msg,
-                pending: message.status === 'pending',
-                error: message.status === 'failed' ? message.error : undefined
-              }
+              ...msg,
+              pending: message.status === 'pending',
+              error: message.status === 'failed' ? message.error : undefined
+            }
             : msg
         ));
       }
     };
-    
+
     const handleTypingStatus = (peerId: string, typing: boolean) => {
       if (peerId === recipientId) {
         setIsTyping(typing);
       }
     };
-    
-    // Register handlers with the messaging service
+
     messagingService.setMessageReceivedHandler(handleNewMessage);
     messagingService.setTypingStatusHandler(handleTypingStatus);
-    
-    // For demo purposes, simulate receiving a welcome message
-    setTimeout(() => {
-      messagingService.simulateMessageReceived(recipientId, "Hello! This is a simulated conversation. Type a message below to see how it works.");
-    }, 1000);
-    
-    // Clean up event handlers when component unmounts or recipient changes
+
     return () => {
       messagingService.cleanup();
     };
-  }, [recipientId, messagingService]);
+  }, [recipientId, messagingService, currentUserId]);
 
   // Helper functions to get peer info
   const getPeerName = (peerId: string): string => {
-    // In a real implementation, this would come from a user service or workspace state
-    if (peerId === "demo-peer-kathy") return "Kathy McCooper";
     return `User ${peerId.slice(0, 8)}...`;
   };
-  
-  const getPeerAvatar = (peerId: string): string => {
-    // In a real implementation, this would come from a user service or workspace state
-    if (peerId === "demo-peer-kathy") return "https://images.unsplash.com/photo-1649972904349-6e44c42644a7";
-    return "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61";
-  };
-  
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages.length]);
-  
+
   // Get channel info
   const channelName = getPeerName(recipientId);
-  const channelAvatar = getPeerAvatar(recipientId);
+  const channelAvatar = '';
 
   return (
     <div className="flex flex-col h-full bg-[#444A6C]">
@@ -147,7 +127,7 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
           </Button>
         </div>
       </div>
-      
+
       {/* Messages Area */}
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         {messages.length === 0 ? (
@@ -182,16 +162,16 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
                 </div>
               </div>
             ))}
-            
+
             {/* Typing indicator */}
             {isTyping && (
-              <TypingIndicator 
-                isTyping={true} 
-                peerName={channelName} 
-                className="bg-gray-800 bg-opacity-40 rounded-lg" 
+              <TypingIndicator
+                isTyping={true}
+                peerName={channelName}
+                className="bg-gray-800 bg-opacity-40 rounded-lg"
               />
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -205,13 +185,13 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
               <Upload className="h-5 w-5" />
             </Button>
           </div>
-          
-          <RetryableMessageSender 
+
+          <RetryableMessageSender
             recipientId={recipientId}
             placeholder={`Message ${channelName}`}
             className="flex-1"
           />
-          
+
           <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-700" type="button">
             <Shield className="h-5 w-5" />
           </Button>

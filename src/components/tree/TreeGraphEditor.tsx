@@ -124,9 +124,31 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
   const handleNodeDragStop = useCallback(
     async (_event: React.MouseEvent, node: Node) => {
       if (!canEdit || !onNodeMove) return;
-      // @human-review: Future enhancement - detect drag-over parent and trigger move
+
+      // Detect closest node under drag position for reparenting
+      const draggedId = node.id;
+      const dragPos = node.position;
+      let closestId: string | null = null;
+      let closestDist = Infinity;
+
+      for (const n of nodes) {
+        if (n.id === draggedId) continue;
+        const dx = (n.position.x + 80) - (dragPos.x + 80); // center-to-center
+        const dy = (n.position.y + 20) - (dragPos.y + 20);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 60 && dist < closestDist) {
+          closestDist = dist;
+          closestId = n.id;
+        }
+      }
+
+      if (closestId && closestId !== draggedId) {
+        if (!wouldCreateCycle(treeStructure, draggedId, closestId)) {
+          await onNodeMove(draggedId, closestId);
+        }
+      }
     },
-    [canEdit, onNodeMove]
+    [canEdit, onNodeMove, nodes, treeStructure]
   );
 
   // Context menu handlers
@@ -145,10 +167,10 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
 
   const handleEdit = useCallback(() => {
     if (!contextMenu.nodeId) return;
-    // @human-review: Trigger edit modal - integrate with NodeManagementModal
-    debugLog('TreeGraphEditor', "Edit node:", contextMenu.nodeId);
+    // Trigger selection, which opens the edit modal in the parent
+    onNodeSelect?.(contextMenu.nodeId);
     handleContextMenuClose();
-  }, [contextMenu.nodeId, handleContextMenuClose]);
+  }, [contextMenu.nodeId, onNodeSelect, handleContextMenuClose]);
 
   const handleDelete = useCallback(
     async (cascade: boolean) => {

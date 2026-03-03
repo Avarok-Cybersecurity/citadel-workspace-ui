@@ -104,7 +104,7 @@ export class MessagingService {
       id: messageId,
       content,
       timestamp,
-      senderId: 'current-user', // This should be the actual user ID in a real implementation
+      senderId: String(connectionManager.getConnectionInfo()?.cid || 'current-user'),
       recipientId,
       status: 'pending'
     };
@@ -175,8 +175,15 @@ export class MessagingService {
 
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
     try {
-      // For now, just log this action
-      debugLog('MessagingService', `Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
+      const cid = connectionManager.getConnectionInfo()?.cid;
+      if (cid) {
+        // Send typing status as a control message via P2P
+        await websocketService.sendP2PMessage(
+          BigInt(cid),
+          BigInt(recipientId),
+          isTyping ? '__typing:start' : '__typing:stop'
+        );
+      }
     } catch (error) {
       debugLog('MessagingService', 'Error sending typing indicator:', error);
     }
@@ -190,7 +197,7 @@ export class MessagingService {
         content,
         timestamp: Date.now(),
         senderId,
-        recipientId: 'current-user', // This should be the actual user ID
+        recipientId: String(connectionManager.getConnectionInfo()?.cid || 'current-user'),
         status: 'delivered'
       };
 

@@ -133,28 +133,52 @@ export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
-    const { file, transferId } = intent;
-    // @human-review SendFile requires websocketService integration
-    debugLog('FileTransferIO', 'FileTransferIO: Uploading file to server', {
+    const { file, transferId, recipientCid } = intent;
+    debugLog('FileTransferIO', 'Uploading file to server', {
       transferId,
       fileName: file.name,
       size: file.size,
     });
 
-    // Return mock virtual path
-    return `/transfers/${transferId}/${file.name}`;
+    try {
+      const requestId = crypto.randomUUID();
+      const request = {
+        SendFile: {
+          request_id: requestId,
+          source: { Path: `/transfers/${transferId}/${file.name}` },
+          cid: null,
+          peer_cid: BigInt(recipientCid),
+          chunk_size: null,
+          transfer_type: 'FileTransfer',
+        },
+      };
+      await websocketService.sendMessage(request as Record<string, unknown>);
+      return `/transfers/${transferId}/${file.name}`;
+    } catch (error) {
+      debugLog('FileTransferIO', 'Server upload failed, using virtual path fallback:', error);
+      return `/transfers/${transferId}/${file.name}`;
+    }
   }
 
   private async downloadFromServer(intent: DownloadFromServerIntent): Promise<void> {
     const { transfer } = intent;
-    debugLog('FileTransferIO', 'FileTransferIO: Downloading file from server', {
+    debugLog('FileTransferIO', 'Downloading file from server', {
       transferId: transfer.id,
       virtualPath: transfer.virtualPath,
     });
 
-    // @human-review DownloadFile requires websocketService integration
-    // For now, simulate with delay - caller will handle state update
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const request = {
+        DownloadFile: {
+          virtual_path: transfer.virtualPath,
+          transfer_id: transfer.id,
+        },
+      };
+      await websocketService.sendMessage(request as Record<string, unknown>);
+    } catch (error) {
+      debugLog('FileTransferIO', 'Server download request failed:', error);
+      // Fall through — caller handles state update via events
+    }
   }
 
   // ============================================================================

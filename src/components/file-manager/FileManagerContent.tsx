@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { eventEmitter } from "@/lib/event-emitter";
 import { TreeScope } from "@/types/revfs-types";
 import { useFileManagerContent } from "./useFileManagerContent";
 import { ConnectingScreen, NoPeersScreen, LoadingScreen, ErrorScreen } from "./FileManagerStatusScreens";
@@ -134,8 +135,13 @@ export const FileManagerContent = () => {
         onClose={() => fm.setRevfsDisabledModalOpen(false)}
         reason={fm.revfsDisabledReason}
         onOpenSettings={() => {
-          // @human-review Chat settings panel not yet implemented
-          toast.info('Open Chat Settings to configure P2P storage');
+          // Emit event to open the P2P chat settings for the current peer
+          if (fm.selectedPeerCid) {
+            eventEmitter.emit('p2p:open-chat-settings', {
+              peerCid: fm.selectedPeerCid,
+            });
+          }
+          fm.setRevfsDisabledModalOpen(false);
         }}
       />
 
