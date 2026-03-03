@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { getEntityTypeString } from "@/lib/entity-type-registry";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -62,6 +63,29 @@ export function TreeNodesSection({
     return null;
   }, [tree, nodes]);
 
+  // Search filter state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter tree based on search query
+  const filteredTreeData = useMemo(() => {
+    if (!treeData || !searchQuery.trim()) return treeData;
+    const query = searchQuery.toLowerCase();
+
+    function filterNode(tn: TreeNode): TreeNode | null {
+      const nameMatches = tn.node.name.toLowerCase().includes(query);
+      const filteredChildren = tn.children
+        .map(filterNode)
+        .filter((c): c is TreeNode => c !== null);
+
+      if (nameMatches || filteredChildren.length > 0) {
+        return { ...tn, children: filteredChildren };
+      }
+      return null;
+    }
+
+    return filterNode(treeData);
+  }, [treeData, searchQuery]);
+
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     const initial = new Set<string>(initialExpandedIds);
     if (treeData) {
@@ -70,9 +94,10 @@ export function TreeNodesSection({
     return initial;
   });
 
-  // Auto-expand parent nodes when tree data changes
+  // Auto-expand parent nodes when tree data changes or search filters
   useEffect(() => {
-    if (!treeData) return;
+    const dataToExpand = filteredTreeData || treeData;
+    if (!dataToExpand) return;
     setExpandedNodes((prev) => {
       const next = new Set(prev);
       let changed = false;
@@ -83,10 +108,10 @@ export function TreeNodesSection({
         }
         tn.children.forEach(autoExpand);
       }
-      autoExpand(treeData);
+      autoExpand(dataToExpand);
       return changed ? next : prev;
     });
-  }, [treeData]);
+  }, [treeData, filteredTreeData]);
 
   const [nodeToDelete, setNodeToDelete] = useState<DomainNode | null>(null);
 
@@ -144,6 +169,9 @@ export function TreeNodesSection({
   }, [onNodeCreate]);
 
   // Empty state
+  // Display data uses filtered tree when searching
+  const displayTreeData = searchQuery.trim() ? filteredTreeData : treeData;
+
   if (!isLoading && !treeData) {
     return (
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
@@ -193,6 +221,21 @@ export function TreeNodesSection({
             </Button>
           )}
         </div>
+        {/* Search filter */}
+        {treeData && treeData.children.length > 0 && (
+          <div className="px-3 mb-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+              <Input
+                placeholder="Filter nodes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-7 pl-7 text-xs bg-[#262C4A] border-[#3D4567] text-gray-300 placeholder:text-gray-500"
+                data-testid="tree-search-input"
+              />
+            </div>
+          </div>
+        )}
         <SidebarGroupContent>
           <ScrollArea style={{ maxHeight }}>
             <SidebarMenu>
@@ -200,10 +243,14 @@ export function TreeNodesSection({
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   Loading...
                 </div>
+              ) : searchQuery.trim() && !displayTreeData ? (
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  No matching nodes
+                </div>
               ) : (
-                treeData && (
+                displayTreeData && (
                   <TreeNodeItem
-                    treeNode={treeData}
+                    treeNode={displayTreeData}
                     depth={0}
                     selectedNodeId={selectedNodeId}
                     expandedNodes={expandedNodes}
