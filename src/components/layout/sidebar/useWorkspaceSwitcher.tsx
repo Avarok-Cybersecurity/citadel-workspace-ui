@@ -190,7 +190,6 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
 
   const handleManageAccounts = () => {
     setIsOpen(false);
-    toastSuccess(toast, "Account Management", "Account management coming soon");
   };
 
   const handleNext = () => {

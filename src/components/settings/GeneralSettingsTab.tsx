@@ -134,7 +134,7 @@ export function GeneralSettingsTab() {
         <Button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50"
+          className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
         >
           {isSaving ? (
             <>

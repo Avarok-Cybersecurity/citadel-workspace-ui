@@ -98,13 +98,6 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
             Select an office or room from the sidebar to configure its chat settings.
           </AlertDescription>
         </Alert>
-
-        <div className="text-center py-8">
-          <MessageSquare className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">
-            Workspace-level chat settings coming soon
-          </p>
-        </div>
       </div>
     );
   }
@@ -170,7 +163,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
             </div>
             <div className="flex items-center gap-2 text-gray-400">
               <div className="w-2 h-2 rounded-full bg-yellow-500" />
-              Threads (coming soon)
+              Threads (planned)
             </div>
           </div>
         </div>

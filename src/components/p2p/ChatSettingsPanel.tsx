@@ -167,7 +167,7 @@ export function ChatSettingsPanel({
                 <Sliders className="h-10 w-10 text-gray-500 mx-auto mb-3" />
                 <h3 className="text-sm font-medium text-gray-300 mb-1">Advanced Settings</h3>
                 <p className="text-xs text-gray-500">
-                  Encryption preferences, connection settings, and protocol options coming soon.
+                  Encryption preferences, connection settings, and protocol options are not yet available.
                 </p>
               </div>
             </TabsContent>
@@ -178,7 +178,7 @@ export function ChatSettingsPanel({
                 <BarChart3 className="h-10 w-10 text-gray-500 mx-auto mb-3" />
                 <h3 className="text-sm font-medium text-gray-300 mb-1">Chat Statistics</h3>
                 <p className="text-xs text-gray-500">
-                  Message counts, file transfer history, and usage analytics coming soon.
+                  Message counts, file transfer history, and usage analytics are not yet available.
                 </p>
               </div>
             </TabsContent>

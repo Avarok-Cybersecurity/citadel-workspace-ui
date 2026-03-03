@@ -47,14 +47,15 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
             disabled={isSwitching}
           >
             {isInitials ? (
-              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white">
+              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white text-sm font-semibold">
                 {workspaceLogo || getWorkspaceInitials(workspaceName || currentWorkspace?.username || "W")}
               </div>
             ) : (
               <img
-                src={workspaceLogo || "/placeholder.svg"}
+                src={workspaceLogo || ""}
                 alt={workspaceName || currentWorkspace?.username || "Workspace"}
                 className="w-8 h-8 rounded"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
             <div className="flex-1 text-left">

@@ -9,11 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   GeneralSettingsTab,
   ConnectionsSettingsTab,
-  AppearanceSettingsTab,
-  PrivacySettingsTab,
   PermissionsSettingsTab,
 } from './settings';
-import { Settings, Wifi, Palette, Shield, Lock } from 'lucide-react';
+import { Settings, Wifi, Lock } from 'lucide-react';
 
 interface SettingsModalProps {
   open: boolean;
@@ -32,7 +30,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-4">
-          <TabsList className="grid w-full grid-cols-5 bg-[#1a1b26] h-12">
+          <TabsList className="grid w-full grid-cols-3 bg-[#1a1b26] h-12">
             <TabsTrigger
               value="general"
               className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
@@ -46,20 +44,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             >
               <Wifi className="h-4 w-4" />
               <span className="hidden sm:inline">Connections</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="appearance"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
-            >
-              <Palette className="h-4 w-4" />
-              <span className="hidden sm:inline">Appearance</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="privacy"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
-            >
-              <Shield className="h-4 w-4" />
-              <span className="hidden sm:inline">Privacy</span>
             </TabsTrigger>
             <TabsTrigger
               value="permissions"
@@ -76,14 +60,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
           <TabsContent value="connections" className="mt-6">
             <ConnectionsSettingsTab />
-          </TabsContent>
-
-          <TabsContent value="appearance" className="mt-6">
-            <AppearanceSettingsTab />
-          </TabsContent>
-
-          <TabsContent value="privacy" className="mt-6">
-            <PrivacySettingsTab />
           </TabsContent>
 
           <TabsContent value="permissions" className="mt-6">

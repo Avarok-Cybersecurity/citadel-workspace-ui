@@ -4,14 +4,17 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { serverAutoConnectService } from '@/lib/server-auto-connect-service';
+import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { Loader2 } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 export function ConnectionsSettingsTab() {
   const { toast } = useToast();
   const [autoReconnect, setAutoReconnect] = useState(true);
+  const [autoAcceptRegistrations, setAutoAcceptRegistrations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAutoAccept, setSavingAutoAccept] = useState(false);
 
   useEffect(() => {
     runAsyncSetup(loadSettings);
@@ -20,10 +23,14 @@ export function ConnectionsSettingsTab() {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const enabled = await serverAutoConnectService.getEnabled();
+      const [enabled, autoAccept] = await Promise.all([
+        serverAutoConnectService.getEnabled(),
+        p2pRegistrationService.getAutoAcceptSetting(),
+      ]);
       setAutoReconnect(enabled);
+      setAutoAcceptRegistrations(autoAccept);
     } catch (error) {
-      debugLog('ConnectionsSettingsTab', 'Failed to load auto-reconnect setting:', error);
+      debugLog('ConnectionsSettingsTab', 'Failed to load connection settings:', error);
     } finally {
       setLoading(false);
     }
@@ -51,6 +58,28 @@ export function ConnectionsSettingsTab() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAutoAcceptChange = async (checked: boolean) => {
+    setAutoAcceptRegistrations(checked);
+    setSavingAutoAccept(true);
+    try {
+      await p2pRegistrationService.setAutoAcceptSetting(checked);
+      toast({
+        title: 'Settings saved',
+        description: `Auto-accept P2P registrations is now ${checked ? 'enabled' : 'disabled'}`,
+      });
+    } catch (error) {
+      debugLog('ConnectionsSettingsTab', 'Failed to update auto-accept preference:', error);
+      setAutoAcceptRegistrations(!checked);
+      toast({
+        title: 'Failed to save',
+        description: 'Could not save your preference',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingAutoAccept(false);
     }
   };
 
@@ -83,6 +112,27 @@ export function ConnectionsSettingsTab() {
           />
         </div>
       </div>
+
+      <div className="flex items-center justify-between p-4 rounded-lg bg-[#1a1b26] border border-[#262C4A]/50">
+        <div className="space-y-0.5 flex-1 mr-4">
+          <Label htmlFor="auto-accept-registrations" className="text-white font-medium cursor-pointer">
+            Auto-accept P2P registrations
+          </Label>
+          <p className="text-xs text-gray-400">
+            Automatically accept P2P registration requests from new users. Registered users are always accepted regardless of this setting.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {savingAutoAccept && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+          <Switch
+            id="auto-accept-registrations"
+            checked={autoAcceptRegistrations}
+            onCheckedChange={handleAutoAcceptChange}
+            disabled={savingAutoAccept}
+          />
+        </div>
+      </div>
     </div>
   );
 }
+

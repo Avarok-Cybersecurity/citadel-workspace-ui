@@ -1,4 +1,4 @@
-import { Menu } from "lucide-react";
+import { Menu, LogOut, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,7 +14,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/lib/toast-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import PreferencesDialog from "@/components/connection/PreferencesDialog";
+
 import NotificationCenter from "@/components/notification/NotificationCenter";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal } from "@/components/SettingsModal";
@@ -63,9 +63,8 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const userRole = state.currentUser?.role;
   const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
 
-  const handleSettingsClick = () => {
-    toastSuccess(toast, "Settings", "Settings panel opening soon");
-  };
+
+
 
   const handleExit = () => {
     // Stop WASM connection manager polling (session stays active but this tab won't poll)
@@ -164,7 +163,6 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         <LeaderIndicator />
         <NotificationCenter />
 
-        <PreferencesDialog />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -195,16 +193,18 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-purple-800" />
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-gray-300 hover:bg-[#444A6C] hover:text-white cursor-pointer gap-2"
               onClick={() => setShowExitConfirm(true)}
             >
+              <ArrowLeft className="h-4 w-4" />
               Exit to Landing
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-red-400 hover:bg-red-500/20 hover:text-red-300 cursor-pointer gap-2"
               onClick={handleSignOut}
             >
-              Sign out
+              <LogOut className="h-4 w-4" />
+              Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
