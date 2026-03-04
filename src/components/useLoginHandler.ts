@@ -61,9 +61,16 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       const activeSessions = await connectionManager.getActiveSessions();
       const existingSession = activeSessions.find(session => session.username === username.trim());
       if (existingSession) {
-        debugLog('Login', 'User already has active session:', existingSession);
-        setError('You are already logged in. Please select the session from the top bar, or disconnect it first if you wish to login again.');
-        setLoading(false);
+        debugLog('Login', 'User already has active session, redirecting:', existingSession);
+        try {
+          await doRedirect({
+            cid: existingSession.cid,
+            username: existingSession.username ?? username.trim(),
+            server_address: existingSession.server_address,
+          });
+        } finally {
+          setLoading(false);
+        }
         return;
       }
 
