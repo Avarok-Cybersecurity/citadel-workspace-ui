@@ -72,11 +72,13 @@ export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
 
   private async executeSendTransferRequest(intent: SendTransferRequestIntent): Promise<void> {
-    const { transfer } = intent;
-    // Create a mock File object since we need metadata
-    // The actual file is stored separately in pending files
+    const { transfer, file } = intent;
+    // Use the actual File from the intent (passed from transfer-lifecycle)
+    // Falls back to a placeholder for backward compatibility, but this will
+    // only work if pickFileRequestId is also provided.
+    const sourceFile = file || new File([], transfer.fileName);
     await this.sendFile({
-      source: new File([], transfer.fileName), // Placeholder - actual file in pending
+      source: sourceFile,
       cid: BigInt(transfer.senderCid),
       peerCid: BigInt(transfer.recipientCid),
       mode: transfer.mode,

@@ -37,10 +37,22 @@ export async function executeSendFile(
     source = { Path: params.source };
   } else if (params.pickFileRequestId) {
     source = { PickFileRef: { pick_file_request_id: params.pickFileRequestId } };
+  } else if (params.source instanceof File && params.source.size > 0) {
+    // Read browser File as bytes and send as ByteContents
+    const buffer = await params.source.arrayBuffer();
+    source = {
+      ByteContents: {
+        file_name: params.source.name,
+        data: Array.from(new Uint8Array(buffer)),
+      },
+    };
+    debugLog('send-operations', 'Converted browser File to ByteContents', {
+      fileName: params.source.name,
+      size: params.source.size,
+    });
   } else {
     throw new Error(
-      'RealProtocolIORouter requires file path (string) or pickFileRequestId. ' +
-        'For browser File objects, call pickFile first to get a file path.'
+      'RealProtocolIORouter requires file path (string), pickFileRequestId, or a non-empty browser File object.'
     );
   }
 
@@ -131,7 +143,7 @@ export function executeCancelTransfer(
 export function throwChunkNotSupported(): never {
   throw new Error(
     'sendChunk not supported by RealProtocolIORouter. ' +
-      'Chunking is handled automatically by the Citadel SDK.'
+    'Chunking is handled automatically by the Citadel SDK.'
   );
 }
 
@@ -141,6 +153,6 @@ export function throwChunkNotSupported(): never {
 export function throwCompleteNotSupported(): never {
   throw new Error(
     'sendComplete not supported by RealProtocolIORouter. ' +
-      'Completion is signaled automatically by the Citadel SDK.'
+    'Completion is signaled automatically by the Citadel SDK.'
   );
 }

@@ -56,6 +56,8 @@ export interface TransferProgressEvent {
 export interface SendTransferRequestIntent {
   type: 'send-transfer-request';
   transfer: FileTransfer;
+  /** The actual browser File object to send (for browser-based file selection) */
+  file?: File;
 }
 
 export interface SendChunkIntent {

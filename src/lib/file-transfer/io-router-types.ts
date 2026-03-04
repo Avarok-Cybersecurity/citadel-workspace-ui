@@ -17,7 +17,8 @@ import type { FileTransferMode, FileTransferState } from '@/types/messaging-laye
  */
 export type FileSource =
   | { Path: string }
-  | { PickFileRef: { pick_file_request_id: string } };
+  | { PickFileRef: { pick_file_request_id: string } }
+  | { ByteContents: { file_name: string; data: number[] } };
 
 // ============================================================================
 // Send Operation Types

@@ -67,7 +67,7 @@ export async function sendFile(
     await deps.handleAsyncSend(transfer, file);
   } else {
     deps.state.setPendingFile(transferId, file);
-    await deps.io.executeIntent({ type: 'send-transfer-request', transfer });
+    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file });
   }
 
   deps.emitStateChange(transfer);
