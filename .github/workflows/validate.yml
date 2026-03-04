@@ -236,6 +236,29 @@ jobs:
             artifact: account-mgmt
           - test: test:hierarchy-nav
             artifact: hierarchy-nav
+          # Previously missing from CI matrix
+          - test: test:settings
+            artifact: settings
+          - test: test:directory
+            artifact: directory
+          - test: test:workspace-init
+            artifact: workspace-init
+          - test: test:notifications
+            artifact: notifications
+          - test: test:tree-structure
+            artifact: tree-structure
+          - test: test:chat-settings
+            artifact: chat-settings
+          - test: test:reconnect-c2s
+            artifact: reconnect-c2s
+          - test: test:reconnect-both-c2s
+            artifact: reconnect-both-c2s
+          - test: test:reconnect-one-c2s
+            artifact: reconnect-one-c2s
+          - test: test:reconnect-p2p-one-c2s
+            artifact: reconnect-p2p-one-c2s
+          - test: test:reconnect-p2p-only
+            artifact: reconnect-p2p-only
     defaults:
       run:
         working-directory: parent
@@ -300,3 +323,11 @@ jobs:
         with:
           name: screenshots-${{ matrix.artifact }}
           path: parent/citadel-workspaces/integration-tests/screenshots/
+      - name: Upload Trace and Report on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces-${{ matrix.artifact }}
+          path: |
+            parent/citadel-workspaces/integration-tests/test-results/
+            parent/citadel-workspaces/integration-tests/reports/
