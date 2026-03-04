@@ -209,7 +209,7 @@ async function testTabSwitching(page: Page): Promise<{
   // Test General tab (default)
   const generalTab = page.locator('button[role="tab"]').first(); // First tab is General
   if (await generalTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await generalTab.click();
+    await generalTab.click({ force: true });
     await sleep(300);
     const isActive = await generalTab.getAttribute('data-state');
     results.general.works = isActive === 'active';
@@ -223,7 +223,7 @@ async function testTabSwitching(page: Page): Promise<{
   // Test Connections tab
   const connectionsTab = page.locator('button[role="tab"]').nth(1);
   if (await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await connectionsTab.click();
+    await connectionsTab.click({ force: true });
     await sleep(300);
     const isActive = await connectionsTab.getAttribute('data-state');
     results.connections.works = isActive === 'active';
@@ -236,7 +236,7 @@ async function testTabSwitching(page: Page): Promise<{
   // Test Appearance tab
   const appearanceTab = page.locator('button[role="tab"]').nth(2);
   if (await appearanceTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await appearanceTab.click();
+    await appearanceTab.click({ force: true });
     await sleep(300);
     const isActive = await appearanceTab.getAttribute('data-state');
     results.appearance.works = isActive === 'active';
@@ -249,7 +249,7 @@ async function testTabSwitching(page: Page): Promise<{
   // Test Privacy tab
   const privacyTab = page.locator('button[role="tab"]').nth(3);
   if (await privacyTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await privacyTab.click();
+    await privacyTab.click({ force: true });
     await sleep(300);
     const isActive = await privacyTab.getAttribute('data-state');
     results.privacy.works = isActive === 'active';
@@ -262,7 +262,7 @@ async function testTabSwitching(page: Page): Promise<{
   // Test Permissions tab
   const permissionsTab = page.locator('button[role="tab"]').nth(4);
   if (await permissionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await permissionsTab.click();
+    await permissionsTab.click({ force: true });
     await sleep(300);
     const isActive = await permissionsTab.getAttribute('data-state');
     results.permissions.works = isActive === 'active';

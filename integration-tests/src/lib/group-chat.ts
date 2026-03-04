@@ -87,30 +87,52 @@ export async function navigateToRoom(
   console.log(`\n=== ${username}: Navigating to room "${roomName}" ===`);
 
   try {
-    // Look for the room in the sidebar or room list
-    const roomLink = page.locator(`[data-sidebar="menu-button"]:has-text("${roomName}"), a:has-text("${roomName}"), button:has-text("${roomName}")`).first();
+    // Try multiple selectors for the room in the sidebar tree
+    // Use the same approach as navigateToOffice which works reliably
+    const selectors = [
+      `[data-sidebar="menu-button"]:has-text("${roomName}")`,
+      `[data-testid^="tree-node-"]:has-text("${roomName}")`,
+      `button:has-text("${roomName}")`,
+      `a:has-text("${roomName}")`,
+    ];
 
-    if (await roomLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await roomLink.click();
-      await sleep(2000);
-      console.log(`  Clicked on room "${roomName}"`);
-      await takeScreenshot(page, `${username}_room_${roomName}`);
-      return true;
-    }
-
-    // Try expanding rooms section first
-    const roomsHeader = page.locator('text="Rooms", [data-testid="rooms-section"]').first();
-    if (await roomsHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await roomsHeader.click();
-      await sleep(1000);
-
-      const expandedRoomLink = page.locator(`a:has-text("${roomName}"), button:has-text("${roomName}")`).first();
-      if (await expandedRoomLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expandedRoomLink.click();
+    for (const selector of selectors) {
+      const roomLink = page.locator(selector).first();
+      if (await roomLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        // Use JavaScript click to bypass any Playwright click issues
+        await roomLink.evaluate((el: HTMLElement) => el.click());
         await sleep(2000);
-        console.log(`  Clicked on room "${roomName}" (after expanding)`);
+        console.log(`  Clicked on room "${roomName}" (${selector})`);
         await takeScreenshot(page, `${username}_room_${roomName}`);
         return true;
+      }
+    }
+
+    // Try expanding tree nodes that might contain the room
+    // The room may be a child of an office node that needs expanding
+    const toggleBtns = page.locator('[data-testid^="tree-node-toggle-"]');
+    const toggleCount = await toggleBtns.count();
+    if (toggleCount > 0) {
+      console.log(`  Expanding ${toggleCount} tree toggle(s) to find room...`);
+      for (let i = 0; i < toggleCount; i++) {
+        const toggle = toggleBtns.nth(i);
+        if (await toggle.isVisible().catch(() => false)) {
+          await toggle.click();
+          await sleep(500);
+        }
+      }
+      await sleep(1000);
+
+      // Try selectors again after expanding
+      for (const selector of selectors) {
+        const roomLink = page.locator(selector).first();
+        if (await roomLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await roomLink.evaluate((el: HTMLElement) => el.click());
+          await sleep(2000);
+          console.log(`  Clicked on room "${roomName}" (after expanding, ${selector})`);
+          await takeScreenshot(page, `${username}_room_${roomName}`);
+          return true;
+        }
       }
     }
 

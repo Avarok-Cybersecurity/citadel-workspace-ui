@@ -325,11 +325,15 @@ async function getPeerCidFromConversations(page: Page): Promise<string | null> {
 async function openFileTransferModal(page: Page, username: string): Promise<boolean> {
   console.log(`\n=== ${username}: Opening file transfer modal ===`);
   try {
+    // Dismiss any stale overlays/modals from previous operations
+    await page.keyboard.press('Escape');
+    await sleep(500);
+
     // Find the attachment button (paperclip icon)
     const attachButton = page.locator('button').filter({ has: page.locator('svg.lucide-paperclip') });
 
     if (await attachButton.isVisible({ timeout: 5000 })) {
-      await attachButton.click();
+      await attachButton.click({ force: true });
       console.log('  Clicked attachment button');
 
       // Wait for modal to appear

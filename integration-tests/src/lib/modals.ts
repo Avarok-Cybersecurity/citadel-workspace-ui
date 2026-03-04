@@ -7,17 +7,39 @@ import { sleep } from './utils.js';
 import { UxIssueTracker } from './ux-tracker.js';
 
 /**
- * Close any open modals by pressing Escape
+ * Close any open modals by clicking Cancel/Close buttons or pressing Escape.
+ * Handles both Radix Dialog modals (Escape works) and raw div overlays
+ * like WorkspaceInitializationModal (need to click Cancel button).
  */
-export async function closeAnyModals(page: Page, maxAttempts = 3): Promise<void> {
+export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void> {
   for (let i = 0; i < maxAttempts; i++) {
-    const backdrop = page.locator('.bg-black\\/60, [data-state="open"]').first();
-    if (await backdrop.isVisible({ timeout: 300 }).catch(() => false)) {
-      await page.keyboard.press('Escape');
-      await sleep(300);
-    } else {
-      break;
+    // Check for any visible modal overlay
+    const backdrop = page.locator('.bg-black\\/60, [data-state="open"], [role="dialog"]').first();
+    if (!await backdrop.isVisible({ timeout: 300 }).catch(() => false)) {
+      break; // No modal visible
     }
+
+    console.log(`  closeAnyModals: Modal detected (attempt ${i + 1}/${maxAttempts})`);
+
+    // Strategy 1: Click Cancel or Close button inside the modal
+    const cancelBtn = page.locator(
+      '.bg-black\\/60 button:has-text("Cancel"), ' +
+      '[role="dialog"] button:has-text("Cancel"), ' +
+      '[role="dialog"] button:has-text("Close"), ' +
+      '[data-state="open"] button[aria-label="Close"]'
+    ).first();
+
+    if (await cancelBtn.isVisible({ timeout: 300 }).catch(() => false)) {
+      console.log('  closeAnyModals: Clicking Cancel/Close button');
+      await cancelBtn.click();
+      await sleep(500);
+      continue;
+    }
+
+    // Strategy 2: Press Escape (works for Radix dialogs)
+    console.log('  closeAnyModals: Pressing Escape');
+    await page.keyboard.press('Escape');
+    await sleep(300);
   }
 }
 

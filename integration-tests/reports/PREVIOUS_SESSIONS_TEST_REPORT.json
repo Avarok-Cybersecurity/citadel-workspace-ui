@@ -1,13 +1,16 @@
 {
-  "timestamp": "2026-02-04T23:41:46.440Z",
+  "timestamp": "2026-03-03T21:04:16.742Z",
+  "testName": "Previous Sessions Navbar Test",
   "users": [
-    "prev_sess_a_1770248423927",
-    "prev_sess_b_1770248423927"
+    "prev_sess_a_1772571696776",
+    "prev_sess_b_1772571696776",
+    "prev_sess_c_1772571696776"
   ],
-  "sessionCount": 2,
-  "isCI": true,
+  "sessionCount": 3,
+  "isCI": false,
   "results": {
     "sessionsCreated": [
+      true,
       true,
       true
     ],
@@ -18,12 +21,10 @@
     "deregisterRemovesSession": true,
     "deregisterPermanent": true,
     "oneClickLoginWorks": true,
-    "mostRecentFirst": true,
+    "mostRecentFirst": false,
     "previousSessionsLabel": true,
     "scrollContainerExists": true
   },
   "uxIssues": [],
-  "passed": true,
-  "corePassed": true,
-  "allPassed": true
+  "passed": true
 }

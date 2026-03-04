@@ -51,8 +51,17 @@
     "test:tree-deep": "npm run build && node dist/tests/tree-deep-hierarchy.test.js",
     "test:hierarchy-nav": "npm run build && node dist/tests/hierarchy-navigation.test.js",
     "test:tree-permissions": "npm run build && node dist/tests/tree-permissions-inheritance.test.js",
-    "test:all": "npm run test:p2p && npm run test:crud && npm run test:login && npm run test:prev-sessions && npm run test:all-group && npm run test:offline && npm run test:hard-disconnect && npm run test:permissions && npm run test:admin-modal",
+    "test:chat-settings": "npm run build && node dist/tests/chat-settings.test.js",
+    "test:reconnect-c2s": "npm run build && node dist/tests/reconnection/c2s-reconnect.test.js",
+    "test:reconnect-both-c2s": "npm run build && node dist/tests/reconnection/both-c2s-reconnect.test.js",
+    "test:reconnect-one-c2s": "npm run build && node dist/tests/reconnection/one-c2s-reconnect.test.js",
+    "test:reconnect-p2p-one-c2s": "npm run build && node dist/tests/reconnection/p2p-one-c2s-reconnect.test.js",
+    "test:reconnect-p2p-only": "npm run build && node dist/tests/reconnection/p2p-only-reconnect.test.js",
+    "test:all": "npm run test:login && npm run test:p2p && npm run test:p2p-types && npm run test:live-doc && npm run test:crud && npm run test:prev-sessions && npm run test:all-group && npm run test:group-multiuser && npm run test:group-extended && npm run test:offline && npm run test:hard-disconnect && npm run test:file-transfer && npm run test:files && npm run test:files-extended && npm run test:revfs:peer && npm run test:revfs:server && npm run test:permissions && npm run test:admin-modal && npm run test:chat-settings && npm run test:directory && npm run test:directory-actions && npm run test:member-mgmt && npm run test:notifications && npm run test:settings && npm run test:settings-controls && npm run test:security && npm run test:topbar && npm run test:workspace-init && npm run test:account-mgmt && npm run test:mdx-content && npm run test:misc && npm run test:hierarchy-nav && npm run test:tree",
     "test:ui": "npm run test:directory && npm run test:files && npm run test:notifications && npm run test:settings && npm run test:workspace-init",
+    "test:pw": "npx playwright test",
+    "test:pw:ui": "npx playwright test --ui",
+    "test:pw:headed": "npx playwright test --headed",
     "typecheck": "tsc --noEmit",
     "lint": "npx eslint .",
     "clean": "rm -rf dist"
@@ -65,7 +74,8 @@
     "typescript-eslint": "^8.20.0"
   },
   "dependencies": {
-    "playwright": "^1.57.0"
+    "playwright": "^1.57.0",
+    "@playwright/test": "^1.57.0"
   },
   "engines": {
     "node": ">=18.0.0"

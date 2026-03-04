@@ -1,111 +1,103 @@
 {
-  "timestamp": "2026-02-05T00:50:08.827Z",
+  "timestamp": "2026-03-04T01:28:10.992Z",
   "testName": "P2P + One C2S Reconnection Test",
-  "users": {
-    "user1": "p2pc2s_1_1770252358069",
-    "user2": "p2pc2s_2_1770252358069"
+  "user1": "p2pc2s_1_1772587513992",
+  "user2": "p2pc2s_2_1772587513992",
+  "results": {
+    "results": [
+      {
+        "step": "Phase 1a: Create User1",
+        "status": "PASS",
+        "notes": "Created p2pc2s_1_1772587513992"
+      },
+      {
+        "step": "Phase 1b: Create User2",
+        "status": "PASS",
+        "notes": "Created p2pc2s_2_1772587513992"
+      },
+      {
+        "step": "Phase 2a: P2P Register",
+        "status": "PASS",
+        "notes": "Initiated"
+      },
+      {
+        "step": "Phase 2b: P2P Accept",
+        "status": "PASS",
+        "notes": "Accepted"
+      },
+      {
+        "step": "Phase 2c: Initial Messaging",
+        "status": "PASS",
+        "notes": "Works"
+      },
+      {
+        "step": "Phase 3: User2 TCP Drop",
+        "status": "PASS",
+        "notes": "Page closed (TCP drop simulated)"
+      },
+      {
+        "step": "Phase 4: User2 IS Orphaned",
+        "status": "PASS",
+        "notes": "Session correctly in OrphanSessionsNavbar (TCP drop preserved it)"
+      },
+      {
+        "step": "Phase 5a: User1 Sign Out",
+        "status": "PASS",
+        "notes": "Signed out (ratchets destroyed)"
+      },
+      {
+        "step": "Phase 5b: User1 NOT Orphaned",
+        "status": "PASS",
+        "notes": "Session correctly removed"
+      },
+      {
+        "step": "Phase 6: User2 ClaimSession",
+        "status": "PASS",
+        "notes": "Session reclaimed"
+      },
+      {
+        "step": "Phase 7: User1 Login",
+        "status": "PASS",
+        "notes": "Logged in"
+      },
+      {
+        "step": "Phase 8a: P2P Re-establish",
+        "status": "PASS",
+        "notes": "User2 sees User1 in sidebar (auto-connected)"
+      },
+      {
+        "step": "Phase 8b: P2P Re-accept",
+        "status": "SKIP",
+        "notes": "Skipped - auto-connect handled reconnection"
+      },
+      {
+        "step": "Phase 9a: Send Message",
+        "status": "PASS",
+        "notes": "Sent"
+      },
+      {
+        "step": "Phase 9b: Verify Received",
+        "status": "PASS",
+        "notes": "Received"
+      },
+      {
+        "step": "Phase 9c: Bidirectional Messaging",
+        "status": "PASS",
+        "notes": "Works both ways"
+      },
+      {
+        "step": "Phase 10a: No Session Errors",
+        "status": "PASS",
+        "notes": "None"
+      },
+      {
+        "step": "Phase 10b: No Ratchet Errors",
+        "status": "PASS",
+        "notes": "None"
+      }
+    ],
+    "consoleErrors": []
   },
-  "results": [
-    {
-      "step": "Phase 1a: Create User1",
-      "status": "PASS",
-      "notes": "Created p2pc2s_1_1770252358069"
-    },
-    {
-      "step": "Phase 1b: Create User2",
-      "status": "PASS",
-      "notes": "Created p2pc2s_2_1770252358069"
-    },
-    {
-      "step": "Phase 2a: P2P Register",
-      "status": "PASS",
-      "notes": "Initiated"
-    },
-    {
-      "step": "Phase 2b: P2P Accept",
-      "status": "PASS",
-      "notes": "Accepted"
-    },
-    {
-      "step": "Phase 2c: Initial Messaging",
-      "status": "PASS",
-      "notes": "Works"
-    },
-    {
-      "step": "Phase 3: User2 TCP Drop",
-      "status": "PASS",
-      "notes": "Page closed (TCP drop simulated)"
-    },
-    {
-      "step": "Phase 4: User2 IS Orphaned",
-      "status": "PASS",
-      "notes": "Session correctly in OrphanSessionsNavbar (TCP drop preserved it)"
-    },
-    {
-      "step": "Phase 5a: User1 Sign Out",
-      "status": "PASS",
-      "notes": "Signed out (ratchets destroyed)"
-    },
-    {
-      "step": "Phase 5b: User1 NOT Orphaned",
-      "status": "PASS",
-      "notes": "Session correctly removed"
-    },
-    {
-      "step": "Phase 6: User2 ClaimSession",
-      "status": "PASS",
-      "notes": "Session reclaimed"
-    },
-    {
-      "step": "Phase 7: User1 Login",
-      "status": "PASS",
-      "notes": "Logged in"
-    },
-    {
-      "step": "Phase 8a: P2P Re-establish",
-      "status": "PASS",
-      "notes": "User2 sees User1 in sidebar (auto-connected)"
-    },
-    {
-      "step": "Phase 8b: P2P Re-accept",
-      "status": "SKIP",
-      "notes": "Skipped - auto-connect handled reconnection"
-    },
-    {
-      "step": "Phase 9a: Send Message",
-      "status": "PASS",
-      "notes": "Sent"
-    },
-    {
-      "step": "Phase 9b: Verify Received",
-      "status": "PASS",
-      "notes": "Received"
-    },
-    {
-      "step": "Phase 9c: Bidirectional Messaging",
-      "status": "PASS",
-      "notes": "Works both ways"
-    },
-    {
-      "step": "Phase 10a: No Session Errors",
-      "status": "PASS",
-      "notes": "None"
-    },
-    {
-      "step": "Phase 10b: No Ratchet Errors",
-      "status": "PASS",
-      "notes": "None"
-    }
-  ],
-  "uxIssues": [
-    {
-      "severity": "minor",
-      "category": "functional",
-      "description": "Session for p2pc2s_1_1770252358069 lingered in OrphanSessionsNavbar (race condition)",
-      "screenshot": null,
-      "timestamp": "2026-02-05T00:48:05.423Z"
-    }
-  ],
-  "consoleErrors": [],
+  "uxIssues": [],
   "passed": true
 }
