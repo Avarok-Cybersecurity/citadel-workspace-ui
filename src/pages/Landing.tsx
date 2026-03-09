@@ -174,6 +174,7 @@ export const Landing = () => {
         hasOrphanSessions && "pt-24"
       )}>
         <div className="max-w-xl lg:max-w-3xl animate-fade-in">
+          <p className="text-sm font-bold tracking-[0.3em] text-purple-400 mb-3 uppercase">Citadel</p>
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight">
             The World's First Post-Quantum Virtual Workspace
           </h1>
