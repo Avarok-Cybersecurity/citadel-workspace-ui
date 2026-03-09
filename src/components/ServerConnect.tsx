@@ -56,7 +56,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
       <div className="w-full max-w-md">
         <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-xl">{title || "Add a New Workspace"}</CardTitle>
+            <CardTitle className="text-white text-xl">{title || "Join Workspace"}</CardTitle>
             <CardDescription className="text-gray-300">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
             </CardDescription>
