@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
+import type { User } from '../types/workspace-entities';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
@@ -32,6 +33,7 @@ export interface WorkspaceEventState {
     nodes: boolean;
   };
   error?: string;
+  members: Record<string, User>;
   needsWorkspaceInitialization?: boolean;
   protocolWarning?: {
     message: string;
@@ -75,6 +77,7 @@ export const WorkspaceEventHandler: React.FC<{
     workspaces: [],
     nodes: {},
     treeSchema: null,
+    members: {},
     loading: { workspace: false, members: false, nodes: false },
     needsWorkspaceInitialization: false,
     messages: {

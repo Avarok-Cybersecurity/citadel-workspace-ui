@@ -52,9 +52,28 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             }
           }
 
+          // Build members record from the array
+          const membersRecord: Record<string, import('@/types/workspace-entities').User> = {};
+          if (payload.members) {
+            for (const m of payload.members) {
+              const member = m as { id?: string; username?: string; name?: string; displayName?: string; role?: string; };
+              const id = member.id || member.username || String(Math.random());
+              membersRecord[id] = {
+                id,
+                username: member.username || member.name || id,
+                displayName: member.displayName || member.name || member.username || id,
+                role: member.role as import('@/types/workspace-entities').UserRole | undefined,
+                isOnline: false,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              };
+            }
+          }
+
           return {
             ...prev,
             currentUser: updatedCurrentUser,
+            members: membersRecord,
             loading: { ...prev.loading, members: false },
             lastRequestId: payload.connection.request_id
           };

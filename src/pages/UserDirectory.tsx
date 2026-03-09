@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { UserSearch, UserData } from '@/components/user/UserSearch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Filter } from 'lucide-react';
 import { ConnectionService } from '@/lib/connection-service';
 import { toast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLog } from '@/lib/debug-config';
 import { MemberListItem, type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
+import WorkspaceService from '@/lib/workspace-service';
 
 export const UserDirectory = () => {
   const { state } = useWorkspace();
@@ -22,6 +23,15 @@ export const UserDirectory = () => {
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const navigate = useNavigate();
   const connectionService = ConnectionService.getInstance();
+
+  // Request member list on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const domainId = params.get('nodeId') || state.workspace?.id;
+    debugLog('UserDirectory', 'Requesting member list for domain:', domainId);
+    WorkspaceService.listMembers(domainId || undefined)
+      .catch(err => debugLog('UserDirectory', 'Failed to load members:', err));
+  }, [state.workspace?.id]);
 
   const currentUserId = 'current-user';
 
