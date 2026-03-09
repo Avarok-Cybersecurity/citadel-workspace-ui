@@ -34,6 +34,18 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
     }
   }, [queryClient, cachedData, serverAddress, password]);
 
+  // Dismiss on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (onCancel) onCancel();
+        else navigate('/');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCancel, navigate]);
+
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
     if (!serverAddress) {
