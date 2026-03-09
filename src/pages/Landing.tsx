@@ -145,7 +145,7 @@ export const Landing = () => {
   const goToConnectPage = () => navigate('/connect');
 
   return (
-    <div className="min-h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
+    <div className="h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
       {/* Orphan sessions navbar */}
       <OrphanSessionsNavbar />
 
