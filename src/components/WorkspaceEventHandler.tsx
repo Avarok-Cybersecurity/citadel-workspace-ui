@@ -87,7 +87,9 @@ export const WorkspaceEventHandler: React.FC<{
   });
 
   const [showInitModal, setShowInitModal] = useState(false);
-  const [initModalDismissed, setInitModalDismissed] = useState(false);
+  const [initModalDismissed, setInitModalDismissed] = useState(() => {
+    return sessionStorage.getItem('workspace-init-modal-dismissed') === 'true';
+  });
 
   useEffect(() => {
     if (state.needsWorkspaceInitialization && !showInitModal && !initModalDismissed) {
@@ -124,6 +126,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   const handleWorkspaceInitialized = () => {
     setShowInitModal(false);
+    sessionStorage.removeItem('workspace-init-modal-dismissed');
     setState(prev => ({ ...prev, needsWorkspaceInitialization: false, error: undefined }));
     WorkspaceService.loadWorkspace()
       .then(() => debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization'))
@@ -137,7 +140,7 @@ export const WorkspaceEventHandler: React.FC<{
       </WorkspaceProvider>
       <WorkspaceInitializationModal
         isOpen={showInitModal}
-        onClose={() => { setShowInitModal(false); setInitModalDismissed(true); }}
+        onClose={() => { setShowInitModal(false); setInitModalDismissed(true); sessionStorage.setItem('workspace-init-modal-dismissed', 'true'); }}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}
         workspaceId={state.workspace?.id || 'root'}
