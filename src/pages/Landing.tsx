@@ -64,6 +64,13 @@ export const Landing = () => {
     runAsyncSetup(checkOrphanSessions);
   }, [navigate]);
 
+  // Listen for custom event from Manage Accounts to open join flow
+  useEffect(() => {
+    const handler = () => setCurrentStep('server');
+    window.addEventListener('open-join-workspace', handler);
+    return () => window.removeEventListener('open-join-workspace', handler);
+  }, []);
+
   // Memoize the checkForServers function to prevent it from being recreated on each render
   const checkForServers = useCallback(async () => {
     try {

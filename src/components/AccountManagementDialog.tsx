@@ -174,7 +174,20 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
             )}
 
             {activeSessions.length === 0 && storedSessions.length === 0 && (
-              <div className="text-center py-8 text-gray-400">No accounts found. Create an account to get started.</div>
+              <div className="text-center py-8">
+                <p className="text-gray-400 mb-4">No accounts found. Join a workspace to get started.</p>
+                <Button
+                  variant="outline"
+                  className="border-purple-500 text-purple-400 hover:bg-purple-500/20"
+                  onClick={() => {
+                    onClose();
+                    // Dispatch custom event to trigger join overlay from landing page
+                    window.dispatchEvent(new CustomEvent('open-join-workspace'));
+                  }}
+                >
+                  Join Workspace
+                </Button>
+              </div>
             )}
 
             {storedSessions.length > 0 && (
