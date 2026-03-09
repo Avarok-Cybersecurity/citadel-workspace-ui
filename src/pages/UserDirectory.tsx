@@ -13,6 +13,7 @@ import { MemberListItem, type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
 import WorkspaceService from '@/lib/workspace-service';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export const UserDirectory = () => {
   const { state } = useWorkspace();
@@ -103,6 +104,7 @@ export const UserDirectory = () => {
   };
 
   return (
+    <AppLayout>
     <div className="container mx-auto p-4 md:p-6 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white mb-2">User Directory</h1>
@@ -192,6 +194,7 @@ export const UserDirectory = () => {
         onSend={sendConnectionRequest}
       />
     </div>
+    </AppLayout>
   );
 };
 
