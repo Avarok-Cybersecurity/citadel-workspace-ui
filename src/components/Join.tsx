@@ -34,6 +34,14 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
             <CardDescription className="text-gray-300">
               {defaultWorkspace ? `Join ${defaultWorkspace} with a new account` : "Create your profile for this workspace"}
             </CardDescription>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex gap-1">
+                <div className="w-8 h-1 rounded-full bg-purple-500" />
+                <div className="w-8 h-1 rounded-full bg-purple-500" />
+                <div className="w-8 h-1 rounded-full bg-purple-500" />
+              </div>
+              <span className="text-xs text-gray-400">Step 3 of 3</span>
+            </div>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>

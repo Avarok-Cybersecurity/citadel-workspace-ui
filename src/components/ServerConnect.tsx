@@ -72,6 +72,14 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
             <CardDescription className="text-gray-300">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
             </CardDescription>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex gap-1">
+                <div className="w-8 h-1 rounded-full bg-purple-500" />
+                <div className="w-8 h-1 rounded-full bg-gray-600" />
+                <div className="w-8 h-1 rounded-full bg-gray-600" />
+              </div>
+              <span className="text-xs text-gray-400">Step 1 of 3</span>
+            </div>
           </CardHeader>
           
           <form onSubmit={handleConnect}>

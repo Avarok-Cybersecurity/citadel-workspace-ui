@@ -104,6 +104,16 @@ export const SecuritySettings = ({
             <CardDescription className="text-gray-300">
               Configure security settings for your workspace connection
             </CardDescription>
+            {!isFromLogin && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex gap-1">
+                  <div className="w-8 h-1 rounded-full bg-purple-500" />
+                  <div className="w-8 h-1 rounded-full bg-purple-500" />
+                  <div className="w-8 h-1 rounded-full bg-gray-600" />
+                </div>
+                <span className="text-xs text-gray-400">Step 2 of 3</span>
+              </div>
+            )}
           </CardHeader>
 
           <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-visible">
