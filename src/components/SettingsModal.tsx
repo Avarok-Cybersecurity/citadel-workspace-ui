@@ -14,6 +14,7 @@ import {
   PermissionsSettingsTab,
 } from './settings';
 import { Settings, Wifi, Palette, Shield, Lock } from 'lucide-react';
+import { connectionManager } from '@/lib/connection';
 
 interface SettingsModalProps {
   open: boolean;
@@ -21,6 +22,9 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
+  const connectionInfo = connectionManager.getConnectionInfo();
+  const isConnected = !!connectionInfo?.cid;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] bg-[#282A42] border-[#3D3F5A]">
@@ -43,6 +47,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <TabsTrigger
               value="connections"
               className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              disabled={!isConnected}
+              title={!isConnected ? "Connect to a workspace first" : undefined}
             >
               <Wifi className="h-4 w-4" />
               <span className="hidden sm:inline">Connections</span>
@@ -64,6 +70,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <TabsTrigger
               value="permissions"
               className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              disabled={!isConnected}
+              title={!isConnected ? "Connect to a workspace first" : undefined}
             >
               <Lock className="h-4 w-4" />
               <span className="hidden sm:inline">Permissions</span>
