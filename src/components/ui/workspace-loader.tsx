@@ -119,22 +119,30 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
           selectedUsername: existingSelection?.selectedUsername ?? 'none',
         });
 
-        if (!existingSelection?.selectedCid) {
-          debugLog('WorkspaceLoader', ' No session CID in tab context, skipping auto-claim');
-          debugLog('WorkspaceLoader', ' User must select a session via UI');
+        let sessionToUse: typeof activeSessions[0] | undefined;
+
+        if (existingSelection?.selectedCid) {
+          sessionToUse = activeSessions.find(s => s.cid === existingSelection.selectedCid);
+          if (!sessionToUse) {
+            debugLog('WorkspaceLoader', ' Selected session no longer active, trying first available');
+            await clearSelectedUser();
+          }
+        }
+
+        if (!sessionToUse) {
+          // No stored selection or stored selection invalid — use first active session
+          sessionToUse = activeSessions[0];
+          debugLog('WorkspaceLoader', ' Auto-selecting first available session:', sessionToUse?.username);
+        }
+
+        if (!sessionToUse) {
+          debugLog('WorkspaceLoader', ' No usable session found');
           setIsAutoClaimingSession(false);
           return;
         }
 
-        const session = activeSessions.find(s => s.cid === existingSelection.selectedCid);
-        if (!session) {
-          debugLog('WorkspaceLoader', ' Selected session no longer active, clearing tab context');
-          await clearSelectedUser();
-          setIsAutoClaimingSession(false);
-          return;
-        }
-
-        debugLog('WorkspaceLoader', ' Auto-claiming known session:', session.username, session.cid);
+        const session = sessionToUse;
+        debugLog('WorkspaceLoader', ' Auto-claiming session:', session.username, session.cid);
 
         try {
           await websocketService.claimSession(session.cid, true);
@@ -205,11 +213,11 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   useEffect(() => {
     if (isDevMode) return;
 
-    if (loadingTimeout && !hasConnection && isLoading) {
+    if (loadingTimeout && !hasConnection && isLoading && !isAutoClaimingSession) {
       debugLog('WorkspaceLoader', ' No connection detected after timeout, redirecting to connect');
       navigate('/connect');
     }
-  }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode]);
+  }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode, isAutoClaimingSession]);
 
   if (isDevMode) {
     debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');
