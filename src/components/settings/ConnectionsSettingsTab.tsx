@@ -93,7 +93,7 @@ export function ConnectionsSettingsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between p-4 rounded-lg bg-[#1a1b26] border border-[#262C4A]/50">
+      <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
         <div className="space-y-0.5 flex-1 mr-4">
           <Label htmlFor="auto-reconnect" className="text-white font-medium cursor-pointer">
             Auto-reconnect
@@ -113,7 +113,7 @@ export function ConnectionsSettingsTab() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between p-4 rounded-lg bg-[#1a1b26] border border-[#262C4A]/50">
+      <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
         <div className="space-y-0.5 flex-1 mr-4">
           <Label htmlFor="auto-accept-registrations" className="text-white font-medium cursor-pointer">
             Auto-accept P2P registrations

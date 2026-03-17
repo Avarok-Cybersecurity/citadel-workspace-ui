@@ -119,7 +119,7 @@ export function GeneralSettingsTab() {
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Enter your display name"
                 disabled={isSaving}
-                className="bg-gray-800 border-gray-700 text-gray-100"
+                className="bg-[#3B3D57] border-[#4D4F6C] text-white"
               />
               <p className="text-xs text-gray-500">
                 This is how your name appears to other workspace members.

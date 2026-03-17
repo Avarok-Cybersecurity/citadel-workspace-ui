@@ -91,7 +91,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
           </CardHeader>
 
           <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-scroll">
+            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-gray-300">Username</Label>
                 <Input

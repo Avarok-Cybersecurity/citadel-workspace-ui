@@ -132,7 +132,7 @@ export const SecuritySettings = ({
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
                 className="flex items-center text-white space-x-2 w-full transition-colors duration-200 hover:text-purple-300"
               >
-                <span className="text-lg font-semibold">ADVANCED SETTINGS</span>
+                <span className="text-lg font-semibold">Advanced Settings</span>
                 <ChevronDown
                   className={cn(
                     "w-5 h-5 transition-transform duration-300",
@@ -159,14 +159,14 @@ export const SecuritySettings = ({
               onClick={onBack}
               className="text-white hover:bg-purple-500/20"
             >
-              BACK
+              Back
             </Button>
             <Button
               type="button"
               onClick={handleNext}
               className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
             >
-              {isFromLogin ? "SAVE" : "NEXT"}
+              {isFromLogin ? "Save" : "Next"}
             </Button>
           </CardFooter>
         </Card>

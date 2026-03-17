@@ -32,7 +32,7 @@ export const LoginConflictModal = ({
       <DialogContent className="bg-[#1C1D28] border-gray-800 text-white max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-600">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600">
               <Info className="w-6 h-6 text-white" />
             </div>
             <DialogTitle className="text-xl font-semibold text-white">

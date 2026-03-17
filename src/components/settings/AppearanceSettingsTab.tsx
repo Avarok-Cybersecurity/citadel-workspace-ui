@@ -102,7 +102,7 @@ export function AppearanceSettingsTab() {
       {/* Typography */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <Type className="h-4 w-4 text-blue-400" />
+          <Type className="h-4 w-4 text-purple-400" />
           Typography
         </div>
 
@@ -125,7 +125,7 @@ export function AppearanceSettingsTab() {
       {/* Sidebar */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <Monitor className="h-4 w-4 text-green-400" />
+          <Monitor className="h-4 w-4 text-purple-400" />
           Layout
         </div>
 

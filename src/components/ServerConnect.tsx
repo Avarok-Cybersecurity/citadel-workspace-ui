@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Shield, HelpCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -83,7 +83,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
           </CardHeader>
           
           <form onSubmit={handleConnect}>
-            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-scroll">
+            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
               <div className="space-y-2">
                 <Label htmlFor="serverAddress" className="text-gray-300">
                   Workspace Location
@@ -96,16 +96,14 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
                     className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
                     placeholder="workspace-name.avarok.net"
                   />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                        <p>Enter your workspace server address</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+                      <p>Enter your workspace server address</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
 
@@ -122,16 +120,14 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
                     className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
                     placeholder="Enter workspace password"
                   />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                        <p>Optional: Enter the workspace password if required</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+                      <p>Optional: Enter the workspace password if required</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </CardContent>
@@ -143,13 +139,13 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
                 onClick={onCancel || (() => navigate("/"))}
                 className="text-white hover:bg-purple-500/20"
               >
-                CANCEL
+                Cancel
               </Button>
               <Button
                 type="submit"
                 className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
               >
-                NEXT
+                Next
               </Button>
             </CardFooter>
           </form>

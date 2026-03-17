@@ -105,7 +105,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
           relative w-32 h-32 rounded-full overflow-hidden cursor-pointer
           border-2 border-dashed transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-          ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-gray-600 hover:border-gray-500'}
+          ${isDragActive ? 'border-purple-500 bg-purple-500/10' : 'border-gray-600 hover:border-gray-500'}
           ${isProcessing ? 'animate-pulse' : ''}
         `}
       >
@@ -128,7 +128,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800">
             {isProcessing ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
             ) : (
               <>
                 <User className="h-12 w-12 text-gray-500" />

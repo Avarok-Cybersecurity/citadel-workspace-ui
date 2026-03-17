@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listKnownServers, StoredServer } from "@/lib/server-utils";
@@ -77,19 +78,22 @@ export const Connect = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1C1D28]">
-      <div className="w-full max-w-xl p-8 space-y-6 bg-[#4F5889]/95 backdrop-blur-sm border border-purple-500/20 shadow-lg rounded-lg">
-        <div className="flex items-center gap-3 mb-8">
-          <Shield className="w-8 h-8 text-white" />
-          <h1 className="text-2xl font-bold text-white">CONNECT TO WORKSPACE</h1>
-        </div>
+      <Card className="w-full max-w-xl bg-[#282A42] border-[#3D3F5A] shadow-lg">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Shield className="w-8 h-8 text-white" />
+            <CardTitle className="text-white text-2xl">Connect to Workspace</CardTitle>
+          </div>
+          <CardDescription className="text-gray-300">Select a saved workspace to connect</CardDescription>
+        </CardHeader>
 
         {loading ? (
-          <div className="text-center py-8">
+          <CardContent className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
             <p className="text-white mt-4">Loading saved workspaces...</p>
-          </div>
+          </CardContent>
         ) : servers.length === 0 ? (
-          <div className="text-center py-8">
+          <CardContent className="text-center py-8">
             <p className="text-white mb-4">No saved workspaces found</p>
             <Button
               onClick={() => navigate("/")}
@@ -97,9 +101,10 @@ export const Connect = () => {
             >
               Go Back
             </Button>
-          </div>
+          </CardContent>
         ) : (
-          <div className="space-y-6">
+          <>
+          <CardContent className="space-y-6">
             <div className="space-y-4">
               <label className="text-sm font-medium text-gray-200 uppercase">
                 Select Workspace
@@ -129,26 +134,26 @@ export const Connect = () => {
               </div>
             </div>
 
-
-            <div className="flex justify-end gap-4 mt-8">
+          </CardContent>
+          <CardFooter className="flex justify-end gap-4">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => navigate("/")}
                 className="text-white hover:bg-purple-500/20"
               >
-                CANCEL
+                Cancel
               </Button>
               <Button
                 onClick={handleConnect}
                 className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
               >
-                CONNECT
+                Connect
               </Button>
-            </div>
-          </div>
+            </CardFooter>
+          </>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

@@ -57,7 +57,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 className="text-white hover:bg-purple-500/20"
                 disabled={isRegistering}
               >
-                BACK
+                Back
               </Button>
               <Button
                 type="submit"
@@ -67,9 +67,9 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
                 {isRegistering ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    REGISTERING...
+                    Registering...
                   </>
-                ) : "JOIN"}
+                ) : "Join"}
               </Button>
             </CardFooter>
           </form>
