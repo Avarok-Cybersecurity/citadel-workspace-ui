@@ -93,9 +93,8 @@ export function UserProfileCard({
         <div className="space-y-4">
           <div>
             <h4 className="text-sm font-medium text-gray-400 mb-2">About</h4>
-            <p className="text-sm text-gray-300">
-              This is a placeholder bio for demonstration purposes. In a real implementation,
-              this would show the user's actual bio information from their profile.
+            <p className="text-sm text-gray-500 italic">
+              No bio provided
             </p>
           </div>
 
@@ -122,20 +121,7 @@ export function UserProfileCard({
             </div>
           </div>
 
-          <div>
-            <h4 className="text-sm font-medium text-gray-400 mb-2">Workspaces</h4>
-            <div className="space-y-2">
-              <div className="flex items-center p-2 bg-[#444A6C] rounded-md">
-                <div className="h-8 w-8 rounded-md bg-purple-600 flex items-center justify-center text-white font-semibold mr-3">
-                  W
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Workspace Alpha</p>
-                  <p className="text-xs text-gray-400">3 shared offices</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* TODO: Wire to real workspace membership data when available */}
         </div>
       </CardContent>
 

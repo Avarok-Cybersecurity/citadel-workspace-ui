@@ -4,7 +4,6 @@ import { UserSearch, UserData } from '@/components/user/UserSearch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Filter } from 'lucide-react';
 import { ConnectionService } from '@/lib/connection-service';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -130,18 +129,12 @@ export const UserDirectory = () => {
           </Card>
 
           <Card className="bg-[#343A5C] border-gray-700 text-white shadow-sm">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardHeader className="pb-3">
               <div>
                 <CardTitle>Workspace Directory</CardTitle>
                 <CardDescription className="text-gray-400">
                   {filteredMembers.length} {tab === 'online' ? 'online ' : ''}members
                 </CardDescription>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <Filter className="h-4 w-4 mr-1" />
-                  Filter
-                </Button>
               </div>
             </CardHeader>
 

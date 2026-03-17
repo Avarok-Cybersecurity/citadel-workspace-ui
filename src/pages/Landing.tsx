@@ -141,8 +141,7 @@ export const Landing = () => {
       toastError(toast, "Login Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after login");
     }
   };
-  const goToTestPage = () => navigate('/test');
-  const goToConnectPage = () => navigate('/connect');
+
 
   return (
     <div className="h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">

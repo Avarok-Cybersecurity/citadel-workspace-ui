@@ -9,7 +9,6 @@ import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { DEMO_PEERS } from './P2PPeerListHelpers';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
 
@@ -42,9 +41,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       };
     });
 
-    const allPeers = [...DEMO_PEERS, ...peerList];
-    allPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-    setPeers(allPeers);
+    peerList.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+    setPeers(peerList);
   }, [messenger]);
 
   useEffect(() => {
@@ -131,7 +129,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
               value={newPeerCid}
               onChange={(e) => setNewPeerCid(e.target.value)}
               placeholder="Enter peer CID..."
-              className="flex-1 bg-[#262C4A] border-[#3a3f5c] text-white placeholder-gray-400 focus:border-[#6E59A5]"
+              className="flex-1 bg-[#262C4A] border-[#4D4F6C] text-white placeholder-gray-400 focus:border-[#6E59A5]"
             />
             <Button
               type="submit"

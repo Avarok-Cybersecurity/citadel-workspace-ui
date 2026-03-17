@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Search, Settings, Share2 } from "lucide-react";
+import { MessageSquare, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 import { SettingsModal } from "@/components/SettingsModal";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface OfficeLayoutProps {
   title: string;
@@ -60,38 +59,6 @@ export const OfficeLayout = ({
             >
               <MessageSquare className="h-4 w-4" />
             </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="text-gray-500 cursor-not-allowed opacity-50"
-                    aria-disabled="true"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Search — coming soon</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="text-gray-500 cursor-not-allowed opacity-50"
-                    aria-disabled="true"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Share — coming soon</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             <Button 
               variant="ghost" 
               size="icon"
