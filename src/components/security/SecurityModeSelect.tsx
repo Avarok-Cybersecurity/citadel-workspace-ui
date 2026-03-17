@@ -1,6 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { SecrecyMode } from "@/types";
 
@@ -35,16 +35,14 @@ export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityM
             <SelectItem value={'Perfect'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Perfect Forward Secrecy</SelectItem>
           </SelectContent>
         </Select>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-              <p>Choose your preferred security mode for encrypted communications</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+            <p>Choose your preferred security mode for encrypted communications</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface FormFieldProps {
   id: string;
@@ -30,16 +30,14 @@ function FormField({ id, name, label, value, onChange, tooltip, placeholder, typ
           className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
           placeholder={placeholder}
         />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-              <p>{tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+            <p>{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

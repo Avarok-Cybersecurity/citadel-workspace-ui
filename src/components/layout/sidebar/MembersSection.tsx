@@ -17,7 +17,7 @@ import WorkspaceService from "@/lib/workspace-service";
 import { Badge } from "@/components/ui/badge";
 import { workspaceEvents, type MembersPayload } from "@/lib/workspace-events";
 import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
 import { GroupConversationRow } from "./GroupConversationRow";
 import { PeerListRow } from "./PeerListRow";
@@ -183,16 +183,14 @@ export const MembersSection = () => {
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
           <div className="flex items-center justify-between px-3">
             <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-0">CONVERSATIONS</SidebarGroupLabel>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-[#9b87f5] hover:text-white hover:bg-[#6E59A5]" onClick={() => setShowCreateGroupDialog(true)}>
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>New Group Chat</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-[#9b87f5] hover:text-white hover:bg-[#6E59A5]" onClick={() => setShowCreateGroupDialog(true)}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>New Group Chat</p></TooltipContent>
+            </Tooltip>
           </div>
           <SidebarGroupContent>
             <SidebarMenu>

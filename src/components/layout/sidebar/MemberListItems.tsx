@@ -21,7 +21,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getRoleIcon, getRoleColor, capitalizeRole } from './MembersSectionModals';
@@ -51,23 +50,21 @@ export function MemberListItems({
       {members.slice(0, MEMBERS_TO_SHOW).map((member) => (
         <SidebarMenuItem key={member.id}>
           <div className="flex items-center w-full group">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarMenuButton className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors flex-1">
-                    <div className="flex items-center gap-2 flex-1">
-                      {getRoleIcon(member.role || 'member')}
-                      <span className="flex-1 truncate">{member.displayName || member.username}</span>
-                      <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-white text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
-                    </div>
-                  </SidebarMenuButton>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{member.displayName || member.username}</p>
-                  {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarMenuButton className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors flex-1">
+                  <div className="flex items-center gap-2 flex-1">
+                    {getRoleIcon(member.role || 'member')}
+                    <span className="flex-1 truncate">{member.displayName || member.username}</span>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-white text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                  </div>
+                </SidebarMenuButton>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{member.displayName || member.username}</p>
+                {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
+              </TooltipContent>
+            </Tooltip>
             {currentUsername !== member.username && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Upload, HardDrive, Info, Zap } from 'lucide-react';
 import { FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES } from '@/types/messaging-layer';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { FileTransferSettings, TransferModePreference } from '@/lib/file-transfer';
 import { ChatSettingsRemoteTab } from './ChatSettingsRemoteTab';
@@ -48,19 +48,17 @@ export function ChatSettingsFileTab({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Label className="text-sm font-medium">Transfer Method</Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-gray-400 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs bg-[#1C1D28] border-[#262C4A] text-white">
-                  <p className="text-sm">
-                    <strong>Browser:</strong> Simple in-browser file chunking. Good for small files.<br/>
-                    <strong>Citadel Protocol:</strong> Advanced post-quantum encrypted transfer. Required for RE-VFS.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-gray-400 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs bg-[#1C1D28] border-[#262C4A] text-white">
+                <p className="text-sm">
+                  <strong>Browser:</strong> Simple in-browser file chunking. Good for small files.<br/>
+                  <strong>Citadel Protocol:</strong> Advanced post-quantum encrypted transfer. Required for RE-VFS.
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           <RadioGroup value={settings.transferMode}

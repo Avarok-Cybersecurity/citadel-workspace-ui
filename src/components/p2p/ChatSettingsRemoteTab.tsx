@@ -3,7 +3,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Info, Shield, Zap } from 'lucide-react';
 import { REVFS_DEFAULT_QUOTA_BYTES } from '@/types/messaging-layer';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { FileTransferSettings, TransferModePreference } from '@/lib/file-transfer';
 
 interface ChatSettingsRemoteTabProps {
@@ -28,20 +28,18 @@ export function ChatSettingsRemoteTab({
             <Label htmlFor="allow-revfs" className="text-sm font-medium">
               Allow {peerName} to store files on your device
             </Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Shield className="h-4 w-4 text-green-400 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs bg-[#1C1D28] border-[#262C4A] text-white">
-                  <p className="text-sm">
-                    <strong>Post-Quantum Secure:</strong> When you allow storage, you become a
-                    blind host. Files are encrypted with post-quantum algorithms — you cannot
-                    view or decrypt their contents. Only the file owner has the keys.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Shield className="h-4 w-4 text-green-400 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs bg-[#1C1D28] border-[#262C4A] text-white">
+                <p className="text-sm">
+                  <strong>Post-Quantum Secure:</strong> When you allow storage, you become a
+                  blind host. Files are encrypted with post-quantum algorithms — you cannot
+                  view or decrypt their contents. Only the file owner has the keys.
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           <p className="text-xs text-gray-400">Provide encrypted storage space for this peer</p>
         </div>
