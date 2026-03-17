@@ -64,8 +64,6 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
 
 
-
-
   const handleExit = () => {
     // Stop WASM connection manager polling (session stays active but this tab won't poll)
     wasmConnectionManager.stop();

@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
@@ -19,6 +19,7 @@ import { connectionManager } from '@/lib/connection';
 import { websocketService } from '@/lib/websocket-service';
 import { toInternalServiceRequest } from '@/hooks/use-group-conversations.types';
 import { debugLog } from '@/lib/debug-config';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 // ============================================================================
 // Component
@@ -127,26 +128,17 @@ export function GroupChatPage() {
 
   if (!group) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#1C2333]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6E59A5]" />
-      </div>
+      <AppLayout>
+        <div className="flex items-center justify-center h-full bg-[#1C2333]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#6E59A5]" />
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C2333]">
-      {/* Back Button */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#2D3548]">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/workspace')}
-          className="h-8 text-gray-400 hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </Button>
-      </div>
+    <AppLayout>
+      <div className="flex flex-col h-full bg-[#1C2333]">
 
       {/* Header */}
       <GroupChatHeader
@@ -176,7 +168,8 @@ export function GroupChatPage() {
         onKickMember={handleKickMember}
         onDeleteGroup={handleDeleteGroup}
       />
-    </div>
+      </div>
+    </AppLayout>
   );
 }
 
