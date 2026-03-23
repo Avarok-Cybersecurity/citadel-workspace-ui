@@ -56,6 +56,17 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
       });
       return;
     }
+
+    // Basic server address validation — must look like a hostname or IP
+    const trimmed = serverAddress.trim();
+    if (!trimmed.includes('.') && !trimmed.includes(':')) {
+      toast({
+        title: "Invalid server address",
+        description: "Please enter a valid server address (e.g., workspace.avarok.net or 127.0.0.1:8080)",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Save form data to React Query cache
     queryClient.setQueryData(['serverConnectForm'], { serverAddress, password });

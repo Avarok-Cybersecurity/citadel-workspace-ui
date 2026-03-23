@@ -6,6 +6,9 @@ import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listKnownServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { connectionManager } from "@/lib/connection";
+import { websocketService } from "@/lib/websocket-service";
+import { postAuthSetup } from "@/lib/post-auth-setup";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 
@@ -58,10 +61,30 @@ export const Connect = () => {
     if (!selectedServerInfo) return;
 
     try {
+      setLoading(true);
       toast({
         title: "Connecting",
         description: `Connecting to ${selectedServer}...`,
       });
+
+      // Actually establish a connection by claiming any existing session for this server
+      const storedSessions = connectionManager.getStoredSessions();
+      const session = storedSessions.sessions.find(
+        (s) => s.serverAddress === selectedServer
+      );
+
+      if (session?.cid) {
+        // Try to claim the stored session
+        try {
+          await websocketService.claimSession(session.cid, true);
+        } catch (claimError: unknown) {
+          if (claimError instanceof Error && !claimError.message?.includes('not orphaned')) {
+            throw claimError;
+          }
+        }
+
+        await postAuthSetup(session.cid);
+      }
 
       navigate(getWorkspacePath());
     } catch (error: unknown) {
@@ -73,6 +96,8 @@ export const Connect = () => {
         description: `Failed to connect to ${selectedServer}: ${errorMessage}`,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 

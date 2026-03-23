@@ -6,6 +6,7 @@ import type { AuthSuccessParams } from './types';
 import type { StoredSession } from '@/types/session-types';
 import { SET_USER_TIMEOUT_MS } from './constants';
 import { debugLog } from '@/lib/debug-config';
+import { saveRecentServer } from '@/lib/server-utils';
 
 /** Store a session to state and persist to LocalDB. */
 export async function storeSession(
@@ -54,6 +55,9 @@ export async function handleAuthSuccess(
 
   try {
     await storeSession(session, state, io);
+
+    // Persist to localStorage so Connect page can show recent servers even without WASM client
+    saveRecentServer({ serverAddress: params.serverAddress });
 
     // Set lastAccessed timestamp for OrphanSessionsNavbar MRU ordering
     if (params.cid !== undefined) {
