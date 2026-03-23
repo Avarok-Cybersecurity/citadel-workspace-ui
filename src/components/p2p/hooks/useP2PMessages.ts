@@ -122,6 +122,10 @@ export function useP2PMessages({
       }
     });
 
+    // NOTE: This handles messages from non-messenger sources (file transfers, etc.)
+    // that emit 'p2p:message-received' but NOT messenger.onMessage().
+    // The dedup check (prev.some(m => m.id === ...)) prevents double-processing
+    // when both paths fire for the same message.
     const unsubscribeMessageReceived = eventEmitter.on('p2p:message-received', (eventData: { peerCid: bigint; messageId: string; message?: P2PMessage }) => {
       const { peerCid: messagePeerCid, messageId, message: eventMessage } = eventData;
       if (messagePeerCid === peerCid) {

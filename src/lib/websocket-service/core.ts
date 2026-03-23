@@ -137,8 +137,7 @@ export class WebSocketServiceCore {
   }
 
   async disconnectAndClose(): Promise<void> {
-    this.client = null;
-    this.isInitialized = false;
+    resetService(this);
   }
 
   // ============== Session Management ==============

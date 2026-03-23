@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import WorkspaceService from '@/lib/workspace-service';
+import type { PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -63,7 +64,10 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
       setSelectedPermissions(new Set(rolePermissions));
 
       if (domainType !== 'workspace') {
-        setInheritedPermissions(new Set(['ViewContent', 'ReadMessages']));
+        // Inherited permissions come from the parent scope's role defaults
+        // Use the minimum permissions that any member role would have
+        const memberDefaults = getRoleDefaultPermissions('Member');
+        setInheritedPermissions(new Set(memberDefaults));
       }
     } catch (error) {
       debugLog('PermissionManager', 'Error loading permissions:', error);
@@ -91,8 +95,26 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const handleSave = async () => {
     setIsLoading(true);
     try {
+      // Step 1: Update the user's role
       await WorkspaceService.updateMemberRole(userId, selectedRole);
-      toastSuccess(toast, "Permissions Updated", `User role updated to ${selectedRole}.`);
+
+      // Step 2: Send individual permission overrides to the backend
+      const roleDefaults = new Set(getRoleDefaultPermissions(selectedRole));
+      const addedPermissions = [...selectedPermissions].filter(p => !roleDefaults.has(p));
+      const removedPermissions = [...roleDefaults].filter(p => !selectedPermissions.has(p));
+
+      if (addedPermissions.length > 0) {
+        await WorkspaceService.updateMemberPermissions(
+          userId, domainId, addedPermissions as PermissionTS[], 'Add' as UpdateOperationTS
+        );
+      }
+      if (removedPermissions.length > 0) {
+        await WorkspaceService.updateMemberPermissions(
+          userId, domainId, removedPermissions as PermissionTS[], 'Remove' as UpdateOperationTS
+        );
+      }
+
+      toastSuccess(toast, "Permissions Updated", `User permissions updated successfully.`);
 
       if (onClose) {
         onClose();

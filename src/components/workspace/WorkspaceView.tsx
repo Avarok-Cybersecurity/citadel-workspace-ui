@@ -70,10 +70,24 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     const currentUserCid = rawCid !== undefined ? String(rawCid) : undefined;
     const currentUserName = tabSession?.fullName || connectionInfo?.fullName || 'You';
 
+    let parsedPeerCid: bigint;
+    try {
+      parsedPeerCid = BigInt(peerCid);
+    } catch {
+      // Invalid CID in URL — fall through to normal workspace view
+      return (
+        <BaseOffice
+          title={entityTitle}
+          getInitialContent={getInitialContent}
+          nodeId={nodeId || undefined}
+        />
+      );
+    }
+
     return (
       <div className="h-full bg-[#1C1D28]">
         <P2PChat
-          peerCid={BigInt(peerCid)}
+          peerCid={parsedPeerCid}
           peerName={peerName || undefined}
           currentUserCid={currentUserCid ? BigInt(currentUserCid) : undefined}
           currentUserName={currentUserName}

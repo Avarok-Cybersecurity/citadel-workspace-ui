@@ -25,15 +25,15 @@ export const UserDirectory = () => {
   const connectionService = ConnectionService.getInstance();
 
   // Request member list on mount
+  const [searchParams] = useSearchParams();
+  const domainIdParam = searchParams.get('nodeId') || state.workspace?.id;
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const domainId = params.get('nodeId') || state.workspace?.id;
-    debugLog('UserDirectory', 'Requesting member list for domain:', domainId);
-    WorkspaceService.listMembers(domainId || undefined)
+    debugLog('UserDirectory', 'Requesting member list for domain:', domainIdParam);
+    WorkspaceService.listMembers(domainIdParam || undefined)
       .catch(err => debugLog('UserDirectory', 'Failed to load members:', err));
-  }, [state.workspace?.id]);
+  }, [domainIdParam]);
 
-  const currentUserId = 'current-user';
+  const currentUserId = state.currentUser?.id || state.currentUser?.username || '';
 
   const allMembers: MemberDisplay[] = Object.values(state.members || {}).map(member => ({
     id: member.id,

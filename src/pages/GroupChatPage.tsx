@@ -115,6 +115,7 @@ export function GroupChatPage() {
       if (client) {
         await client.sendDirectToInternalService(toInternalServiceRequest(request));
       }
+      navigate('/workspace');
     } catch (error) {
       debugLog('GroupChatPage', 'Failed to delete group:', error);
       toast({
@@ -123,7 +124,6 @@ export function GroupChatPage() {
         variant: 'destructive',
       });
     }
-    navigate('/workspace');
   }, [groupId, currentUserId, navigate, toast]);
 
   if (!group) {

@@ -59,13 +59,17 @@ const NotificationCenter = () => {
       });
     });
     
-    // When opening the notification center, mark all as read
+    // Delay marking as read so the user actually sees the notifications first
+    let readTimeout: ReturnType<typeof setTimeout> | null = null;
     if (open) {
-      notificationService.markAllAsRead();
+      readTimeout = setTimeout(() => {
+        notificationService.markAllAsRead();
+      }, 2000);
     }
     
     return () => {
       unregister();
+      if (readTimeout) clearTimeout(readTimeout);
     };
   }, [open, notificationService]);
   
@@ -104,7 +108,7 @@ const NotificationCenter = () => {
               className="text-gray-300"
               onClick={handleClearAll}
             >
-              Clear All
+              {activeTab === 'all' ? 'Clear All' : 'Clear Shown'}
             </Button>
           </div>
         </SheetHeader>
