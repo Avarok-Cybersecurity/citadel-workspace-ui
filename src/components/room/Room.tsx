@@ -71,7 +71,9 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
 
       try {
         debugLog('Room', 'Compiling Room MDX content...');
-        const result = await evaluate(content, {
+        // Pre-process GFM strikethrough (~~text~~) since remark-gfm is not available
+        const processedContent = content.replace(/~~(?=\S)([\s\S]*?\S)~~/g, '<del>$1</del>');
+        const result = await evaluate(processedContent, {
           ...runtime,
           useMDXComponents: () => components,
           baseUrl: window.location.origin

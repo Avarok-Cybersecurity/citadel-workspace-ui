@@ -28,6 +28,9 @@ export const components: MDXComponents = {
       {children}
     </a>
   ),
+  del: ({ children }: { children?: React.ReactNode }) => (
+    <del className="text-gray-400 line-through">{children}</del>
+  ),
   img: ({ src, alt }: { src?: string; alt?: string }) => (
     <img src={src} alt={alt} className="max-w-full h-auto rounded-lg shadow-lg my-4" />
   ),
