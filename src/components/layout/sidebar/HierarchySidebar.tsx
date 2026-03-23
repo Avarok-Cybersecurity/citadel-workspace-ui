@@ -72,7 +72,10 @@ export function HierarchySidebar() {
         r => r.parent_type === 'Workspace'
       );
       const allowedTypes = workspaceRule?.allowed_child_types ?? [];
-      if (allowedTypes.length === 0) return;
+      if (allowedTypes.length === 0) {
+        toastError(toast, 'Permission Required', 'You need administrator permissions to create new items. Initialize the workspace to become an admin.');
+        return;
+      }
       setCreateModal({ parentId: 'workspace-root', entityType: allowedTypes[0] });
       return;
     }
@@ -81,7 +84,10 @@ export function HierarchySidebar() {
     if (!parentNode) return;
 
     const allowedTypes = parentNode.allowed_child_types;
-    if (!allowedTypes || allowedTypes.length === 0) return;
+    if (!allowedTypes || allowedTypes.length === 0) {
+      toastError(toast, 'Cannot Add Here', `No child types are allowed under "${parentNode.name}".`);
+      return;
+    }
 
     // If only one child type allowed, use it directly
     // If multiple, default to first (future: show type picker)
