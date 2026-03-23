@@ -5,6 +5,7 @@ import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
@@ -48,10 +49,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     const loadStoredWorkspaces = async () => {
       const storedSessions = connectionManager.getStoredSessions();
       const tabSelectedUser = await getSelectedUser();
-      let currentCid: bigint | null = null;
-      ConnectionService.getInstance().onConnectionChange((conn) => {
-        if (conn?.cid) currentCid = typeof conn.cid === 'bigint' ? conn.cid : BigInt(conn.cid);
-      });
+      const connInfo = connectionManager.getConnectionInfo();
+      const currentCid: bigint | null = connInfo?.cid ?? null;
       if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
 
       const workspaces: StoredWorkspace[] = storedSessions.sessions.map((session) => ({
@@ -70,6 +69,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       if (active) setCurrentWorkspace(active);
     };
     runAsyncSetup(loadStoredWorkspaces);
+    // NOTE: ConnectionService.onConnectionChange does not return an unsubscribe function.
+    // This listener will persist for the lifetime of the component.
     ConnectionService.getInstance().onConnectionChange(async () => { await loadStoredWorkspaces(); });
   }, [state.workspace]);
 
@@ -102,10 +103,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     try {
       toastSuccess(toast, "Switching workspace...", `Connecting as ${workspace.fullName || workspace.username}`);
 
-      const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
-      mainContent?.classList.add('animate-fade-out');
-
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Brief delay to show switching toast before heavy work
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const storedSessions = connectionManager.getStoredSessions();
       const targetSession = storedSessions.sessions.find(
@@ -137,10 +136,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
         selectedCid: targetSession.cid
       });
 
-      WorkspaceService.setConnectionId(targetSession.cid);
-
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes();
+      await postAuthSetup(targetSession.cid);
 
       toastSuccess(toast, "Connected!", (
         <div className="flex items-center gap-2">
@@ -154,20 +150,9 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
         navigate(savedRoute);
       }
 
-      setTimeout(() => {
-        mainContent?.classList.remove('animate-fade-out');
-        mainContent?.classList.add('animate-fade-in');
-        setTimeout(() => {
-          mainContent?.classList.remove('animate-fade-in');
-        }, 300);
-      }, 100);
-
     } catch (error) {
       debugLog('WorkspaceSwitcher', 'Failed to switch workspace:', error);
       toastError(toast, "Switch Failed", "Could not switch to the selected workspace");
-
-      const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
-      mainContent?.classList.remove('animate-fade-out', 'animate-fade-in');
     } finally {
       setIsSwitching(false);
       setIsOpen(false);

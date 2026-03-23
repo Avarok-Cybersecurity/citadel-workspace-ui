@@ -9,7 +9,7 @@ import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { getDefaultSecuritySettings } from "@/lib/security-utils";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
-import WorkspaceService from "@/lib/workspace-service";
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
@@ -142,9 +142,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       });
 
       await setSelectedUser({ selectedUsername: username.trim(), selectedServerAddress: serverAddress, selectedCid: cid });
-      WorkspaceService.setConnectionId(cid);
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes();
+      await postAuthSetup(cid);
 
       try { await wasmConnectionManager.start(cid.toString()); }
       catch (err) { debugLog('Login', 'Failed to start WASM connection manager:', err); }

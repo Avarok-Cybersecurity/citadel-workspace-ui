@@ -6,7 +6,7 @@ import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
 import { Login } from "@/components/Login";
-import WorkspaceService from "@/lib/workspace-service";
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { listKnownServers } from "@/lib/server-utils";
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
@@ -27,6 +27,8 @@ export const Landing = () => {
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
   const [orphanSessionCount, setOrphanSessionCount] = useState(0);
+  // TODO: showLoginConflict is never set to true — LoginConflictModal is never displayed.
+  // Either wire this up to detect login conflicts, or remove the modal and state.
   const [showLoginConflict, setShowLoginConflict] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   
@@ -105,11 +107,7 @@ export const Landing = () => {
   const handleJoinNext = async (cid: string) => {
     debugLog('Landing', `[Landing] handleJoinNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(BigInt(cid));
-      // Trigger loading - await to ensure operations complete before navigation
-      debugLog('Landing', `[Landing] Triggering workspace load for cid: ${cid}...`);
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes(); // Also trigger office loading
+      await postAuthSetup(BigInt(cid));
       debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
@@ -129,11 +127,7 @@ export const Landing = () => {
   const handleLoginNext = async (cid: string) => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(BigInt(cid));
-      // Trigger loading - await to ensure operations complete before navigation
-      debugLog('Landing', `[Landing] Triggering workspace load for cid: ${cid}...`);
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes();
+      await postAuthSetup(BigInt(cid));
       debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
