@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Shield, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { SecurityLevelSelect } from "./security/SecurityLevelSelect";
 import { SecurityModeSelect } from "./security/SecurityModeSelect";
 import { useState, useEffect } from "react";
@@ -68,11 +68,15 @@ export const SecuritySettings = ({
   const { mutate: updateSecuritySettings } = useMutation({
     mutationFn: (newSettings: SecuritySettingsValues) => {
       debugLog('SecuritySettings', 'Updating security settings:', JSON.stringify(newSettings));
+      debugLog('SecuritySettings', 'serverConnectForm cache BEFORE onSuccess:', queryClient.getQueryData(['serverConnectForm']));
       return Promise.resolve(newSettings);
     },
     onSuccess: (updatedSettings) => {
+      debugLog('SecuritySettings', 'onSuccess called, serverConnectForm cache:', queryClient.getQueryData(['serverConnectForm']));
       // Save the security settings to query cache
       queryClient.setQueryData(['securitySettings'], updatedSettings);
+
+      debugLog('SecuritySettings', 'serverConnectForm cache AFTER setQueryData securitySettings:', queryClient.getQueryData(['serverConnectForm']));
 
       // If onComplete is provided, call it with the current settings
       if (onComplete) {

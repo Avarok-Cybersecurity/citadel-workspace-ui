@@ -31,7 +31,11 @@ export const Landing = () => {
   // Either wire this up to detect login conflicts, or remove the modal and state.
   const [showLoginConflict, setShowLoginConflict] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  
+
+  // Server connection data lifted to Landing state to avoid React Query GC eviction
+  const [serverAddress, setServerAddress] = useState('');
+  const [serverPassword, setServerPassword] = useState('');
+
   // Check for orphan sessions (don't auto-navigate, just detect)
   useEffect(() => {
     const checkOrphanSessions = async () => {
@@ -96,10 +100,13 @@ export const Landing = () => {
     runAsyncSetup(checkForServers);
   }, [checkForServers]);
 
-  const handleServerNext = () => setCurrentStep('security');
+  const handleServerNext = (address: string, password: string) => {
+    setServerAddress(address);
+    setServerPassword(password);
+    setCurrentStep('security');
+  };
   const handleSecurityNext = () => {
     if (currentStep === 'security') {
-      // Store the security settings for use in create flow
       setCurrentStep('join');
     }
   };
@@ -213,13 +220,23 @@ export const Landing = () => {
 
       {/* Registration Flow Overlays */}
       {currentStep === 'server' && (
-        <ServerConnect onNext={handleServerNext} onCancel={() => setCurrentStep('none')} />
+        <ServerConnect
+          onNext={handleServerNext}
+          onCancel={() => setCurrentStep('none')}
+          initialAddress={serverAddress}
+          initialPassword={serverPassword}
+        />
       )}
       {currentStep === 'security' && (
         <SecuritySettings onNext={handleSecurityNext} onBack={handleSecurityBack} />
       )}
       {currentStep === 'join' && (
-        <Join onNext={handleJoinNext} onBack={handleJoinBack} />
+        <Join
+          onNext={handleJoinNext}
+          onBack={handleJoinBack}
+          serverAddress={serverAddress}
+          serverPassword={serverPassword}
+        />
       )}
       {currentStep === 'login' && (
         <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} />

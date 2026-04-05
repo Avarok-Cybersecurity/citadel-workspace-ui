@@ -93,8 +93,8 @@ export async function createAccount(page: Page, username: string, options: Creat
       await sleep(300);
     }
 
-    // Click JOIN button (not Register/Create Account)
-    const submitBtn = page.getByRole('button', { name: 'JOIN', exact: true });
+    // Click Join button (not Register/Create Account)
+    const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
     if (await submitBtn.isVisible()) {
       await submitBtn.click();
       await sleep(8000);

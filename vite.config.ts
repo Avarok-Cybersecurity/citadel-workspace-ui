@@ -118,8 +118,12 @@ export default defineConfig(({ mode }) => {
       },
 
       // Custom headers for your web app
+      // CSP is environment-aware: permissive in dev (unsafe-eval, localhost wildcards),
+      // stricter in production (wasm-unsafe-eval only, no localhost wildcards)
       headers: {
-        'Content-Security-Policy': "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google ws://localhost:* http://localhost:*; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
+        'Content-Security-Policy': mode === 'production'
+          ? "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
+          : "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google ws://localhost:* http://localhost:*; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
       },
 
       // Configure middleware for WASM files

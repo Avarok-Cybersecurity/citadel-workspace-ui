@@ -401,7 +401,7 @@ async function runTest(): Promise<boolean> {
         await sleep(300);
       }
 
-      const submitBtn = page.getByRole('button', { name: 'JOIN', exact: true });
+      const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
       if (await submitBtn.isVisible()) {
         await submitBtn.click();
         await sleep(8000);

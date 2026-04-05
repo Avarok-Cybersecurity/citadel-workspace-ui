@@ -10,9 +10,11 @@ interface JoinProps {
   onNext: (cid: string) => void;
   onBack: () => void;
   defaultWorkspace?: string;
+  serverAddress: string;
+  serverPassword: string;
 }
 
-export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
+export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword }: JoinProps) => {
   const {
     formData,
     isRegistering,
@@ -23,7 +25,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
-  } = useJoinRegistration(onBack);
+  } = useJoinRegistration(onBack, serverAddress, serverPassword);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">

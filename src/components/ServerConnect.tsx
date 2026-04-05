@@ -1,38 +1,28 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, HelpCircle } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
 interface ServerConnectProps {
-  onNext: () => void;
+  onNext: (address: string, password: string) => void;
   onCancel?: () => void;
   defaultServer?: string;
   title?: string;
+  initialAddress?: string;
+  initialPassword?: string;
 }
 
-export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: ServerConnectProps) => {
+export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps) => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Get existing data from cache
-  const cachedData = queryClient.getQueryData(['serverConnectForm']) as { serverAddress: string; password: string } | undefined;
-
-  const [serverAddress, setServerAddress] = useState(defaultServer || cachedData?.serverAddress || '');
-  const [password, setPassword] = useState(cachedData?.password || '');
-
-  // Update cache when component mounts to ensure it's initialized
-  useEffect(() => {
-    if (!cachedData) {
-      queryClient.setQueryData(['serverConnectForm'], { serverAddress, password });
-    }
-  }, [queryClient, cachedData, serverAddress, password]);
+  const [serverAddress, setServerAddress] = useState(defaultServer || initialAddress || '');
+  const [password, setPassword] = useState(initialPassword || '');
 
   // Dismiss on Escape key
   useEffect(() => {
@@ -67,11 +57,8 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
       });
       return;
     }
-    
-    // Save form data to React Query cache
-    queryClient.setQueryData(['serverConnectForm'], { serverAddress, password });
-    
-    onNext();
+
+    onNext(serverAddress, password);
   };
 
   return (
@@ -92,7 +79,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
               <span className="text-xs text-gray-400">Step 1 of 3</span>
             </div>
           </CardHeader>
-          
+
           <form onSubmit={handleConnect}>
             <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
               <div className="space-y-2">
@@ -142,7 +129,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
                 </div>
               </div>
             </CardContent>
-            
+
             <CardFooter className="flex justify-between">
               <Button
                 type="button"

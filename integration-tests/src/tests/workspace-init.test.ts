@@ -121,7 +121,7 @@ async function registerUser(page: Page, username: string, password: string): Pro
       }
 
       // Click JOIN button
-      const submitBtn = page.getByRole('button', { name: 'JOIN', exact: true });
+      const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
       if (await submitBtn.isVisible()) {
         await submitBtn.click();
         await sleep(5000);

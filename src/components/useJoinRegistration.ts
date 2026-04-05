@@ -20,7 +20,7 @@ interface JoinFormData {
   confirmPassword: string;
 }
 
-export function useJoinRegistration(onBack: () => void) {
+export function useJoinRegistration(onBack: () => void, serverAddress: string, serverPassword: string) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -35,11 +35,6 @@ export function useJoinRegistration(onBack: () => void) {
     password: "",
     confirmPassword: "",
   });
-
-  const serverData = queryClient.getQueryData(['serverConnectForm']) as {
-    serverAddress: string;
-    password: string
-  } || { serverAddress: '', password: '' };
 
   const securitySettings = queryClient.getQueryData<SecuritySettingsValues>(['securitySettings']) || {
     securityLevel: 'Standard',
@@ -64,8 +59,8 @@ export function useJoinRegistration(onBack: () => void) {
     try {
       await ConnectionManager.getInstance().handleAuthSuccess({
         username: formData.username, password: formData.password,
-        fullName: formData.fullName, serverAddress: serverData.serverAddress,
-        serverPassword: serverData.password || "",
+        fullName: formData.fullName, serverAddress: serverAddress,
+        serverPassword: serverPassword || "",
         securitySettings: mapSecuritySettings(securitySettings),
         cid: data.cid as bigint
       });
@@ -137,7 +132,7 @@ export function useJoinRegistration(onBack: () => void) {
     setConnectStatus("connecting");
 
     try {
-      debugLog('Join', "Registering user:", formData.username, "to", serverData.serverAddress);
+      debugLog('Join', "Registering user:", formData.username, "to", serverAddress);
       const requestId = crypto.randomUUID();
 
       const responsePromise = new Promise<{ cid: string }>((resolve, reject) => {
@@ -160,7 +155,7 @@ export function useJoinRegistration(onBack: () => void) {
 
       await websocketService.register(
         requestId, formData.username, formData.password, formData.fullName,
-        serverData.serverAddress, serverData.password || "",
+        serverAddress, serverPassword || "",
         mapSecuritySettings(securitySettings)
       );
 
