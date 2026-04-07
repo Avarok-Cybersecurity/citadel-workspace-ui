@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-03-03T20:55:06.454Z",
+  "timestamp": "2026-04-05T05:42:07.161Z",
   "testName": "Office & Room CRUD Integration Test",
-  "adminUser": "crud_admin_1772571181865",
-  "nonAdminUser": "crud_user_1772571181865",
+  "adminUser": "crud_admin_1775367601772",
+  "nonAdminUser": "crud_user_1775367601772",
   "results": {
     "accountCreation": true,
     "workspaceLoaded": true,
