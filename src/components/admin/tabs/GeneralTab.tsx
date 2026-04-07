@@ -90,7 +90,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
       toast({
         title: 'Success',
         description: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} updated successfully`,
-        className: 'bg-[#343A5C] border-purple-800 text-purple-200',
+        className: 'bg-[#232536] border-purple-800 text-purple-200',
       });
 
       setOriginalName(name);
@@ -132,7 +132,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={`Enter ${entityType} name`}
-          className="bg-[#444A6C] border-[#3D3F5A] text-white placeholder:text-gray-500"
+          className="bg-[#232536] border-[#3D3F5A] text-white placeholder:text-gray-500"
           maxLength={100}
           data-testid="general-name-input"
         />
@@ -148,7 +148,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={`Enter ${entityType} description (optional)`}
-          className="bg-[#444A6C] border-[#3D3F5A] text-white placeholder:text-gray-500 min-h-[100px]"
+          className="bg-[#232536] border-[#3D3F5A] text-white placeholder:text-gray-500 min-h-[100px]"
           maxLength={500}
           data-testid="general-description-input"
         />
@@ -160,7 +160,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
           variant="outline"
           onClick={handleCancel}
           disabled={!hasChanges || saving}
-          className="border-gray-600 text-white hover:bg-[#444A6C]"
+          className="border-gray-600 text-white hover:bg-[#232536]"
           data-testid="general-cancel-button"
         >
           Reset

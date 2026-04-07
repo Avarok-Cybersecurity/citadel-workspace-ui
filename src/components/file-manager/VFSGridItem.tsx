@@ -117,7 +117,7 @@ export function GridItem({
       <div
         className={cn(
           "relative flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer",
-          "hover:bg-[#444A6C] transition-colors select-none",
+          "hover:bg-[#232536] transition-colors select-none",
           dragOver && "bg-green-900/30 ring-1 ring-green-500",
           isCutItem && "opacity-50",
           isSelected && "bg-purple-700/40 ring-1 ring-purple-500",

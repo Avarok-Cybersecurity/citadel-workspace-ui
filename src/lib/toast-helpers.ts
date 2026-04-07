@@ -1,6 +1,6 @@
 import type React from 'react';
 
-const SUCCESS_CLASS = "bg-[#343A5C] border-purple-800 text-purple-200";
+const SUCCESS_CLASS = "bg-[#232536] border-purple-800 text-purple-200";
 
 type ToastFn = (opts: {
   title: string;

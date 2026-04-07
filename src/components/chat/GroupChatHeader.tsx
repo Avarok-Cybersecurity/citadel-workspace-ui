@@ -110,7 +110,7 @@ export function GroupChatHeader({
   const canAccessSettings = can('editGroupSettings') || can('manageRoles');
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-[#2D3548] bg-[#1C2333]">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-[#2D3548] bg-[#1C1D28]">
       {/* Left: Group Info */}
       <div className="flex items-center gap-3">
         {/* Overlapping Avatars */}
@@ -118,7 +118,7 @@ export function GroupChatHeader({
           {visibleMembers.map((member, index) => (
             <div
               key={member.cid}
-              className="relative rounded-full flex items-center justify-center text-xs font-medium text-white border-2 border-[#1C2333]"
+              className="relative rounded-full flex items-center justify-center text-xs font-medium text-white border-2 border-[#1C1D28]"
               style={{
                 width: 32,
                 height: 32,
@@ -133,7 +133,7 @@ export function GroupChatHeader({
           ))}
           {overflowCount > 0 && (
             <div
-              className="relative rounded-full flex items-center justify-center text-xs font-medium text-white bg-[#4A4A6A] border-2 border-[#1C2333]"
+              className="relative rounded-full flex items-center justify-center text-xs font-medium text-white bg-[#4A4A6A] border-2 border-[#1C1D28]"
               style={{
                 width: 32,
                 height: 32,
@@ -172,7 +172,7 @@ export function GroupChatHeader({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-48 bg-[#1C2333] border-[#2D3548]"
+            className="w-48 bg-[#1C1D28] border-[#2D3548]"
           >
             {canAccessSettings && (
               <>
@@ -211,7 +211,7 @@ export function GroupChatHeader({
 
       {/* Leave Confirmation Dialog */}
       <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
-        <AlertDialogContent className="bg-[#1C2333] border-[#2D3548]">
+        <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">
               Leave "{group.name}"?

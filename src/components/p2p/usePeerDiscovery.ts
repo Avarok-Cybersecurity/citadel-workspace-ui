@@ -207,7 +207,7 @@ export function usePeerDiscovery(isOpen: boolean) {
       toast({
         title: "Request Sent",
         description: `Connection request sent to ${peerUsername}. They will receive it when online.`,
-        className: "bg-[#343A5C] border-purple-600 text-purple-400",
+        className: "bg-[#232536] border-purple-600 text-purple-400",
       });
     } catch (error) {
       debugLog('PeerDiscoveryModal', 'Failed to send registration request:', error);

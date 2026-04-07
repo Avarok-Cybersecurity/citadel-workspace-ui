@@ -76,8 +76,8 @@ export function TreeNodeItem({
     <>
       <SidebarMenuItem className="relative group">
         <SidebarMenuButton
-          className={`text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors w-full pr-8 ${
-            isSelected ? "bg-[#E5DEFF] text-[#343A5C]" : ""
+          className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors w-full pr-8 ${
+            isSelected ? "bg-purple-500/20 text-purple-200" : ""
           }`}
           style={{ paddingLeft: `${8 + indentPx}px` }}
           isActive={isSelected}
@@ -121,7 +121,7 @@ export function TreeNodeItem({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white hover:bg-[#444A6C]"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white hover:bg-[#232536]"
               onClick={(e) => e.stopPropagation()}
               data-testid={`tree-node-menu-${node.id}`}
             >

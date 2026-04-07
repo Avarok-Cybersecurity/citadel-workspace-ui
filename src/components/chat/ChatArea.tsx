@@ -103,9 +103,9 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
   const channelAvatar = '';
 
   return (
-    <div className="flex flex-col h-full bg-[#444A6C]">
+    <div className="flex flex-col h-full bg-[#1C1D28]">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-[#343A5C]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-[#232536]">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={channelAvatar} />
@@ -178,7 +178,7 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-gray-800 bg-[#343A5C]">
+      <div className="p-4 border-t border-gray-800 bg-[#232536]">
         <div className="flex items-center space-x-2">
           <div className="flex items-center space-x-1">
             <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-700" type="button">

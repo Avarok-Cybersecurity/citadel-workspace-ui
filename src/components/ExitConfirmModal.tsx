@@ -50,7 +50,7 @@ export const ExitConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-[#252424] rounded-lg border border-gray-800">
+        <div className="my-4 p-4 bg-[#131420] rounded-lg border border-gray-800">
           <p className="text-sm text-gray-300">
             💡 <strong>Tip:</strong> Your session will remain active. Click the
             workspace icon on the landing page to return instantly without

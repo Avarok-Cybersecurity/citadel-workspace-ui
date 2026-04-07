@@ -100,7 +100,7 @@ export function MembersTable({
                   <SelectTrigger className="h-8 w-28 bg-[#262C4A] border-[#3D4663] text-white text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1C2333] border-[#2D3548]">
+                  <SelectContent className="bg-[#1C1D28] border-[#2D3548]">
                     {assignableRoles.map(r => (
                       <SelectItem
                         key={r.id}

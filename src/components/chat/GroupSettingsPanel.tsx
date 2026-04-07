@@ -72,7 +72,7 @@ export function GroupSettingsPanel({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        className="w-full sm:max-w-md bg-[#1C2333] border-l border-[#2D3548] p-0 flex flex-col"
+        className="w-full sm:max-w-md bg-[#1C1D28] border-l border-[#2D3548] p-0 flex flex-col"
         side="right"
       >
         {/* Header */}

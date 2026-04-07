@@ -82,7 +82,7 @@ export const UserDirectory = () => {
       toast({
         title: 'Request Sent',
         description: `Connection request sent to ${selectedUser.displayName}`,
-        className: 'bg-[#343A5C] border-purple-800 text-purple-200',
+        className: 'bg-[#232536] border-purple-800 text-purple-200',
       });
 
       setRequestDialogOpen(false);
@@ -113,7 +113,7 @@ export const UserDirectory = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - User search and directory */}
         <div className="lg:col-span-2 space-y-4">
-          <Card className="bg-[#343A5C] border-gray-700 text-white shadow-sm">
+          <Card className="bg-[#232536] border-[#2D3548] text-white shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle>Find People</CardTitle>
               <CardDescription className="text-gray-400">Search for users by name or email</CardDescription>
@@ -128,7 +128,7 @@ export const UserDirectory = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#343A5C] border-gray-700 text-white shadow-sm">
+          <Card className="bg-[#232536] border-[#2D3548] text-white shadow-sm">
             <CardHeader className="pb-3">
               <div>
                 <CardTitle>Workspace Directory</CardTitle>
@@ -140,9 +140,9 @@ export const UserDirectory = () => {
 
             <Tabs defaultValue="all" value={tab} onValueChange={setTab} className="w-full">
               <div className="px-6">
-                <TabsList className="bg-[#444A6C] w-full">
-                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">All</TabsTrigger>
-                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">Online</TabsTrigger>
+                <TabsList className="bg-[#232536] w-full">
+                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400">All</TabsTrigger>
+                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400">Online</TabsTrigger>
                 </TabsList>
               </div>
 

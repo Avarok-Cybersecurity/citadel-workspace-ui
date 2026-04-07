@@ -143,13 +143,13 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 bg-[#252424] border-b border-gray-800 flex items-center justify-between pr-4 z-50">
+    <div className="fixed top-0 left-0 right-0 h-14 bg-[#1C1D28] border-b border-[#2D3548] flex items-center justify-between pr-4 z-50">
       <div className="flex items-center">
         {isMobile && (
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] md:hidden mr-4"
+            className="text-white hover:bg-purple-500/15 hover:text-white md:hidden mr-4"
             onClick={toggleSidebar}
           >
             <Menu className="h-5 w-5" />
@@ -164,41 +164,41 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
+            <Button variant="ghost" size="icon" className="p-0 hover:bg-purple-500/15" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
               <Avatar className={cn(
                 "h-8 w-8",
-                isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#252424]"
+                isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#1C1D28]"
               )}>
                 <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-[#444A6C] text-white">{userInitials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-[#343A5C] text-white border-purple-800">
-            <DropdownMenuLabel>{name}</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-purple-800" />
+          <DropdownMenuContent align="end" className="w-56 bg-[#1C1D28] text-white border-[#2D3548] shadow-xl shadow-black/40">
+            <DropdownMenuLabel className="text-gray-300 text-xs font-normal">{name}</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-[#2D3548]" />
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-gray-200 cursor-pointer focus:bg-purple-500/15 focus:text-white"
               onClick={() => setShowProfileModal(true)}
             >
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-gray-200 cursor-pointer focus:bg-purple-500/15 focus:text-white"
               onClick={() => setShowSettingsModal(true)}
             >
               Settings
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-purple-800" />
+            <DropdownMenuSeparator className="bg-[#2D3548]" />
             <DropdownMenuItem
-              className="text-gray-300 hover:bg-[#444A6C] hover:text-white cursor-pointer gap-2"
+              className="text-gray-400 cursor-pointer gap-2 focus:bg-purple-500/15 focus:text-white"
               onClick={() => setShowExitConfirm(true)}
             >
               <ArrowLeft className="h-4 w-4" />
               Exit to Landing
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-red-400 hover:bg-red-500/20 hover:text-red-300 cursor-pointer gap-2"
+              className="text-red-400 cursor-pointer gap-2 focus:bg-red-500/10 focus:text-red-300"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />

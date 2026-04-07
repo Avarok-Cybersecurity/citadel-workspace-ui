@@ -135,7 +135,7 @@ export function EntityManagementModal<TMode extends string>({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] bg-[#343A5C] border-purple-800">
+      <DialogContent className="sm:max-w-[425px] bg-[#232536] border-purple-800">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-white">{modeConfig.title}</DialogTitle>
@@ -161,7 +161,7 @@ export function EntityManagementModal<TMode extends string>({
               variant="outline"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="bg-transparent border-gray-600 text-white hover:bg-[#444A6C]"
+              className="bg-transparent border-gray-600 text-white hover:bg-[#232536]"
             >
               Cancel
             </Button>
@@ -171,7 +171,7 @@ export function EntityManagementModal<TMode extends string>({
               className={
                 modeConfig.submitVariant === 'destructive'
                   ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                  : "bg-purple-500/20 text-purple-200 hover:bg-purple-500/25 hover:text-white"
               }
             >
               {isSubmitting ? modeConfig.submittingLabel : modeConfig.submitLabel}
@@ -201,7 +201,7 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-[#444A6C] border-gray-600 text-white placeholder:text-gray-400"
+            className="bg-[#232536] border-gray-600 text-white placeholder:text-gray-400"
             required={field.required}
             disabled={disabled}
           />
@@ -216,7 +216,7 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-[#444A6C] border-gray-600 text-white placeholder:text-gray-400 min-h-[100px]"
+            className="bg-[#232536] border-gray-600 text-white placeholder:text-gray-400 min-h-[100px]"
             disabled={disabled}
           />
         </div>
@@ -226,15 +226,15 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
         <div className="grid gap-2">
           <Label htmlFor={field.id} className="text-white">{field.label}</Label>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger className="bg-[#444A6C] border-gray-600 text-white">
+            <SelectTrigger className="bg-[#232536] border-gray-600 text-white">
               <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
             </SelectTrigger>
-            <SelectContent className="bg-[#343A5C] border-purple-800">
+            <SelectContent className="bg-[#232536] border-purple-800">
               {field.options?.map(option => (
                 <SelectItem
                   key={option.value}
                   value={option.value}
-                  className="text-white hover:bg-[#444A6C]"
+                  className="text-white hover:bg-[#232536]"
                 >
                   {option.label}
                 </SelectItem>

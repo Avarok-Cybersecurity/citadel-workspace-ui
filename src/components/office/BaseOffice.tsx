@@ -71,7 +71,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       toast({
         title: "Changes saved",
         description: `The ${entityData?.name || title} page has been updated`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        className: "bg-[#232536] border-purple-800 text-purple-200",
       });
     } catch (error) {
       debugLog('BaseOffice', 'Failed to save MDX content:', error);
@@ -126,7 +126,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     toast({
       title: "Template applied",
       description: `Applied "${template.name}" template. You can now customize it.`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      className: "bg-[#232536] border-purple-800 text-purple-200",
     });
 
     // Content is no longer new once a template is applied
@@ -153,7 +153,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
   // Content view (MDX editor or rendered content)
   const contentView = isEditing ? (
-    <div className="px-4 pt-6 pb-2">
+    <div className="px-6 lg:px-10 pt-8 pb-4 max-w-4xl">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-white">Edit Content</h2>
         <div className="flex gap-2">
@@ -176,7 +176,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       />
     </div>
   ) : (
-    <div className="px-4 pt-6 pb-2 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-none">
+    <div className="px-6 lg:px-10 pt-8 pb-4 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
         {compiledContent}
       </MDXProvider>
@@ -210,8 +210,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       editDeniedReason={editDeniedReason || undefined}
     >
       <Tabs defaultValue="content" className="w-full h-full flex flex-col">
-        <div className="px-4 pt-4 border-b border-gray-700 flex-shrink-0">
-          <TabsList className="bg-gray-800">
+        <div className="px-4 pt-4 border-b border-[#2D3548] flex-shrink-0">
+          <TabsList className="bg-[#1C1D28]">
             <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
               <FileText className="h-4 w-4 mr-2" />
               Content

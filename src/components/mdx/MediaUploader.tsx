@@ -108,7 +108,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-[#343A5C] text-white border-gray-800">
+      <DialogContent className="sm:max-w-md bg-[#232536] text-white border-gray-800">
         <DialogHeader>
           <DialogTitle className="text-white">Insert Media</DialogTitle>
           <DialogDescription className="text-gray-300">
@@ -173,7 +173,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                   value={altText}
                   onChange={(e) => setAltText(e.target.value)}
                   placeholder="Describe this image for screen readers"
-                  className="w-full px-3 py-2 bg-[#444A6C] border border-gray-700 rounded-md text-white"
+                  className="w-full px-3 py-2 bg-[#232536] border border-gray-700 rounded-md text-white"
                 />
               </div>
             </div>

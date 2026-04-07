@@ -52,7 +52,7 @@ export function MemberListItems({
           <div className="flex items-center w-full group">
             <Tooltip>
               <TooltipTrigger asChild>
-                <SidebarMenuButton className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors flex-1">
+                <SidebarMenuButton className="text-white hover:bg-purple-500/15 hover:text-white transition-colors flex-1">
                   <div className="flex items-center gap-2 flex-1">
                     {getRoleIcon(member.role || 'member')}
                     <span className="flex-1 truncate">{member.displayName || member.username}</span>
@@ -84,7 +84,7 @@ export function MemberListItems({
       ))}
       {members.length > MEMBERS_TO_SHOW && (
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={onShowAllMembers} className="text-[#9b87f5] hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors">
+          <SidebarMenuButton onClick={onShowAllMembers} className="text-[#9b87f5] hover:bg-purple-500/15 hover:text-white transition-colors">
             <Users className="h-4 w-4 mr-2" />View all {members.length} members
           </SidebarMenuButton>
         </SidebarMenuItem>

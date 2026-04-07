@@ -129,7 +129,7 @@ export function GroupChatPage() {
   if (!group) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full bg-[#1C2333]">
+        <div className="flex items-center justify-center h-full bg-[#1C1D28]">
           <Loader2 className="h-8 w-8 animate-spin text-[#6E59A5]" />
         </div>
       </AppLayout>
@@ -138,7 +138,7 @@ export function GroupChatPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-full bg-[#1C2333]">
+      <div className="flex flex-col h-full bg-[#1C1D28]">
 
       {/* Header */}
       <GroupChatHeader

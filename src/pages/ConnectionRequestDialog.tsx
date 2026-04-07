@@ -31,7 +31,7 @@ export function ConnectionRequestDialog({
 }: ConnectionRequestDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#343A5C] text-white border-gray-700">
+      <DialogContent className="bg-[#232536] text-white border-gray-700">
         <DialogHeader>
           <DialogTitle>Send Connection Request</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -40,7 +40,7 @@ export function ConnectionRequestDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="flex items-start space-x-3 p-3 bg-[#444A6C] rounded-md">
+          <div className="flex items-start space-x-3 p-3 bg-[#232536] rounded-md">
             <AlertCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-gray-300">
               <p>The user will need to accept your P2P registration request before you can message them. P2P connection will be automatically established after registration is accepted.</p>
@@ -56,7 +56,7 @@ export function ConnectionRequestDialog({
               value={requestMessage}
               onChange={(e) => onRequestMessageChange(e.target.value)}
               placeholder="Tell them why you'd like to connect..."
-              className="w-full h-24 px-3 py-2 bg-[#444A6C] border border-gray-700 rounded-md text-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full h-24 px-3 py-2 bg-[#232536] border border-gray-700 rounded-md text-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
         </div>

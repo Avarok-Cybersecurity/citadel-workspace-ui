@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { HelpCircle } from "lucide-react";
+import { Globe, Lock, Shield, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { StepIndicator } from "@/components/ui/step-indicator";
 
 interface ServerConnectProps {
   onNext: (address: string, password: string) => void;
@@ -62,88 +61,79 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md">
-        <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-white text-xl">{title || "Join Workspace"}</CardTitle>
-            <CardDescription className="text-gray-300">
+        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+          <CardHeader className="pb-4">
+            <StepIndicator currentStep={1} totalSteps={3} labels={["Server", "Security", "Profile"]} />
+            <h2 className="text-xl font-bold text-white mt-5">{title || "Join Workspace"}</h2>
+            <p className="text-sm text-gray-400 mt-1">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
-            </CardDescription>
-            <div className="flex items-center gap-2 mt-2">
-              <div className="flex gap-1">
-                <div className="w-8 h-1 rounded-full bg-purple-500" />
-                <div className="w-8 h-1 rounded-full bg-gray-600" />
-                <div className="w-8 h-1 rounded-full bg-gray-600" />
-              </div>
-              <span className="text-xs text-gray-400">Step 1 of 3</span>
-            </div>
+            </p>
           </CardHeader>
 
           <form onSubmit={handleConnect}>
-            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto">
+              {/* Workspace Address */}
               <div className="space-y-2">
-                <Label htmlFor="serverAddress" className="text-gray-300">
-                  Workspace Location
-                </Label>
+                <label className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                  Workspace Address
+                </label>
                 <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <Input
                     id="serverAddress"
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
-                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
-                    placeholder="workspace-name.avarok.net"
+                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    placeholder="workspace.example.com"
                   />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                      <p>Enter your workspace server address</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
               </div>
 
+              {/* Workspace Password */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-300">
+                <label className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
                   Workspace Password (Optional)
-                </Label>
+                </label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <Input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
-                    placeholder="Enter workspace password"
+                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    placeholder="••••••••••••"
                   />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                      <p>Optional: Enter the workspace password if required</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
+              </div>
+
+              {/* Security info banner */}
+              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-purple-500/5 border border-purple-500/10">
+                <Shield className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Citadel uses <span className="text-purple-300">lattice-based cryptography</span>. All connections are
+                  end-to-end encrypted and resistant to quantum compute attacks.
+                </p>
               </div>
             </CardContent>
 
-            <CardFooter className="flex justify-between">
+            <CardFooter className="flex justify-between pt-2">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={onCancel || (() => navigate("/"))}
-                className="text-white hover:bg-purple-500/20"
+                className="text-gray-400 hover:text-white hover:bg-transparent"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
               >
                 Next
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </CardFooter>
           </form>

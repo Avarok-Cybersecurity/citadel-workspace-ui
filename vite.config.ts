@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => {
     // Prevent vite from obscuring rust errors
     clearScreen: false,
 
+    // Use a writable cache directory (node_modules may be root-owned from Docker)
+    cacheDir: '/tmp/citadel-vite-cache',
+
     // Handle Node.js modules
     optimizeDeps: {
       exclude: ['events', 'fs', 'path', 'crypto', 'os', 'util', 'citadel-workspace-client-ts'],

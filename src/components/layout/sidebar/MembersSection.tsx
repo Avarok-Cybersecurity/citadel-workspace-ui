@@ -141,7 +141,7 @@ export const MembersSection = () => {
               </Badge>
             )}
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-[#9b87f5] hover:bg-[#E5DEFF] hover:text-[#343A5C]" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
             <UserPlus className="h-4 w-4" />
           </Button>
         </div>
@@ -168,7 +168,7 @@ export const MembersSection = () => {
           </ScrollArea>
 
           {filteredRegisteredPeers.length > 0 && (
-            <div className="mt-2 border-t border-[#444A6C] pt-2">
+            <div className="mt-2 border-t border-[#232536] pt-2">
               <SidebarMenu>
                 {filteredRegisteredPeers.map((peer) => (
                   <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} isOnline={peer.isOnline} isConnected={peer.isConnected} onClick={() => handlePeerClick(peer.cid, peer.username)} />

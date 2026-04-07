@@ -60,7 +60,7 @@ export const AdminSettingsSection = () => {
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setShowPermissionManager(true)}
-                className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors"
+                className="text-white hover:bg-purple-500/15 hover:text-white transition-colors"
               >
                 <Shield className="h-4 w-4 mr-2 text-amber-400" />
                 Manage User Roles
@@ -69,7 +69,7 @@ export const AdminSettingsSection = () => {
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setShowAdminInfo(true)}
-                className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors"
+                className="text-white hover:bg-purple-500/15 hover:text-white transition-colors"
               >
                 <Key className="h-4 w-4 mr-2 text-amber-400" />
                 Admin Privileges

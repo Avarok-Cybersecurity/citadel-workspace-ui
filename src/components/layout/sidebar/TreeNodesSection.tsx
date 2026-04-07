@@ -183,7 +183,7 @@ export function TreeNodesSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-[#9b87f5] hover:bg-[#E5DEFF] hover:text-[#343A5C]"
+              className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white"
               onClick={handleCreateRoot}
               data-testid="add-root-node-button"
               aria-label="Add node"
@@ -212,7 +212,7 @@ export function TreeNodesSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-[#9b87f5] hover:bg-[#E5DEFF] hover:text-[#343A5C]"
+              className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white"
               onClick={handleCreateRoot}
               data-testid="add-node-button"
               aria-label="Add node"

@@ -22,7 +22,7 @@ export const PermissionManagerModal: React.FC<PermissionManagerModalProps> = ({
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl p-0 bg-transparent border-0">
+      <DialogContent className="max-w-2xl p-0 bg-transparent border-0 shadow-none [&>button]:hidden">
         <PermissionManager
           userId={userId}
           domainId={domainId}

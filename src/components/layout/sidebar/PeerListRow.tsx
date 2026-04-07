@@ -39,7 +39,7 @@ export function PeerListRow({
       <SidebarMenuButton
         onClick={onClick}
         data-peer-cid={cid}
-        className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors h-8 py-1"
+        className="text-white hover:bg-purple-500/15 hover:text-white transition-colors h-8 py-1"
       >
         <div className="flex items-center gap-2 w-full">
           {/* Avatar with status indicator */}

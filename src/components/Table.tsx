@@ -36,17 +36,17 @@ const TableComponent = ({ data, children, className }: TableProps) => {
       <UITable>
         <TableHeader>
           <TableRow className="border-b border-gray-800">
-            <TableHead className="text-white font-medium p-4 bg-[#343A5C]">Time</TableHead>
-            <TableHead className="text-white font-medium p-4 bg-[#343A5C]">Monday</TableHead>
-            <TableHead className="text-white font-medium p-4 bg-[#343A5C]">Tuesday</TableHead>
-            <TableHead className="text-white font-medium p-4 bg-[#343A5C]">Wednesday</TableHead>
+            <TableHead className="text-white font-medium p-4 bg-[#232536]">Time</TableHead>
+            <TableHead className="text-white font-medium p-4 bg-[#232536]">Monday</TableHead>
+            <TableHead className="text-white font-medium p-4 bg-[#232536]">Tuesday</TableHead>
+            <TableHead className="text-white font-medium p-4 bg-[#232536]">Wednesday</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data?.map((item, index) => (
             <TableRow 
               key={index}
-              className="hover:bg-[#E5DEFF]/10 transition-colors"
+              className="hover:bg-purple-500/10 transition-colors"
             >
               <TableCell className="text-gray-300">{item.time}</TableCell>
               <TableCell className="text-gray-300">{item.monday}</TableCell>

@@ -60,7 +60,7 @@ export const DisconnectConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-[#252424] rounded-lg border border-gray-800">
+        <div className="my-4 p-4 bg-[#131420] rounded-lg border border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#6E59A5] text-white font-semibold">
               {session.full_name?.charAt(0).toUpperCase() ||

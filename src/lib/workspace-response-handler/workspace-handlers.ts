@@ -151,15 +151,28 @@ function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'Members')) {
+    // Map WASM User type (which has `name`) to UI User type (which expects `username`/`displayName`)
+    const mappedMembers = response.Members.map((m: Record<string, unknown>) => ({
+      ...m,
+      username: (m as { name?: string }).name || (m as { id?: string }).id || '',
+      displayName: (m as { name?: string }).name || '',
+    }));
     eventEmitter.emit('members:loaded', {
-      members: response.Members, connection: connectionInfo,
+      members: mappedMembers, connection: connectionInfo,
     });
     return true;
   }
 
   if (isVariant(response, 'Member')) {
+    // Same mapping for single member
+    const m = response.Member as Record<string, unknown>;
+    const mappedMember = {
+      ...m,
+      username: (m as { name?: string }).name || (m as { id?: string }).id || '',
+      displayName: (m as { name?: string }).name || '',
+    };
     eventEmitter.emit('member:loaded', {
-      member: response.Member, connection: connectionInfo,
+      member: mappedMember, connection: connectionInfo,
     });
     return true;
   }

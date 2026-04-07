@@ -30,7 +30,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
 }) => {
   return (
     <div
-      className="flex items-center justify-between p-3 rounded-lg bg-[#444A6C] hover:bg-[#4F5889] transition-colors"
+      className="flex items-center justify-between p-3 rounded-lg bg-[#232536] hover:bg-[#4F5889] transition-colors"
     >
       <div className="flex items-center space-x-3">
         <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">

@@ -98,7 +98,7 @@ const NotificationCenter = () => {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px] bg-[#343A5C] text-white border-purple-800">
+      <SheetContent className="w-[400px] sm:w-[540px] bg-[#232536] text-white border-purple-800">
         <SheetHeader className="border-b border-gray-700 pb-4">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-white">Notifications</SheetTitle>
@@ -114,7 +114,7 @@ const NotificationCenter = () => {
         </SheetHeader>
         
         <Tabs defaultValue="all" value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | NotificationType)}>
-          <TabsList className="grid grid-cols-4 mt-4 mb-6 bg-[#444A6C]">
+          <TabsList className="grid grid-cols-4 mt-4 mb-6 bg-[#232536]">
             <TabsTrigger value="all" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
               All {unreadCount > 0 && `(${unreadCount})`}
             </TabsTrigger>

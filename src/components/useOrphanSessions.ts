@@ -103,7 +103,7 @@ export function useOrphanSessions() {
       toast({
         title: "Reconnecting...",
         description: `Loading ${session.workspaceName}`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        className: "bg-[#232536] border-purple-800 text-purple-200",
       });
 
       try { await websocketService.claimSession(session.cid, true); }
@@ -136,7 +136,7 @@ export function useOrphanSessions() {
       toast({
         title: "Connected!",
         description: `Now viewing ${session.workspaceName}`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        className: "bg-[#232536] border-purple-800 text-purple-200",
       });
     } catch (error) {
       debugLog('OrphanSessionsNavbar', 'Failed to navigate to workspace:', error);

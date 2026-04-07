@@ -94,12 +94,14 @@ export function GeneralSettingsTab() {
     <div className="space-y-6">
       {/* Profile Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-200">Profile</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-white">User Profile</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Update your photo and personal details</p>
+        </div>
 
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            <Label className="text-sm text-gray-400 mb-2 block">Avatar</Label>
             <AvatarUpload
               currentAvatar={avatarData || undefined}
               onAvatarChange={handleAvatarChange}
@@ -109,19 +111,19 @@ export function GeneralSettingsTab() {
 
           {/* Name Input */}
           <div className="flex-1 space-y-4 w-full">
-            <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-sm text-gray-400">
+            <div className="space-y-1.5">
+              <label htmlFor="displayName" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
                 Display Name
-              </Label>
+              </label>
               <Input
                 id="displayName"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Enter your display name"
                 disabled={isSaving}
-                className="bg-[#3B3D57] border-[#4D4F6C] text-white"
+                className="bg-[#131420] border-[#2D3548] text-white h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-[11px] text-gray-500">
                 This is how your name appears to other workspace members.
               </p>
             </div>
@@ -130,20 +132,20 @@ export function GeneralSettingsTab() {
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end pt-4 border-t border-gray-700">
+      <div className="flex justify-end pt-4 border-t border-[#2D3548]">
         <Button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
-          className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+          className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg shadow-lg shadow-purple-500/20 gap-2"
         >
           {isSaving ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Saving...
             </>
           ) : (
             <>
-              <Save className="h-4 w-4 mr-2" />
+              <Save className="h-4 w-4" />
               Save Changes
             </>
           )}

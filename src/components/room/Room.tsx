@@ -98,7 +98,7 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
       toast({
         title: "Changes saved",
         description: `The ${room?.name || 'room'} content has been updated`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        className: "bg-[#232536] border-purple-800 text-purple-200",
       });
 
       setIsEditing(false);
@@ -119,7 +119,7 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
     toast({
       title: "Template applied",
       description: `Applied "${template.name}" template. You can now customize it.`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      className: "bg-[#232536] border-purple-800 text-purple-200",
     });
 
     setIsNewContent(false);

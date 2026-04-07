@@ -36,33 +36,33 @@ export const OfficeLayout = ({
   };
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] overflow-hidden bg-[#444A6C]">
+    <div className="h-[calc(100vh-3.5rem)] overflow-hidden bg-[#1C1D28]">
       <div className="h-full flex flex-col">
-        <div className="flex justify-between items-center px-4 py-2 border-b border-gray-800 bg-[#343A5C]">
+        <div className="flex justify-between items-center px-4 py-2 border-b border-[#2D3548] bg-[#232536]">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-semibold text-white hidden md:block">
               <button
                 onClick={handleNavigateUp}
-                className="hover:text-[#E5DEFF] transition-colors"
+                className="hover:text-purple-300 transition-colors"
               >
                 {title}
               </button>
             </h1>
           </div>
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
-              className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
+              className="text-gray-300 hover:bg-purple-500/15 hover:text-white"
               onClick={() => navigate('/messages')}
               title="Messages"
             >
               <MessageSquare className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
-              className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
+              className="text-gray-300 hover:bg-purple-500/15 hover:text-white"
               onClick={() => setShowSettingsModal(true)}
               title="Settings"
             >
@@ -71,15 +71,15 @@ export const OfficeLayout = ({
             {isEditing ? (
               <>
                 <Button
-                  variant="secondary"
-                  className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                  variant="ghost"
+                  className="text-gray-300 hover:bg-purple-500/15 hover:text-white"
                   onClick={onEditToggle}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={onSave}
-                  className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                  className="bg-purple-600 text-white hover:bg-purple-700"
                 >
                   Save Changes
                 </Button>
@@ -90,8 +90,8 @@ export const OfficeLayout = ({
                 tooltip={editDeniedReason || "You don't have permission to edit this content"}
               >
                 <Button
-                  variant="secondary"
-                  className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#F1F0FB] hover:text-[#262C4A]"
+                  variant="outline"
+                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-white hover:border-purple-400"
                   onClick={canEdit ? onEditToggle : undefined}
                 >
                   Edit

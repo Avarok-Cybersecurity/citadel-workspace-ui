@@ -35,7 +35,7 @@ export async function redirectToExistingSession(
     toast({
       title: "Reconnecting...",
       description: `Loading ${session.username}'s workspace`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      className: "bg-[#232536] border-purple-800 text-purple-200",
     });
 
     const lastAccessedKey = `session_last_accessed_${session.cid.toString()}`;
@@ -84,7 +84,7 @@ export async function redirectToExistingSession(
     toast({
       title: "Connected!",
       description: `Now viewing ${session.username}'s workspace`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      className: "bg-[#232536] border-purple-800 text-purple-200",
     });
 
     onNext(session.cid.toString());

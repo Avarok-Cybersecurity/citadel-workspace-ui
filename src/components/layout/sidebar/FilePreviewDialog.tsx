@@ -61,7 +61,7 @@ const renderFilePreview = (file: FileDetails) => {
     case 'md':
     case 'mdx':
       return (
-        <div className="w-full max-h-[600px] overflow-auto bg-[#343A5C] p-4 rounded-lg">
+        <div className="w-full max-h-[600px] overflow-auto bg-[#232536] p-4 rounded-lg">
           <pre className="text-white whitespace-pre-wrap">{file.url}</pre>
         </div>
       );
@@ -86,7 +86,7 @@ const renderFilePreview = (file: FileDetails) => {
       );
     default:
       return (
-        <div className="text-center p-8 bg-[#343A5C] rounded-lg">
+        <div className="text-center p-8 bg-[#232536] rounded-lg">
           <FileCode className="mx-auto h-12 w-12 text-gray-300 mb-4" />
           <p className="text-white">Preview not available for this file type</p>
         </div>
@@ -114,7 +114,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#444A6C] border-[#262C4A] text-white max-w-md">
+      <DialogContent className="bg-[#232536] border-[#262C4A] text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider">
             {getFileIcon(file.name)}
@@ -128,7 +128,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
             <div className="flex justify-end">
               <Button
                 onClick={() => setShowPreview(false)}
-                className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#E5DEFF]/90"
+                className="bg-purple-500/20 text-purple-200 hover:bg-purple-500/25"
               >
                 Back to Details
               </Button>
@@ -136,14 +136,14 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="bg-[#343A5C] rounded-lg p-4">
+            <div className="bg-[#232536] rounded-lg p-4">
               <div className="flex flex-col space-y-6">
                 <div className="text-center">
                   <div className="text-sm text-gray-300 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
                     <User className="h-5 w-5" />
                     Sent by
                   </div>
-                  <div className="inline-flex items-center gap-3 bg-[#444A6C] rounded-full px-6 py-2">
+                  <div className="inline-flex items-center gap-3 bg-[#232536] rounded-full px-6 py-2">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={file.sender.avatar} />
                       <AvatarFallback>{file.sender.name.charAt(0)}</AvatarFallback>
@@ -157,7 +157,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
                     {getFileIcon(file.name)}
                     Filename
                   </div>
-                  <div className="bg-[#444A6C] rounded-full px-6 py-2">
+                  <div className="bg-[#232536] rounded-full px-6 py-2">
                     {file.name}
                   </div>
                 </div>
@@ -167,7 +167,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
                     <Calendar className="h-5 w-5" />
                     Create Date
                   </div>
-                  <div className="bg-[#444A6C] rounded-full px-6 py-2">
+                  <div className="bg-[#232536] rounded-full px-6 py-2">
                     {file.createdAt}
                   </div>
                 </div>
@@ -177,7 +177,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
                     {getFileIcon(file.name)}
                     File Type
                   </div>
-                  <div className="bg-[#444A6C] rounded-full px-6 py-2">
+                  <div className="bg-[#232536] rounded-full px-6 py-2">
                     {file.type}
                   </div>
                 </div>
@@ -187,7 +187,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
                     {getFileIcon(file.name)}
                     File Size
                   </div>
-                  <div className="bg-[#444A6C] rounded-full px-6 py-2">
+                  <div className="bg-[#232536] rounded-full px-6 py-2">
                     {formatFileSize(file.size)}
                   </div>
                 </div>
@@ -197,13 +197,13 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
             <div className="flex justify-end gap-2">
               <Button
                 onClick={handlePreview}
-                className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#E5DEFF]/90"
+                className="bg-purple-500/20 text-purple-200 hover:bg-purple-500/25"
               >
                 Preview
               </Button>
               <Button
                 onClick={handleDownload}
-                className="bg-[#E5DEFF] text-[#343A5C] hover:bg-[#E5DEFF]/90"
+                className="bg-purple-500/20 text-purple-200 hover:bg-purple-500/25"
               >
                 <Download className="mr-2 h-4 w-4" />
                 Download
