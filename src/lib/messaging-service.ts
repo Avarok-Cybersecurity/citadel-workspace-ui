@@ -175,13 +175,24 @@ export class MessagingService {
   }
 
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
+    // Callers of this API (see RetryableMessageSender) already maintain their
+    // own "is currently typing" state and only call us to emit a discrete
+    // event. Previously this method wired into the *polling* API with a
+    // `() => ''` text-getter, which caused the polling loop to never observe
+    // any change and therefore never emit anything. The net effect was that
+    // typing indicators silently never reached peers.
+    //
+    // We now fire a single typing event when isTyping flips to true, and
+    // rely on the receiver-side expiry for the stop signal. If a future
+    // caller needs input-bound polling, it should use startTypingPolling
+    // directly with a real `getCurrentText` closure.
     try {
       if (isTyping) {
-        // Use the proper P2PMessengerManager typing API
-        p2pMessengerManager.startTypingPolling(BigInt(recipientId), () => '');
-      } else {
-        p2pMessengerManager.stopTypingPolling(BigInt(recipientId));
+        await p2pMessengerManager.sendTypingIndicator(BigInt(recipientId));
       }
+      // isTyping=false currently requires no action: typing indicators
+      // expire on the receiver side. Kept explicit so future additions
+      // (e.g. a "stopped typing" signal) have an obvious insertion point.
     } catch (error) {
       debugLog('MessagingService', 'Error sending typing indicator:', error);
     }
