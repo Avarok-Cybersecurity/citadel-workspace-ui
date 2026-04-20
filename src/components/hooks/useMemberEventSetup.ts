@@ -52,16 +52,30 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             }
           }
 
-          // Build members record from the array
+          // Build members record from the already-mapped array.
+          //
+          // The workspace-handlers layer (mapWasmMember) is SSOT for
+          // WASM→UI field normalisation, so this loop does NOT re-derive
+          // username/displayName from the raw `name` field - we just
+          // consume what the handler produced. That keeps the two layers
+          // from drifting apart.
+          //
+          // Members without any stable identifier are skipped (rather than
+          // keyed under Math.random()) so that repeated `members:loaded`
+          // events cannot accumulate phantom duplicates.
           const membersRecord: Record<string, import('@/types/workspace-entities').User> = {};
           if (payload.members) {
             for (const m of payload.members) {
-              const member = m as { id?: string; username?: string; name?: string; displayName?: string; role?: string; };
-              const id = member.id || member.username || String(Math.random());
+              const member = m as { id?: string; username?: string; displayName?: string; role?: string };
+              const id = member.id || member.username;
+              if (!id) {
+                debugLog('UseMemberEventSetup', 'Dropping member with no stable id/username', member);
+                continue;
+              }
               membersRecord[id] = {
                 id,
-                username: member.username || member.name || id,
-                displayName: member.displayName || member.name || member.username || id,
+                username: member.username || id,
+                displayName: member.displayName || member.username || id,
                 role: member.role as import('@/types/workspace-entities').UserRole | undefined,
                 isOnline: false,
                 createdAt: Date.now(),

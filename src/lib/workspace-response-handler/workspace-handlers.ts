@@ -27,6 +27,43 @@ export function buildConnectionInfo(): ConnectionInfo {
 }
 
 /**
+ * Shape emitted on `members:loaded` / `member:loaded`.
+ *
+ * The WASM `User` type from the citadel bindings carries a `name` field;
+ * the UI expects `username` + `displayName`. We normalise here so every
+ * downstream consumer can rely on these fields existing, rather than each
+ * consumer writing its own defensive `as`-cast mapping.
+ */
+export interface MappedMember {
+  id?: string;
+  username: string;
+  displayName: string;
+  role?: string;
+  [k: string]: unknown;
+}
+
+/**
+ * Normalise a single raw WASM member record into the fields the UI expects.
+ * SSOT for the WASM→UI member mapping; invoked from both the `Members`
+ * (plural) and `Member` (singular) response handlers below.
+ */
+export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
+  const name = typeof raw.name === 'string' ? raw.name : undefined;
+  const id = typeof raw.id === 'string' ? raw.id : undefined;
+  const username = typeof raw.username === 'string' ? raw.username : undefined;
+  const displayName = typeof raw.displayName === 'string' ? raw.displayName : undefined;
+  const role = typeof raw.role === 'string' ? raw.role : undefined;
+
+  return {
+    ...raw,
+    id,
+    username: username ?? name ?? id ?? '',
+    displayName: displayName ?? name ?? username ?? id ?? '',
+    role,
+  };
+}
+
+/**
  * Try to handle workspace, member, node, permission, success/error, and
  * server-capabilities response variants.
  *
@@ -151,12 +188,7 @@ function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'Members')) {
-    // Map WASM User type (which has `name`) to UI User type (which expects `username`/`displayName`)
-    const mappedMembers = response.Members.map((m: Record<string, unknown>) => ({
-      ...m,
-      username: (m as { name?: string }).name || (m as { id?: string }).id || '',
-      displayName: (m as { name?: string }).name || '',
-    }));
+    const mappedMembers = response.Members.map((m: Record<string, unknown>) => mapWasmMember(m));
     eventEmitter.emit('members:loaded', {
       members: mappedMembers, connection: connectionInfo,
     });
@@ -164,13 +196,7 @@ function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'Member')) {
-    // Same mapping for single member
-    const m = response.Member as Record<string, unknown>;
-    const mappedMember = {
-      ...m,
-      username: (m as { name?: string }).name || (m as { id?: string }).id || '',
-      displayName: (m as { name?: string }).name || '',
-    };
+    const mappedMember = mapWasmMember(response.Member as Record<string, unknown>);
     eventEmitter.emit('member:loaded', {
       member: mappedMember, connection: connectionInfo,
     });
