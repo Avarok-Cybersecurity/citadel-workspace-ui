@@ -135,12 +135,18 @@ export const FileManagerContent = () => {
         onClose={() => fm.setRevfsDisabledModalOpen(false)}
         reason={fm.revfsDisabledReason}
         onOpenSettings={() => {
-          // Emit event to open the P2P chat settings for the current peer
+          // The dedicated P2P chat-settings UI doesn't exist yet, so the
+          // button visibly tells the user what to do (toast) and ALSO
+          // emits an event for any future listener to wire into without
+          // having to touch this call site. Without the toast, a click
+          // would be silently swallowed - regressing the prior placeholder
+          // UX where the user at least learned the next step.
           if (fm.selectedPeerCid) {
             eventEmitter.emit('p2p:open-chat-settings', {
               peerCid: fm.selectedPeerCid,
             });
           }
+          toast.info('Open Chat Settings to configure P2P storage');
           fm.setRevfsDisabledModalOpen(false);
         }}
       />

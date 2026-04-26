@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
-import WorkspaceService from "@/lib/workspace-service";
 import type { ActiveSession } from "@/types/session-types";
 import type { DisconnectAction } from "./DisconnectConfirmModal";
 import type { DisconnectStatus } from "./LoadingModal";
@@ -15,6 +14,7 @@ import { notificationService, type UnreadCountChange } from "@/lib/notification-
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
 import { eventEmitter } from "@/lib/event-emitter";
+import { postAuthSetup } from "@/lib/post-auth-setup";
 import { debugLog } from '@/lib/debug-config';
 
 export interface OrphanSessionWithWorkspace extends ActiveSession {
@@ -118,7 +118,14 @@ export function useOrphanSessions() {
 
       instanceManager.setCid(session.cid);
       instanceChannel.announcePresence();
-      WorkspaceService.setConnectionId(session.cid);
+
+      // Single source of truth for post-auth setup. Previously this branch
+      // hand-rolled `setConnectionId → loadWorkspace → listNodes` and
+      // missed `getTreeSchema`, leaving the orphan-claim path divergent
+      // from the login path. Using postAuthSetup keeps the two paths
+      // aligned and ensures any future steps added to postAuthSetup are
+      // applied uniformly.
+      await postAuthSetup(session.cid);
 
       try { await wasmConnectionManager.start(session.cid.toString()); }
       catch (_) { /* WASM start best-effort */ }
@@ -127,9 +134,6 @@ export function useOrphanSessions() {
         cid: session.cid.toString(), username: session.username,
         serverAddress: session.server_address, activationType: 'claim' as const
       });
-
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes();
 
       navigate(getWorkspacePath());
 
