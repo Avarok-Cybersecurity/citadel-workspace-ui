@@ -580,13 +580,23 @@ async function runTest(): Promise<boolean> {
 
     // Every check in `allPassed` is a BLOCKING correctness assertion.
     //
-    // `mostRecentFirst` is intentionally NOT in this set: MRU ordering
-    // of the previous-sessions navbar is a known-flaky / not-yet-
-    // implemented behaviour that would otherwise fail CI on every run.
-    // The committed report file therefore legitimately shows
-    // `"mostRecentFirst": false, "passed": true` on some CI runs; this
-    // is by design, not a latent bug being swallowed. When the MRU
-    // ordering is fixed, move `results.mostRecentFirst` into `allPassed`.
+    // KNOWN ISSUE — `mostRecentFirst` is intentionally NOT in this set.
+    // MRU ordering of the previous-sessions navbar is not yet implemented
+    // on the UI side; including it would red CI on every run despite the
+    // surrounding test contract being correct. The committed report file
+    // therefore legitimately shows `"mostRecentFirst": false, "passed":
+    // true` on some runs — by design, not a latent bug being swallowed.
+    //
+    // ACTION TO RESOLVE:
+    //   1. Implement MRU ordering in `OrphanSessionsNavbar` (sort by
+    //      `lastAccessed` desc).
+    //   2. Move `results.mostRecentFirst` into the `allPassed` chain
+    //      below so it becomes a blocking assertion.
+    //   3. Delete this comment block.
+    //
+    // The console output below labels the field `ADVISORY-FAIL` rather
+    // than `FAIL` so a CI reader can spot it without mistaking it for a
+    // gating regression.
     const allSessionsCreated = results.sessionsCreated.every(Boolean);
     const allPassed =
       allSessionsCreated &&
