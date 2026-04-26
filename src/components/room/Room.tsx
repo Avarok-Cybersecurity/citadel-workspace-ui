@@ -17,6 +17,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { components } from '../office/mdxComponents';
 import { debugLog } from '@/lib/debug-config';
 import { RoomContentView } from './RoomContentView';
+import { applyGfmStrikethrough } from './mdx-preprocess';
 
 interface RoomProps {
   nodeId: string;
@@ -71,8 +72,11 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
 
       try {
         debugLog('Room', 'Compiling Room MDX content...');
-        // Pre-process GFM strikethrough (~~text~~) since remark-gfm is not available
-        const processedContent = content.replace(/~~(?=\S)([\s\S]*?\S)~~/g, '<del>$1</del>');
+        // Pre-process GFM strikethrough (~~text~~) since remark-gfm is not
+        // available. Code regions (fenced ```...``` and inline `...`)
+        // are skipped so a code sample containing literal `~~` does not
+        // get mangled into <del>...</del>.
+        const processedContent = applyGfmStrikethrough(content);
         const result = await evaluate(processedContent, {
           ...runtime,
           useMDXComponents: () => components,

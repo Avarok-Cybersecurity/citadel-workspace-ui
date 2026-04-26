@@ -1,0 +1,62 @@
+/**
+ * MDX Pre-Processing Utilities
+ *
+ * Small text transforms applied to raw MDX/markdown content BEFORE the
+ * MDX parser runs. Each transform here exists because remark-gfm is not
+ * available in the runtime MDX path, so a few GFM features (strike-
+ * through, etc.) have to be open-coded.
+ *
+ * Critically, these transforms must NOT touch the contents of code
+ * regions (fenced ```...``` blocks and inline `...` code spans) — doing
+ * so would mangle code samples that legitimately contain `~~`. Use the
+ * `transformOutsideCode` helper to opt into that behaviour.
+ */
+
+/**
+ * Matches code regions in priority order:
+ *   1. Fenced code blocks: ```...```  (with optional language tag)
+ *   2. Inline code spans: `...` (single backtick, no embedded backticks
+ *      or newlines).
+ *
+ * The `g` flag is required so `RegExp.exec` advances past each match.
+ */
+const CODE_REGION_REGEX = /```[\s\S]*?```|`[^`\n]*`/g;
+
+/**
+ * Apply `transform` to every span of text that is NOT inside a code
+ * region. Code regions are passed through verbatim. Pure function.
+ */
+export function transformOutsideCode(
+  content: string,
+  transform: (segment: string) => string,
+): string {
+  // Reset lastIndex defensively in case the shared regex has state.
+  CODE_REGION_REGEX.lastIndex = 0;
+
+  let out = '';
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = CODE_REGION_REGEX.exec(content)) !== null) {
+    out += transform(content.slice(cursor, match.index));
+    out += match[0];
+    cursor = CODE_REGION_REGEX.lastIndex;
+  }
+  out += transform(content.slice(cursor));
+  return out;
+}
+
+/**
+ * GFM strikethrough: `~~text~~` -> `<del>text</del>`.
+ *
+ * The lookahead `(?=\S)` and the trailing `\S~~` anchor the match so
+ * stray double-tildes (e.g. ASCII art `~~~~`) don't get transformed.
+ *
+ * Only applied to non-code regions — see `transformOutsideCode`.
+ */
+const GFM_STRIKETHROUGH_REGEX = /~~(?=\S)([\s\S]*?\S)~~/g;
+
+export function applyGfmStrikethrough(content: string): string {
+  return transformOutsideCode(content, (segment) =>
+    segment.replace(GFM_STRIKETHROUGH_REGEX, '<del>$1</del>'),
+  );
+}
