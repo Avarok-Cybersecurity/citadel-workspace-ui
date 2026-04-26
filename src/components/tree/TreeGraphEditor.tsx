@@ -26,6 +26,7 @@ import {
   applyDagreLayout,
   wouldCreateCycle,
   findNodeInTree,
+  findReparentTarget,
 } from "./tree-graph-utils";
 import type { TreeGraphEditorProps, ContextMenuState } from "./tree-graph-types";
 import { cn } from "@/lib/utils";
@@ -120,32 +121,17 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
-  // Handle node drag end for potential reparenting
+  // Handle node drag end for potential reparenting.
+  //
+  // Decision logic (proximity + size-aware threshold) lives in the pure
+  // `findReparentTarget` helper so it can be unit-tested. This component
+  // only orchestrates the side effects: cycle check and async move call.
   const handleNodeDragStop = useCallback(
     async (_event: React.MouseEvent, node: Node) => {
       if (!canEdit || !onNodeMove) return;
-
-      // Detect closest node under drag position for reparenting
-      const draggedId = node.id;
-      const dragPos = node.position;
-      let closestId: string | null = null;
-      let closestDist = Infinity;
-
-      for (const n of nodes) {
-        if (n.id === draggedId) continue;
-        const dx = (n.position.x + 80) - (dragPos.x + 80); // center-to-center
-        const dy = (n.position.y + 20) - (dragPos.y + 20);
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 60 && dist < closestDist) {
-          closestDist = dist;
-          closestId = n.id;
-        }
-      }
-
-      if (closestId && closestId !== draggedId) {
-        if (!wouldCreateCycle(treeStructure, draggedId, closestId)) {
-          await onNodeMove(draggedId, closestId);
-        }
+      const targetId = findReparentTarget(nodes, node);
+      if (targetId && !wouldCreateCycle(treeStructure, node.id, targetId)) {
+        await onNodeMove(node.id, targetId);
       }
     },
     [canEdit, onNodeMove, nodes, treeStructure]
