@@ -72,19 +72,26 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
     const isLoading = await loadingIndicator.isVisible({ timeout: 500 }).catch(() => false);
 
     if (!isLoading) {
-      // Look for any of the sidebar section headers that indicate workspace is loaded
-      // Note: "CONNECTED PEERS" appears when there are P2P peers but no workspace members
+      // Look for any of the sidebar section headers that indicate workspace is loaded.
+      // Sidebar labels use Title Case (e.g. "Workspace Members"), not the
+      // historical UPPERCASE — text="..." is a case-sensitive exact match
+      // in Playwright, so the strings below must match the rendered text
+      // verbatim. The data-sidebar attribute is the most reliable signal
+      // and is checked first to short-circuit the slower text matches.
       const sidebarIndicators = [
-        'text="WORKSPACE MEMBERS"',
-        'text="CONNECTED PEERS"',
-        'text="DIRECT MESSAGES"',
-        'text="FILES"',
-        // Additional indicators - sidebar group labels from the workspace layout
+        // Sidebar group labels from the workspace layout (most reliable)
         '[data-sidebar="group-label"]',
-        // Office/room navigation elements
-        'text="General"',
         // Workspace name in sidebar header
         '[data-testid="workspace-name"]',
+        // Section headers — note that "Connected Peers" shows when there
+        // are P2P peers but no workspace members, "Workspace Members"
+        // shows otherwise.
+        'text="Workspace Members"',
+        'text="Connected Peers"',
+        'text="Direct Messages"',
+        'text="FILES"',
+        // Office/room navigation elements
+        'text="General"',
       ];
 
       for (const selector of sidebarIndicators) {

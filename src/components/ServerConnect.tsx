@@ -76,7 +76,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
             <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto">
               {/* Workspace Address */}
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="serverAddress" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
                   Workspace Address
                 </label>
                 <div className="relative">
@@ -93,7 +93,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
 
               {/* Workspace Password */}
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
                   Workspace Password (Optional)
                 </label>
                 <div className="relative">

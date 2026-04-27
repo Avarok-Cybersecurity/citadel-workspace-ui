@@ -24,24 +24,60 @@ export interface GroupInvitePayload {
 }
 
 /**
+ * Parse a CID from the invite payload. Returns `null` if the input
+ * is not a syntactically valid BigInt — this lets callers reject the
+ * whole invite cleanly instead of letting `BigInt()` throw a
+ * `SyntaxError` that bubbles out of the void-async wrapper in
+ * `applyGroupInvite` as an unhandled rejection.
+ */
+function parseCid(raw: unknown): bigint | null {
+  if (typeof raw === 'bigint') return raw;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return BigInt(raw);
+  if (typeof raw === 'string' && /^-?\d+$/.test(raw.trim())) {
+    try {
+      return BigInt(raw.trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * Resolve the accepting user's CID and produce the local
  * `GroupConversation` entry for an incoming invite.
  *
- * If the local CID can't be resolved we still build the group (so the
- * UI doesn't silently swallow the invite) but the members array will
- * contain only the inviter — caller (or a later event) can backfill.
+ * Returns `null` for malformed payloads (missing fields, non-numeric
+ * inviterId) — the caller logs and drops the invite. If the local CID
+ * can't be resolved we still build the group (so the UI doesn't
+ * silently swallow a valid invite) but the members array will contain
+ * only the inviter — a later event can backfill self.
  *
  * Caller is responsible for committing the result via `setGroups` and
  * for emitting any user-facing notification.
  */
 export async function buildGroupFromInvite(
   data: GroupInvitePayload,
-): Promise<GroupConversation> {
+): Promise<GroupConversation | null> {
+  if (!data || !data.groupId || !data.inviterUsername) {
+    debugLog('UseGroupConversations', 'Invalid invite payload (missing required field):', data);
+    return null;
+  }
+  const inviterCid = parseCid(data.inviterId);
+  if (inviterCid === null) {
+    debugLog(
+      'UseGroupConversations',
+      'Invalid invite payload (inviterId not a valid CID):',
+      data,
+    );
+    return null;
+  }
+
   const defaultRoles = createDefaultRoles();
   const defaultRole = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
 
   const inviterMember: GroupMember = {
-    cid: BigInt(data.inviterId),
+    cid: inviterCid,
     username: data.inviterUsername,
     roleId: defaultRoles[0].id,
     joinedAt: Date.now(),
@@ -77,7 +113,7 @@ export async function buildGroupFromInvite(
   return {
     id: data.groupId,
     name: data.groupName || `${data.inviterUsername}'s Group`,
-    ownerId: BigInt(data.inviterId),
+    ownerId: inviterCid,
     members,
     settings: {
       roles: defaultRoles,
@@ -91,17 +127,31 @@ export async function buildGroupFromInvite(
  * Convenience wrapper around `buildGroupFromInvite` that also fires the
  * standard "Group Invitation" notification. Callers pass in the
  * `setGroups` updater and we handle the dedupe-on-existing-id check.
+ *
+ * Errors thrown from the inner async block would otherwise become
+ * unhandled rejections — the try/catch ensures any unexpected failure
+ * is logged at the connection layer rather than crashing the page.
  */
 export function applyGroupInvite(
   data: GroupInvitePayload,
   setGroups: (updater: (prev: GroupConversation[]) => GroupConversation[]) => void,
 ): void {
   void (async () => {
-    const newGroup = await buildGroupFromInvite(data);
-    setGroups((prev) => (prev.some((g) => g.id === data.groupId) ? prev : [...prev, newGroup]));
-    eventEmitter.emit('notification:show', {
-      title: 'Group Invitation',
-      description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
-    });
+    try {
+      const newGroup = await buildGroupFromInvite(data);
+      if (!newGroup) {
+        // Malformed payload — `buildGroupFromInvite` has already logged the why.
+        return;
+      }
+      setGroups((prev) =>
+        prev.some((g) => g.id === data.groupId) ? prev : [...prev, newGroup],
+      );
+      eventEmitter.emit('notification:show', {
+        title: 'Group Invitation',
+        description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
+      });
+    } catch (e) {
+      debugLog('UseGroupConversations', 'applyGroupInvite failed:', e);
+    }
   })();
 }

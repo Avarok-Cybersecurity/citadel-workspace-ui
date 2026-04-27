@@ -49,8 +49,8 @@ export async function createAccount(page: Page, username: string, options: Creat
     await sleep(1000);
   }
 
-  // Step 1: Fill workspace location (using role-based selector)
-  const serverInput = page.getByRole('textbox', { name: 'Workspace Location' });
+  // Step 1: Fill workspace address (using role-based selector)
+  const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
   if (await serverInput.isVisible({ timeout: 5000 }).catch(() => false)) {
     await serverInput.fill(config.WORKSPACE_SERVER);
     await sleep(500);

@@ -78,10 +78,10 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
     await joinBtn.click();
     await sleep(1000);
 
-    // Fill workspace location
-    const serverInput = page.getByRole('textbox', { name: 'Workspace Location' });
+    // Fill workspace address
+    const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
     if (!(await serverInput.isVisible({ timeout: 5000 }).catch(() => false))) {
-      console.log('  Workspace Location input not found');
+      console.log('  Workspace Address input not found');
       return false;
     }
     await serverInput.fill(config.WORKSPACE_SERVER);

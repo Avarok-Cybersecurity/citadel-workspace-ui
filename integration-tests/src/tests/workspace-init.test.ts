@@ -77,8 +77,8 @@ async function registerUser(page: Page, username: string, password: string): Pro
       await sleep(1000);
     }
 
-    // Step 1: Fill workspace location
-    const serverInput = page.getByRole('textbox', { name: 'Workspace Location' });
+    // Step 1: Fill workspace address
+    const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
     if (await serverInput.isVisible({ timeout: 5000 }).catch(() => false)) {
       await serverInput.fill(config.WORKSPACE_SERVER);
       await sleep(500);
