@@ -119,6 +119,7 @@ jobs:
             "components/ui/sidebar.tsx"
             "components/layout/sidebar/TreeNodesSection.tsx"
             "components/p2p/ChatSettingsPanel.tsx"
+            "components/tree/TreeGraphEditor.tsx"
             "lib/file-transfer/io.ts"
             "lib/file-transfer/service.ts"
             "pages/Landing.tsx"
