@@ -187,6 +187,25 @@ function handleGeneratedVariants(
     return true;
   }
 
+  if (isVariant(response, 'ServerShutdown')) {
+    // Distinct from `Error` so the UI can render a reconnect banner /
+    // countdown instead of a red error toast on every planned restart.
+    // The `drain_seconds` upper bound lets the UI time a reconnect
+    // attempt; until a dedicated banner exists, an informational toast
+    // ensures the user isn't left wondering why messages stop flowing.
+    const { message, drain_seconds } = response.ServerShutdown;
+    debugLog('WorkspaceResponseHandler', 'ServerShutdown received', {
+      message,
+      drain_seconds: drain_seconds.toString(),
+    });
+    eventEmitter.emit('server:shutdown', {
+      message,
+      drainSeconds: Number(drain_seconds),
+      connection: connectionInfo,
+    });
+    return true;
+  }
+
   if (isVariant(response, 'UserPermissions')) {
     const { user_id, role, permissions, domain_id } = response.UserPermissions;
     debugLog('WorkspaceResponseHandler', 'UserPermissions received', { user_id, role, domain_id });
