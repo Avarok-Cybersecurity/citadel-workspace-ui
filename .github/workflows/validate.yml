@@ -11,7 +11,13 @@ concurrency:
 
 env:
   PARENT_REPO: Avarok-Cybersecurity/citadel-workspace
-  PARENT_BRANCH: u64-to-bigint-optimization
+  # `misc-fixes` is the parent's currently-active integration branch and
+  # the only one whose package-lock.json knows about every dep this
+  # submodule's package.json files declare (notably @playwright/test in
+  # integration-tests). The previous `u64-to-bigint-optimization`
+  # baseline pre-dated several workspace deps, which made `npm ci`
+  # fail at the parent root and cascaded into ~40 CI failures.
+  PARENT_BRANCH: misc-fixes
   SKIP_WASM_BUILD: "1"
   # Match parent repo's directory name so docker containers get expected names
   # (e.g., citadel-workspace-server-1 instead of parent-server-1)
