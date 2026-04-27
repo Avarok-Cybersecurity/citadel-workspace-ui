@@ -26,8 +26,8 @@ import {
   applyDagreLayout,
   wouldCreateCycle,
   findNodeInTree,
-  findReparentTarget,
 } from "./tree-graph-utils";
+import { findReparentTarget } from "./tree-reparent";
 import type { TreeGraphEditorProps, ContextMenuState } from "./tree-graph-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

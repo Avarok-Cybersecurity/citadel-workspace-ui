@@ -13,6 +13,7 @@ import type {
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 import { STORAGE_KEY } from './use-group-conversations.types';
+import { applyGroupInvite } from './use-group-state-invite';
 
 // ============================================================================
 // State & Persistence Hooks
@@ -103,83 +104,21 @@ export function useGroupState(): GroupState {
     }) => {
       debugLog('UseGroupConversations', '[useGroupConversations] Invite received:', data);
 
-      // Auto-accept: create the group entry locally so the user can start interacting.
+      // Auto-accept: build the local group entry (with inviter + best-
+      // effort self member) and commit it in a single setGroups call.
+      // The build-then-commit ordering avoids a race where a "patch
+      // self in later" setGroups could run before the initial "add the
+      // group" setGroups, dropping the self member.
       //
-      // @human-review Invite acceptance flow: this creates the local group entry
-      // without sending an explicit accept/reject to the backend. If the
-      // Citadel group protocol requires an explicit acceptance for message
-      // sends to succeed, this path will leave the UI out of sync with
-      // server-side membership. Replace with either (a) a dialog that
-      // calls a WorkspaceService.acceptGroupInvite API, or (b) a
-      // silent auto-accept that *also* fires the backend accept command.
-      const defaultRoles = createDefaultRoles();
-      const defaultRole = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
-
-      // Resolve the accepting user (connectionManager is imported dynamically
-      // to keep this hook's synchronous import graph minimal) and then
-      // commit the group entry in a single setGroups call. Performing the
-      // resolve + setGroups as one step avoids a race where a separate
-      // "patch self in later" setGroups could run before the initial
-      // "add the group" setGroups, leaving the self-member dropped.
-      //
-      // If we cannot resolve the self CID we still add the group (so the
-      // UI doesn't silently swallow the invite) but log so the missing
-      // member is diagnosable.
-      void (async () => {
-        const inviterMember: GroupMember = {
-          cid: BigInt(data.inviterId),
-          username: data.inviterUsername,
-          roleId: defaultRoles[0].id,
-          joinedAt: Date.now(),
-        };
-        let selfMember: GroupMember | null = null;
-        try {
-          const { connectionManager } = await import('@/lib/connection');
-          const info = connectionManager.getConnectionInfo();
-          if (info) {
-            const session = await connectionManager.getTabSelectedSession();
-            const selfUsername = info.username || session?.username || 'me';
-            selfMember = {
-              cid: info.cid,
-              username: selfUsername,
-              roleId: defaultRole?.id || defaultRoles[defaultRoles.length - 1].id,
-              joinedAt: Date.now(),
-            };
-          } else {
-            debugLog('UseGroupConversations', 'No current connection info; group will be created without a self member');
-          }
-        } catch (e) {
-          debugLog('UseGroupConversations', 'Failed to resolve self for group invite:', e);
-        }
-
-        const members: GroupMember[] = selfMember
-          ? [inviterMember, selfMember]
-          : [inviterMember];
-
-        const newGroup: GroupConversation = {
-          id: data.groupId,
-          name: data.groupName || `${data.inviterUsername}'s Group`,
-          ownerId: BigInt(data.inviterId),
-          members,
-          settings: {
-            roles: defaultRoles,
-            defaultRoleId: defaultRole?.id || defaultRoles[2].id,
-          },
-          unreadCount: 1,
-        };
-
-        setGroups(prev => {
-          // Don't add if already exists
-          if (prev.some(g => g.id === data.groupId)) return prev;
-          return [...prev, newGroup];
-        });
-
-        // Notify the user
-        eventEmitter.emit('notification:show', {
-          title: 'Group Invitation',
-          description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
-        });
-      })();
+      // @human-review Invite acceptance flow: we don't send an explicit
+      // accept/reject to the backend. If the Citadel group protocol
+      // requires explicit acceptance for message sends to succeed, the
+      // UI will be out of sync with server-side membership. The proper
+      // fix is either (a) a dialog that calls a backend
+      // acceptGroupInvite API, or (b) a silent auto-accept that ALSO
+      // fires the backend accept command. The pure builder logic lives
+      // in `use-group-state-invite.ts` for unit-testability.
+      applyGroupInvite(data, setGroups);
     };
 
     const handleGroupMemberJoined = (data: {

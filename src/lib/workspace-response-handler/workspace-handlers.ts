@@ -12,6 +12,10 @@ import { isVariant } from 'citadel-workspace-client-ts';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 
 import { handleNodeVariants } from './node-handlers';
+import { mapWasmMember } from './member-mapping';
+
+// Re-exported for callers that import via this module's public surface.
+export { mapWasmMember, type MappedMember } from './member-mapping';
 
 /** Minimal connection context attached to every emitted event. */
 export interface ConnectionInfo {
@@ -23,43 +27,6 @@ export function buildConnectionInfo(): ConnectionInfo {
   return {
     cid: 0,
     request_id: crypto.randomUUID(),
-  };
-}
-
-/**
- * Shape emitted on `members:loaded` / `member:loaded`.
- *
- * The WASM `User` type from the citadel bindings carries a `name` field;
- * the UI expects `username` + `displayName`. We normalise here so every
- * downstream consumer can rely on these fields existing, rather than each
- * consumer writing its own defensive `as`-cast mapping.
- */
-export interface MappedMember {
-  id?: string;
-  username: string;
-  displayName: string;
-  role?: string;
-  [k: string]: unknown;
-}
-
-/**
- * Normalise a single raw WASM member record into the fields the UI expects.
- * SSOT for the WASM→UI member mapping; invoked from both the `Members`
- * (plural) and `Member` (singular) response handlers below.
- */
-export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
-  const name = typeof raw.name === 'string' ? raw.name : undefined;
-  const id = typeof raw.id === 'string' ? raw.id : undefined;
-  const username = typeof raw.username === 'string' ? raw.username : undefined;
-  const displayName = typeof raw.displayName === 'string' ? raw.displayName : undefined;
-  const role = typeof raw.role === 'string' ? raw.role : undefined;
-
-  return {
-    ...raw,
-    id,
-    username: username ?? name ?? id ?? '',
-    displayName: displayName ?? name ?? username ?? id ?? '',
-    role,
   };
 }
 

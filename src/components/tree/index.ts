@@ -10,3 +10,4 @@ export { TreeGraphContextMenu } from "./TreeGraphContextMenu";
 
 export * from "./tree-graph-types";
 export * from "./tree-graph-utils";
+export * from "./tree-reparent";

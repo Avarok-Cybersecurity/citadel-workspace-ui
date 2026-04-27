@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { wouldCreateCycle } from '../tree-graph-utils';
 import {
   findReparentTarget,
-  wouldCreateCycle,
   DEFAULT_NODE_WIDTH,
   DEFAULT_NODE_HEIGHT,
   type ReparentCandidateNode,
-} from '../tree-graph-utils';
+} from '../tree-reparent';
 import type { TreeNode, DomainNode } from '../tree-graph-types';
 
 /* ------------------------------------------------------------------ */
