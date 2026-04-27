@@ -137,6 +137,24 @@ export class WebSocketServiceCore {
   }
 
   async disconnectAndClose(): Promise<void> {
+    // Mirrors the disconnection handler in `websocket/initialization.ts`:
+    // stop the WASM client's message-processing loop, close the
+    // underlying WebSocket, then reset our service state. The previous
+    // implementation only nulled the client reference via `resetService`
+    // - leaving the WASM-side message loop, the WebSocket, and any P2P
+    // polling timers running, which would orphan resources and leak
+    // memory if a future caller invoked this method on an active
+    // connection (no current callers, but the method's name commits to
+    // a full teardown).
+    const client = this.client;
+    if (client) {
+      client.stopMessageProcessing();
+      try {
+        await client.close();
+      } catch {
+        // Ignore close errors; we proceed to reset local state regardless.
+      }
+    }
     resetService(this);
   }
 

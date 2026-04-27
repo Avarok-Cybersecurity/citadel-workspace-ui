@@ -25,6 +25,7 @@ import { TIMEOUT } from '@/lib/timeout-constants';
 import { revfsService } from '@/lib/revfs';
 import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import { debugLog } from '@/lib/debug-config';
 import React from 'react';
 
@@ -111,11 +112,28 @@ export function useConnectionHandler() {
 
         lastProcessedCid = cidString;
         const cidBigInt = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
-        WorkspaceService.setConnectionId(cidBigInt);
 
         const allStoredSessions = connectionManager.getStoredSessionsArray();
         const storedSession = allStoredSessions.find(s => s.cid?.toString() === cidString);
         if (!storedSession) return;
+
+        // Single source of truth for post-auth setup
+        // (setConnectionId → loadWorkspace → listNodes → getTreeSchema).
+        // Prior to this migration the hand-rolled chain skipped
+        // `getTreeSchema()`, leaving this connection-change path
+        // divergent from login / orphan-claim / workspace-switcher.
+        // Errors surface as a notification so the rest of the
+        // connection flow (event emission, welcome toast) still runs.
+        try {
+          await postAuthSetup(cidBigInt);
+        } catch (error) {
+          notificationService.addSystemNotification(
+            'Workspace Error',
+            `Could not load workspace data: ${error instanceof Error ? error.message : String(error)}`,
+            NotificationPriority.HIGH,
+            cidString
+          );
+        }
 
         eventEmitter.emit('session:activated', {
           cid: cidString,
@@ -126,17 +144,6 @@ export function useConnectionHandler() {
 
         userService.loadUserRegistration(storedSession.serverAddress, connection.cid.toString())
           .catch(error => debugLog('WorkspaceApp', 'Error loading user registration info:', error));
-
-        WorkspaceService.loadWorkspace()
-          .then(() => WorkspaceService.listNodes())
-          .catch((error) => {
-            notificationService.addSystemNotification(
-              'Workspace Error',
-              `Could not load workspace data: ${error.message}`,
-              NotificationPriority.HIGH,
-              cidString
-            );
-          });
 
         setTimeout(() => {
           notificationService.addSystemNotification(
