@@ -92,7 +92,7 @@ export function HierarchySidebar() {
     // If only one child type allowed, use it directly
     // If multiple, default to first (future: show type picker)
     setCreateModal({ parentId, entityType: allowedTypes[0] });
-  }, [state.nodes, state.treeSchema]);
+  }, [state.nodes, state.treeSchema, toast]);
 
   const handleAdminSettings = useCallback((node: DomainNode) => {
     setAdminNode(node);

@@ -32,7 +32,7 @@ export const Office = () => {
       newParams.set("nodeId", defaultNode.id);
       navigate(`/workspace?${newParams.toString()}`, { replace: true });
     }
-  }, [nodeId, state.nodes, location.search, navigate]);
+  }, [nodeId, section, state.nodes, location.search, navigate]);
 
   // Reset the navigation flag when nodeId changes (user manually navigated)
   useEffect(() => {

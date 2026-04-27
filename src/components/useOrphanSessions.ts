@@ -217,7 +217,7 @@ export function useOrphanSessions() {
   const handleWsConnectionSuccess = useCallback(async () => {
     debugLog('OrphanSessionsNavbar', 'WebSocket connected, reloading sessions...');
     await loadActiveSessions();
-  }, []);
+  }, [loadActiveSessions]);
 
   useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
 

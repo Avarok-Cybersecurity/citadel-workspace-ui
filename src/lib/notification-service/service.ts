@@ -54,7 +54,9 @@ export class NotificationService {
         tag: notification.id,
       });
     } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(permission => {
+      // Fire-and-forget: we don't gate the rest of the notification
+      // pipeline on the user's permission decision.
+      void Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
           new Notification(notification.title, {
             body: notification.content,
