@@ -173,13 +173,13 @@ export async function wakeUpTab(page: Page, label: string, maxWaitMs = 5000): Pr
  *
  * @param page - Playwright page to recover
  * @param label - Label for logging
- * @param baseUrl - URL to navigate to after reload (e.g., 'http://localhost:5173/')
+ * @param baseUrl - URL to navigate to after reload (e.g., 'http://localhost:5291/')
  * @returns true if recovery was successful, false otherwise
  */
 export async function recoverUnresponsiveTab(
   page: Page,
   label: string,
-  baseUrl: string = 'http://localhost:5173/'
+  baseUrl: string = 'http://localhost:5291/'
 ): Promise<boolean> {
   console.log(`  [${label}] Attempting to recover unresponsive tab...`);
 
@@ -233,7 +233,7 @@ export async function recoverUnresponsiveTab(
 export async function wakeUpTabWithRecovery(
   page: Page,
   label: string,
-  baseUrl: string = 'http://localhost:5173/',
+  baseUrl: string = 'http://localhost:5291/',
   maxWaitMs = 5000,
   attemptRecovery = true
 ): Promise<boolean> {

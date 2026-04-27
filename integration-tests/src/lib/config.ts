@@ -45,7 +45,7 @@ const externalConfig = loadExternalConfig();
 export const isCI = process.env.IN_CI === 'true' || process.env.CI === 'true';
 
 export const config: TestConfig = {
-  BASE_URL: externalConfig.baseUrl ?? 'http://127.0.0.1:5173',
+  BASE_URL: externalConfig.baseUrl ?? 'http://127.0.0.1:5291',
   INTERNAL_SERVICE_URL: externalConfig.internalServiceUrl ?? 'http://127.0.0.1:12345',
   WORKSPACE_SERVER: externalConfig.workspaceServer
     ? `${externalConfig.workspaceServer.host}:${externalConfig.workspaceServer.port}`

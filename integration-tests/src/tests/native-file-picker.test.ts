@@ -269,7 +269,7 @@ async function runTest(): Promise<boolean> {
   console.log('  - Internal-service running NATIVELY (not in Docker)');
   console.log('  - Built with: cargo build --features native-dialogs');
   console.log('  - Server running (Docker or native)');
-  console.log('  - UI running at http://localhost:5173');
+  console.log('  - UI running at http://localhost:5291');
   console.log('');
 
   const { browser, context } = await createBrowser();

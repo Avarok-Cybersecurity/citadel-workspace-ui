@@ -1,5 +1,5 @@
 {
-  "baseUrl": "http://127.0.0.1:5173",
+  "baseUrl": "http://127.0.0.1:5291",
   "internalServiceUrl": "http://127.0.0.1:12345",
   "workspaceServer": {
     "host": "127.0.0.1",
