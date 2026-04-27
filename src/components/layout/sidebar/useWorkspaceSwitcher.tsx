@@ -40,6 +40,13 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     workspaceName: string;
     serverAddress: string;
   } | null>(null);
+  // Server address and pre-shared key captured during the ServerConnect
+  // step and forwarded into the Join step. Without this, Join (which
+  // requires both as props) renders with `undefined` and the
+  // registration call would fail downstream. Mirrors the equivalent
+  // pattern in src/pages/Landing.tsx.
+  const [serverAddress, setServerAddress] = useState<string>("");
+  const [serverPassword, setServerPassword] = useState<string>("");
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useWorkspace();
@@ -177,11 +184,25 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     setIsOpen(false);
   };
 
-  const handleNext = () => {
+  // ServerConnect calls `onNext(address, password)`; SecuritySettings and
+  // Join call `onNext()` (no args). Treat the args as optional so this
+  // single handler can serve all three steps without reshaping their APIs.
+  const handleNext = (address?: string, password?: string) => {
     switch (currentStep) {
-      case "connect": setCurrentStep("security"); break;
+      case "connect":
+        if (address !== undefined) setServerAddress(address);
+        if (password !== undefined) setServerPassword(password);
+        setCurrentStep("security");
+        break;
       case "security": setCurrentStep("join"); break;
-      case "join": setIsAddingWorkspace(false); setCurrentStep("connect"); break;
+      case "join":
+        // Reset captured server creds when the dialog closes so a
+        // subsequent "Add a Workspace" doesn't reuse stale values.
+        setIsAddingWorkspace(false);
+        setCurrentStep("connect");
+        setServerAddress("");
+        setServerPassword("");
+        break;
     }
   };
 
@@ -205,6 +226,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     isSwitching,
     targetWorkspaceForNewAccount,
     setTargetWorkspaceForNewAccount,
+    serverAddress,
+    serverPassword,
     handleWorkspaceChange,
     handleAddWorkspace,
     handleAddAccountToWorkspace,

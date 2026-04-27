@@ -30,6 +30,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
     isSwitching,
     targetWorkspaceForNewAccount,
     setTargetWorkspaceForNewAccount,
+    serverAddress,
+    serverPassword,
     handleWorkspaceChange,
     handleAddWorkspace,
     handleAddAccountToWorkspace,
@@ -116,6 +118,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
               onNext={handleNext}
               onBack={handleBack}
               defaultWorkspace={targetWorkspaceForNewAccount?.workspaceName}
+              serverAddress={targetWorkspaceForNewAccount?.serverAddress ?? serverAddress}
+              serverPassword={serverPassword}
             />
           )}
         </DialogContent>
