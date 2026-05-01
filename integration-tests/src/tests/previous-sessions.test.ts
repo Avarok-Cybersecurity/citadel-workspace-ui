@@ -442,11 +442,14 @@ async function runTest(): Promise<boolean> {
     console.log(`  Navbar visible: ${results.navbarVisible}`);
 
     // The OrphanSessionsNavbar header was relabelled from
-    // "Previous Sessions:" to "Active Sessions" — they're the same
-    // sessions the user is logged into right now, not historical
-    // ones. Accept either form so the test stays compatible with
-    // older builds.
-    const label = page.locator('text="Active Sessions", text="Previous Sessions:"').first();
+    // "Previous Sessions:" to "Active Sessions". Use Playwright's
+    // `.or()` combinator so the test works against either label —
+    // a comma-separated list ("text=A, text=B") would be parsed as
+    // CSS and silently match nothing.
+    const label = page
+      .locator('text="Active Sessions"')
+      .or(page.locator('text="Previous Sessions:"'))
+      .first();
     results.previousSessionsLabel = await label.isVisible({ timeout: 3000 }).catch(() => false);
     console.log(`  Previous Sessions label: ${results.previousSessionsLabel}`);
 
