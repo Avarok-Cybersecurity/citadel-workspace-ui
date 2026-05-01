@@ -296,16 +296,30 @@ async function getInitialTreeStructure(page: Page): Promise<string | null> {
     return result.workspaceId;
   }
 
-  // Fallback: Get workspace ID from URL or page content
+  // Fallback: Get workspace ID from URL. Two URL shapes are observed:
+  //   1. /workspace/<id>          (legacy, hex/uuid id)
+  //   2. /workspace?id=<id>       (current, may be 'root' or a uuid)
+  // The legacy regex only handled (1); the current single-tenant
+  // default sets activeWorkspaceId='root', which (1) cannot match.
   const url = page.url();
-  const match = url.match(/workspace[/=]([a-f0-9-]+)/i);
-  if (match) {
-    console.log(`  Extracted workspace ID from URL: ${match[1]}`);
-    return match[1];
+  const pathMatch = url.match(/workspace\/([a-zA-Z0-9_-]+)/);
+  if (pathMatch) {
+    console.log(`  Extracted workspace ID from URL path: ${pathMatch[1]}`);
+    return pathMatch[1];
+  }
+  const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (queryMatch) {
+    console.log(`  Extracted workspace ID from URL query: ${queryMatch[1]}`);
+    return queryMatch[1];
   }
 
-  console.log('  WARNING: Could not determine workspace root ID');
-  return null;
+  // Final fallback: the single-tenant sentinel. Mirrors
+  // `tree-helpers.ts#getWorkspaceRootId` — every server in this
+  // codebase recognises `workspace-root` as the synthetic root, so a
+  // test that just needs *some* root identifier to proceed should
+  // not bail here.
+  console.log('  Using default workspace-root sentinel');
+  return 'workspace-root';
 }
 
 /**
