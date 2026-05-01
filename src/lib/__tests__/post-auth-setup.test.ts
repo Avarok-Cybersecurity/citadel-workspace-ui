@@ -86,4 +86,37 @@ describe('postAuthSetup', () => {
     expect(spies.listNodesSpy).not.toHaveBeenCalled();
     expect(spies.getTreeSchemaSpy).not.toHaveBeenCalled();
   });
+
+  it('halts the sequence when listNodes fails after loadWorkspace succeeds', async () => {
+    // Partial-failure pin: each step in the sequence is awaited, so a
+    // mid-sequence failure must short-circuit the rest. This is the
+    // exact "partial state" case the previous orphan-redirect path
+    // could leave (CID set, workspace loaded, but tree never listed)
+    // and the reason centralising into `postAuthSetup` makes the
+    // failure deterministic instead of silently incomplete.
+    //
+    // Note: we check the spies' `toHaveBeenCalled` predicate rather
+    // than the in-body `calls` array because `mockRejectedValueOnce`
+    // bypasses the spy's body — the function returns a rejected
+    // promise without ever pushing into `calls`.
+    spies.listNodesSpy.mockRejectedValueOnce(new Error('listNodes blew up'));
+    await expect(postAuthSetup(2n)).rejects.toThrow('listNodes blew up');
+
+    expect(spies.setConnectionIdSpy).toHaveBeenCalled();
+    expect(spies.loadWorkspaceSpy).toHaveBeenCalled();
+    expect(spies.listNodesSpy).toHaveBeenCalled();
+    expect(spies.getTreeSchemaSpy).not.toHaveBeenCalled();
+  });
+
+  it('halts the sequence when getTreeSchema fails (no swallowing of the final-step error)', async () => {
+    spies.getTreeSchemaSpy.mockRejectedValueOnce(new Error('schema fetch failed'));
+    await expect(postAuthSetup(3n)).rejects.toThrow('schema fetch failed');
+
+    // All four steps were entered; the rejection bubbles up from the
+    // last one.
+    expect(spies.setConnectionIdSpy).toHaveBeenCalled();
+    expect(spies.loadWorkspaceSpy).toHaveBeenCalled();
+    expect(spies.listNodesSpy).toHaveBeenCalled();
+    expect(spies.getTreeSchemaSpy).toHaveBeenCalled();
+  });
 });

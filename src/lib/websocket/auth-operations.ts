@@ -13,6 +13,7 @@ import {
 import { resolveServerAddress } from '../address-resolver';
 import { instanceManager } from '../multi-instance';
 import { stringToBytes } from '../utils/encoding-utils';
+import type { PreSharedKey } from '@avarok/citadel-protocol-types';
 
 export interface AuthConfig {
   init: () => Promise<void>;
@@ -132,11 +133,20 @@ export class AuthOperations {
         header_obfuscator_settings: settings.header_obfuscator_settings,
         crypto_params: settings.crypto_params,
       },
-      // Note: server_password is the Citadel protocol PreSharedKey for C2S connection,
-      // NOT the workspace master password. The workspace master password is validated
-      // at the workspace protocol layer (CreateWorkspace/JoinWorkspace), not here.
+      // Note: server_password is the Citadel protocol PreSharedKey for C2S
+      // connection, NOT the workspace master password. The workspace master
+      // password is validated at the workspace protocol layer (CreateWorkspace
+      // / JoinWorkspace), not here.
+      //
+      // Wire-format pin: the Rust side expects `Option<PreSharedKey>`, where
+      // `PreSharedKey = { passwords: Vec<Vec<u8>> }`. The TS counterpart from
+      // `@avarok/citadel-protocol-types` is `{ passwords: Array<Array<number>> }`.
+      // The explicit `as PreSharedKey` annotation makes the schema grep-able
+      // and lets a future "simplification" back to a raw string fail at compile
+      // time rather than being silently rejected by the server. The matching
+      // round-trip is also pinned in `auth-operations-register.test.ts`.
       server_password: serverPassword
-        ? { passwords: [stringToBytes(serverPassword)] }
+        ? ({ passwords: [stringToBytes(serverPassword)] } as PreSharedKey)
         : null
     };
 
