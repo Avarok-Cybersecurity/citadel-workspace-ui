@@ -14,7 +14,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * registration would fail without a CSP-style telltale).
  */
 
-const sendSpy = vi.fn(async () => undefined);
+// Typed against the AuthConfig.sendRequest signature so that
+// `sendSpy.mock.calls[0]` is the proper [request, requestId?] tuple.
+// Without the explicit generic, vi.fn infers a zero-arg signature and
+// the calls array becomes []; the cast in each assertion below would
+// then fail strict TS with "Conversion of type '[]' to type [...]".
+const sendSpy = vi.fn<(request: unknown, requestId?: string) => Promise<void>>(async () => undefined);
 
 vi.mock('../../address-resolver', () => ({
   resolveServerAddress: async (s: string) => s,
