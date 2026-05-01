@@ -142,7 +142,7 @@ export function JoinFormFields({ formData, onChange }: JoinFormFieldsProps) {
       <FormField
         id="confirmPassword"
         name="confirmPassword"
-        label="Confirm Password"
+        label="Confirm Profile Password"
         type="password"
         icon={Lock}
         value={formData.confirmPassword}
