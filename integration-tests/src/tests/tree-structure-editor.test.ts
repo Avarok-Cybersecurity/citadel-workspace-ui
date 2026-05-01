@@ -323,6 +323,46 @@ async function getInitialTreeStructure(page: Page): Promise<string | null> {
 }
 
 /**
+ * Open a TreeNodeItem's per-node dropdown menu and return the item's
+ * node id. Used by Room creation, Edit, and Delete flows because the
+ * Radix `DropdownMenuContent` only renders its items after the trigger
+ * is clicked — querying `[data-testid^="create-child-"]` (or
+ * `edit-node-…` / `delete-node-…`) without first opening the menu
+ * never finds anything.
+ *
+ * The menu trigger button uses Tailwind `opacity-0
+ * group-hover:opacity-100`, which makes Playwright's plain `.click()`
+ * fail the actionability check; `force: true` is required to bypass
+ * it. Hover alone is unreliable because the hover gets dropped the
+ * moment the locator query re-runs.
+ */
+async function openNodeMenu(page: Page, nodeName?: string): Promise<string | null> {
+  await page.keyboard.press('Escape');
+  await sleep(200);
+
+  const menuTestId = await page.evaluate((name: string | undefined) => {
+    const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
+    for (const btn of buttons) {
+      if (name && !btn.textContent?.includes(name)) continue;
+      const parent = btn.closest('.group');
+      const trigger = parent?.querySelector('button[data-testid^="tree-node-menu-"]');
+      if (trigger) return trigger.getAttribute('data-testid');
+    }
+    return null;
+  }, nodeName);
+
+  if (!menuTestId) {
+    console.log(`  WARNING: tree-node-menu trigger not found${nodeName ? ` for ${nodeName}` : ''}`);
+    return null;
+  }
+
+  await page.locator(`[data-testid="${menuTestId}"]`).click({ force: true, timeout: 2000 });
+  await sleep(400);
+
+  return menuTestId.replace('tree-node-menu-', '');
+}
+
+/**
  * Create a node via UI (clicking add button and filling form)
  */
 async function createNodeViaUI(
@@ -330,23 +370,36 @@ async function createNodeViaUI(
   nodeType: 'Office' | 'Room',
   name: string,
   description: string,
-  _parentId?: string // Reserved for future use with tree editor
+  parentName?: string
 ): Promise<string | null> {
   console.log(`\n  Creating ${nodeType} node: ${name}`);
 
-  // Find and click the add button based on node type
-  const addButtonSelector = nodeType === 'Office'
-    ? '[data-testid="add-node-button"], [data-testid="add-root-node-button"]'
-    : '[data-testid^="create-child-"]';
-
-  const addBtn = page.locator(addButtonSelector).first();
-  if (!await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    console.log(`  WARNING: Add ${nodeType} button not found`);
-    return null;
+  if (nodeType === 'Office') {
+    const addBtn = page
+      .locator('[data-testid="add-node-button"], [data-testid="add-root-node-button"]')
+      .first();
+    if (!await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log('  WARNING: Add Office button not found');
+      return null;
+    }
+    await addBtn.click();
+    await sleep(500);
+  } else {
+    // Room: open the parent office's dropdown, then click "Add Child".
+    const parentNodeId = await openNodeMenu(page, parentName);
+    if (!parentNodeId) {
+      console.log('  WARNING: Add Room button not found (parent menu unreachable)');
+      return null;
+    }
+    const createChild = page.locator(`[data-testid="create-child-${parentNodeId}"]`);
+    if (!await createChild.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('  WARNING: Add Room button not found (create-child item missing)');
+      await page.keyboard.press('Escape');
+      return null;
+    }
+    await createChild.click();
+    await sleep(500);
   }
-
-  await addBtn.click();
-  await sleep(500);
 
   // Fill the form
   const nameInput = page.locator('input#name, input[id="name"]').first();
@@ -440,39 +493,15 @@ async function deleteNodeViaUI(
 ): Promise<{ success: boolean; childrenDeleted?: string[] }> {
   console.log(`\n  Deleting ${nodeType}: ${nodeName}`);
 
-  // Close any open menus first
-  await page.keyboard.press('Escape');
-  await sleep(300);
-
-  // Find the node's menu button
-  const menuTestId = await page.evaluate((name: string) => {
-    const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-    for (const btn of buttons) {
-      if (btn.textContent?.includes(name)) {
-        const parent = btn.closest('.group');
-        if (parent) {
-          const menuBtn = parent.querySelector(`button[data-testid^="${name.toLowerCase().includes('office') ? 'office' : 'room'}-menu-"]`);
-          if (menuBtn) {
-            return menuBtn.getAttribute('data-testid');
-          }
-        }
-      }
-    }
-    return null;
-  }, nodeName);
-
-  if (!menuTestId) {
-    console.log(`  WARNING: Could not find menu button for ${nodeName}`);
+  const nodeId = await openNodeMenu(page, nodeName);
+  if (!nodeId) {
     return { success: false };
   }
 
-  // Click the menu button
-  const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
-  await menuBtn.click({ force: true, timeout: 2000 });
-  await sleep(500);
-
-  // Click delete option
-  const deleteOption = page.locator(`div[role="menuitem"]:has-text("Delete ${nodeType}")`).first();
+  // Prefer the testid'd item (`delete-node-${id}`) — it sidesteps the
+  // dynamic typeName text in the visible label ("Delete Office",
+  // "Delete Room", etc.).
+  const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`);
   if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
     console.log(`  WARNING: Delete ${nodeType} option not found`);
     await page.keyboard.press('Escape');
@@ -510,53 +539,42 @@ async function updateNodeViaUI(
 ): Promise<boolean> {
   console.log(`\n  Updating ${nodeType}: ${nodeName}`);
 
-  // Find and hover over the node to reveal the menu
-  const nodeBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
-  if (!await nodeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    console.log(`  WARNING: Node "${nodeName}" not found`);
+  const nodeId = await openNodeMenu(page, nodeName);
+  if (!nodeId) {
     return false;
   }
 
-  await nodeBtn.hover();
+  const editOption = page.locator(`[data-testid="edit-node-${nodeId}"]`);
+  if (!await editOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log(`  WARNING: Edit ${nodeType} option not found`);
+    await page.keyboard.press('Escape');
+    return false;
+  }
+
+  await editOption.click();
   await sleep(500);
 
-  // Click the three-dot menu
-  const menuBtn = page.locator('button:has(svg.lucide-more-vertical)').first();
-  if (await menuBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await menuBtn.click();
-    await sleep(500);
-
-    // Click Edit option
-    const editOption = page.locator(`[role="menuitem"]:has-text("Edit ${nodeType}")`).first();
-    if (await editOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await editOption.click();
-      await sleep(500);
-
-      // Update fields
-      if (updates.name) {
-        const nameInput = page.locator('input#name, input[id="name"]').first();
-        if (await nameInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await nameInput.clear();
-          await nameInput.fill(updates.name);
-        }
-      }
-
-      if (updates.description) {
-        const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-        if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await descInput.clear();
-          await descInput.fill(updates.description);
-        }
-      }
-
-      // Save
-      const saveBtn = page.locator('button:has-text("Save"), button:has-text("Update")').first();
-      if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await saveBtn.click();
-        await sleep(2000);
-        return true;
-      }
+  if (updates.name) {
+    const nameInput = page.locator('input#name, input[id="name"]').first();
+    if (await nameInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await nameInput.clear();
+      await nameInput.fill(updates.name);
     }
+  }
+
+  if (updates.description) {
+    const descInput = page.locator('textarea#description, textarea[id="description"]').first();
+    if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await descInput.clear();
+      await descInput.fill(updates.description);
+    }
+  }
+
+  const saveBtn = page.locator('button:has-text("Save"), button:has-text("Update")').first();
+  if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await saveBtn.click();
+    await sleep(2000);
+    return true;
   }
 
   await page.keyboard.press('Escape');
@@ -726,7 +744,13 @@ async function runTest(): Promise<boolean> {
       const navigated = await navigateToOffice(page, TEST_OFFICE_NAME);
       if (navigated) {
         await sleep(1000);
-        testRoomId = await createNodeViaUI(page, 'Room', TEST_ROOM_NAME, 'Test room description');
+        testRoomId = await createNodeViaUI(
+          page,
+          'Room',
+          TEST_ROOM_NAME,
+          'Test room description',
+          TEST_OFFICE_NAME,
+        );
         results.roomNodeCreated = testRoomId !== null;
 
         if (results.roomNodeCreated) {
@@ -822,7 +846,13 @@ async function runTest(): Promise<boolean> {
     if (results.nodeUpdated) {
       await navigateToOffice(page, updatedOfficeName);
       await sleep(1000);
-      testRoom2Id = await createNodeViaUI(page, 'Room', TEST_ROOM_2_NAME, 'Second test room');
+      testRoom2Id = await createNodeViaUI(
+        page,
+        'Room',
+        TEST_ROOM_2_NAME,
+        'Second test room',
+        updatedOfficeName,
+      );
       console.log(`  Second room created: ${testRoom2Id !== null}`);
     }
 
@@ -849,7 +879,13 @@ async function runTest(): Promise<boolean> {
       // First navigate to office 2 and create a room
       await navigateToOffice(page, TEST_OFFICE_2_NAME);
       await sleep(1000);
-      const tempRoomId = await createNodeViaUI(page, 'Room', 'TempRoom', 'Temporary room');
+      const tempRoomId = await createNodeViaUI(
+        page,
+        'Room',
+        'TempRoom',
+        'Temporary room',
+        TEST_OFFICE_2_NAME,
+      );
 
       if (tempRoomId) {
         // Now try to delete the office - the UI typically asks for confirmation
