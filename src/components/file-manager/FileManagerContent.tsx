@@ -1,5 +1,4 @@
 import { toast } from "sonner";
-import { eventEmitter } from "@/lib/event-emitter";
 import { TreeScope } from "@/types/revfs-types";
 import { useFileManagerContent } from "./useFileManagerContent";
 import { ConnectingScreen, NoPeersScreen, LoadingScreen, ErrorScreen } from "./FileManagerStatusScreens";
@@ -136,16 +135,11 @@ export const FileManagerContent = () => {
         reason={fm.revfsDisabledReason}
         onOpenSettings={() => {
           // The dedicated P2P chat-settings UI doesn't exist yet, so the
-          // button visibly tells the user what to do (toast) and ALSO
-          // emits an event for any future listener to wire into without
-          // having to touch this call site. Without the toast, a click
-          // would be silently swallowed - regressing the prior placeholder
-          // UX where the user at least learned the next step.
-          if (fm.selectedPeerCid) {
-            eventEmitter.emit('p2p:open-chat-settings', {
-              peerCid: fm.selectedPeerCid,
-            });
-          }
+          // button visibly tells the user what to do via a toast. The
+          // earlier "future-listener" event emit has been removed —
+          // shipping a no-op event with no subscriber misleads readers
+          // into thinking something handles it; the toast alone keeps
+          // the UX coherent and there's nothing to wire into yet.
           toast.info('Open Chat Settings to configure P2P storage');
           fm.setRevfsDisabledModalOpen(false);
         }}
