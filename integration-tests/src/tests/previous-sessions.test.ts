@@ -441,7 +441,12 @@ async function runTest(): Promise<boolean> {
     results.navbarVisible = await navbar.isVisible({ timeout: 5000 }).catch(() => false);
     console.log(`  Navbar visible: ${results.navbarVisible}`);
 
-    const label = page.locator('text="Previous Sessions:"');
+    // The OrphanSessionsNavbar header was relabelled from
+    // "Previous Sessions:" to "Active Sessions" — they're the same
+    // sessions the user is logged into right now, not historical
+    // ones. Accept either form so the test stays compatible with
+    // older builds.
+    const label = page.locator('text="Active Sessions", text="Previous Sessions:"').first();
     results.previousSessionsLabel = await label.isVisible({ timeout: 3000 }).catch(() => false);
     console.log(`  Previous Sessions label: ${results.previousSessionsLabel}`);
 
