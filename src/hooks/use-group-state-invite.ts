@@ -128,14 +128,22 @@ export async function buildGroupFromInvite(
  * standard "Group Invitation" notification. Callers pass in the
  * `setGroups` updater and we handle the dedupe-on-existing-id check.
  *
- * Errors thrown from the inner async block would otherwise become
- * unhandled rejections — the try/catch ensures any unexpected failure
- * is logged at the connection layer rather than crashing the page.
+ * **Return contract:** this is intentionally fire-and-forget — the
+ * function returns `void`, not a Promise. Callers in event handlers
+ * (e.g. `handleGroupInviteReceived` in `use-group-state.ts`) can
+ * therefore call it without `await` or `.catch()` and still be
+ * exception-safe: the `void (async () => { ... try/catch ... })()`
+ * block guarantees no rejection ever escapes. Static analysers that
+ * see the inner `await buildGroupFromInvite(...)` and assume the
+ * outer function leaks a Promise are misreading the wrapper.
  */
 export function applyGroupInvite(
   data: GroupInvitePayload,
   setGroups: (updater: (prev: GroupConversation[]) => GroupConversation[]) => void,
 ): void {
+  // `void` operator + IIFE = explicit fire-and-forget. The inner
+  // try/catch swallows ALL rejections so nothing surfaces as an
+  // unhandled rejection on the event loop.
   void (async () => {
     try {
       const newGroup = await buildGroupFromInvite(data);
