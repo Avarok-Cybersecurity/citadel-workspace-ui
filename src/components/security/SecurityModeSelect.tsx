@@ -1,5 +1,10 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpCircle } from "lucide-react";
+// `Tooltip` requires an ancestor `<TooltipProvider>` to render. The
+// app-level provider in `App.tsx` covers every route, so this
+// component does not wrap its own — see `src/App.tsx` (`<TooltipProvider>`
+// around the router). Removing that ancestor would silently break the
+// tooltip on the help icon below.
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { SecrecyMode } from "@/types";
