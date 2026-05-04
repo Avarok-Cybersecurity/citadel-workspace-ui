@@ -110,14 +110,30 @@ export function useGroupState(): GroupState {
       // self in later" setGroups could run before the initial "add the
       // group" setGroups, dropping the self member.
       //
-      // @human-review Invite acceptance flow: we don't send an explicit
-      // accept/reject to the backend. If the Citadel group protocol
-      // requires explicit acceptance for message sends to succeed, the
-      // UI will be out of sync with server-side membership. The proper
-      // fix is either (a) a dialog that calls a backend
-      // acceptGroupInvite API, or (b) a silent auto-accept that ALSO
-      // fires the backend accept command. The pure builder logic lives
-      // in `use-group-state-invite.ts` for unit-testability.
+      // === KNOWN UX GAP — local-only acceptance ===
+      // We commit local group state without sending any
+      // backend-acknowledged AcceptGroupInvite command. If the Citadel
+      // group protocol later starts requiring explicit acceptance
+      // before message sends are accepted on the wire, the UI will
+      // briefly show the user as "joined" while the server still treats
+      // them as merely invited — message sends would fail and the user
+      // would not understand why. Symptoms to watch for: a freshly
+      // accepted invite where the first outbound chat send returns a
+      // permission/membership error.
+      //
+      // Two fix paths when the backend command lands:
+      //   (a) preferred — make `applyGroupInvite` async, await
+      //       AcceptGroupInvite, only call setGroups on success;
+      //   (b) keep optimistic local commit and reconcile on the
+      //       AcceptGroupInvite response (with a "pending acceptance"
+      //       visual hint while the round-trip is in flight).
+      //
+      // Until then the behaviour is "best-effort optimistic": the
+      // local group entry is correct for offline/peer-to-peer message
+      // routing today, and any future server-mediated check will
+      // surface the divergence to the user via send-failure feedback
+      // rather than silent loss. The pure builder lives in
+      // `use-group-state-invite.ts` for unit-testability.
       applyGroupInvite(data, setGroups);
     };
 
