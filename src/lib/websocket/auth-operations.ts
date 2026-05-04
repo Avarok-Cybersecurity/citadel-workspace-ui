@@ -141,12 +141,14 @@ export class AuthOperations {
       // Wire-format pin: the Rust side expects `Option<PreSharedKey>`, where
       // `PreSharedKey = { passwords: Vec<Vec<u8>> }`. The TS counterpart from
       // `@avarok/citadel-protocol-types` is `{ passwords: Array<Array<number>> }`.
-      // The explicit `as PreSharedKey` annotation makes the schema grep-able
-      // and lets a future "simplification" back to a raw string fail at compile
-      // time rather than being silently rejected by the server. The matching
-      // round-trip is also pinned in `auth-operations-register.test.ts`.
+      // `satisfies PreSharedKey` validates the literal against the imported
+      // type WITHOUT widening or narrowing — unlike `as PreSharedKey`, this
+      // keeps the compiler's structural check active, so a future field
+      // rename or new required member surfaces as a TS error here rather
+      // than being silently sent to the server. The matching round-trip is
+      // also pinned in `auth-operations-register.test.ts`.
       server_password: serverPassword
-        ? ({ passwords: [stringToBytes(serverPassword)] } as PreSharedKey)
+        ? ({ passwords: [stringToBytes(serverPassword)] } satisfies PreSharedKey)
         : null
     };
 
