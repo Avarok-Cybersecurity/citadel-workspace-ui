@@ -55,8 +55,33 @@ export function transformOutsideCode(
  */
 const GFM_STRIKETHROUGH_REGEX = /~~(?=\S)([\s\S]*?\S)~~/g;
 
+/**
+ * Escape characters that have JSX/MDX syntactic meaning when they
+ * appear inside the body of a `<del>` we synthesise. Without this,
+ * raw inputs like `~~value < 5~~` become `<del>value < 5</del>` —
+ * MDX then sees a bare `<` inside what looks like a JSX element and
+ * rejects the whole document. The downstream `evaluate()` call in
+ * Room.tsx catches the error, but the room renders blank instead
+ * of showing the expected struck-through text.
+ *
+ * We escape `<`/`>` (JSX tag delimiters), `{`/`}` (JSX expression
+ * delimiters), and `&` (HTML entity introducer — must come first
+ * so the later substitutions don't double-escape `&amp;`).
+ */
+function escapeMdxText(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\{/g, '&#123;')
+    .replace(/\}/g, '&#125;');
+}
+
 export function applyGfmStrikethrough(content: string): string {
   return transformOutsideCode(content, (segment) =>
-    segment.replace(GFM_STRIKETHROUGH_REGEX, '<del>$1</del>'),
+    segment.replace(
+      GFM_STRIKETHROUGH_REGEX,
+      (_match, captured: string) => `<del>${escapeMdxText(captured)}</del>`,
+    ),
   );
 }

@@ -58,6 +58,45 @@ describe('applyGfmStrikethrough', () => {
     const out = applyGfmStrikethrough(input);
     expect(out).toContain('<del>strike</del>');
   });
+
+  it('escapes < and > inside strikethrough so MDX does not see a bogus JSX tag', () => {
+    // The motivating case: `~~value < 5~~` previously produced
+    // `<del>value < 5</del>` and MDX rejected the bare `<` as an
+    // incomplete JSX element, blanking the room body.
+    expect(applyGfmStrikethrough('~~value < 5~~')).toBe(
+      '<del>value &lt; 5</del>',
+    );
+    expect(applyGfmStrikethrough('~~a > b~~')).toBe(
+      '<del>a &gt; b</del>',
+    );
+  });
+
+  it('escapes { and } so MDX does not see a bogus JSX expression', () => {
+    expect(applyGfmStrikethrough('~~{x}~~')).toBe(
+      '<del>&#123;x&#125;</del>',
+    );
+  });
+
+  it('escapes & first so HTML entities round-trip rather than double-escaping', () => {
+    // `~~A & B~~` must become `<del>A &amp; B</del>`, not
+    // `<del>A &amp;amp; B</del>` (which would happen if we ran the
+    // < escape before the & escape and mishandled the new ampersands).
+    expect(applyGfmStrikethrough('~~A & B~~')).toBe(
+      '<del>A &amp; B</del>',
+    );
+  });
+
+  it('escapes a mixed payload of all special chars in one pass', () => {
+    expect(applyGfmStrikethrough('~~a < b & {c} > d~~')).toBe(
+      '<del>a &lt; b &amp; {c} &gt; d</del>'.replace('{', '&#123;').replace('}', '&#125;'),
+    );
+  });
+
+  it('still passes through unaffected text without escaping ordinary punctuation', () => {
+    expect(applyGfmStrikethrough('~~the quick fox.~~')).toBe(
+      '<del>the quick fox.</del>',
+    );
+  });
 });
 
 describe('transformOutsideCode', () => {
