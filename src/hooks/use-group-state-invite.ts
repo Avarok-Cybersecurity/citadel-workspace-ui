@@ -136,6 +136,23 @@ export async function buildGroupFromInvite(
  * block guarantees no rejection ever escapes. Static analysers that
  * see the inner `await buildGroupFromInvite(...)` and assume the
  * outer function leaks a Promise are misreading the wrapper.
+ *
+ * **Known UX gap — local-only acceptance:** this commits local group
+ * state without sending any backend-acknowledged
+ * `AcceptGroupInvite` command. Today the Citadel group protocol does
+ * not require explicit acceptance for outbound message sends, so the
+ * optimistic local commit is correct for offline / peer-to-peer
+ * routing. If that ever changes, a freshly-accepted invite will
+ * appear "joined" in the UI while the server still treats the user
+ * as merely invited — symptom to watch for is a permission /
+ * membership error on the very first outbound chat send.
+ *
+ * Two concrete fix paths when the backend command lands:
+ *   (a) preferred — make `applyGroupInvite` async, await
+ *       `AcceptGroupInvite`, only call `setGroups` on success;
+ *   (b) keep the optimistic local commit and reconcile on the
+ *       `AcceptGroupInvite` response, showing a "pending acceptance"
+ *       visual hint while the round-trip is in flight.
  */
 export function applyGroupInvite(
   data: GroupInvitePayload,
