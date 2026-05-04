@@ -18,6 +18,7 @@ import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { applyGfmStrikethrough } from '../room/mdx-preprocess';
 import { debugLog } from '@/lib/debug-config';
 
 interface BaseOfficeProps {
@@ -100,8 +101,13 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     const compileContent = async () => {
       try {
         debugLog('BaseOffice', 'Compiling MDX content...');
-        // Pre-process GFM strikethrough (~~text~~) since remark-gfm is not available
-        const processedContent = content.replace(/~~(?=\S)([\s\S]*?\S)~~/g, '<del>$1</del>');
+        // Pre-process GFM strikethrough (~~text~~) since remark-gfm is
+        // not available. Centralised in `applyGfmStrikethrough` so the
+        // JSX-significant char escaping (`< > { } &`) and code-region
+        // skip happen the same way Room does — `~~value < 5~~` would
+        // otherwise blank the rendered MDX with the bare `<` reading
+        // as an unclosed JSX tag.
+        const processedContent = applyGfmStrikethrough(content);
         const result = await evaluate(processedContent, {
           ...runtime,
           useMDXComponents: () => components,
