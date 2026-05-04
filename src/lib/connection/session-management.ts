@@ -56,13 +56,30 @@ export async function handleAuthSuccess(
   try {
     await storeSession(session, state, io);
 
-    // Persist to localStorage so Connect page can show recent servers even without WASM client
-    saveRecentServer({ serverAddress: params.serverAddress });
+    // Persist to localStorage so Connect page can show recent servers
+    // even without WASM client. Isolated from the outer try because
+    // localStorage.setItem can throw (quota exceeded, storage
+    // disabled, private-browsing restrictions) and recent-server
+    // metadata is best-effort UX — losing it must NOT abort the
+    // auth-success flow that owns tab-context setup, P2P registration,
+    // etc. below.
+    try {
+      saveRecentServer({ serverAddress: params.serverAddress });
+    } catch (e) {
+      debugLog('ConnectionService', 'saveRecentServer failed (non-critical):', e);
+    }
 
-    // Set lastAccessed timestamp for OrphanSessionsNavbar MRU ordering
+    // Set lastAccessed timestamp for OrphanSessionsNavbar MRU ordering.
+    // Same isolation reasoning as saveRecentServer above — sort order
+    // is best-effort, and a localStorage failure here would abort the
+    // auth flow if it weren't caught.
     if (params.cid !== undefined) {
-      const lastAccessedKey = `session_last_accessed_${params.cid.toString()}`;
-      localStorage.setItem(lastAccessedKey, Date.now().toString());
+      try {
+        const lastAccessedKey = `session_last_accessed_${params.cid.toString()}`;
+        localStorage.setItem(lastAccessedKey, Date.now().toString());
+      } catch (e) {
+        debugLog('ConnectionService', 'lastAccessed write failed (non-critical):', e);
+      }
     }
 
     debugLog('ConnectionService', 'handleAuthSuccess: setting tab context for CID:', params.cid?.toString());
