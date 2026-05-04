@@ -5,8 +5,7 @@
  * Extracted to avoid duplication across service methods.
  */
 
-// Namespace import breaks circular dependency — live binding defers resolution
-import * as connModule from '../connection';
+import { connectionManager } from '../connection';
 import { instanceManager } from '../multi-instance';
 import { getSelectedUser } from '../tab-context';
 import { CID_LOOKUP_TIMEOUT_MS } from './constants';
@@ -44,7 +43,7 @@ export async function getCurrentCid(): Promise<bigint | null> {
 
   // 3) Tab session from stored sessions (with timeout)
   try {
-    const tabSessionPromise = connModule.connectionManager.getTabSelectedSession();
+    const tabSessionPromise = connectionManager.getTabSelectedSession();
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CID_LOOKUP_TIMEOUT_MS));
     const tabSession = await Promise.race([tabSessionPromise, timeout]);
     if (tabSession?.cid) {
@@ -55,6 +54,6 @@ export async function getCurrentCid(): Promise<bigint | null> {
   }
 
   // 4) Legacy global connection CID
-  const connectionInfo = connModule.connectionManager.getConnectionInfo();
+  const connectionInfo = connectionManager.getConnectionInfo();
   return connectionInfo?.cid || null;
 }
