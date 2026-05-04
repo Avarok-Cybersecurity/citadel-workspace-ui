@@ -50,5 +50,9 @@ export type { MessageAckHandlerConfig } from './message-ack-handler';
 export { FileTransferMessageHandler } from './file-transfer-message-handler';
 export type { FileTransferMessageHandlerConfig } from './file-transfer-message-handler';
 
-// Main Manager (to be updated)
-export { P2PMessengerManager, p2pMessengerManager, getP2PMessengerManager } from './p2p-messenger-manager';
+// Main Manager (to be updated). `getP2PMessengerManager` is the
+// internal lazy initialiser — kept private to `p2p-messenger-manager.ts`
+// because the Proxy `p2pMessengerManager` already serves every
+// external consumer and re-exporting the getter would just add public
+// API surface area with no caller.
+export { P2PMessengerManager, p2pMessengerManager } from './p2p-messenger-manager';
