@@ -84,12 +84,26 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
       );
     }
 
+    // currentUserCid derives from validated CID sources (tab context,
+    // tabSession, connection-manager state) so a non-numeric value is
+    // not expected on the happy path. Still wrap the BigInt() call to
+    // match the peerCid guard above — corrupted IndexedDB session
+    // state has historically been a source of surprise crashes here.
+    let parsedCurrentUserCid: bigint | undefined;
+    if (currentUserCid) {
+      try {
+        parsedCurrentUserCid = BigInt(currentUserCid);
+      } catch {
+        parsedCurrentUserCid = undefined;
+      }
+    }
+
     return (
       <div className="h-full bg-[#1C1D28]">
         <P2PChat
           peerCid={parsedPeerCid}
           peerName={peerName || undefined}
-          currentUserCid={currentUserCid ? BigInt(currentUserCid) : undefined}
+          currentUserCid={parsedCurrentUserCid}
           currentUserName={currentUserName}
         />
       </div>
