@@ -117,7 +117,13 @@ export async function buildGroupFromInvite(
     members,
     settings: {
       roles: defaultRoles,
-      defaultRoleId: defaultRole?.id || defaultRoles[2].id,
+      // Same fallback pattern as the selfMember roleId above —
+      // resolves to the lowest-privilege role regardless of how
+      // many roles `createDefaultRoles()` returns. Hard-coding [2]
+      // worked while there were exactly 3 default roles but would
+      // silently yield `undefined` the day a role is added or
+      // removed.
+      defaultRoleId: defaultRole?.id || defaultRoles[defaultRoles.length - 1].id,
     },
     unreadCount: 1,
   };
