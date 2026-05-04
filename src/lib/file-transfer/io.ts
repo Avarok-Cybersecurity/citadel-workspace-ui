@@ -73,12 +73,41 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async executeSendTransferRequest(intent: SendTransferRequestIntent): Promise<void> {
     const { transfer, file } = intent;
-    // Use the actual File from the intent (passed from transfer-lifecycle)
-    // Falls back to a placeholder for backward compatibility, but this will
-    // only work if pickFileRequestId is also provided.
-    const sourceFile = file || new File([], transfer.fileName);
+
+    // Async transfers upload the file to the workspace server first
+    // (see `async-transfers.ts#executeUploadAndSend`), then emit this
+    // intent to notify the recipient that a staged transfer exists.
+    // The recipient discovers the transfer via the message-protocol
+    // path and fetches the bytes from the server using
+    // `transfer.virtualPath` — there's no actual file body to send
+    // through the real protocol router here. Falling through to
+    // `sendFile` with a synthesised empty File previously resulted in
+    // either a silent empty-payload send or a "RealProtocolIORouter
+    // requires … a non-empty browser File object" throw, depending on
+    // which code path the router took. Skip the protocol send
+    // explicitly so async mode degrades to a clean no-op.
+    if (!file && transfer.mode === 'async') {
+      debugLog(
+        'FileTransferIO',
+        'send-transfer-request without file in async mode — skipping protocol send (recipient discovers via virtualPath)',
+        { transferId: transfer.id, virtualPath: transfer.virtualPath },
+      );
+      return;
+    }
+
+    // Sync / P2P mode: a real File must be present. transfer-lifecycle
+    // always passes one. Falling back to an empty placeholder would
+    // make the protocol router throw "non-empty browser File object"
+    // — fail fast with a clearer message instead of letting the
+    // synthesised empty File flow through to the router.
+    if (!file) {
+      throw new Error(
+        `executeSendTransferRequest requires a File for non-async transfers (transferId=${transfer.id}, mode=${transfer.mode})`,
+      );
+    }
+
     await this.sendFile({
-      source: sourceFile,
+      source: file,
       cid: BigInt(transfer.senderCid),
       peerCid: BigInt(transfer.recipientCid),
       mode: transfer.mode,
