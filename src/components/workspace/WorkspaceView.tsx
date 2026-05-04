@@ -9,6 +9,7 @@ import { connectionManager } from '@/lib/connection';
 import { StoredSession } from '@/types/session-types';
 import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { tryParseCid } from '@/lib/utils/cid-utils';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -70,10 +71,15 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     const currentUserCid = rawCid !== undefined ? String(rawCid) : undefined;
     const currentUserName = tabSession?.fullName || connectionInfo?.fullName || 'You';
 
-    let parsedPeerCid: bigint;
-    try {
-      parsedPeerCid = BigInt(peerCid);
-    } catch {
+    // Both `BigInt(...)` calls below are funnelled through
+    // `tryParseCid` so the parsing contract (and its boundary cases:
+    // empty string, malformed input, fractional / scientific
+    // notation) is exercised by `cid-utils.test.ts#tryParseCid`
+    // rather than baked into this render path. peerCid coming from
+    // `params.get('channel')` is the historical crash surface;
+    // currentUserCid is defensive against corrupted IndexedDB state.
+    const parsedPeerCid = tryParseCid(peerCid);
+    if (parsedPeerCid === undefined) {
       // Invalid CID in URL — fall through to normal workspace view
       return (
         <BaseOffice
@@ -83,20 +89,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
         />
       );
     }
-
-    // currentUserCid derives from validated CID sources (tab context,
-    // tabSession, connection-manager state) so a non-numeric value is
-    // not expected on the happy path. Still wrap the BigInt() call to
-    // match the peerCid guard above — corrupted IndexedDB session
-    // state has historically been a source of surprise crashes here.
-    let parsedCurrentUserCid: bigint | undefined;
-    if (currentUserCid) {
-      try {
-        parsedCurrentUserCid = BigInt(currentUserCid);
-      } catch {
-        parsedCurrentUserCid = undefined;
-      }
-    }
+    const parsedCurrentUserCid = tryParseCid(currentUserCid);
 
     return (
       <div className="h-full bg-[#1C1D28]">

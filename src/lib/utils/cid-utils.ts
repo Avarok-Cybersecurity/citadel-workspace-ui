@@ -75,3 +75,33 @@ export function cidPairKey(cid1: bigint, cid2: bigint): string {
 export function isCidLike(value: unknown): value is string | number | bigint {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint';
 }
+
+/**
+ * Best-effort parse of a CID-like string into a bigint, returning
+ * `undefined` for any malformed input rather than throwing.
+ *
+ * Use this on CID values arriving from URL params, IndexedDB
+ * sessions, or anywhere a `BigInt(value)` call would otherwise
+ * crash a render. The standard safe pattern:
+ *
+ * ```ts
+ * const cid = tryParseCid(maybeCid);
+ * if (cid === undefined) return <Fallback />;
+ * // … use cid as bigint …
+ * ```
+ *
+ * Centralised here (rather than re-implementing the try/catch at
+ * each call site) so the test in
+ * `cid-utils.test.ts#tryParseCid` is the single source of truth
+ * for the parsing contract.
+ */
+export function tryParseCid(value: string | undefined | null): bigint | undefined {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+  try {
+    return BigInt(value);
+  } catch {
+    return undefined;
+  }
+}
