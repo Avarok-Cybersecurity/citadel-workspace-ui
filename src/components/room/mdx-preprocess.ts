@@ -51,9 +51,17 @@ export function transformOutsideCode(
  * The lookahead `(?=\S)` and the trailing `\S~~` anchor the match so
  * stray double-tildes (e.g. ASCII art `~~~~`) don't get transformed.
  *
+ * The body alternative `(?:[^\n]|\n(?!\n))` permits any non-newline
+ * char OR a single newline that is NOT followed by another newline.
+ * That matches GFM's "no blank line inside a strikethrough" rule —
+ * the previous `[\s\S]*?` body would silently wrap an entire
+ * `~~para1\n\npara2~~` block in one `<del>`, which then broke MDX
+ * paragraph layout. With the new pattern the regex stops at the
+ * first `\n\n` and leaves the trailing `~~ ... ~~` literal.
+ *
  * Only applied to non-code regions — see `transformOutsideCode`.
  */
-const GFM_STRIKETHROUGH_REGEX = /~~(?=\S)([\s\S]*?\S)~~/g;
+const GFM_STRIKETHROUGH_REGEX = /~~(?=\S)((?:[^\n]|\n(?!\n))*?\S)~~/g;
 
 /**
  * Escape characters that have JSX/MDX syntactic meaning when they

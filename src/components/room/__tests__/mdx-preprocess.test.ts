@@ -97,6 +97,21 @@ describe('applyGfmStrikethrough', () => {
       '<del>the quick fox.</del>',
     );
   });
+
+  it('does NOT span a paragraph break', () => {
+    // GFM strikethrough body cannot contain a blank line. The
+    // previous `[\s\S]*?` body would have wrapped both paragraphs
+    // in a single `<del>` and broken MDX paragraph layout.
+    const input = '~~para 1\n\npara 2~~';
+    expect(applyGfmStrikethrough(input)).toBe(input);
+  });
+
+  it('allows a single soft line break inside the body', () => {
+    // Soft wraps inside a paragraph remain valid GFM strikethrough.
+    expect(applyGfmStrikethrough('~~line one\nline two~~')).toBe(
+      '<del>line one\nline two</del>',
+    );
+  });
 });
 
 describe('transformOutsideCode', () => {
