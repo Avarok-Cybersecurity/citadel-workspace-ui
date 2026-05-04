@@ -116,12 +116,21 @@ export function useGroupState(): GroupState {
       // `use-group-state-invite.ts` for the full contract notes and
       // the two fix paths (await acceptance, or reconcile on response).
       //
-      // `applyGroupInvite` returns Promise<void> with an internal
-      // try/catch — `void` here is the explicit fire-and-forget
-      // marker that satisfies no-floating-promises while keeping
-      // the option open for future callers to await for retry / metric
-      // hooks.
-      void applyGroupInvite(data, setGroups);
+      // `applyGroupInvite` already swallows its own rejections inside
+      // an internal try/catch AND emits a "Group Invitation Failed"
+      // toast on error, so this call cannot leak an unhandled
+      // rejection and the user always sees feedback either way. The
+      // `.catch` below is a belt-and-braces guard that fires only if
+      // a future refactor removes the internal handler — it converts
+      // the leaked rejection back into the same user-visible toast
+      // and a debug log instead of a console error.
+      applyGroupInvite(data, setGroups).catch((err) => {
+        debugLog('UseGroupConversations', 'applyGroupInvite leaked a rejection:', err);
+        eventEmitter.emit('notification:show', {
+          title: 'Group Invitation Failed',
+          description: 'Could not process the group invitation. Please try again.',
+        });
+      });
     };
 
     const handleGroupMemberJoined = (data: {
