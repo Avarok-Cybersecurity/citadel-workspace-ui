@@ -126,12 +126,10 @@ describe('buildGroupFromInvite', () => {
 describe('applyGroupInvite', () => {
   it('appends the new group and fires a notification on the happy path', async () => {
     const setGroups = vi.fn();
-    applyGroupInvite(
+    await applyGroupInvite(
       { groupId: 'g-1', groupName: 'X', inviterId: '5', inviterUsername: 'alice' },
       setGroups,
     );
-    // The void-async wrapper means we have to wait for the next microtask.
-    await new Promise<void>((r) => setTimeout(r, 0));
     expect(setGroups).toHaveBeenCalledTimes(1);
     expect(spies.emit).toHaveBeenCalledWith(
       'notification:show',
@@ -145,24 +143,39 @@ describe('applyGroupInvite', () => {
       // The dedupe check inside applyGroupInvite means next === prev when the id matches
       expect(next).toHaveLength(1);
     });
-    applyGroupInvite(
+    await applyGroupInvite(
       { groupId: 'g-dup', groupName: 'X', inviterId: '5', inviterUsername: 'alice' },
       setGroups as unknown as (
         u: (prev: import('@/types/group').GroupConversation[]) => import('@/types/group').GroupConversation[],
       ) => void,
     );
-    await new Promise<void>((r) => setTimeout(r, 0));
     expect(setGroups).toHaveBeenCalledTimes(1);
   });
 
-  it('does NOT throw and does NOT fire a notification for a malformed payload', async () => {
+  it('does NOT throw and does NOT fire a "Group Invitation" notification for a malformed payload', async () => {
     const setGroups = vi.fn();
-    applyGroupInvite(
+    await applyGroupInvite(
       { groupId: 'g', groupName: 'X', inviterId: 'garbage', inviterUsername: 'c' },
       setGroups,
     );
-    await new Promise<void>((r) => setTimeout(r, 0));
     expect(setGroups).not.toHaveBeenCalled();
+    // A malformed payload short-circuits inside `buildGroupFromInvite`
+    // before any notification is emitted — neither the success nor
+    // failure toast should fire.
     expect(spies.emit).not.toHaveBeenCalled();
+  });
+
+  it('returns a Promise so callers can await or .catch()', async () => {
+    // Pin the public contract: the return value is a Promise<void>
+    // (not void). Static reviewers and downstream code rely on this
+    // to chain failure handling (analytics, retry queues, etc.)
+    // without re-implementing the IIFE wrapper at every call site.
+    const setGroups = vi.fn();
+    const result = applyGroupInvite(
+      { groupId: 'g-promise', groupName: 'X', inviterId: '7', inviterUsername: 'd' },
+      setGroups,
+    );
+    expect(result).toBeInstanceOf(Promise);
+    await result;
   });
 });

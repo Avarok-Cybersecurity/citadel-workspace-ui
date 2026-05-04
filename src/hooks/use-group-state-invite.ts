@@ -134,14 +134,15 @@ export async function buildGroupFromInvite(
  * standard "Group Invitation" notification. Callers pass in the
  * `setGroups` updater and we handle the dedupe-on-existing-id check.
  *
- * **Return contract:** this is intentionally fire-and-forget — the
- * function returns `void`, not a Promise. Callers in event handlers
- * (e.g. `handleGroupInviteReceived` in `use-group-state.ts`) can
- * therefore call it without `await` or `.catch()` and still be
- * exception-safe: the `void (async () => { ... try/catch ... })()`
- * block guarantees no rejection ever escapes. Static analysers that
- * see the inner `await buildGroupFromInvite(...)` and assume the
- * outer function leaks a Promise are misreading the wrapper.
+ * **Return contract:** returns `Promise<void>`. The inner try/catch
+ * still swallows rejections so nothing escapes as an unhandled
+ * rejection on the event loop *and* a user-facing notification
+ * surfaces on failure — but the Promise return lets callers
+ * optionally `await` or `.catch()` for extra context (e.g. routing
+ * the failure into a retry queue, marking analytics) without
+ * forcing every call site to learn the void-IIFE wrapper trick.
+ * Most callers can `void applyGroupInvite(data, setGroups)` and
+ * rely on the internal handler.
  *
  * **Known UX gap — local-only acceptance:** this commits local group
  * state without sending any backend-acknowledged
@@ -160,29 +161,34 @@ export async function buildGroupFromInvite(
  *       `AcceptGroupInvite` response, showing a "pending acceptance"
  *       visual hint while the round-trip is in flight.
  */
-export function applyGroupInvite(
+export async function applyGroupInvite(
   data: GroupInvitePayload,
   setGroups: (updater: (prev: GroupConversation[]) => GroupConversation[]) => void,
-): void {
-  // `void` operator + IIFE = explicit fire-and-forget. The inner
-  // try/catch swallows ALL rejections so nothing surfaces as an
-  // unhandled rejection on the event loop.
-  void (async () => {
-    try {
-      const newGroup = await buildGroupFromInvite(data);
-      if (!newGroup) {
-        // Malformed payload — `buildGroupFromInvite` has already logged the why.
-        return;
-      }
-      setGroups((prev) =>
-        prev.some((g) => g.id === data.groupId) ? prev : [...prev, newGroup],
-      );
-      eventEmitter.emit('notification:show', {
-        title: 'Group Invitation',
-        description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
-      });
-    } catch (e) {
-      debugLog('UseGroupConversations', 'applyGroupInvite failed:', e);
+): Promise<void> {
+  try {
+    const newGroup = await buildGroupFromInvite(data);
+    if (!newGroup) {
+      // Malformed payload — `buildGroupFromInvite` has already logged the why.
+      return;
     }
-  })();
+    setGroups((prev) =>
+      prev.some((g) => g.id === data.groupId) ? prev : [...prev, newGroup],
+    );
+    eventEmitter.emit('notification:show', {
+      title: 'Group Invitation',
+      description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
+    });
+  } catch (e) {
+    // The inviter / inviteUsername fields come straight from the
+    // network event, so an unexpected throw most often means the
+    // local connection state was unavailable when buildGroupFromInvite
+    // tried to resolve self. Tell the user the invite was missed
+    // (rather than letting it silently disappear) AND keep the debug
+    // trace for the developer.
+    debugLog('UseGroupConversations', 'applyGroupInvite failed:', e);
+    eventEmitter.emit('notification:show', {
+      title: 'Group Invitation Failed',
+      description: `Could not process invite from ${data.inviterUsername || 'a peer'}. Please try again.`,
+    });
+  }
 }

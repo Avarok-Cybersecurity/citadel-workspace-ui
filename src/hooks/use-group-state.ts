@@ -115,7 +115,13 @@ export function useGroupState(): GroupState {
       // freshly-accepted invite would silently fail to send. See
       // `use-group-state-invite.ts` for the full contract notes and
       // the two fix paths (await acceptance, or reconcile on response).
-      applyGroupInvite(data, setGroups);
+      //
+      // `applyGroupInvite` returns Promise<void> with an internal
+      // try/catch — `void` here is the explicit fire-and-forget
+      // marker that satisfies no-floating-promises while keeping
+      // the option open for future callers to await for retry / metric
+      // hooks.
+      void applyGroupInvite(data, setGroups);
     };
 
     const handleGroupMemberJoined = (data: {
