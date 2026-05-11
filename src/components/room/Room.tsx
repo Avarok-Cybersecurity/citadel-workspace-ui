@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
 import { evaluate } from '@mdx-js/mdx';
+import remarkGfm from 'remark-gfm';
 import * as runtime from 'react/jsx-runtime';
 import { useToast } from '@/hooks/use-toast';
 import { MdxTemplate } from '@/lib/mdx-templates';
@@ -72,13 +73,14 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
 
       try {
         debugLog('Room', 'Compiling Room MDX content...');
-        // Pre-process GFM strikethrough (~~text~~) since remark-gfm is not
-        // available. Code regions (fenced ```...``` and inline `...`)
-        // are skipped so a code sample containing literal `~~` does not
-        // get mangled into <del>...</del>.
+        // remark-gfm provides strikethrough, tables, autolinks, task-lists.
+        // We still apply the escape pass so `~~value < 5~~`-style content
+        // doesn't trip MDX's JSX parser before remark-gfm consumes the
+        // `~~...~~` region. See BaseOffice.tsx for the same pattern.
         const processedContent = applyGfmStrikethrough(content);
         const result = await evaluate(processedContent, {
           ...runtime,
+          remarkPlugins: [remarkGfm],
           useMDXComponents: () => components,
           baseUrl: window.location.origin
         });

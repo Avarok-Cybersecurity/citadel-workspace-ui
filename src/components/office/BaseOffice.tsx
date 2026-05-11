@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
 import { evaluate } from '@mdx-js/mdx';
+import remarkGfm from 'remark-gfm';
 import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
@@ -101,15 +102,14 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     const compileContent = async () => {
       try {
         debugLog('BaseOffice', 'Compiling MDX content...');
-        // Pre-process GFM strikethrough (~~text~~) since remark-gfm is
-        // not available. Centralised in `applyGfmStrikethrough` so the
-        // JSX-significant char escaping (`< > { } &`) and code-region
-        // skip happen the same way Room does — `~~value < 5~~` would
-        // otherwise blank the rendered MDX with the bare `<` reading
-        // as an unclosed JSX tag.
+        // remark-gfm handles strikethrough, tables, autolinks, task-lists.
+        // Pre-pass escapes JSX-significant chars inside `~~...~~` regions
+        // so `~~value < 5~~` doesn't fail MDX parsing before remark-gfm
+        // consumes it. See `applyGfmStrikethrough` for details.
         const processedContent = applyGfmStrikethrough(content);
         const result = await evaluate(processedContent, {
           ...runtime,
+          remarkPlugins: [remarkGfm],
           useMDXComponents: () => components,
           baseUrl: window.location.origin
         });
