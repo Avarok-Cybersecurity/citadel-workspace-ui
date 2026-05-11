@@ -132,7 +132,19 @@ export class WebSocketInitialization {
 
         if (broadcastChannelService.getIsLeader()) {
           const messageType = Object.keys(message)[0] as ResponseType | undefined;
-          const cidRoutedTypes: ResponseType[] = ['MessageNotification', 'PeerRegisterNotification', 'PeerConnectNotification'];
+          // Keep in sync with `CID_ROUTED_NOTIFICATIONS` in routing-rules.ts —
+          // anything that flows through the inbound router's CID-based path
+          // must NOT also be sent through the legacy BroadcastChannel
+          // workspace-response path or the receiving tab will get two
+          // copies of the notification.
+          const cidRoutedTypes: ResponseType[] = [
+            'MessageNotification',
+            'PeerRegisterNotification',
+            'PeerConnectNotification',
+            'FileTransferRequestNotification',
+            'FileTransferStatusNotification',
+            'FileTransferTickNotification',
+          ];
           if (!messageType || !cidRoutedTypes.includes(messageType)) {
             broadcastChannelService.broadcastWorkspaceResponse(message);
           } else {

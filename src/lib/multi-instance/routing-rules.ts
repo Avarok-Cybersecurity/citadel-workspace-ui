@@ -27,9 +27,12 @@ export const REQUEST_TRACKING_TIMEOUT_MS = INTERVAL.REQUEST_TRACKING_MS;
  * should be delivered to the RECIPIENT (identified by the 'cid' field).
  */
 export const CID_ROUTED_NOTIFICATIONS = new Set<ResponseType>([
-  'PeerRegisterNotification', // cid = recipient, request_id = sender's
-  'PeerConnectNotification',  // cid = recipient, request_id = sender's
-  'MessageNotification',      // cid = recipient, request_id = sender's (from SendMessage)
+  'PeerRegisterNotification',         // cid = recipient, request_id = sender's
+  'PeerConnectNotification',          // cid = recipient, request_id = sender's
+  'MessageNotification',              // cid = recipient, request_id = sender's (from SendMessage)
+  'FileTransferRequestNotification',  // cid = recipient (file transfer initiation prompt)
+  'FileTransferStatusNotification',   // cid = recipient (transfer progress/state)
+  'FileTransferTickNotification',     // cid = recipient (transfer progress tick)
 ]);
 
 /**
