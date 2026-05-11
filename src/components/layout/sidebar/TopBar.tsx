@@ -24,7 +24,7 @@ import { connectionManager } from "@/lib/connection";
 import { useNavigate } from "react-router-dom";
 import { clearSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
@@ -53,9 +53,24 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   // Get workspace name from context or fallback to prop
   const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
 
-  // Get the username and name from the state
-  const username = state.currentUser?.username || "User";
-  const name = state.currentUser?.name || username;
+  // Fallback identity from tab-context — the orphan-claim path doesn't
+  // persist a stored-session row, so without this fallback the TopBar
+  // renders "U"/"User" even though tab-context knows the username.
+  const [sessionFallback, setSessionFallback] = useState<{ username: string; fullName?: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const tab = await getSelectedUser();
+      if (cancelled) return;
+      if (tab?.selectedUsername) { setSessionFallback({ username: tab.selectedUsername }); return; }
+      const session = await connectionManager.getTabSelectedSession();
+      if (!cancelled) setSessionFallback(session?.username ? { username: session.username, fullName: session.fullName } : null);
+    })();
+    return () => { cancelled = true; };
+  }, [state.currentUser?.username]);
+
+  const username = state.currentUser?.username || sessionFallback?.username || "User";
+  const name = state.currentUser?.name || sessionFallback?.fullName || username;
   const userInitials = getUserInitials(name);
   const avatarUrl = state.currentUser?.avatarUrl;
 
@@ -81,57 +96,48 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     setDisconnectError(undefined);
     setShowDisconnectModal(true);
 
-    try {
-      // Stop WASM connection manager polling
-      wasmConnectionManager.stop();
+    // Sign Out is an explicit user intent — even if the backend disconnect
+    // fails (e.g., WS already dropped, no current session on this tab), the
+    // local saved-session + tab-context must be cleared and we must navigate
+    // to the landing page. Otherwise WorkspaceLoader's auto-claim re-attaches
+    // the orphan and the user ends up right back where they started.
+    const currentSession = await connectionManager.getTabSelectedSession();
+    const tabSelection = await getSelectedUser();
+    const cid = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
 
-      // Get the current session BEFORE disconnecting
-      const currentSession = await connectionManager.getTabSelectedSession();
+    // Stop WASM connection manager polling regardless of below outcome
+    wasmConnectionManager.stop();
 
-      if (!currentSession) {
-        debugLog('TopBar', 'No current session found');
-        setDisconnectStatus("error");
-        setDisconnectError("No active session found");
-        return;
+    if (cid) {
+      try {
+        debugLog('TopBar', 'Fully signing out user', currentSession?.username, 'CID:', cid.toString());
+        await connectionManager.disconnect({
+          cid,
+          username: currentSession?.username,
+          serverAddress: currentSession?.serverAddress,
+        });
+      } catch (error) {
+        // Best-effort: log the failure but keep cleaning up locally so the user
+        // ends up signed out on this device. The server-side orphan (if any)
+        // will time out on its own.
+        debugLog('TopBar', 'Backend disconnect failed, continuing local sign-out:', error);
       }
-
-      // Also get the CID from tab context (more reliable source)
-      const tabSelection = await getSelectedUser();
-      const cid = tabSelection?.selectedCid ?? currentSession.cid;
-
-      if (!cid) {
-        debugLog('TopBar', 'No CID found for session');
-        setDisconnectStatus("error");
-        setDisconnectError("No active session CID found");
-        return;
-      }
-
-      debugLog('TopBar', 'Fully signing out user', currentSession.username, 'CID:', cid.toString());
-
-      // Full disconnect via WebSocket - pass the session info explicitly
-      await connectionManager.disconnect({
-        cid,
-        username: currentSession.username,
-        serverAddress: currentSession.serverAddress,
-      });
-
-      // Update status to cleaning
-      setDisconnectStatus("cleaning");
-
-      // Remove the session completely from stored sessions
-      await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
-
-      // Clear tab-specific user selection
-      await clearSelectedUser();
-
-      // Show ready status briefly before navigating
-      setDisconnectStatus("ready");
-
-    } catch (error) {
-      debugLog('TopBar', 'Sign out failed', error);
-      setDisconnectStatus("error");
-      setDisconnectError("An error occurred while signing out");
+    } else {
+      debugLog('TopBar', 'No CID available for backend disconnect, skipping');
     }
+
+    setDisconnectStatus("cleaning");
+
+    try {
+      if (currentSession?.username && currentSession?.serverAddress) {
+        await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
+      }
+      await clearSelectedUser();
+    } catch (error) {
+      debugLog('TopBar', 'Local sign-out cleanup raised, ignoring:', error);
+    }
+
+    setDisconnectStatus("ready");
   };
 
   const handleDisconnectComplete = () => {
