@@ -72,6 +72,14 @@ export function TreeNodeItem({
     onToggleExpand(node.id);
   };
 
+  const handleToggleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onToggleExpand(node.id);
+    }
+  };
+
   return (
     <>
       <SidebarMenuItem className="relative group">
@@ -85,9 +93,18 @@ export function TreeNodeItem({
           data-testid={`tree-node-${node.id}`}
         >
           {hasChildren && (
-            <button
+            // Rendered as a span (not a <button>) because the wrapping
+            // SidebarMenuButton is itself a <button>, and nested buttons
+            // violate HTML semantics (React validateDOMNesting warning) and
+            // accessibility-tree expectations. role="button" + tabIndex + a
+            // keydown handler preserves the equivalent behavior for keyboard
+            // and assistive-tech users.
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleToggle}
-              className="p-0.5 hover:bg-black/10 rounded mr-1 flex-shrink-0"
+              onKeyDown={handleToggleKeyDown}
+              className="p-0.5 hover:bg-black/10 rounded mr-1 flex-shrink-0 cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-purple-400"
               aria-label={isExpanded ? "Collapse" : "Expand"}
               data-testid={`tree-node-toggle-${node.id}`}
             >
@@ -96,7 +113,7 @@ export function TreeNodeItem({
               ) : (
                 <ChevronRight className="h-3 w-3" />
               )}
-            </button>
+            </span>
           )}
           {!hasChildren && <span className="w-5" />}
           <Icon className="h-4 w-4 flex-shrink-0" />
