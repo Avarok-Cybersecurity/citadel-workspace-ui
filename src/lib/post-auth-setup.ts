@@ -9,6 +9,7 @@
  */
 
 import WorkspaceService from '@/lib/workspace-service';
+import { instanceManager } from '@/lib/multi-instance';
 import { debugLog } from '@/lib/debug-config';
 
 /**
@@ -24,6 +25,16 @@ export async function postAuthSetup(
   options?: { skipTreeSchema?: boolean }
 ): Promise<void> {
   debugLog('PostAuthSetup', 'Starting workspace setup for CID:', cid.toString());
+
+  // Step 0: Anchor the multi-instance manager to this CID. This must happen
+  // before any P2P notification can arrive — the inbound router's CID-based
+  // routing (PeerRegisterNotification, MessageNotification, PeerConnectNotification)
+  // depends on instanceManager.findInstanceByCid resolving for both leader and
+  // follower tabs. Setting it here also triggers the cid-update broadcast so
+  // the leader's view of the follower's CID is populated.
+  if (instanceManager.cid !== cid) {
+    instanceManager.setCid(cid);
+  }
 
   // Step 1: Set the connection ID on the workspace service
   WorkspaceService.setConnectionId(cid);
