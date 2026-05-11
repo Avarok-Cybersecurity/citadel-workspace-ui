@@ -185,6 +185,13 @@ class InstanceInboundRouter {
       const knownInstances = instanceManager.getAllInstances();
       debugLog('InstanceInboundRouter', `No instance owns CID ${targetCid}, message may be lost`);
       debugLog('InstanceInboundRouter', `Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
+      // Self-heal: ask every other instance to re-broadcast its CID. Cheap,
+      // idempotent, and means a single missed cid-update broadcast doesn't
+      // permanently strand CID-routed notifications (Message,
+      // PeerRegister, FileTransferRequest, etc.) for a given session.
+      // Followers that respond will trigger handleCidUpdate on the leader,
+      // which populates the instance map and unblocks subsequent routes.
+      instanceChannel.requestCidReport();
       this.processLocalMessage(message);
     }
   }
