@@ -307,8 +307,26 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install chromium --with-deps
       - name: Install Dependencies
+        # `npm ci` at the workspace root hoists playwright once, instead
+        # of installing it both at root AND in citadel-workspaces/. Two
+        # copies caused `tsc` to see two distinct
+        # `playwright-core/types/types` locations and reject the test
+        # build with "Type X/Browser is not assignable to type Y/Browser"
+        # plus `Property 'toBeVisible' does not exist`. One hoisted copy
+        # makes module resolution coherent. Mirrors the equivalent fix in
+        # the parent repo's validate.yml.
         run: npm ci
-        working-directory: parent/citadel-workspaces/integration-tests
+      - name: Symlink workspace deps for integration-tests build
+        # `tsc` in integration-tests walks node_modules up the tree
+        # (NodeNext). Symlinking playwright from the workspace-root
+        # node_modules into integration-tests guarantees closest-
+        # resolution lands on the single hoisted copy.
+        run: |
+          mkdir -p citadel-workspaces/integration-tests/node_modules
+          ln -sf ${{ github.workspace }}/parent/node_modules/playwright \
+                 citadel-workspaces/integration-tests/node_modules/playwright
+          ln -sf ${{ github.workspace }}/parent/node_modules/@playwright \
+                 citadel-workspaces/integration-tests/node_modules/@playwright
       - name: Start Services
         env:
           INTERNAL_SERVICE_PORT: '12345'
