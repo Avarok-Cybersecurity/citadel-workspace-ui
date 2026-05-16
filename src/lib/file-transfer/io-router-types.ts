@@ -14,6 +14,17 @@ import type { FileTransferMode, FileTransferState } from '@/types/messaging-laye
 /**
  * FileSource enum for specifying file source in SendFile requests.
  * Matches the Rust FileSource enum in citadel-internal-service-types.
+ *
+ * IMPORTANT — `ByteContents` size cap:
+ * The `data: number[]` payload materialises the entire file as a boxed-
+ * number JavaScript array (~4-8 bytes per file byte in V8) and is then
+ * CBOR-serialised onto the WebSocket frame. A 100 MB file therefore
+ * needs roughly 500 MB of transient heap and reliably crashes the tab.
+ * `executeSendFile` in `send-operations.ts` enforces a hard 2 MiB cap
+ * BEFORE allocating the buffer; larger uploads must go through `Path`
+ * (native picker) which streams from disk. Round-trip tests in
+ * `__tests__/send-operations-byte-contents.test.ts` pin both the wire
+ * shape and the size-guard ordering.
  */
 export type FileSource =
   | { Path: string }
