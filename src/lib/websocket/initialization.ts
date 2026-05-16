@@ -15,6 +15,7 @@ import {
   leaderOutboundHandler,
   instanceInboundRouter
 } from '../multi-instance';
+import { CID_ROUTED_NOTIFICATIONS } from '../multi-instance/routing-rules';
 import { INTERVAL } from '../timeout-constants';
 
 // Global state key for preventing multiple WASM client initializations
@@ -132,20 +133,11 @@ export class WebSocketInitialization {
 
         if (broadcastChannelService.getIsLeader()) {
           const messageType = Object.keys(message)[0] as ResponseType | undefined;
-          // Keep in sync with `CID_ROUTED_NOTIFICATIONS` in routing-rules.ts —
-          // anything that flows through the inbound router's CID-based path
-          // must NOT also be sent through the legacy BroadcastChannel
-          // workspace-response path or the receiving tab will get two
-          // copies of the notification.
-          const cidRoutedTypes: ResponseType[] = [
-            'MessageNotification',
-            'PeerRegisterNotification',
-            'PeerConnectNotification',
-            'FileTransferRequestNotification',
-            'FileTransferStatusNotification',
-            'FileTransferTickNotification',
-          ];
-          if (!messageType || !cidRoutedTypes.includes(messageType)) {
+          // CID-routed notifications already flow through the inbound router's
+          // CID path; broadcasting them again here would cause duplicate
+          // delivery on the receiving tab. Single source of truth in
+          // routing-rules.ts.
+          if (!messageType || !CID_ROUTED_NOTIFICATIONS.has(messageType)) {
             broadcastChannelService.broadcastWorkspaceResponse(message);
           } else {
             debugLog('WebSocketInit', `Skipping legacy broadcast for CID-routed ${messageType} (handled by instanceInboundRouter)`);
