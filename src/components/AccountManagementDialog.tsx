@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ interface AccountManagementDialogProps {
 
 export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [storedSessions, setStoredSessions] = useState(connectionManager.getStoredSessionsArray());
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -181,8 +183,11 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                   className="border-purple-500 text-purple-400 hover:bg-purple-500/20"
                   onClick={() => {
                     onClose();
-                    // Dispatch custom event to trigger join overlay from landing page
-                    window.dispatchEvent(new CustomEvent('open-join-workspace'));
+                    // Use a URL query param rather than a window event so the
+                    // signal survives navigation timing (Landing's useEffect
+                    // listener wouldn't be mounted yet if the dialog is opened
+                    // from a non-landing route).
+                    navigate('/?join=1');
                   }}
                 >
                   Join Workspace

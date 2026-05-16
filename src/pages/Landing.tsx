@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
@@ -23,6 +23,7 @@ import { toastError } from '@/lib/toast-helpers';
 
 export const Landing = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
@@ -70,12 +71,17 @@ export const Landing = () => {
     runAsyncSetup(checkOrphanSessions);
   }, [navigate]);
 
-  // Listen for custom event from Manage Accounts to open join flow
+  // Open the join flow when navigated here with ?join=1 (e.g. from the
+  // Manage Accounts empty state on any route). Clears the param after
+  // consuming it so back/forward stays clean.
   useEffect(() => {
-    const handler = () => setCurrentStep('server');
-    window.addEventListener('open-join-workspace', handler);
-    return () => window.removeEventListener('open-join-workspace', handler);
-  }, []);
+    if (searchParams.get('join') === '1') {
+      setCurrentStep('server');
+      const next = new URLSearchParams(searchParams);
+      next.delete('join');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
   const checkForServers = useCallback(async () => {
