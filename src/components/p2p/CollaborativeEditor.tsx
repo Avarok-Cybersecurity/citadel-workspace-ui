@@ -113,7 +113,8 @@ export function CollaborativeEditor({
       timestamp: Date.now(),
     };
 
-    // Emit the comment so useCollaborativeEditor broadcasts it via awareness
+    // Emit the comment so useCollaborativeEditor broadcasts it via awareness.
+    // Subscriber: useCollaborativeEditor.ts:161 (handleSendFlashComment).
     eventEmitter.emit('flash-comment:send', comment);
     setContextMenu(null);
   }, [contextMenu, editor, currentUserCid, currentUserName, userColor, setContextMenu]);
