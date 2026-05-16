@@ -350,6 +350,15 @@ jobs:
         env:
           IN_CI: 'true'
           WORKSPACE_MASTER_PASSWORD: 'ci-test-password'
+          # Several tests call `restartBackendServices` which spawns
+          # `docker compose` from the test runner; without
+          # INTERNAL_SERVICE_PORT in scope, docker-compose.yml's
+          # `${INTERNAL_SERVICE_PORT:-12345}` works at the compose
+          # level but the test runner's docker compose invocations
+          # would log a warning and (pre-fallback) bake an empty
+          # `--bind '0.0.0.0:'` into the container. Set it here so
+          # the runner inherits the same value Start Services used.
+          INTERNAL_SERVICE_PORT: '12345'
         run: npm run ${{ matrix.test }}
         working-directory: parent/citadel-workspaces/integration-tests
       - name: Upload Screenshots on Failure
