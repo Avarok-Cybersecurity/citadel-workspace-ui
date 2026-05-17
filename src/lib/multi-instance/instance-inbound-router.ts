@@ -191,6 +191,18 @@ class InstanceInboundRouter {
       // PeerRegister, FileTransferRequest, etc.) for a given session.
       // Followers that respond will trigger handleCidUpdate on the leader,
       // which populates the instance map and unblocks subsequent routes.
+      //
+      // ONE-MESSAGE DELIVERY TRADE-OFF: requestCidReport is fire-and-forget
+      // over BroadcastChannel; the very next `processLocalMessage` runs
+      // synchronously, so the CURRENT message is always processed on the
+      // leader tab before any follower's CID-report response can arrive. A
+      // FileTransferRequestNotification destined for a follower can
+      // therefore prompt on the leader tab once before correct routing
+      // kicks in. Subsequent messages route correctly. We accept this
+      // trade-off because the alternative — awaiting reports inline — adds
+      // latency and a timeout-vs-deliver decision that the current
+      // architecture intentionally pushes to ILM redelivery for genuinely
+      // dropped messages.
       instanceChannel.requestCidReport();
       this.processLocalMessage(message);
     }
