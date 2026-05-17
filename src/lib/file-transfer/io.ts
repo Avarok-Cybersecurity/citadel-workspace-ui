@@ -87,6 +87,21 @@ export class FileTransferIO extends RealProtocolIORouter {
     // which code path the router took. Skip the protocol send
     // explicitly so async mode degrades to a clean no-op.
     if (!file && transfer.mode === 'async') {
+      // Async mode: the file body was uploaded to the workspace server
+      // before this intent was dispatched, and the recipient discovers
+      // the staged bytes via `transfer.virtualPath`. If `virtualPath`
+      // is missing here, something stripped both the File AND the
+      // upload metadata — most likely an accidental JSON-roundtrip of
+      // the intent (see `SendTransferRequestIntent` contract).
+      // Fail loudly so the recipient never silently hangs on a
+      // never-uploaded transfer.
+      if (!transfer.virtualPath) {
+        throw new Error(
+          `executeSendTransferRequest: async transfer ${transfer.id} has no file AND no virtualPath — ` +
+          `the intent likely crossed a serialization boundary that stripped both fields. ` +
+          `Intents must be dispatched in-memory; see SendTransferRequestIntent docs.`,
+        );
+      }
       debugLog(
         'FileTransferIO',
         'send-transfer-request without file in async mode — skipping protocol send (recipient discovers via virtualPath)',
