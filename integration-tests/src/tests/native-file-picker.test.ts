@@ -29,6 +29,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
+import { config } from '../lib/config.js';
 
 // ============================================================================
 // Types
@@ -269,7 +270,7 @@ async function runTest(): Promise<boolean> {
   console.log('  - Internal-service running NATIVELY (not in Docker)');
   console.log('  - Built with: cargo build --features native-dialogs');
   console.log('  - Server running (Docker or native)');
-  console.log('  - UI running at http://localhost:5291');
+  console.log(`  - UI running at ${config.BASE_URL}`);
   console.log('');
 
   const { browser, context } = await createBrowser();
