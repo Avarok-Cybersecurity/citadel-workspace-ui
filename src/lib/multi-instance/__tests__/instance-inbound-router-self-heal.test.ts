@@ -53,7 +53,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     expect(instanceChannelMock.forwardToInstance).not.toHaveBeenCalled();
   });
 
-  it('also processes the message locally so the leader still has a chance to handle it', () => {
+  it('buffers the orphaned message instead of processing it locally up front', () => {
     instanceManagerMock.findInstanceByCid.mockReturnValue(null);
 
     const local = vi.fn();
@@ -69,9 +69,90 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
 
     try {
       instanceInboundRouter.routeMessage(cidRoutedMessage);
+      // Pre-buffer behaviour: would have called local immediately.
+      // Post-buffer: local processing is deferred until either the
+      // fallback timer fires or a matching cid-update arrives.
+      expect(local).not.toHaveBeenCalled();
+      expect(instanceChannelMock.requestCidReport).toHaveBeenCalledTimes(1);
+    } finally {
+      eventEmitter.off('websocket-message', local);
+    }
+  });
+
+  it('drains the buffer to the correct instance when its cid-report arrives in time', () => {
+    instanceManagerMock.findInstanceByCid
+      .mockReturnValueOnce(null)        // first lookup: unowned, message gets buffered
+      .mockReturnValueOnce('follower-x') // second lookup (replay): now owned by follower-x
+      ;
+
+    const local = vi.fn();
+    eventEmitter.on('websocket-message', local);
+
+    const cidRoutedMessage = {
+      MessageNotification: {
+        cid: '44444',
+        peer_cid: '99',
+        message: [1, 2, 3],
+        request_id: null,
+      },
+    };
+
+    try {
+      instanceInboundRouter.routeMessage(cidRoutedMessage);
+      expect(local).not.toHaveBeenCalled();
+      expect(instanceChannelMock.forwardToInstance).not.toHaveBeenCalled();
+
+      // Follower's cid-report lands; instanceManager registers it and the
+      // router's listener replays the buffered message via routeByCid,
+      // which this time finds 'follower-x' and forwards to it.
+      eventEmitter.emit('instance:registered', {
+        instanceId: 'follower-x',
+        cid: 44444n,
+      });
+
+      expect(instanceChannelMock.forwardToInstance).toHaveBeenCalledTimes(1);
+      expect(instanceChannelMock.forwardToInstance).toHaveBeenCalledWith(
+        'follower-x',
+        cidRoutedMessage,
+      );
+      // Local processing was NOT triggered — the buffer + replay path
+      // bypasses the fallback when the owner shows up in time.
+      expect(local).not.toHaveBeenCalled();
+    } finally {
+      eventEmitter.off('websocket-message', local);
+    }
+  });
+
+  it('falls back to local processing when the fallback timer fires before any cid-report', async () => {
+    instanceManagerMock.findInstanceByCid.mockReturnValue(null);
+
+    const local = vi.fn();
+    eventEmitter.on('websocket-message', local);
+
+    const cidRoutedMessage = {
+      MessageNotification: {
+        cid: '99999',
+        peer_cid: '11',
+        message: [9, 9, 9],
+        request_id: null,
+      },
+    };
+
+    try {
+      vi.useFakeTimers();
+      instanceInboundRouter.routeMessage(cidRoutedMessage);
+      expect(local).not.toHaveBeenCalled();
+
+      // Advance past the orphan buffer's 500ms timeout. No
+      // `instance:registered` arrived, so the fallback timer fires
+      // and the leader processes the message locally — preserving the
+      // pre-buffer guarantee that no message is ever silently dropped.
+      vi.advanceTimersByTime(501);
+
       expect(local).toHaveBeenCalledTimes(1);
       expect(local).toHaveBeenCalledWith(cidRoutedMessage);
     } finally {
+      vi.useRealTimers();
       eventEmitter.off('websocket-message', local);
     }
   });

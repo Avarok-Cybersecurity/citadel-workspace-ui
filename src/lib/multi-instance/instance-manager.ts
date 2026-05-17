@@ -150,6 +150,11 @@ class InstanceManager {
   registerInstance(instanceId: string, cid: bigint | null): void {
     this.knownInstances.set(instanceId, cid);
     debugLog('InstanceManager', `[InstanceManager] Registered instance: ${instanceId} -> ${cid?.toString()}`);
+    // Emit so the inbound router can drain its CID-keyed orphan-message
+    // buffer the moment a cid-report arrives — turns the self-heal flow
+    // from "deliver locally, then route correctly next time" into
+    // "buffer briefly, deliver to the right tab when the report lands".
+    eventEmitter.emit('instance:registered', { instanceId, cid });
   }
 
   unregisterInstance(instanceId: string): void {
