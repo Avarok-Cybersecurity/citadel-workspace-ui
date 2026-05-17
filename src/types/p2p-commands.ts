@@ -24,7 +24,18 @@ export enum P2PCommandType {
   MessageAck = "MessageAck",
   FileTransferRequest = "FileTransferRequest",
   FileTransferChunk = "FileTransferChunk",
-  FileTransferComplete = "FileTransferComplete"
+  FileTransferComplete = "FileTransferComplete",
+  /** Wraps a `YjsP2PMessage` (sync / awareness / ack / divergence) so the
+   * Yjs collaborative-editor protocol shares the same CBOR envelope as
+   * the chat-layer P2P commands. Before this variant existed, the Yjs
+   * provider used `JSON.stringify` on the raw `YjsP2PMessage` and the
+   * unified receiver (`message-handler.ts`) tried `cborDecode` on the
+   * resulting UTF-8 bytes — every Yjs message logged a noisy
+   * "Failed to deserialize P2P command" and the test:live-doc
+   * integration test never reached a stable sync state. Routing Yjs
+   * through `P2PCommand` makes one decode path the single source of
+   * truth and drops the wire-format ambiguity entirely. */
+  YjsP2PSync = "YjsP2PSync"
 }
 
 export interface P2PMessagingLayerPayload {
@@ -76,6 +87,25 @@ export interface P2PFileTransferCompletePayload {
   final_checksum: string;
 }
 
+/**
+ * Wire-level payload for `P2PCommandType.YjsP2PSync`. Holds the
+ * unmodified `YjsP2PMessage` discriminated union from the Yjs
+ * provider — kept as a structural type rather than importing
+ * `YjsP2PMessage` directly to avoid a `src/lib` → `src/types`
+ * dependency cycle (lib/yjs-p2p-provider/types.ts already imports
+ * from this file's siblings transitively). The matching round-trip
+ * is pinned in `__tests__/p2p-commands-yjs.test.ts` and exercised
+ * end-to-end by integration-tests test:live-doc.
+ */
+export interface P2PYjsSyncPayload {
+  /** Discriminator from `YjsP2PMessage.type`: 'yjs_sync' | 'yjs_awareness' | 'yjs_ack' | 'yjs_divergence' */
+  type: string;
+  /** Document the message refers to (when applicable). */
+  document_id?: string;
+  /** All other fields from the YjsP2PMessage; CBOR preserves bigint, number arrays, etc. */
+  [key: string]: unknown;
+}
+
 export interface P2PAttachment {
   file_id: string;
   file_name: string;
@@ -87,7 +117,8 @@ export interface P2PAttachment {
 export interface P2PCommand {
   type: P2PCommandType;
   payload: P2PMessagingLayerPayload | P2PMessageAckPayload |
-           P2PFileTransferRequestPayload | P2PFileTransferChunkPayload | P2PFileTransferCompletePayload;
+           P2PFileTransferRequestPayload | P2PFileTransferChunkPayload | P2PFileTransferCompletePayload |
+           P2PYjsSyncPayload;
 }
 
 // Type guards for payload discrimination
@@ -109,6 +140,13 @@ export function isFileTransferChunkPayload(payload: unknown): payload is P2PFile
 
 export function isFileTransferCompletePayload(payload: unknown): payload is P2PFileTransferCompletePayload {
   return typeof payload === 'object' && payload !== null && 'file_id' in payload && 'success' in payload && 'final_checksum' in payload;
+}
+
+/** Yjs sync payload always carries a string `type` field starting with `yjs_`. */
+export function isYjsSyncPayload(payload: unknown): payload is P2PYjsSyncPayload {
+  return typeof payload === 'object' && payload !== null &&
+    'type' in payload && typeof (payload as { type: unknown }).type === 'string' &&
+    ((payload as { type: string }).type).startsWith('yjs_');
 }
 
 // Helper functions for creating P2P commands
