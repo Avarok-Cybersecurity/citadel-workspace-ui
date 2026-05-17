@@ -20,26 +20,9 @@ import {
   shouldBroadcast,
 } from './routing-rules';
 import { extractRequestId, extractTargetCid } from './message-routing';
+import { OrphanBuffer } from './orphan-buffer';
 
 debugLog('InstanceInboundRouter', '[ILM-Router] Module loading...');
-
-/**
- * How long to hold an orphaned (unknown-CID) message in the self-heal
- * buffer before falling back to processing it on the leader tab.
- * Window picked to cover the BroadcastChannel round-trip for a CID
- * report (typically <50ms across same-origin tabs) with substantial
- * headroom for a sleeping tab, while keeping the user-visible latency
- * acceptable for an interactive notification like a chat message or
- * file-transfer prompt.
- */
-const ORPHAN_BUFFER_TIMEOUT_MS = 500;
-
-/** A message held in the orphan buffer pending a cid-report response. */
-interface OrphanedMessage {
-  message: Record<string, unknown>;
-  messageType: string;
-  fallbackTimer: ReturnType<typeof setTimeout>;
-}
 
 class InstanceInboundRouter {
   private static instance: InstanceInboundRouter;
@@ -48,14 +31,15 @@ class InstanceInboundRouter {
   private pendingRequestMap: Map<string, { instanceId: string; timestamp: number }> = new Map();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   /**
-   * CID-keyed buffer for messages whose owner couldn't be found at
-   * dispatch time. Drained when an `instance:registered` event matches
-   * the CID; otherwise flushed locally after
-   * `ORPHAN_BUFFER_TIMEOUT_MS`. Multiple messages can pile up for the
-   * same CID during the buffer window (e.g. a burst of
-   * FileTransferTickNotifications), hence the array.
+   * Buffer for messages whose owner couldn't be found at dispatch
+   * time. See `orphan-buffer.ts` for the timer/replay lifecycle.
+   * Drained when `instance:registered` fires with a matching CID; on
+   * timeout, the buffer invokes `processLocalMessage` so we never
+   * silently strand a real message.
    */
-  private orphanedMessages: Map<string, OrphanedMessage[]> = new Map();
+  private readonly orphanBuffer = new OrphanBuffer(
+    (message) => this.processLocalMessage(message),
+  );
 
   private constructor() {
     debugLog('InstanceInboundRouter', '[ILM-Router] Constructor called, setting up event listeners...');
@@ -89,38 +73,25 @@ class InstanceInboundRouter {
       this.processLocalMessage(data.payload);
     });
 
-    eventEmitter.on(
-      'channel:outbound-request',
-      (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
-        debugLog('InstanceInboundRouter',
-          `[ILM-Router] Received channel:outbound-request: requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${this.isActive}`
-        );
-        if (this.isActive && data.requestId) {
-          this.registerPendingRequest(data.requestId, data.senderInstanceId);
-        }
+    eventEmitter.on('channel:outbound-request', (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
+      debugLog('InstanceInboundRouter', `[ILM-Router] channel:outbound-request requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${this.isActive}`);
+      if (this.isActive && data.requestId) {
+        this.registerPendingRequest(data.requestId, data.senderInstanceId);
       }
-    );
+    });
 
     // Drain the orphan buffer when a follower's cid-report arrives.
-    // `instance:registered` fires for every cid-update, so we filter on
-    // the CID matching one we're holding messages for.
+    // `instance:registered` fires for every cid-update; the buffer
+    // is keyed by CID, so non-matching events are a cheap no-op.
     eventEmitter.on('instance:registered', (data: { instanceId: string; cid: bigint | null }) => {
       if (data.cid === null) return;
-      const cidKey = data.cid.toString();
-      const buffered = this.orphanedMessages.get(cidKey);
-      if (!buffered || buffered.length === 0) return;
-      debugLog('InstanceInboundRouter',
-        `[ILM-Router] Draining ${buffered.length} buffered message(s) for CID ${cidKey} -> ${data.instanceId}`
-      );
-      this.orphanedMessages.delete(cidKey);
-      for (const entry of buffered) {
-        clearTimeout(entry.fallbackTimer);
+      this.orphanBuffer.drainForCid(data.cid.toString(), (entry) => {
         // Re-route via routeByCid so the just-registered owner is
-        // picked up (instance map now has the entry). The recursion is
-        // safe: the cid is now known, so we won't re-enter the orphan
-        // branch.
+        // picked up (instance map now has the entry). The recursion
+        // is safe: the cid is now known, so we won't re-enter the
+        // orphan branch.
         this.routeByCid(entry.message, entry.messageType);
-      }
+      });
     });
   }
 
@@ -234,63 +205,22 @@ class InstanceInboundRouter {
       const knownInstances = instanceManager.getAllInstances();
       debugLog('InstanceInboundRouter', `No instance owns CID ${targetCid}, message may be lost`);
       debugLog('InstanceInboundRouter', `Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
-      // Self-heal: ask every other instance to re-broadcast its CID,
-      // BUFFER the orphaned message for up to ORPHAN_BUFFER_TIMEOUT_MS,
-      // then either replay to the correct tab when a cid-report lands
-      // OR fall back to processing locally on timeout. Prior to the
-      // buffer, the current message was always processed on the leader
-      // tab immediately — visible misdelivery for user-facing
-      // notifications (chat messages, file-transfer prompts) on every
-      // first message after a stale CID map. The buffer holds for the
-      // BroadcastChannel round-trip; if no follower owns the CID, the
-      // fallback timer makes the leader process locally so we never
-      // strand a real message.
-      this.bufferOrphanedMessage(targetCid, message, messageType);
+      // Self-heal: BUFFER the orphaned message for up to the buffer
+      // timeout, then either replay to the correct tab when a
+      // cid-report lands OR fall back to processing locally on
+      // timeout. Prior to the buffer, the current message was always
+      // processed on the leader tab immediately — visible misdelivery
+      // for user-facing notifications (chat messages, file-transfer
+      // prompts) on every first message after a stale CID map. The
+      // buffer holds for the BroadcastChannel round-trip; if no
+      // follower owns the CID, the fallback timer makes the leader
+      // process locally so we never strand a real message.
+      this.orphanBuffer.push(targetCid, message, messageType);
       instanceChannel.requestCidReport();
     }
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────
-
-  /**
-   * Push an orphaned message into the buffer and arm a fallback timer.
-   * If `instance:registered` fires for the CID before the timer, the
-   * `setupEventListeners` drain replays the message via `routeByCid`.
-   */
-  private bufferOrphanedMessage(
-    cid: string,
-    message: Record<string, unknown>,
-    messageType: string,
-  ): void {
-    const fallbackTimer = setTimeout(() => {
-      const buffered = this.orphanedMessages.get(cid);
-      if (!buffered) return;
-      // Remove just this entry (other messages for the same cid may
-      // still be in-flight) — identify by reference, not by index, so
-      // concurrent drains don't skip past the one we own.
-      const remaining = buffered.filter(e => e.fallbackTimer !== fallbackTimer);
-      if (remaining.length === 0) {
-        this.orphanedMessages.delete(cid);
-      } else {
-        this.orphanedMessages.set(cid, remaining);
-      }
-      debugLog('InstanceInboundRouter',
-        `[ILM-Router] Orphan buffer timeout for CID ${cid} (${messageType}); falling back to processLocalMessage`,
-      );
-      this.processLocalMessage(message);
-    }, ORPHAN_BUFFER_TIMEOUT_MS);
-
-    const entry: OrphanedMessage = { message, messageType, fallbackTimer };
-    const existing = this.orphanedMessages.get(cid);
-    if (existing) {
-      existing.push(entry);
-    } else {
-      this.orphanedMessages.set(cid, [entry]);
-    }
-    debugLog('InstanceInboundRouter',
-      `[ILM-Router] Buffered ${messageType} for CID ${cid} (orphan buffer size for cid=${(existing?.length ?? 0) + 1}, timeout ${ORPHAN_BUFFER_TIMEOUT_MS}ms)`,
-    );
-  }
 
   private broadcastToAll(message: Record<string, unknown>): void {
     instanceChannel.broadcast(message);
@@ -314,8 +244,6 @@ class InstanceInboundRouter {
   }
 }
 
-// Export singleton instance
+// Export singleton instance + class (the latter for testing).
 export const instanceInboundRouter = InstanceInboundRouter.getInstance();
-
-// Also export class for testing
 export { InstanceInboundRouter };
