@@ -30,24 +30,27 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
   useEffect(() => { activeTabIdRef.current = activeTabId; }, [activeTabId]);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
 
-  // Listen for raw P2P messages to detect yjs_sync for tab activity
+  // Listen for Yjs sync messages dispatched via the new typed
+  // `yjs:p2p-command` event so the tab-activity indicator flips on
+  // when a yjs_sync arrives for an open document. The pre-CBOR
+  // implementation listened on `p2p:raw-message` and JSON.parsed
+  // the bytes — once Yjs sending was switched to CBOR
+  // (see `lib/yjs-p2p-provider/sending.ts`), every message logged
+  // "Unexpected token … is not valid JSON" and the activity flag
+  // never fired again. The CBOR-decoded payload preserves
+  // `type` + `document_id`, so the filter logic is unchanged.
   useEffect(() => {
-    const handleRawMessage = ({ peerCid: _rawPeerCid, message }: { peerCid: string; message: Uint8Array }) => {
-      try {
-        const decoded = new TextDecoder().decode(message);
-        const parsed = JSON.parse(decoded);
-        if (parsed.type === 'yjs_sync' && parsed.document_id) {
-          const tab = tabsRef.current.find(t => t.documentId === parsed.document_id);
-          if (tab && activeTabIdRef.current !== tab.id) {
-            setTabActivity(prev => ({ ...prev, [tab.id]: true }));
-          }
-        }
-      } catch (err) {
-        debugLog('P2PChat', 'Error:', err);
+    const handleYjsCommand = ({ payload }: { peerCid: string; payload: Record<string, unknown> }) => {
+      if (payload.type !== 'yjs_sync') return;
+      const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
+      if (!docId) return;
+      const tab = tabsRef.current.find(t => t.documentId === docId);
+      if (tab && activeTabIdRef.current !== tab.id) {
+        setTabActivity(prev => ({ ...prev, [tab.id]: true }));
       }
     };
-    eventEmitter.on('p2p:raw-message', handleRawMessage);
-    return () => { eventEmitter.off('p2p:raw-message', handleRawMessage); };
+    eventEmitter.on('yjs:p2p-command', handleYjsCommand);
+    return () => { eventEmitter.off('yjs:p2p-command', handleYjsCommand); };
   }, []);
 
   const handleTabSelect = useCallback((tabId: string) => {
