@@ -56,7 +56,19 @@ export interface TransferProgressEvent {
 export interface SendTransferRequestIntent {
   type: 'send-transfer-request';
   transfer: FileTransfer;
-  /** The actual browser File object to send (for browser-based file selection) */
+  /**
+   * The actual browser File object to send (for browser-based file
+   * selection).
+   *
+   * IN-MEMORY ONLY: `File` is a non-serializable host object — `JSON.stringify`
+   * drops it to `{}` and even `structuredClone` is not guaranteed to
+   * preserve all File semantics across worker/tab boundaries. The intent
+   * system today dispatches intents inline via `deps.io.executeIntent(...)`
+   * within a single tab/context, so this field travels by reference and is
+   * preserved. **Do not route intents through BroadcastChannel or any
+   * JSON-based bus without first stripping `file` and re-attaching it on
+   * the receiving side from a CID-or-transferId-keyed pending-file map.**
+   */
   file?: File;
 }
 
