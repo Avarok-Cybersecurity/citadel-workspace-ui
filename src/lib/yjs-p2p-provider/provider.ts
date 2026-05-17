@@ -153,6 +153,16 @@ export class YjsP2PProvider {
       case 'yjs_awareness': handleAwarenessMessage(this.ctx, message); break;
       case 'yjs_ack': handleAckMessage(this.ctx, message); break;
       case 'yjs_divergence': handleDivergenceMessage(this.ctx, message); break;
+      default:
+        // `setupMessageListener` casts the CBOR payload with `as unknown as
+        // YjsP2PMessage`; a future `yjs_*` variant added on the sender side
+        // before this switch is updated would otherwise be silently dropped.
+        // Surface the unknown type in dev tools so the gap is visible.
+        debugLog(
+          'YjsP2PProvider',
+          'handleMessage: unknown Yjs message type',
+          (message as { type?: unknown }).type,
+        );
     }
   }
 
