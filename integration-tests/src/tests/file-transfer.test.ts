@@ -329,11 +329,26 @@ async function openFileTransferModal(page: Page, username: string): Promise<bool
     await page.keyboard.press('Escape');
     await sleep(500);
 
-    // Find the attachment button (paperclip icon)
-    const attachButton = page.locator('button').filter({ has: page.locator('svg.lucide-paperclip') });
+    // Find the attachment button (paperclip icon). Use `.first()` so the
+    // locator resolves to a single element even when other paperclip
+    // icons are present elsewhere on the page (e.g. an offline-status
+    // overlay), which keeps Playwright's strict-mode happy without the
+    // `force: true` escape hatch we used to lean on.
+    const attachButton = page.locator('button').filter({ has: page.locator('svg.lucide-paperclip') }).first();
 
-    if (await attachButton.isVisible({ timeout: 5000 })) {
-      await attachButton.click({ force: true });
+    // `waitFor({ state: 'visible' })` blocks until the element is
+    // actually interactable, so the subsequent click no longer needs
+    // `force: true` — that flag bypassed Playwright's actionability
+    // check and could click through an obscuring overlay (toast, modal
+    // backdrop) without the test noticing the UI was broken.
+    try {
+      await attachButton.waitFor({ state: 'visible', timeout: 5000 });
+    } catch {
+      console.log('  Attachment button never became visible');
+      return false;
+    }
+    if (await attachButton.isVisible({ timeout: 100 })) {
+      await attachButton.click();
       console.log('  Clicked attachment button');
 
       // Wait for modal to appear
