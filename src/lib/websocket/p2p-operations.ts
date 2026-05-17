@@ -67,6 +67,46 @@ export class P2POperations {
   }
 
   /**
+   * Send raw bytes over the P2P channel. Mirrors `sendP2PMessage` but skips
+   * the UTF-8 reinterpretation step — callers (e.g. the Yjs provider, which
+   * CBOR-encodes its messages) already have bytes and would otherwise lose
+   * data when `stringToBytes` round-trips them through `TextEncoder`.
+   */
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
+    await this.config.init();
+
+    if (cid === undefined || cid === null) {
+      throw new Error('CID is required to send P2P message');
+    }
+    if (targetCid === undefined || targetCid === null) {
+      throw new Error('Target CID (peer_cid) is required to send P2P message');
+    }
+
+    debugLog('P2POperations', '[P2P] sendP2PMessageBytes called with:', {
+      cid: cid.toString(),
+      targetCid: targetCid.toString(),
+      messageLength: message.length,
+    });
+
+    // The wire format treats `message` as `Vec<u8>` on the Rust side. The
+    // internal-service serializer accepts a plain number-array; converting
+    // here (rather than letting cbor-x make that decision later) keeps the
+    // shape identical to `sendP2PMessage` so the receive path doesn't have
+    // to branch on the encoding.
+    const messageRequest = {
+      Message: {
+        request_id: crypto.randomUUID(),
+        message: Array.from(message),
+        cid: cid,
+        peer_cid: targetCid,
+        security_level: 'Standard'
+      }
+    };
+
+    await this.config.sendMessage(messageRequest);
+  }
+
+  /**
    * Open a P2P connection with a peer.
    */
   async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> {

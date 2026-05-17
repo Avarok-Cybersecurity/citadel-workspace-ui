@@ -97,6 +97,17 @@ export class WebSocketServiceCore {
     return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message);
   }
 
+  /**
+   * Send a raw `Uint8Array` over the P2P channel without `stringToBytes`-
+   * style UTF-8 reinterpretation. Required by callers that already encode
+   * payloads as bytes (CBOR via `serializeP2PCommand`) — the string-taking
+   * `sendP2PMessage` above would otherwise round-trip the bytes through
+   * `stringToBytes` which assumes UTF-8 and corrupts binary payloads.
+   */
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
+    return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message);
+  }
+
   async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> {
     return this.modules.p2pOps.openP2PConnection(cid, targetCid);
   }
