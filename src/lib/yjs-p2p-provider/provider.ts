@@ -113,15 +113,22 @@ export class YjsP2PProvider {
   }
 
   private setupMessageListener() {
-    this.messageListener = eventEmitter.on('p2p:raw-message', ({ peerCid, message }: { peerCid: string; message: Uint8Array }) => {
+    // Listen on `yjs:p2p-command` rather than `p2p:raw-message`.
+    // `message-handler.ts` already CBOR-decodes incoming bytes into a
+    // `P2PCommand` and dispatches `YjsP2PSync` payloads through this
+    // event — so the provider receives a typed object directly and no
+    // longer has to JSON.parse a raw byte stream, which used to throw
+    // (silently caught) for every chat-layer CBOR message and conflict
+    // with the receiver's own cbor-x decode (where it ALSO threw on
+    // our JSON bytes). Single decode path now.
+    this.messageListener = eventEmitter.on('yjs:p2p-command', ({ peerCid, payload }: { peerCid: string; payload: Record<string, unknown> }) => {
       if (this.destroyed) return;
       if (peerCid !== this.peerCid) return;
-      try {
-        const decoded = new TextDecoder().decode(message);
-        const parsed = JSON.parse(decoded) as YjsP2PMessage;
-        if ('document_id' in parsed && parsed.document_id !== this.documentId) return;
-        this.handleMessage(parsed);
-      } catch { /* Not a Yjs message (likely MessagePack chat message), ignore */ }
+      // Filter by document_id when present (sync/awareness/ack carry it;
+      // a future generic Yjs command might not).
+      const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
+      if (docId !== undefined && docId !== this.documentId) return;
+      this.handleMessage(payload as unknown as YjsP2PMessage);
     });
   }
 

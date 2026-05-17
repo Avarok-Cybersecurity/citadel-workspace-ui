@@ -11,6 +11,7 @@ import {
   deserializeP2PCommand,
   isMessagingLayerPayload,
   isMessageAckPayload,
+  isYjsSyncPayload,
 } from '@/types/p2p-types';
 import { BroadcastChannelService } from '../broadcast-channel-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
@@ -193,6 +194,24 @@ export class MessageHandler {
           await this.ackHandler.handleMessageAck(command.payload);
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: MessageAck payload failed type check', command.payload);
+        }
+        break;
+
+      case P2PCommandType.YjsP2PSync:
+        // Dispatch Yjs sync payloads to the Yjs provider via a dedicated
+        // event. We do NOT call the Yjs handler inline because each
+        // browser tab can host multiple `YjsP2PProvider` instances (one
+        // per open document) — emitting lets every interested provider
+        // filter on `document_id` / `peerCid` itself.
+        if (isYjsSyncPayload(command.payload)) {
+          debugLog('P2PMessageHandler', 'handleP2PCommand: dispatching YjsP2PSync', {
+            yjsType: command.payload.type,
+            documentId: command.payload.document_id,
+            peerCid: peerCid.toString(),
+          });
+          eventEmitter.emit('yjs:p2p-command', { peerCid: peerCid.toString(), payload: command.payload });
+        } else {
+          debugLog('P2PMessageHandler', 'handleP2PCommand: YjsP2PSync payload failed type check', command.payload);
         }
         break;
 
