@@ -7,6 +7,12 @@
 
 import { websocketService } from '@/lib/websocket-service';
 import { debugLog } from '@/lib/debug-config';
+import {
+  P2PCommandType,
+  serializeP2PCommand,
+  type P2PCommand,
+  type P2PYjsSyncPayload,
+} from '@/types/p2p-commands';
 import type {
   SyncSubType,
   YjsSyncMessage,
@@ -36,15 +42,36 @@ export function generateMessageId(documentId: string): string {
 }
 
 /**
- * Send a P2P message via websocket service
+ * Send a P2P message via websocket service.
+ *
+ * Wraps the `YjsP2PMessage` in a `P2PCommand` with
+ * `P2PCommandType.YjsP2PSync` and CBOR-encodes it. Pre-PR, this used
+ * `JSON.stringify(message)` + `sendP2PMessage(string)`, but the unified
+ * receiver in `lib/p2p/message-handler.ts` only knows how to `cborDecode`
+ * incoming bytes — every Yjs message logged
+ *   "Failed to deserialize P2P command: Error: JavaScript does not
+ *    support arrays, maps, or strings with length over 4294967295"
+ * and the test:live-doc integration test never reached a stable sync.
+ * Routing Yjs through the same CBOR envelope as the chat layer means
+ * one decode path for the receiver and no wire-format ambiguity.
  */
 export function sendP2PMessage(ctx: SendingContext, message: YjsP2PMessage): void {
   if (!ctx.ownCid) return;
 
-  websocketService.sendP2PMessage(
+  const command: P2PCommand = {
+    type: P2PCommandType.YjsP2PSync,
+    // `YjsP2PMessage` is a discriminated union with a `type: 'yjs_*'`
+    // tag and shape-specific fields. `P2PYjsSyncPayload` permits any
+    // extra fields keyed by string, which preserves the full structure
+    // across CBOR encode/decode without forcing a per-variant mapping.
+    payload: message as unknown as P2PYjsSyncPayload,
+  };
+  const bytes = serializeP2PCommand(command);
+
+  websocketService.sendP2PMessageBytes(
     BigInt(ctx.ownCid),
     BigInt(ctx.peerCid),
-    JSON.stringify(message)
+    bytes,
   ).catch((error: unknown) => {
     debugLog('YjsP2PProvider', 'Failed to send message:', error);
   });
