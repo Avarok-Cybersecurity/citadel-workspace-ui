@@ -33,3 +33,34 @@ export function hexToRgba(hex: string, alpha: number): string {
 export function generateFlashCommentId(): string {
   return `flash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
+
+/**
+ * Build a `FlashComment` for the context-menu emission path, or return
+ * `null` if the text is empty / whitespace-only.
+ *
+ * Returning `null` (vs. always emitting) is the bug guard the reviewer
+ * caught: the prior implementation broadcast `text: ''` straight to
+ * remote collaborators, who would see an empty flash bubble at the
+ * cursor position. The cursor-tooltip path in `CollaboratorCursor.tsx`
+ * already gates on `text && words.length <= 100`; this helper mirrors
+ * the same contract for the editor context-menu entry point.
+ *
+ * Pure for unit testing — see `__tests__/collaborator-cursor-helpers.test.ts`.
+ */
+export function buildContextMenuFlashComment(
+  rawText: string | null | undefined,
+  cursorCoords: { top: number; left: number },
+  user: { userId: string; userName: string; userColor: string },
+): FlashComment | null {
+  const text = (rawText ?? '').trim();
+  if (!text) return null;
+  return {
+    id: generateFlashCommentId(),
+    userId: user.userId,
+    userName: user.userName,
+    userColor: user.userColor,
+    text,
+    position: { top: cursorCoords.top, left: cursorCoords.left },
+    timestamp: Date.now(),
+  };
+}
