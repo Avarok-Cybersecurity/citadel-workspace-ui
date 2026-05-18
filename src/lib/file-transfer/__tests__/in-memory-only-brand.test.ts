@@ -50,7 +50,9 @@ describe('InMemoryOnly<T> brand on SendTransferRequestIntent.file', () => {
     // missing-file guard (`io.ts`) is the runtime fail-loud counterpart.
     // We explicitly verify the brand is gone (it's a `unique symbol`
     // property that doesn't survive JSON).
-    expect((roundtrip as Record<string, unknown>).__inMemoryOnly).toBeUndefined();
+    // Cast through `unknown` so TS allows the property probe on a type
+    // that doesn't structurally overlap with `Record<string, unknown>`.
+    expect((roundtrip as unknown as Record<string, unknown>).__inMemoryOnly).toBeUndefined();
   });
 
   it('type-level: raw File would be a TS error without wrapInMemory (compile-only)', () => {
