@@ -40,7 +40,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
   // never fired again. The CBOR-decoded payload preserves
   // `type` + `document_id`, so the filter logic is unchanged.
   useEffect(() => {
-    const handleYjsCommand = ({ payload }: { peerCid: string; payload: Record<string, unknown> }) => {
+    const handleYjsCommand = ({ payload }: { peerCid: bigint; payload: Record<string, unknown> }) => {
       if (payload.type !== 'yjs_sync') return;
       const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
       if (!docId) return;

@@ -209,7 +209,10 @@ export class MessageHandler {
             documentId: command.payload.document_id,
             peerCid: peerCid.toString(),
           });
-          eventEmitter.emit('yjs:p2p-command', { peerCid: peerCid.toString(), payload: command.payload });
+          // Pass the canonical `bigint` CID on the wire-internal event
+          // (per the CID policy — string conversion is for display/keys/debug
+          // only). Subscribers `.toString()` it themselves where they compare.
+          eventEmitter.emit('yjs:p2p-command', { peerCid, payload: command.payload });
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: YjsP2PSync payload failed type check', command.payload);
         }

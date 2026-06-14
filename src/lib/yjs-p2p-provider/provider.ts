@@ -121,9 +121,10 @@ export class YjsP2PProvider {
     // (silently caught) for every chat-layer CBOR message and conflict
     // with the receiver's own cbor-x decode (where it ALSO threw on
     // our JSON bytes). Single decode path now.
-    this.messageListener = eventEmitter.on('yjs:p2p-command', ({ peerCid, payload }: { peerCid: string; payload: Record<string, unknown> }) => {
+    this.messageListener = eventEmitter.on('yjs:p2p-command', ({ peerCid, payload }: { peerCid: bigint; payload: Record<string, unknown> }) => {
       if (this.destroyed) return;
-      if (peerCid !== this.peerCid) return;
+      // `this.peerCid` is a string; compare via toString (display/key use).
+      if (peerCid.toString() !== this.peerCid) return;
       // Filter by document_id when present (sync/awareness/ack carry it;
       // a future generic Yjs command might not).
       const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
