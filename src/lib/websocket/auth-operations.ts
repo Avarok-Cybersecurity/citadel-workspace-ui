@@ -152,7 +152,15 @@ export class AuthOperations {
         : null
     };
 
-    debugLog('AuthOperations', 'Sending register options to WASM client', registerOptions);
+    // Redact secrets before logging: registerOptions carries the account
+    // `proposed_password` and the server `server_password` (the Citadel
+    // PreSharedKey) as byte arrays — never emit either to logs, even gated
+    // debug ones (debug logging can be enabled in shared/prod environments).
+    debugLog('AuthOperations', 'Sending register options to WASM client', {
+      ...registerOptions,
+      proposed_password: '<redacted>',
+      server_password: registerOptions.server_password ? '<redacted>' : null,
+    });
 
     const registerRequest = { Register: registerOptions };
 
