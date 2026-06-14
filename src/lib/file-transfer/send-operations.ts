@@ -27,7 +27,7 @@ import { TIMEOUT } from '../timeout-constants';
  * from disk. This constant is intentionally conservative; raise it only
  * alongside memory-usage measurements.
  */
-const MAX_BYTE_CONTENTS_SIZE_BYTES = 2 * 1024 * 1024; // 2 MiB
+export const MAX_BYTE_CONTENTS_SIZE_BYTES = 2 * 1024 * 1024; // 2 MiB
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
