@@ -96,12 +96,14 @@ export function isCidLike(value: unknown): value is string | number | bigint {
  * for the parsing contract.
  */
 export function tryParseCid(value: string | undefined | null): bigint | undefined {
-  if (value === null || value === undefined || value === '') {
+  // `BigInt()` is too lenient for CID parsing: `BigInt(' ')` is `0n` and
+  // `BigInt('-1')` is `-1n`, so whitespace, zero, and negative strings would
+  // slip through as "valid" CIDs and get used for routing / persisted
+  // sessions. Require a plain non-empty decimal string and a positive result.
+  const trimmed = value?.trim();
+  if (!trimmed || !/^[0-9]+$/.test(trimmed)) {
     return undefined;
   }
-  try {
-    return BigInt(value);
-  } catch {
-    return undefined;
-  }
+  const cid = BigInt(trimmed);
+  return cid > 0n ? cid : undefined;
 }
