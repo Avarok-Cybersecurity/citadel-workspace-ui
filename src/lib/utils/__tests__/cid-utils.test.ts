@@ -31,8 +31,15 @@ describe('tryParseCid', () => {
 
   it('parses a large numeric string that exceeds Number.MAX_SAFE_INTEGER', () => {
     // CIDs are u64-shaped and routinely exceed 2^53. The whole point
-    // of the bigint type is that we don't lose precision here.
+    // of the bigint type is that we don't lose precision here. u64::MAX
+    // (2^64-1) is the largest valid CID and must parse.
     expect(tryParseCid('18446744073709551615')).toBe(18446744073709551615n);
+  });
+
+  it('rejects values above the u64 range', () => {
+    // 2^64 and beyond can't be real CIDs.
+    expect(tryParseCid('18446744073709551616')).toBeUndefined();
+    expect(tryParseCid('99999999999999999999999999')).toBeUndefined();
   });
 
   it('rejects zero (not a valid CID)', () => {

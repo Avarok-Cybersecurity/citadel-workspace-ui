@@ -95,15 +95,19 @@ export function isCidLike(value: unknown): value is string | number | bigint {
  * `cid-utils.test.ts#tryParseCid` is the single source of truth
  * for the parsing contract.
  */
+/** Maximum valid CID: CIDs are u64-shaped, so reject anything above 2^64-1. */
+const MAX_CID = (1n << 64n) - 1n; // 18446744073709551615
+
 export function tryParseCid(value: string | undefined | null): bigint | undefined {
   // `BigInt()` is too lenient for CID parsing: `BigInt(' ')` is `0n` and
   // `BigInt('-1')` is `-1n`, so whitespace, zero, and negative strings would
   // slip through as "valid" CIDs and get used for routing / persisted
-  // sessions. Require a plain non-empty decimal string and a positive result.
+  // sessions. Require a plain non-empty decimal string and a positive result
+  // within the u64 range (a longer digit string can't be a real CID).
   const trimmed = value?.trim();
   if (!trimmed || !/^[0-9]+$/.test(trimmed)) {
     return undefined;
   }
   const cid = BigInt(trimmed);
-  return cid > 0n ? cid : undefined;
+  return cid > 0n && cid <= MAX_CID ? cid : undefined;
 }
