@@ -59,7 +59,7 @@ export default defineConfig({
 
     /* Shared settings for all projects */
     use: {
-        baseURL: externalConfig.baseUrl ?? 'http://127.0.0.1:5173',
+        baseURL: externalConfig.baseUrl ?? 'http://127.0.0.1:5291',
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
