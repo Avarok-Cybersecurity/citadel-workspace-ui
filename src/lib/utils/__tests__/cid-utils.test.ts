@@ -3,11 +3,18 @@ import { tryParseCid } from '../cid-utils';
 
 /**
  * Tests for `tryParseCid`. The function is the single source of
- * truth for "best-effort BigInt parsing that doesn't throw" — every
+ * truth for "best-effort CID parsing that doesn't throw" — every
  * call site that previously had its own try/catch around
  * `BigInt(...)` should be funnelled through this helper, so any
- * future change to the parsing contract (rejecting whitespace,
- * scientific notation, etc.) lives in one place.
+ * change to the parsing contract lives in one place.
+ *
+ * Contract: a CID is a positive (non-zero) unsigned integer. The
+ * parser accepts a plain decimal string (surrounding whitespace
+ * trimmed) and returns the bigint; anything else — empty/whitespace,
+ * non-decimal, fractional/scientific, zero, or negative — returns
+ * `undefined`. (BigInt() alone is too lenient: `BigInt(' ')` is `0n`
+ * and `BigInt('-1')` is `-1n`, which must not be treated as valid CIDs
+ * used for routing / persisted sessions.)
  *
  * Anchors the WorkspaceView fallback path: when the URL contains a
  * malformed `channel=` param or session storage is corrupted,
@@ -28,8 +35,19 @@ describe('tryParseCid', () => {
     expect(tryParseCid('18446744073709551615')).toBe(18446744073709551615n);
   });
 
-  it('parses zero', () => {
-    expect(tryParseCid('0')).toBe(0n);
+  it('rejects zero (not a valid CID)', () => {
+    // 0 is a sentinel/invalid CID; `BigInt('0')` is `0n` but the parser
+    // must not surface it as a usable CID.
+    expect(tryParseCid('0')).toBeUndefined();
+  });
+
+  it('trims surrounding whitespace around a valid CID', () => {
+    expect(tryParseCid('  12345  ')).toBe(12345n);
+  });
+
+  it('returns undefined for whitespace-only input', () => {
+    // `BigInt(' ')` is `0n`; the parser must reject it, not return 0n.
+    expect(tryParseCid('   ')).toBeUndefined();
   });
 
   it('returns undefined for null', () => {
@@ -61,10 +79,9 @@ describe('tryParseCid', () => {
     expect(tryParseCid('1e10')).toBeUndefined();
   });
 
-  it('handles negative numbers (BigInt accepts them)', () => {
-    // Real CIDs are unsigned, but the parser doesn't enforce that
-    // — the contract is "successfully convert to bigint or
-    // undefined". Range validation is the caller's concern.
-    expect(tryParseCid('-1')).toBe(-1n);
+  it('rejects negative numbers (not a valid CID)', () => {
+    // CIDs are unsigned. `BigInt('-1')` is `-1n`, but the parser enforces
+    // the positive-integer contract and returns undefined.
+    expect(tryParseCid('-1')).toBeUndefined();
   });
 });
