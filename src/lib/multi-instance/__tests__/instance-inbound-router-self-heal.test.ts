@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { eventEmitter } from '../../event-emitter';
+import { ORPHAN_BUFFER_TIMEOUT_MS } from '../orphan-buffer';
 
 // Mocks for both module-level singletons must be set up before the router is
 // imported. The router subscribes to event-emitter inside its constructor and
@@ -143,11 +144,11 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
       instanceInboundRouter.routeMessage(cidRoutedMessage);
       expect(local).not.toHaveBeenCalled();
 
-      // Advance past the orphan buffer's 500ms timeout. No
+      // Advance past the orphan buffer's fallback timeout. No
       // `instance:registered` arrived, so the fallback timer fires
       // and the leader processes the message locally — preserving the
       // pre-buffer guarantee that no message is ever silently dropped.
-      vi.advanceTimersByTime(501);
+      vi.advanceTimersByTime(ORPHAN_BUFFER_TIMEOUT_MS + 1);
 
       expect(local).toHaveBeenCalledTimes(1);
       expect(local).toHaveBeenCalledWith(cidRoutedMessage);

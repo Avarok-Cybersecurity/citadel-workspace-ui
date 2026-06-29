@@ -15,12 +15,17 @@ import { debugLog } from '@/lib/debug-config';
 
 /**
  * How long to hold an orphaned (unknown-CID) message before falling
- * back to local processing. Picked to cover the BroadcastChannel
- * round-trip for a CID report (typically <50ms across same-origin
- * tabs) with headroom for a sleeping tab, while keeping user-visible
- * latency acceptable for interactive notifications.
+ * back to local processing. Must cover the full BroadcastChannel
+ * cid-report round-trip (leader requests → owner answers → leader
+ * registers → drain), which is normally <50ms but can stretch to
+ * hundreds of ms when the owning *follower* tab is busy — mid
+ * ClaimSession, re-auth after reload, or a heavy re-render — exactly
+ * when a peer-registration / file-transfer notification tends to
+ * arrive. 500ms lost that race and the message fell back to (and was
+ * dropped by) the leader; 2s comfortably covers a busy follower while
+ * staying acceptable for an interactive notification's worst case.
  */
-export const ORPHAN_BUFFER_TIMEOUT_MS = 500;
+export const ORPHAN_BUFFER_TIMEOUT_MS = 2000;
 
 /** A message held in the buffer pending a cid-report response. */
 export interface OrphanedMessage {
