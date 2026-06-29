@@ -108,6 +108,15 @@ export function tryParseCid(value: string | undefined | null): bigint | undefine
   if (!trimmed || !/^[0-9]+$/.test(trimmed)) {
     return undefined;
   }
+  // Bound the input length BEFORE calling BigInt(): u64::MAX is 20 digits, so
+  // anything longer can't be a real CID and is rejected without parsing. This
+  // stops a pathological multi-KB/MB digit string (from a crafted URL param or
+  // corrupted session) from synchronously allocating an arbitrary-precision
+  // BigInt and freezing the tab — the length check is O(1); BigInt parsing is
+  // not.
+  if (trimmed.length > 20) {
+    return undefined;
+  }
   const cid = BigInt(trimmed);
   return cid > 0n && cid <= MAX_CID ? cid : undefined;
 }

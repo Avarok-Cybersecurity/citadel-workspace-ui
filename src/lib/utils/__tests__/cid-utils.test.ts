@@ -42,6 +42,15 @@ describe('tryParseCid', () => {
     expect(tryParseCid('99999999999999999999999999')).toBeUndefined();
   });
 
+  it('rejects a pathologically long digit string without parsing it (DoS guard)', () => {
+    // A crafted URL param / corrupted session could supply a huge all-digit
+    // string. It must be rejected by the O(1) length bound, never handed to
+    // BigInt() (which would synchronously allocate an arbitrary-precision
+    // integer and freeze the tab). u64::MAX is 20 digits, so >20 is rejected.
+    expect(tryParseCid('9'.repeat(100_000))).toBeUndefined();
+    expect(tryParseCid('1'.repeat(21))).toBeUndefined();
+  });
+
   it('rejects zero (not a valid CID)', () => {
     // 0 is a sentinel/invalid CID; `BigInt('0')` is `0n` but the parser
     // must not surface it as a usable CID.

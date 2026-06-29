@@ -100,9 +100,21 @@ export async function executeSendFile(
     },
   };
 
+  // Never log `source` verbatim: for a browser `File` it carries the entire
+  // file as a `data: number[]`, which would dump (potentially secret) file
+  // contents into dev logs and allocate/format a huge array on every inline
+  // transfer. Log a redacted summary instead.
+  const sourceSummary =
+    'ByteContents' in source
+      ? {
+          kind: 'ByteContents' as const,
+          fileName: source.ByteContents.file_name,
+          byteLength: source.ByteContents.data.length,
+        }
+      : source;
   debugLog('send-operations', 'Sending SendFile request', {
     requestId,
-    source,
+    source: sourceSummary,
     cid: params.cid.toString(),
     peerCid: params.peerCid?.toString(),
     transferId: params.transferId,
