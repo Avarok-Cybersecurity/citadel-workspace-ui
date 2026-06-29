@@ -142,15 +142,9 @@ class InstanceChannel {
       case 'instance-goodbye': handleInstanceGoodbye(this.electionState, message); break;
       case 'session-release': handleSessionRelease(message); break;
       case 'cid-update': handleCidUpdate(message); break;
-      // Self-heal: leader missed our cid-update. Re-broadcast on demand.
-      // No `if (instanceManager.cid)` guard — `broadcastCid()` self-guards AND
-      // falls back to the tab-context `selectedCid`. A follower whose CID
-      // currently lives only in tab-context (just after a ClaimSession or a
-      // reload, before `setCid` ran) MUST still answer this report; the old
-      // guard short-circuited that fallback, leaving the leader unable to learn
-      // the owner so CID-routed notifications fell back to (and were dropped by)
-      // the leader. Tabs that genuinely own nothing make `broadcastCid()` a
-      // no-op, so dropping the guard is safe.
+      // Self-heal: leader missed our cid-update. No `instanceManager.cid` guard so
+      // broadcastCid()'s tab-context fallback runs — post claim/reload owners
+      // (CID not yet in instanceManager) still answer; the old guard stranded them.
       case 'cid-report-request': this.broadcastCid(); break;
     }
   }
