@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface LoadingModalStep {
   key: string;
@@ -30,6 +31,10 @@ interface LoadingModalProps {
   displayName?: string;
   errorMessage?: string;
   onComplete?: () => void;
+  /** Called when the user clicks cancel or the operation times out */
+  onCancel?: () => void;
+  /** Timeout in ms before auto-showing error state (default: 60000) */
+  timeoutMs?: number;
   config: LoadingModalConfig;
 }
 
@@ -39,10 +44,13 @@ export const LoadingModal = ({
   displayName,
   errorMessage,
   onComplete,
+  onCancel,
+  timeoutMs = 60000,
   config,
 }: LoadingModalProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   // Handle mount/unmount animations
   useEffect(() => {
@@ -70,6 +78,18 @@ export const LoadingModal = ({
     }
   }, [status, open, onComplete, config.autoCloseDelay]);
 
+  // Timeout: if operation takes too long, show a timed-out state
+  useEffect(() => {
+    if (!open || status === 'ready' || status === 'error') {
+      setTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+    }, timeoutMs);
+    return () => clearTimeout(timer);
+  }, [open, status, timeoutMs]);
+
   if (!shouldRender) return null;
 
   const isLoading = status !== "ready" && status !== "error";
@@ -80,8 +100,8 @@ export const LoadingModal = ({
   const iconClass = isError
     ? "text-red-400"
     : isReady
-    ? "text-green-400"
-    : "animate-spin text-purple-400";
+      ? "text-green-400"
+      : "animate-spin text-purple-400";
 
   const title = config.titles[status] || "Processing...";
   const description = errorMessage || config.descriptions[status] || "";
@@ -91,23 +111,20 @@ export const LoadingModal = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center transition-all duration-300 ${
-        isVisible ? "opacity-100" : "opacity-0"
-      }`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center transition-all duration-300 ${isVisible ? "opacity-100" : "opacity-0"
+        }`}
       data-testid={config.testId}
     >
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${
-          isVisible ? "opacity-100" : "opacity-0"
-        }`}
+        className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? "opacity-100" : "opacity-0"
+          }`}
       />
 
       {/* Modal Content */}
       <div
-        className={`relative z-10 bg-[#1C1D28] border border-gray-700 rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 ${
-          isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
-        }`}
+        className={`relative z-10 bg-[#1C1D28] border border-gray-700 rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
+          }`}
       >
         {/* Icon */}
         <div className="flex justify-center mb-6">
@@ -146,11 +163,10 @@ export const LoadingModal = ({
               {config.steps.map((step, index) => (
                 <div
                   key={step.key}
-                  className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                    index === currentStepIndex
-                      ? "bg-purple-400"
-                      : "bg-purple-400/30"
-                  }`}
+                  className={`w-2 h-2 rounded-full transition-colors duration-300 ${index === currentStepIndex
+                    ? "bg-purple-400"
+                    : "bg-purple-400/30"
+                    }`}
                 />
               ))}
               <div className="w-2 h-2 rounded-full bg-purple-400/30" />
@@ -175,6 +191,28 @@ export const LoadingModal = ({
             <span className="text-green-400 text-sm font-medium animate-pulse">
               {config.successMessage}
             </span>
+          </div>
+        )}
+
+        {/* Timeout warning */}
+        {timedOut && isLoading && (
+          <div className="mt-4 text-center text-yellow-400 text-sm">
+            This is taking longer than expected.
+          </div>
+        )}
+
+        {/* Cancel button */}
+        {onCancel && (isLoading || isError) && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-white"
+              onClick={onCancel}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
           </div>
         )}
       </div>

@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listKnownServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { connectionManager } from "@/lib/connection";
+import { websocketService } from "@/lib/websocket-service";
+import { postAuthSetup } from "@/lib/post-auth-setup";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 
@@ -14,7 +18,6 @@ export const Connect = () => {
   const [servers, setServers] = useState<StoredServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
 
   // Memoize the fetchServers function to prevent it from being recreated on each render
   const fetchServers = useCallback(async () => {
@@ -58,11 +61,31 @@ export const Connect = () => {
     if (!selectedServerInfo) return;
 
     try {
+      setLoading(true);
       toast({
         title: "Connecting",
         description: `Connecting to ${selectedServer}...`,
       });
-      
+
+      // Actually establish a connection by claiming any existing session for this server
+      const storedSessions = connectionManager.getStoredSessions();
+      const session = storedSessions.sessions.find(
+        (s) => s.serverAddress === selectedServer
+      );
+
+      if (session?.cid) {
+        // Try to claim the stored session
+        try {
+          await websocketService.claimSession(session.cid, true);
+        } catch (claimError: unknown) {
+          if (claimError instanceof Error && !claimError.message?.includes('not orphaned')) {
+            throw claimError;
+          }
+        }
+
+        await postAuthSetup(session.cid);
+      }
+
       navigate(getWorkspacePath());
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -73,34 +96,40 @@ export const Connect = () => {
         description: `Failed to connect to ${selectedServer}: ${errorMessage}`,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1C1D28]">
-      <div className="w-full max-w-xl p-8 space-y-6 bg-[#4F5889]/95 backdrop-blur-sm border border-purple-500/20 shadow-lg rounded-lg">
-        <div className="flex items-center gap-3 mb-8">
-          <Shield className="w-8 h-8 text-white" />
-          <h1 className="text-2xl font-bold text-white">CONNECT TO WORKSPACE</h1>
-        </div>
+      <Card className="w-full max-w-xl bg-[#282A42] border-[#3D3F5A] shadow-lg">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Shield className="w-8 h-8 text-white" />
+            <CardTitle className="text-white text-2xl">Connect to Workspace</CardTitle>
+          </div>
+          <CardDescription className="text-gray-300">Select a saved workspace to connect</CardDescription>
+        </CardHeader>
 
         {loading ? (
-          <div className="text-center py-8">
+          <CardContent className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
             <p className="text-white mt-4">Loading saved workspaces...</p>
-          </div>
+          </CardContent>
         ) : servers.length === 0 ? (
-          <div className="text-center py-8">
+          <CardContent className="text-center py-8">
             <p className="text-white mb-4">No saved workspaces found</p>
-            <Button 
+            <Button
               onClick={() => navigate("/")}
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
               Go Back
             </Button>
-          </div>
+          </CardContent>
         ) : (
-          <div className="space-y-6">
+          <>
+          <CardContent className="space-y-6">
             <div className="space-y-4">
               <label className="text-sm font-medium text-gray-200 uppercase">
                 Select Workspace
@@ -109,11 +138,10 @@ export const Connect = () => {
                 {servers.map((server) => (
                   <div
                     key={server.serverAddress}
-                    className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${
-                      selectedServer === server.serverAddress
-                        ? "bg-purple-700/50 border border-purple-500"
-                        : "bg-[#221F26]/70 hover:bg-[#221F26] border border-purple-400/20"
-                    }`}
+                    className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${selectedServer === server.serverAddress
+                      ? "bg-purple-700/50 border border-purple-500"
+                      : "bg-[#221F26]/70 hover:bg-[#221F26] border border-purple-400/20"
+                      }`}
                     onClick={() => setSelectedServer(server.serverAddress)}
                   >
                     <Server className="w-5 h-5 text-purple-300 mr-3" />
@@ -131,38 +159,26 @@ export const Connect = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200 uppercase">
-                Profile Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#221F26]/70 border border-purple-400/20 rounded-md p-2 text-white"
-                placeholder="Enter your profile password"
-              />
-            </div>
-
-            <div className="flex justify-end gap-4 mt-8">
+          </CardContent>
+          <CardFooter className="flex justify-end gap-4">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => navigate("/")}
                 className="text-white hover:bg-purple-500/20"
               >
-                CANCEL
+                Cancel
               </Button>
               <Button
                 onClick={handleConnect}
                 className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
               >
-                CONNECT
+                Connect
               </Button>
-            </div>
-          </div>
+            </CardFooter>
+          </>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

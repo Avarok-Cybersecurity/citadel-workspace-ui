@@ -3,6 +3,7 @@ import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection';
+import { p2pMessengerManager } from './p2p';
 import { debugLog } from '@/lib/debug-config';
 
 export interface MessageRequest {
@@ -104,7 +105,7 @@ export class MessagingService {
       id: messageId,
       content,
       timestamp,
-      senderId: 'current-user', // This should be the actual user ID in a real implementation
+      senderId: String(connectionManager.getConnectionInfo()?.cid || 'current-user'),
       recipientId,
       status: 'pending'
     };
@@ -174,9 +175,24 @@ export class MessagingService {
   }
 
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
+    // Callers of this API (see RetryableMessageSender) already maintain their
+    // own "is currently typing" state and only call us to emit a discrete
+    // event. Previously this method wired into the *polling* API with a
+    // `() => ''` text-getter, which caused the polling loop to never observe
+    // any change and therefore never emit anything. The net effect was that
+    // typing indicators silently never reached peers.
+    //
+    // We now fire a single typing event when isTyping flips to true, and
+    // rely on the receiver-side expiry for the stop signal. If a future
+    // caller needs input-bound polling, it should use startTypingPolling
+    // directly with a real `getCurrentText` closure.
     try {
-      // For now, just log this action
-      debugLog('MessagingService', `Sending typing indicator to ${recipientId}: ${isTyping ? 'typing' : 'stopped typing'}`);
+      if (isTyping) {
+        await p2pMessengerManager.sendTypingIndicator(BigInt(recipientId));
+      }
+      // isTyping=false currently requires no action: typing indicators
+      // expire on the receiver side. Kept explicit so future additions
+      // (e.g. a "stopped typing" signal) have an obvious insertion point.
     } catch (error) {
       debugLog('MessagingService', 'Error sending typing indicator:', error);
     }
@@ -190,7 +206,7 @@ export class MessagingService {
         content,
         timestamp: Date.now(),
         senderId,
-        recipientId: 'current-user', // This should be the actual user ID
+        recipientId: String(connectionManager.getConnectionInfo()?.cid || 'current-user'),
         status: 'delivered'
       };
 

@@ -1,10 +1,4 @@
-/**
- * Instance Channel (Singleton)
- *
- * Thin InstanceChannel class that coordinates leader election (channel-leader-election)
- * and message handling (channel-messaging). Types in channel-types.
- */
-
+// Instance Channel (Singleton): coordinates leader election + message handling.
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
@@ -76,17 +70,17 @@ class InstanceChannel {
   }
 
   private setupEventListeners(): void {
-    eventEmitter.on(
-      'instance:cid-changed',
-      (data: { instanceId: string; cid: bigint | null }) => {
-        debugLog('InstanceChannel', `[InstanceChannel] Broadcasting CID update: ${data.cid?.toString() || 'null'}`);
-        this.send({
-          type: 'cid-update',
-          targetInstanceId: '*',
-          payload: { cid: data.cid ? data.cid.toString() : null },
-        });
-      }
-    );
+    eventEmitter.on('instance:cid-changed', (data: { instanceId: string; cid: bigint | null }) => {
+      this.send({
+        type: 'cid-update', targetInstanceId: '*',
+        payload: { cid: data.cid ? data.cid.toString() : null },
+      });
+    });
+
+    // Re-broadcast on leader change so a new leader inherits every
+    // follower's CID. Without it, CID-routed notifications drop with
+    // `No instance owns CID …` after a handover.
+    eventEmitter.on('instance:leader-changed', () => { this.broadcastCid(); this.announcePresence(); });
   }
 
   private setupMessageHandler(): void {
@@ -148,8 +142,29 @@ class InstanceChannel {
       case 'instance-goodbye': handleInstanceGoodbye(this.electionState, message); break;
       case 'session-release': handleSessionRelease(message); break;
       case 'cid-update': handleCidUpdate(message); break;
+      // Self-heal: leader missed our cid-update. No `instanceManager.cid` guard so
+      // broadcastCid()'s tab-context fallback runs — post claim/reload owners
+      // (CID not yet in instanceManager) still answer; the old guard stranded them.
+      case 'cid-report-request': this.broadcastCid(); break;
     }
   }
+
+  // Some auth paths land the CID in tab-context before instanceManager;
+  // the heal must look there too or route-miss recovery is a no-op.
+  broadcastCid(): void {
+    if (instanceManager.cid) { this.sendCidUpdate(instanceManager.cid); return; }
+    void (async () => {
+      const { getSelectedUser } = await import('../tab-context');
+      const tab = await getSelectedUser();
+      if (tab?.selectedCid) { instanceManager.setCid(tab.selectedCid); this.sendCidUpdate(tab.selectedCid); }
+    })();
+  }
+
+  private sendCidUpdate(cid: bigint): void {
+    this.send({ type: 'cid-update', targetInstanceId: '*', payload: { cid: cid.toString() } });
+  }
+
+  requestCidReport(): void { this.send({ type: 'cid-report-request', targetInstanceId: '*' }); }
 
   // ============ Public Methods ============
 

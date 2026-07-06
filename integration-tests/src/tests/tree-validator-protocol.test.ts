@@ -180,7 +180,7 @@ async function runTest(): Promise<boolean> {
 
       if (navigated) {
         await sleep(1000);
-        const roomResult = await createRoomViaUI(page, TEST_ROOM, 'Test room description');
+        const roomResult = await createRoomViaUI(page, TEST_ROOM, 'Test room description', TEST_OFFICE);
         results.roomCreated = roomResult.success;
         console.log(`  Room creation: ${results.roomCreated ? 'PASS' : 'FAIL'}`);
 

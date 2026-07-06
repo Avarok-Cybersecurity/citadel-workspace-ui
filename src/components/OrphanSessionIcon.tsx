@@ -21,6 +21,7 @@ export const OrphanSessionIcon = ({
   unreadCount = 0,
 }: OrphanSessionIconProps) => {
   const initials = getWorkspaceInitials(workspaceName || session.username);
+  const displayName = session.full_name || session.username;
 
   return (
     <div
@@ -28,68 +29,58 @@ export const OrphanSessionIcon = ({
       data-testid={`session-icon-${session.username}`}
       data-session-cid={session.cid}
     >
-      {/* Main workspace icon */}
+      {/* Session chip - compact horizontal layout */}
       <button
         onClick={onNavigate}
         className={cn(
-          "w-12 h-12 rounded flex items-center justify-center",
-          "bg-[#6E59A5] text-white font-semibold text-lg",
-          "hover:scale-105 transition-all duration-200",
+          "flex items-center gap-2 h-8 pl-1 pr-3 rounded-full",
+          "bg-[#232536] border border-[#2D3548] text-white",
+          "hover:bg-purple-500/15 hover:border-purple-500/30 transition-all duration-200",
           "cursor-pointer",
-          shouldGlow && "animate-[glow-pulse_2s_ease-in-out_infinite]"
+          shouldGlow && "border-purple-500/50 bg-purple-500/10"
         )}
-        style={
-          shouldGlow
-            ? {
-                boxShadow: "0 0 8px rgba(139, 92, 246, 0.8)",
-              }
-            : undefined
-        }
-        title={`${session.full_name || session.username} - ${workspaceName}`}
+        title={`${displayName} - ${workspaceName}`}
         data-testid={`session-button-${session.username}`}
       >
-        {initials}
+        {/* Small avatar */}
+        <div className={cn(
+          "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
+          "bg-[#6E59A5] text-white text-[10px] font-bold"
+        )}>
+          {initials}
+        </div>
+
+        {/* Username */}
+        <span className="text-xs font-medium text-gray-300 max-w-[100px] truncate">
+          {displayName}
+        </span>
+
+        {/* Unread badge */}
+        {unreadCount > 0 && (
+          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] font-bold px-1 leading-none">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
       </button>
 
-      {/* Notification badge - top right */}
-      {unreadCount > 0 && (
-        <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1 pointer-events-none">
-          {unreadCount > 9 ? '9+' : unreadCount}
-        </div>
-      )}
-
-      {/* Disconnect button - positioned on bottom-right */}
+      {/* Disconnect X - appears on hover */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           onDisconnect();
         }}
         className={cn(
-          "absolute -bottom-1 -right-1 w-5 h-5 rounded-full",
-          "bg-red-500 hover:bg-red-600 text-white",
+          "absolute -top-1 -right-1 w-4 h-4 rounded-full",
+          "bg-[#1C1D28] border border-[#2D3548] text-gray-400 hover:text-red-400 hover:border-red-500/50",
           "flex items-center justify-center",
-          "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-          "shadow-md hover:shadow-lg",
+          "opacity-0 group-hover:opacity-100 transition-all duration-200",
           "cursor-pointer"
         )}
         title="Disconnect from workspace"
         data-testid={`disconnect-button-${session.username}`}
       >
-        <X className="w-3 h-3" />
+        <X className="w-2.5 h-2.5" />
       </button>
-
-      {/* Workspace name tooltip on hover */}
-      <div
-        className={cn(
-          "absolute top-full mt-2 left-1/2 -translate-x-1/2",
-          "bg-gray-900 text-white text-xs px-2 py-1 rounded",
-          "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-          "pointer-events-none whitespace-nowrap z-50"
-        )}
-      >
-        <div className="font-semibold">{workspaceName}</div>
-        <div className="text-gray-400">{session.full_name || session.username}</div>
-      </div>
     </div>
   );
 };

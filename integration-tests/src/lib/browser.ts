@@ -4,7 +4,7 @@
 
 import { chromium, Page } from 'playwright';
 import type { BrowserOptions, BrowserSetup } from './types.js';
-import { isCI } from './config.js';
+import { isCI, config } from './config.js';
 
 /**
  * Create a browser and context for testing
@@ -173,13 +173,17 @@ export async function wakeUpTab(page: Page, label: string, maxWaitMs = 5000): Pr
  *
  * @param page - Playwright page to recover
  * @param label - Label for logging
- * @param baseUrl - URL to navigate to after reload (e.g., 'http://localhost:5173/')
+ * @param baseUrl - URL to navigate to after reload. Defaults to
+ *                 `config.BASE_URL` so a single change to the test
+ *                 config (e.g. another Vite dev-port move) doesn't
+ *                 silently leave this default pointing at the wrong
+ *                 origin.
  * @returns true if recovery was successful, false otherwise
  */
 export async function recoverUnresponsiveTab(
   page: Page,
   label: string,
-  baseUrl: string = 'http://localhost:5173/'
+  baseUrl: string = config.BASE_URL
 ): Promise<boolean> {
   console.log(`  [${label}] Attempting to recover unresponsive tab...`);
 
@@ -233,7 +237,7 @@ export async function recoverUnresponsiveTab(
 export async function wakeUpTabWithRecovery(
   page: Page,
   label: string,
-  baseUrl: string = 'http://localhost:5173/',
+  baseUrl: string = config.BASE_URL,
   maxWaitMs = 5000,
   attemptRecovery = true
 ): Promise<boolean> {

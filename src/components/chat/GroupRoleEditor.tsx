@@ -78,7 +78,7 @@ export function GroupRoleEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px] bg-[#1C2333] border-[#2D3548] text-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[450px] bg-[#1C1D28] border-[#2D3548] text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-white">
             {isEditing ? `Edit Role: ${role.name}` : 'Create New Role'}
@@ -139,7 +139,7 @@ export function GroupRoleEditor({
                   onClick={() => setColor(presetColor)}
                   className={`w-7 h-7 rounded-full transition-all ${
                     color === presetColor
-                      ? 'ring-2 ring-offset-2 ring-offset-[#1C2333] ring-white'
+                      ? 'ring-2 ring-offset-2 ring-offset-[#1C1D28] ring-white'
                       : 'hover:scale-110'
                   }`}
                   style={{ backgroundColor: presetColor }}
@@ -148,7 +148,7 @@ export function GroupRoleEditor({
               <button
                 onClick={() => setColor('')}
                 className={`w-7 h-7 rounded-full border-2 border-dashed border-gray-500 text-xs text-gray-500 ${
-                  !color ? 'ring-2 ring-offset-2 ring-offset-[#1C2333] ring-white' : ''
+                  !color ? 'ring-2 ring-offset-2 ring-offset-[#1C1D28] ring-white' : ''
                 }`}
                 title="No color"
               >

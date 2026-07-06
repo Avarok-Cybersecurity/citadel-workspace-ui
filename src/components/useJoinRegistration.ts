@@ -10,7 +10,6 @@ import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { mapSecuritySettings } from "@/lib/security-utils";
 import type { ConnectStatus } from "./LoadingModal";
-import { safeJSONStringify } from "@/lib/storage-utils";
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 
@@ -21,7 +20,7 @@ interface JoinFormData {
   confirmPassword: string;
 }
 
-export function useJoinRegistration(onBack: () => void) {
+export function useJoinRegistration(onBack: () => void, serverAddress: string, serverPassword: string) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -36,11 +35,6 @@ export function useJoinRegistration(onBack: () => void) {
     password: "",
     confirmPassword: "",
   });
-
-  const serverData = queryClient.getQueryData(['serverConnectForm']) as {
-    serverAddress: string;
-    password: string
-  } || { serverAddress: '', password: '' };
 
   const securitySettings = queryClient.getQueryData<SecuritySettingsValues>(['securitySettings']) || {
     securityLevel: 'Standard',
@@ -65,12 +59,12 @@ export function useJoinRegistration(onBack: () => void) {
     try {
       await ConnectionManager.getInstance().handleAuthSuccess({
         username: formData.username, password: formData.password,
-        fullName: formData.fullName, serverAddress: serverData.serverAddress,
-        serverPassword: serverData.password || "",
+        fullName: formData.fullName, serverAddress: serverAddress,
+        serverPassword: serverPassword || "",
         securitySettings: mapSecuritySettings(securitySettings),
         cid: data.cid as bigint
       });
-      resolve({ cid: data.cid as string });
+      resolve({ cid: String(data.cid) });
     } catch (err) {
       reject(err instanceof Error ? err : new Error(String(err)));
     }
@@ -138,7 +132,7 @@ export function useJoinRegistration(onBack: () => void) {
     setConnectStatus("connecting");
 
     try {
-      debugLog('Join', "Registering user:", formData.username, "to", serverData.serverAddress);
+      debugLog('Join', "Registering user:", formData.username, "to", serverAddress);
       const requestId = crypto.randomUUID();
 
       const responsePromise = new Promise<{ cid: string }>((resolve, reject) => {
@@ -146,8 +140,8 @@ export function useJoinRegistration(onBack: () => void) {
 
         const timeout = setTimeout(() => {
           if (handler) eventEmitter.off('websocket-message', handler);
-          reject(new Error('Registration timed out after 10 seconds'));
-        }, 10000);
+          reject(new Error('Registration timed out after 30 seconds'));
+        }, 30000);
 
         const cleanup = () => {
           clearTimeout(timeout);
@@ -161,7 +155,7 @@ export function useJoinRegistration(onBack: () => void) {
 
       await websocketService.register(
         requestId, formData.username, formData.password, formData.fullName,
-        serverData.serverAddress, serverData.password || "",
+        serverAddress, serverPassword || "",
         mapSecuritySettings(securitySettings)
       );
 

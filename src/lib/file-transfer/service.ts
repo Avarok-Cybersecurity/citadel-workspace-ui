@@ -194,17 +194,57 @@ export class FileTransferService {
     this.io.notifyStateChange(transfer);
   }
 
-  // @human-review Persistence requires LocalDB integration
+  private static readonly STORAGE_KEY_TRANSFERS = 'citadel:file-transfers';
+  private static readonly STORAGE_KEY_SETTINGS = 'citadel:file-transfer-settings';
+
   private async loadFromStorage(): Promise<void> {
-    debugLog('FileTransferService', 'Loading from storage');
+    try {
+      const settingsRaw = localStorage.getItem(FileTransferService.STORAGE_KEY_SETTINGS);
+      if (settingsRaw) {
+        const parsed = JSON.parse(settingsRaw) as Record<string, FileTransferSettings>;
+        for (const [peerCid, settings] of Object.entries(parsed)) {
+          this.state.setSettings(peerCid, settings);
+        }
+      }
+      debugLog('FileTransferService', 'Loaded settings from storage');
+    } catch (error) {
+      debugLog('FileTransferService', 'Failed to load from storage:', error);
+    }
   }
 
-  private async saveTransfer(_transfer: FileTransfer): Promise<void> {
-    // @human-review Save to LocalDB
+  private async saveTransfer(transfer: FileTransfer): Promise<void> {
+    try {
+      const raw = localStorage.getItem(FileTransferService.STORAGE_KEY_TRANSFERS);
+      const transfers: Record<string, Partial<FileTransfer>> = raw ? JSON.parse(raw) : {};
+      // Store only serializable metadata (no Blob/File)
+      transfers[transfer.id] = {
+        id: transfer.id,
+        fileName: transfer.fileName,
+        fileSize: transfer.fileSize,
+        fileType: transfer.fileType,
+        senderCid: transfer.senderCid,
+        recipientCid: transfer.recipientCid,
+        state: transfer.state,
+        isIncoming: transfer.isIncoming,
+        mode: transfer.mode,
+        createdAt: transfer.createdAt,
+        updatedAt: transfer.updatedAt,
+      };
+      localStorage.setItem(FileTransferService.STORAGE_KEY_TRANSFERS, JSON.stringify(transfers));
+    } catch {
+      // Silently fail — localStorage may be full
+    }
   }
 
-  private async saveSettings(_peerCid: string, _settings: FileTransferSettings): Promise<void> {
-    // @human-review Save to LocalDB
+  private async saveSettings(peerCid: string, settings: FileTransferSettings): Promise<void> {
+    try {
+      const raw = localStorage.getItem(FileTransferService.STORAGE_KEY_SETTINGS);
+      const all: Record<string, FileTransferSettings> = raw ? JSON.parse(raw) : {};
+      all[peerCid] = settings;
+      localStorage.setItem(FileTransferService.STORAGE_KEY_SETTINGS, JSON.stringify(all));
+    } catch {
+      // Silently fail
+    }
   }
 }
 

@@ -6,6 +6,7 @@ import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
+import { wrapInMemory } from './types';
 import { debugLog } from '@/lib/debug-config';
 
 export interface LifecycleDeps {
@@ -67,7 +68,9 @@ export async function sendFile(
     await deps.handleAsyncSend(transfer, file);
   } else {
     deps.state.setPendingFile(transferId, file);
-    await deps.io.executeIntent({ type: 'send-transfer-request', transfer });
+    // `wrapInMemory` brands the File for the intent's `file?: InMemoryOnly<File>`
+    // contract — see `types.ts` for why a raw `File` would be a TS error here.
+    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
   }
 
   deps.emitStateChange(transfer);

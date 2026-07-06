@@ -3,10 +3,12 @@ import StarterKit from '@tiptap/starter-kit';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { useEffect, useCallback } from 'react';
-import { createCollaboratorCursor, type FlashComment, type CursorUser } from './CollaboratorCursor';
+import { createCollaboratorCursor, type CursorUser } from './CollaboratorCursor';
+import { buildContextMenuFlashComment } from './collaborator-cursor-helpers';
 import { MessageSquare } from 'lucide-react';
 import { useCollaborativeEditor } from './useCollaborativeEditor';
 import { EditorToolbar } from './EditorToolbar';
+import { eventEmitter } from '@/lib/event-emitter';
 
 interface CollaborativeEditorProps {
   documentId: string;
@@ -92,27 +94,26 @@ export function CollaborativeEditor({
     };
   }, [editor, onSave]);
 
-  // Handle flash comment from context menu
+  // Handle flash comment from context menu. Delegates the build to a
+  // pure helper so the empty-text guard (and shape) is unit-testable
+  // without mounting Tiptap. See `buildContextMenuFlashComment`.
   const handleFlashCommentFromContextMenu = useCallback(() => {
     if (!contextMenu || !editor) return;
 
+    const raw = window.prompt('Flash comment:');
+    setContextMenu(null);
+
     const cursorPos = editor.view.state.selection.from;
     const coords = editor.view.coordsAtPos(cursorPos);
-
-    const comment: FlashComment = {
-      id: `flash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    const comment = buildContextMenuFlashComment(raw, coords, {
       userId: currentUserCid,
       userName: currentUserName,
       userColor: userColor,
-      text: '',
-      position: {
-        top: coords.top,
-        left: coords.left,
-      },
-      timestamp: Date.now(),
-    };
+    });
+    if (!comment) return;
 
-    setContextMenu(null);
+    // Subscriber: useCollaborativeEditor.ts:161 (handleSendFlashComment).
+    eventEmitter.emit('flash-comment:send', comment);
   }, [contextMenu, editor, currentUserCid, currentUserName, userColor, setContextMenu]);
 
   // Show loading state while provider initializes
@@ -162,12 +163,12 @@ export function CollaborativeEditor({
             w-2 h-2 rounded-full
             ${syncState === 'synced' ? 'bg-green-500' :
               syncState === 'syncing' ? 'bg-yellow-500 animate-pulse' :
-              'bg-gray-500'}
+                'bg-gray-500'}
           `} />
           <span className="text-xs text-gray-400">
             {syncState === 'synced' ? 'Synced' :
-             syncState === 'syncing' ? 'Syncing...' :
-             'Connecting...'}
+              syncState === 'syncing' ? 'Syncing...' :
+                'Connecting...'}
           </span>
         </div>
       </div>

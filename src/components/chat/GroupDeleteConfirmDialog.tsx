@@ -33,7 +33,7 @@ export function GroupDeleteConfirmDialog({
 }: GroupDeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#1C2333] border-[#2D3548]">
+      <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-white">
             Delete &quot;{groupName}&quot;?

@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { UserSearch, UserData } from '@/components/user/UserSearch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Filter } from 'lucide-react';
 import { ConnectionService } from '@/lib/connection-service';
 import { toast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLog } from '@/lib/debug-config';
 import { MemberListItem, type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
+import WorkspaceService from '@/lib/workspace-service';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export const UserDirectory = () => {
   const { state } = useWorkspace();
@@ -23,7 +24,16 @@ export const UserDirectory = () => {
   const navigate = useNavigate();
   const connectionService = ConnectionService.getInstance();
 
-  const currentUserId = 'current-user';
+  // Request member list on mount
+  const [searchParams] = useSearchParams();
+  const domainIdParam = searchParams.get('nodeId') || state.workspace?.id;
+  useEffect(() => {
+    debugLog('UserDirectory', 'Requesting member list for domain:', domainIdParam);
+    WorkspaceService.listMembers(domainIdParam || undefined)
+      .catch(err => debugLog('UserDirectory', 'Failed to load members:', err));
+  }, [domainIdParam]);
+
+  const currentUserId = state.currentUser?.id || state.currentUser?.username || '';
 
   const allMembers: MemberDisplay[] = Object.values(state.members || {}).map(member => ({
     id: member.id,
@@ -31,13 +41,12 @@ export const UserDirectory = () => {
     avatarUrl: member.avatarUrl,
     email: member.email,
     role: member.role,
-    isOnline: Math.random() > 0.5,
-    lastActive: Date.now() - Math.floor(Math.random() * 10000000),
+    isOnline: connectionService.canMessageUser(member.id),
+    lastActive: 0,
   }));
 
   const filteredMembers = allMembers.filter(member => {
     if (tab === 'online') return member.isOnline;
-    if (tab === 'favorites') return Math.random() > 0.7;
     return true;
   });
 
@@ -73,7 +82,7 @@ export const UserDirectory = () => {
       toast({
         title: 'Request Sent',
         description: `Connection request sent to ${selectedUser.displayName}`,
-        className: 'bg-[#343A5C] border-purple-800 text-purple-200',
+        className: 'bg-[#232536] border-purple-800 text-purple-200',
       });
 
       setRequestDialogOpen(false);
@@ -94,6 +103,7 @@ export const UserDirectory = () => {
   };
 
   return (
+    <AppLayout>
     <div className="container mx-auto p-4 md:p-6 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white mb-2">User Directory</h1>
@@ -103,7 +113,7 @@ export const UserDirectory = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - User search and directory */}
         <div className="lg:col-span-2 space-y-4">
-          <Card className="bg-[#343A5C] border-gray-700 text-white shadow-sm">
+          <Card className="bg-[#232536] border-[#2D3548] text-white shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle>Find People</CardTitle>
               <CardDescription className="text-gray-400">Search for users by name or email</CardDescription>
@@ -118,39 +128,32 @@ export const UserDirectory = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#343A5C] border-gray-700 text-white shadow-sm">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <Card className="bg-[#232536] border-[#2D3548] text-white shadow-sm">
+            <CardHeader className="pb-3">
               <div>
                 <CardTitle>Workspace Directory</CardTitle>
                 <CardDescription className="text-gray-400">
-                  {filteredMembers.length} {tab === 'online' ? 'online' : tab === 'favorites' ? 'favorite' : ''} members
+                  {filteredMembers.length} {tab === 'online' ? 'online ' : ''}members
                 </CardDescription>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <Filter className="h-4 w-4 mr-1" />
-                  Filter
-                </Button>
               </div>
             </CardHeader>
 
             <Tabs defaultValue="all" value={tab} onValueChange={setTab} className="w-full">
               <div className="px-6">
-                <TabsList className="bg-[#444A6C] w-full">
-                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">All</TabsTrigger>
-                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">Online</TabsTrigger>
-                  <TabsTrigger value="favorites" className="flex-1 data-[state=active]:bg-[#4F5889] data-[state=active]:text-white">Favorites</TabsTrigger>
+                <TabsList className="bg-[#232536] w-full">
+                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400">All</TabsTrigger>
+                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400">Online</TabsTrigger>
                 </TabsList>
               </div>
 
-              {['all', 'online', 'favorites'].map(tabValue => (
+              {['all', 'online'].map(tabValue => (
                 <TabsContent key={tabValue} value={tabValue} className="m-0">
                   <div className="divide-y divide-gray-700">
                     {filteredMembers.map((member) => (
                       <MemberListItem
                         key={member.id}
                         member={member}
-                        variant={tabValue as 'all' | 'online' | 'favorites'}
+                        variant={tabValue as 'all' | 'online'}
                         onSendMessage={handleSendMessage}
                         onInvite={handleInviteUser}
                       />
@@ -184,6 +187,7 @@ export const UserDirectory = () => {
         onSend={sendConnectionRequest}
       />
     </div>
+    </AppLayout>
   );
 };
 

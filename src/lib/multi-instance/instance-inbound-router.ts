@@ -20,6 +20,7 @@ import {
   shouldBroadcast,
 } from './routing-rules';
 import { extractRequestId, extractTargetCid } from './message-routing';
+import { OrphanBuffer } from './orphan-buffer';
 
 debugLog('InstanceInboundRouter', '[ILM-Router] Module loading...');
 
@@ -29,6 +30,16 @@ class InstanceInboundRouter {
   private isActive: boolean = false;
   private pendingRequestMap: Map<string, { instanceId: string; timestamp: number }> = new Map();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Buffer for messages whose owner couldn't be found at dispatch
+   * time. See `orphan-buffer.ts` for the timer/replay lifecycle.
+   * Drained when `instance:registered` fires with a matching CID; on
+   * timeout, the buffer invokes `processLocalMessage` so we never
+   * silently strand a real message.
+   */
+  private readonly orphanBuffer = new OrphanBuffer(
+    (message) => this.processLocalMessage(message),
+  );
 
   private constructor() {
     debugLog('InstanceInboundRouter', '[ILM-Router] Constructor called, setting up event listeners...');
@@ -62,17 +73,26 @@ class InstanceInboundRouter {
       this.processLocalMessage(data.payload);
     });
 
-    eventEmitter.on(
-      'channel:outbound-request',
-      (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
-        debugLog('InstanceInboundRouter',
-          `[ILM-Router] Received channel:outbound-request: requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${this.isActive}`
-        );
-        if (this.isActive && data.requestId) {
-          this.registerPendingRequest(data.requestId, data.senderInstanceId);
-        }
+    eventEmitter.on('channel:outbound-request', (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
+      debugLog('InstanceInboundRouter', `[ILM-Router] channel:outbound-request requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${this.isActive}`);
+      if (this.isActive && data.requestId) {
+        this.registerPendingRequest(data.requestId, data.senderInstanceId);
       }
-    );
+    });
+
+    // Drain the orphan buffer when a follower's cid-report arrives.
+    // `instance:registered` fires for every cid-update; the buffer
+    // is keyed by CID, so non-matching events are a cheap no-op.
+    eventEmitter.on('instance:registered', (data: { instanceId: string; cid: bigint | null }) => {
+      if (data.cid === null) return;
+      this.orphanBuffer.drainForCid(data.cid.toString(), (entry) => {
+        // Re-route via routeByCid so the just-registered owner is
+        // picked up (instance map now has the entry). The recursion
+        // is safe: the cid is now known, so we won't re-enter the
+        // orphan branch.
+        this.routeByCid(entry.message, entry.messageType);
+      });
+    });
   }
 
   // ── Cleanup ──────────────────────────────────────────────────────────
@@ -185,7 +205,18 @@ class InstanceInboundRouter {
       const knownInstances = instanceManager.getAllInstances();
       debugLog('InstanceInboundRouter', `No instance owns CID ${targetCid}, message may be lost`);
       debugLog('InstanceInboundRouter', `Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
-      this.processLocalMessage(message);
+      // Self-heal: BUFFER the orphaned message for up to the buffer
+      // timeout, then either replay to the correct tab when a
+      // cid-report lands OR fall back to processing locally on
+      // timeout. Prior to the buffer, the current message was always
+      // processed on the leader tab immediately — visible misdelivery
+      // for user-facing notifications (chat messages, file-transfer
+      // prompts) on every first message after a stale CID map. The
+      // buffer holds for the BroadcastChannel round-trip; if no
+      // follower owns the CID, the fallback timer makes the leader
+      // process locally so we never strand a real message.
+      this.orphanBuffer.push(targetCid, message, messageType);
+      instanceChannel.requestCidReport();
     }
   }
 
@@ -213,8 +244,6 @@ class InstanceInboundRouter {
   }
 }
 
-// Export singleton instance
+// Export singleton instance + class (the latter for testing).
 export const instanceInboundRouter = InstanceInboundRouter.getInstance();
-
-// Also export class for testing
 export { InstanceInboundRouter };

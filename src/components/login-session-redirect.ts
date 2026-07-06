@@ -2,7 +2,7 @@ import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
-import WorkspaceService from "@/lib/workspace-service";
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { debugLog } from '@/lib/debug-config';
@@ -35,7 +35,7 @@ export async function redirectToExistingSession(
     toast({
       title: "Reconnecting...",
       description: `Loading ${session.username}'s workspace`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      className: "bg-[#232536] border-purple-800 text-purple-200",
     });
 
     const lastAccessedKey = `session_last_accessed_${session.cid.toString()}`;
@@ -69,17 +69,7 @@ export async function redirectToExistingSession(
       selectedCid: session.cid
     });
 
-    WorkspaceService.setConnectionId(session.cid);
-
-    try {
-      await wasmConnectionManager.start(session.cid.toString());
-      debugLog('Login', 'WASM connection manager started for CID:', session.cid.toString());
-    } catch (error) {
-      debugLog('Login', 'Failed to start WASM connection manager:', error);
-    }
-
-    await WorkspaceService.loadWorkspace();
-    await WorkspaceService.listNodes();
+    await postAuthSetup(session.cid);
 
     eventEmitter.emit('session:activated', {
       cid: session.cid.toString(),
@@ -94,7 +84,7 @@ export async function redirectToExistingSession(
     toast({
       title: "Connected!",
       description: `Now viewing ${session.username}'s workspace`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      className: "bg-[#232536] border-purple-800 text-purple-200",
     });
 
     onNext(session.cid.toString());

@@ -19,8 +19,9 @@ export const Office = () => {
   const hasNavigatedToDefault = useRef(false);
 
   // Auto-navigate to default node when no nodeId is selected
+  // Skip if a section (e.g. "files") is explicitly active
   useEffect(() => {
-    if (nodeId || hasNavigatedToDefault.current) return;
+    if (nodeId || section || hasNavigatedToDefault.current) return;
 
     // Find the default node from state
     const defaultNode = Object.values(state.nodes).find(n => n.is_default);
@@ -31,7 +32,7 @@ export const Office = () => {
       newParams.set("nodeId", defaultNode.id);
       navigate(`/workspace?${newParams.toString()}`, { replace: true });
     }
-  }, [nodeId, state.nodes, location.search, navigate]);
+  }, [nodeId, section, state.nodes, location.search, navigate]);
 
   // Reset the navigation flag when nodeId changes (user manually navigated)
   useEffect(() => {

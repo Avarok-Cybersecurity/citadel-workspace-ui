@@ -81,7 +81,7 @@ function SidebarNode({
     >
       <div
         className={cn(
-          "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-gray-300 hover:bg-[#444A6C]",
+          "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-gray-300 hover:bg-[#232536]",
           isActive && "bg-purple-700/50 text-white",
           dragOver && "bg-green-900/30 ring-1 ring-green-500",
         )}
@@ -191,7 +191,7 @@ export function VFSTreeView({
         {/* Root entry */}
         <div
           className={cn(
-            "flex items-center py-1 px-2 cursor-pointer rounded text-xs text-gray-400 hover:bg-[#444A6C] mx-1 mb-0.5",
+            "flex items-center py-1 px-2 cursor-pointer rounded text-xs text-gray-400 hover:bg-[#232536] mx-1 mb-0.5",
             currentPath === '/' && "bg-purple-700/50 text-white",
           )}
           onClick={() => onNavigate('/')}

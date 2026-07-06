@@ -57,7 +57,7 @@ export function VFSToolbar({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 border-b border-purple-800 bg-[#343A5C]">
+    <div className="flex items-center justify-between px-4 py-2 border-b border-purple-800 bg-[#232536]">
       {/* Left side: Breadcrumb navigation */}
       <div className="flex items-center gap-1 text-sm text-gray-300 overflow-x-auto min-w-0 flex-1">
         <button
@@ -118,17 +118,17 @@ export function VFSToolbar({
         {onSortChange && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-[#444A6C] h-7 px-2">
+              <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 px-2">
                 <ArrowUpDown className="h-3.5 w-3.5 mr-1" />
                 <span className="text-xs">{sortLabels[sortField]}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-[#343A5C] border-purple-800">
+            <DropdownMenuContent className="bg-[#232536] border-purple-800">
               {(Object.keys(sortLabels) as SortField[]).map((field) => (
                 <DropdownMenuItem
                   key={field}
                   onClick={() => handleSortClick(field)}
-                  className={`text-gray-300 hover:text-white hover:bg-[#444A6C] ${
+                  className={`text-gray-300 hover:text-white hover:bg-[#232536] ${
                     field === sortField ? 'text-purple-300' : ''
                   }`}
                 >
@@ -147,13 +147,13 @@ export function VFSToolbar({
         <div className="w-px h-4 bg-purple-800" />
 
         {/* Action buttons */}
-        <Button variant="ghost" size="sm" onClick={onNewFolder} className="text-gray-300 hover:text-white hover:bg-[#444A6C] h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" onClick={onNewFolder} className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 w-7 p-0">
           <FolderPlus className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onUploadFile} className="text-gray-300 hover:text-white hover:bg-[#444A6C] h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" onClick={onUploadFile} className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 w-7 p-0">
           <Upload className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onSync} className="text-gray-300 hover:text-white hover:bg-[#444A6C] h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" onClick={onSync} className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 w-7 p-0">
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>

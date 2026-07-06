@@ -5,7 +5,7 @@ interface ConnectingScreenProps {}
 
 export function ConnectingScreen(_props: ConnectingScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-[#444A6C] text-gray-400 gap-4 p-8">
+    <div className="flex flex-col items-center justify-center h-full bg-[#1C1D28] text-gray-400 gap-4 p-8">
       <Loader2 className="h-8 w-8 animate-spin" />
       <p>Connecting...</p>
     </div>
@@ -18,7 +18,7 @@ interface NoPeersScreenProps {
 
 export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-[#444A6C] text-gray-400 gap-4 p-8">
+    <div className="flex flex-col items-center justify-center h-full bg-[#1C1D28] text-gray-400 gap-4 p-8">
       <Users className="h-12 w-12" />
       <h2 className="text-xl text-white">No Peers Connected</h2>
       <p className="text-sm text-center max-w-md">
@@ -38,7 +38,7 @@ export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps) {
 
 export function LoadingScreen() {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-[#444A6C] text-gray-400 gap-4">
+    <div className="flex flex-col items-center justify-center h-full bg-[#1C1D28] text-gray-400 gap-4">
       <Loader2 className="h-8 w-8 animate-spin" />
       <p>Loading file system...</p>
     </div>
@@ -51,7 +51,7 @@ interface ErrorScreenProps {
 
 export function ErrorScreen({ error }: ErrorScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-[#444A6C] text-gray-400 gap-4 p-8">
+    <div className="flex flex-col items-center justify-center h-full bg-[#1C1D28] text-gray-400 gap-4 p-8">
       <FolderOpen className="h-12 w-12" />
       <h2 className="text-xl text-white">File System Error</h2>
       <p className="text-sm">{error ?? 'Failed to load tree'}</p>

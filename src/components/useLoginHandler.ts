@@ -9,7 +9,7 @@ import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { getDefaultSecuritySettings } from "@/lib/security-utils";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
-import WorkspaceService from "@/lib/workspace-service";
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
@@ -61,9 +61,16 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       const activeSessions = await connectionManager.getActiveSessions();
       const existingSession = activeSessions.find(session => session.username === username.trim());
       if (existingSession) {
-        debugLog('Login', 'User already has active session:', existingSession);
-        setError('You are already logged in. Please select the session from the top bar, or disconnect it first if you wish to login again.');
-        setLoading(false);
+        debugLog('Login', 'User already has active session, redirecting:', existingSession);
+        try {
+          await doRedirect({
+            cid: existingSession.cid,
+            username: existingSession.username ?? username.trim(),
+            server_address: existingSession.server_address,
+          });
+        } finally {
+          setLoading(false);
+        }
         return;
       }
 
@@ -135,9 +142,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       });
 
       await setSelectedUser({ selectedUsername: username.trim(), selectedServerAddress: serverAddress, selectedCid: cid });
-      WorkspaceService.setConnectionId(cid);
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes();
+      await postAuthSetup(cid);
 
       try { await wasmConnectionManager.start(cid.toString()); }
       catch (err) { debugLog('Login', 'Failed to start WASM connection manager:', err); }

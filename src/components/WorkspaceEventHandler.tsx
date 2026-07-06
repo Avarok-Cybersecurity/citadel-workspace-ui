@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
+import type { User } from '../types/workspace-entities';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
@@ -32,6 +33,7 @@ export interface WorkspaceEventState {
     nodes: boolean;
   };
   error?: string;
+  members: Record<string, User>;
   needsWorkspaceInitialization?: boolean;
   protocolWarning?: {
     message: string;
@@ -75,6 +77,7 @@ export const WorkspaceEventHandler: React.FC<{
     workspaces: [],
     nodes: {},
     treeSchema: null,
+    members: {},
     loading: { workspace: false, members: false, nodes: false },
     needsWorkspaceInitialization: false,
     messages: {
@@ -87,7 +90,9 @@ export const WorkspaceEventHandler: React.FC<{
   });
 
   const [showInitModal, setShowInitModal] = useState(false);
-  const [initModalDismissed, setInitModalDismissed] = useState(false);
+  const [initModalDismissed, setInitModalDismissed] = useState(() => {
+    return sessionStorage.getItem('workspace-init-modal-dismissed') === 'true';
+  });
 
   useEffect(() => {
     if (state.needsWorkspaceInitialization && !showInitModal && !initModalDismissed) {
@@ -124,6 +129,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   const handleWorkspaceInitialized = () => {
     setShowInitModal(false);
+    sessionStorage.removeItem('workspace-init-modal-dismissed');
     setState(prev => ({ ...prev, needsWorkspaceInitialization: false, error: undefined }));
     WorkspaceService.loadWorkspace()
       .then(() => debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization'))
@@ -137,7 +143,7 @@ export const WorkspaceEventHandler: React.FC<{
       </WorkspaceProvider>
       <WorkspaceInitializationModal
         isOpen={showInitModal}
-        onClose={() => { setShowInitModal(false); setInitModalDismissed(true); }}
+        onClose={() => { setShowInitModal(false); setInitModalDismissed(true); sessionStorage.setItem('workspace-init-modal-dismissed', 'true'); }}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}
         workspaceId={state.workspace?.id || 'root'}

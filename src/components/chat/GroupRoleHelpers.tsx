@@ -53,7 +53,7 @@ export function canManageSpecificRole(
 export function DeleteRoleDialog({ roleToDelete, onOpenChange, onConfirm }: DeleteRoleDialogProps) {
   return (
     <AlertDialog open={!!roleToDelete} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#1C2333] border-[#2D3548]">
+      <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-white">
             Delete Role &ldquo;{roleToDelete?.name}&rdquo;?

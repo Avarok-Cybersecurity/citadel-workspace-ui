@@ -32,7 +32,7 @@ export const LoginConflictModal = ({
       <DialogContent className="bg-[#1C1D28] border-gray-800 text-white max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-600">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600">
               <Info className="w-6 h-6 text-white" />
             </div>
             <DialogTitle className="text-xl font-semibold text-white">
@@ -50,7 +50,7 @@ export const LoginConflictModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-[#252424] rounded-lg border border-gray-800">
+        <div className="my-4 p-4 bg-[#131420] rounded-lg border border-gray-800">
           <p className="text-sm text-gray-300">
             Use the workspace icons at the top of the page to access your
             active sessions, or disconnect from them before logging in with a

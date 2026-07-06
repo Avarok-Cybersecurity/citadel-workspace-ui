@@ -86,7 +86,7 @@ const TemplateSelector = ({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-3xl bg-[#343A5C] text-white border-purple-800">
+      <DialogContent className="w-full max-w-3xl bg-[#232536] text-white border-purple-800">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CategoryIcon className="h-[18px] w-[18px]" />
@@ -99,7 +99,7 @@ const TemplateSelector = ({
 
         <div className="py-4">
           <Tabs defaultValue="gallery" className="w-full">
-            <TabsList className="grid grid-cols-2 mb-4 bg-[#444A6C]">
+            <TabsList className="grid grid-cols-2 mb-4 bg-[#232536]">
               <TabsTrigger value="gallery" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
                 Gallery View
               </TabsTrigger>
@@ -162,7 +162,7 @@ const TemplateSelector = ({
                       className={`flex items-start p-3 rounded-md transition-all cursor-pointer
                         ${selectedTemplate?.id === template.id
                           ? 'bg-purple-900/30 border-l-4 border-purple-500'
-                          : 'hover:bg-[#444A6C]'
+                          : 'hover:bg-[#232536]'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
                     >

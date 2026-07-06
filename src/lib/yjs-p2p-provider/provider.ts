@@ -113,15 +113,23 @@ export class YjsP2PProvider {
   }
 
   private setupMessageListener() {
-    this.messageListener = eventEmitter.on('p2p:raw-message', ({ peerCid, message }: { peerCid: string; message: Uint8Array }) => {
+    // Listen on `yjs:p2p-command` rather than `p2p:raw-message`.
+    // `message-handler.ts` already CBOR-decodes incoming bytes into a
+    // `P2PCommand` and dispatches `YjsP2PSync` payloads through this
+    // event — so the provider receives a typed object directly and no
+    // longer has to JSON.parse a raw byte stream, which used to throw
+    // (silently caught) for every chat-layer CBOR message and conflict
+    // with the receiver's own cbor-x decode (where it ALSO threw on
+    // our JSON bytes). Single decode path now.
+    this.messageListener = eventEmitter.on('yjs:p2p-command', ({ peerCid, payload }: { peerCid: bigint; payload: Record<string, unknown> }) => {
       if (this.destroyed) return;
-      if (peerCid !== this.peerCid) return;
-      try {
-        const decoded = new TextDecoder().decode(message);
-        const parsed = JSON.parse(decoded) as YjsP2PMessage;
-        if ('document_id' in parsed && parsed.document_id !== this.documentId) return;
-        this.handleMessage(parsed);
-      } catch { /* Not a Yjs message (likely MessagePack chat message), ignore */ }
+      // `this.peerCid` is a string; compare via toString (display/key use).
+      if (peerCid.toString() !== this.peerCid) return;
+      // Filter by document_id when present (sync/awareness/ack carry it;
+      // a future generic Yjs command might not).
+      const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
+      if (docId !== undefined && docId !== this.documentId) return;
+      this.handleMessage(payload as unknown as YjsP2PMessage);
     });
   }
 
@@ -146,6 +154,16 @@ export class YjsP2PProvider {
       case 'yjs_awareness': handleAwarenessMessage(this.ctx, message); break;
       case 'yjs_ack': handleAckMessage(this.ctx, message); break;
       case 'yjs_divergence': handleDivergenceMessage(this.ctx, message); break;
+      default:
+        // `setupMessageListener` casts the CBOR payload with `as unknown as
+        // YjsP2PMessage`; a future `yjs_*` variant added on the sender side
+        // before this switch is updated would otherwise be silently dropped.
+        // Surface the unknown type in dev tools so the gap is visible.
+        debugLog(
+          'YjsP2PProvider',
+          'handleMessage: unknown Yjs message type',
+          (message as { type?: unknown }).type,
+        );
     }
   }
 

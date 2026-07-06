@@ -56,7 +56,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
       toast({
         title: 'Chat Settings Updated',
         description: `Chat ${chatEnabled ? 'enabled' : 'disabled'} for this ${entityType}`,
-        className: 'bg-[#343A5C] border-purple-800 text-purple-200',
+        className: 'bg-[#232536] border-purple-800 text-purple-200',
       });
 
       setOriginalEnabled(chatEnabled);
@@ -98,13 +98,6 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
             Select an office or room from the sidebar to configure its chat settings.
           </AlertDescription>
         </Alert>
-
-        <div className="text-center py-8">
-          <MessageSquare className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">
-            Workspace-level chat settings coming soon
-          </p>
-        </div>
       </div>
     );
   }
@@ -142,7 +135,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
           value={chatRules}
           onChange={(e) => setChatRules(e.target.value)}
           placeholder="Enter chat rules and guidelines for members (optional)&#10;&#10;Example:&#10;- Be respectful to all members&#10;- No spam or self-promotion&#10;- Stay on topic"
-          className="bg-[#444A6C] border-[#3D3F5A] text-white placeholder:text-gray-500 min-h-[150px]"
+          className="bg-[#232536] border-[#3D3F5A] text-white placeholder:text-gray-500 min-h-[150px]"
           disabled={!chatEnabled}
           data-testid="chat-rules-textarea"
         />
@@ -170,7 +163,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
             </div>
             <div className="flex items-center gap-2 text-gray-400">
               <div className="w-2 h-2 rounded-full bg-yellow-500" />
-              Threads (coming soon)
+              Threads (planned)
             </div>
           </div>
         </div>
@@ -182,7 +175,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps
           variant="outline"
           onClick={handleReset}
           disabled={!hasChanges || saving}
-          className="border-gray-600 text-white hover:bg-[#444A6C]"
+          className="border-gray-600 text-white hover:bg-[#232536]"
           data-testid="chat-reset-button"
         >
           Reset

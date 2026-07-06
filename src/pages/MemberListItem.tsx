@@ -41,13 +41,13 @@ interface MemberListItemProps {
 
 export function MemberListItem({ member, variant, onSendMessage, onInvite }: MemberListItemProps) {
   return (
-    <div className="flex items-center justify-between p-4 hover:bg-[#444A6C] transition-colors">
+    <div className="flex items-center justify-between p-4 hover:bg-[#232536] transition-colors">
       <div className="flex items-center space-x-3">
         <Avatar className="h-10 w-10 relative">
           <AvatarImage src={member.avatarUrl} />
           <AvatarFallback className="bg-purple-900">{member.displayName.charAt(0)}</AvatarFallback>
           {member.isOnline && (
-            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#343A5C]" />
+            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#232536]" />
           )}
         </Avatar>
         <div>

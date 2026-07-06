@@ -53,9 +53,57 @@ export interface TransferProgressEvent {
 // Intent Types (for SBIO - business logic returns intents, IO executes them)
 // ============================================================================
 
+/**
+ * Phantom-branded wrapper marking a value as IN-MEMORY ONLY. The unique
+ * symbol can never be produced at runtime, so structural type widening
+ * cannot accidentally assign a raw `T` to an `InMemoryOnly<T>` field —
+ * callers must go through `wrapInMemory()` which is the single
+ * documented escape hatch.
+ *
+ * Why: the original `file?: File` field carried a non-serializable host
+ * object (drops to `{}` under `JSON.stringify`, semantics undefined
+ * across `structuredClone` to workers/tabs). A code reviewer flagged
+ * that the doc-only contract did not stop a future refactor from
+ * routing this intent through a JSON or BroadcastChannel bus and
+ * silently losing the file. This brand makes the boundary explicit at
+ * the type level: any cross-boundary intent serializer that omits
+ * `file` automatically widens to a value that no longer matches
+ * `InMemoryOnly<File>` and the executor's lookup branch is forced.
+ */
+export type InMemoryOnly<T> = T & { readonly __inMemoryOnly: unique symbol };
+
+/**
+ * Brand a value as in-memory-only. Cast through this helper at the
+ * single legitimate creation site (`transfer-lifecycle.ts`) — anywhere
+ * else assigning a raw `File` to `SendTransferRequestIntent.file` is
+ * a TypeScript error. The cast itself is zero-cost; the brand exists
+ * only at compile time.
+ */
+export function wrapInMemory<T>(value: T): InMemoryOnly<T> {
+  return value as InMemoryOnly<T>;
+}
+
 export interface SendTransferRequestIntent {
   type: 'send-transfer-request';
   transfer: FileTransfer;
+  /**
+   * The actual browser File object to send (browser-based file
+   * selection path).
+   *
+   * Branded `InMemoryOnly<File>` so the type system stops a future
+   * refactor that routes this intent through `BroadcastChannel`,
+   * `postMessage`, or `JSON.stringify` from silently dropping the File:
+   *   - `JSON.stringify(intent)` drops the brand AND the File ⇒ executor
+   *     hits the missing-file branch and throws (see io.ts:103-115).
+   *   - Direct assignment of a raw `File` is a TS error; callers must
+   *     go through `wrapInMemory(file)` so the in-memory-only contract
+   *     is explicit at the call site.
+   *
+   * The matching lookup path (transfer-lifecycle.ts pre-populates
+   * `state.setPendingFile(transferId, file)`) is what a cross-tab
+   * intent router should consult after dropping this field.
+   */
+  file?: InMemoryOnly<File>;
 }
 
 export interface SendChunkIntent {

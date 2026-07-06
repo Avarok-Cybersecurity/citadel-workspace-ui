@@ -145,7 +145,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-center bg-[#444A6C] rounded-md border border-gray-700">
+      <div className="flex items-center bg-[#232536] rounded-md border border-gray-700">
         <Search className="h-4 w-4 text-gray-400 ml-3" />
         <Input
           ref={inputRef}
@@ -171,7 +171,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       {showResults && (
         <Card
           ref={resultsRef}
-          className="absolute z-50 w-full mt-1 bg-[#343A5C] border-gray-700 text-white shadow-lg overflow-hidden"
+          className="absolute z-50 w-full mt-1 bg-[#232536] border-gray-700 text-white shadow-lg overflow-hidden"
         >
           <CardHeader className="p-3 border-b border-gray-700">
             <CardTitle className="text-sm">
@@ -192,7 +192,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                   {(results.length > 0 ? results : searchTerm ? [] : getRecentUsers()).map((user) => (
                     <li
                       key={user.id}
-                      className="hover:bg-[#444A6C] transition-colors p-3 cursor-pointer"
+                      className="hover:bg-[#232536] transition-colors p-3 cursor-pointer"
                       onClick={() => handleSelectUser(user)}
                     >
                       <div className="flex items-center space-x-3">
@@ -200,7 +200,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                           <AvatarImage src={user.avatarUrl} />
                           <AvatarFallback className="bg-purple-900">{user.displayName.charAt(0)}</AvatarFallback>
                           {user.isOnline && (
-                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#343A5C]" />
+                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#232536]" />
                           )}
                         </Avatar>
                         <div className="flex-1 min-w-0">

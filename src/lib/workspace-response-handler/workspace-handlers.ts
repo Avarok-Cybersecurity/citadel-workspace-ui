@@ -12,6 +12,10 @@ import { isVariant } from 'citadel-workspace-client-ts';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 
 import { handleNodeVariants } from './node-handlers';
+import { mapWasmMember } from './member-mapping';
+
+// Re-exported for callers that import via this module's public surface.
+export { mapWasmMember, type MappedMember } from './member-mapping';
 
 /** Minimal connection context attached to every emitted event. */
 export interface ConnectionInfo {
@@ -151,15 +155,17 @@ function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'Members')) {
+    const mappedMembers = response.Members.map((m: Record<string, unknown>) => mapWasmMember(m));
     eventEmitter.emit('members:loaded', {
-      members: response.Members, connection: connectionInfo,
+      members: mappedMembers, connection: connectionInfo,
     });
     return true;
   }
 
   if (isVariant(response, 'Member')) {
+    const mappedMember = mapWasmMember(response.Member as Record<string, unknown>);
     eventEmitter.emit('member:loaded', {
-      member: response.Member, connection: connectionInfo,
+      member: mappedMember, connection: connectionInfo,
     });
     return true;
   }
@@ -178,6 +184,25 @@ function handleGeneratedVariants(
       message: response.Error, connection: connectionInfo,
     });
     eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'ServerShutdown')) {
+    // Distinct from `Error` so the UI can render a reconnect banner /
+    // countdown instead of a red error toast on every planned restart.
+    // The `drain_seconds` upper bound lets the UI time a reconnect
+    // attempt; until a dedicated banner exists, an informational toast
+    // ensures the user isn't left wondering why messages stop flowing.
+    const { message, drain_seconds } = response.ServerShutdown;
+    debugLog('WorkspaceResponseHandler', 'ServerShutdown received', {
+      message,
+      drain_seconds: drain_seconds.toString(),
+    });
+    eventEmitter.emit('server:shutdown', {
+      message,
+      drainSeconds: Number(drain_seconds),
+      connection: connectionInfo,
+    });
     return true;
   }
 

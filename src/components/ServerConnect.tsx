@@ -1,38 +1,39 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, HelpCircle } from "lucide-react";
+import { Globe, Lock, Shield, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { StepIndicator } from "@/components/ui/step-indicator";
 
 interface ServerConnectProps {
-  onNext: () => void;
+  onNext: (address: string, password: string) => void;
   onCancel?: () => void;
   defaultServer?: string;
   title?: string;
+  initialAddress?: string;
+  initialPassword?: string;
 }
 
-export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: ServerConnectProps) => {
+export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps) => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Get existing data from cache
-  const cachedData = queryClient.getQueryData(['serverConnectForm']) as { serverAddress: string; password: string } | undefined;
+  const [serverAddress, setServerAddress] = useState(defaultServer || initialAddress || '');
+  const [password, setPassword] = useState(initialPassword || '');
 
-  const [serverAddress, setServerAddress] = useState(defaultServer || cachedData?.serverAddress || '');
-  const [password, setPassword] = useState(cachedData?.password || '');
-
-  // Update cache when component mounts to ensure it's initialized
+  // Dismiss on Escape key
   useEffect(() => {
-    if (!cachedData) {
-      queryClient.setQueryData(['serverConnectForm'], { serverAddress, password });
-    }
-  }, [queryClient, cachedData, serverAddress, password]);
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (onCancel) onCancel();
+        else navigate('/');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCancel, navigate]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,92 +45,95 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title }: Server
       });
       return;
     }
-    
-    // Save form data to React Query cache
-    queryClient.setQueryData(['serverConnectForm'], { serverAddress, password });
-    
-    onNext();
+
+    // Basic server address validation — must look like a hostname or IP
+    const trimmed = serverAddress.trim();
+    if (!trimmed.includes('.') && !trimmed.includes(':')) {
+      toast({
+        title: "Invalid server address",
+        description: "Please enter a valid server address (e.g., workspace.avarok.net or 127.0.0.1:8080)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onNext(serverAddress, password);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md">
-        <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-white text-xl">{title || "Add a New Workspace"}</CardTitle>
-            <CardDescription className="text-gray-300">
+        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+          <CardHeader className="pb-4">
+            <StepIndicator currentStep={1} totalSteps={3} labels={["Server", "Security", "Profile"]} />
+            <h2 className="text-xl font-bold text-white mt-5">{title || "Join Workspace"}</h2>
+            <p className="text-sm text-gray-400 mt-1">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
-            </CardDescription>
+            </p>
           </CardHeader>
-          
+
           <form onSubmit={handleConnect}>
-            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-scroll">
+            <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto">
+              {/* Workspace Address */}
               <div className="space-y-2">
-                <Label htmlFor="serverAddress" className="text-gray-300">
-                  Workspace Location
-                </Label>
+                <label htmlFor="serverAddress" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                  Workspace Address
+                </label>
                 <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <Input
                     id="serverAddress"
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
-                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
-                    placeholder="workspace-name.avarok.net"
+                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    placeholder="workspace.example.com"
                   />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                        <p>Enter your workspace server address</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 </div>
               </div>
 
+              {/* Workspace Password */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-300">
+                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
                   Workspace Password (Optional)
-                </Label>
+                </label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <Input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-[#3B3D57] border-[#4D4F6C] text-white pr-12"
-                    placeholder="Enter workspace password"
+                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    placeholder="••••••••••••"
                   />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                        <p>Optional: Enter the workspace password if required</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 </div>
               </div>
+
+              {/* Security info banner */}
+              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-purple-500/5 border border-purple-500/10">
+                <Shield className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Citadel uses <span className="text-purple-300">lattice-based cryptography</span>. All connections are
+                  end-to-end encrypted and resistant to quantum compute attacks.
+                </p>
+              </div>
             </CardContent>
-            
-            <CardFooter className="flex justify-between">
+
+            <CardFooter className="flex justify-between pt-2">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={onCancel || (() => navigate("/"))}
-                className="text-white hover:bg-purple-500/20"
+                className="text-gray-400 hover:text-white hover:bg-transparent"
               >
-                CANCEL
+                Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
               >
-                NEXT
+                Next
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </CardFooter>
           </form>

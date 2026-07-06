@@ -22,40 +22,39 @@ const App = () => {
         <WorkspaceApp>
           <Toaster />
           <Sonner />
-          {/* Test comment to verify Docker doesn't rebuild */}
           <BrowserRouter>
-          <Routes>
-            {/* Public routes that don't require workspace data */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/connect" element={<Connect />} />
-            
-            {/* Protected routes that require workspace data to be loaded */}
-            <Route path="/workspace" element={
-              <WorkspaceLoader>
-                <Office />
-              </WorkspaceLoader>
-            } />
-            <Route path="/messages" element={
-              <WorkspaceLoader>
-                <Messages />
-              </WorkspaceLoader>
-            } />
-            <Route path="/directory" element={
-              <WorkspaceLoader>
-                <UserDirectory />
-              </WorkspaceLoader>
-            } />
-            <Route path="/groups/:groupId" element={
-              <WorkspaceLoader>
-                <GroupChatPage />
-              </WorkspaceLoader>
-            } />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </WorkspaceApp>
-    </TooltipProvider>
-  </QueryClientProvider>
+            <Routes>
+              {/* Public routes that don't require workspace data */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/connect" element={<Connect />} />
+
+              {/* Protected routes that require workspace data to be loaded */}
+              <Route path="/workspace" element={
+                <WorkspaceLoader>
+                  <Office />
+                </WorkspaceLoader>
+              } />
+              <Route path="/messages" element={
+                <WorkspaceLoader>
+                  <Messages />
+                </WorkspaceLoader>
+              } />
+              <Route path="/directory" element={
+                <WorkspaceLoader>
+                  <UserDirectory />
+                </WorkspaceLoader>
+              } />
+              <Route path="/groups/:groupId" element={
+                <WorkspaceLoader>
+                  <GroupChatPage />
+                </WorkspaceLoader>
+              } />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </WorkspaceApp>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 

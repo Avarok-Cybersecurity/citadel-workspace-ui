@@ -485,8 +485,12 @@ async function runTest(): Promise<boolean> {
       results.fiveTabsExist = tabCount === 5;
       console.log(`  Tab count: ${tabCount} (expected: 5) - ${results.fiveTabsExist ? 'PASS' : 'FAIL'}`);
 
-      // Check for Permissions tab
-      results.permissionsTabExists = await tabExists(page, 'Permissions');
+      // Check for Permissions tab. The visible label is short-form 'Perms'
+      // (matches the SettingsModal tab text); other tests in this repo
+      // (settings-modal.test.ts) handle this by also accepting the lock
+      // icon as a fallback, but here a single text match is sufficient
+      // since the rest of the test depends on this same locator.
+      results.permissionsTabExists = await tabExists(page, 'Perms');
       console.log(`  Permissions tab exists: ${results.permissionsTabExists ? 'PASS' : 'FAIL'}`);
 
       // Check for Lock icon

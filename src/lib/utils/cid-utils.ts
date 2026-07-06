@@ -75,3 +75,48 @@ export function cidPairKey(cid1: bigint, cid2: bigint): string {
 export function isCidLike(value: unknown): value is string | number | bigint {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint';
 }
+
+/**
+ * Best-effort parse of a CID-like string into a bigint, returning
+ * `undefined` for any malformed input rather than throwing.
+ *
+ * Use this on CID values arriving from URL params, IndexedDB
+ * sessions, or anywhere a `BigInt(value)` call would otherwise
+ * crash a render. The standard safe pattern:
+ *
+ * ```ts
+ * const cid = tryParseCid(maybeCid);
+ * if (cid === undefined) return <Fallback />;
+ * // … use cid as bigint …
+ * ```
+ *
+ * Centralised here (rather than re-implementing the try/catch at
+ * each call site) so the test in
+ * `cid-utils.test.ts#tryParseCid` is the single source of truth
+ * for the parsing contract.
+ */
+/** Maximum valid CID: CIDs are u64-shaped, so reject anything above 2^64-1. */
+const MAX_CID = (1n << 64n) - 1n; // 18446744073709551615
+
+export function tryParseCid(value: string | undefined | null): bigint | undefined {
+  // `BigInt()` is too lenient for CID parsing: `BigInt(' ')` is `0n` and
+  // `BigInt('-1')` is `-1n`, so whitespace, zero, and negative strings would
+  // slip through as "valid" CIDs and get used for routing / persisted
+  // sessions. Require a plain non-empty decimal string and a positive result
+  // within the u64 range (a longer digit string can't be a real CID).
+  const trimmed = value?.trim();
+  if (!trimmed || !/^[0-9]+$/.test(trimmed)) {
+    return undefined;
+  }
+  // Bound the input length BEFORE calling BigInt(): u64::MAX is 20 digits, so
+  // anything longer can't be a real CID and is rejected without parsing. This
+  // stops a pathological multi-KB/MB digit string (from a crafted URL param or
+  // corrupted session) from synchronously allocating an arbitrary-precision
+  // BigInt and freezing the tab — the length check is O(1); BigInt parsing is
+  // not.
+  if (trimmed.length > 20) {
+    return undefined;
+  }
+  const cid = BigInt(trimmed);
+  return cid > 0n && cid <= MAX_CID ? cid : undefined;
+}

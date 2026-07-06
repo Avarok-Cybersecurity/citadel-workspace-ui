@@ -73,7 +73,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
       toast({
         title: 'Request Declined',
         description: `Declined connection from ${request.peer_username}`,
-        className: 'bg-[#343A5C] border-red-600 text-red-400',
+        className: 'bg-[#232536] border-red-600 text-red-400',
       });
     } catch (error) {
       toast({
@@ -106,7 +106,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#343A5C] text-white border-gray-700 max-w-lg">
+      <DialogContent className="bg-[#232536] text-white border-gray-700 max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <UserPlus className="h-5 w-5 mr-2" />
@@ -131,7 +131,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
               {pendingRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-[#444A6C] hover:bg-[#4F5889] transition-colors"
+                  className="flex items-center justify-between p-4 rounded-lg bg-[#232536] hover:bg-[#4F5889] transition-colors"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">

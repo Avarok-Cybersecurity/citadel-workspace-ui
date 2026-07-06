@@ -26,8 +26,8 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
     
     if (!client) {
       // Don't try to initialize here - let ConnectionManager handle it
-      debugLog('ServerUtils', 'WebSocket client not available yet, returning empty servers list');
-      return { servers: [] };
+      debugLog('ServerUtils', 'WebSocket client not available yet, falling back to localStorage');
+      return { servers: getRecentServers() };
     }
     
     const requestId = crypto.randomUUID();
@@ -196,5 +196,43 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
   } catch (error) {
     debugLog('ServerUtils', 'Error in storeKnownServer:', error);
     throw error;
+  }
+}
+
+// ─── localStorage-based fallback for recent servers ─────────────────
+
+const RECENT_SERVERS_KEY = 'citadel_recent_servers';
+
+/**
+ * Save a server to localStorage for offline/fallback access.
+ * Called during auth flow so Connect page always has data.
+ */
+export function saveRecentServer(server: StoredServer): void {
+  try {
+    const existing = getRecentServers();
+    const idx = existing.findIndex(s => s.serverAddress === server.serverAddress);
+    const updated = { ...server, lastConnected: Date.now() };
+    if (idx >= 0) {
+      existing[idx] = updated;
+    } else {
+      existing.push(updated);
+    }
+    localStorage.setItem(RECENT_SERVERS_KEY, JSON.stringify(existing));
+  } catch (e) {
+    debugLog('ServerUtils', 'Error saving recent server to localStorage:', e);
+  }
+}
+
+/**
+ * Get recent servers from localStorage (fallback when WASM client unavailable).
+ */
+export function getRecentServers(): StoredServer[] {
+  try {
+    const raw = localStorage.getItem(RECENT_SERVERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 }

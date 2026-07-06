@@ -5,7 +5,7 @@ import { ConnectionService } from '@/lib/connection-service';
 import { ConnectionManager } from '@/lib/connection';
 import { websocketService } from '@/lib/websocket-service';
 import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
-import WorkspaceService from '@/lib/workspace-service';
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
@@ -31,7 +31,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
   // Check for dev mode
   const urlParams = new URLSearchParams(window.location.search);
-  const isDevMode = urlParams.get('dev') === 'true';
+  const isDevMode = urlParams.get('dev') === 'true' && import.meta.env.VITE_DEV_MODE === 'true';
 
   // Check if workspace is still loading
   const isLoading =
@@ -82,12 +82,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
           }
         }
 
-        WorkspaceService.setConnectionId(currentConnection.cid);
-
-        debugLog('WorkspaceLoader', ' Triggering workspace loading for existing connection');
-        await WorkspaceService.loadWorkspace();
-        await WorkspaceService.listNodes();
-        await WorkspaceService.getTreeSchema();
+        await postAuthSetup(currentConnection.cid);
 
         setHasConnection(true);
         return;
@@ -119,22 +114,30 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
           selectedUsername: existingSelection?.selectedUsername ?? 'none',
         });
 
-        if (!existingSelection?.selectedCid) {
-          debugLog('WorkspaceLoader', ' No session CID in tab context, skipping auto-claim');
-          debugLog('WorkspaceLoader', ' User must select a session via UI');
+        let sessionToUse: typeof activeSessions[0] | undefined;
+
+        if (existingSelection?.selectedCid) {
+          sessionToUse = activeSessions.find(s => s.cid === existingSelection.selectedCid);
+          if (!sessionToUse) {
+            debugLog('WorkspaceLoader', ' Selected session no longer active, trying first available');
+            await clearSelectedUser();
+          }
+        }
+
+        if (!sessionToUse) {
+          // No stored selection or stored selection invalid — use first active session
+          sessionToUse = activeSessions[0];
+          debugLog('WorkspaceLoader', ' Auto-selecting first available session:', sessionToUse?.username);
+        }
+
+        if (!sessionToUse) {
+          debugLog('WorkspaceLoader', ' No usable session found');
           setIsAutoClaimingSession(false);
           return;
         }
 
-        const session = activeSessions.find(s => s.cid === existingSelection.selectedCid);
-        if (!session) {
-          debugLog('WorkspaceLoader', ' Selected session no longer active, clearing tab context');
-          await clearSelectedUser();
-          setIsAutoClaimingSession(false);
-          return;
-        }
-
-        debugLog('WorkspaceLoader', ' Auto-claiming known session:', session.username, session.cid);
+        const session = sessionToUse;
+        debugLog('WorkspaceLoader', ' Auto-claiming session:', session.username, session.cid);
 
         try {
           await websocketService.claimSession(session.cid, true);
@@ -153,18 +156,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
           selectedCid: session.cid
         });
 
-        WorkspaceService.setConnectionId(session.cid);
-
-        try {
-          await wasmConnectionManager.start(session.cid.toString());
-          debugLog('WorkspaceLoader', ' WASM connection manager started for CID:', session.cid);
-        } catch (error) {
-          debugLog('WorkspaceLoader', 'Failed to start WASM connection manager:', error);
-        }
-
-        await WorkspaceService.loadWorkspace();
-        await WorkspaceService.listNodes();
-        await WorkspaceService.getTreeSchema();
+        await postAuthSetup(session.cid);
 
         setHasConnection(true);
         debugLog('WorkspaceLoader', ' Auto-claim complete, workspace loading initiated');
@@ -205,11 +197,29 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   useEffect(() => {
     if (isDevMode) return;
 
-    if (loadingTimeout && !hasConnection && isLoading) {
+    if (loadingTimeout && !hasConnection && isLoading && !isAutoClaimingSession) {
       debugLog('WorkspaceLoader', ' No connection detected after timeout, redirecting to connect');
       navigate('/connect');
     }
-  }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode]);
+  }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode, isAutoClaimingSession]);
+
+  // Secondary safety net: workspace data loading timeout
+  // Covers the case where connection is established (hasConnection=true) but
+  // workspace data never loads (e.g., Follower tab doesn't own WASM client)
+  const [workspaceDataTimeout, setWorkspaceDataTimeout] = useState(false);
+  useEffect(() => {
+    if (isDevMode || !hasConnection || !isLoading) {
+      setWorkspaceDataTimeout(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (isLoading && hasConnection) {
+        debugLog('WorkspaceLoader', 'Workspace data loading timeout — connection exists but data never arrived');
+        setWorkspaceDataTimeout(true);
+      }
+    }, 10_000); // 10s for workspace data to load
+    return () => clearTimeout(timer);
+  }, [hasConnection, isLoading, isDevMode]);
 
   if (isDevMode) {
     debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');
@@ -219,14 +229,16 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   if (isLoading || isAutoClaimingSession) {
     const loadingMessage = isAutoClaimingSession
       ? 'Connecting to session...'
-      : loadingTimeout
-        ? 'Checking connection...'
-        : 'Loading workspace...';
+      : workspaceDataTimeout
+        ? 'Workspace data is taking longer than expected...'
+        : loadingTimeout
+          ? 'Checking connection...'
+          : 'Loading workspace...';
 
     return (
       <WorkspaceLoaderSpinner
         loadingMessage={loadingMessage}
-        showConnectButton={loadingTimeout && !isAutoClaimingSession}
+        showConnectButton={(loadingTimeout && !isAutoClaimingSession) || workspaceDataTimeout}
       />
     );
   }

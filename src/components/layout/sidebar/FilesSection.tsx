@@ -148,10 +148,17 @@ export const FilesSection = () => {
     setSelectedFile(null);
   };
 
+  const params = new URLSearchParams(location.search);
+  const isFileManagerActive = params.get('section') === 'files';
+
   const handleFileManagerClick = () => {
-    const params = new URLSearchParams(location.search);
-    params.set('section', 'files');
-    navigate(buildWorkspacePath(params));
+    const newParams = new URLSearchParams(location.search);
+    newParams.set('section', 'files');
+    newParams.delete('nodeId');
+    newParams.delete('showP2P');
+    newParams.delete('channel');
+    newParams.delete('p2pUser');
+    navigate(buildWorkspacePath(newParams));
   };
 
   return (
@@ -175,7 +182,7 @@ export const FilesSection = () => {
                 files.map((file) => (
                   <SidebarMenuItem key={file.id} data-testid={`file-item-${file.id}`}>
                     <SidebarMenuButton
-                      className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors"
+                      className="text-white hover:bg-purple-500/15 hover:text-white transition-colors"
                       onClick={() => handleFileClick(file)}
                     >
                       {getFileIcon(file.name)}
@@ -188,7 +195,10 @@ export const FilesSection = () => {
               )}
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors"
+                  isActive={isFileManagerActive}
+                  className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors ${
+                    isFileManagerActive ? "bg-purple-500/20 text-purple-200" : ""
+                  }`}
                   onClick={handleFileManagerClick}
                   data-testid="file-manager-button"
                 >

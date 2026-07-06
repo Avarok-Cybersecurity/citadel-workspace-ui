@@ -59,20 +59,20 @@ export function VFSContextMenu({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-48 bg-[#343A5C] text-white border-purple-800">
+      <ContextMenuContent className="w-48 bg-[#232536] text-white border-purple-800">
         {/* Directory actions */}
         {isDir && (
           <>
-            <ContextMenuItem onClick={onNewFolder} className="hover:bg-[#444A6C] cursor-pointer">
+            <ContextMenuItem onClick={onNewFolder} className="hover:bg-[#232536] cursor-pointer">
               <FolderPlus className="mr-2 h-4 w-4" />
               New Folder
             </ContextMenuItem>
-            <ContextMenuItem onClick={onUploadFile} className="hover:bg-[#444A6C] cursor-pointer">
+            <ContextMenuItem onClick={onUploadFile} className="hover:bg-[#232536] cursor-pointer">
               <FileUp className="mr-2 h-4 w-4" />
               Upload File
             </ContextMenuItem>
             {hasPasteItems && onPaste && (
-              <ContextMenuItem onClick={onPaste} className="hover:bg-[#444A6C] cursor-pointer">
+              <ContextMenuItem onClick={onPaste} className="hover:bg-[#232536] cursor-pointer">
                 <ClipboardPaste className="mr-2 h-4 w-4" />
                 Paste
               </ContextMenuItem>
@@ -81,19 +81,19 @@ export function VFSContextMenu({
               <>
                 <ContextMenuSeparator className="bg-purple-800" />
                 {onRename && (
-                  <ContextMenuItem onClick={onRename} className="hover:bg-[#444A6C] cursor-pointer">
+                  <ContextMenuItem onClick={onRename} className="hover:bg-[#232536] cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" />
                     Rename
                   </ContextMenuItem>
                 )}
                 {onCut && (
-                  <ContextMenuItem onClick={onCut} className="hover:bg-[#444A6C] cursor-pointer">
+                  <ContextMenuItem onClick={onCut} className="hover:bg-[#232536] cursor-pointer">
                     <Scissors className="mr-2 h-4 w-4" />
                     Cut
                   </ContextMenuItem>
                 )}
                 {onCopy && (
-                  <ContextMenuItem onClick={onCopy} className="hover:bg-[#444A6C] cursor-pointer">
+                  <ContextMenuItem onClick={onCopy} className="hover:bg-[#232536] cursor-pointer">
                     <Copy className="mr-2 h-4 w-4" />
                     Copy
                   </ContextMenuItem>
@@ -112,18 +112,18 @@ export function VFSContextMenu({
         {!isDir && (
           <>
             {fileState === RevfsFileState.Remote && (
-              <ContextMenuItem onClick={onDownload} className="hover:bg-[#444A6C] cursor-pointer">
+              <ContextMenuItem onClick={onDownload} className="hover:bg-[#232536] cursor-pointer">
                 <Download className="mr-2 h-4 w-4" />
                 Download
               </ContextMenuItem>
             )}
             {fileState === RevfsFileState.Received && (
-              <ContextMenuItem onClick={onDownload} className="hover:bg-[#444A6C] cursor-pointer">
+              <ContextMenuItem onClick={onDownload} className="hover:bg-[#232536] cursor-pointer">
                 <FolderOpen className="mr-2 h-4 w-4" />
                 Open
               </ContextMenuItem>
             )}
-            <ContextMenuItem onClick={onInfo} className="hover:bg-[#444A6C] cursor-pointer">
+            <ContextMenuItem onClick={onInfo} className="hover:bg-[#232536] cursor-pointer">
               <Info className="mr-2 h-4 w-4" />
               Info
             </ContextMenuItem>
@@ -131,19 +131,19 @@ export function VFSContextMenu({
               <>
                 <ContextMenuSeparator className="bg-purple-800" />
                 {onRename && (
-                  <ContextMenuItem onClick={onRename} className="hover:bg-[#444A6C] cursor-pointer">
+                  <ContextMenuItem onClick={onRename} className="hover:bg-[#232536] cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" />
                     Rename
                   </ContextMenuItem>
                 )}
                 {onCut && (
-                  <ContextMenuItem onClick={onCut} className="hover:bg-[#444A6C] cursor-pointer">
+                  <ContextMenuItem onClick={onCut} className="hover:bg-[#232536] cursor-pointer">
                     <Scissors className="mr-2 h-4 w-4" />
                     Cut
                   </ContextMenuItem>
                 )}
                 {onCopy && (
-                  <ContextMenuItem onClick={onCopy} className="hover:bg-[#444A6C] cursor-pointer">
+                  <ContextMenuItem onClick={onCopy} className="hover:bg-[#232536] cursor-pointer">
                     <Copy className="mr-2 h-4 w-4" />
                     Copy
                   </ContextMenuItem>

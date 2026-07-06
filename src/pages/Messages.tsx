@@ -1,14 +1,88 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { ChatArea } from "@/components/chat/ChatArea";
-import { useLocation } from "react-router-dom";
+import { P2PPeerList } from "@/components/p2p/P2PPeerList";
+import { P2PChat } from "@/components/p2p/P2PChat";
+import { useLocation, useNavigate } from "react-router-dom";
+import { MessageCircle, Shield } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { connectionManager } from "@/lib/connection";
+import { useRegisteredPeers } from "@/hooks";
 
 const Messages = () => {
   const location = useLocation();
-  const channel = new URLSearchParams(location.search).get("channel") || "team-chat";
+  const navigate = useNavigate();
+  const channel = new URLSearchParams(location.search).get("channel");
+  const [selectedPeerCid, setSelectedPeerCid] = useState<string | null>(channel);
+  const { registeredPeers } = useRegisteredPeers();
+
+  // Get current user info
+  const connectionInfo = connectionManager.getConnectionInfo();
+  const currentUserCid = connectionInfo?.cid;
+  const currentUserName = connectionInfo?.username || 'You';
+
+  // Resolve peer CID to username
+  const selectedPeerName = useMemo(() => {
+    if (!selectedPeerCid) return '';
+    const peer = registeredPeers.find(p => p.cid === selectedPeerCid);
+    if (peer && peer.username && peer.username !== 'Unknown') return peer.username;
+    return `User ${selectedPeerCid.slice(0, 8)}…`;
+  }, [selectedPeerCid, registeredPeers]);
+
+  // Sync URL param with selected peer
+  useEffect(() => {
+    setSelectedPeerCid(channel);
+  }, [channel]);
+
+  const handleSelectPeer = (peerCid: string) => {
+    setSelectedPeerCid(peerCid);
+    navigate(`/messages?channel=${peerCid}`, { replace: true });
+  };
 
   return (
     <AppLayout>
-      <ChatArea recipientId={channel} />
+      <div className="flex h-full">
+        {/* Conversation List */}
+        <div className="w-72 border-r border-[#2D3548] bg-[#131420] flex-shrink-0 flex flex-col">
+          <div className="px-4 py-3 border-b border-[#2D3548]">
+            <h2 className="text-[11px] font-semibold tracking-wider uppercase text-gray-500">
+              Conversations
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <P2PPeerList
+              onSelectPeer={handleSelectPeer}
+              selectedPeerCid={selectedPeerCid || undefined}
+            />
+          </div>
+        </div>
+
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col bg-[#1C1D28]">
+          {selectedPeerCid && currentUserCid ? (
+            <P2PChat
+              peerCid={BigInt(selectedPeerCid)}
+              peerName={selectedPeerName}
+              currentUserCid={currentUserCid}
+              currentUserName={currentUserName}
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center">
+              <div className="flex flex-col items-center max-w-xs text-center">
+                <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-5">
+                  <MessageCircle className="h-8 w-8 text-purple-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">No conversation selected</h3>
+                <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                  Choose a peer from the list to start an encrypted conversation
+                </p>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/5 border border-purple-500/10">
+                  <Shield className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="text-[11px] text-gray-400">End-to-end encrypted</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </AppLayout>
   );
 };

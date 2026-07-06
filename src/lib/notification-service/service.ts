@@ -34,7 +34,56 @@ export class NotificationService {
     this.notifications.set(fullNotification.id, fullNotification);
     this.notifyHandlers(fullNotification);
     this.notifyUnreadChange();
+
+    // Browser notification + sound when tab is not focused
+    if (typeof document !== 'undefined' && document.hidden) {
+      this.showBrowserNotification(fullNotification);
+      this.playNotificationSound();
+    }
+
     return fullNotification;
+  }
+
+  private showBrowserNotification(notification: Notification): void {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
+      new Notification(notification.title, {
+        body: notification.content,
+        icon: '/favicon.ico',
+        tag: notification.id,
+      });
+    } else if (Notification.permission !== 'denied') {
+      // Fire-and-forget: we don't gate the rest of the notification
+      // pipeline on the user's permission decision.
+      void Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(notification.title, {
+            body: notification.content,
+            icon: '/favicon.ico',
+            tag: notification.id,
+          });
+        }
+      });
+    }
+  }
+
+  private playNotificationSound(): void {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+      oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.3);
+    } catch {
+      // Audio not available
+    }
   }
 
   public addMessageNotification(
@@ -103,7 +152,7 @@ export class NotificationService {
     let anyChanged = false;
     for (const [id, notification] of this.notifications.entries()) {
       if (notification.type === NotificationType.MESSAGE &&
-          notification.senderId === senderId && !notification.read) {
+        notification.senderId === senderId && !notification.read) {
         notification.read = true;
         this.notifications.set(id, notification);
         anyChanged = true;

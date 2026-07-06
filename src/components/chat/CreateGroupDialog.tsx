@@ -111,7 +111,7 @@ export function CreateGroupDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] bg-[#1C2333] border-[#2D3548] text-white">
+      <DialogContent className="sm:max-w-[500px] bg-[#1C1D28] border-[#2D3548] text-white">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <Users className="h-5 w-5 text-[#6E59A5]" />
@@ -157,7 +157,7 @@ export function CreateGroupDialog({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-64 p-2 bg-[#1C2333] border-[#2D3548]"
+                  className="w-64 p-2 bg-[#1C1D28] border-[#2D3548]"
                   align="end"
                 >
                   <ScrollArea className="max-h-48">

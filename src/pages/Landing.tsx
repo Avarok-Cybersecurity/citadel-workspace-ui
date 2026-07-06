@@ -1,12 +1,12 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogIn, Settings } from "lucide-react";
+import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
 import { Login } from "@/components/Login";
-import WorkspaceService from "@/lib/workspace-service";
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { listKnownServers } from "@/lib/server-utils";
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
@@ -23,13 +23,20 @@ import { toastError } from '@/lib/toast-helpers';
 
 export const Landing = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
   const [orphanSessionCount, setOrphanSessionCount] = useState(0);
+  // TODO: showLoginConflict is never set to true — LoginConflictModal is never displayed.
+  // Either wire this up to detect login conflicts, or remove the modal and state.
   const [showLoginConflict, setShowLoginConflict] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  
+
+  // Server connection data lifted to Landing state to avoid React Query GC eviction
+  const [serverAddress, setServerAddress] = useState('');
+  const [serverPassword, setServerPassword] = useState('');
+
   // Check for orphan sessions (don't auto-navigate, just detect)
   useEffect(() => {
     const checkOrphanSessions = async () => {
@@ -64,6 +71,18 @@ export const Landing = () => {
     runAsyncSetup(checkOrphanSessions);
   }, [navigate]);
 
+  // Open the join flow when navigated here with ?join=1 (e.g. from the
+  // Manage Accounts empty state on any route). Clears the param after
+  // consuming it so back/forward stays clean.
+  useEffect(() => {
+    if (searchParams.get('join') === '1') {
+      setCurrentStep('server');
+      const next = new URLSearchParams(searchParams);
+      next.delete('join');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Memoize the checkForServers function to prevent it from being recreated on each render
   const checkForServers = useCallback(async () => {
     try {
@@ -87,10 +106,13 @@ export const Landing = () => {
     runAsyncSetup(checkForServers);
   }, [checkForServers]);
 
-  const handleServerNext = () => setCurrentStep('security');
+  const handleServerNext = (address: string, password: string) => {
+    setServerAddress(address);
+    setServerPassword(password);
+    setCurrentStep('security');
+  };
   const handleSecurityNext = () => {
     if (currentStep === 'security') {
-      // Store the security settings for use in create flow
       setCurrentStep('join');
     }
   };
@@ -98,11 +120,7 @@ export const Landing = () => {
   const handleJoinNext = async (cid: string) => {
     debugLog('Landing', `[Landing] handleJoinNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(BigInt(cid));
-      // Trigger loading - await to ensure operations complete before navigation
-      debugLog('Landing', `[Landing] Triggering workspace load for cid: ${cid}...`);
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes(); // Also trigger office loading
+      await postAuthSetup(BigInt(cid));
       debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
@@ -122,11 +140,7 @@ export const Landing = () => {
   const handleLoginNext = async (cid: string) => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
-      WorkspaceService.setConnectionId(BigInt(cid));
-      // Trigger loading - await to ensure operations complete before navigation
-      debugLog('Landing', `[Landing] Triggering workspace load for cid: ${cid}...`);
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes();
+      await postAuthSetup(BigInt(cid));
       debugLog('Landing', '[Landing] Navigating to /office...');
       navigate(getWorkspacePath());
     } catch (error) {
@@ -134,16 +148,32 @@ export const Landing = () => {
       toastError(toast, "Login Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after login");
     }
   };
-  const goToTestPage = () => navigate('/test');
-  const goToConnectPage = () => navigate('/connect');
+
 
   return (
-    <div className="min-h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
+    <div className="h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
       {/* Orphan sessions navbar */}
       <OrphanSessionsNavbar />
 
       {/* Solid background base */}
       <div className="absolute inset-0 z-0 bg-[#1C1D28] fixed" />
+
+      {/* Subtle dot grid pattern */}
+      <div
+        className="absolute inset-0 z-[0] fixed pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #8B5CF6 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      />
+
+      {/* Subtle radial gradient accent */}
+      <div
+        className="absolute inset-0 z-[0] fixed pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 80% 60% at 70% 50%, rgba(139, 92, 246, 0.06) 0%, transparent 70%)',
+        }}
+      />
 
       {/* Background Image with proper positioning */}
       <div
@@ -163,62 +193,94 @@ export const Landing = () => {
 
       {/* Content */}
       <div className={cn(
-        "container mx-auto px-4 sm:px-6 py-10 md:py-0 relative z-10",
+        "container mx-auto px-6 sm:px-8 lg:px-12 py-10 md:py-0 relative z-10",
         hasOrphanSessions && "pt-24"
       )}>
-        <div className="max-w-xl lg:max-w-3xl animate-fade-in">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight">
-            The World's First Post-Quantum Virtual Workspace
+        <div className="max-w-xl lg:max-w-2xl animate-fade-in">
+          {/* Brand tag */}
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-[2px] bg-purple-500 rounded-full" />
+            <p className="text-xs font-semibold tracking-[0.25em] text-purple-400 uppercase">Citadel</p>
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-[1.1] tracking-tight">
+            The World's First
+            <br />
+            <span className="bg-gradient-to-r from-purple-400 to-purple-300 bg-clip-text text-transparent">Post-Quantum</span>
+            <br />
+            Virtual Workspace
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-6 md:mb-8 lg:mb-12">
+          <p className="text-lg text-gray-400 mb-10 max-w-md leading-relaxed">
             Hyper-security and control over defense and privacy at your fingertips
           </p>
 
-          <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4">
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={startLogin}
-              className="bg-purple-600 text-white hover:bg-purple-700 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] transition-colors duration-300 w-full sm:w-auto flex items-center gap-2"
+              className="bg-purple-600 text-white hover:bg-purple-500 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
               size="lg"
             >
-              <LogIn className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="whitespace-nowrap">Login Workspace</span>
+              <LogIn className="w-4 h-4" />
+              Login Workspace
             </Button>
 
             <Button
               onClick={startRegistration}
-              className="bg-white text-black hover:bg-gray-100 text-base md:text-lg px-4 md:px-6 h-12 md:h-[60px] transition-colors duration-300 w-full sm:w-auto"
+              variant="outline"
+              className="border-[#3B3D57] text-gray-300 hover:bg-[#232536] hover:text-white hover:border-purple-500/50 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg"
               size="lg"
             >
-              <span className="whitespace-nowrap">Join Workspace</span>
+              Join Workspace
+              <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Account management and settings buttons */}
-          <div className="mt-8 flex gap-3">
+          {/* Secondary actions */}
+          <div className="mt-6 flex items-center gap-4">
             <ManageAccountsButton />
+            <div className="w-[1px] h-4 bg-gray-700" />
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="gap-2 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+              className="gap-2 text-gray-500 hover:text-gray-300 hover:bg-transparent px-0 h-auto text-xs"
               onClick={() => setSettingsOpen(true)}
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-3.5 w-3.5" />
               Settings
             </Button>
+          </div>
+
+          {/* Security badge */}
+          <div className="mt-12 flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-500/5 border border-purple-500/10 max-w-md">
+            <Shield className="w-5 h-5 text-purple-400 flex-shrink-0" />
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Citadel uses <span className="text-purple-300 font-medium">lattice-based cryptography</span>. All connections are end-to-end encrypted and resistant to quantum compute attacks.
+            </p>
           </div>
         </div>
       </div>
 
       {/* Registration Flow Overlays */}
       {currentStep === 'server' && (
-        <ServerConnect onNext={handleServerNext} onCancel={() => setCurrentStep('none')} />
+        <ServerConnect
+          onNext={handleServerNext}
+          onCancel={() => setCurrentStep('none')}
+          initialAddress={serverAddress}
+          initialPassword={serverPassword}
+        />
       )}
       {currentStep === 'security' && (
         <SecuritySettings onNext={handleSecurityNext} onBack={handleSecurityBack} />
       )}
       {currentStep === 'join' && (
-        <Join onNext={handleJoinNext} onBack={handleJoinBack} />
+        <Join
+          onNext={handleJoinNext}
+          onBack={handleJoinBack}
+          serverAddress={serverAddress}
+          serverPassword={serverPassword}
+        />
       )}
       {currentStep === 'login' && (
         <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} />

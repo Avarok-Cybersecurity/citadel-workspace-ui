@@ -13,6 +13,7 @@ import {
 import { resolveServerAddress } from '../address-resolver';
 import { instanceManager } from '../multi-instance';
 import { stringToBytes } from '../utils/encoding-utils';
+import type { PreSharedKey } from '@avarok/citadel-protocol-types';
 
 export interface AuthConfig {
   init: () => Promise<void>;
@@ -132,10 +133,34 @@ export class AuthOperations {
         header_obfuscator_settings: settings.header_obfuscator_settings,
         crypto_params: settings.crypto_params,
       },
-      server_password: serverPassword || null
+      // Note: server_password is the Citadel protocol PreSharedKey for C2S
+      // connection, NOT the workspace master password. The workspace master
+      // password is validated at the workspace protocol layer (CreateWorkspace
+      // / JoinWorkspace), not here.
+      //
+      // Wire-format pin: the Rust side expects `Option<PreSharedKey>`, where
+      // `PreSharedKey = { passwords: Vec<Vec<u8>> }`. The TS counterpart from
+      // `@avarok/citadel-protocol-types` is `{ passwords: Array<Array<number>> }`.
+      // `satisfies PreSharedKey` validates the literal against the imported
+      // type WITHOUT widening or narrowing — unlike `as PreSharedKey`, this
+      // keeps the compiler's structural check active, so a future field
+      // rename or new required member surfaces as a TS error here rather
+      // than being silently sent to the server. The matching round-trip is
+      // also pinned in `auth-operations-register.test.ts`.
+      server_password: serverPassword
+        ? ({ passwords: [stringToBytes(serverPassword)] } satisfies PreSharedKey)
+        : null
     };
 
-    debugLog('AuthOperations', 'Sending register options to WASM client', registerOptions);
+    // Redact secrets before logging: registerOptions carries the account
+    // `proposed_password` and the server `server_password` (the Citadel
+    // PreSharedKey) as byte arrays — never emit either to logs, even gated
+    // debug ones (debug logging can be enabled in shared/prod environments).
+    debugLog('AuthOperations', 'Sending register options to WASM client', {
+      ...registerOptions,
+      proposed_password: '<redacted>',
+      server_password: registerOptions.server_password ? '<redacted>' : null,
+    });
 
     const registerRequest = { Register: registerOptions };
 

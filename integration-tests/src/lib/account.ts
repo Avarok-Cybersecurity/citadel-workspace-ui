@@ -49,8 +49,8 @@ export async function createAccount(page: Page, username: string, options: Creat
     await sleep(1000);
   }
 
-  // Step 1: Fill workspace location (using role-based selector)
-  const serverInput = page.getByRole('textbox', { name: 'Workspace Location' });
+  // Step 1: Fill workspace address (using role-based selector)
+  const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
   if (await serverInput.isVisible({ timeout: 5000 }).catch(() => false)) {
     await serverInput.fill(config.WORKSPACE_SERVER);
     await sleep(500);
@@ -93,8 +93,8 @@ export async function createAccount(page: Page, username: string, options: Creat
       await sleep(300);
     }
 
-    // Click JOIN button (not Register/Create Account)
-    const submitBtn = page.getByRole('button', { name: 'JOIN', exact: true });
+    // Click Join button (not Register/Create Account)
+    const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
     if (await submitBtn.isVisible()) {
       await submitBtn.click();
       await sleep(8000);

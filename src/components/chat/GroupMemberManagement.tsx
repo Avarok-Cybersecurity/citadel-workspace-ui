@@ -159,7 +159,7 @@ export function GroupMemberManagement({
                           <SelectTrigger className="h-8 w-32 bg-[#262C4A] border-[#3D4663] text-white text-xs">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-[#1C2333] border-[#2D3548]">
+                          <SelectContent className="bg-[#1C1D28] border-[#2D3548]">
                             {assignableRoles
                               .filter(r => canAssignRole(r.id))
                               .map(r => (

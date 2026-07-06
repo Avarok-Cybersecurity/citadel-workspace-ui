@@ -46,13 +46,13 @@ export function MemberRow({
 }: MemberRowProps) {
   return (
     <div
-      className="flex items-center justify-between p-3 bg-[#444A6C] rounded-lg"
+      className="flex items-center justify-between p-3 bg-[#232536] rounded-lg"
       data-testid={`member-row-${member.userId}`}
     >
       <div className="flex items-center gap-3">
         <Avatar className="h-10 w-10">
           <AvatarImage src={member.avatarUrl || ''} />
-          <AvatarFallback className="bg-[#343A5C] text-white">
+          <AvatarFallback className="bg-[#232536] text-white">
             {getUserInitials(member.name || member.username)}
           </AvatarFallback>
         </Avatar>
@@ -85,7 +85,7 @@ export function MemberRow({
             disabled={isUpdatingRole}
           >
             <SelectTrigger
-              className="w-32 bg-[#343A5C] border-gray-600 text-white"
+              className="w-32 bg-[#232536] border-gray-600 text-white"
               data-testid={`member-role-select-${member.userId}`}
             >
               {isUpdatingRole ? (
@@ -94,7 +94,7 @@ export function MemberRow({
                 <SelectValue />
               )}
             </SelectTrigger>
-            <SelectContent className="bg-[#444A6C] border-gray-600">
+            <SelectContent className="bg-[#232536] border-gray-600">
               {USER_ROLES.map((role) => (
                 <SelectItem key={role} value={role}>
                   <div className="flex items-center gap-2">

@@ -61,6 +61,31 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'Connection blocked by security settings. Please contact your administrator.';
   }
   
+  // Account/password errors (backend-specific wording)
+  if (errorMessage.includes('invalid password') || 
+      errorMessage.includes('wrong password') ||
+      errorMessage.includes('password mismatch') ||
+      errorMessage.includes('incorrect password')) {
+    return 'Incorrect password. Please check your password and try again.';
+  }
+
+  if (errorMessage.includes('does not exist') || 
+      errorMessage.includes('not registered') ||
+      errorMessage.includes('no user') ||
+      errorMessage.includes('account not found')) {
+    return 'No account found with that username on this server. Please check your username or register a new account.';
+  }
+
+  if (errorMessage.includes('Connection refused') || 
+      errorMessage.includes('ECONNREFUSED')) {
+    return 'Could not reach the server. Please check the server address and ensure the server is running.';
+  }
+
+  if (errorMessage.includes('connect failed') || 
+      errorMessage.includes('Connection failed')) {
+    return 'Failed to connect to the workspace server. Please verify your credentials and server address.';
+  }
+
   // Generic errors
   if (errorMessage.includes('Internal server error')) {
     return 'The server encountered an error. Please try again later.';
@@ -70,7 +95,15 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'The service is temporarily unavailable. Please try again in a few minutes.';
   }
   
-  // If no specific match, return a generic user-friendly message
+  // If no specific match, include the actual error text for debugging
+  // Instead of hiding it behind a completely generic message
+  const cleanedMessage = errorMessage
+    .replace(/Error:\s*/i, '')
+    .replace(/^\s+|\s+$/g, '');
+  
+  if (cleanedMessage && cleanedMessage.length < 200) {
+    return `Something went wrong: ${cleanedMessage}`;
+  }
   return 'An unexpected error occurred. Please try again or contact support if the problem persists.';
 }
 
@@ -80,24 +113,31 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
 export function getErrorTitle(error: string | Error): string {
   const errorMessage = typeof error === 'string' ? error : error.message;
   
-  if (errorMessage.includes('connection') || errorMessage.includes('WebSocket')) {
+  if (errorMessage.includes('connection') || errorMessage.includes('WebSocket') ||
+      errorMessage.includes('Connection') || errorMessage.includes('ECONNREFUSED')) {
     return 'Connection Error';
   }
   
-  if (errorMessage.includes('authentication') || errorMessage.includes('credentials')) {
+  if (errorMessage.includes('authentication') || errorMessage.includes('credentials') ||
+      errorMessage.includes('password') || errorMessage.includes('Password')) {
     return 'Authentication Error';
   }
   
-  if (errorMessage.includes('workspace')) {
+  if (errorMessage.includes('workspace') || errorMessage.includes('Workspace')) {
     return 'Workspace Error';
   }
   
-  if (errorMessage.includes('network')) {
+  if (errorMessage.includes('network') || errorMessage.includes('Network')) {
     return 'Network Error';
   }
   
-  if (errorMessage.includes('timeout')) {
+  if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
     return 'Request Timeout';
+  }
+
+  if (errorMessage.includes('not found') || errorMessage.includes('not exist') ||
+      errorMessage.includes('not registered')) {
+    return 'Account Not Found';
   }
   
   return 'Error';

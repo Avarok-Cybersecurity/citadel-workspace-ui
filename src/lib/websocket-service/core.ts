@@ -5,7 +5,10 @@
  */
 
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
-import { connectionManager } from '../connection';
+// Namespace import to break circular dependency:
+// THIS FILE → connection/index.ts → io.ts → io-websocket.ts → websocket-service (cycle)
+// Property access on the namespace object is a live binding, deferred to call time.
+import * as connModule from '../connection';
 import { NETWORK } from '../timeout-constants';
 import type { SessionSecuritySettings } from '../security-utils';
 import type { WebSocketServiceConfig } from './types';
@@ -94,6 +97,17 @@ export class WebSocketServiceCore {
     return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message);
   }
 
+  /**
+   * Send a raw `Uint8Array` over the P2P channel without `stringToBytes`-
+   * style UTF-8 reinterpretation. Required by callers that already encode
+   * payloads as bytes (CBOR via `serializeP2PCommand`) — the string-taking
+   * `sendP2PMessage` above would otherwise round-trip the bytes through
+   * `stringToBytes` which assumes UTF-8 and corrupts binary payloads.
+   */
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
+    return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message);
+  }
+
   async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> {
     return this.modules.p2pOps.openP2PConnection(cid, targetCid);
   }
@@ -134,8 +148,25 @@ export class WebSocketServiceCore {
   }
 
   async disconnectAndClose(): Promise<void> {
-    this.client = null;
-    this.isInitialized = false;
+    // Mirrors the disconnection handler in `websocket/initialization.ts`:
+    // stop the WASM client's message-processing loop, close the
+    // underlying WebSocket, then reset our service state. The previous
+    // implementation only nulled the client reference via `resetService`
+    // - leaving the WASM-side message loop, the WebSocket, and any P2P
+    // polling timers running, which would orphan resources and leak
+    // memory if a future caller invoked this method on an active
+    // connection (no current callers, but the method's name commits to
+    // a full teardown).
+    const client = this.client;
+    if (client) {
+      client.stopMessageProcessing();
+      try {
+        await client.close();
+      } catch {
+        // Ignore close errors; we proceed to reset local state regardless.
+      }
+    }
+    resetService(this);
   }
 
   // ============== Session Management ==============
@@ -176,7 +207,7 @@ export class WebSocketServiceCore {
   }
 
   async getConnectionInfo(): Promise<{ cid: bigint } | null> {
-    return connectionManager.getConnectionInfo();
+    return connModule.connectionManager.getConnectionInfo();
   }
 
   // ============== LocalDB ==============

@@ -45,12 +45,34 @@ export async function connectToPeer(
     return;
   }
 
-  // Deterministic initiator selection: higher CID initiates
+  // Deterministic initiator selection: higher CID initiates.
+  //
+  // Single-WebSocket architecture: only the leader tab has a live WS to the
+  // internal service, so auto-connect *runs* on the leader. When the leader's
+  // own session has the lower CID, the higher-CID peer is the initiator. In
+  // the past we returned here and waited for the peer to act — but the peer
+  // is a follower tab in the same browser, which can't send PeerConnect
+  // directly (no WS). Result: neither side ever opened the channel, and
+  // every P2P message after PeerRegister failed.
+  //
+  // Fix: when the leader's own CID is lower than the peer's CID, the leader
+  // sends PeerConnect with `cid = peerCid` and `peer_cid = currentCid` —
+  // i.e., it initiates *on behalf of* the higher-CID session through the
+  // shared WS. The internal service routes the request to the right session
+  // by `cid`. Both same-browser sessions are owned by this WS, so this is
+  // safe and required for two-tab P2P to work.
+  //
+  // For external peers (other browsers) this branch is also harmless: the
+  // leader will issue the call from the local side's CID, which the server
+  // either accepts (if it owns that session) or rejects with a benign error.
+  let initiatorCid = currentCid;
+  let targetCid = peerCid;
   if (shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
   } else if (currentCid < peerCid) {
-    debugLog('P2PAutoConnectService', `P2PAutoConnect: Client ${currentCid.toString().slice(0, 8)}... is NOT the initiator; peer ${peerCid.toString().slice(0, 8)}... has higher CID.`);
-    return;
+    debugLog('P2PAutoConnectService', `P2PAutoConnect: Local CID ${currentCid.toString().slice(0, 8)}... < peer ${peerCid.toString().slice(0, 8)}...; initiating from peer side over shared WS (multi-tab P2P)`);
+    initiatorCid = peerCid;
+    targetCid = currentCid;
   } else {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Client ${currentCid.toString().slice(0, 8)}... IS the initiator for ${peerCid.toString().slice(0, 8)}...`);
   }
@@ -82,8 +104,8 @@ export async function connectToPeer(
   }
 
   try {
-    debugLog('P2PAutoConnectService', `connectToPeer: calling openP2PConnection(${currentCid.toString().slice(0, 8)}, ${peerCid.toString().slice(0, 8)})`);
-    await websocketService.openP2PConnection(currentCid, peerCid);
+    debugLog('P2PAutoConnectService', `connectToPeer: calling openP2PConnection(${initiatorCid.toString().slice(0, 8)}, ${targetCid.toString().slice(0, 8)})`);
+    await websocketService.openP2PConnection(initiatorCid, targetCid);
     debugLog('P2PAutoConnectService', 'connectToPeer: openP2PConnection SUCCESS');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

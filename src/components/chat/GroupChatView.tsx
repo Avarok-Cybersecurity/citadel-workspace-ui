@@ -32,7 +32,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   const chat = useGroupChat(groupId);
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#1C1D28]">
       {/* Rules banner */}
       {rules && (
         <div className="px-4 py-2 bg-purple-900/30 border-b border-purple-800/50">
@@ -104,7 +104,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
 
       {/* Reply indicator */}
       {chat.replyToId && (
-        <div className="px-4 py-2 bg-gray-800 border-t border-gray-700 flex items-center justify-between">
+        <div className="px-4 py-2 bg-[#1a1b26] border-t border-[#262C4A]/50 flex items-center justify-between">
           <span className="text-sm text-gray-400">Replying to message...</span>
           <Button variant="ghost" size="sm" onClick={() => chat.setReplyToId(null)}>
             Cancel
@@ -114,7 +114,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
 
       {/* Edit indicator */}
       {chat.editingId && (
-        <div className="px-4 py-2 bg-gray-800 border-t border-gray-700 flex items-center justify-between">
+        <div className="px-4 py-2 bg-[#1a1b26] border-t border-[#262C4A]/50 flex items-center justify-between">
           <span className="text-sm text-gray-400">Editing message...</span>
           <Button
             variant="ghost"
@@ -130,7 +130,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       )}
 
       {/* Input area */}
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-[#262C4A]/50">
         <div className="flex gap-2">
           <Textarea
             value={chat.editingId ? chat.editContent : chat.inputValue}
@@ -141,7 +141,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             }
             onKeyDown={chat.handleKeyPress}
             placeholder={chat.editingId ? 'Edit message...' : 'Type a message...'}
-            className="flex-1 resize-none bg-gray-800 border-gray-700 focus:border-purple-500"
+            className="flex-1 resize-none bg-[#1a1b26] border-[#262C4A]/50 focus:border-purple-500"
             rows={1}
           />
           <Button

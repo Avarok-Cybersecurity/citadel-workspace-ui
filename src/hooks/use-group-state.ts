@@ -13,6 +13,7 @@ import type {
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 import { STORAGE_KEY } from './use-group-conversations.types';
+import { applyGroupInvite } from './use-group-state-invite';
 
 // ============================================================================
 // State & Persistence Hooks
@@ -102,8 +103,34 @@ export function useGroupState(): GroupState {
       inviterUsername: string;
     }) => {
       debugLog('UseGroupConversations', '[useGroupConversations] Invite received:', data);
-      // For now, auto-accept invites - in future, show invite dialog
-      // @human-review Invite acceptance flow needs dialog UI and backend accept/reject
+
+      // Auto-accept: build the local group entry and commit in one
+      // setGroups call. The build-then-commit ordering avoids a race
+      // where a later "patch self in" setGroups could land before the
+      // initial "add the group" one and drop the self member.
+      //
+      // KNOWN UX GAP: this is local-only — no backend
+      // AcceptGroupInvite is sent. If the Citadel group protocol later
+      // requires explicit acceptance before message sends, a
+      // freshly-accepted invite would silently fail to send. See
+      // `use-group-state-invite.ts` for the full contract notes and
+      // the two fix paths (await acceptance, or reconcile on response).
+      //
+      // `applyGroupInvite` already swallows its own rejections inside
+      // an internal try/catch AND emits a "Group Invitation Failed"
+      // toast on error, so this call cannot leak an unhandled
+      // rejection and the user always sees feedback either way. The
+      // `.catch` below is a belt-and-braces guard that fires only if
+      // a future refactor removes the internal handler — it converts
+      // the leaked rejection back into the same user-visible toast
+      // and a debug log instead of a console error.
+      applyGroupInvite(data, setGroups).catch((err) => {
+        debugLog('UseGroupConversations', 'applyGroupInvite leaked a rejection:', err);
+        eventEmitter.emit('notification:show', {
+          title: 'Group Invitation Failed',
+          description: 'Could not process the group invitation. Please try again.',
+        });
+      });
     };
 
     const handleGroupMemberJoined = (data: {

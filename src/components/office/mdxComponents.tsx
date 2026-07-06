@@ -28,6 +28,9 @@ export const components: MDXComponents = {
       {children}
     </a>
   ),
+  del: ({ children }: { children?: React.ReactNode }) => (
+    <del className="text-gray-400 line-through">{children}</del>
+  ),
   img: ({ src, alt }: { src?: string; alt?: string }) => (
     <img src={src} alt={alt} className="max-w-full h-auto rounded-lg shadow-lg my-4" />
   ),
@@ -41,7 +44,7 @@ export const components: MDXComponents = {
   thead: TableHeader,
   tbody: TableBody,
   tr: ({ children, ...props }: React.DetailedHTMLProps<React.HTMLAttributes<HTMLTableRowElement>, HTMLTableRowElement>) => (
-    <TableRow {...props} className="hover:bg-[#E5DEFF]/10 transition-colors">
+    <TableRow {...props} className="hover:bg-purple-500/10 transition-colors">
       {children}
     </TableRow>
   ),
@@ -56,7 +59,7 @@ export const components: MDXComponents = {
     </TableCell>
   ),
   Card: ({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) => (
-    <Card className="bg-[#343A5C] border-gray-700 mb-6">
+    <Card className="bg-[#232536] border-gray-700 mb-6">
       <CardHeader>
         <CardTitle className="text-white">{title}</CardTitle>
         {description && <CardDescription className="text-gray-300">{description}</CardDescription>}
@@ -65,7 +68,7 @@ export const components: MDXComponents = {
     </Card>
   ),
   Alert: ({ title, children, variant = "default" }: { title: string; children: React.ReactNode; variant?: "default" | "destructive" }) => (
-    <Alert variant={variant} className="mb-6 bg-[#343A5C] border-purple-800">
+    <Alert variant={variant} className="mb-6 bg-[#232536] border-purple-800">
       <AlertTitle className="text-white">{title}</AlertTitle>
       <AlertDescription className="text-gray-300">{children}</AlertDescription>
     </Alert>

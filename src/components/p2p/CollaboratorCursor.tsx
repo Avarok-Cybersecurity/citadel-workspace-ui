@@ -157,6 +157,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
             timestamp: Date.now(),
           };
 
+          // Subscriber: useCollaborativeEditor.ts:161 (handleSendFlashComment).
           eventEmitter.emit('flash-comment:send', flashComment);
 
           if (inputContainer) {

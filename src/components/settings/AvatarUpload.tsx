@@ -102,10 +102,10 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={`
-          relative w-24 h-24 rounded-full overflow-hidden cursor-pointer
+          relative w-32 h-32 rounded-full overflow-hidden cursor-pointer
           border-2 border-dashed transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-          ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-gray-600 hover:border-gray-500'}
+          ${isDragActive ? 'border-purple-500 bg-purple-500/10' : 'border-gray-600 hover:border-gray-500'}
           ${isProcessing ? 'animate-pulse' : ''}
         `}
       >
@@ -128,11 +128,11 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800">
             {isProcessing ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
             ) : (
               <>
-                <User className="h-10 w-10 text-gray-500" />
-                <Upload className="h-4 w-4 text-gray-500 mt-1" />
+                <User className="h-12 w-12 text-gray-500" />
+                <Upload className="h-5 w-5 text-gray-500 mt-1" />
               </>
             )}
           </div>

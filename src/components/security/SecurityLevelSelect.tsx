@@ -1,6 +1,11 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+// `Tooltip` requires an ancestor `<TooltipProvider>` to render. The
+// app-level provider in `App.tsx` covers every route, so this
+// component does not wrap its own — see `src/App.tsx` (`<TooltipProvider>`
+// around the router). Removing that ancestor would silently break the
+// tooltip on the help icon below.
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { SecurityLevel } from "@/types";
 
@@ -37,16 +42,14 @@ export const SecurityLevelSelect = ({ value = 'Standard', onChange }: SecurityLe
             <SelectItem value={'Extreme'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Extreme</SelectItem>
           </SelectContent>
         </Select>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-              <p>Select the security level for your workspace</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+            <p>Select the security level for your workspace</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

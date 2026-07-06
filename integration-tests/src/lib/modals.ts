@@ -7,17 +7,39 @@ import { sleep } from './utils.js';
 import { UxIssueTracker } from './ux-tracker.js';
 
 /**
- * Close any open modals by pressing Escape
+ * Close any open modals by clicking Cancel/Close buttons or pressing Escape.
+ * Handles both Radix Dialog modals (Escape works) and raw div overlays
+ * like WorkspaceInitializationModal (need to click Cancel button).
  */
-export async function closeAnyModals(page: Page, maxAttempts = 3): Promise<void> {
+export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void> {
   for (let i = 0; i < maxAttempts; i++) {
-    const backdrop = page.locator('.bg-black\\/60, [data-state="open"]').first();
-    if (await backdrop.isVisible({ timeout: 300 }).catch(() => false)) {
-      await page.keyboard.press('Escape');
-      await sleep(300);
-    } else {
-      break;
+    // Check for any visible modal overlay
+    const backdrop = page.locator('.bg-black\\/60, [data-state="open"], [role="dialog"]').first();
+    if (!await backdrop.isVisible({ timeout: 300 }).catch(() => false)) {
+      break; // No modal visible
     }
+
+    console.log(`  closeAnyModals: Modal detected (attempt ${i + 1}/${maxAttempts})`);
+
+    // Strategy 1: Click Cancel or Close button inside the modal
+    const cancelBtn = page.locator(
+      '.bg-black\\/60 button:has-text("Cancel"), ' +
+      '[role="dialog"] button:has-text("Cancel"), ' +
+      '[role="dialog"] button:has-text("Close"), ' +
+      '[data-state="open"] button[aria-label="Close"]'
+    ).first();
+
+    if (await cancelBtn.isVisible({ timeout: 300 }).catch(() => false)) {
+      console.log('  closeAnyModals: Clicking Cancel/Close button');
+      await cancelBtn.click();
+      await sleep(500);
+      continue;
+    }
+
+    // Strategy 2: Press Escape (works for Radix dialogs)
+    console.log('  closeAnyModals: Pressing Escape');
+    await page.keyboard.press('Escape');
+    await sleep(300);
   }
 }
 
@@ -50,19 +72,26 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
     const isLoading = await loadingIndicator.isVisible({ timeout: 500 }).catch(() => false);
 
     if (!isLoading) {
-      // Look for any of the sidebar section headers that indicate workspace is loaded
-      // Note: "CONNECTED PEERS" appears when there are P2P peers but no workspace members
+      // Look for any of the sidebar section headers that indicate workspace is loaded.
+      // Sidebar labels use Title Case (e.g. "Workspace Members"), not the
+      // historical UPPERCASE — text="..." is a case-sensitive exact match
+      // in Playwright, so the strings below must match the rendered text
+      // verbatim. The data-sidebar attribute is the most reliable signal
+      // and is checked first to short-circuit the slower text matches.
       const sidebarIndicators = [
-        'text="WORKSPACE MEMBERS"',
-        'text="CONNECTED PEERS"',
-        'text="DIRECT MESSAGES"',
-        'text="FILES"',
-        // Additional indicators - sidebar group labels from the workspace layout
+        // Sidebar group labels from the workspace layout (most reliable)
         '[data-sidebar="group-label"]',
-        // Office/room navigation elements
-        'text="General"',
         // Workspace name in sidebar header
         '[data-testid="workspace-name"]',
+        // Section headers — note that "Connected Peers" shows when there
+        // are P2P peers but no workspace members, "Workspace Members"
+        // shows otherwise.
+        'text="Workspace Members"',
+        'text="Connected Peers"',
+        'text="Direct Messages"',
+        'text="FILES"',
+        // Office/room navigation elements
+        'text="General"',
       ];
 
       for (const selector of sidebarIndicators) {

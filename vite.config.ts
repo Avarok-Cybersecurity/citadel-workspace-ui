@@ -12,12 +12,15 @@ export default defineConfig(({ mode }) => {
     // Prevent vite from obscuring rust errors
     clearScreen: false,
 
+    // Use a writable cache directory (node_modules may be root-owned from Docker)
+    cacheDir: '/tmp/citadel-vite-cache',
+
     // Handle Node.js modules
     optimizeDeps: {
       exclude: ['events', 'fs', 'path', 'crypto', 'os', 'util', 'citadel-workspace-client-ts'],
       // include: ['citadel-workspace-client-ts'],
     },
-    
+
     build: {
       // After splitting all vendor dependencies, the main app chunk (~1.25MB) contains:
       // - Application code (React components, services, hooks)
@@ -41,7 +44,7 @@ export default defineConfig(({ mode }) => {
               // Rich text editor + Yjs collaboration (combined to avoid circular chunk dependencies)
               // y-prosemirror bridges yjs and prosemirror, @tiptap's collaboration uses yjs
               if (id.includes('@tiptap') || id.includes('prosemirror') ||
-                  id.includes('/yjs/') || id.includes('y-prosemirror') || id.includes('y-protocols')) {
+                id.includes('/yjs/') || id.includes('y-prosemirror') || id.includes('y-protocols')) {
                 return 'vendor-collab';
               }
               // Serialization and storage
@@ -79,8 +82,8 @@ export default defineConfig(({ mode }) => {
           // Suppress mixed dynamic/static import warnings for modules using
           // dynamic imports to avoid circular dependencies (intentional pattern)
           if (warning.code === 'MIXED_IMPORT' ||
-              (warning.message && warning.message.includes('dynamically imported by') &&
-               warning.message.includes('but also statically imported'))) {
+            (warning.message && warning.message.includes('dynamically imported by') &&
+              warning.message.includes('but also statically imported'))) {
             return;
           }
           warn(warning);
@@ -89,14 +92,14 @@ export default defineConfig(({ mode }) => {
     },
 
     server: {
-      port: 5173,
+      port: 5291,
       strictPort: true,
       // Changed from 'localhost' to '0.0.0.0' for Docker container access
       host: '0.0.0.0',
       hmr: {
         overlay: true,
         // Explicit client port for HMR WebSocket connection
-        clientPort: 5173,
+        clientPort: 5291,
       },
 
       // File watching configuration for Docker volumes
@@ -118,10 +121,14 @@ export default defineConfig(({ mode }) => {
       },
 
       // Custom headers for your web app
+      // CSP is environment-aware: permissive in dev (unsafe-eval, localhost wildcards),
+      // stricter in production (wasm-unsafe-eval only, no localhost wildcards)
       headers: {
-        'Content-Security-Policy': "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google ws://localhost:* http://localhost:*; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
+        'Content-Security-Policy': mode === 'production'
+          ? "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
+          : "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google ws://localhost:* http://localhost:*; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
       },
-      
+
       // Configure middleware for WASM files
       configure: (server) => {
         server.middlewares.use((req, res, next) => {
@@ -156,7 +163,7 @@ export default defineConfig(({ mode }) => {
         drop: ['debugger'],
       } : {}),
     },
-    
+
     // Configure WASM mime type
     assetsInclude: ['**/*.wasm'],
   };

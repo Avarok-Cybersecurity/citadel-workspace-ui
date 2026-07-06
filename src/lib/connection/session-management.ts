@@ -6,6 +6,7 @@ import type { AuthSuccessParams } from './types';
 import type { StoredSession } from '@/types/session-types';
 import { SET_USER_TIMEOUT_MS } from './constants';
 import { debugLog } from '@/lib/debug-config';
+import { saveRecentServer } from '@/lib/server-utils';
 
 /** Store a session to state and persist to LocalDB. */
 export async function storeSession(
@@ -55,10 +56,30 @@ export async function handleAuthSuccess(
   try {
     await storeSession(session, state, io);
 
-    // Set lastAccessed timestamp for OrphanSessionsNavbar MRU ordering
+    // Persist to localStorage so Connect page can show recent servers
+    // even without WASM client. Isolated from the outer try because
+    // localStorage.setItem can throw (quota exceeded, storage
+    // disabled, private-browsing restrictions) and recent-server
+    // metadata is best-effort UX — losing it must NOT abort the
+    // auth-success flow that owns tab-context setup, P2P registration,
+    // etc. below.
+    try {
+      saveRecentServer({ serverAddress: params.serverAddress });
+    } catch (e) {
+      debugLog('ConnectionService', 'saveRecentServer failed (non-critical):', e);
+    }
+
+    // Set lastAccessed timestamp for OrphanSessionsNavbar MRU ordering.
+    // Same isolation reasoning as saveRecentServer above — sort order
+    // is best-effort, and a localStorage failure here would abort the
+    // auth flow if it weren't caught.
     if (params.cid !== undefined) {
-      const lastAccessedKey = `session_last_accessed_${params.cid.toString()}`;
-      localStorage.setItem(lastAccessedKey, Date.now().toString());
+      try {
+        const lastAccessedKey = `session_last_accessed_${params.cid.toString()}`;
+        localStorage.setItem(lastAccessedKey, Date.now().toString());
+      } catch (e) {
+        debugLog('ConnectionService', 'lastAccessed write failed (non-critical):', e);
+      }
     }
 
     debugLog('ConnectionService', 'handleAuthSuccess: setting tab context for CID:', params.cid?.toString());

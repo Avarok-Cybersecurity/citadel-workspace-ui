@@ -27,6 +27,7 @@ import {
   wouldCreateCycle,
   findNodeInTree,
 } from "./tree-graph-utils";
+import { findReparentTarget } from "./tree-reparent";
 import type { TreeGraphEditorProps, ContextMenuState } from "./tree-graph-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -120,13 +121,20 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
-  // Handle node drag end for potential reparenting
+  // Handle node drag end for potential reparenting.
+  //
+  // Decision logic (proximity + size-aware threshold) lives in the pure
+  // `findReparentTarget` helper so it can be unit-tested. This component
+  // only orchestrates the side effects: cycle check and async move call.
   const handleNodeDragStop = useCallback(
     async (_event: React.MouseEvent, node: Node) => {
       if (!canEdit || !onNodeMove) return;
-      // @human-review: Future enhancement - detect drag-over parent and trigger move
+      const targetId = findReparentTarget(nodes, node);
+      if (targetId && !wouldCreateCycle(treeStructure, node.id, targetId)) {
+        await onNodeMove(node.id, targetId);
+      }
     },
-    [canEdit, onNodeMove]
+    [canEdit, onNodeMove, nodes, treeStructure]
   );
 
   // Context menu handlers
@@ -145,10 +153,10 @@ export const TreeGraphEditor: React.FC<TreeGraphEditorProps> = ({
 
   const handleEdit = useCallback(() => {
     if (!contextMenu.nodeId) return;
-    // @human-review: Trigger edit modal - integrate with NodeManagementModal
-    debugLog('TreeGraphEditor', "Edit node:", contextMenu.nodeId);
+    // Trigger selection, which opens the edit modal in the parent
+    onNodeSelect?.(contextMenu.nodeId);
     handleContextMenuClose();
-  }, [contextMenu.nodeId, handleContextMenuClose]);
+  }, [contextMenu.nodeId, onNodeSelect, handleContextMenuClose]);
 
   const handleDelete = useCallback(
     async (cascade: boolean) => {

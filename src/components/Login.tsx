@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, Settings, Loader2 } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { ChevronLeft, ChevronDown, Settings, Loader2, Eye, EyeOff, User, Lock, Globe, LogIn } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler } from "./useLoginHandler";
+import { cn } from "@/lib/utils";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -16,6 +16,14 @@ interface LoginProps {
 export function Login({ onNext, onCancel }: LoginProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Dismiss on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCancel]);
 
   const {
     username,
@@ -44,7 +52,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
       {showSecuritySettings ? (
         <SecuritySettings
           onNext={() => setShowSecuritySettings(false)}
@@ -62,83 +70,110 @@ export function Login({ onNext, onCancel }: LoginProps) {
           isFromLogin={true}
         />
       ) : (
-        <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg w-full max-w-md">
-          <CardHeader>
-            <div className="flex items-center">
+        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40 w-full max-w-md">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
               <Button
                 onClick={onCancel}
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 mr-2 text-gray-300 hover:text-white hover:bg-purple-500/20"
+                className="h-8 w-8 text-gray-400 hover:text-white hover:bg-purple-500/15 rounded-lg"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div>
-                <CardTitle className="text-white text-xl">Login to Workspace</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Enter your credentials to connect to a workspace
-                </CardDescription>
+                <h2 className="text-xl font-bold text-white">Login to Workspace</h2>
+                <p className="text-sm text-gray-400 mt-0.5">
+                  Enter your credentials to connect
+                </p>
               </div>
             </div>
           </CardHeader>
 
           <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-scroll">
-              <div className="space-y-2">
-                <Label htmlFor="username" className="text-gray-300">Username</Label>
-                <Input
-                  id="username"
-                  placeholder="Enter your username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="bg-[#3B3D57] border-[#4D4F6C] text-white"
-                />
+            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
+              {/* Username */}
+              <div className="space-y-1.5">
+                <label htmlFor="username" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                  Username
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    id="username"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-300">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-[#3B3D57] border-[#4D4F6C] text-white"
-                />
+              {/* Password */}
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-[#131420] border-[#2D3548] text-white pl-10 pr-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
-              <Button
+              {/* Server Address */}
+              <div className="space-y-1.5">
+                <label htmlFor="server" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                  Server Address
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    id="server"
+                    placeholder="workspace.example.com:12349"
+                    value={server}
+                    onChange={(e) => setServer(e.target.value)}
+                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Advanced Options */}
+              <button
                 type="button"
-                variant="ghost"
-                className="w-full justify-start p-0 text-purple-400 hover:text-purple-300 hover:bg-transparent"
+                className="flex items-center gap-2 text-gray-400 w-full transition-colors duration-200 hover:text-purple-300 py-1"
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
               >
-                <Settings className="h-4 w-4 mr-2" />
-                Advanced Options
-              </Button>
+                <Settings className="h-3.5 w-3.5" />
+                <span className="text-[11px] font-semibold tracking-wider uppercase">Advanced Options</span>
+                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 ml-auto", isAdvancedOpen && "rotate-180")} />
+              </button>
 
               {isAdvancedOpen && (
-                <div className="space-y-4 p-3 bg-[#343650] rounded-md overflow-y-auto max-h-96">
-                  <div className="space-y-2">
-                    <Label htmlFor="server" className="text-gray-300">Server Address</Label>
-                    <Input
-                      id="server"
-                      placeholder="127.0.0.1:12349"
-                      value={server}
-                      onChange={(e) => setServer(e.target.value)}
-                      className="bg-[#3B3D57] border-[#4D4F6C] text-white"
-                    />
-                  </div>
-
+                <div className="space-y-3 p-3 bg-[#131420] rounded-lg border border-[#2D3548]">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="quick-security" className="text-gray-300 cursor-pointer">
-                      Configure Security Settings
-                    </Label>
+                    <span className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                      Security Settings
+                    </span>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="border-purple-500 text-purple-400 hover:bg-purple-500/20"
+                      className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-white text-xs h-7 px-3 rounded-md"
                       onClick={() => setShowSecuritySettings(true)}
                     >
                       Configure
@@ -146,9 +181,9 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="remember" className="text-gray-300 cursor-pointer">
+                    <span className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
                       Remember Credentials
-                    </Label>
+                    </span>
                     <Switch
                       id="remember"
                       checked={securitySettings.storeCredentials}
@@ -161,26 +196,31 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 </div>
               )}
 
+              {/* Error */}
               {error && (
-                <div className="text-red-400 text-sm p-2 bg-red-400/10 rounded border border-red-400/20">
+                <div className="flex items-center gap-2 text-red-400 text-sm p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
                   {error}
                 </div>
               )}
             </CardContent>
 
-            <CardFooter>
+            <CardFooter className="pt-2">
               <Button
                 type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                className="w-full bg-purple-600 hover:bg-purple-500 text-white h-11 rounded-lg shadow-lg shadow-purple-500/20 transition-all gap-2"
                 disabled={loading}
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Connecting...
                   </>
                 ) : (
-                  "Connect"
+                  <>
+                    <LogIn className="h-4 w-4" />
+                    Connect
+                  </>
                 )}
               </Button>
             </CardFooter>

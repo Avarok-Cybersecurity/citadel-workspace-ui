@@ -30,7 +30,7 @@ export function KickConfirmDialog({
 }: KickConfirmDialogProps) {
   return (
     <AlertDialog open={!!member} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#1C2333] border-[#2D3548]">
+      <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-white">
             Kick "{member?.username}"?

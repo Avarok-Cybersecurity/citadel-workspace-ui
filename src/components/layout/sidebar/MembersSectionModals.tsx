@@ -113,7 +113,7 @@ export function MembersSectionModals({
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-2">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[#343A5C] transition-colors">
+                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[#232536] transition-colors">
                   <div className="flex items-center gap-3 flex-1">
                     {getRoleIcon(member.role || 'member')}
                     <div className="flex-1">

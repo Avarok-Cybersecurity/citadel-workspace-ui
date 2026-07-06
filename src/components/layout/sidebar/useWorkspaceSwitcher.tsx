@@ -5,6 +5,7 @@ import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
 import { websocketService } from "@/lib/websocket-service";
 import WorkspaceService from "@/lib/workspace-service";
+import { postAuthSetup } from '@/lib/post-auth-setup';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
@@ -39,6 +40,13 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     workspaceName: string;
     serverAddress: string;
   } | null>(null);
+  // Server address and pre-shared key captured during the ServerConnect
+  // step and forwarded into the Join step. Without this, Join (which
+  // requires both as props) renders with `undefined` and the
+  // registration call would fail downstream. Mirrors the equivalent
+  // pattern in src/pages/Landing.tsx.
+  const [serverAddress, setServerAddress] = useState<string>("");
+  const [serverPassword, setServerPassword] = useState<string>("");
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useWorkspace();
@@ -48,10 +56,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     const loadStoredWorkspaces = async () => {
       const storedSessions = connectionManager.getStoredSessions();
       const tabSelectedUser = await getSelectedUser();
-      let currentCid: bigint | null = null;
-      ConnectionService.getInstance().onConnectionChange((conn) => {
-        if (conn?.cid) currentCid = typeof conn.cid === 'bigint' ? conn.cid : BigInt(conn.cid);
-      });
+      const connInfo = connectionManager.getConnectionInfo();
+      const currentCid: bigint | null = connInfo?.cid ?? null;
       if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
 
       const workspaces: StoredWorkspace[] = storedSessions.sessions.map((session) => ({
@@ -70,6 +76,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       if (active) setCurrentWorkspace(active);
     };
     runAsyncSetup(loadStoredWorkspaces);
+    // NOTE: ConnectionService.onConnectionChange does not return an unsubscribe function.
+    // This listener will persist for the lifetime of the component.
     ConnectionService.getInstance().onConnectionChange(async () => { await loadStoredWorkspaces(); });
   }, [state.workspace]);
 
@@ -102,10 +110,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     try {
       toastSuccess(toast, "Switching workspace...", `Connecting as ${workspace.fullName || workspace.username}`);
 
-      const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
-      mainContent?.classList.add('animate-fade-out');
-
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Brief delay to show switching toast before heavy work
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const storedSessions = connectionManager.getStoredSessions();
       const targetSession = storedSessions.sessions.find(
@@ -137,10 +143,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
         selectedCid: targetSession.cid
       });
 
-      WorkspaceService.setConnectionId(targetSession.cid);
-
-      await WorkspaceService.loadWorkspace();
-      await WorkspaceService.listNodes();
+      await postAuthSetup(targetSession.cid);
 
       toastSuccess(toast, "Connected!", (
         <div className="flex items-center gap-2">
@@ -154,20 +157,9 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
         navigate(savedRoute);
       }
 
-      setTimeout(() => {
-        mainContent?.classList.remove('animate-fade-out');
-        mainContent?.classList.add('animate-fade-in');
-        setTimeout(() => {
-          mainContent?.classList.remove('animate-fade-in');
-        }, 300);
-      }, 100);
-
     } catch (error) {
       debugLog('WorkspaceSwitcher', 'Failed to switch workspace:', error);
       toastError(toast, "Switch Failed", "Could not switch to the selected workspace");
-
-      const mainContent = document.querySelector('[data-workspace-content]') || document.querySelector('.office-content') || document.querySelector('main');
-      mainContent?.classList.remove('animate-fade-out', 'animate-fade-in');
     } finally {
       setIsSwitching(false);
       setIsOpen(false);
@@ -190,14 +182,27 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
 
   const handleManageAccounts = () => {
     setIsOpen(false);
-    toastSuccess(toast, "Account Management", "Account management coming soon");
   };
 
-  const handleNext = () => {
+  // ServerConnect calls `onNext(address, password)`; SecuritySettings and
+  // Join call `onNext()` (no args). Treat the args as optional so this
+  // single handler can serve all three steps without reshaping their APIs.
+  const handleNext = (address?: string, password?: string) => {
     switch (currentStep) {
-      case "connect": setCurrentStep("security"); break;
+      case "connect":
+        if (address !== undefined) setServerAddress(address);
+        if (password !== undefined) setServerPassword(password);
+        setCurrentStep("security");
+        break;
       case "security": setCurrentStep("join"); break;
-      case "join": setIsAddingWorkspace(false); setCurrentStep("connect"); break;
+      case "join":
+        // Reset captured server creds when the dialog closes so a
+        // subsequent "Add a Workspace" doesn't reuse stale values.
+        setIsAddingWorkspace(false);
+        setCurrentStep("connect");
+        setServerAddress("");
+        setServerPassword("");
+        break;
     }
   };
 
@@ -221,6 +226,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     isSwitching,
     targetWorkspaceForNewAccount,
     setTargetWorkspaceForNewAccount,
+    serverAddress,
+    serverPassword,
     handleWorkspaceChange,
     handleAddWorkspace,
     handleAddAccountToWorkspace,

@@ -528,43 +528,63 @@ export async function createOfficeViaUI(
 /**
  * Create a child node (e.g. room) via UI by using the parent node's "create child" menu item.
  * The parent node must be visible and expanded in the hierarchy sidebar.
+ * @param parentName - Name of the parent node to find in the sidebar (required for reliable operation)
  */
 export async function createRoomViaUI(
   page: Page,
   name: string,
-  description: string = ''
+  description: string = '',
+  parentName?: string
 ): Promise<{ success: boolean; name: string }> {
-  console.log(`  [UI] Creating child node: ${name}`);
+  console.log(`  [UI] Creating child node: ${name}${parentName ? ` (parent: ${parentName})` : ''}`);
 
   try {
-    // Find the parent node's "create child" menu item via tree-node-menu
-    // First try the generic create-child button using page.evaluate to find a parent with children capability
-    const createChildTestId = await page.evaluate(() => {
-      // Look for any create-child button in the tree
-      const btns = Array.from(document.querySelectorAll('[data-testid^="create-child-"]'));
-      if (btns.length > 0) {
-        return btns[0].getAttribute('data-testid');
-      }
-      return null;
-    });
+    // Close any stale menus/modals first
+    await page.keyboard.press('Escape');
+    await sleep(300);
 
-    if (createChildTestId) {
-      // We need to open the parent's context menu first
-      const parentId = createChildTestId.replace('create-child-', '');
-      const menuBtn = page.locator(`[data-testid="tree-node-menu-${parentId}"]`);
-      if (await menuBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await menuBtn.click({ force: true });
-        await sleep(300);
-        const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
-        if (await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await createItem.click();
-          await sleep(500);
+    // Find the parent node's menu button by searching sidebar items
+    const menuTestId = await page.evaluate((pName: string | undefined) => {
+      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
+      for (const btn of buttons) {
+        if (pName && !btn.textContent?.includes(pName)) continue;
+        const parent = btn.closest('.group');
+        if (parent) {
+          const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
+          if (menuBtn) {
+            return menuBtn.getAttribute('data-testid');
+          }
         }
       }
-    } else {
-      console.log('  [UI] No create-child button found');
+      return null;
+    }, parentName);
+
+    if (!menuTestId) {
+      console.log(`  [UI] Parent node menu button not found${parentName ? ` for "${parentName}"` : ''}`);
       return { success: false, name };
     }
+
+    const nodeId = menuTestId.replace('tree-node-menu-', '');
+    console.log(`  [UI] Found parent node menu: ${menuTestId}`);
+
+    // Click the menu button to open dropdown (force: true handles opacity:0)
+    const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
+    await menuBtn.click({ force: true, timeout: 2000 });
+    await sleep(500);
+
+    // Now look for the create-child item in the open dropdown
+    const createChildTestId = `create-child-${nodeId}`;
+    const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
+    if (!await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // Debug: log what menu items ARE visible
+      const menuItems = await page.locator('[role="menuitem"]').allTextContents();
+      console.log(`  [UI] Create Child option not found. Visible menu items: ${JSON.stringify(menuItems)}`);
+      await page.keyboard.press('Escape');
+      return { success: false, name };
+    }
+
+    await createItem.click();
+    await sleep(500);
 
     // Wait for modal to open - look for the dialog
     const modal = page.locator('[role="dialog"], [role="alertdialog"]').first();
@@ -600,39 +620,14 @@ export async function createRoomViaUI(
     const createBtn = page.locator('button:has-text("Create")').first();
     if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log('  [UI] Clicking Create button');
-
-      // Capture console messages before clicking
-      const consoleMessages: string[] = [];
-      const consoleHandler = (msg: { type: () => string; text: () => string }) => {
-        if (msg.type() === 'error' || msg.type() === 'warn') {
-          consoleMessages.push(`[${msg.type()}] ${msg.text()}`);
-        }
-      };
-      page.on('console', consoleHandler);
-
       await createBtn.click();
       await sleep(4000); // Wait longer for API call and UI update
-
-      // Stop capturing
-      page.removeListener('console', consoleHandler);
-
-      // Log any errors/warnings captured
-      if (consoleMessages.length > 0) {
-        console.log('  [UI] Console messages during child node creation:');
-        consoleMessages.forEach(msg => console.log(`    ${msg}`));
-      }
 
       // Check for error toast
       const errorToast = page.locator('[role="status"]:has-text("Error"), .toast:has-text("Error")').first();
       if (await errorToast.isVisible({ timeout: 500 }).catch(() => false)) {
         console.log('  [UI] Error toast detected');
         return { success: false, name };
-      }
-
-      // Check for success toast
-      const successToast = page.locator('[role="status"]:has-text("Created"), .toast:has-text("Created")').first();
-      if (await successToast.isVisible({ timeout: 500 }).catch(() => false)) {
-        console.log('  [UI] Success toast detected');
       }
 
       // Verify creation - the node should appear in the sidebar
@@ -860,7 +855,7 @@ export async function verifyNodeDepth(
   }
 
   const matches = node.depth === expectedDepth;
-  console.log(`  [Verify] Node ${nodeId} depth: ${node.depth} (expected: ${expectedDepth}) - ${matches ? 'PASS' : 'FAIL'}`);
+  console.log(`  [Verify] Node ${nodeId} depth: ${node.depth} (expected: ${expectedDepth}) - ${matches ? 'PASS' : 'FAIL'} `);
   return matches;
 }
 
@@ -879,7 +874,7 @@ export async function verifyNodeParent(
   }
 
   const matches = node.parent_id === expectedParentId;
-  console.log(`  [Verify] Node ${nodeId} parent: ${node.parent_id} (expected: ${expectedParentId}) - ${matches ? 'PASS' : 'FAIL'}`);
+  console.log(`  [Verify] Node ${nodeId} parent: ${node.parent_id} (expected: ${expectedParentId}) - ${matches ? 'PASS' : 'FAIL'} `);
   return matches;
 }
 
@@ -892,7 +887,7 @@ export async function verifyNodeExists(
 ): Promise<boolean> {
   const node = await getNodeViaProtocol(page, nodeId);
   const exists = node !== null;
-  console.log(`  [Verify] Node ${nodeId} exists: ${exists}`);
+  console.log(`  [Verify] Node ${nodeId} exists: ${exists} `);
   return exists;
 }
 
@@ -905,7 +900,7 @@ export async function verifyNodeDeleted(
 ): Promise<boolean> {
   const node = await getNodeViaProtocol(page, nodeId);
   const deleted = node === null;
-  console.log(`  [Verify] Node ${nodeId} deleted: ${deleted}`);
+  console.log(`  [Verify] Node ${nodeId} deleted: ${deleted} `);
   return deleted;
 }
 
@@ -951,7 +946,7 @@ export async function createDeepHierarchy(
     if (schema.max_depth !== undefined && schema.max_depth !== null && schema.max_depth < depth + 1) {
       schema.max_depth = depth + 1;
       schemaModified = true;
-      console.log(`  [DeepHierarchy] Increasing max_depth to ${depth + 1}`);
+      console.log(`  [DeepHierarchy] Increasing max_depth to ${depth + 1} `);
     }
     if (schemaModified) {
       console.log('  [DeepHierarchy] Updating tree schema for deep nesting');
@@ -973,12 +968,12 @@ export async function createDeepHierarchy(
       page,
       parentId,
       entityType,
-      `${namePrefix}_${i}_${Date.now()}`,
-      `Test node at depth ${i}`
+      `${namePrefix}_${i}_${Date.now()} `,
+      `Test node at depth ${i} `
     );
 
     if (!result.success || !result.nodeId) {
-      console.log(`  [DeepHierarchy] Failed to create node at depth ${i}: ${result.error}`);
+      console.log(`  [DeepHierarchy] Failed to create node at depth ${i}: ${result.error} `);
       break;
     }
 
@@ -1011,8 +1006,8 @@ export async function createSiblingNodes(
       page,
       parentId,
       entityType,
-      `${namePrefix}_${i}_${Date.now()}`,
-      `Sibling node ${i}`
+      `${namePrefix}_${i}_${Date.now()} `,
+      `Sibling node ${i} `
     );
 
     if (result.success && result.nodeId) {

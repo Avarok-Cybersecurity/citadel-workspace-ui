@@ -88,7 +88,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
       toast({
         title: 'Role Updated',
         description: `Member role updated to ${newRole}`,
-        className: 'bg-[#343A5C] border-purple-800 text-purple-200',
+        className: 'bg-[#232536] border-purple-800 text-purple-200',
       });
     } catch (error) {
       debugLog('MembersTab', 'Failed to update role:', error);
@@ -117,7 +117,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
       toast({
         title: 'Member Removed',
         description: `${memberToRemove.name || memberToRemove.username} has been removed`,
-        className: 'bg-[#343A5C] border-purple-800 text-purple-200',
+        className: 'bg-[#232536] border-purple-800 text-purple-200',
       });
     } catch (error) {
       debugLog('MembersTab', 'Failed to remove member:', error);
@@ -155,7 +155,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
             variant="outline"
             size="sm"
             onClick={() => setSelectedMember(null)}
-            className="border-gray-600 text-white hover:bg-[#444A6C]"
+            className="border-gray-600 text-white hover:bg-[#232536]"
           >
             Back to Members
           </Button>

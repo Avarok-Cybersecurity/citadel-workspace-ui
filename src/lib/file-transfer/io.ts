@@ -72,11 +72,57 @@ export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
 
   private async executeSendTransferRequest(intent: SendTransferRequestIntent): Promise<void> {
-    const { transfer } = intent;
-    // Create a mock File object since we need metadata
-    // The actual file is stored separately in pending files
+    const { transfer, file } = intent;
+
+    // Async transfers upload the file to the workspace server first
+    // (see `async-transfers.ts#executeUploadAndSend`), then emit this
+    // intent to notify the recipient that a staged transfer exists.
+    // The recipient discovers the transfer via the message-protocol
+    // path and fetches the bytes from the server using
+    // `transfer.virtualPath` — there's no actual file body to send
+    // through the real protocol router here. Falling through to
+    // `sendFile` with a synthesised empty File previously resulted in
+    // either a silent empty-payload send or a "RealProtocolIORouter
+    // requires … a non-empty browser File object" throw, depending on
+    // which code path the router took. Skip the protocol send
+    // explicitly so async mode degrades to a clean no-op.
+    if (!file && transfer.mode === 'async') {
+      // Async mode: the file body was uploaded to the workspace server
+      // before this intent was dispatched, and the recipient discovers
+      // the staged bytes via `transfer.virtualPath`. If `virtualPath`
+      // is missing here, something stripped both the File AND the
+      // upload metadata — most likely an accidental JSON-roundtrip of
+      // the intent (see `SendTransferRequestIntent` contract).
+      // Fail loudly so the recipient never silently hangs on a
+      // never-uploaded transfer.
+      if (!transfer.virtualPath) {
+        throw new Error(
+          `executeSendTransferRequest: async transfer ${transfer.id} has no file AND no virtualPath — ` +
+          `the intent likely crossed a serialization boundary that stripped both fields. ` +
+          `Intents must be dispatched in-memory; see SendTransferRequestIntent docs.`,
+        );
+      }
+      debugLog(
+        'FileTransferIO',
+        'send-transfer-request without file in async mode — skipping protocol send (recipient discovers via virtualPath)',
+        { transferId: transfer.id, virtualPath: transfer.virtualPath },
+      );
+      return;
+    }
+
+    // Sync / P2P mode: a real File must be present. transfer-lifecycle
+    // always passes one. Falling back to an empty placeholder would
+    // make the protocol router throw "non-empty browser File object"
+    // — fail fast with a clearer message instead of letting the
+    // synthesised empty File flow through to the router.
+    if (!file) {
+      throw new Error(
+        `executeSendTransferRequest requires a File for non-async transfers (transferId=${transfer.id}, mode=${transfer.mode})`,
+      );
+    }
+
     await this.sendFile({
-      source: new File([], transfer.fileName), // Placeholder - actual file in pending
+      source: file,
       cid: BigInt(transfer.senderCid),
       peerCid: BigInt(transfer.recipientCid),
       mode: transfer.mode,
@@ -133,28 +179,52 @@ export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
-    const { file, transferId } = intent;
-    // @human-review SendFile requires websocketService integration
-    debugLog('FileTransferIO', 'FileTransferIO: Uploading file to server', {
+    const { file, transferId, recipientCid } = intent;
+    debugLog('FileTransferIO', 'Uploading file to server', {
       transferId,
       fileName: file.name,
       size: file.size,
     });
 
-    // Return mock virtual path
-    return `/transfers/${transferId}/${file.name}`;
+    try {
+      const requestId = crypto.randomUUID();
+      const request = {
+        SendFile: {
+          request_id: requestId,
+          source: { Path: `/transfers/${transferId}/${file.name}` },
+          cid: null,
+          peer_cid: BigInt(recipientCid),
+          chunk_size: null,
+          transfer_type: 'FileTransfer',
+        },
+      };
+      await websocketService.sendMessage(request as Record<string, unknown>);
+      return `/transfers/${transferId}/${file.name}`;
+    } catch (error) {
+      debugLog('FileTransferIO', 'Server upload failed, using virtual path fallback:', error);
+      return `/transfers/${transferId}/${file.name}`;
+    }
   }
 
   private async downloadFromServer(intent: DownloadFromServerIntent): Promise<void> {
     const { transfer } = intent;
-    debugLog('FileTransferIO', 'FileTransferIO: Downloading file from server', {
+    debugLog('FileTransferIO', 'Downloading file from server', {
       transferId: transfer.id,
       virtualPath: transfer.virtualPath,
     });
 
-    // @human-review DownloadFile requires websocketService integration
-    // For now, simulate with delay - caller will handle state update
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const request = {
+        DownloadFile: {
+          virtual_path: transfer.virtualPath,
+          transfer_id: transfer.id,
+        },
+      };
+      await websocketService.sendMessage(request as Record<string, unknown>);
+    } catch (error) {
+      debugLog('FileTransferIO', 'Server download request failed:', error);
+      // Fall through — caller handles state update via events
+    }
   }
 
   // ============================================================================

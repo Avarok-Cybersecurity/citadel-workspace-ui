@@ -172,9 +172,14 @@ export class PresenceManager {
   }
 
   /**
-   * Send a typing indicator to a peer
+   * Send a one-shot typing indicator to a peer.
+   *
+   * Public so callers that already manage their own typing state (e.g.
+   * MessagingService.sendTypingIndicator, triggered by input focus/blur
+   * effects in RetryableMessageSender) can fire an indicator without
+   * setting up the full polling machinery.
    */
-  private async sendTypingIndicator(recipientCid: bigint): Promise<void> {
+  public async sendTypingIndicator(recipientCid: bigint): Promise<void> {
     try {
       const layer = createTyping();
       await this.config.sendCommand(recipientCid, layer);

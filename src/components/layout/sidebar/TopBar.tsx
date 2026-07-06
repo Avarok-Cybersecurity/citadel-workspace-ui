@@ -1,4 +1,4 @@
-import { Menu } from "lucide-react";
+import { Menu, LogOut, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,7 +14,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/lib/toast-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import PreferencesDialog from "@/components/connection/PreferencesDialog";
+
 import NotificationCenter from "@/components/notification/NotificationCenter";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal } from "@/components/SettingsModal";
@@ -24,7 +24,7 @@ import { connectionManager } from "@/lib/connection";
 import { useNavigate } from "react-router-dom";
 import { clearSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
@@ -53,9 +53,24 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   // Get workspace name from context or fallback to prop
   const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
 
-  // Get the username and name from the state
-  const username = state.currentUser?.username || "User";
-  const name = state.currentUser?.name || username;
+  // Fallback identity from tab-context — the orphan-claim path doesn't
+  // persist a stored-session row, so without this fallback the TopBar
+  // renders "U"/"User" even though tab-context knows the username.
+  const [sessionFallback, setSessionFallback] = useState<{ username: string; fullName?: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const tab = await getSelectedUser();
+      if (cancelled) return;
+      if (tab?.selectedUsername) { setSessionFallback({ username: tab.selectedUsername }); return; }
+      const session = await connectionManager.getTabSelectedSession();
+      if (!cancelled) setSessionFallback(session?.username ? { username: session.username, fullName: session.fullName } : null);
+    })();
+    return () => { cancelled = true; };
+  }, [state.currentUser?.username]);
+
+  const username = state.currentUser?.username || sessionFallback?.username || "User";
+  const name = state.currentUser?.name || sessionFallback?.fullName || username;
   const userInitials = getUserInitials(name);
   const avatarUrl = state.currentUser?.avatarUrl;
 
@@ -63,9 +78,6 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const userRole = state.currentUser?.role;
   const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
 
-  const handleSettingsClick = () => {
-    toastSuccess(toast, "Settings", "Settings panel opening soon");
-  };
 
   const handleExit = () => {
     // Stop WASM connection manager polling (session stays active but this tab won't poll)
@@ -84,57 +96,48 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     setDisconnectError(undefined);
     setShowDisconnectModal(true);
 
-    try {
-      // Stop WASM connection manager polling
-      wasmConnectionManager.stop();
+    // Sign Out is an explicit user intent — even if the backend disconnect
+    // fails (e.g., WS already dropped, no current session on this tab), the
+    // local saved-session + tab-context must be cleared and we must navigate
+    // to the landing page. Otherwise WorkspaceLoader's auto-claim re-attaches
+    // the orphan and the user ends up right back where they started.
+    const currentSession = await connectionManager.getTabSelectedSession();
+    const tabSelection = await getSelectedUser();
+    const cid = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
 
-      // Get the current session BEFORE disconnecting
-      const currentSession = await connectionManager.getTabSelectedSession();
+    // Stop WASM connection manager polling regardless of below outcome
+    wasmConnectionManager.stop();
 
-      if (!currentSession) {
-        debugLog('TopBar', 'No current session found');
-        setDisconnectStatus("error");
-        setDisconnectError("No active session found");
-        return;
+    if (cid) {
+      try {
+        debugLog('TopBar', 'Fully signing out user', currentSession?.username, 'CID:', cid.toString());
+        await connectionManager.disconnect({
+          cid,
+          username: currentSession?.username,
+          serverAddress: currentSession?.serverAddress,
+        });
+      } catch (error) {
+        // Best-effort: log the failure but keep cleaning up locally so the user
+        // ends up signed out on this device. The server-side orphan (if any)
+        // will time out on its own.
+        debugLog('TopBar', 'Backend disconnect failed, continuing local sign-out:', error);
       }
-
-      // Also get the CID from tab context (more reliable source)
-      const tabSelection = await getSelectedUser();
-      const cid = tabSelection?.selectedCid ?? currentSession.cid;
-
-      if (!cid) {
-        debugLog('TopBar', 'No CID found for session');
-        setDisconnectStatus("error");
-        setDisconnectError("No active session CID found");
-        return;
-      }
-
-      debugLog('TopBar', 'Fully signing out user', currentSession.username, 'CID:', cid.toString());
-
-      // Full disconnect via WebSocket - pass the session info explicitly
-      await connectionManager.disconnect({
-        cid,
-        username: currentSession.username,
-        serverAddress: currentSession.serverAddress,
-      });
-
-      // Update status to cleaning
-      setDisconnectStatus("cleaning");
-
-      // Remove the session completely from stored sessions
-      await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
-
-      // Clear tab-specific user selection
-      await clearSelectedUser();
-
-      // Show ready status briefly before navigating
-      setDisconnectStatus("ready");
-
-    } catch (error) {
-      debugLog('TopBar', 'Sign out failed', error);
-      setDisconnectStatus("error");
-      setDisconnectError("An error occurred while signing out");
+    } else {
+      debugLog('TopBar', 'No CID available for backend disconnect, skipping');
     }
+
+    setDisconnectStatus("cleaning");
+
+    try {
+      if (currentSession?.username && currentSession?.serverAddress) {
+        await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
+      }
+      await clearSelectedUser();
+    } catch (error) {
+      debugLog('TopBar', 'Local sign-out cleanup raised, ignoring:', error);
+    }
+
+    setDisconnectStatus("ready");
   };
 
   const handleDisconnectComplete = () => {
@@ -146,13 +149,13 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 bg-[#252424] border-b border-gray-800 flex items-center justify-between pr-4 z-50">
+    <div className="fixed top-0 left-0 right-0 h-14 bg-[#1C1D28] border-b border-[#2D3548] flex items-center justify-between pr-4 z-50">
       <div className="flex items-center">
         {isMobile && (
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] md:hidden mr-4"
+            className="text-white hover:bg-purple-500/15 hover:text-white md:hidden mr-4"
             onClick={toggleSidebar}
           >
             <Menu className="h-5 w-5" />
@@ -164,47 +167,48 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         <LeaderIndicator />
         <NotificationCenter />
 
-        <PreferencesDialog />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-[#E5DEFF]" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
+            <Button variant="ghost" size="icon" className="p-0 hover:bg-purple-500/15" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
               <Avatar className={cn(
                 "h-8 w-8",
-                isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#252424]"
+                isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#1C1D28]"
               )}>
                 <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-[#444A6C] text-white">{userInitials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-[#343A5C] text-white border-purple-800">
-            <DropdownMenuLabel>{name}</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-purple-800" />
+          <DropdownMenuContent align="end" className="w-56 bg-[#1C1D28] text-white border-[#2D3548] shadow-xl shadow-black/40">
+            <DropdownMenuLabel className="text-gray-300 text-xs font-normal">{name}</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-[#2D3548]" />
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-gray-200 cursor-pointer focus:bg-purple-500/15 focus:text-white"
               onClick={() => setShowProfileModal(true)}
             >
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-gray-200 cursor-pointer focus:bg-purple-500/15 focus:text-white"
               onClick={() => setShowSettingsModal(true)}
             >
               Settings
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-purple-800" />
+            <DropdownMenuSeparator className="bg-[#2D3548]" />
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-gray-400 cursor-pointer gap-2 focus:bg-purple-500/15 focus:text-white"
               onClick={() => setShowExitConfirm(true)}
             >
+              <ArrowLeft className="h-4 w-4" />
               Exit to Landing
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-white hover:bg-[#444A6C] hover:text-white cursor-pointer"
+              className="text-red-400 cursor-pointer gap-2 focus:bg-red-500/10 focus:text-red-300"
               onClick={handleSignOut}
             >
-              Sign out
+              <LogOut className="h-4 w-4" />
+              Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

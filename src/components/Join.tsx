@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, CheckCircle } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { StepIndicator } from "@/components/ui/step-indicator";
 import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import { ConnectLoadingModal } from "./LoadingModal";
 import { useJoinRegistration } from "./useJoinRegistration";
@@ -10,9 +11,11 @@ interface JoinProps {
   onNext: (cid: string) => void;
   onBack: () => void;
   defaultWorkspace?: string;
+  serverAddress: string;
+  serverPassword: string;
 }
 
-export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
+export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword }: JoinProps) => {
   const {
     formData,
     isRegistering,
@@ -23,45 +26,51 @@ export const Join = ({ onNext, onBack, defaultWorkspace }: JoinProps) => {
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
-  } = useJoinRegistration(onBack);
+  } = useJoinRegistration(onBack, serverAddress, serverPassword);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
       <div className="w-full max-w-md">
-        <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-white text-xl">Create Your Profile</CardTitle>
-            <CardDescription className="text-gray-300">
-              {defaultWorkspace ? `Join ${defaultWorkspace} with a new account` : "Create your profile for this workspace"}
-            </CardDescription>
+        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+          <CardHeader className="pb-4">
+            <StepIndicator currentStep={3} totalSteps={3} labels={["Server", "Security", "Profile"]} />
+            <h2 className="text-xl font-bold text-white mt-5">Create Your Profile</h2>
+            <p className="text-sm text-gray-400 mt-1">
+              {defaultWorkspace ? `Join ${defaultWorkspace} with a new account` : "Set up your identity for this workspace"}
+            </p>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <CardContent className="max-h-[calc(100vh-16rem)] overflow-y-auto">
               <JoinFormFields formData={formData} onChange={handleInputChange} />
             </CardContent>
 
-            <CardFooter className="flex justify-between">
+            <CardFooter className="flex justify-between pt-2">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={onBack}
-                className="text-white hover:bg-purple-500/20"
+                className="text-gray-400 hover:text-white hover:bg-transparent"
                 disabled={isRegistering}
               >
-                BACK
+                Back
               </Button>
               <Button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
                 disabled={isRegistering}
               >
                 {isRegistering ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    REGISTERING...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Registering...
                   </>
-                ) : "JOIN"}
+                ) : (
+                  <>
+                    Join
+                    <CheckCircle className="w-4 h-4" />
+                  </>
+                )}
               </Button>
             </CardFooter>
           </form>

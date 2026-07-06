@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { RoomSkeletonLoader } from '../ui/skeleton-room';
 import { evaluate } from '@mdx-js/mdx';
+import remarkGfm from 'remark-gfm';
 import * as runtime from 'react/jsx-runtime';
 import { useToast } from '@/hooks/use-toast';
 import { MdxTemplate } from '@/lib/mdx-templates';
@@ -17,6 +18,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { components } from '../office/mdxComponents';
 import { debugLog } from '@/lib/debug-config';
 import { RoomContentView } from './RoomContentView';
+import { applyGfmStrikethrough } from './mdx-preprocess';
 
 interface RoomProps {
   nodeId: string;
@@ -71,8 +73,14 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
 
       try {
         debugLog('Room', 'Compiling Room MDX content...');
-        const result = await evaluate(content, {
+        // remark-gfm provides strikethrough, tables, autolinks, task-lists.
+        // We still apply the escape pass so `~~value < 5~~`-style content
+        // doesn't trip MDX's JSX parser before remark-gfm consumes the
+        // `~~...~~` region. See BaseOffice.tsx for the same pattern.
+        const processedContent = applyGfmStrikethrough(content);
+        const result = await evaluate(processedContent, {
           ...runtime,
+          remarkPlugins: [remarkGfm],
           useMDXComponents: () => components,
           baseUrl: window.location.origin
         });
@@ -96,7 +104,7 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
       toast({
         title: "Changes saved",
         description: `The ${room?.name || 'room'} content has been updated`,
-        className: "bg-[#343A5C] border-purple-800 text-purple-200",
+        className: "bg-[#232536] border-purple-800 text-purple-200",
       });
 
       setIsEditing(false);
@@ -117,7 +125,7 @@ export const Room: React.FC<RoomProps> = ({ nodeId }) => {
     toast({
       title: "Template applied",
       description: `Applied "${template.name}" template. You can now customize it.`,
-      className: "bg-[#343A5C] border-purple-800 text-purple-200",
+      className: "bg-[#232536] border-purple-800 text-purple-200",
     });
 
     setIsNewContent(false);

@@ -89,7 +89,7 @@ export function RevfsDisabledModal({
         <DialogFooter className="gap-2">
           <Button
             onClick={onClose}
-            className="bg-[#444A6C] border-purple-700 text-gray-200 hover:bg-[#555B8C] hover:text-white"
+            className="bg-[#232536] border-purple-700 text-gray-200 hover:bg-[#555B8C] hover:text-white"
           >
             {isPeerDisabled ? 'OK' : 'Close'}
           </Button>

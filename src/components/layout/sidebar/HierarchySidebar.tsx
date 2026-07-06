@@ -35,6 +35,11 @@ export function HierarchySidebar() {
   const handleNodeSelect = useCallback((nodeId: string) => {
     const newParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);
+    newParams.delete('section');
+    // Clear P2P chat overlay when navigating to a different node
+    newParams.delete('showP2P');
+    newParams.delete('channel');
+    newParams.delete('p2pUser');
     navigate(buildWorkspacePath(newParams));
   }, [location.search, navigate]);
 
@@ -63,11 +68,34 @@ export function HierarchySidebar() {
     if (parentId === null) {
       // Creating a root-level child under the synthetic workspace root.
       // Allowed types come from the tree schema.
-      const workspaceRule = state.treeSchema?.rules?.find(
+      //
+      // Distinguish two empty-allowedTypes cases that look identical
+      // syntactically but have very different user-facing meanings:
+      //
+      //   1. `state.treeSchema === undefined` — schema fetch is still
+      //      in flight (post-auth bootstrap hasn't finished, or the
+      //      user clicked the create button before workspace load
+      //      completed). The right message is "still loading", not
+      //      "permission denied" — the latter is an actively
+      //      misleading regression that previously made admins think
+      //      their permissions were broken.
+      //
+      //   2. `state.treeSchema` is loaded but the Workspace rule has
+      //      no `allowed_child_types`. That's the genuine
+      //      "non-admin trying to create at workspace level" case
+      //      and the permission toast is correct.
+      if (!state.treeSchema) {
+        toastError(toast, 'Loading', 'Workspace schema is still loading. Please try again in a moment.');
+        return;
+      }
+      const workspaceRule = state.treeSchema.rules?.find(
         r => r.parent_type === 'Workspace'
       );
       const allowedTypes = workspaceRule?.allowed_child_types ?? [];
-      if (allowedTypes.length === 0) return;
+      if (allowedTypes.length === 0) {
+        toastError(toast, 'Permission Required', 'You need administrator permissions to create new items. Initialize the workspace to become an admin.');
+        return;
+      }
       setCreateModal({ parentId: 'workspace-root', entityType: allowedTypes[0] });
       return;
     }
@@ -76,12 +104,15 @@ export function HierarchySidebar() {
     if (!parentNode) return;
 
     const allowedTypes = parentNode.allowed_child_types;
-    if (!allowedTypes || allowedTypes.length === 0) return;
+    if (!allowedTypes || allowedTypes.length === 0) {
+      toastError(toast, 'Cannot Add Here', `No child types are allowed under "${parentNode.name}".`);
+      return;
+    }
 
     // If only one child type allowed, use it directly
     // If multiple, default to first (future: show type picker)
     setCreateModal({ parentId, entityType: allowedTypes[0] });
-  }, [state.nodes, state.treeSchema]);
+  }, [state.nodes, state.treeSchema, toast]);
 
   const handleAdminSettings = useCallback((node: DomainNode) => {
     setAdminNode(node);

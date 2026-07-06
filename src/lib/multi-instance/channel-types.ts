@@ -17,7 +17,8 @@ export type ChannelMessageType =
   | 'instance-announce'
   | 'instance-goodbye'
   | 'session-release'
-  | 'cid-update';
+  | 'cid-update'
+  | 'cid-report-request';
 
 export interface ChannelMessage {
   type: ChannelMessageType;

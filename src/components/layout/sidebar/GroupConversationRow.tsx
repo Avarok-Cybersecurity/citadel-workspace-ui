@@ -140,8 +140,8 @@ export function GroupConversationRow({
     <SidebarMenuItem>
       <SidebarMenuButton
         onClick={handleClick}
-        className={`text-white hover:bg-[#E5DEFF] hover:text-[#343A5C] transition-colors h-9 py-1 ${
-          isActive ? 'bg-[#E5DEFF] text-[#343A5C]' : ''
+        className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors h-9 py-1 ${
+          isActive ? 'bg-purple-500/20 text-purple-200' : ''
         }`}
       >
         <div ref={containerRef} className="flex items-center gap-2 w-full">

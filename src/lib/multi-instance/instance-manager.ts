@@ -150,6 +150,19 @@ class InstanceManager {
   registerInstance(instanceId: string, cid: bigint | null): void {
     this.knownInstances.set(instanceId, cid);
     debugLog('InstanceManager', `[InstanceManager] Registered instance: ${instanceId} -> ${cid?.toString()}`);
+    // Emit so the inbound router can drain its CID-keyed orphan-message
+    // buffer the moment a cid-report arrives — turns the self-heal flow
+    // from "deliver locally, then route correctly next time" into
+    // "buffer briefly, deliver to the right tab when the report lands".
+    //
+    // SUBSCRIBER CONTRACT: `cid` is `bigint | null`. Null fires on
+    // the initial registry seed before the instance has a CID (e.g.
+    // pre-ConnectSuccess). `unregisterInstance` does NOT emit
+    // `instance:registered` — it only deletes from the map.
+    // Subscribers MUST guard `if (cid === null) return;` — the orphan
+    // buffer drain at `instance-inbound-router.ts` is the canonical
+    // pattern.
+    eventEmitter.emit('instance:registered', { instanceId, cid });
   }
 
   unregisterInstance(instanceId: string): void {

@@ -1,25 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Shield } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Shield, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import WorkspaceService from '@/lib/workspace-service';
+import type { PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -38,6 +22,8 @@ interface PermissionManagerProps {
   onClose?: () => void;
 }
 
+type RolePermissions = Record<string, Set<string>>;
+
 export const PermissionManager: React.FC<PermissionManagerProps> = ({
   userId,
   domainId,
@@ -45,186 +31,195 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   onClose,
 }) => {
   const { toast } = useToast();
-  const [selectedRole, setSelectedRole] = useState<string>('Member');
-  const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-  const [inheritedPermissions, setInheritedPermissions] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Track permissions per role
+  const [rolePermissions, setRolePermissions] = useState<RolePermissions>(() => {
+    const initial: RolePermissions = {};
+    for (const role of ROLE_HIERARCHY) {
+      initial[role.value] = new Set(getRoleDefaultPermissions(role.value));
+    }
+    return initial;
+  });
 
   useEffect(() => {
-    // Load current user permissions
-    runAsyncSetup(loadUserPermissions);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    runAsyncSetup(async () => {
+      try {
+        await WorkspaceService.getUserPermissions(userId, domainId);
+      } catch (error) {
+        debugLog('PermissionManager', 'Error loading permissions:', error);
+      }
+    });
   }, [userId, domainId]);
 
-  const loadUserPermissions = async () => {
-    try {
-      await WorkspaceService.getUserPermissions(userId, domainId);
-      const rolePermissions = getRoleDefaultPermissions(selectedRole);
-      setSelectedPermissions(new Set(rolePermissions));
-
-      if (domainType !== 'workspace') {
-        setInheritedPermissions(new Set(['ViewContent', 'ReadMessages']));
+  const togglePermission = useCallback((role: string, permissionId: string) => {
+    setRolePermissions(prev => {
+      const next = { ...prev };
+      const perms = new Set(next[role]);
+      if (perms.has(permissionId)) {
+        perms.delete(permissionId);
+      } else {
+        perms.add(permissionId);
       }
-    } catch (error) {
-      debugLog('PermissionManager', 'Error loading permissions:', error);
-      const rolePermissions = getRoleDefaultPermissions(selectedRole);
-      setSelectedPermissions(new Set(rolePermissions));
-    }
-  };
-
-  const handleRoleChange = (newRole: string) => {
-    setSelectedRole(newRole);
-    const newPermissions = getRoleDefaultPermissions(newRole);
-    setSelectedPermissions(new Set(newPermissions));
-  };
-
-  const handlePermissionToggle = (permissionId: string) => {
-    const newPermissions = new Set(selectedPermissions);
-    if (newPermissions.has(permissionId)) {
-      newPermissions.delete(permissionId);
-    } else {
-      newPermissions.add(permissionId);
-    }
-    setSelectedPermissions(newPermissions);
-  };
+      next[role] = perms;
+      return next;
+    });
+  }, []);
 
   const handleSave = async () => {
-    setIsLoading(true);
+    setIsSaving(true);
     try {
-      await WorkspaceService.updateMemberRole(userId, selectedRole);
-      toastSuccess(toast, "Permissions Updated", `User role updated to ${selectedRole}.`);
+      // Save permission overrides for each role
+      for (const role of ROLE_HIERARCHY) {
+        const currentPerms = rolePermissions[role.value];
+        const roleDefaults = new Set(getRoleDefaultPermissions(role.value));
+        const addedPermissions = [...currentPerms].filter(p => !roleDefaults.has(p));
+        const removedPermissions = [...roleDefaults].filter(p => !currentPerms.has(p));
 
-      if (onClose) {
-        onClose();
+        if (addedPermissions.length > 0) {
+          await WorkspaceService.updateMemberPermissions(
+            userId, domainId, addedPermissions as PermissionTS[], 'Add' as UpdateOperationTS
+          );
+        }
+        if (removedPermissions.length > 0) {
+          await WorkspaceService.updateMemberPermissions(
+            userId, domainId, removedPermissions as PermissionTS[], 'Remove' as UpdateOperationTS
+          );
+        }
       }
+
+      toastSuccess(toast, "Permissions Updated", "Permissions saved successfully.");
+      if (onClose) onClose();
     } catch (error) {
       debugLog('PermissionManager', 'Error saving permissions:', error);
       toastError(toast, "Error", "Failed to update permissions. Please try again.");
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
   const DomainIcon = getEntityMetadata(domainType).icon;
+  const allPermissions = Object.entries(PERMISSION_CATEGORIES);
 
   return (
-    <Card className="w-full max-w-lg bg-[#343A5C] border-purple-800 max-h-[80vh] flex flex-col">
-      <CardHeader className="flex-shrink-0 pb-2">
-        <CardTitle className="text-white flex items-center gap-2 text-base">
-          <Shield className="h-4 w-4" />
-          Permission Manager
-        </CardTitle>
-        <CardDescription className="text-gray-300 text-sm flex items-center gap-1">
-          <DomainIcon className="h-4 w-4" /> {getEntityMetadata(domainType).label} permissions
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col flex-1 overflow-hidden space-y-3 pt-0">
-        {/* Role Selection - Fixed */}
-        <div className="flex-shrink-0 space-y-1">
-          <Label htmlFor="role" className="text-white text-sm">User Role</Label>
-          <Select value={selectedRole} onValueChange={handleRoleChange}>
-            <SelectTrigger id="role" className="bg-[#444A6C] border-gray-600 text-white h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-[#444A6C] border-gray-600">
-              {ROLE_HIERARCHY.map((role) => (
-                <SelectItem key={role.value} value={role.value}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${role.color}`} />
-                    {role.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Separator className="bg-gray-600 flex-shrink-0" />
-
-        {/* Scrollable Permissions Area */}
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-3">
-          {/* Inherited Permissions */}
-          {inheritedPermissions.size > 0 && (
-            <div className="space-y-1">
-              <Label className="text-white text-sm">Inherited</Label>
-              <div className="p-2 bg-[#444A6C] rounded-lg">
-                <div className="flex flex-wrap gap-1">
-                  {Array.from(inheritedPermissions).map((perm) => (
-                    <Badge key={perm} variant="secondary" className="bg-[#555B7C] text-xs">
-                      {perm}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Permission Categories */}
-          <div className="space-y-3">
-            <Label className="text-white text-sm">Specific Permissions</Label>
-            {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
-              <div key={category} className="space-y-1">
-                <h4 className="text-xs font-semibold text-purple-300">{category}</h4>
-                <div className="space-y-1">
-                  {permissions.map((permission) => {
-                    const isInherited = inheritedPermissions.has(permission.id);
-                    const isSelected = selectedPermissions.has(permission.id);
-
-                    return (
-                      <div
-                        key={permission.id}
-                        className={`flex items-center space-x-2 p-1.5 rounded ${
-                          isInherited ? 'bg-[#3A4058] opacity-75' : 'bg-[#444A6C]'
-                        }`}
-                      >
-                        <Checkbox
-                          id={permission.id}
-                          checked={isSelected || isInherited}
-                          disabled={isInherited}
-                          onCheckedChange={() => handlePermissionToggle(permission.id)}
-                          className="h-4 w-4"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <Label
-                            htmlFor={permission.id}
-                            className="text-xs font-medium text-white cursor-pointer"
-                          >
-                            {permission.label}
-                            {isInherited && (
-                              <span className="ml-1 text-gray-500">(inherited)</span>
-                            )}
-                          </Label>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+    <div className="bg-[#1C1D28] border border-[#2D3548] rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-5 border-b border-[#2D3548] flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
+            <Shield className="h-4.5 w-4.5 text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Permission Manager</h2>
+            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+              <DomainIcon className="h-3 w-3" />
+              {getEntityMetadata(domainType).label} permissions
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Action Buttons - Fixed */}
-        <div className="flex-shrink-0 flex justify-end gap-2 pt-2 border-t border-gray-600">
+      {/* Matrix Table */}
+      <div className="flex-1 overflow-auto min-h-0">
+        <table className="w-full border-collapse">
+          {/* Role column headers */}
+          <thead className="sticky top-0 z-10 bg-[#1C1D28]">
+            <tr>
+              <th className="text-left text-[11px] font-semibold tracking-wider uppercase text-gray-500 px-6 py-3 w-[200px] border-b border-[#2D3548]">
+                Permission
+              </th>
+              {ROLE_HIERARCHY.map(role => (
+                <th
+                  key={role.value}
+                  className="text-center px-3 py-3 border-b border-[#2D3548] min-w-[90px]"
+                >
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-gray-300">
+                    <div className={`w-1.5 h-1.5 rounded-full ${role.color}`} />
+                    {role.label}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {allPermissions.map(([category, permissions]) => (
+              <React.Fragment key={category}>
+                {/* Category header row */}
+                <tr>
+                  <td
+                    colSpan={ROLE_HIERARCHY.length + 1}
+                    className="px-6 pt-4 pb-1.5"
+                  >
+                    <span className="text-[11px] font-semibold tracking-wider uppercase text-purple-400">
+                      {category}
+                    </span>
+                  </td>
+                </tr>
+
+                {/* Permission rows */}
+                {permissions.map((permission, idx) => (
+                  <tr
+                    key={permission.id}
+                    className={`group hover:bg-purple-500/[0.03] transition-colors ${
+                      idx === permissions.length - 1 ? '' : ''
+                    }`}
+                  >
+                    <td className="px-6 py-2">
+                      <span className="text-sm text-gray-300">{permission.label}</span>
+                    </td>
+                    {ROLE_HIERARCHY.map(role => {
+                      const isChecked = rolePermissions[role.value]?.has(permission.id) ?? false;
+                      return (
+                        <td key={role.value} className="text-center px-3 py-2">
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={() => togglePermission(role.value, permission.id)}
+                              className="h-4 w-4 border-[#3B3D57] data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t border-[#2D3548]">
+        <div className="flex gap-2">
           {onClose && (
             <Button
               variant="ghost"
               onClick={onClose}
-              disabled={isLoading}
-              className="text-white hover:bg-[#444A6C] h-8 text-sm"
+              disabled={isSaving}
+              className="text-gray-400 hover:text-white hover:bg-transparent h-9 text-sm"
             >
               Cancel
             </Button>
           )}
           <Button
             onClick={handleSave}
-            disabled={isLoading}
-            className="bg-purple-600 hover:bg-purple-700 text-white h-8 text-sm"
+            disabled={isSaving}
+            className="bg-purple-600 hover:bg-purple-500 text-white h-9 text-sm rounded-lg shadow-lg shadow-purple-500/20 gap-2 px-5"
           >
-            {isLoading ? 'Saving...' : 'Save'}
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save'
+            )}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

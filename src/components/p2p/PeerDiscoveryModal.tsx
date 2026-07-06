@@ -28,7 +28,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#343A5C] text-white border-gray-700 max-w-2xl">
+      <DialogContent className="bg-[#232536] text-white border-gray-700 max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span className="flex items-center">
@@ -55,7 +55,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
         </DialogHeader>
 
         <div className="mt-4">
-          <div className="mb-3 p-3 bg-[#444A6C] rounded-lg">
+          <div className="mb-3 p-3 bg-[#232536] rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Signal className="h-4 w-4 text-green-400" />

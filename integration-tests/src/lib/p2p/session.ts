@@ -4,7 +4,7 @@
 
 import type { Page } from 'playwright';
 import { sleep } from '../utils.js';
-import { waitForWorkspaceLoaded } from '../modals.js';
+import { waitForWorkspaceLoaded, closeAnyModals } from '../modals.js';
 import { takeScreenshot } from '../screenshots.js';
 import { UxIssueTracker } from '../ux-tracker.js';
 
@@ -129,6 +129,9 @@ export async function disconnectViaTopBar(
       return false;
     }
 
+    // Dismiss any blocking modals (e.g. WorkspaceInitializationModal)
+    await closeAnyModals(page);
+
     await takeScreenshot(page, `${username}_before_signout`);
 
     // Click the TopBar avatar to open dropdown menu
@@ -234,8 +237,8 @@ export async function disconnectViaTopBar(
         // "Session Disconnected" = ready state, "Disconnecting Session" = still processing
         const modalContent = await disconnectModal.textContent().catch(() => '');
         const isReady = modalContent?.includes('Session Disconnected') ||
-                        modalContent?.includes('Safe to reconnect') ||
-                        modalContent?.includes('safely reconnect');
+          modalContent?.includes('Safe to reconnect') ||
+          modalContent?.includes('safely reconnect');
 
         if (isReady) {
           console.log('  Disconnect completed (modal shows ready state)');
@@ -401,8 +404,8 @@ export async function loginAfterDisconnect(
       const orphanIcon = page.locator(`[data-testid="session-icon-${username}"]`);
       const partialMatch = page.locator(`[data-testid*="session"]:has-text("${usernamePrefix}")`).first();
       orphanFound = await orphanButton.isVisible({ timeout: 2000 }).catch(() => false) ||
-                    await orphanIcon.isVisible({ timeout: 1000 }).catch(() => false) ||
-                    await partialMatch.isVisible({ timeout: 1000 }).catch(() => false);
+        await orphanIcon.isVisible({ timeout: 1000 }).catch(() => false) ||
+        await partialMatch.isVisible({ timeout: 1000 }).catch(() => false);
       if (orphanFound) {
         console.log(`  Found orphan session for ${username} (attempt ${orphanAttempt}), claiming it instead of fresh login`);
         const clickTarget = await orphanButton.isVisible({ timeout: 1000 }).catch(() => false)
@@ -566,8 +569,8 @@ export async function loginAfterDisconnect(
       const retryUsernamePrefix = username.substring(0, 15);
       const retryPartialMatch = page.locator(`[data-testid*="session"]:has-text("${retryUsernamePrefix}")`).first();
       const hasRetryOrphan = await retryOrphanBtn.isVisible({ timeout: 3000 }).catch(() => false) ||
-                             await retryOrphanIcon.isVisible({ timeout: 1000 }).catch(() => false) ||
-                             await retryPartialMatch.isVisible({ timeout: 1000 }).catch(() => false);
+        await retryOrphanIcon.isVisible({ timeout: 1000 }).catch(() => false) ||
+        await retryPartialMatch.isVisible({ timeout: 1000 }).catch(() => false);
 
       if (hasRetryOrphan) {
         console.log(`  Found orphan session on retry, claiming it...`);
@@ -772,7 +775,7 @@ export async function disconnectViaNavbar(
       const loadingModal = page.locator('text="Disconnecting"');
       if (await loadingModal.isVisible({ timeout: 1000 }).catch(() => false)) {
         console.log('  Waiting for disconnect to complete...');
-        await page.waitForSelector('text="Disconnecting"', { state: 'hidden', timeout: 10000 }).catch(() => {});
+        await page.waitForSelector('text="Disconnecting"', { state: 'hidden', timeout: 10000 }).catch(() => { });
       }
 
       console.log(`  ${username} disconnected successfully`);

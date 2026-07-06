@@ -1,13 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { Shield, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ArrowRight } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { SecurityLevelSelect } from "./security/SecurityLevelSelect";
 import { SecurityModeSelect } from "./security/SecurityModeSelect";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { AdvancedSettings } from "./security/AdvancedSettings";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { StepIndicator } from "@/components/ui/step-indicator";
 import {
   SecurityLevel,
   SecrecyMode,
@@ -42,7 +42,6 @@ export const SecuritySettings = ({
   initialValues,
   isFromLogin = false
 }: SecuritySettingsProps) => {
-  const navigate = useNavigate();
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<SecuritySettingsValues>({
@@ -68,11 +67,15 @@ export const SecuritySettings = ({
   const { mutate: updateSecuritySettings } = useMutation({
     mutationFn: (newSettings: SecuritySettingsValues) => {
       debugLog('SecuritySettings', 'Updating security settings:', JSON.stringify(newSettings));
+      debugLog('SecuritySettings', 'serverConnectForm cache BEFORE onSuccess:', queryClient.getQueryData(['serverConnectForm']));
       return Promise.resolve(newSettings);
     },
     onSuccess: (updatedSettings) => {
+      debugLog('SecuritySettings', 'onSuccess called, serverConnectForm cache:', queryClient.getQueryData(['serverConnectForm']));
       // Save the security settings to query cache
       queryClient.setQueryData(['securitySettings'], updatedSettings);
+
+      debugLog('SecuritySettings', 'serverConnectForm cache AFTER setQueryData securitySettings:', queryClient.getQueryData(['serverConnectForm']));
 
       // If onComplete is provided, call it with the current settings
       if (onComplete) {
@@ -96,14 +99,17 @@ export const SecuritySettings = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
       <div className="w-full max-w-xl">
-        <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-white text-xl">Security Settings</CardTitle>
-            <CardDescription className="text-gray-300">
+        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+          <CardHeader className="pb-4">
+            {!isFromLogin && (
+              <StepIndicator currentStep={2} totalSteps={3} labels={["Server", "Security", "Profile"]} />
+            )}
+            <h2 className="text-xl font-bold text-white mt-5">Security Settings</h2>
+            <p className="text-sm text-gray-400 mt-1">
               Configure security settings for your workspace connection
-            </CardDescription>
+            </p>
           </CardHeader>
 
           <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-visible">
@@ -120,19 +126,19 @@ export const SecuritySettings = ({
             <div className="space-y-2">
               <button
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                className="flex items-center text-white space-x-2 w-full transition-colors duration-200 hover:text-purple-300"
+                className="flex items-center gap-2 text-gray-400 w-full transition-colors duration-200 hover:text-purple-300 py-2"
               >
-                <span className="text-lg font-semibold">ADVANCED SETTINGS</span>
+                <span className="text-[11px] font-semibold tracking-wider uppercase">Advanced Settings</span>
                 <ChevronDown
                   className={cn(
-                    "w-5 h-5 transition-transform duration-300",
+                    "w-4 h-4 transition-transform duration-300",
                     isAdvancedOpen && "rotate-180"
                   )}
                 />
               </button>
 
               {isAdvancedOpen && (
-                <div className="pt-4 space-y-4">
+                <div className="pt-2 space-y-4 pl-1">
                   <AdvancedSettings
                     values={settings}
                     onChange={handleSettingChange}
@@ -142,21 +148,22 @@ export const SecuritySettings = ({
             </div>
           </CardContent>
 
-          <CardFooter className="flex justify-between">
+          <CardFooter className="flex justify-between pt-2">
             <Button
               type="button"
               variant="ghost"
               onClick={onBack}
-              className="text-white hover:bg-purple-500/20"
+              className="text-gray-400 hover:text-white hover:bg-transparent"
             >
-              BACK
+              Back
             </Button>
             <Button
               type="button"
               onClick={handleNext}
-              className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+              className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
             >
-              {isFromLogin ? "SAVE" : "NEXT"}
+              {isFromLogin ? "Save" : "Next"}
+              {!isFromLogin && <ArrowRight className="w-4 h-4" />}
             </Button>
           </CardFooter>
         </Card>

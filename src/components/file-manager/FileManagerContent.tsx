@@ -35,7 +35,7 @@ export const FileManagerContent = () => {
   // ── Main VFS Browser ──────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-[#444A6C]">
+    <div className="flex flex-col h-full bg-[#1C1D28]">
       <FileManagerStorageBar
         storageMode={fm.storageMode}
         setStorageMode={fm.setStorageMode}
@@ -134,8 +134,14 @@ export const FileManagerContent = () => {
         onClose={() => fm.setRevfsDisabledModalOpen(false)}
         reason={fm.revfsDisabledReason}
         onOpenSettings={() => {
-          // @human-review Chat settings panel not yet implemented
+          // The dedicated P2P chat-settings UI doesn't exist yet, so the
+          // button visibly tells the user what to do via a toast. The
+          // earlier "future-listener" event emit has been removed —
+          // shipping a no-op event with no subscriber misleads readers
+          // into thinking something handles it; the toast alone keeps
+          // the UX coherent and there's nothing to wire into yet.
           toast.info('Open Chat Settings to configure P2P storage');
+          fm.setRevfsDisabledModalOpen(false);
         }}
       />
 

@@ -145,6 +145,7 @@ export class P2PMessengerManager extends EventListenerManager {
   public getOwnPresence(): PeerPresence { return this.presenceManager.getOwnPresence(); }
   public startTypingPolling(recipientCid: bigint, getCurrentText: () => string): void { this.presenceManager.startTypingPolling(recipientCid, getCurrentText); }
   public stopTypingPolling(recipientCid: bigint): void { this.presenceManager.stopTypingPolling(recipientCid); }
+  public async sendTypingIndicator(recipientCid: bigint): Promise<void> { return this.presenceManager.sendTypingIndicator(recipientCid); }
 
   // ===== Public API: Conversations =====
   public getConversation(peerCid: bigint): P2PConversation | undefined { return this.conversationManager.getConversation(peerCid); }
@@ -177,4 +178,23 @@ export class P2PMessengerManager extends EventListenerManager {
   public async autoRegisterPeerWithCid(peerCid: bigint, ownCid: bigint | null | undefined): Promise<void> { if (!ownCid) throw new Error('No CID provided for registration'); return autoRegisterPeer(() => resolveCurrentCid(), (e, d) => this.emit(e, d), peerCid, ownCid); }
 }
 
-export const p2pMessengerManager = P2PMessengerManager.getInstance();
+// Lazy singleton — deferred to first access to avoid circular dependency TDZ.
+// The constructor accesses websocketService which may not be initialized during
+// module evaluation due to circular imports.
+let _p2pInstance: P2PMessengerManager | null = null;
+export function getP2PMessengerManager(): P2PMessengerManager {
+  if (!_p2pInstance) { _p2pInstance = P2PMessengerManager.getInstance(); }
+  return _p2pInstance;
+}
+// Backward-compatible alias (accessed lazily via Proxy for existing destructured imports).
+// Both `get` and `set` delegate to the real singleton so external callers that
+// assign to exposed fields write through to the real instance rather than
+// silently landing on the empty placeholder target.
+export const p2pMessengerManager = new Proxy({} as P2PMessengerManager, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getP2PMessengerManager(), prop, receiver);
+  },
+  set(_target, prop, value, receiver) {
+    return Reflect.set(getP2PMessengerManager(), prop, value, receiver);
+  },
+});

@@ -91,7 +91,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="bg-[#444A6C] p-1 rounded-full">
+            <div className="bg-[#232536] p-1 rounded-full">
               {getNotificationIcon()}
             </div>
             <CardTitle className="text-sm font-medium text-white">

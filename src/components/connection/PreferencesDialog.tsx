@@ -72,12 +72,12 @@ export const PreferencesDialog = () => {
         <Button 
           variant="ghost" 
           size="icon"
-          className="text-white hover:bg-[#E5DEFF] hover:text-[#343A5C]"
+          className="text-white hover:bg-purple-500/15 hover:text-white"
         >
           <Settings className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-[#343A5C] text-white border-purple-800 sm:max-w-[425px]">
+      <DialogContent className="bg-[#232536] text-white border-purple-800 sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Connection Preferences</DialogTitle>
           <DialogDescription className="text-gray-300">

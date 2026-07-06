@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SecuritySettingsValues } from "../SecuritySettings";
 import { Label } from "@/components/ui/label";
 import {
@@ -88,16 +88,14 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
               <SelectItem value={'ChaCha20Poly_1305'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ChaCha20Poly1305</SelectItem>
             </SelectContent>
           </Select>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                <p>Choose the encryption algorithm for your workspace</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+              <p>Choose the encryption algorithm for your workspace</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -119,16 +117,14 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
               <SelectItem value={'MlKem'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ML-KEM</SelectItem>
             </SelectContent>
           </Select>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                <p>Choose the key encapsulation mechanism (KEM)</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+              <p>Choose the key encapsulation mechanism (KEM)</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -152,16 +148,14 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
               <SelectItem value={'FnDsa512'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">FN-DSA-512</SelectItem>
             </SelectContent>
           </Select>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                <p>Choose the digital signature algorithm</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+              <p>Choose the digital signature algorithm</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -185,16 +179,14 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
               <SelectItem value="psk" className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">PSK</SelectItem>
             </SelectContent>
           </Select>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
-                <p>Configure header obfuscation settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="bg-[#2A2438] border border-purple-400/30 text-white">
+              <p>Configure header obfuscation settings</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

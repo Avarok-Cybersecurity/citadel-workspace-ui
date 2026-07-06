@@ -24,7 +24,7 @@ export function UserProfileCard({
 }: UserProfileCardProps) {
   if (!selectedUser) {
     return (
-      <Card className="bg-[#343A5C] border-gray-700 text-white h-full shadow-sm flex flex-col justify-center items-center p-6">
+      <Card className="bg-[#232536] border-gray-700 text-white h-full shadow-sm flex flex-col justify-center items-center p-6">
         <div className="text-center">
           <Avatar className="h-20 w-20 mb-4 mx-auto">
             <AvatarFallback className="bg-gray-700 text-gray-400">
@@ -49,7 +49,7 @@ export function UserProfileCard({
   }
 
   return (
-    <Card className="bg-[#343A5C] border-gray-700 text-white h-full shadow-sm">
+    <Card className="bg-[#232536] border-gray-700 text-white h-full shadow-sm">
       <CardHeader className="text-center pb-2 relative">
         <Button
           variant="ghost"
@@ -64,7 +64,7 @@ export function UserProfileCard({
             <AvatarImage src={selectedUser.avatarUrl} />
             <AvatarFallback className="bg-purple-900 text-xl">{selectedUser.displayName.charAt(0)}</AvatarFallback>
             {selectedUser.isOnline && (
-              <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-[#343A5C]" />
+              <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-[#232536]" />
             )}
           </Avatar>
           <CardTitle className="text-xl mb-1">{selectedUser.displayName}</CardTitle>
@@ -93,15 +93,14 @@ export function UserProfileCard({
         <div className="space-y-4">
           <div>
             <h4 className="text-sm font-medium text-gray-400 mb-2">About</h4>
-            <p className="text-sm text-gray-300">
-              This is a placeholder bio for demonstration purposes. In a real implementation,
-              this would show the user's actual bio information from their profile.
+            <p className="text-sm text-gray-500 italic">
+              No bio provided
             </p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-gray-400 mb-2">Connection Status</h4>
-            <div className="p-3 rounded-md bg-[#444A6C] flex items-center space-x-3">
+            <div className="p-3 rounded-md bg-[#232536] flex items-center space-x-3">
               {isConnected ? (
                 <>
                   <CheckCircle className="h-5 w-5 text-green-500" />
@@ -122,20 +121,7 @@ export function UserProfileCard({
             </div>
           </div>
 
-          <div>
-            <h4 className="text-sm font-medium text-gray-400 mb-2">Workspaces</h4>
-            <div className="space-y-2">
-              <div className="flex items-center p-2 bg-[#444A6C] rounded-md">
-                <div className="h-8 w-8 rounded-md bg-purple-600 flex items-center justify-center text-white font-semibold mr-3">
-                  W
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Workspace Alpha</p>
-                  <p className="text-xs text-gray-400">3 shared offices</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* TODO: Wire to real workspace membership data when available */}
         </div>
       </CardContent>
 

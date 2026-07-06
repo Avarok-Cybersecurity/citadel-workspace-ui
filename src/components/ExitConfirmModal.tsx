@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 interface ExitConfirmModalProps {
   open: boolean;
@@ -35,7 +35,7 @@ export const ExitConfirmModal = ({
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600">
-              <LogOut className="w-6 h-6 text-white" />
+              <ArrowLeft className="w-6 h-6 text-white" />
             </div>
             <DialogTitle className="text-xl font-semibold text-white">
               Exit Workspace?
@@ -50,7 +50,7 @@ export const ExitConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-[#252424] rounded-lg border border-gray-800">
+        <div className="my-4 p-4 bg-[#131420] rounded-lg border border-gray-800">
           <p className="text-sm text-gray-300">
             💡 <strong>Tip:</strong> Your session will remain active. Click the
             workspace icon on the landing page to return instantly without

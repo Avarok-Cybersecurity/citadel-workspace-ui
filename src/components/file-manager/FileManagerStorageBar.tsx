@@ -58,7 +58,7 @@ export function FileManagerStorageBar({
                 className={`px-2 py-1 text-xs rounded ${
                   selectedPeerCid === peer.cid
                     ? 'bg-purple-600 text-white'
-                    : 'bg-[#444A6C] text-gray-300 hover:bg-[#555B8C]'
+                    : 'bg-[#232536] text-gray-300 hover:bg-[#555B8C]'
                 }`}
               >
                 {peer.username ?? peer.cid.toString().slice(0, 8)}

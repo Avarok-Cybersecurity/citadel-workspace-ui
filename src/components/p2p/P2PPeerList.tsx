@@ -9,7 +9,6 @@ import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { DEMO_PEERS } from './P2PPeerListHelpers';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
 
@@ -42,9 +41,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       };
     });
 
-    const allPeers = [...DEMO_PEERS, ...peerList];
-    allPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-    setPeers(allPeers);
+    peerList.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+    setPeers(peerList);
   }, [messenger]);
 
   useEffect(() => {
@@ -99,27 +97,27 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#1a1b26]">
-      <div className="p-4 border-b border-[#262C4A]/50">
+    <div className="h-full flex flex-col bg-[#131420]">
+      <div className="px-4 py-3 border-b border-[#2D3548]">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-purple-400" />
             Direct Messages
           </h3>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowAvailablePeers(!showAvailablePeers)}
-            className="h-8 text-gray-400 hover:text-white"
+            className="h-7 text-gray-500 hover:text-white text-xs gap-1"
           >
-            <Users className="h-4 w-4 mr-1" />
+            <Users className="h-3.5 w-3.5" />
             {availablePeers.length}
           </Button>
         </div>
       </div>
 
       <div className="flex-1 p-0 flex flex-col">
-        <div className="p-4 border-b border-[#262C4A]/50">
+        <div className="p-3 border-b border-[#2D3548]">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -131,13 +129,13 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
               value={newPeerCid}
               onChange={(e) => setNewPeerCid(e.target.value)}
               placeholder="Enter peer CID..."
-              className="flex-1 bg-[#262C4A] border-[#3a3f5c] text-white placeholder-gray-400 focus:border-[#6E59A5]"
+              className="flex-1 bg-[#1C1D28] border-[#2D3548] text-white placeholder-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 h-9 rounded-lg text-sm"
             />
             <Button
               type="submit"
               size="icon"
               disabled={isAddingPeer || !newPeerCid.trim()}
-              className="bg-[#6E59A5] hover:bg-[#7c68d6] text-white"
+              className="bg-purple-600 hover:bg-purple-500 text-white h-9 w-9 rounded-lg"
             >
               <UserPlus className="h-4 w-4" />
             </Button>

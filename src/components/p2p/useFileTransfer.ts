@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
+import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
 import { debugLog } from '@/lib/debug-config';
 
 interface UseFileTransferOptions {
@@ -26,7 +27,15 @@ export function useFileTransfer({
   const [nativePickerAvailable, setNativePickerAvailable] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
+  // The drag/browse path sends the selected File inline as `ByteContents`,
+  // which `executeSendFile` hard-caps at MAX_BYTE_CONTENTS_SIZE_BYTES (2 MiB)
+  // regardless of the configured `maxFileSizeMb`. Cap the selection at the
+  // lower of the two so the user is told at selection time instead of hitting
+  // a late send failure; larger files must go through the native file picker.
+  const maxFileSizeBytes = Math.min(
+    maxFileSizeMb * 1024 * 1024,
+    MAX_BYTE_CONTENTS_SIZE_BYTES
+  );
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -49,7 +58,10 @@ export function useFileTransfer({
     setError(null);
 
     if (file.size > maxFileSizeBytes) {
-      setError(`File size (${formatBytes(file.size)}) exceeds maximum of ${formatBytes(maxFileSizeBytes)}`);
+      setError(
+        `File size (${formatBytes(file.size)}) exceeds the ${formatBytes(maxFileSizeBytes)} ` +
+        `inline limit. Use the native file picker for larger files.`
+      );
       return;
     }
 

@@ -168,7 +168,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
         ref={textAreaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full p-4 rounded-b-md border border-gray-800 bg-[#444A6C] text-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-500`}
+        className={`w-full p-4 rounded-b-md border border-gray-800 bg-[#232536] text-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-500`}
         style={{ height }}
         placeholder={placeholder}
         onSelect={handleSelectionChange}

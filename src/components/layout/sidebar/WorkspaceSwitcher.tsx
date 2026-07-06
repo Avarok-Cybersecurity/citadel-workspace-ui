@@ -30,6 +30,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
     isSwitching,
     targetWorkspaceForNewAccount,
     setTargetWorkspaceForNewAccount,
+    serverAddress,
+    serverPassword,
     handleWorkspaceChange,
     handleAddWorkspace,
     handleAddAccountToWorkspace,
@@ -43,26 +45,27 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center gap-3 py-2 hover:bg-[#E5DEFE] transition-colors rounded-md w-full group bg-transparent pl-3"
+            className="flex items-center gap-3 py-2 hover:bg-purple-500/10 transition-colors rounded-md w-full group bg-transparent pl-3"
             disabled={isSwitching}
           >
             {isInitials ? (
-              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white">
+              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white text-sm font-semibold">
                 {workspaceLogo || getWorkspaceInitials(workspaceName || currentWorkspace?.username || "W")}
               </div>
             ) : (
               <img
-                src={workspaceLogo || "/placeholder.svg"}
+                src={workspaceLogo || ""}
                 alt={workspaceName || currentWorkspace?.username || "Workspace"}
                 className="w-8 h-8 rounded"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
             <div className="flex-1 text-left">
-              <span className="font-semibold text-white block group-hover:text-[#1C1D28]">
+              <span className="font-semibold text-white block group-hover:text-white">
                 {workspaceName || currentWorkspace?.workspaceName || "Select Workspace"}
               </span>
               {currentWorkspace && (
-                <span className="text-xs text-gray-400 group-hover:text-gray-600">
+                <span className="text-xs text-gray-500 group-hover:text-gray-400">
                   {currentWorkspace.fullName || currentWorkspace.username}
                 </span>
               )}
@@ -72,7 +75,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
             ) : (
               <ChevronRight
                 className={cn(
-                  "w-5 h-5 text-white group-hover:text-[#1C1D28] transition-transform duration-300 mr-2",
+                  "w-5 h-5 text-gray-400 group-hover:text-white transition-transform duration-300 mr-2",
                   isOpen && "rotate-90"
                 )}
               />
@@ -115,6 +118,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
               onNext={handleNext}
               onBack={handleBack}
               defaultWorkspace={targetWorkspaceForNewAccount?.workspaceName}
+              serverAddress={targetWorkspaceForNewAccount?.serverAddress ?? serverAddress}
+              serverPassword={serverPassword}
             />
           )}
         </DialogContent>

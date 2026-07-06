@@ -18,6 +18,7 @@ export type {
   P2PFileTransferCompletePayload,
   P2PAttachment,
   P2PCommand,
+  P2PYjsSyncPayload,
 } from './p2p-commands';
 export {
   isMessagingLayerPayload,
@@ -25,6 +26,7 @@ export {
   isFileTransferRequestPayload,
   isFileTransferChunkPayload,
   isFileTransferCompletePayload,
+  isYjsSyncPayload,
   createMessagingLayerCommand,
   createMessageAckCommand,
   serializeP2PCommand,

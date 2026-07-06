@@ -77,8 +77,8 @@ async function registerUser(page: Page, username: string, password: string): Pro
       await sleep(1000);
     }
 
-    // Step 1: Fill workspace location
-    const serverInput = page.getByRole('textbox', { name: 'Workspace Location' });
+    // Step 1: Fill workspace address
+    const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
     if (await serverInput.isVisible({ timeout: 5000 }).catch(() => false)) {
       await serverInput.fill(config.WORKSPACE_SERVER);
       await sleep(500);
@@ -121,7 +121,7 @@ async function registerUser(page: Page, username: string, password: string): Pro
       }
 
       // Click JOIN button
-      const submitBtn = page.getByRole('button', { name: 'JOIN', exact: true });
+      const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
       if (await submitBtn.isVisible()) {
         await submitBtn.click();
         await sleep(5000);

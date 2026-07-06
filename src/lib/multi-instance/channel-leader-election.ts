@@ -35,7 +35,25 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
       return;
     }
 
-    // STICKY LEADERSHIP RULE 2: If there's already an established leader, ignore new claims
+    // STICKY LEADERSHIP RULE 2 (post-remount survival): if the claimer has a
+    // NEWER instance ID than ours, we are the older tab. After a React
+    // remount we may have lost the `isLeader` flag locally, but the
+    // BroadcastChannel persists our instance ID via sessionStorage and the
+    // ChannelService Worker — so the *other* tab can tell we're older. The
+    // older tab must reclaim leadership rather than yield, otherwise a HMR
+    // reload or React Strict-Mode double-mount irrevocably hands the WS to
+    // the newer tab and strands the original ILM/sink/state on a dead
+    // leader instance. (Symptom: workspace tab redirected to /connect,
+    // every cross-tab message dropped.) Reclaiming is cheap and correct
+    // because if the other tab really is newer, we still hold the live
+    // sessionStorage instance id from before the remount.
+    if (myId < theirId) {
+      debugLog('InstanceChannel', `[InstanceChannel] Rejecting leader claim from ${message.senderInstanceId} - we are older (my ${myId} < their ${theirId}); reclaiming leadership`);
+      tryBecomeLeader(state);
+      return;
+    }
+
+    // STICKY LEADERSHIP RULE 3: If there's already an established leader, ignore new claims
     const currentLeaderId = instanceManager.leaderId;
     if (currentLeaderId && currentLeaderId !== message.senderInstanceId) {
       const timeSinceHeartbeat = Date.now() - state.lastLeaderHeartbeat;
@@ -57,8 +75,36 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
 }
 
 export function handleLeaderHeartbeat(state: LeaderElectionState, message: ChannelMessage): void {
-  state.lastLeaderHeartbeat = Date.now();
   debugLog('InstanceChannel', `Heartbeat received from ${message.senderInstanceId}, current leaderId=${instanceManager.leaderId}`);
+
+  // Established-leader-stays rule. Instance IDs are timestamp-derived
+  // BigInts (see instance-manager.getOrCreateInstanceId), so LOWER id means
+  // OLDER tab — i.e. the one that almost certainly already holds the live
+  // WebSocket, the ILM state, every P2P sink, and every pending request.
+  // Migrating leadership to a newer tab mid-session strands all of that on
+  // the old leader and silently drops every cross-tab message. So when
+  // both sides claim leadership simultaneously, the OLDER one stays. The
+  // newer one yields below by falling through to demote-self.
+  //
+  // The previous "higher BigInt wins" rule stabilised split-brain but
+  // produced the migration failure exactly described above. A peer that
+  // legitimately needs to take over (e.g. original leader crashed) still
+  // does so via tryBecomeLeader after LEADER_TIMEOUT_MS of no heartbeat —
+  // that path is unaffected.
+  if (instanceManager.isLeader) {
+    const myId = instanceManager.instanceIdAsBigInt;
+    let theirId: bigint;
+    try { theirId = BigInt(message.senderInstanceId); } catch { theirId = 0n; }
+    if (myId <= theirId) {
+      debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: keeping leadership (we are older: my ${myId} <= their ${theirId})`);
+      sendHeartbeat(state);
+      return;
+    }
+    debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: yielding leadership (they are older: their ${theirId} < my ${myId})`);
+    // Fall through to demote self.
+  }
+
+  state.lastLeaderHeartbeat = Date.now();
 
   if (instanceManager.leaderId !== message.senderInstanceId) {
     debugLog('InstanceChannel', `Acknowledging leader from heartbeat: ${message.senderInstanceId} (was: ${instanceManager.leaderId})`);
