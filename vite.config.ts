@@ -102,6 +102,27 @@ export default defineConfig(({ mode }) => {
         clientPort: 5291,
       },
 
+      // Proxy the agent's WebSocket so DEV uses the same same-origin `/ws` path as production.
+      //
+      // The app resolves its socket URL to `ws(s)://<page-host>/ws` (see
+      // lib/websocket-service/resolve-url.ts). In production nginx proxies that to the agent; here
+      // Vite does. Without this, dev would need its own special-case URL - and a divergence between
+      // how dev and production reach the agent is exactly how the CSP bug this replaces went
+      // unnoticed for so long: dev's permissive CSP allowed `ws://localhost:12345`, production's
+      // `connect-src 'self'` did not, and nothing exercised the production path.
+      //
+      // AGENT_PORT lets a developer point at an agent on a non-default port without editing this
+      // file; it defaults to the port the dev compose file binds.
+      proxy: {
+        '/ws': {
+          target: `ws://localhost:${process.env.AGENT_PORT ?? '12345'}`,
+          ws: true,
+          // The agent does not care about Origin, but rewriting it keeps the proxied handshake
+          // indistinguishable from a direct one.
+          changeOrigin: true,
+        },
+      },
+
       // File watching configuration for Docker volumes
       watch: {
         // Enable polling for Docker volume mounts
@@ -120,13 +141,23 @@ export default defineConfig(({ mode }) => {
         ]
       },
 
-      // Custom headers for your web app
-      // CSP is environment-aware: permissive in dev (unsafe-eval, localhost wildcards),
-      // stricter in production (wasm-unsafe-eval only, no localhost wildcards)
+      // Custom headers for your web app.
+      //
+      // `connect-src` is now IDENTICAL in dev and production. It used to differ: dev additionally
+      // allowed `ws://localhost:* http://localhost:*`, which is precisely why the app appeared to
+      // work while the production build could not connect at all. The old code pointed the socket
+      // at `ws://localhost:12345`; dev's wildcard permitted it, production's `connect-src 'self'`
+      // blocked it, and nothing exercised the production path - so the breakage stayed invisible.
+      //
+      // The socket is now same-origin (`/ws`, proxied to the agent by Vite here and by nginx in
+      // production), so `'self'` covers it in both. Keeping the two policies in lockstep means a
+      // future CSP violation fails in dev, where someone will notice, rather than only in a
+      // shipped artifact. `script-src` still differs by necessity: Vite's dev transform needs
+      // 'unsafe-eval', production does not and must not have it.
       headers: {
         'Content-Security-Policy': mode === 'production'
           ? "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
-          : "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google ws://localhost:* http://localhost:*; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
+          : "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
       },
 
       // Configure middleware for WASM files
