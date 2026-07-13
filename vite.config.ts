@@ -120,6 +120,13 @@ export default defineConfig(({ mode }) => {
           // The agent does not care about Origin, but rewriting it keeps the proxied handshake
           // indistinguishable from a direct one.
           changeOrigin: true,
+          // Strip `/ws`, so the agent sees `/` - byte-identical to what the production nginx
+          // sends it (`proxy_pass http://<upstream>/` with the trailing slash does the same
+          // strip). The agent accepts a handshake on ANY path today, so nothing is broken
+          // without this; the point is that dev and production must not differ at the agent
+          // boundary. A dev/prod divergence is exactly how the CSP bug this PR fixes stayed
+          // invisible for so long, and leaving one behind here would invite the next one.
+          rewrite: (path) => path.replace(/^\/ws/, '') || '/',
         },
       },
 

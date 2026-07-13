@@ -92,6 +92,17 @@ describe('resolveWebsocketUrl', () => {
       expect(spy).toHaveBeenCalledOnce();
     });
 
+    it('never puts a credential from the URL into the log', () => {
+      const spy = warn();
+      // A websocket URL is a plausible place to park a token, and console output gets swept into
+      // log collectors. The warning must name the origin, not echo the secret back.
+      resolveWebsocketUrl(undefined, 'wss://user:hunter2@elsewhere.example/ws?access_token=SECRET', http);
+      const logged = String(spy.mock.calls[0][0]);
+      expect(logged).not.toContain('SECRET');
+      expect(logged).not.toContain('hunter2');
+      expect(logged).toContain('elsewhere.example'); // still actionable
+    });
+
     it('warns on a PROTOCOL-RELATIVE override, which is off-origin despite having no scheme', () => {
       const spy = warn();
       // `//elsewhere.example/ws` does not parse standalone, so a naive "unparseable means relative,

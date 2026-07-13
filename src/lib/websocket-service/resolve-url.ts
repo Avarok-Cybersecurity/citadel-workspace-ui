@@ -76,8 +76,13 @@ function warnIfOffOrigin(candidate: string, location: UrlLocation | undefined): 
 
   if (websocketOrigin(parsed) === pageOrigin) return;
 
+  // Log the origin and path ONLY - never the raw candidate. A websocket URL is a plausible place
+  // for an embedder to park a credential (`wss://host/ws?access_token=...`, or userinfo in the
+  // authority), and console output is routinely swept up by log collectors. The origin is the
+  // whole of what a reader needs in order to see what is wrong.
+  const safeUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
   console.warn(
-    `[websocket] Configured agent URL "${candidate}" is not same-origin with the page ` +
+    `[websocket] Configured agent URL (${safeUrl}) is not same-origin with the page ` +
       `(${pageOrigin}). The Content-Security-Policy is \`connect-src 'self'\`, so the browser will ` +
       `BLOCK this connection. Reach the agent through the same-origin /ws proxy instead.`,
   );
