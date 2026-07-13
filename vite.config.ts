@@ -2,6 +2,37 @@ import { defineConfig } from 'vite';
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+/**
+ * Proxy the agent's WebSocket so a locally-served app reaches it at the same same-origin `/ws`
+ * path production uses.
+ *
+ * The app resolves its socket URL to `ws(s)://<page-host>/ws` (see
+ * lib/websocket-service/resolve-url.ts). In production nginx proxies that to the agent; here Vite
+ * does. Without it, local serving would need its own special-case URL - and a divergence between
+ * how dev and production reach the agent is exactly how the CSP bug this replaces went unnoticed
+ * for so long: dev's permissive CSP allowed `ws://localhost:12345`, production's `connect-src
+ * 'self'` did not, and nothing exercised the production path.
+ *
+ * This is shared by BOTH `server` and `preview`. `preview` does not inherit `server.proxy`, and it
+ * is the one command that serves the real production bundle - so without this, the closest thing we
+ * have to a local production rehearsal would be the only place `/ws` 404s.
+ *
+ * AGENT_PORT lets a developer point at an agent on a non-default port without editing this file; it
+ * defaults to the port the dev compose file binds.
+ */
+const agentProxy = {
+  '/ws': {
+    target: `ws://localhost:${process.env.AGENT_PORT ?? '12345'}`,
+    ws: true,
+    // Strip `/ws`, so the agent sees `/` - byte-identical to what the production nginx sends it
+    // (`proxy_pass http://<upstream>/`, whose trailing slash does the same strip). The agent
+    // accepts a handshake on ANY path today, so nothing is broken without this; the point is that
+    // dev and production must not differ at the agent boundary. Leaving a divergence behind is how
+    // the last one hid.
+    rewrite: (path: string) => path.replace(/^\/ws/, '') || '/',
+  },
+};
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   return {
@@ -102,33 +133,8 @@ export default defineConfig(({ mode }) => {
         clientPort: 5291,
       },
 
-      // Proxy the agent's WebSocket so DEV uses the same same-origin `/ws` path as production.
-      //
-      // The app resolves its socket URL to `ws(s)://<page-host>/ws` (see
-      // lib/websocket-service/resolve-url.ts). In production nginx proxies that to the agent; here
-      // Vite does. Without this, dev would need its own special-case URL - and a divergence between
-      // how dev and production reach the agent is exactly how the CSP bug this replaces went
-      // unnoticed for so long: dev's permissive CSP allowed `ws://localhost:12345`, production's
-      // `connect-src 'self'` did not, and nothing exercised the production path.
-      //
-      // AGENT_PORT lets a developer point at an agent on a non-default port without editing this
-      // file; it defaults to the port the dev compose file binds.
-      proxy: {
-        '/ws': {
-          target: `ws://localhost:${process.env.AGENT_PORT ?? '12345'}`,
-          ws: true,
-          // The agent does not care about Origin, but rewriting it keeps the proxied handshake
-          // indistinguishable from a direct one.
-          changeOrigin: true,
-          // Strip `/ws`, so the agent sees `/` - byte-identical to what the production nginx
-          // sends it (`proxy_pass http://<upstream>/` with the trailing slash does the same
-          // strip). The agent accepts a handshake on ANY path today, so nothing is broken
-          // without this; the point is that dev and production must not differ at the agent
-          // boundary. A dev/prod divergence is exactly how the CSP bug this PR fixes stayed
-          // invisible for so long, and leaving one behind here would invite the next one.
-          rewrite: (path) => path.replace(/^\/ws/, '') || '/',
-        },
-      },
+      // Shared with `preview` below - see agentProxy.
+      proxy: agentProxy,
 
       // File watching configuration for Docker volumes
       watch: {
@@ -180,6 +186,14 @@ export default defineConfig(({ mode }) => {
           next();
         });
       },
+    },
+
+    // `npm run preview` serves the real production bundle, and is therefore the closest thing to a
+    // local production rehearsal. It does NOT inherit `server.proxy`, so without this the app would
+    // resolve its socket to a same-origin `/ws` that the preview server does not serve - the one
+    // place the production path is exercised locally would be the one place it 404s.
+    preview: {
+      proxy: agentProxy,
     },
 
     // Your existing alias configuration

@@ -92,13 +92,19 @@ describe('resolveWebsocketUrl', () => {
       expect(spy).toHaveBeenCalledOnce();
     });
 
-    it('never puts a credential from the URL into the log', () => {
+    it('never puts a credential from the URL into the log, wherever it hides', () => {
       const spy = warn();
-      // A websocket URL is a plausible place to park a token, and console output gets swept into
-      // log collectors. The warning must name the origin, not echo the secret back.
-      resolveWebsocketUrl(undefined, 'wss://user:hunter2@elsewhere.example/ws?access_token=SECRET', http);
+      // A websocket URL is a plausible place to park a token, and it can hide in any component:
+      // the query, the userinfo, or a PATH SEGMENT. Console output gets swept into log collectors,
+      // so the warning names the origin and nothing beyond it.
+      resolveWebsocketUrl(
+        undefined,
+        'wss://user:hunter2@elsewhere.example/ws/token/PATHSECRET?access_token=QUERYSECRET',
+        http,
+      );
       const logged = String(spy.mock.calls[0][0]);
-      expect(logged).not.toContain('SECRET');
+      expect(logged).not.toContain('QUERYSECRET');
+      expect(logged).not.toContain('PATHSECRET');
       expect(logged).not.toContain('hunter2');
       expect(logged).toContain('elsewhere.example'); // still actionable
     });
