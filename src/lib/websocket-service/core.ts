@@ -30,10 +30,14 @@ export class WebSocketServiceCore {
     // Defaults to a same-origin `/ws` path rather than a baked-in `ws://localhost:12345`. The
     // production CSP is `connect-src 'self'`, which blocks an off-origin socket, and a build-time
     // URL cannot be distributed as a single image. See resolve-url.ts.
+    // `window` is guarded rather than assumed: this module is importable from a non-browser
+    // context (a node test runner, SSR), and a bare `window.location` here would throw a
+    // ReferenceError at construction. Absent a browser, resolveWebsocketUrl demands an explicit
+    // URL and says so - it does not invent a localhost default that would fail later.
     const wsUrl = resolveWebsocketUrl(
       config.websocketUrl,
       import.meta.env.VITE_WS_URL,
-      window.location,
+      typeof window !== 'undefined' ? window.location : undefined,
     );
 
     this.modules = createServiceModules(

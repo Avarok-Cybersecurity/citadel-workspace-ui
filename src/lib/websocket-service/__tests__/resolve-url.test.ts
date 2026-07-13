@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { resolveWebsocketUrl } from '../resolve-url';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { resolveWebsocketUrl, MissingWebsocketLocationError } from '../resolve-url';
 
 /**
  * The browser reaches the local Citadel agent over exactly one URL, decided here. Get this wrong
@@ -42,5 +42,54 @@ describe('resolveWebsocketUrl', () => {
     // An unset `VITE_WS_URL` reaches Vite as `''`, not `undefined`. Treating that as "configured"
     // would hand the WebSocket an empty URL and fail at connect time with a useless error.
     expect(resolveWebsocketUrl('', '', http)).toBe('ws://localhost:8080/ws');
+  });
+
+  describe('without a browser location', () => {
+    // The service must be constructible outside a browser (node test runner, SSR) without a
+    // ReferenceError on `window`. What it must NOT do is silently invent a localhost default.
+    it('throws a named, actionable error when it has nothing to derive from', () => {
+      expect(() => resolveWebsocketUrl(undefined, undefined, undefined))
+        .toThrow(MissingWebsocketLocationError);
+    });
+
+    it('still honours an explicit override, since nothing needs deriving', () => {
+      expect(resolveWebsocketUrl('ws://agent:12345', undefined, undefined)).toBe('ws://agent:12345');
+    });
+  });
+
+  describe('off-origin overrides', () => {
+    // `connect-src 'self'` blocks these in a browser. The connection fails with an opaque error
+    // that never mentions CSP, so the warning is the only thing standing between an operator and
+    // a long debugging session. These tests pin that it fires, and that it does NOT cry wolf.
+    const warn = () => vi.spyOn(console, 'warn').mockImplementation(() => {});
+    afterEach(() => vi.restoreAllMocks());
+
+    it('warns that CSP will block an off-origin override', () => {
+      const spy = warn();
+      resolveWebsocketUrl(undefined, 'wss://elsewhere.example.com/ws', http);
+      expect(spy).toHaveBeenCalledOnce();
+      expect(spy.mock.calls[0][0]).toMatch(/not same-origin|BLOCK/);
+    });
+
+    it('stays quiet for a same-origin override (wss on an https page)', () => {
+      const spy = warn();
+      // `wss://h` and `https://h` are the same origin - baking this is legitimate and must not warn.
+      expect(resolveWebsocketUrl(undefined, 'wss://workspace.example.com/ws', https))
+        .toBe('wss://workspace.example.com/ws');
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('stays quiet for a relative override, which is same-origin by construction', () => {
+      const spy = warn();
+      resolveWebsocketUrl('/ws', undefined, http);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('warns on a same-host override that differs only by port', () => {
+      const spy = warn();
+      // The exact regression this PR exists to kill: `ws://localhost:12345` from a page on :8080.
+      resolveWebsocketUrl(undefined, 'ws://localhost:12345', http);
+      expect(spy).toHaveBeenCalledOnce();
+    });
   });
 });
