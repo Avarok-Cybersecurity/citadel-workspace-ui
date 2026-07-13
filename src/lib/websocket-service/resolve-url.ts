@@ -59,14 +59,21 @@ function websocketOrigin(url: URL): string {
 function warnIfOffOrigin(candidate: string, location: UrlLocation | undefined): void {
   if (!location) return;
 
+  const pageOrigin = `${location.protocol}//${location.host}`;
+
+  // Resolve against the page, exactly as the browser will. Parsing without a base and treating
+  // every failure as "relative, therefore same-origin" would wave through a PROTOCOL-RELATIVE
+  // override: `//elsewhere.example/ws` has no parseable scheme on its own, but the browser
+  // resolves it against the page's scheme to a genuinely off-origin URL - which CSP then blocks,
+  // silently, with the warning suppressed. Resolving here means only truly same-origin values
+  // (`/ws`) come out same-origin.
   let parsed: URL;
   try {
-    parsed = new URL(candidate);
+    parsed = new URL(candidate, pageOrigin);
   } catch {
-    return; // Relative (e.g. `/ws`): resolved against the page, so same-origin by construction.
+    return; // Unparseable even with a base; nothing useful to say about it.
   }
 
-  const pageOrigin = `${location.protocol}//${location.host}`;
   if (websocketOrigin(parsed) === pageOrigin) return;
 
   console.warn(

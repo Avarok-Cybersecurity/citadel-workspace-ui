@@ -91,5 +91,14 @@ describe('resolveWebsocketUrl', () => {
       resolveWebsocketUrl(undefined, 'ws://localhost:12345', http);
       expect(spy).toHaveBeenCalledOnce();
     });
+
+    it('warns on a PROTOCOL-RELATIVE override, which is off-origin despite having no scheme', () => {
+      const spy = warn();
+      // `//elsewhere.example/ws` does not parse standalone, so a naive "unparseable means relative,
+      // therefore same-origin" check waves it through - yet the browser resolves it against the
+      // page scheme to an off-origin URL and CSP blocks it. Resolving against the page catches it.
+      resolveWebsocketUrl(undefined, '//elsewhere.example/ws', http);
+      expect(spy).toHaveBeenCalledOnce();
+    });
   });
 });
