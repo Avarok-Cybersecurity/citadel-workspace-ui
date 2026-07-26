@@ -22,8 +22,17 @@ describe('stripWsPrefix', () => {
     expect(stripWsPrefix('/ws/foo')).toBe('/foo');
   });
 
-  it('preserves a query string', () => {
-    expect(stripWsPrefix('/ws?token=abc')).toBe('?token=abc');
+  it('keeps a query string on a rooted path, exactly as nginx does', () => {
+    // Observed from the production proxy: `/ws?token=abc` reaches the agent as
+    // `GET /?token=abc HTTP/1.1`. Returning a bare `?token=abc` would be both an invalid request
+    // target and a divergence from production - the one thing this module exists to prevent.
+    expect(stripWsPrefix('/ws?token=abc')).toBe('/?token=abc');
+  });
+
+  it('always returns a rooted path', () => {
+    for (const input of ['/ws', '/ws/foo', '/ws?t=1', '/ws/foo?t=1']) {
+      expect(stripWsPrefix(input).startsWith('/')).toBe(true);
+    }
   });
 
   it('only strips the prefix at the START of the path', () => {

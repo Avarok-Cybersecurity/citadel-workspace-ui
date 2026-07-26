@@ -16,9 +16,16 @@
 /**
  * Strip the `/ws` prefix a request arrived on, yielding the path to forward to the agent.
  *
- * `/ws` -> `/`, `/ws/foo` -> `/foo`. Never returns an empty string: an empty request target is not
- * a valid HTTP request line, so the bare-prefix case falls back to `/`.
+ * `/ws` -> `/`, `/ws/foo` -> `/foo`, `/ws?t=1` -> `/?t=1`.
+ *
+ * The result ALWAYS begins with `/`. Two inputs would otherwise not: the bare prefix (`/ws`, which
+ * strips to an empty string) and a prefix carrying only a query (`/ws?t=1`, which strips to
+ * `?t=1`). Neither is a valid HTTP request target, and more to the point neither is what production
+ * sends - nginx was observed emitting `GET / HTTP/1.1` and `GET /?token=abc HTTP/1.1` for those two
+ * requests. Since this function exists solely to keep dev byte-identical to production at the agent
+ * boundary, it has to match that.
  */
 export function stripWsPrefix(path: string): string {
-  return path.replace(/^\/ws/, '') || '/';
+  const rest = path.replace(/^\/ws/, '');
+  return rest.startsWith('/') ? rest : `/${rest}`;
 }
