@@ -44,6 +44,13 @@ describe('resolveWebsocketUrl', () => {
     expect(resolveWebsocketUrl('', '', http)).toBe('ws://localhost:8080/ws');
   });
 
+  it('falls through an empty config URL to the build-time one', () => {
+    // The precedence is expressed with `||`, which is load-bearing: `??` would treat the empty
+    // string as "present" and return it, so a hosted deployment that bakes VITE_WS_URL would get
+    // an empty socket URL the moment the config field existed but was blank.
+    expect(resolveWebsocketUrl('', 'wss://build-time/ws', http)).toBe('wss://build-time/ws');
+  });
+
   describe('without a browser location', () => {
     // The service must be constructible outside a browser (node test runner, SSR) without a
     // ReferenceError on `window`. What it must NOT do is silently invent a localhost default.
