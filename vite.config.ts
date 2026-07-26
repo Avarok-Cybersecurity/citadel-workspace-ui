@@ -22,7 +22,13 @@ import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
  * defaults to the port the dev compose file binds.
  */
 const agentProxy = {
-  '/ws': {
+  // `^/ws$` — an EXACT match, not a prefix. A plain '/ws' key is a prefix match in Vite, so it also
+  // captures /wsfoo, /wsettings, and any future route that merely begins with those two letters,
+  // forwarding them to the agent. Production does not: nginx uses `location = /ws`, which is exact,
+  // and serves such paths from the SPA. Measured both ways - dev proxied /wsfoo (500) while nginx
+  // returned the SPA (200) - so this was a real divergence in the one place that must not have one.
+  // (Vite treats a key beginning with `^` as a RegExp.)
+  '^/ws$': {
     target: `ws://localhost:${process.env.AGENT_PORT ?? '12345'}`,
     ws: true,
     // Strip `/ws`, so the agent sees `/` - byte-identical to what the production nginx sends it
