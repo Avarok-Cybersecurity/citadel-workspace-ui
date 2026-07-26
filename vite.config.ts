@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
 
 /**
  * Proxy the agent's WebSocket so a locally-served app reaches it at the same same-origin `/ws`
@@ -27,9 +28,9 @@ const agentProxy = {
     // Strip `/ws`, so the agent sees `/` - byte-identical to what the production nginx sends it
     // (`proxy_pass http://<upstream>/`, whose trailing slash does the same strip). The agent
     // accepts a handshake on ANY path today, so nothing is broken without this; the point is that
-    // dev and production must not differ at the agent boundary. Leaving a divergence behind is how
-    // the last one hid.
-    rewrite: (path: string) => path.replace(/^\/ws/, '') || '/',
+    // dev and production must not differ at the agent boundary. It lives in its own module so that
+    // parity is pinned by unit tests rather than asserted in a comment - see proxy-path.ts.
+    rewrite: stripWsPrefix,
   },
 };
 

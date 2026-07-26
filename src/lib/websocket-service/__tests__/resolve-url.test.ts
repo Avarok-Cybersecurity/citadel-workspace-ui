@@ -116,6 +116,16 @@ describe('resolveWebsocketUrl', () => {
       expect(logged).toContain('elsewhere.example'); // still actionable
     });
 
+    it('names the WEBSOCKET scheme in the warning, not the resolved http one', () => {
+      const spy = warn();
+      // `//elsewhere.example/ws` resolves against the page to `http://…`, but the browser will dial
+      // `ws://…`. Logging the http form would name a URL nobody ever requested.
+      resolveWebsocketUrl(undefined, '//elsewhere.example/ws', http);
+      const logged = String(spy.mock.calls[0][0]);
+      expect(logged).toContain('ws://elsewhere.example');
+      expect(logged).not.toContain('http://elsewhere.example');
+    });
+
     it('warns on a PROTOCOL-RELATIVE override, which is off-origin despite having no scheme', () => {
       const spy = warn();
       // `//elsewhere.example/ws` does not parse standalone, so a naive "unparseable means relative,

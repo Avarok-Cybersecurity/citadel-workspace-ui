@@ -50,6 +50,11 @@ function websocketOrigin(url: URL): string {
   return `${protocol}//${url.host}`;
 }
 
+/** Inverse of the above, for display: name the scheme the browser will actually dial. */
+function httpToWebsocketScheme(protocol: string): string {
+  return protocol === 'https:' ? 'wss:' : protocol === 'http:' ? 'ws:' : protocol;
+}
+
 /**
  * An off-origin override cannot work in a browser: `connect-src 'self'` blocks it, and the failure
  * arrives as an opaque connection error that says nothing about CSP. We still honour the value -
@@ -81,7 +86,11 @@ function warnIfOffOrigin(candidate: string, location: UrlLocation | undefined): 
   // `?access_token=…`, userinfo in the authority, or a path segment (`/ws/token/SECRET`). Console
   // output is routinely swept up by log collectors. The origin is the entire content of the
   // complaint - it is what CSP compares - so nothing downstream of it is worth the risk.
-  const safeUrl = `${parsed.protocol}//${parsed.host}`;
+  //
+  // Report the WEBSOCKET scheme, not the resolved HTTP one. A protocol-relative candidate
+  // (`//host/ws`) resolves against the page, so `parsed.protocol` reads `http(s):` - but the
+  // browser will attempt `ws(s):`. Printing the http form would name a URL nobody ever requested.
+  const safeUrl = `${httpToWebsocketScheme(parsed.protocol)}//${parsed.host}`;
   console.warn(
     `[websocket] Configured agent URL (${safeUrl}) is not same-origin with the page ` +
       `(${pageOrigin}). The Content-Security-Policy is \`connect-src 'self'\`, so the browser will ` +
