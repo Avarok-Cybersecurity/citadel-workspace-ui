@@ -4,6 +4,22 @@ import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
 
 /**
+ * The Content-Security-Policy the app ships under. Declared once so the dev server, `preview` and
+ * the production nginx config cannot drift apart - that drift is the whole bug this change fixes.
+ *
+ * `connect-src 'self'` is the load-bearing part: the agent socket is now same-origin (`/ws`), so
+ * 'self' covers it, and no `ws:`/`wss:` wildcard is needed. A bare scheme source would match ANY
+ * host, which would let an XSS payload exfiltrate to an attacker's socket.
+ */
+const PRODUCTION_CSP =
+  "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;";
+
+/** Identical to production except for `unsafe-eval`, which Vite's dev transform requires and
+ *  production must never have. `connect-src` is deliberately the SAME in both. */
+const DEV_CSP =
+  "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;";
+
+/**
  * Proxy the agent's WebSocket so a locally-served app reaches it at the same same-origin `/ws`
  * path production uses.
  *
@@ -181,9 +197,7 @@ export default defineConfig(({ mode }) => {
       // shipped artifact. `script-src` still differs by necessity: Vite's dev transform needs
       // 'unsafe-eval', production does not and must not have it.
       headers: {
-        'Content-Security-Policy': mode === 'production'
-          ? "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
-          : "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;"
+        'Content-Security-Policy': mode === 'production' ? PRODUCTION_CSP : DEV_CSP
       },
 
       // Configure middleware for WASM files
@@ -202,11 +216,16 @@ export default defineConfig(({ mode }) => {
     },
 
     // `npm run preview` serves the real production bundle, and is therefore the closest thing to a
-    // local production rehearsal. It does NOT inherit `server.proxy`, so without this the app would
-    // resolve its socket to a same-origin `/ws` that the preview server does not serve - the one
-    // place the production path is exercised locally would be the one place it 404s.
+    // local production rehearsal. It inherits NOTHING from `server` - not the proxy, not the
+    // headers - so both are restated here.
+    //
+    // The headers matter as much as the proxy. Without them preview serves no CSP at all, so the
+    // one command that exercises the production bundle would be the one place a CSP violation
+    // CANNOT surface - which is exactly the blind spot that let the original bug ship. Production
+    // gets this policy from nginx; preview stands in for nginx, so it has to send it too.
     preview: {
       proxy: agentProxy,
+      headers: { 'Content-Security-Policy': PRODUCTION_CSP },
     },
 
     // Your existing alias configuration
