@@ -27,16 +27,10 @@ export class WebSocketServiceCore {
   get initOps() { return this.modules.initOps; }
 
   constructor(config: WebSocketServiceConfig = {}) {
-    // Defaults to a same-origin `/ws` path rather than a baked-in `ws://localhost:12345`. The
-    // production CSP is `connect-src 'self'`, which blocks an off-origin socket, and a build-time
-    // URL cannot be distributed as a single image. See resolve-url.ts.
-    // `window` is guarded rather than assumed. Today nothing constructs this outside a browser -
-    // the only construction site is the module-scope singleton in index.ts, and the import cycle
-    // noted above makes this module unimportable in node anyway - so the guard is defensive, for
-    // whenever that cycle is unwound. It is written this way because the alternative is worse than
-    // a throw: absent a browser, resolveWebsocketUrl demands an explicit URL and says so, rather
-    // than inventing a `ws://localhost:12345` default. That default was the original bug - it is
-    // off-origin, so the production CSP blocks it, and the failure surfaced far from its cause.
+    // Resolves to a same-origin `/ws` path; resolve-url.ts owns that policy and explains it.
+    // `window` is guarded rather than assumed: the guard is defensive (the only construction site
+    // is the module-scope singleton in index.ts, and the import cycle above makes this module
+    // unimportable in node regardless), and absent a browser the resolver throws by design.
     const wsUrl = resolveWebsocketUrl(
       config.websocketUrl,
       import.meta.env.VITE_WS_URL,
