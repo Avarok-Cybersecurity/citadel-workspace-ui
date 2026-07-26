@@ -26,6 +26,13 @@
  * boundary, it has to match that.
  */
 export function stripWsPrefix(path: string): string {
-  const rest = path.replace(/^\/ws/, '');
+  // The lookahead is the whole correctness of this function. `/^\/ws/` alone matches any path
+  // merely BEGINNING with those two letters, so `/wsfoo` would strip to `/foo` - silently
+  // rewriting an unrelated route into a different one. Requiring `/ws` to be followed by `/`, `?`
+  // or the end of the string makes it a segment match, which is what nginx's `location = /ws`
+  // does. The caller passes only `/ws` today (the proxy key is an exact match), but this is an
+  // exported function with its own contract and should not depend on that.
+  const rest = path.replace(/^\/ws(?=[/?]|$)/, '');
+  if (rest === path) return path; // No prefix matched - leave it completely alone.
   return rest.startsWith('/') ? rest : `/${rest}`;
 }

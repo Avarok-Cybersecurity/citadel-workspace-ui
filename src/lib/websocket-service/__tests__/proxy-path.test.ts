@@ -40,6 +40,15 @@ describe('stripWsPrefix', () => {
     expect(stripWsPrefix('/proxy/ws')).toBe('/proxy/ws');
   });
 
+  it('treats /ws as a whole SEGMENT, not merely a leading substring', () => {
+    // The bug this guards: a bare `/^\/ws/` also matches any route that just begins with those
+    // two letters, so `/wsfoo` would be rewritten to `/foo` - a different, unrelated route.
+    // nginx's `location = /ws` never does that, and neither must this.
+    for (const untouched of ['/wsfoo', '/ws123', '/wsbar/baz', '/wsettings']) {
+      expect(stripWsPrefix(untouched)).toBe(untouched);
+    }
+  });
+
   it('leaves an unrelated path untouched', () => {
     expect(stripWsPrefix('/assets/app.js')).toBe('/assets/app.js');
   });

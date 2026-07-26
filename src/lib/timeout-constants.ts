@@ -73,8 +73,11 @@ export const POLLING = {
 } as const;
 
 export const NETWORK = {
-  /** Internal service port (citadel-internal-service) */
-  INTERNAL_SERVICE_PORT: 12345,
+  // INTERNAL_SERVICE_PORT was removed: its only consumer was the old
+  // `ws://localhost:${INTERNAL_SERVICE_PORT}` default, which is gone now that the socket URL is
+  // derived from the page (see websocket-service/resolve-url.ts). Leaving it would invite someone
+  // to rebuild that off-origin URL, which the production CSP blocks. The agent's address is a
+  // deployment concern now - nginx's AGENT_UPSTREAM - not a frontend constant.
   /** Workspace server port (citadel-workspace-server-kernel) */
   WORKSPACE_SERVER_PORT: 12349,
 } as const;
