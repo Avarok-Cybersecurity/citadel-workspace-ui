@@ -130,8 +130,14 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       hmr: {
         overlay: true,
-        // Explicit client port for HMR WebSocket connection
-        clientPort: 5291,
+        // NO hardcoded clientPort. It was pinned to 5291, which silently assumed the page is always
+        // served on that port - and when it is not (`vite --port`, a second instance, a port
+        // remap), the HMR socket dials 5291 while the page sits elsewhere. That is a genuinely
+        // cross-origin request, so the `connect-src 'self'` below now BLOCKS it and hot reload dies
+        // with a CSP error rather than a useful one. Verified in a real browser: on a mismatched
+        // port Chrome refuses `ws://localhost:5291/`, and with the port inferred there are no CSP
+        // violations at all. Letting Vite derive it from the page keeps the two in lockstep by
+        // construction, which is the same same-origin discipline the agent socket now follows.
       },
 
       // Shared with `preview` below - see agentProxy.
