@@ -22,6 +22,12 @@ describe('stripWsPrefix', () => {
     expect(stripWsPrefix('/ws/foo')).toBe('/foo');
   });
 
+  it('preserves a subpath AND its query together', () => {
+    // The one combination the other cases miss: the lookahead matches on `/`, the remainder
+    // already starts with `/`, so the rooting branch must not fire and add a second one.
+    expect(stripWsPrefix('/ws/foo?t=1')).toBe('/foo?t=1');
+  });
+
   it('keeps a query string on a rooted path, exactly as nginx does', () => {
     // Observed from the production proxy: `/ws?token=abc` reaches the agent as
     // `GET /?token=abc HTTP/1.1`. Returning a bare `?token=abc` would be both an invalid request
