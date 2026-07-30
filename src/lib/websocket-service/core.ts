@@ -9,9 +9,9 @@ import type { WorkspaceClient } from 'citadel-workspace-client-ts';
 // THIS FILE → connection/index.ts → io.ts → io-websocket.ts → websocket-service (cycle)
 // Property access on the namespace object is a live binding, deferred to call time.
 import * as connModule from '../connection';
-import { NETWORK } from '../timeout-constants';
 import type { SessionSecuritySettings } from '../security-utils';
 import type { WebSocketServiceConfig } from './types';
+import { resolveWebsocketUrl } from './resolve-url';
 import { createServiceModules, type ServiceModules } from './module-init';
 import { initService, waitForInit as waitForInitFn, resetService } from './initialization';
 import { sendRequest as sendRequestFn } from './send-request';
@@ -27,7 +27,15 @@ export class WebSocketServiceCore {
   get initOps() { return this.modules.initOps; }
 
   constructor(config: WebSocketServiceConfig = {}) {
-    const wsUrl = config.websocketUrl || import.meta.env.VITE_WS_URL || `ws://localhost:${NETWORK.INTERNAL_SERVICE_PORT}`;
+    // Resolves to a same-origin `/ws` path; resolve-url.ts owns that policy and explains it.
+    // `window` is guarded rather than assumed: the guard is defensive (the only construction site
+    // is the module-scope singleton in index.ts, and the import cycle above makes this module
+    // unimportable in node regardless), and absent a browser the resolver throws by design.
+    const wsUrl = resolveWebsocketUrl(
+      config.websocketUrl,
+      import.meta.env.VITE_WS_URL,
+      typeof window !== 'undefined' ? window.location : undefined,
+    );
 
     this.modules = createServiceModules(
       wsUrl,
