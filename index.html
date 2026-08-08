@@ -11,18 +11,15 @@
 
   <body>
     <div id="root"></div>
-    <script>
-      // Global wasmDebugLog function for WASM module
-      window.wasmDebugLog = function(message) {
-        // Use debug formatter for WASM logs too
-        if (window.__citadelDebugFormatter) {
-          const formatted = window.__citadelDebugFormatter(message);
-          console.log('[WASM]', formatted);
-        } else {
-          console.log('[WASM]', message);
-        }
-      };
-    </script>
+    <!--
+      window.wasmDebugLog is installed by setupWasmDebugBridge() in
+      src/lib/wasm-debug-bridge.ts, which doInit() calls as its first action -
+      before the WASM client is created, so it is always in place before any
+      WASM code can call it. Do not re-add an inline definition here: production
+      CSP is script-src 'self' 'wasm-unsafe-eval' with no 'unsafe-inline' (see
+      docker/ui/nginx.conf.template in the parent repo), so an inline script in
+      this file cannot run in a shipped build. Debug wiring belongs in modules.
+    -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
