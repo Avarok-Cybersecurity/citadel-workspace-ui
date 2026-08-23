@@ -37,6 +37,17 @@ const externalConfig = loadConfig();
 const isCI = process.env['IN_CI'] === 'true' || process.env['CI'] === 'true';
 
 export default defineConfig({
+    /**
+     * Registers ONE workspace admin before any spec runs.
+     *
+     * The server grants EditTreeStructure to whoever initialises the workspace.
+     * Without this, every spec registered with isFirstUser: true and assumed it
+     * would be that account — true only for whichever file sorted first. A spec
+     * that creates nodes then failed with "Permission denied" purely because of
+     * alphabetical order: it passed when run alone and failed in the suite.
+     */
+    globalSetup: './src/global-setup.ts',
+
     /* Test directory for @playwright/test spec files */
     testDir: './src/tests-pw',
     testMatch: '**/*.spec.ts',

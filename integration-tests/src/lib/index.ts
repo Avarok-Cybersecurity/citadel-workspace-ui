@@ -205,3 +205,6 @@ export type {
   MoveNodeResult,
   DeleteNodeResult,
 } from './tree-helpers.js';
+
+// Workspace admin registered by global-setup (see src/global-setup.ts).
+export { adminCredentials, hasWorkspaceAdmin, type AdminCredentials } from './admin.js';

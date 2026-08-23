@@ -14,3 +14,4 @@ test.config.json
 
 # OS files
 .DS_Store
+.auth/
