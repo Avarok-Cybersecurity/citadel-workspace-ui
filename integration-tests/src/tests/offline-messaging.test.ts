@@ -359,7 +359,6 @@ async function runTest(): Promise<boolean> {
       claimClicked = true;
     }
     if (claimClicked) {
-      await sleep(3000);
       results.reconnection.claimSessionSuccess = await waitForWorkspaceLoaded(reconnectPage, 45000);
     } else {
       console.log(`  Session button not visible on tempCheckPage for ${USER2}`);

@@ -110,7 +110,6 @@ async function testSidebarCollapse(page: Page): Promise<{
 
   // Navigate back to workspace first
   await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-  await sleep(2000);
   await waitForWorkspaceLoaded(page, 15000);
 
   // Check sidebar is visible

@@ -476,7 +476,6 @@ async function runTest(): Promise<boolean> {
 
         // Click to expand
         await toggleBtn.click();
-        await sleep(500);
 
         const betaVisible = await nodeExistsInUI(page, betaName);
         results.expandAlphaShowsChildren = betaVisible;

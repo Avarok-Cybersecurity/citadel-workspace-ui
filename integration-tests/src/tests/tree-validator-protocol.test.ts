@@ -215,7 +215,6 @@ async function runTest(): Promise<boolean> {
       console.log(`  Office deleted: ${results.officeDeletedWithCascade ? 'PASS' : 'FAIL'}`);
 
       // Verify room was also deleted (cascade)
-      await sleep(1000);
       const roomStillExists = await nodeExistsInUI(page, TEST_ROOM);
       results.roomDeletedByCascade = !roomStillExists;
       console.log(`  Room deleted by cascade: ${results.roomDeletedByCascade ? 'PASS' : 'FAIL'}`);

@@ -298,7 +298,6 @@ async function testExitConfirmModal(page: Page): Promise<{
   const cancelBtn = page.locator('button:has-text("Cancel"), button:has-text("Stay")').first();
   if (await isVisibleWithin(cancelBtn, 2000)) {
     await cancelBtn.click();
-    await sleep(1000);
 
     // Verify we're still in workspace
     const stillInWorkspace = await waitForWorkspaceLoaded(page, 5000);

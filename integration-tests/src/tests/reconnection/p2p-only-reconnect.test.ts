@@ -200,7 +200,6 @@ async function runTest(): Promise<boolean> {
     });
 
     if (msg1Sent) {
-      await sleep(3000);
       const msg1Received = await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker);
       results.push({
         step: 'Phase 3c: Verify Message Received (user2)',
@@ -283,7 +282,6 @@ async function runTest(): Promise<boolean> {
     });
 
     if (msg2Sent) {
-      await sleep(3000);
       const msg2Received = await verifyMessageReceived(page1, USER1_NAME, msg2, 30000, uxTracker);
       results.push({
         step: 'Phase 6b: Verify Message Received (user1)',

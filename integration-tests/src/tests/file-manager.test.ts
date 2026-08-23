@@ -740,7 +740,6 @@ async function runTest(): Promise<boolean> {
       await page1.goBack();
       console.log('  Used goBack() to return to workspace');
     }
-    await sleep(2000);
     await waitForWorkspaceLoaded(page1, 30000);
 
     // ========== STEP 3: P2P Registration ==========

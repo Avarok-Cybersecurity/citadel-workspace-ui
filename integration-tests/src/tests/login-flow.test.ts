@@ -78,7 +78,6 @@ async function loginWithCredentials(
     if (await isVisibleWithin(existingSession, 3000)) {
       console.log('  Found existing session, clicking to reconnect...');
       await existingSession.click();
-      await sleep(3000);
 
       // Wait for workspace to load
       const loaded = await waitForWorkspaceLoaded(page, 30000);

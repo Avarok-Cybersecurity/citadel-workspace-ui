@@ -107,7 +107,6 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
     }
 
     await page.locator('button[type="submit"]:has-text("Connect")').click({ force: true });
-    await sleep(3000);
     return await waitForWorkspaceLoaded(page, 45000);
   } catch {
     return false;
@@ -243,7 +242,6 @@ async function clickSessionIcon(page: Page, username: string): Promise<boolean> 
   }
 
   await button.click();
-  await sleep(3000);
 
   // Verify workspace loaded
   const loaded = await waitForWorkspaceLoaded(page, 30000);

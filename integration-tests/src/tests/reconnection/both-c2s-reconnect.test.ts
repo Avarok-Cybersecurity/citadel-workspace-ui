@@ -152,7 +152,6 @@ async function runTest(): Promise<boolean> {
     const msg1 = `Initial from ${USER1_NAME} - ${Date.now()}`;
     const msg1Sent = await sendMessage(page1, USER1_NAME, msg1, uxTracker);
     if (msg1Sent) {
-      await sleep(3000);
       await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker);
     }
 
@@ -282,7 +281,6 @@ async function runTest(): Promise<boolean> {
     });
 
     if (msg2Sent) {
-      await sleep(3000);
       const msg2Received = await verifyMessageReceived(page2, USER2_NAME, msg2, 30000, uxTracker);
       results.push({
         step: 'Phase 7b: Verify Received',
