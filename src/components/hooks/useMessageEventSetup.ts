@@ -14,10 +14,23 @@ import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 
 interface UseMessageEventSetupOptions {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
-  setShowInitModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function useMessageEventSetup({ setState, setShowInitModal }: UseMessageEventSetupOptions) {
+/**
+ * The server reports a missing workspace here as free text, not as a variant.
+ *
+ * Mirrors `NetworkError::msg("No workspace found for user")` in
+ * citadel-workspace-server-kernel/src/handlers/domain/server_ops/
+ * async_domain_server_ops.rs. The protocol does have a structured
+ * `WorkspaceProtocolResponse::WorkspaceNotInitialized`, and where that arrives it
+ * is handled properly (see lib/workspace-response-handler/workspace-handlers.ts);
+ * this path is the one place the condition only ever comes back as prose. Naming
+ * it keeps the coupling greppable from both sides, so rewording the Rust string
+ * breaks one visible constant rather than silently disabling first-run setup.
+ */
+const WORKSPACE_MISSING_ERROR = 'No workspace found';
+
+export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) {
   useEffect(() => {
     const setupMessageListeners = async () => {
       await workspaceEvents.onMessageEvent('message:received', (payload: MessagePayload) => {
@@ -66,18 +79,24 @@ export function useMessageEventSetup({ setState, setShowInitModal }: UseMessageE
 
     const setupErrorHandling = async () => {
       await workspaceEvents.onOperationEvent('operation:error', (payload: ErrorPayload) => {
+        const needsInitialization = payload.message.includes(WORKSPACE_MISSING_ERROR);
+
         setState(prev => ({
           ...prev,
           error: payload.message,
           lastRequestId: payload.connection.request_id,
-          needsWorkspaceInitialization: payload.message.includes('No workspace found')
+          needsWorkspaceInitialization: needsInitialization
         }));
 
         debugLog('WorkspaceEventHandler', 'Operation error:', payload.message);
 
-        if (payload.message.includes('No workspace found')) {
-          setShowInitModal(true);
-        } else {
+        // Setting the flag is all that is needed: WorkspaceEventHandler has an
+        // effect that opens the modal when it flips true. This used to also call
+        // setShowInitModal(true) directly, which skipped that effect's
+        // `!initModalDismissed` guard — so a user who closed the modal had it
+        // forced back open by the next error of this kind, with no way to keep it
+        // shut. One decision, one place.
+        if (!needsInitialization) {
           setTimeout(() => { setState(prev => ({ ...prev, error: undefined })); }, 5000);
         }
       });
@@ -113,5 +132,5 @@ export function useMessageEventSetup({ setState, setShowInitModal }: UseMessageE
       runAsyncSetup(async () => { workspaceEvents.cleanupAllListeners(); });
       p2pRegistrationService.stop();
     };
-  }, [setState, setShowInitModal]);
+  }, [setState]);
 }

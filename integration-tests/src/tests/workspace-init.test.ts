@@ -20,7 +20,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { isVisibleWithin } from '../lib/index.js';
+import { isHiddenWithin, isVisibleWithin, waitForAppReady } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -30,6 +30,7 @@ interface TestResults {
   // First user
   firstUserRegistered: boolean;
   initModalAppears: boolean;
+  dismissalSticks: boolean;
   modalHasTitle: boolean;
   modalHasPasswordField: boolean;
   modalHasInitButton: boolean;
@@ -140,6 +141,56 @@ async function registerUser(page: Page, username: string, password: string): Pro
 /**
  * Check if WorkspaceInitializationModal appears
  */
+/**
+ * Closing the initialization modal has to keep it closed.
+ *
+ * Regression test. The app retries workspace operations after dismissal, and each
+ * retry fails with the same "No workspace found" error. useMessageEventSetup used
+ * to respond to that error by calling setShowInitModal(true) directly, skipping
+ * the `!initModalDismissed` guard in WorkspaceEventHandler — so the modal
+ * reappeared within seconds and a user had no way to keep it shut. Only the state
+ * flag is set now, and the guarded effect decides.
+ *
+ * Waits out several retry cycles rather than checking once: the bug was a
+ * reappearance a moment later, which an immediate assertion would miss.
+ */
+async function dismissedModalStaysClosed(page: Page): Promise<boolean> {
+  const modal = page.locator('[role="dialog"]');
+  const cancel = page.getByRole('button', { name: 'Cancel' });
+
+  if (!(await isVisibleWithin(cancel, 5000))) {
+    console.log('  No Cancel button on the init modal — cannot test dismissal');
+    return false;
+  }
+
+  await cancel.click();
+
+  if (!(await isHiddenWithin(modal, 5000))) {
+    console.log('  Modal did not close on Cancel');
+    return false;
+  }
+
+  // If it is coming back, it comes back on the next failed workspace call.
+  const reappeared = await modal
+    .waitFor({ state: 'visible', timeout: 12_000 })
+    .then(() => true)
+    .catch(() => false);
+
+  console.log(`  Stayed dismissed: ${!reappeared}`);
+
+  // Put the app back how it was found, so the steps after this one still have a
+  // modal to initialise the workspace with. The dismissal is remembered in
+  // sessionStorage, so clearing that key and reloading is what undoes it.
+  await page.evaluate(() => sessionStorage.removeItem('workspace-init-modal-dismissed'));
+  await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+  await waitForAppReady(page, 60_000);
+  // No assertion that the modal came back here — the next step waits for it and
+  // asserts it properly. Checking twice on a shorter budget only produced a
+  // warning that contradicted the step that followed it.
+
+  return !reappeared;
+}
+
 async function checkInitModalAppears(page: Page): Promise<{
   appears: boolean;
   hasTitle: boolean;
@@ -265,6 +316,7 @@ async function runTest(): Promise<boolean> {
   const results: TestResults = {
     firstUserRegistered: false,
     initModalAppears: false,
+    dismissalSticks: false,
     modalHasTitle: false,
     modalHasPasswordField: false,
     modalHasInitButton: false,
@@ -312,6 +364,15 @@ async function runTest(): Promise<boolean> {
     if (!results.initModalAppears) {
       console.log('  WARNING: Initialization modal did not appear');
       uxTracker.log('major', 'functional', 'Workspace initialization modal not shown for first user');
+    }
+
+    // ========== STEP 2b: Dismissal must stick ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 2b: Dismissed Init Modal Stays Dismissed');
+    console.log('─'.repeat(50));
+
+    if (results.initModalAppears) {
+      results.dismissalSticks = await dismissedModalStaysClosed(firstPage);
     }
 
     // ========== STEP 3: Submit Initialization ==========
@@ -384,23 +445,54 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed =
-      results.firstUserRegistered &&
-      results.secondUserRegistered;
+    // Whether the init modal appears depends on something outside this spec's
+    // control: a workspace already existing on the server. So the init chain is
+    // gated only when this run actually is the initialising user — and when it is,
+    // every step of it must work. Asserting the modal unconditionally would make
+    // the spec pass or fail on run order, which is the fragility global-setup was
+    // added to remove.
+    const initialisedWorkspace = results.initModalAppears;
+    if (!initialisedWorkspace) {
+      console.log(
+        '\nNOTE: a workspace already existed, so this run did not initialise one.\n' +
+        '      The init-modal assertions are not applicable and are reported as SKIP.\n' +
+        '      Reset with `docker compose down && docker compose up -d` to cover them.'
+      );
+    }
+
+    const initChainPassed = !initialisedWorkspace || [
+      results.modalHasTitle,
+      results.modalHasPasswordField,
+      results.modalHasInitButton,
+      results.initSubmitted,
+      results.dismissalSticks,
+    ].every(Boolean);
+
+    // These hold either way: both users must register and land in the workspace,
+    // and the second user must never be asked to initialise one.
+    const corePassed = [
+      results.firstUserRegistered,
+      results.secondUserRegistered,
+      results.firstUserWorkspaceLoaded,
+      results.secondUserWorkspaceLoaded,
+      results.noInitModalForSecond,
+      initChainPassed,
+    ].every(Boolean);
 
     console.log('\nFirst User (Initialization):');
     console.log(`  Registration:             ${results.firstUserRegistered ? 'PASS' : 'FAIL'}`);
-    console.log(`  Init Modal Appears:       ${results.initModalAppears ? 'PASS' : 'CHECK'}`);
-    console.log(`  Modal Has Title:          ${results.modalHasTitle ? 'PASS' : 'CHECK'}`);
-    console.log(`  Modal Has Password Field: ${results.modalHasPasswordField ? 'PASS' : 'CHECK'}`);
-    console.log(`  Modal Has Init Button:    ${results.modalHasInitButton ? 'PASS' : 'CHECK'}`);
-    console.log(`  Init Submitted:           ${results.initSubmitted ? 'PASS' : 'CHECK'}`);
-    console.log(`  Workspace Loaded:         ${results.firstUserWorkspaceLoaded ? 'PASS' : 'CHECK'}`);
+    console.log(`  Init Modal Appears:       ${results.initModalAppears ? 'PASS' : 'SKIP (workspace already existed)'}`);
+    console.log(`  Modal Has Title:          ${initialisedWorkspace ? (results.modalHasTitle ? 'PASS' : 'FAIL') : 'SKIP'}`);
+    console.log(`  Modal Has Password Field: ${initialisedWorkspace ? (results.modalHasPasswordField ? 'PASS' : 'FAIL') : 'SKIP'}`);
+    console.log(`  Modal Has Init Button:    ${initialisedWorkspace ? (results.modalHasInitButton ? 'PASS' : 'FAIL') : 'SKIP'}`);
+    console.log(`  Dismissal Sticks:         ${initialisedWorkspace ? (results.dismissalSticks ? 'PASS' : 'FAIL') : 'SKIP'}`);
+    console.log(`  Init Submitted:           ${initialisedWorkspace ? (results.initSubmitted ? 'PASS' : 'FAIL') : 'SKIP'}`);
+    console.log(`  Workspace Loaded:         ${results.firstUserWorkspaceLoaded ? 'PASS' : 'FAIL'}`);
 
     console.log('\nSecond User (No Init Modal):');
     console.log(`  Registration:             ${results.secondUserRegistered ? 'PASS' : 'FAIL'}`);
-    console.log(`  No Init Modal:            ${results.noInitModalForSecond ? 'PASS' : 'CHECK'}`);
-    console.log(`  Workspace Loaded:         ${results.secondUserWorkspaceLoaded ? 'PASS' : 'CHECK'}`);
+    console.log(`  No Init Modal:            ${results.noInitModalForSecond ? 'PASS' : 'FAIL'}`);
+    console.log(`  Workspace Loaded:         ${results.secondUserWorkspaceLoaded ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
 

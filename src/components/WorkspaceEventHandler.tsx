@@ -105,7 +105,7 @@ export const WorkspaceEventHandler: React.FC<{
   useMemberEventSetup({ setState });
   useNodeEventSetup({ setState });
   useEventEmitterSetup({ setState });
-  useMessageEventSetup({ setState, setShowInitModal });
+  useMessageEventSetup({ setState });
 
   // Persist messages to local storage
   useEffect(() => {
