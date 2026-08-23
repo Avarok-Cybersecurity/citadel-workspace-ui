@@ -128,7 +128,7 @@ body {
 body {
   @apply bg-background text-foreground font-body antialiased;
   pointer-events: auto !important;
-  background-image: url('/lovable-uploads/2dbbf620-36d8-4f65-a2ad-f8d7ee3c3c0e.png');
+  background-image: url('/backgrounds/app-backdrop.webp');
   background-size: contain !important;
   background-position: center;
   background-repeat: no-repeat;

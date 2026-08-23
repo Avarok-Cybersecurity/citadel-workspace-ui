@@ -7,6 +7,7 @@ import WorkspaceApp from "./components/WorkspaceApp";
 import { WorkspaceLoader } from "./components/ui/workspace-loader";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
+import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
 
 // Landing is the route almost every session starts on, so it is imported eagerly:
 // code-splitting it would only add a network round trip before first paint.
@@ -45,6 +46,7 @@ const App = () => {
               on which feature raised it. useToast() now renders through Sonner.
             */}
             <Sonner />
+            <PwaUpdatePrompt />
             <BrowserRouter>
               <Suspense fallback={<RouteFallback />}>
                 <Routes>

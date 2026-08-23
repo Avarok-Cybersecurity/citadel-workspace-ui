@@ -18,6 +18,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
 import { toastError } from '@/lib/toast-helpers';
+import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 
 export const Landing = () => {
   const navigate = useNavigate();
@@ -170,7 +171,7 @@ export const Landing = () => {
       <div
         className="absolute inset-0 z-[1] bg-center bg-no-repeat bg-contain w-full h-full fixed md:bg-right"
         style={{
-          backgroundImage: "url('/lovable-uploads/fcd25400-92a0-41ed-95ae-573a0298bd55.png')",
+          backgroundImage: "url('/backgrounds/landing-hero.webp')",
         }}
       />
 
@@ -241,6 +242,9 @@ export const Landing = () => {
               <Settings className="h-3.5 w-3.5" />
               Settings
             </Button>
+            {/* Renders only when the browser has actually offered an install
+                prompt and we are not already running installed — see usePwaInstall. */}
+            <InstallAppButton className="gap-2 text-gray-500 hover:text-gray-300 text-xs inline-flex items-center" />
           </div>
 
           {/* Security badge */}

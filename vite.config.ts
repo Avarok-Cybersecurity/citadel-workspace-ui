@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from "@vitejs/plugin-react-swc";
+import { VitePWA } from 'vite-plugin-pwa';
 import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
 
@@ -74,6 +75,69 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      /**
+       * Installable PWA + offline app shell.
+       *
+       * `registerType: 'prompt'` rather than 'autoUpdate': this app holds live
+       * WebSocket and P2P state, and swapping the running bundle underneath an
+       * open session would drop it. The user is asked instead (see PwaUpdatePrompt).
+       *
+       * The WASM client is deliberately NOT precached. At ~2.3 MB it would dominate
+       * the install payload, and it is fetched on demand by the client anyway; it is
+       * served from the runtime cache below so a repeat visit still gets it instantly.
+       */
+      VitePWA({
+        registerType: 'prompt',
+        includeAssets: ['favicon.ico', 'icons/apple-touch-icon.png'],
+        manifest: {
+          name: 'Citadel Workspace',
+          short_name: 'Citadel',
+          description: 'Post-quantum secure, peer-to-peer collaborative workspace.',
+          id: '/',
+          start_url: '/',
+          scope: '/',
+          display: 'standalone',
+          orientation: 'any',
+          background_color: '#1C1D28',
+          theme_color: '#6E59A5',
+          categories: ['productivity', 'business', 'security'],
+          icons: [
+            { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/icons/icon-192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+            { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+        },
+        workbox: {
+          // Precache the shell. Excluding the WASM binary keeps the install small;
+          // 4 MiB still comfortably covers the JS/CSS chunks.
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          globIgnores: ['**/*.wasm'],
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          // SPA fallback, minus the endpoints that must always hit the network.
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/ws$/, /^\/api/],
+          cleanupOutdatedCaches: true,
+          runtimeCaching: [
+            {
+              // Large, content-hashed, and immutable once built.
+              urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'citadel-wasm',
+                expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+          ],
+        },
+        devOptions: {
+          // Off by default: a service worker intercepting requests during
+          // development makes HMR behaviour confusing to reason about.
+          enabled: false,
+          type: 'module',
+        },
+      }),
     ].filter(Boolean),
 
     // Prevent vite from obscuring rust errors
