@@ -10,6 +10,7 @@ import { takeScreenshot } from './screenshots.js';
 import type { UxIssueTracker } from './ux-tracker.js';
 import { waitForTreeDataLoaded } from './modals.js';
 import { createNodeViaProtocol, listNodesViaProtocol, updateNodeViaProtocol } from './tree-helpers.js';
+import { isVisibleWithin } from './utils.js';
 
 export interface GroupChatOptions {
   uxTracker?: UxIssueTracker | null;
@@ -37,7 +38,7 @@ export async function navigateToOffice(
 
     for (const selector of selectors) {
       const officeLink = page.locator(selector).first();
-      if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(officeLink, 2000)) {
         // Use JavaScript click to bypass any Playwright click issues
         await officeLink.evaluate((el: HTMLElement) => el.click());
         await sleep(2000);
@@ -49,14 +50,14 @@ export async function navigateToOffice(
 
     // Try expanding hierarchy section first
     const officesHeader = page.locator('text="HIERARCHY", [data-testid="hierarchy-section"]').first();
-    if (await officesHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(officesHeader, 2000)) {
       await officesHeader.click();
       await sleep(1000);
 
       // Try again after expanding
       for (const selector of selectors) {
         const officeLink = page.locator(selector).first();
-        if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(officeLink, 2000)) {
           // Use JavaScript click to bypass any Playwright click issues
           await officeLink.evaluate((el: HTMLElement) => el.click());
           await sleep(2000);
@@ -98,7 +99,7 @@ export async function navigateToRoom(
 
     for (const selector of selectors) {
       const roomLink = page.locator(selector).first();
-      if (await roomLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(roomLink, 2000)) {
         // Use JavaScript click to bypass any Playwright click issues
         await roomLink.evaluate((el: HTMLElement) => el.click());
         await sleep(2000);
@@ -126,7 +127,7 @@ export async function navigateToRoom(
       // Try selectors again after expanding
       for (const selector of selectors) {
         const roomLink = page.locator(selector).first();
-        if (await roomLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(roomLink, 2000)) {
           await roomLink.evaluate((el: HTMLElement) => el.click());
           await sleep(2000);
           console.log(`  Clicked on room "${roomName}" (after expanding, ${selector})`);
@@ -166,7 +167,7 @@ export async function switchToChatTab(
 
     for (const selector of selectors) {
       const chatTab = page.locator(selector).first();
-      if (await chatTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(chatTab, 2000)) {
         await chatTab.click();
         await sleep(1500);
         console.log(`  Switched to Chat tab (${selector})`);
@@ -177,14 +178,14 @@ export async function switchToChatTab(
 
     // Check if chat tab content is already visible (might already be on chat tab)
     const chatView = page.locator('[data-testid="group-chat-view"], .group-chat-view').first();
-    if (await chatView.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(chatView, 2000)) {
       console.log(`  Chat view already visible`);
       return true;
     }
 
     // Check if message input is visible (indicates we're on chat tab)
     const messageInput = page.locator('textarea[placeholder*="message" i]').first();
-    if (await messageInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(messageInput, 2000)) {
       console.log(`  Chat input already visible`);
       return true;
     }
@@ -216,7 +217,7 @@ export async function isChatEnabled(page: Page, username: string): Promise<boole
 
   for (const selector of selectors) {
     const chatTab = page.locator(selector).first();
-    if (await chatTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(chatTab, 2000)) {
       console.log(`  Chat enabled: true (found ${selector})`);
       return true;
     }
@@ -224,7 +225,7 @@ export async function isChatEnabled(page: Page, username: string): Promise<boole
 
   // Also check if we're already on a chat view
   const chatInput = page.locator('textarea[placeholder*="message" i]').first();
-  if (await chatInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await isVisibleWithin(chatInput, 1000)) {
     console.log(`  Chat enabled: true (chat input visible)`);
     return true;
   }
@@ -249,7 +250,7 @@ export async function sendGroupMessage(
     // Find the message input (textarea)
     const messageInput = page.locator('textarea[placeholder*="message"], textarea[placeholder*="Type"], input[placeholder*="message"]').first();
 
-    if (!(await messageInput.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(messageInput, 5000))) {
       console.log(`  WARNING: Message input not found`);
       if (options.uxTracker) {
         options.uxTracker.log('major', 'functional', 'Group chat message input not visible');
@@ -264,7 +265,7 @@ export async function sendGroupMessage(
     // Find and click the send button
     const sendButton = page.locator('button:has(svg), button[aria-label*="send"], button[aria-label*="Send"]').last();
 
-    if (await sendButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(sendButton, 2000)) {
       await sendButton.click();
       await sleep(1000);
       console.log(`  Message sent via button`);
@@ -309,7 +310,7 @@ export async function verifyGroupMessageReceived(
     // Try partial match
     const partialMessage = expectedMessage.substring(0, 20);
     const partialLocator = page.locator(`text="${partialMessage}"`).first();
-    const partialFound = await partialLocator.isVisible({ timeout: 5000 }).catch(() => false);
+    const partialFound = await isVisibleWithin(partialLocator, 5000);
 
     if (partialFound) {
       console.log(`  Message found (partial match)`);
@@ -376,7 +377,7 @@ export async function loadOlderMessages(
   try {
     const loadMoreBtn = page.locator('button:has-text("Load older"), button:has-text("Load more")').first();
 
-    if (await loadMoreBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(loadMoreBtn, 3000)) {
       await loadMoreBtn.click();
       await sleep(2000);
       console.log(`  Clicked "Load older messages"`);
@@ -400,7 +401,7 @@ export async function checkRulesBanner(page: Page, username: string): Promise<st
   try {
     const rulesBanner = page.locator('[class*="rules"], [class*="banner"]:has-text("Rule")').first();
 
-    if (await rulesBanner.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(rulesBanner, 3000)) {
       const rulesText = await rulesBanner.textContent();
       console.log(`  Rules found: "${rulesText?.substring(0, 50)}..."`);
       return rulesText;
@@ -425,7 +426,7 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
   try {
     // Check for the "No nodes yet" empty-state message
     const noNodesMsg = page.locator('text=No nodes yet').first();
-    if (await noNodesMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(noNodesMsg, 2000)) {
       console.log(`  No nodes found (empty state)`);
       return false;
     }
@@ -488,7 +489,7 @@ export async function createOffice(
       let clicked = false;
       for (const selector of addBtnSelectors) {
         const btn = page.locator(selector).first();
-        if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(btn, 2000)) {
           await btn.click();
           await sleep(500);
           console.log(`  Clicked Add Node button (${selector})`);
@@ -504,7 +505,7 @@ export async function createOffice(
 
       // Wait for the NodeManagementModal name input to appear
       const nameInput = page.locator('input#name, input[id="name"]').first();
-      if (await nameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+      if (await isVisibleWithin(nameInput, 5000)) {
         modalVisible = true;
         break;
       }
@@ -523,7 +524,7 @@ export async function createOffice(
     // Fill in description
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-      if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(descInput, 1000)) {
         await descInput.fill(description);
         await sleep(300);
       }
@@ -531,7 +532,7 @@ export async function createOffice(
 
     // Click Create button
     const createBtn = page.locator('button:has-text("Create")').first();
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(3000);
     } else {
@@ -541,7 +542,7 @@ export async function createOffice(
 
     // Check for permission error
     const errorAlert = page.locator('text="Permission denied"').first();
-    if (await errorAlert.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(errorAlert, 2000)) {
       console.log(`  ERROR: Permission denied when creating node`);
       if (options.uxTracker) {
         options.uxTracker.log('major', 'functional', 'Cannot create node: Permission denied');
@@ -552,7 +553,7 @@ export async function createOffice(
 
     // Verify node was created
     const nodeInList = page.locator(`button:has-text("${officeName}")`).first();
-    if (await nodeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(nodeInList, 5000)) {
       console.log(`  Node "${officeName}" created successfully`);
 
       // Enable chat on the newly created node so group messaging tests work.
@@ -652,7 +653,7 @@ export async function switchToContentTab(
   try {
     const contentTab = page.locator('[data-state][value="content"], button:has-text("Content"), [role="tab"]:has-text("Content")').first();
 
-    if (await contentTab.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(contentTab, 5000)) {
       await contentTab.click();
       await sleep(1500);
       console.log(`  Switched to Content tab`);

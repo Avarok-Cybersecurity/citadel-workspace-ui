@@ -7,6 +7,22 @@ import { sleep } from './utils.js';
 import { UxIssueTracker } from './ux-tracker.js';
 
 /**
+ * NOTE ON `isVisible()` IN THIS FILE
+ *
+ * Everything here is a PROBE: "is this unexpected thing present right now?" — an
+ * error toast, a leftover modal, a still-spinning loader inside a polling loop.
+ * For those, the immediate snapshot is the correct semantics, and the waiting
+ * form would spend the whole timeout confirming the common case (nothing there)
+ * on every single call.
+ *
+ * That is the opposite of everywhere else in this suite, where
+ * `isVisible({ timeout })` was used believing it waits — it does not, Playwright
+ * ignores that option — and sleeps were added to compensate. Those call sites use
+ * `isVisibleWithin` from utils.ts. These deliberately do not.
+ */
+
+
+/**
  * Close any open modals by clicking Cancel/Close buttons or pressing Escape.
  * Handles both Radix Dialog modals (Escape works) and raw div overlays
  * like WorkspaceInitializationModal (need to click Cancel button).
@@ -15,7 +31,7 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
   for (let i = 0; i < maxAttempts; i++) {
     // Check for any visible modal overlay
     const backdrop = page.locator('.bg-black\\/60, [data-state="open"], [role="dialog"]').first();
-    if (!await backdrop.isVisible({ timeout: 300 }).catch(() => false)) {
+    if (!await backdrop.isVisible().catch(() => false)) {
       break; // No modal visible
     }
 
@@ -29,7 +45,7 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
       '[data-state="open"] button[aria-label="Close"]'
     ).first();
 
-    if (await cancelBtn.isVisible({ timeout: 300 }).catch(() => false)) {
+    if (await cancelBtn.isVisible().catch(() => false)) {
       console.log('  closeAnyModals: Clicking Cancel/Close button');
       await cancelBtn.click();
       await sleep(500);
@@ -48,7 +64,7 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
  */
 export async function checkForErrors(page: Page, context: string, uxTracker: UxIssueTracker | null = null): Promise<boolean> {
   const errorToast = page.locator('[role="alert"]:has-text("error"), [role="alert"]:has-text("failed")').first();
-  if (await errorToast.isVisible({ timeout: 500 }).catch(() => false)) {
+  if (await errorToast.isVisible().catch(() => false)) {
     const errorText = await errorToast.textContent();
     if (uxTracker && errorText) {
       uxTracker.log('critical', 'functional', `Error in ${context}: ${errorText}`);
@@ -69,7 +85,7 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
 
   while (Date.now() - startTime < timeout) {
     const loadingIndicator = page.locator('text="Loading workspace..."');
-    const isLoading = await loadingIndicator.isVisible({ timeout: 500 }).catch(() => false);
+    const isLoading = await loadingIndicator.isVisible().catch(() => false);
 
     if (!isLoading) {
       // Look for any of the sidebar section headers that indicate workspace is loaded.
@@ -96,7 +112,7 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
 
       for (const selector of sidebarIndicators) {
         const element = page.locator(selector).first();
-        if (await element.isVisible({ timeout: 500 }).catch(() => false)) {
+        if (await element.isVisible().catch(() => false)) {
           console.log('  Workspace fully loaded');
           return true;
         }
@@ -106,7 +122,7 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
       const currentUrl = page.url();
       if (currentUrl.includes('/workspace') || currentUrl.includes('/office')) {
         const sidebar = page.locator('[data-sidebar="sidebar"], aside, nav').first();
-        if (await sidebar.isVisible({ timeout: 300 }).catch(() => false)) {
+        if (await sidebar.isVisible().catch(() => false)) {
           // Sidebar is visible - check for any content inside it
           const sidebarText = await sidebar.textContent().catch(() => '');
           if (sidebarText && sidebarText.length > 20) {
@@ -214,7 +230,7 @@ export async function assertNoToastConflict(
 
     // Try to get error text for debugging
     const errorToast = page.locator('[data-sonner-toast][data-type="error"], [data-radix-toast-viewport] .destructive').first();
-    if (await errorToast.isVisible({ timeout: 100 }).catch(() => false)) {
+    if (await errorToast.isVisible().catch(() => false)) {
       const errorText = await errorToast.textContent();
       console.log(`  Error content: ${errorText}`);
       if (uxTracker) {
@@ -248,11 +264,11 @@ export async function waitForTreeDataLoaded(page: Page, timeout = 30000): Promis
     );
     const emptyState = page.locator('text=No nodes yet');
 
-    if (await treeNode.first().isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await treeNode.first().isVisible().catch(() => false)) {
       console.log('  Tree data loaded (nodes visible)');
       return true;
     }
-    if (await emptyState.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await emptyState.isVisible().catch(() => false)) {
       console.log('  Tree data loaded (empty state)');
       return true;
     }
@@ -278,7 +294,7 @@ export async function dismissAllToasts(page: Page, timeout = 5000): Promise<void
 
     // Try clicking dismiss buttons
     const dismissBtn = page.locator('[data-sonner-toast] button[data-dismiss], [data-radix-toast-viewport] button[aria-label*="close"]').first();
-    if (await dismissBtn.isVisible({ timeout: 100 }).catch(() => false)) {
+    if (await dismissBtn.isVisible().catch(() => false)) {
       await dismissBtn.click();
     }
 

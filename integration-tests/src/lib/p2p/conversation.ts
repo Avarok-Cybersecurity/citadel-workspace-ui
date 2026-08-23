@@ -7,6 +7,7 @@ import { sleep } from '../utils.js';
 import { waitForWorkspaceLoaded, closeAnyModals } from '../modals.js';
 import { takeScreenshot } from '../screenshots.js';
 import { UxIssueTracker } from '../ux-tracker.js';
+import { isVisibleWithin } from '../utils.js';
 
 /**
  * Wait for P2PChat component to be fully ready (mounted with listener registered)
@@ -18,7 +19,7 @@ async function waitForChatReady(page: Page, _peerUsername: string): Promise<void
   const messageInput = page.locator('input[placeholder*="message"], textarea[placeholder*="message"]').first();
 
   for (let i = 0; i < 10; i++) {
-    if (await messageInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(messageInput, 1000)) {
       // Also check if it's enabled (not disabled)
       const isDisabled = await messageInput.isDisabled().catch(() => true);
       if (!isDisabled) {
@@ -64,7 +65,7 @@ export async function openConversation(
     // Strategy 1: Look in sidebar for the peer username directly (most reliable)
     // The peer is rendered in a SidebarMenuButton with the username as text
     const sidebarPeer = page.locator(`[data-sidebar="menu-button"]:has-text("${peerUsername}")`).first();
-    if (await sidebarPeer.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(sidebarPeer, 1000)) {
       console.log(`  Found ${peerUsername} in sidebar via menu-button`);
       await sidebarPeer.click();
       await sleep(2000);
@@ -77,7 +78,7 @@ export async function openConversation(
     // Go up to SidebarGroup (data-sidebar="group") which contains both header and content
     const connectedPeersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("CONNECTED PEERS"))');
     const peerInConnected = connectedPeersGroup.locator(`text="${peerUsername}"`).first();
-    if (await peerInConnected.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(peerInConnected, 500)) {
       console.log(`  Found ${peerUsername} in CONNECTED PEERS section`);
       await peerInConnected.click();
       await sleep(2000);
@@ -89,7 +90,7 @@ export async function openConversation(
     // Strategy 3: Look in WORKSPACE MEMBERS section
     const workspaceMembersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("WORKSPACE MEMBERS"))');
     const peerInWorkspace = workspaceMembersGroup.locator(`text="${peerUsername}"`).first();
-    if (await peerInWorkspace.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(peerInWorkspace, 500)) {
       console.log(`  Found ${peerUsername} in WORKSPACE MEMBERS section`);
       await peerInWorkspace.click();
       await sleep(2000);
@@ -100,7 +101,7 @@ export async function openConversation(
 
     // Strategy 4: Try button match anywhere in the page
     const peerBtn = page.locator(`button:has-text("${peerUsername}")`).first();
-    if (await peerBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(peerBtn, 500)) {
       console.log(`  Found ${peerUsername} via button`);
       await peerBtn.click();
       await sleep(2000);
@@ -111,7 +112,7 @@ export async function openConversation(
 
     // Strategy 5: Just look for any element with the peer's username text
     const peerText = page.locator(`text="${peerUsername}"`).first();
-    if (await peerText.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(peerText, 500)) {
       console.log(`  Found ${peerUsername} via text match`);
       await peerText.click();
       await sleep(2000);

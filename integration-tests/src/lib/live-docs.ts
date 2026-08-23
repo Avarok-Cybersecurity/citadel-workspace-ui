@@ -6,6 +6,7 @@ import type { Page } from 'playwright';
 import { sleep } from './utils.js';
 import { takeScreenshot } from './screenshots.js';
 import { UxIssueTracker } from './ux-tracker.js';
+import { isVisibleWithin } from './utils.js';
 
 /**
  * Create a new Live Document
@@ -21,14 +22,14 @@ export async function createLiveDoc(
   // Look for the Live Docs section or create button
   const createBtn = page.locator('button:has-text("Create Live Doc"), button:has-text("New Document")').first();
 
-  if (!await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (!await isVisibleWithin(createBtn, 5000)) {
     // Try clicking a + button near LIVE DOCS section
     const liveDocsSection = page.locator('text="LIVE DOCS"').first();
-    if (await liveDocsSection.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(liveDocsSection, 2000)) {
       await liveDocsSection.hover();
       await sleep(500);
       const addBtn = page.locator('button:has(svg.lucide-plus)').first();
-      if (await addBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(addBtn, 2000)) {
         await addBtn.click();
         await sleep(1000);
       }
@@ -40,7 +41,7 @@ export async function createLiveDoc(
 
   // Fill in document name if modal appears
   const nameInput = page.locator('input[placeholder*="name"], input[placeholder*="title"]').first();
-  if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(nameInput, 3000)) {
     await nameInput.fill(docName);
     await sleep(300);
 
@@ -71,7 +72,7 @@ export async function openLiveDoc(
   const liveDocsSection = page.locator('text="LIVE DOCS"').locator('..').locator('..');
   const docLink = liveDocsSection.locator(`text="${docName}"`).first();
 
-  if (await docLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(docLink, 5000)) {
     await docLink.click();
     await sleep(2000);
     await takeScreenshot(page, `${username}_live_doc_opened`);
@@ -81,7 +82,7 @@ export async function openLiveDoc(
 
   // Try alternative selectors
   const altDocLink = page.locator(`button:has-text("${docName}"), a:has-text("${docName}")`).first();
-  if (await altDocLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(altDocLink, 3000)) {
     await altDocLink.click();
     await sleep(2000);
     await takeScreenshot(page, `${username}_live_doc_opened`);
@@ -116,7 +117,7 @@ export async function typeInLiveDocEditor(
 
   for (const selector of editorSelectors) {
     const editor = page.locator(selector).first();
-    if (await editor.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(editor, 2000)) {
       await editor.click();
       await sleep(300);
       await editor.type(text, { delay: 50 });
@@ -146,7 +147,7 @@ export async function getLiveDocContent(page: Page): Promise<string> {
 
   for (const selector of editorSelectors) {
     const editor = page.locator(selector).first();
-    if (await editor.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(editor, 2000)) {
       const content = await editor.textContent();
       return content ?? '';
     }

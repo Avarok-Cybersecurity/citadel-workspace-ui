@@ -6,6 +6,7 @@ import type { Page } from 'playwright';
 import { sleep } from '../utils.js';
 import { takeScreenshot } from '../screenshots.js';
 import { UxIssueTracker } from '../ux-tracker.js';
+import { isVisibleWithin } from '../utils.js';
 
 /**
  * Connect to a registered P2P peer.
@@ -113,7 +114,7 @@ export async function connectP2P(
     const dmSection = page.locator('text="CONNECTED PEERS"').locator('..').locator('..');
     const peerInSidebar = dmSection.locator(`text="${peerUsername}"`).first();
 
-    const peerVisible = await peerInSidebar.isVisible({ timeout: 5000 }).catch(() => false);
+    const peerVisible = await isVisibleWithin(peerInSidebar, 5000);
 
     if (peerVisible) {
       console.log(`  P2P connect to ${peerUsername} SUCCESS`);
@@ -367,7 +368,7 @@ export async function waitForP2PConnection(
       // FALLBACK: Check UI visibility (less deterministic but catches edge cases)
       const connectedPeersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("CONNECTED PEERS"))');
       const peerInConnected = connectedPeersGroup.locator(`text="${peerUsername}"`).first();
-      const isVisible = await peerInConnected.isVisible({ timeout: 200 }).catch(() => false);
+      const isVisible = await isVisibleWithin(peerInConnected, 200);
 
       if (isVisible) {
         console.log(`  ${username}: P2P connected to ${peerUsername} (UI visible, attempt ${attempt})`);

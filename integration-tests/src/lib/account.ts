@@ -5,10 +5,10 @@
 import type { Page } from 'playwright';
 import type { CreateAccountOptions } from './types.js';
 import { config } from './config.js';
-import { sleep } from './utils.js';
 import { closeAnyModals, checkForErrors, waitForWorkspaceLoaded } from './modals.js';
 import { takeScreenshot } from './screenshots.js';
 import { clearBrowserStorage, waitForAppReady } from './browser.js';
+import { isVisibleWithin } from './utils.js';
 
 /**
  * Create a new user account
@@ -44,41 +44,35 @@ export async function createAccount(page: Page, username: string, options: Creat
   // BroadcastChannel leader election can cause continuous re-renders that keep
   // the button "not stable" indefinitely.
   const joinBtn = page.locator('button:has-text("Join Workspace")');
-  if (await joinBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(joinBtn, 5000)) {
     await joinBtn.click({ force: true });
-    await sleep(1000);
   }
 
   // Step 1: Fill workspace address (using role-based selector)
   const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
-  if (await serverInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(serverInput, 5000)) {
     await serverInput.fill(config.WORKSPACE_SERVER);
-    await sleep(500);
 
     // Click NEXT to go to Security Settings
     const nextBtn = page.getByRole('button', { name: 'NEXT' });
     await nextBtn.click();
-    await sleep(2000);
   }
 
   // Step 2: Security Settings - just click NEXT
   const securityTitle = page.locator('text="Security Settings"');
-  if (await securityTitle.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(securityTitle, 3000)) {
     const nextBtn = page.getByRole('button', { name: 'NEXT' });
     await nextBtn.click();
-    await sleep(2000);
   }
 
   // Step 3: User Details form (Create Your Profile)
   const fullNameInput = page.getByRole('textbox', { name: 'Full Name' });
-  if (await fullNameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(fullNameInput, 5000)) {
     await fullNameInput.fill(username);
-    await sleep(300);
 
     const usernameInput = page.getByRole('textbox', { name: 'Username' });
     if (await usernameInput.isVisible()) {
       await usernameInput.fill(username);
-      await sleep(300);
     }
 
     const passwordInput = page.getByRole('textbox', { name: 'Profile Password', exact: true });
@@ -86,18 +80,27 @@ export async function createAccount(page: Page, username: string, options: Creat
 
     if (await passwordInput.isVisible()) {
       await passwordInput.fill(password);
-      await sleep(300);
     }
     if (await confirmPasswordInput.isVisible()) {
       await confirmPasswordInput.fill(password);
-      await sleep(300);
     }
 
     // Click Join button (not Register/Create Account)
     const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
     if (await submitBtn.isVisible()) {
       await submitBtn.click();
-      await sleep(8000);
+      // Registration is a server round trip, so this genuinely has to wait — but
+      // for the OUTCOME, not for a fixed 8s. Exactly one of two things follows:
+      // the Initialize Workspace modal (this is the first account on the server)
+      // or navigation into the workspace. Racing them returns as soon as either
+      // lands, and still fails loudly if neither does.
+      await Promise.race([
+        page.locator('input#masterPassword').waitFor({ state: 'visible', timeout: 30_000 }),
+        page.waitForURL(/\/(workspace|office)/, { timeout: 30_000 }),
+      ]).catch(() => {
+        // Neither arrived; waitForWorkspaceLoaded below reports the real failure
+        // with more context than a timeout here would.
+      });
     }
   }
 
@@ -115,12 +118,15 @@ export async function createAccount(page: Page, username: string, options: Creat
       .catch(() => false);
     if (modalAppeared) {
       await passwordField.fill(config.WORKSPACE_PASSWORD);
-      await sleep(500);
 
       const initBtn = page.locator('button:has-text("Initialize & Become Admin")');
       if (await initBtn.isVisible()) {
         await initBtn.click();
-        await sleep(5000);
+        // Wait for the modal to actually close rather than a flat 5s — that is
+        // the signal that the server accepted the initialisation.
+        await passwordField.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {
+          // Still open: waitForWorkspaceLoaded below surfaces it properly.
+        });
       }
     }
   }

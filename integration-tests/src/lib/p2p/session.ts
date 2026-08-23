@@ -8,6 +8,7 @@ import { waitForWorkspaceLoaded, closeAnyModals } from '../modals.js';
 import { takeScreenshot } from '../screenshots.js';
 import { waitForAppReady } from '../browser.js';
 import { UxIssueTracker } from '../ux-tracker.js';
+import { isVisibleWithin } from '../utils.js';
 
 /**
  * Simulate TCP drop by closing the page.
@@ -66,9 +67,9 @@ export async function assertSessionInOrphanNavbar(
       const usernamePrefix = username.substring(0, 15); // First 15 chars
       const partialMatch = page.locator(`[data-testid*="session"]:has-text("${usernamePrefix}")`).first();
 
-      const iconVisible = await sessionIcon.isVisible({ timeout: 3000 }).catch(() => false);
-      const buttonVisible = await sessionButton.isVisible({ timeout: 1000 }).catch(() => false);
-      const partialVisible = await partialMatch.isVisible({ timeout: 1000 }).catch(() => false);
+      const iconVisible = await isVisibleWithin(sessionIcon, 3000);
+      const buttonVisible = await isVisibleWithin(sessionButton, 1000);
+      const partialVisible = await isVisibleWithin(partialMatch, 1000);
 
       if (iconVisible || buttonVisible || partialVisible) {
         console.log(`  PASS: Session for ${username} FOUND in OrphanSessionsNavbar (as expected, attempt ${attempt})`);
@@ -142,26 +143,26 @@ export async function disconnectViaTopBar(
     // Primary: use data-testid for reliability
     let avatarButton = page.locator('[data-testid="user-avatar-button"]').first();
 
-    if (!await avatarButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (!await isVisibleWithin(avatarButton, 3000)) {
       console.log('  Primary selector failed, trying alternative selectors...');
       // Try any button with Avatar child in the top fixed bar
       avatarButton = page.locator('.fixed.top-0 button:has([class*="Avatar"])').first();
     }
 
-    if (!await avatarButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(avatarButton, 2000)) {
       // Try button with rounded avatar
       avatarButton = page.locator('button:has(.h-8.w-8.rounded-full)').first();
     }
 
-    if (!await avatarButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(avatarButton, 2000)) {
       // Try finding AvatarFallback (shows user initials) and get parent button
       const avatarFallback = page.locator('.bg-\\[\\#444A6C\\]').first();
-      if (await avatarFallback.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(avatarFallback, 2000)) {
         avatarButton = avatarFallback.locator('xpath=ancestor::button[1]');
       }
     }
 
-    if (!await avatarButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(avatarButton, 2000)) {
       console.log('  Avatar button not found in TopBar');
       if (uxTracker) {
         uxTracker.log('major', 'functional', 'Avatar button not found in TopBar');
@@ -181,22 +182,22 @@ export async function disconnectViaTopBar(
     // Try multiple selectors to be robust
     let signOutBtn = page.locator('[role="menuitem"]:has-text("Sign out")').first();
 
-    if (!await signOutBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(signOutBtn, 2000)) {
       // Try text match with exact text
       signOutBtn = page.locator('text="Sign out"').first();
     }
 
-    if (!await signOutBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(signOutBtn, 2000)) {
       // Try div with text content (Radix renders as div)
       signOutBtn = page.locator('div:text-is("Sign out")').first();
     }
 
-    if (!await signOutBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(signOutBtn, 2000)) {
       // Try any element containing the text (case insensitive)
       signOutBtn = page.locator('text=/sign out/i').first();
     }
 
-    if (!await signOutBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(signOutBtn, 2000)) {
       console.log('  Sign out button not found in dropdown');
       // Debug: List all visible menu items
       const menuItems = await page.locator('[role="menuitem"]').allTextContents().catch(() => []);
@@ -215,7 +216,7 @@ export async function disconnectViaTopBar(
 
     // Wait for disconnect modal to appear (indicates sign-out started)
     const disconnectModal = page.locator('[data-testid="disconnect-loading-modal"]');
-    const modalAppeared = await disconnectModal.isVisible({ timeout: 5000 }).catch(() => false);
+    const modalAppeared = await isVisibleWithin(disconnectModal, 5000);
 
     if (modalAppeared) {
       console.log('  Disconnect modal appeared, waiting for completion...');
@@ -333,8 +334,8 @@ export async function assertSessionNotInOrphanNavbar(
       const sessionIcon = page.locator(`[data-testid="session-icon-${username}"]`);
       const sessionButton = page.locator(`[data-testid="session-button-${username}"]`);
 
-      const iconVisible = await sessionIcon.isVisible({ timeout: 2000 }).catch(() => false);
-      const buttonVisible = await sessionButton.isVisible({ timeout: 2000 }).catch(() => false);
+      const iconVisible = await isVisibleWithin(sessionIcon, 2000);
+      const buttonVisible = await isVisibleWithin(sessionButton, 2000);
 
       if (!iconVisible && !buttonVisible) {
         console.log(`  PASS: Session for ${username} NOT in OrphanSessionsNavbar (as expected, attempt ${attempt})`);
@@ -409,14 +410,14 @@ export async function loginAfterDisconnect(
       const orphanButton = page.locator(`[data-testid="session-button-${username}"]`);
       const orphanIcon = page.locator(`[data-testid="session-icon-${username}"]`);
       const partialMatch = page.locator(`[data-testid*="session"]:has-text("${usernamePrefix}")`).first();
-      orphanFound = await orphanButton.isVisible({ timeout: 2000 }).catch(() => false) ||
-        await orphanIcon.isVisible({ timeout: 1000 }).catch(() => false) ||
-        await partialMatch.isVisible({ timeout: 1000 }).catch(() => false);
+      orphanFound = await isVisibleWithin(orphanButton, 2000) ||
+        await isVisibleWithin(orphanIcon, 1000) ||
+        await isVisibleWithin(partialMatch, 1000);
       if (orphanFound) {
         console.log(`  Found orphan session for ${username} (attempt ${orphanAttempt}), claiming it instead of fresh login`);
-        const clickTarget = await orphanButton.isVisible({ timeout: 1000 }).catch(() => false)
+        const clickTarget = await isVisibleWithin(orphanButton, 1000)
           ? orphanButton
-          : await orphanIcon.isVisible({ timeout: 1000 }).catch(() => false)
+          : await isVisibleWithin(orphanIcon, 1000)
             ? orphanIcon
             : partialMatch;
         await clickTarget.click();
@@ -445,10 +446,10 @@ export async function loginAfterDisconnect(
     // Click "Login" button to open login form
     const loginBtn = page.locator('button:has-text("Login")').first();
 
-    if (!await loginBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (!await isVisibleWithin(loginBtn, 5000)) {
       // Check if we're already on login form
       const usernameInput = page.locator('input[placeholder*="username"], input[name="username"]').first();
-      if (!await usernameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (!await isVisibleWithin(usernameInput, 2000)) {
         console.log('  Login button not found');
         if (uxTracker) {
           uxTracker.log('major', 'functional', 'Login button not found on landing page');
@@ -467,7 +468,7 @@ export async function loginAfterDisconnect(
 
     // Fill in username
     const usernameInput = page.locator('input[placeholder*="username"], input[name="username"]').first();
-    if (!await usernameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (!await isVisibleWithin(usernameInput, 3000)) {
       console.log('  Username input not found');
       return false;
     }
@@ -475,7 +476,7 @@ export async function loginAfterDisconnect(
 
     // Fill in password
     const passwordInput = page.locator('input[type="password"]').first();
-    if (!await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (!await isVisibleWithin(passwordInput, 3000)) {
       console.log('  Password input not found');
       return false;
     }
@@ -484,19 +485,19 @@ export async function loginAfterDisconnect(
     // Open Advanced Options to fill in server address
     console.log('  Opening Advanced Options...');
     const advancedBtn = page.locator('button:has-text("Advanced Options")').first();
-    if (await advancedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(advancedBtn, 2000)) {
       await advancedBtn.click();
       await sleep(500);
 
       // Fill in server address
       const serverInput = page.locator('input[placeholder*="127.0.0.1:12349"]').first();
-      if (await serverInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(serverInput, 2000)) {
         await serverInput.fill(effectiveServerAddress);
         console.log(`  Server address filled: ${effectiveServerAddress}`);
       } else {
         console.log('  Server address input not found - trying id selector');
         const serverInputById = page.locator('#server').first();
-        if (await serverInputById.isVisible({ timeout: 1000 }).catch(() => false)) {
+        if (await isVisibleWithin(serverInputById, 1000)) {
           await serverInputById.fill(effectiveServerAddress);
           console.log(`  Server address filled via id: ${effectiveServerAddress}`);
         } else {
@@ -512,7 +513,7 @@ export async function loginAfterDisconnect(
 
     // Submit the form - Login component button says "Connect"
     const submitBtn = page.locator('button[type="submit"]:has-text("Connect"), button[type="submit"]:has-text("Login"), button:has-text("Sign In"), button:has-text("Log In")').first();
-    if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(submitBtn, 2000)) {
       console.log('  Clicking submit button...');
       await submitBtn.click();
     } else {
@@ -572,15 +573,15 @@ export async function loginAfterDisconnect(
       const retryOrphanIcon = page.locator(`[data-testid="session-icon-${username}"]`);
       const retryUsernamePrefix = username.substring(0, 15);
       const retryPartialMatch = page.locator(`[data-testid*="session"]:has-text("${retryUsernamePrefix}")`).first();
-      const hasRetryOrphan = await retryOrphanBtn.isVisible({ timeout: 3000 }).catch(() => false) ||
-        await retryOrphanIcon.isVisible({ timeout: 1000 }).catch(() => false) ||
-        await retryPartialMatch.isVisible({ timeout: 1000 }).catch(() => false);
+      const hasRetryOrphan = await isVisibleWithin(retryOrphanBtn, 3000) ||
+        await isVisibleWithin(retryOrphanIcon, 1000) ||
+        await isVisibleWithin(retryPartialMatch, 1000);
 
       if (hasRetryOrphan) {
         console.log(`  Found orphan session on retry, claiming it...`);
-        const target = await retryOrphanBtn.isVisible({ timeout: 1000 }).catch(() => false)
+        const target = await isVisibleWithin(retryOrphanBtn, 1000)
           ? retryOrphanBtn
-          : await retryOrphanIcon.isVisible({ timeout: 1000 }).catch(() => false)
+          : await isVisibleWithin(retryOrphanIcon, 1000)
             ? retryOrphanIcon
             : retryPartialMatch;
         await target.click();
@@ -631,32 +632,32 @@ export async function loginAfterDisconnect(
 
       // Try login form again
       const retryLoginBtn = page.locator('button:has-text("Login")').first();
-      if (await retryLoginBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(retryLoginBtn, 3000)) {
         await retryLoginBtn.click();
         await sleep(1500);
         const retryUsernameInput = page.locator('input[placeholder*="username"], input[name="username"]').first();
         const retryPasswordInput = page.locator('input[type="password"]').first();
-        if (await retryUsernameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(retryUsernameInput, 2000)) {
           await retryUsernameInput.fill(username);
           await retryPasswordInput.fill(password);
           // Open Advanced Options and fill server
           const retryAdvBtn = page.locator('button:has-text("Advanced Options")').first();
-          if (await retryAdvBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          if (await isVisibleWithin(retryAdvBtn, 1000)) {
             await retryAdvBtn.click();
             await sleep(500);
             const retryServerInput = page.locator('input[placeholder*="127.0.0.1:12349"]').first();
-            if (await retryServerInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+            if (await isVisibleWithin(retryServerInput, 1000)) {
               await retryServerInput.fill(effectiveServerAddress);
             } else {
               const retryServerById = page.locator('#server').first();
-              if (await retryServerById.isVisible({ timeout: 500 }).catch(() => false)) {
+              if (await isVisibleWithin(retryServerById, 500)) {
                 await retryServerById.fill(effectiveServerAddress);
               }
             }
           }
           await sleep(500);
           const retrySubmit = page.locator('button[type="submit"]:has-text("Connect"), button[type="submit"]:has-text("Login")').first();
-          if (await retrySubmit.isVisible({ timeout: 1000 }).catch(() => false)) {
+          if (await isVisibleWithin(retrySubmit, 1000)) {
             await retrySubmit.click();
           } else {
             await retryPasswordInput.press('Enter');
@@ -720,12 +721,12 @@ export async function disconnectViaNavbar(
     // Look for the session icon using data-testid
     const sessionIcon = page.locator(`[data-testid="session-icon-${username}"]`);
 
-    if (!await sessionIcon.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (!await isVisibleWithin(sessionIcon, 5000)) {
       console.log(`  Session icon for ${username} not found on landing page`);
 
       // Try alternative: look for any session icons with matching username text
       const altSessionIcon = page.locator(`[data-session-cid]:has-text("${username}")`).first();
-      if (!await altSessionIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (!await isVisibleWithin(altSessionIcon, 2000)) {
         if (uxTracker) {
           uxTracker.log('major', 'functional', `Session icon for ${username} not found on landing page`);
         }
@@ -746,10 +747,10 @@ export async function disconnectViaNavbar(
     // Look for the disconnect button (appears on hover)
     const disconnectBtn = page.locator(`[data-testid="disconnect-button-${username}"]`);
 
-    if (!await disconnectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (!await isVisibleWithin(disconnectBtn, 3000)) {
       // Try alternative: look for any X button near the session icon
       const altDisconnectBtn = page.locator(`[data-testid="session-icon-${username}"] ~ button:has(svg.lucide-x), [data-testid="session-icon-${username}"] button:has(svg)`).first();
-      if (!await altDisconnectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (!await isVisibleWithin(altDisconnectBtn, 2000)) {
         console.log('  Disconnect button not visible after hover');
         if (uxTracker) {
           uxTracker.log('major', 'functional', 'Disconnect button not visible after hover');
@@ -770,14 +771,14 @@ export async function disconnectViaNavbar(
     // The modal has two options: "Disconnect" (yellow) and "Deregister" (red)
     const disconnectConfirmBtn = page.locator('button:has-text("Disconnect")').first();
 
-    if (await disconnectConfirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(disconnectConfirmBtn, 3000)) {
       console.log('  Clicking Disconnect in confirmation modal...');
       await disconnectConfirmBtn.click();
       await sleep(3000);
 
       // Wait for loading modal to complete
       const loadingModal = page.locator('text="Disconnecting"');
-      if (await loadingModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(loadingModal, 1000)) {
         console.log('  Waiting for disconnect to complete...');
         await page.waitForSelector('text="Disconnecting"', { state: 'hidden', timeout: 10000 }).catch(() => { });
       }
@@ -833,21 +834,21 @@ export async function reconnectViaClaimSession(
 
       let sessionFound = false;
 
-      if (await sessionButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      if (await isVisibleWithin(sessionButton, 5000)) {
         console.log(`  Found session button for ${username}`);
         await sessionButton.click();
         sessionFound = true;
       } else {
         // Try alternative: look for the session icon container
         const sessionIcon = page.locator(`[data-testid="session-icon-${username}"]`);
-        if (await sessionIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
+        if (await isVisibleWithin(sessionIcon, 3000)) {
           console.log(`  Found session icon for ${username}, clicking...`);
           await sessionIcon.click();
           sessionFound = true;
         } else {
           // Last resort: look for any session with matching text
           const anySession = page.locator(`[data-testid*="session"]:has-text("${username.slice(0, 10)}")`).first();
-          if (await anySession.isVisible({ timeout: 2000 }).catch(() => false)) {
+          if (await isVisibleWithin(anySession, 2000)) {
             console.log(`  Found session via text match`);
             await anySession.click();
             sessionFound = true;

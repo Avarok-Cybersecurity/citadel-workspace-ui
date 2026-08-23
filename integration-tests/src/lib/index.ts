@@ -28,6 +28,7 @@ export {
   isServiceAlive,
   waitForServicesAlive,
 } from './utils.js';
+export { isVisibleWithin, isHiddenWithin } from './utils.js';
 
 // UX Tracking
 export { UxIssueTracker } from './ux-tracker.js';

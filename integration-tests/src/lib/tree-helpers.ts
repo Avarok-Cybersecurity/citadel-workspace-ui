@@ -7,6 +7,7 @@
 
 import type { Page } from 'playwright';
 import { sleep } from './utils.js';
+import { isVisibleWithin } from './utils.js';
 
 // ============================================================================
 // Types
@@ -506,7 +507,7 @@ export async function createOfficeViaUI(
 
     // Fill the form (use id selector since the input has id="name")
     const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (!await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(nameInput, 2000)) {
       console.log('  [UI] Name input not found');
       await page.keyboard.press('Escape');
       return { success: false, name };
@@ -516,7 +517,7 @@ export async function createOfficeViaUI(
 
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-      if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(descInput, 1000)) {
         await descInput.fill(description);
       }
     }
@@ -525,7 +526,7 @@ export async function createOfficeViaUI(
 
     // Submit - NodeManagementModal uses "Create {EntityType}" as button text
     const createBtn = page.locator('button:has-text("Create")').first();
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(2000);
 
@@ -616,7 +617,7 @@ export async function createRoomViaUI(
 
     // Wait for modal to open - look for the dialog
     const modal = page.locator('[role="dialog"], [role="alertdialog"]').first();
-    const modalVisible = await modal.isVisible({ timeout: 3000 }).catch(() => false);
+    const modalVisible = await isVisibleWithin(modal, 3000);
     if (!modalVisible) {
       console.log('  [UI] Modal did not open');
       return { success: false, name };
@@ -625,7 +626,7 @@ export async function createRoomViaUI(
 
     // Fill the form (use id selector since the input has id="name")
     const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (!await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(nameInput, 2000)) {
       console.log('  [UI] Name input not found');
       await page.keyboard.press('Escape');
       return { success: false, name };
@@ -636,7 +637,7 @@ export async function createRoomViaUI(
 
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-      if (await descInput.isVisible({ timeout: 500 }).catch(() => false)) {
+      if (await isVisibleWithin(descInput, 500)) {
         await descInput.fill(description);
         console.log(`  [UI] Filled description`);
       }
@@ -646,21 +647,21 @@ export async function createRoomViaUI(
 
     // Submit - NodeManagementModal uses "Create {EntityType}" as button text
     const createBtn = page.locator('button:has-text("Create")').first();
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(createBtn, 2000)) {
       console.log('  [UI] Clicking Create button');
       await createBtn.click();
       await sleep(4000); // Wait longer for API call and UI update
 
       // Check for error toast
       const errorToast = page.locator('[role="status"]:has-text("Error"), .toast:has-text("Error")').first();
-      if (await errorToast.isVisible({ timeout: 500 }).catch(() => false)) {
+      if (await isVisibleWithin(errorToast, 500)) {
         console.log('  [UI] Error toast detected');
         return { success: false, name };
       }
 
       // Verify creation - the node should appear in the sidebar
       const nodeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
-      const exists = await nodeInSidebar.isVisible({ timeout: 5000 }).catch(() => false);
+      const exists = await isVisibleWithin(nodeInSidebar, 5000);
 
       console.log(`  [UI] Child node "${name}" created: ${exists}`);
       return { success: exists, name };
@@ -692,7 +693,7 @@ export async function navigateToNodeViaUI(
 
   for (const selector of selectors) {
     const nodeBtn = page.locator(selector).first();
-    if (await nodeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(nodeBtn, 2000)) {
       await nodeBtn.click();
       await sleep(1000);
       console.log(`  [UI] Navigated to node "${nodeName}"`);
@@ -756,7 +757,7 @@ export async function deleteNodeViaUI(
 
     // Click delete option using the new testid pattern
     const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
-    if (!await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (!await isVisibleWithin(deleteOption, 3000)) {
       console.log(`  [UI] Delete option not found`);
       const allMenuItems = await page.locator('[role="menuitem"]').count();
       console.log(`  [UI] DEBUG: Found ${allMenuItems} menu items`);
@@ -769,7 +770,7 @@ export async function deleteNodeViaUI(
 
     // Handle confirmation dialog
     const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(confirmBtn, 2000)) {
       await confirmBtn.click();
       console.log(`  [UI] Node delete confirmed`);
 
