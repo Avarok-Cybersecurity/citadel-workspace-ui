@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -69,7 +70,7 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 async function openUserDropdown(page: Page): Promise<boolean> {
   const avatarButton = page.locator('[data-testid="user-avatar-button"]');
 
-  if (await avatarButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(avatarButton, 5000)) {
     await avatarButton.click();
     await sleep(500);
     const menu = page.locator('[role="menu"]');
@@ -78,7 +79,7 @@ async function openUserDropdown(page: Page): Promise<boolean> {
 
   // Fallback: button with Avatar child
   const altButton = page.locator('button:has([class*="Avatar"])').first();
-  if (await altButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(altButton, 3000)) {
     await altButton.click();
     await sleep(500);
     const menu = page.locator('[role="menu"]');
@@ -295,7 +296,7 @@ async function testExitConfirmModal(page: Page): Promise<{
 
   // Test Cancel - should stay in workspace
   const cancelBtn = page.locator('button:has-text("Cancel"), button:has-text("Stay")').first();
-  if (await cancelBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(cancelBtn, 2000)) {
     await cancelBtn.click();
     await sleep(1000);
 
@@ -309,12 +310,12 @@ async function testExitConfirmModal(page: Page): Promise<{
   const opened2 = await openUserDropdown(page);
   if (opened2) {
     const exitItem2 = page.locator('[role="menuitem"]:has-text("Exit to Landing"), [role="menuitem"]:has-text("Exit")');
-    if (await exitItem2.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(exitItem2, 3000)) {
       await exitItem2.click();
       await sleep(1000);
 
       const confirmBtn = page.locator('button:has-text("Confirm"), button:has-text("Exit"), button:has-text("Leave")').first();
-      if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(confirmBtn, 3000)) {
         await confirmBtn.click();
         await sleep(3000);
 

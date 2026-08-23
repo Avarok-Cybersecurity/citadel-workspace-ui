@@ -27,6 +27,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -366,7 +367,7 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
       // Fallback to "Delete" if "Delete Folder" not found
       deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
     }
-    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(deleteOption, 1000)) {
       console.log('  Found delete option, clicking...');
       await deleteOption.click();
 
@@ -585,7 +586,7 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
       deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
     }
 
-    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(deleteOption, 1000)) {
       console.log('  Found delete option, clicking...');
       await deleteOption.click();
 

@@ -23,6 +23,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../test-lib.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -62,7 +63,7 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
 
   // Click on "Live Doc" type selector button
   const liveDocTypeBtn = page.locator('button[title="Live Doc"]');
-  if (await liveDocTypeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(liveDocTypeBtn, 3000)) {
     await liveDocTypeBtn.click();
     await sleep(500);
     console.log('  Selected Live Doc message type');
@@ -73,7 +74,7 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
 
   // BUG WORKAROUND: P2PChat.tsx returns early if input is empty BEFORE checking live_document
   const messageInput = page.locator('input[placeholder*="Document content"], input[placeholder*="message"]').first();
-  if (await messageInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(messageInput, 2000)) {
     await messageInput.fill('initial content');
     await sleep(300);
     console.log('  Filled input with placeholder text (workaround)');
@@ -81,7 +82,7 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
 
   // Click the Send button to open LiveDocumentModal
   const sendBtn = page.locator('button[type="submit"]').last();
-  if (await sendBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(sendBtn, 2000)) {
     await sendBtn.click();
     await sleep(1500);
     console.log('  Clicked Send to open Live Doc modal');
@@ -91,14 +92,14 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
 
   // Fill in the document title
   const titleInput = page.locator('input[placeholder="Document title..."]');
-  if (await titleInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(titleInput, 3000)) {
     console.log('  Found title input, filling...');
     await titleInput.fill(docTitle);
     await sleep(500);
 
     // Click "Create & Send" button
     const createBtn = page.locator('button:has-text("Create & Send")');
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(3000);
       console.log('  Document created!');
@@ -190,7 +191,7 @@ async function typeInEditor(page: Page, username: string, text: string): Promise
  */
 async function getEditorContent(page: Page): Promise<string> {
   const editor = page.locator('.ProseMirror').first();
-  if (await editor.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(editor, 3000)) {
     const content = await editor.textContent();
     return content ?? '';
   }
@@ -205,7 +206,7 @@ async function openLiveDocTab(page: Page, username: string, docTitle: string): P
 
   // Look for tab with document title
   const docTab = page.locator(`button:has-text("${docTitle}")`).first();
-  if (await docTab.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(docTab, 5000)) {
     await docTab.click();
     await sleep(2000);
     console.log(`  Opened Live Doc tab: ${docTitle}`);
@@ -215,7 +216,7 @@ async function openLiveDocTab(page: Page, username: string, docTitle: string): P
 
   // Try any tab with a FileText icon
   const anyDocTab = page.locator('button:has(svg.lucide-file-text)').first();
-  if (await anyDocTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(anyDocTab, 2000)) {
     await anyDocTab.click();
     await sleep(2000);
     console.log(`  Opened a Live Doc tab`);

@@ -26,6 +26,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -74,7 +75,7 @@ async function navigateToFileManager(page: Page): Promise<boolean> {
 
   // Try the Files link in sidebar
   const filesLink = page.locator('a[href*="files"], button:has-text("Files"), [data-sidebar-item*="files"]').first();
-  if (await filesLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(filesLink, 5000)) {
     await filesLink.click();
     await sleep(2000);
   } else {
@@ -171,7 +172,7 @@ async function testPropertiesDialog(page: Page): Promise<boolean> {
 
   // Look for "Properties" or "Info" in context menu
   const propertiesItem = page.locator('[role="menuitem"]:has-text("Properties"), [role="menuitem"]:has-text("Info")').first();
-  if (await propertiesItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(propertiesItem, 3000)) {
     await propertiesItem.click();
     await sleep(500);
 
@@ -443,7 +444,7 @@ async function runTest(): Promise<boolean> {
 
       // Close it
       const cancelBtn = page1.locator('button:has-text("Cancel")').first();
-      if (await cancelBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(cancelBtn, 1000)) {
         await cancelBtn.click();
         await sleep(300);
       }
@@ -504,7 +505,7 @@ async function runTest(): Promise<boolean> {
 
       // Close it
       const okBtn = page1.locator('button:has-text("OK")').first();
-      if (await okBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(okBtn, 1000)) {
         await okBtn.click();
         await sleep(300);
       }

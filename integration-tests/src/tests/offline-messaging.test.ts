@@ -38,6 +38,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -350,10 +351,10 @@ async function runTest(): Promise<boolean> {
     const sessionButton = reconnectPage.locator(`[data-testid="session-button-${USER2}"]`);
     const sessionIcon = reconnectPage.locator(`[data-testid="session-icon-${USER2}"]`);
     let claimClicked = false;
-    if (await sessionButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(sessionButton, 3000)) {
       await sessionButton.click();
       claimClicked = true;
-    } else if (await sessionIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+    } else if (await isVisibleWithin(sessionIcon, 2000)) {
       await sessionIcon.click();
       claimClicked = true;
     }

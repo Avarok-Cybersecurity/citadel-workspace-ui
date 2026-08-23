@@ -39,6 +39,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -460,7 +461,7 @@ async function runTest(): Promise<boolean> {
       const toggleSelector = `[data-testid="tree-node-toggle-${nodeIds.Alpha}"]`;
       const toggleBtn = page.locator(toggleSelector).first();
 
-      if (await toggleBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(toggleBtn, 3000)) {
         // Click to collapse
         await toggleBtn.click();
         await sleep(500);

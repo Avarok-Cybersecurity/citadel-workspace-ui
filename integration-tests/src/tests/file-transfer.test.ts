@@ -27,6 +27,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -798,7 +799,7 @@ async function acceptAllTransfers(
     if (buttonCount > 0) {
       // Click the first visible accept button
       const firstAccept = acceptButtons.first();
-      if (await firstAccept.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(firstAccept, 1000)) {
         await firstAccept.click();
         acceptedCount++;
         console.log(`  ✓ Accepted transfer ${acceptedCount}`);

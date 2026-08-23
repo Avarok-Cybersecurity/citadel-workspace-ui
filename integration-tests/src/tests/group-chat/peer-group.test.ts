@@ -35,6 +35,7 @@ import {
   p2pRegister,
   acceptP2PRequest,
 } from '../../lib/index.js';
+import { isVisibleWithin } from '../../lib/index.js';
 
 // ============================================================================
 // Configuration
@@ -146,7 +147,7 @@ async function createPeerGroup(
 
   // Fill in group name - input has id="groupName" and placeholder with "'s Group"
   const nameInput = page.locator('input#groupName, input[placeholder*="Group"]').first();
-  if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(nameInput, 3000)) {
     await nameInput.fill(groupName);
     console.log(`    Group name filled: ${groupName}`);
   } else {
@@ -172,7 +173,7 @@ async function createPeerGroup(
 
     // Select the peer from the popover
     const peerOption = page.locator(`[role="option"]:has-text("${member.username}"), button:has-text("${member.username}")`).first();
-    if (await peerOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(peerOption, 2000)) {
       await peerOption.click();
       console.log(`    Selected member: ${member.username}`);
       await sleep(500);

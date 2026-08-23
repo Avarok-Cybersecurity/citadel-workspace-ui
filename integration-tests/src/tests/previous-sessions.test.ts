@@ -24,6 +24,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -96,11 +97,11 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
     await page.locator('input#password').fill(password);
 
     const advancedBtn = page.locator('button:has-text("Advanced Options")');
-    if (await advancedBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(advancedBtn, 1000)) {
       await advancedBtn.click({ force: true });
       await sleep(300);
       const serverInput = page.locator('input#server');
-      if (await serverInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(serverInput, 1000)) {
         await serverInput.fill(config.WORKSPACE_SERVER);
       }
     }
@@ -321,7 +322,7 @@ async function disconnectViaNavbar(
     // Look for Deregister button, scoped to dialog if visible
     const scope = dialogVisible ? dialog : page;
     const deregisterBtn = scope.locator('button:has-text("Deregister")').first();
-    if (await deregisterBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(deregisterBtn, 5000)) {
       await deregisterBtn.click();
       await sleep(3000);
       console.log('  Deregistered successfully');
@@ -331,7 +332,7 @@ async function disconnectViaNavbar(
     // Look for Disconnect confirmation button — exclude the overlay button via :not([data-testid])
     const scope = dialogVisible ? dialog : page;
     const confirmBtn = scope.locator('button:has-text("Disconnect"):not([data-testid])').first();
-    if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(confirmBtn, 5000)) {
       await confirmBtn.click();
       await sleep(2000);
       console.log('  Disconnected successfully');

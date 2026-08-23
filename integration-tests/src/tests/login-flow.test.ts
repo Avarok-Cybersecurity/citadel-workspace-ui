@@ -27,6 +27,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -74,7 +75,7 @@ async function loginWithCredentials(
     await sleep(1000);
     const existingSession = page.locator(`button[title*="${username}"]`).first();
 
-    if (await existingSession.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(existingSession, 3000)) {
       console.log('  Found existing session, clicking to reconnect...');
       await existingSession.click();
       await sleep(3000);
@@ -124,11 +125,11 @@ async function loginWithCredentials(
 
     // Fill server address via Advanced Options
     const advancedBtn = page.locator('button:has-text("Advanced Options")');
-    if (await advancedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(advancedBtn, 2000)) {
       await advancedBtn.click();
       await sleep(300);
       const serverInput = page.locator('input#server');
-      if (await serverInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(serverInput, 2000)) {
         await serverInput.fill(config.WORKSPACE_SERVER);
         await sleep(300);
       }
@@ -149,7 +150,7 @@ async function loginWithCredentials(
 
     // Check for errors first
     const errorElement = page.locator('.text-red-400');
-    if (await errorElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(errorElement, 2000)) {
       const errorText = await errorElement.textContent();
       console.log(`  Login error: ${errorText}`);
 
@@ -161,7 +162,7 @@ async function loginWithCredentials(
         await sleep(500);
 
         const sessionIcon = page.locator(`button[title*="${username}"]`).first();
-        if (await sessionIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
+        if (await isVisibleWithin(sessionIcon, 3000)) {
           await sessionIcon.click();
           await sleep(3000);
           return true;

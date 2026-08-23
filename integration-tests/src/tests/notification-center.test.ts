@@ -23,6 +23,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -166,7 +167,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Click "All" tab
   const allTab = page.locator('button[role="tab"]:has-text("All")');
-  if (await allTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(allTab, 3000)) {
     await allTab.click();
     await sleep(300);
     const isActive = await allTab.getAttribute('data-state');
@@ -176,7 +177,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Click "Messages" tab
   const messagesTab = page.locator('button[role="tab"]:has-text("Messages")');
-  if (await messagesTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(messagesTab, 3000)) {
     await messagesTab.click();
     await sleep(300);
     const isActive = await messagesTab.getAttribute('data-state');
@@ -186,7 +187,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Click "Requests" tab
   const requestsTab = page.locator('button[role="tab"]:has-text("Requests")');
-  if (await requestsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(requestsTab, 3000)) {
     await requestsTab.click();
     await sleep(300);
     const isActive = await requestsTab.getAttribute('data-state');
@@ -196,7 +197,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Click "System" tab
   const systemTab = page.locator('button[role="tab"]:has-text("System")');
-  if (await systemTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(systemTab, 3000)) {
     await systemTab.click();
     await sleep(300);
     const isActive = await systemTab.getAttribute('data-state');

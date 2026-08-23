@@ -25,6 +25,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -187,7 +188,7 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
     // Try multiple sync attempts — P2P ops may take a moment to propagate
     for (let attempt = 0; attempt < 10; attempt++) {
       const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
-      if (await syncBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      if (await isVisibleWithin(syncBtn, 5000)) {
         await syncBtn.click();
         console.log(`  Clicked Sync button (attempt ${attempt + 1}/10)`);
       }

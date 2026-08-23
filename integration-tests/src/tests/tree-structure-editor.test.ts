@@ -31,6 +31,7 @@ import {
   runTestMain,
   type DiagnosticsHandle,
 } from '../lib/index.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -411,7 +412,7 @@ async function createNodeViaUI(
   await nameInput.fill(name);
 
   const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-  if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await isVisibleWithin(descInput, 1000)) {
     await descInput.fill(description);
   }
 
@@ -473,7 +474,7 @@ async function navigateToOffice(page: Page, officeName: string): Promise<boolean
   console.log(`  Navigating to office: ${officeName}`);
 
   const officeBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
-  if (await officeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(officeBtn, 3000)) {
     await officeBtn.click();
     await sleep(1000);
     return true;
@@ -513,7 +514,7 @@ async function deleteNodeViaUI(
 
   // Confirm deletion
   const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-  if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(confirmBtn, 2000)) {
     await confirmBtn.click();
     await sleep(2000);
 
@@ -556,7 +557,7 @@ async function updateNodeViaUI(
 
   if (updates.name) {
     const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (await nameInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(nameInput, 1000)) {
       await nameInput.clear();
       await nameInput.fill(updates.name);
     }
@@ -564,14 +565,14 @@ async function updateNodeViaUI(
 
   if (updates.description) {
     const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-    if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(descInput, 1000)) {
       await descInput.clear();
       await descInput.fill(updates.description);
     }
   }
 
   const saveBtn = page.locator('button:has-text("Save"), button:has-text("Update")').first();
-  if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await isVisibleWithin(saveBtn, 1000)) {
     await saveBtn.click();
     await sleep(2000);
     return true;

@@ -30,6 +30,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -251,7 +252,7 @@ async function verifyServerStorageIndicator(page: Page): Promise<boolean> {
 async function refreshTree(page: Page): Promise<void> {
   console.log('\n=== Refreshing tree ===');
   const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
-  if (await syncBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(syncBtn, 3000)) {
     await syncBtn.click();
     console.log('  Clicked refresh button');
     await sleep(2000);

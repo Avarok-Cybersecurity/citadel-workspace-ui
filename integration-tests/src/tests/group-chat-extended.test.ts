@@ -24,6 +24,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -113,7 +114,7 @@ async function testGroupSettingsPanel(page: Page): Promise<{
   if (!(await settingsBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
     // Try the chevron-down dropdown trigger
     const dropdownTrigger = page.locator('button:has(svg.lucide-chevron-down)').first();
-    if (await dropdownTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(dropdownTrigger, 2000)) {
       await dropdownTrigger.click();
       await sleep(500);
     } else {
@@ -127,7 +128,7 @@ async function testGroupSettingsPanel(page: Page): Promise<{
 
   // Look for "Group Settings" menu item
   const groupSettingsItem = page.locator('[role="menuitem"]:has-text("Group Settings"), button:has-text("Group Settings")').first();
-  if (await groupSettingsItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(groupSettingsItem, 3000)) {
     await groupSettingsItem.click();
     await sleep(1000);
   }
@@ -147,7 +148,7 @@ async function testGroupSettingsPanel(page: Page): Promise<{
   // Check for "View Members" option as alternative
   if (!results.opens) {
     const viewMembers = page.locator('[role="menuitem"]:has-text("View Members"), button:has-text("View Members")').first();
-    if (await viewMembers.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(viewMembers, 2000)) {
       await viewMembers.click();
       await sleep(500);
       results.opens = true;

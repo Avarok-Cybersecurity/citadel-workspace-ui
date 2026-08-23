@@ -20,6 +20,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -72,14 +73,14 @@ async function registerUser(page: Page, username: string, password: string): Pro
 
     // Click "Join Workspace" button
     const joinBtn = page.locator('button:has-text("Join Workspace")');
-    if (await joinBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(joinBtn, 5000)) {
       await joinBtn.click();
       await sleep(1000);
     }
 
     // Step 1: Fill workspace address
     const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
-    if (await serverInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(serverInput, 5000)) {
       await serverInput.fill(config.WORKSPACE_SERVER);
       await sleep(500);
 
@@ -98,7 +99,7 @@ async function registerUser(page: Page, username: string, password: string): Pro
 
     // Step 3: User Details form
     const fullNameInput = page.getByRole('textbox', { name: 'Full Name' });
-    if (await fullNameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(fullNameInput, 5000)) {
       await fullNameInput.fill(username);
       await sleep(300);
 
@@ -212,7 +213,7 @@ async function submitInitialization(page: Page, password: string): Promise<boole
     } else {
       // Check for error message
       const errorMsg = page.locator('.text-red-400');
-      if (await errorMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(errorMsg, 2000)) {
         const errorText = await errorMsg.textContent();
         console.log(`  Initialization error: ${errorText}`);
       }

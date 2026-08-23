@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -147,7 +148,7 @@ async function testSaveAndPersist(page: Page): Promise<{
   // Type unique content into the editor
   const UNIQUE_CONTENT = `TestMDX_${Date.now()}`;
   const editor = page.locator('textarea, [contenteditable="true"], .ProseMirror').first();
-  if (await editor.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(editor, 2000)) {
     await editor.click();
     // Select all existing content and replace it
     await page.keyboard.press('Meta+a');
@@ -207,7 +208,7 @@ async function testSaveAndPersist(page: Page): Promise<{
   // Also click Edit to re-enter editor and verify content there
   const editBtn = page.locator('button:has-text("Edit")').first();
   let editorContent = '';
-  if (await editBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(editBtn, 5000)) {
     // Wait for permissions to load (Edit button is wrapped in DisabledWithTooltip)
     const enabled = await editBtn.isEnabled({ timeout: 10000 }).catch(() => false);
     if (enabled) {

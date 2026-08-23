@@ -21,6 +21,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -66,13 +67,13 @@ async function testAccountManagementDialog(page: Page): Promise<{
 
   // Try opening from WorkspaceSwitcher
   const switcherBtn = page.locator('button:has(svg.lucide-chevron-right), [data-testid="workspace-switcher"]').first();
-  if (await switcherBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(switcherBtn, 5000)) {
     await switcherBtn.click();
     await sleep(500);
 
     // Look for "Manage Accounts" option
     const manageAccounts = page.locator('[role="menuitem"]:has-text("Manage Accounts"), button:has-text("Manage Accounts")').first();
-    if (await manageAccounts.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(manageAccounts, 3000)) {
       await manageAccounts.click();
       await sleep(1000);
 
@@ -107,7 +108,7 @@ async function testAccountManagementDialog(page: Page): Promise<{
   // Alternative: try from landing page "Manage Accounts" button
   if (!results.opens) {
     const manageBtn = page.locator('button:has-text("Manage Accounts")').first();
-    if (await manageBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(manageBtn, 2000)) {
       await manageBtn.click();
       await sleep(1000);
 

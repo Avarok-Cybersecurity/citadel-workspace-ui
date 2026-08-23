@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -83,14 +84,14 @@ async function openSettingsFromTopBar(page: Page): Promise<boolean> {
 
     // Click the avatar button to open the dropdown menu
     const avatarButton = page.locator('[data-testid="user-avatar-button"]').first();
-    if (await avatarButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(avatarButton, 3000)) {
       console.log('    Clicking avatar button...');
       await avatarButton.click();
       await sleep(500);
 
       // Click "Settings" option in the dropdown
       const settingsOption = page.locator('[role="menuitem"]:has-text("Settings")').first();
-      if (await settingsOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(settingsOption, 2000)) {
         console.log('    Clicking Settings option...');
         await settingsOption.click();
         await sleep(1000);
@@ -272,7 +273,7 @@ async function roleBadgeDisplayed(page: Page): Promise<boolean> {
 
   for (const selector of roleBadges) {
     const badge = dialog.locator(selector).first();
-    if (await badge.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(badge, 1000)) {
       const text = await badge.textContent();
       console.log(`    Found role badge: ${text}`);
       return true;
@@ -452,7 +453,7 @@ async function runTest(): Promise<boolean> {
 
     for (const selector of closeSelectors) {
       const closeBtn = page.locator(selector).first();
-      if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(closeBtn, 1000)) {
         console.log(`  Found close button with selector: ${selector}`);
         await closeBtn.click();
         await sleep(800);
@@ -522,7 +523,7 @@ async function runTest(): Promise<boolean> {
         // Expand workspace accordion if needed and check categories (scoped to dialog)
         const dialogForAccordion = getSettingsDialog(page);
         const workspaceHeader = dialogForAccordion.locator('[data-state="closed"] button').first();
-        if (await workspaceHeader.isVisible({ timeout: 1000 }).catch(() => false)) {
+        if (await isVisibleWithin(workspaceHeader, 1000)) {
           await workspaceHeader.click();
           await sleep(500);
         }
@@ -542,7 +543,7 @@ async function runTest(): Promise<boolean> {
     // Expand a category to see permission rows (scoped to dialog)
     const dialog = getSettingsDialog(page);
     const contentCategory = dialog.locator('button:has-text("Content")').first();
-    if (await contentCategory.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(contentCategory, 2000)) {
       await contentCategory.click();
       await sleep(500);
     }

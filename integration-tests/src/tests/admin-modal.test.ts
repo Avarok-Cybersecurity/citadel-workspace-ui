@@ -12,6 +12,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -244,19 +245,19 @@ async function runTest(): Promise<boolean> {
 
     // Click the "+" button in the HIERARCHY section to create a new node
     const addNodeBtn = page.locator('[data-testid="add-node-button"], [data-testid="add-root-node-button"]').first();
-    if (await addNodeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(addNodeBtn, 5000)) {
       await addNodeBtn.click();
       await sleep(500);
 
       // Fill the NodeManagementModal
       const nameInput = page.locator('input#name, input[id="name"]').first();
-      if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(nameInput, 3000)) {
         await nameInput.fill(TEST_OFFICE_NAME);
         await sleep(200);
 
         // Click the submit/create button
         const submitBtn = page.locator('button[type="submit"], button:has-text("Create")').first();
-        if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(submitBtn, 2000)) {
           await submitBtn.click();
           await sleep(2000);
         }

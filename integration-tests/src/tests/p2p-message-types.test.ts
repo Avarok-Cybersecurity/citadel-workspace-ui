@@ -25,6 +25,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -156,7 +157,7 @@ async function sendMarkdownMessage(page: Page, username: string): Promise<{
 
   // Click send
   const sendBtn = page.locator('button[type="submit"]').last();
-  if (await sendBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(sendBtn, 2000)) {
     await sendBtn.click();
     await sleep(2000);
     results.sent = true;
@@ -184,7 +185,7 @@ async function testMessageContextMenu(page: Page): Promise<{
 
   // First, switch back to Text mode and send a plain message
   const textBtn = page.locator('button[title="Text"], button:has-text("Text")').first();
-  if (await textBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(textBtn, 2000)) {
     await textBtn.click();
     await sleep(300);
   }
@@ -249,7 +250,7 @@ async function testChatSettingsPanel(page: Page): Promise<{
   if (!(await settingsBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
     // Try the panel toggle button
     const panelToggle = page.locator('button:has(svg.lucide-panel-right), button:has(svg.lucide-sidebar-right)').first();
-    if (await panelToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(panelToggle, 3000)) {
       await panelToggle.click();
       await sleep(1000);
     } else {

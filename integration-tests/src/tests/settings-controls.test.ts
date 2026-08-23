@@ -21,6 +21,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -76,7 +77,7 @@ async function testGeneralTab(page: Page): Promise<boolean> {
   // and wait for the dialog open animation to fully settle before clicking.
   await sleep(500);
   const generalTab = page.locator('[role="dialog"] button[role="tab"]').first();
-  if (await generalTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(generalTab, 2000)) {
     await generalTab.click();
     await sleep(300);
 
@@ -311,7 +312,7 @@ async function runTest(): Promise<boolean> {
     if (results.settingsReopen) {
       // Verify the auto-reconnect state persisted after close/reopen
       const connectionsTab = page.locator('[role="dialog"] button[role="tab"]').nth(1);
-      if (await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(connectionsTab, 2000)) {
         await connectionsTab.click();
         await sleep(300);
         const autoReconnect = page.locator('#auto-reconnect').first();

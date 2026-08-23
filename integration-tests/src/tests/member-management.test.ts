@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -53,14 +54,14 @@ async function openMemberManagement(page: Page): Promise<boolean> {
 
   // Try sidebar Admin Settings section
   const adminSettings = page.locator('button:has-text("Admin"), [data-testid*="admin"], text="Admin Settings"').first();
-  if (await adminSettings.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(adminSettings, 5000)) {
     await adminSettings.click();
     await sleep(1000);
   }
 
   // Look for Member Management button/link
   const memberMgmt = page.locator('button:has-text("Member Management"), button:has-text("Manage Members"), [data-testid*="member-management"]').first();
-  if (await memberMgmt.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(memberMgmt, 5000)) {
     await memberMgmt.click();
     await sleep(1000);
 
@@ -70,13 +71,13 @@ async function openMemberManagement(page: Page): Promise<boolean> {
 
   // Alternative: Try the admin-modal button (from existing test patterns)
   const adminBtn = page.locator('button:has(svg.lucide-shield), button:has-text("Admin Panel")').first();
-  if (await adminBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(adminBtn, 3000)) {
     await adminBtn.click();
     await sleep(1000);
 
     // Look for members tab within admin panel
     const membersTab = page.locator('button:has-text("Members"), button[role="tab"]:has-text("Members")').first();
-    if (await membersTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(membersTab, 3000)) {
       await membersTab.click();
       await sleep(500);
       return true;

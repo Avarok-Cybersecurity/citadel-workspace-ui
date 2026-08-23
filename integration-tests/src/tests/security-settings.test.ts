@@ -23,6 +23,7 @@ import {
   waitForAppReady,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -127,7 +128,7 @@ async function verifySecurityLevelSelect(page: Page): Promise<boolean> {
     await sleep(500);
 
     const reinforcedOption = page.locator('[role="option"]:has-text("Reinforced")').first();
-    if (await reinforcedOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(reinforcedOption, 3000)) {
       await reinforcedOption.click();
       await sleep(500);
 
@@ -372,14 +373,14 @@ async function runTest(): Promise<boolean> {
 
     // Click NEXT to pass through Security Settings
     const nextBtn = page.getByRole('button', { name: 'NEXT' });
-    if (await nextBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(nextBtn, 3000)) {
       await nextBtn.click();
       await sleep(2000);
     }
 
     // Fill user details and create account
     const fullNameInput = page.getByRole('textbox', { name: 'Full Name' });
-    if (await fullNameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(fullNameInput, 5000)) {
       await fullNameInput.fill(USERNAME);
       await sleep(300);
 
@@ -410,7 +411,7 @@ async function runTest(): Promise<boolean> {
 
     // Handle workspace init for first user
     const masterPwField = page.locator('input#masterPassword');
-    if (await masterPwField.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(masterPwField, 5000)) {
       await masterPwField.fill(config.WORKSPACE_PASSWORD);
       await sleep(500);
       const initBtn = page.locator('button:has-text("Initialize & Become Admin")');

@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -121,7 +122,7 @@ async function testSidebarCollapse(page: Page): Promise<{
 
   // Find collapse toggle button
   const collapseBtn = page.locator('button:has(svg.lucide-panel-left), button:has(svg.lucide-sidebar), button[aria-label*="Collapse"], button[aria-label*="sidebar"]').first();
-  if (await collapseBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(collapseBtn, 3000)) {
     await collapseBtn.click();
     await sleep(500);
 
@@ -139,7 +140,7 @@ async function testSidebarCollapse(page: Page): Promise<{
     // Expand again
     if (results.collapseWorks) {
       const expandBtn = page.locator('button:has(svg.lucide-panel-left), button:has(svg.lucide-sidebar), button[aria-label*="Expand"], button[aria-label*="sidebar"]').first();
-      if (await expandBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(expandBtn, 3000)) {
         await expandBtn.click();
         await sleep(500);
         results.expandWorks = true;
@@ -178,7 +179,7 @@ async function testProfileEdit(page: Page): Promise<boolean> {
 
   // Try editing display name
   const nameInput = page.locator('input[name="displayName"], input[placeholder*="name"], input[placeholder*="Name"]').first();
-  if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(nameInput, 3000)) {
     const originalValue = await nameInput.inputValue();
     await nameInput.fill('Updated Name');
     await sleep(300);

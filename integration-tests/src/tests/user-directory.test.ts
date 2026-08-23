@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -97,7 +98,7 @@ async function navigateToDirectory(page: Page): Promise<boolean> {
     // Alternative: try sidebar link if available
     console.log('  Client-side navigation may have failed, trying sidebar...');
     const sidebarLink = page.locator('a[href*="directory"], button:has-text("Directory")').first();
-    if (await sidebarLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(sidebarLink, 3000)) {
       await sidebarLink.click();
       await sleep(2000);
       return await title.isVisible({ timeout: 5000 }).catch(() => false);
@@ -106,7 +107,7 @@ async function navigateToDirectory(page: Page): Promise<boolean> {
     // Alternative: Try react-router Link click via navigation
     // Some apps use a top navigation or user menu
     const navLink = page.locator('[href="/directory"]').first();
-    if (await navLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(navLink, 2000)) {
       await navLink.click();
       await sleep(2000);
       return await title.isVisible({ timeout: 5000 }).catch(() => false);
@@ -187,7 +188,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Click "All" tab
   const allTab = page.locator('button[role="tab"]:has-text("All")');
-  if (await allTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(allTab, 3000)) {
     await allTab.click();
     await sleep(500);
     // Check if tab is selected (data-state="active")
@@ -198,7 +199,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Click "Online" tab
   const onlineTab = page.locator('button[role="tab"]:has-text("Online")');
-  if (await onlineTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(onlineTab, 3000)) {
     await onlineTab.click();
     await sleep(500);
     const isActive = await onlineTab.getAttribute('data-state');
@@ -208,7 +209,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Click "Favorites" tab
   const favoritesTab = page.locator('button[role="tab"]:has-text("Favorites")');
-  if (await favoritesTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(favoritesTab, 3000)) {
     await favoritesTab.click();
     await sleep(500);
     const isActive = await favoritesTab.getAttribute('data-state');
@@ -254,7 +255,7 @@ async function selectUserAndVerifyPanel(page: Page, displayName: string): Promis
   // The member list has rows with flex items - we need to click anywhere in the row
   const userRow = page.locator(`div:has(h3:has-text("${displayName}"))`).first();
 
-  if (await userRow.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(userRow, 5000)) {
     await userRow.click();
     await sleep(1000);
 
@@ -309,14 +310,14 @@ async function testConnectionRequestFlow(page: Page): Promise<{
 
     // Close the dialog
     const cancelButton = page.locator('button:has-text("Cancel")');
-    if (await cancelButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(cancelButton, 2000)) {
       await cancelButton.click();
       await sleep(500);
     }
   } else {
     // Alternative: try the UserPlus icon button in the member list
     const inviteButton = page.locator('button svg.lucide-user-plus').first();
-    if (await inviteButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(inviteButton, 2000)) {
       await inviteButton.click();
       await sleep(1000);
 
@@ -327,7 +328,7 @@ async function testConnectionRequestFlow(page: Page): Promise<{
 
       // Close the dialog
       const cancelButton = page.locator('button:has-text("Cancel")');
-      if (await cancelButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(cancelButton, 2000)) {
         await cancelButton.click();
         await sleep(500);
       }
@@ -510,7 +511,7 @@ async function runTest(): Promise<boolean> {
       // Try selecting any user that appears in the list
       console.log('  Bob not in list, trying to select first available user...');
       const firstUser = alicePage.locator('div.divide-y.divide-gray-700 > div').first();
-      if (await firstUser.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(firstUser, 3000)) {
         await firstUser.click();
         await sleep(1000);
 

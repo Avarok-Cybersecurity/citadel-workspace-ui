@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -81,7 +82,7 @@ async function openUserDropdown(page: Page): Promise<boolean> {
     // Find the user avatar button using data-testid (most reliable)
     const avatarButton = page.locator('[data-testid="user-avatar-button"]');
 
-    if (await avatarButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(avatarButton, 5000)) {
       console.log('  Found avatar button via data-testid');
       await avatarButton.click();
       await sleep(500);
@@ -95,7 +96,7 @@ async function openUserDropdown(page: Page): Promise<boolean> {
 
     // Alternative: try finding by button containing Avatar
     const altButton = page.locator('button:has([class*="Avatar"])').first();
-    if (await altButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(altButton, 3000)) {
       console.log('  Found avatar button via class selector');
       await altButton.click();
       await sleep(500);
@@ -208,7 +209,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Test General tab (default)
   const generalTab = page.locator('button[role="tab"]').first(); // First tab is General
-  if (await generalTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(generalTab, 2000)) {
     await generalTab.click({ force: true });
     await sleep(300);
     const isActive = await generalTab.getAttribute('data-state');
@@ -222,7 +223,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Test Connections tab
   const connectionsTab = page.locator('button[role="tab"]').nth(1);
-  if (await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(connectionsTab, 2000)) {
     await connectionsTab.click({ force: true });
     await sleep(300);
     const isActive = await connectionsTab.getAttribute('data-state');
@@ -235,7 +236,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Test Appearance tab
   const appearanceTab = page.locator('button[role="tab"]').nth(2);
-  if (await appearanceTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(appearanceTab, 2000)) {
     await appearanceTab.click({ force: true });
     await sleep(300);
     const isActive = await appearanceTab.getAttribute('data-state');
@@ -248,7 +249,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Test Privacy tab
   const privacyTab = page.locator('button[role="tab"]').nth(3);
-  if (await privacyTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(privacyTab, 2000)) {
     await privacyTab.click({ force: true });
     await sleep(300);
     const isActive = await privacyTab.getAttribute('data-state');
@@ -261,7 +262,7 @@ async function testTabSwitching(page: Page): Promise<{
 
   // Test Permissions tab
   const permissionsTab = page.locator('button[role="tab"]').nth(4);
-  if (await permissionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(permissionsTab, 2000)) {
     await permissionsTab.click({ force: true });
     await sleep(300);
     const isActive = await permissionsTab.getAttribute('data-state');

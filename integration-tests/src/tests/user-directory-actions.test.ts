@@ -24,6 +24,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -66,7 +67,7 @@ async function navigateToDirectory(page: Page): Promise<boolean> {
 
   // Look for directory link in sidebar or navigate directly
   const directoryLink = page.locator('a[href*="directory"], button:has-text("Directory"), [data-testid*="directory"]').first();
-  if (await directoryLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(directoryLink, 3000)) {
     await directoryLink.click();
     await sleep(2000);
     return true;

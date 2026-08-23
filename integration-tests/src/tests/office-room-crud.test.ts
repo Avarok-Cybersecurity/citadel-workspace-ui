@@ -28,6 +28,7 @@ import {
 } from '../lib/index.js';
 
 import type { Page, Browser } from 'playwright';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -98,7 +99,7 @@ async function clickAddOfficeButton(page: Page): Promise<boolean> {
 
   for (const selector of selectors) {
     const btn = page.locator(selector).first();
-    if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(btn, 1000)) {
       await btn.click();
       await sleep(500);
       console.log(`  Clicked Add Node button (${selector})`);
@@ -125,7 +126,7 @@ async function fillCreateOfficeModal(
 
   // Fill name - use id selector since the input has id="name"
   const nameInput = page.locator('input#name, input[id="name"]').first();
-  if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(nameInput, 2000)) {
     await nameInput.fill(name);
   } else {
     console.log('  WARNING: Name input not found');
@@ -134,7 +135,7 @@ async function fillCreateOfficeModal(
 
   // Fill description - use id selector since textarea has id="description"
   const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-  if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await isVisibleWithin(descInput, 1000)) {
     await descInput.fill(description);
   }
 
@@ -142,7 +143,7 @@ async function fillCreateOfficeModal(
 
   // Submit - NodeManagementModal uses "Create {EntityType}" as button text
   const createBtn = page.locator('button:has-text("Create")').first();
-  if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(createBtn, 2000)) {
     await createBtn.click();
     await sleep(2000);
     return true;
@@ -196,7 +197,7 @@ async function clickAddRoomButton(page: Page, parentName?: string): Promise<bool
   // Now look for the create-child item in the open dropdown
   const createChildTestId = `create-child-${nodeId}`;
   const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
-  if (await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(createItem, 2000)) {
     await createItem.click();
     await sleep(500);
     console.log(`  Clicked Create Child button (${createChildTestId})`);
@@ -227,7 +228,7 @@ async function fillCreateRoomModal(
 
   // Fill name - use id selector since the input has id="name"
   const nameInput = page.locator('input#name, input[id="name"]').first();
-  if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(nameInput, 2000)) {
     await nameInput.fill(name);
   } else {
     console.log('  WARNING: Name input not found');
@@ -236,7 +237,7 @@ async function fillCreateRoomModal(
 
   // Fill description - use id selector since textarea has id="description"
   const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-  if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await isVisibleWithin(descInput, 1000)) {
     await descInput.fill(description);
   }
 
@@ -244,7 +245,7 @@ async function fillCreateRoomModal(
 
   // Submit - NodeManagementModal uses "Create {EntityType}" as button text
   const createBtn = page.locator('button:has-text("Create")').first();
-  if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(createBtn, 2000)) {
     await createBtn.click();
     await sleep(2000);
     return true;
@@ -287,7 +288,7 @@ async function openEditModal(page: Page, itemName: string, _type: 'office' | 'ro
 
     // Click the edit option using new testid pattern
     const editOption = page.locator(`[data-testid="edit-node-${nodeId}"]`).first();
-    if (await editOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(editOption, 1000)) {
       await editOption.click();
       await sleep(500);
       return true;
@@ -338,13 +339,13 @@ async function deleteNode(page: Page, nodeName: string): Promise<boolean> {
 
       // Look for Delete option using new testid pattern
       const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
-      if (await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(deleteOption, 3000)) {
         await deleteOption.click();
         await sleep(500);
 
         // Confirm deletion
         const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(confirmBtn, 2000)) {
           await confirmBtn.click();
           console.log('  Node delete confirmed');
 
@@ -577,13 +578,13 @@ async function runTest(): Promise<boolean> {
       if (await openEditModal(adminPage, TEST_OFFICE_NAME)) {
         // Use input#name to match the actual DOM element (id="name")
         const nameInput = adminPage.locator('input#name').first();
-        if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(nameInput, 2000)) {
           await nameInput.clear();
           await nameInput.fill(updatedOfficeName);
           await sleep(300);
 
           const saveBtn = adminPage.locator('button:has-text("Save"), button:has-text("Update")').first();
-          if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          if (await isVisibleWithin(saveBtn, 1000)) {
             await saveBtn.click();
             await sleep(2000);
 
