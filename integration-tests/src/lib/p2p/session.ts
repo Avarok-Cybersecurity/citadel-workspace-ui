@@ -421,14 +421,12 @@ export async function loginAfterDisconnect(
             ? orphanIcon
             : partialMatch;
         await clickTarget.click();
-        await sleep(3000);
 
         const claimLoaded = await waitForWorkspaceLoaded(page, 45000);
         if (claimLoaded) {
           console.log(`  ${username} reconnected via ClaimSession (orphan recovery)`);
           await takeScreenshot(page, `${username}_logged_in_via_claim`);
-          console.log('  Waiting for P2P auto-connect service to establish connections...');
-          await sleep(10000);
+          await settleAutoConnect(page);
           return true;
         }
         console.log('  ClaimSession failed, falling back to fresh login...');
@@ -549,8 +547,7 @@ export async function loginAfterDisconnect(
         if (reloadLoaded) {
           console.log(`  ${username} workspace loaded after reload`);
           await takeScreenshot(page, `${username}_logged_in_via_reload`);
-          console.log('  Waiting for P2P auto-connect service to establish connections...');
-          await sleep(10000);
+          await settleAutoConnect(page);
           return true;
         }
         console.log('  Workspace still not loaded after reload');
@@ -585,13 +582,11 @@ export async function loginAfterDisconnect(
             ? retryOrphanIcon
             : retryPartialMatch;
         await target.click();
-        await sleep(3000);
         const claimLoaded = await waitForWorkspaceLoaded(page, 30000);
         if (claimLoaded) {
           console.log(`  ${username} reconnected via ClaimSession on retry`);
           await takeScreenshot(page, `${username}_logged_in_via_retry_claim`);
-          console.log('  Waiting for P2P auto-connect service to establish connections...');
-          await sleep(10000);
+          await settleAutoConnect(page);
           return true;
         }
         // ClaimSession navigated but workspace not loaded - try reload
@@ -599,12 +594,11 @@ export async function loginAfterDisconnect(
         if (claimUrl.includes('/workspace') || claimUrl.includes('/office')) {
           console.log('  ClaimSession on workspace URL - reloading...');
           await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
-          await sleep(3000);
           const claimReloadLoaded = await waitForWorkspaceLoaded(page, 30000);
           if (claimReloadLoaded) {
             console.log(`  ${username} workspace loaded after claim + reload`);
             await takeScreenshot(page, `${username}_logged_in_claim_reload`);
-            await sleep(10000);
+            await settleAutoConnect(page);
             return true;
           }
         }
@@ -662,12 +656,11 @@ export async function loginAfterDisconnect(
           } else {
             await retryPasswordInput.press('Enter');
           }
-          await sleep(5000);
           const freshLoaded = await waitForWorkspaceLoaded(page, 45000);
           if (freshLoaded) {
             console.log(`  ${username} logged in on fresh retry`);
             await takeScreenshot(page, `${username}_logged_in_fresh_retry`);
-            await sleep(10000);
+            await settleAutoConnect(page);
             return true;
           }
         }
@@ -681,10 +674,7 @@ export async function loginAfterDisconnect(
     console.log(`  ${username} logged in successfully`);
     await takeScreenshot(page, `${username}_logged_in`);
 
-    // Wait for p2pAutoConnectService to establish peer connections
-    // The service polls every 5 minutes, but on startup it runs immediately
-    console.log('  Waiting for P2P auto-connect service to establish connections...');
-    await sleep(10000); // Give p2pAutoConnectService time to start and connect
+    await settleAutoConnect(page);
 
     return true;
   } catch (error) {
@@ -870,7 +860,6 @@ export async function reconnectViaClaimSession(
         return false;
       }
 
-      await sleep(3000);
 
       // Wait for workspace to load after claiming session
       const loaded = await waitForWorkspaceLoaded(page, 45000);
@@ -894,4 +883,61 @@ export async function reconnectViaClaimSession(
   }
 
   return false;
+}
+
+/**
+ * Give the P2P auto-connect service a chance to establish peer channels after a
+ * login, and return as soon as it has.
+ *
+ * Replaces six identical `await sleep(10000)` calls that sat on the success paths
+ * of the login helpers — 60s of hedging against a background service, paid on
+ * every run whether or not the session had any peers to connect to.
+ *
+ * Two observations make that unnecessary:
+ *   - A session with NO registered peers has nothing to wait for. Most specs are
+ *     in that position (they log in, then do something unrelated to P2P), and for
+ *     them this returns immediately.
+ *   - A session WITH peers reports them through p2pAutoConnectService as soon as
+ *     each channel comes up, so the wait can end on that rather than on a clock.
+ *
+ * The service is exposed on `window` only in development builds, which is what
+ * the tests run against. If it is absent the helper returns rather than guessing,
+ * because the callers that actually need a live channel (p2pRegister,
+ * waitForP2PConnection) do their own waiting anyway — this is a head start, not a
+ * correctness barrier.
+ */
+export async function settleAutoConnect(page: Page, timeout = 10000): Promise<void> {
+  const connected = await page
+    .waitForFunction(
+      () => {
+        const w = window as unknown as {
+          __p2pAutoConnectService?: { getPeersForSession: (cid: bigint) => unknown[] };
+          __connectionManager?: { getConnectionStatus?: () => { cid?: bigint } | null };
+          __p2pRegistrationService?: { getPeers?: () => { registeredPeers?: unknown[] } };
+        };
+        const svc = w.__p2pAutoConnectService;
+        if (!svc) return true; // not a dev build — nothing to observe, do not stall
+        const cid = w.__connectionManager?.getConnectionStatus?.()?.cid;
+        if (cid === undefined || cid === null) return false;
+
+        // Nothing to connect TO means nothing to wait for. This is the common
+        // case — most specs log in and then do something unrelated to P2P — and
+        // without it the helper spent its full timeout confirming that a session
+        // with no peers had, indeed, connected to none of them.
+        const registered = w.__p2pRegistrationService?.getPeers?.()?.registeredPeers;
+        if (Array.isArray(registered) && registered.length === 0) return true;
+
+        return svc.getPeersForSession(cid).length > 0;
+      },
+      undefined,
+      { timeout, polling: 250 }
+    )
+    .then(() => true)
+    .catch(() => false);
+
+  console.log(
+    connected
+      ? '  P2P auto-connect: peer channels established'
+      : `  P2P auto-connect: no peer channels within ${timeout}ms (fine if this session has no peers)`
+  );
 }
