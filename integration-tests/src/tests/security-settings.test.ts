@@ -72,7 +72,7 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
 
     // Click "Join Workspace"
     const joinBtn = page.locator('button:has-text("Join Workspace")');
-    if (!(await joinBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(joinBtn, 5000))) {
       console.log('  Join Workspace button not found');
       return false;
     }
@@ -81,7 +81,7 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
 
     // Fill workspace address
     const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
-    if (!(await serverInput.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(serverInput, 5000))) {
       console.log('  Workspace Address input not found');
       return false;
     }
@@ -95,7 +95,7 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
 
     // Verify Security Settings overlay is visible
     const securityTitle = page.locator('text="Security Settings"');
-    const visible = await securityTitle.isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(securityTitle, 5000);
     console.log(`  Security Settings overlay visible: ${visible}`);
     return visible;
   } catch (error) {
@@ -114,7 +114,7 @@ async function verifySecurityLevelSelect(page: Page): Promise<boolean> {
   try {
     const selectTrigger = page.locator('#security-level').first();
 
-    if (!(await selectTrigger.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(selectTrigger, 3000))) {
       console.log('  Security Level select not found');
       return false;
     }
@@ -157,7 +157,7 @@ async function verifySecurityModeSelect(page: Page): Promise<boolean> {
   try {
     const selectTrigger = page.locator('#security-mode').first();
 
-    if (!(await selectTrigger.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(selectTrigger, 3000))) {
       console.log('  Security Mode select not found');
       return false;
     }
@@ -212,7 +212,7 @@ async function testAdvancedSettings(page: Page): Promise<{
     // Find the "ADVANCED SETTINGS" toggle button
     const advancedToggle = page.locator('button:has-text("ADVANCED SETTINGS"), button:has-text("Advanced Settings"), button:has-text("Advanced")').first();
 
-    results.toggleVisible = await advancedToggle.isVisible({ timeout: 3000 }).catch(() => false);
+    results.toggleVisible = await isVisibleWithin(advancedToggle, 3000);
     console.log(`  Advanced toggle visible: ${results.toggleVisible}`);
 
     if (!results.toggleVisible) return results;
@@ -221,15 +221,17 @@ async function testAdvancedSettings(page: Page): Promise<{
     await advancedToggle.click();
     await sleep(500);
 
-    // Check if crypto algorithm fields appeared
-    const encryptionAlgo = page.locator('#encryption-algorithm, text="Encryption Algorithm"').first();
-    const kemAlgo = page.locator('#kem-algorithm, text="KEM Algorithm"').first();
+    // getByText, not `'#encryption-algorithm, text="Encryption Algorithm"'`. A
+    // comma list mixing a CSS id with the text engine is not parsed as a union of
+    // the two, so neither alternative ever matched and the panel looked empty
+    // however well it had expanded.
+    const encVisible = await isVisibleWithin(page.getByText('Encryption Algorithm', { exact: true }), 5000);
+    const kemVisible = await isVisibleWithin(page.getByText('KEM Algorithm', { exact: true }), 5000);
 
-    const encVisible = await encryptionAlgo.isVisible({ timeout: 3000 }).catch(() => false);
-    const kemVisible = await kemAlgo.isVisible({ timeout: 3000 }).catch(() => false);
-
-    results.expandWorks = encVisible || kemVisible;
-    results.cryptoParamsVisible = encVisible || kemVisible;
+    // Both, not either: the panel exists to expose these parameters, so one
+    // showing up while the other does not is a failure worth seeing.
+    results.expandWorks = encVisible && kemVisible;
+    results.cryptoParamsVisible = encVisible && kemVisible;
     console.log(`  Expand works: ${results.expandWorks} (enc: ${encVisible}, kem: ${kemVisible})`);
 
     return results;
@@ -257,16 +259,23 @@ async function testLoginConfigureButton(page: Page): Promise<{
 
     // Click "Login Workspace"
     const loginBtn = page.locator('button:has-text("Login Workspace")');
-    if (!(await loginBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(loginBtn, 5000))) {
       console.log('  Login Workspace button not found');
       return results;
     }
     await loginBtn.click();
-    await sleep(1000);
 
-    // Look for "Configure" button on the Login screen
-    const configureBtn = page.locator('button:has-text("Configure")').first();
-    results.buttonVisible = await configureBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    // Configure sits inside the "Advanced Options" section, which starts
+    // collapsed. The test never opened it, so the button was genuinely not on
+    // screen and this and every assertion after it reported a failure the app
+    // had not made.
+    const advancedOptions = page.getByRole('button', { name: /Advanced Options/i });
+    if (await isVisibleWithin(advancedOptions, 10_000)) {
+      await advancedOptions.click();
+    }
+
+    const configureBtn = page.getByRole('button', { name: 'Configure' }).first();
+    results.buttonVisible = await isVisibleWithin(configureBtn, 5000);
     console.log(`  Configure button visible: ${results.buttonVisible}`);
 
     if (!results.buttonVisible) return results;
@@ -277,7 +286,7 @@ async function testLoginConfigureButton(page: Page): Promise<{
 
     // Verify Security Settings opened
     const securityTitle = page.locator('text="Security Settings"');
-    results.opensSecuritySettings = await securityTitle.isVisible({ timeout: 5000 }).catch(() => false);
+    results.opensSecuritySettings = await isVisibleWithin(securityTitle, 5000);
     console.log(`  Opens Security Settings: ${results.opensSecuritySettings}`);
 
     return results;
@@ -445,7 +454,19 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.overlayRenders && results.accountCreated;
+    // All nine. Four were failing silently: two on a selector that could not
+    // match, two because the Configure button sits behind a collapsed section.
+    const corePassed = [
+      results.overlayRenders,
+      results.accountCreated,
+      results.securityLevelVisible,
+      results.securityModeVisible,
+      results.advancedToggleVisible,
+      results.advancedExpandWorks,
+      results.cryptoParamsVisible,
+      results.loginConfigureButtonVisible,
+      results.configureOpensSecuritySettings,
+    ].every(Boolean);
 
     console.log('\nSecurity Settings Overlay:');
     console.log(`  Overlay Renders:           ${results.overlayRenders ? 'PASS' : 'FAIL'}`);
