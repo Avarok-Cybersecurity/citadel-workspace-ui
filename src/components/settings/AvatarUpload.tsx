@@ -101,6 +101,10 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         onClick={handleClick}
         role="button"
         tabIndex={0}
+        // Its only content is the preview image or a placeholder icon, so
+        // without this a screen reader announces "button" and nothing else.
+        aria-label={preview ? 'Change profile picture' : 'Upload profile picture'}
+        aria-disabled={disabled}
         onKeyDown={activateOnKey(handleClick)}
         onDrop={handleDrop}
         onDragOver={handleDragOver}

@@ -10,6 +10,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -251,13 +252,13 @@ export function TreeNodesSection({
           <ScrollArea style={{ maxHeight }}>
             <SidebarMenu>
               {isLoading ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
+                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
                   Loading...
-                </div>
+                </SidebarMenuItem>
               ) : searchQuery.trim() && !displayTreeData ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
+                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
                   No matching nodes
-                </div>
+                </SidebarMenuItem>
               ) : (
                 displayTreeData && (
                   <TreeNodeItem

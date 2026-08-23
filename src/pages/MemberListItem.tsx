@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { MessageCircle, UserPlus, Star } from 'lucide-react';
 import { formatPresence } from '@/lib/date-utils';
 import { UserRole } from '@/types/workspace-entities';
-import { interactive } from '@/lib/a11y';
 
 export interface MemberDisplay {
   id: string;
@@ -47,15 +46,22 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
   // saying "Click on a user or search to view their profile" — so the panel could
   // only ever be filled from the search box, and clicking a name did nothing.
   //
-  // `interactive` rather than a <button>: this row already contains buttons, and
-  // nesting them is invalid HTML. It supplies role/tabIndex/Enter/Space together,
-  // and ignores keys that bubbled up from those inner controls.
+  // The identity half of the row is the button; the action buttons are its
+  // siblings, not its children.
+  //
+  // Making the whole row role="button" tabIndex={0} looked reasonable — it was
+  // one clickable row — but a control with focusable descendants is the
+  // nested-interactive pattern, and screen readers do not agree on how to
+  // present it: the row claims to be one button while containing two more.
+  // Splitting it keeps every control reachable and unambiguous, and means the
+  // inner buttons no longer need stopPropagation to avoid also selecting.
   return (
-    <div
-      {...interactive(() => onSelect(member.id))}
-      aria-label={`View profile for ${member.displayName}`}
-      className="flex items-center justify-between p-4 hover:bg-card transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
-      <div className="flex items-center space-x-3">
+    <div className="flex items-center justify-between p-4 hover:bg-card transition-colors">
+      <button
+        type="button"
+        onClick={() => onSelect(member.id)}
+        aria-label={`View profile for ${member.displayName}`}
+        className="flex items-center space-x-3 flex-1 min-w-0 text-left cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
         <Avatar className="h-10 w-10 relative">
           <AvatarImage src={member.avatarUrl} />
           <AvatarFallback className="bg-purple-900">{member.displayName.charAt(0)}</AvatarFallback>
@@ -78,15 +84,16 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
             </span>
           </div>
         </div>
-      </div>
+      </button>
       <div className="flex space-x-2">
         {variant === 'favorites' && (
           <Button
             variant="ghost"
             size="sm"
             className="text-purple-400 hover:text-foreground hover:bg-gray-700"
+            aria-label={`Unfavourite ${member.displayName}`}
           >
-            <Star className="h-4 w-4 fill-current" />
+            <Star className="h-4 w-4 fill-current" aria-hidden="true" />
           </Button>
         )}
         {variant !== 'favorites' && (
@@ -94,18 +101,20 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
             variant="ghost"
             size="sm"
             className="text-muted-foreground hover:text-foreground hover:bg-gray-700"
-            onClick={(e) => { e.stopPropagation(); onInvite(member.id); }}
+            onClick={() => onInvite(member.id)}
+            aria-label={`Send a connection request to ${member.displayName}`}
           >
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
         <Button
           variant="ghost"
           size="sm"
           className="text-muted-foreground hover:text-foreground hover:bg-gray-700"
-          onClick={(e) => { e.stopPropagation(); onSendMessage(member.id); }}
+          onClick={() => onSendMessage(member.id)}
+          aria-label={`Message ${member.displayName}`}
         >
-          <MessageCircle className="h-4 w-4" />
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
     </div>

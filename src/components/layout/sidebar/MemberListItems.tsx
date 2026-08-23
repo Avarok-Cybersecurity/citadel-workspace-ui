@@ -46,9 +46,13 @@ export function MemberListItems({
   onShowAllMembers,
 }: MemberListItemsProps) {
   return (
-    <div className="animate-fade-in">
+    <>
       {members.slice(0, MEMBERS_TO_SHOW).map((member) => (
-        <SidebarMenuItem key={member.id}>
+        // animate-fade-in moves onto the items: the wrapper that carried it was
+        // a <div> rendered directly inside <SidebarMenu>, which is a <ul>. That
+        // put a non-<li> in the list and left every <li> below it without a list
+        // parent.
+        <SidebarMenuItem key={member.id} className="animate-fade-in">
           <div className="flex items-center w-full group">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -68,8 +72,14 @@ export function MemberListItems({
             {currentUsername !== member.username && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                    <MoreVertical className="h-3 w-3" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label={`Actions for ${member.displayName || member.username}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-3 w-3" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -89,6 +99,6 @@ export function MemberListItems({
           </SidebarMenuButton>
         </SidebarMenuItem>
       )}
-    </div>
+    </>
   );
 }

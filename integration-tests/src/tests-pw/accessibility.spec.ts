@@ -13,10 +13,16 @@
  * stops a keyboard or screen-reader user lands in the two levels asserted here.
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { AxeBuilder } from '@axe-core/playwright';
 import type { Result } from 'axe-core';
-import { clearBrowserStorage, waitForAppReady } from '../lib/index.js';
+import {
+  clearBrowserStorage,
+  closeAnyModals,
+  createAccount,
+  waitForAppReady,
+  waitForWorkspaceLoaded,
+} from '../lib/index.js';
 import { config } from '../lib/config.js';
 
 /** WCAG 2.1 A and AA. The level a product is normally held to. */
@@ -148,5 +154,73 @@ test.describe('Accessibility (first-run surfaces)', () => {
     await click(page, 'Manage Accounts');
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
     await expectNoBlockingViolations(page, 'manage-accounts');
+  });
+});
+
+/**
+ * The screens a user spends their time on, once they are in.
+ *
+ * Serial, sharing one page and one account: registering is the slow part, and
+ * scanning five screens does not need five accounts. Each test navigates from
+ * wherever the last one left off.
+ */
+test.describe.serial('Accessibility (authenticated surfaces)', () => {
+  let context: BrowserContext;
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    // newContext, not browser.newPage(): the latter creates an implicit context
+    // and axe refuses to run in one ("Please use browser.newContext()").
+    context = await browser.newContext();
+    page = await context.newPage();
+    await freshPage(page);
+
+    const username = `a11y_${Date.now()}`;
+    const registered = await createAccount(page, username, {
+      isFirstUser: true,
+      password: config.DEFAULT_PASSWORD,
+      uxTracker: null,
+    });
+    expect(registered, `could not register ${username}`).toBe(true);
+
+    await waitForWorkspaceLoaded(page, 60_000);
+    await closeAnyModals(page);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test('workspace shell', async () => {
+    await expectNoBlockingViolations(page, 'workspace');
+  });
+
+  test('settings modal', async () => {
+    await page.getByTestId('user-avatar-button').click({ force: true });
+    await page.getByRole('menuitem', { name: 'Settings' }).click({ force: true });
+    await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
+
+    await expectNoBlockingViolations(page, 'settings');
+
+    await page.keyboard.press('Escape');
+  });
+
+  test('notification centre', async () => {
+    await page.locator('button:has(svg.lucide-bell)').first().click({ force: true });
+    await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
+
+    await expectNoBlockingViolations(page, 'notifications');
+
+    await page.keyboard.press('Escape');
+  });
+
+  test('user directory', async () => {
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/directory');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await expect(page.getByRole('heading', { name: 'User Directory' })).toBeVisible({ timeout: 30_000 });
+
+    await expectNoBlockingViolations(page, 'directory');
   });
 });

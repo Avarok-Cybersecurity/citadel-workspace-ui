@@ -8,9 +8,16 @@ import type { KeyboardEvent } from 'react';
  * `role="button"`, `tabIndex={0}`, and a key handler — and doing that by hand at
  * every call site is how one of them ends up missing.
  *
- * Prefer an actual `<button>`. Use this only where that is not possible: a
- * clickable row that already contains its own buttons (nesting is invalid HTML),
- * or a drop zone whose layout a button element would break.
+ * Prefer an actual `<button>`. Use this only where the element has NO focusable
+ * descendants — copyable text, a drop zone whose layout a button would break.
+ *
+ * Do NOT reach for it to make a row clickable when that row contains its own
+ * buttons. That was the original advice here and it was wrong: role="button"
+ * with tabIndex on a container that holds other controls is the
+ * nested-interactive pattern, which screen readers do not present consistently —
+ * the container claims to be one button while containing more. Split the row
+ * instead, so the identity part is a button and the actions are its siblings
+ * (see MemberListItem, or TreeNodeItem in the sidebar).
  *
  * Spread `interactive(onActivate)` onto the element:
  *

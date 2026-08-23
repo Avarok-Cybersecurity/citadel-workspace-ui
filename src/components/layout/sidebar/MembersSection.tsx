@@ -8,6 +8,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
@@ -149,11 +150,13 @@ export const MembersSection = () => {
           <ScrollArea className="max-h-[30vh]">
             <SidebarMenu>
               {isLoadingMembers ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">Loading members...</div>
+                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
+                  Loading members...
+                </SidebarMenuItem>
               ) : members.length === 0 && filteredRegisteredPeers.length === 0 && registeredPeers.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
+                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
                   No members yet. Use the <UserPlus className="h-3 w-3 inline mx-1" /> button to discover peers.
-                </div>
+                </SidebarMenuItem>
               ) : members.length > 0 && (
                 <MemberListItems
                   members={members}

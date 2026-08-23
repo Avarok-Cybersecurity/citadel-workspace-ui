@@ -201,8 +201,9 @@ export const UserSearch: React.FC<UserSearchProps> = ({
             size="sm"
             className="h-8 w-8 p-0 mr-1 text-muted-foreground hover:text-foreground hover:bg-gray-700"
             onClick={handleClearSearch}
+            aria-label="Clear search"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
       </div>
@@ -233,9 +234,17 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                     // Giving the <li> role="button" would have removed it from the
                     // list semantics, so a screen reader would stop announcing
                     // "list, N items" and lose the user's position in the results.
-                    <li key={user.id} role="option" aria-selected={false}>
+                    // role="presentation" on the li, role="option" on the
+                    // button: the option has to BE the focusable element. Putting
+                    // role="option" on the li while a button sat inside it made
+                    // the option a container with a focusable descendant, which
+                    // is the nested-interactive pattern screen readers cannot
+                    // resolve.
+                    <li key={user.id} role="presentation">
                       <button
                         type="button"
+                        role="option"
+                        aria-selected={false}
                         className="w-full text-left hover:bg-card transition-colors p-3 cursor-pointer"
                         onClick={() => handleSelectUser(user)}
                       >
