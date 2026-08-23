@@ -3,6 +3,7 @@
 import { eventEmitter } from '../event-emitter';
 import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
+import { completeStagedDownload } from './server-download';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
@@ -190,13 +191,7 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
   deps.emitStateChange(transfer);
 
   if (transfer.mode === 'async' && transfer.virtualPath) {
-    await deps.io.executeIntent({ type: 'download-from-server', transfer });
-    transfer.state = 'complete';
-    transfer.progress = 100;
-    transfer.updatedAt = Date.now();
-    await deps.saveTransfer(transfer);
-    deps.emitStateChange(transfer);
-    eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, transfer);
+    await completeStagedDownload(deps, transfer);
   }
 }
 

@@ -10,7 +10,6 @@
  * @deprecated Use IFileTransferIORouter and RealProtocolIORouter directly.
  */
 
-import { eventEmitter } from '../event-emitter';
 import { websocketService } from '../websocket-service';
 import { RealProtocolIORouter } from './real-protocol-io-router';
 import type { FileSource } from './io-router-types';
@@ -28,7 +27,8 @@ import type {
   FilePickerResult,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
-import { TIMEOUT } from '../timeout-constants';
+import { awaitSendFileAck, uploadFileToServer } from './server-upload';
+import { downloadFileFromServer } from './server-download';
 
 /**
  * @deprecated Use RealProtocolIORouter with IFileTransferIORouter interface instead.
@@ -179,51 +179,13 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
     const { file, transferId, recipientCid } = intent;
-    debugLog('FileTransferIO', 'Uploading file to server', {
-      transferId,
-      fileName: file.name,
-      size: file.size,
-    });
-
-    try {
-      const requestId = crypto.randomUUID();
-      const request = {
-        SendFile: {
-          request_id: requestId,
-          source: { Path: `/transfers/${transferId}/${file.name}` },
-          cid: null,
-          peer_cid: BigInt(recipientCid),
-          chunk_size: null,
-          transfer_type: 'FileTransfer',
-        },
-      };
-      await websocketService.sendMessage(request as Record<string, unknown>);
-      return `/transfers/${transferId}/${file.name}`;
-    } catch (error) {
-      debugLog('FileTransferIO', 'Server upload failed, using virtual path fallback:', error);
-      return `/transfers/${transferId}/${file.name}`;
-    }
+    return uploadFileToServer(file, transferId, recipientCid);
   }
 
-  private async downloadFromServer(intent: DownloadFromServerIntent): Promise<void> {
-    const { transfer } = intent;
-    debugLog('FileTransferIO', 'Downloading file from server', {
-      transferId: transfer.id,
-      virtualPath: transfer.virtualPath,
-    });
-
-    try {
-      const request = {
-        DownloadFile: {
-          virtual_path: transfer.virtualPath,
-          transfer_id: transfer.id,
-        },
-      };
-      await websocketService.sendMessage(request as Record<string, unknown>);
-    } catch (error) {
-      debugLog('FileTransferIO', 'Server download request failed:', error);
-      // Fall through — caller handles state update via events
-    }
+  private async downloadFromServer(
+    intent: DownloadFromServerIntent
+  ): Promise<string | undefined> {
+    return downloadFileFromServer(intent.transfer);
   }
 
   // ============================================================================
@@ -268,42 +230,8 @@ export class FileTransferIO extends RealProtocolIORouter {
       transferId: intent.transferId,
     });
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('SendFile request timed out'));
-      }, TIMEOUT.FILE_SEND_MS);
-
-      const handleMessage = (message: unknown) => {
-        const msg = message as Record<string, unknown>;
-        // Check for SendFileRequestSuccess
-        const success = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
-        if (success?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          debugLog('FileTransferIO', 'FileTransferIO: SendFile accepted by protocol');
-          resolve();
-        }
-        // Check for SendFileRequestFailure
-        const failure = msg.SendFileRequestFailure as
-          | { request_id?: string; message?: string }
-          | undefined;
-        if (failure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          const errorMsg = failure.message || 'SendFile failed';
-          debugLog('FileTransferIO', 'SendFile failed', errorMsg);
-          reject(new Error(errorMsg));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      websocketService.sendMessage(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
-    });
+    const ack = awaitSendFileAck(requestId);
+    await websocketService.sendMessage(request);
+    return ack;
   }
 }
