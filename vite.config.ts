@@ -59,7 +59,13 @@ const agentProxy = {
   // returned the SPA (200) - so this was a real divergence in the one place that must not have one.
   // (Vite treats a key beginning with `^` as a RegExp.)
   '^/ws$': {
-    target: `ws://localhost:${process.env.AGENT_PORT ?? '12345'}`,
+    // 127.0.0.1, NOT localhost. `localhost` resolves to ::1 before 127.0.0.1 on macOS
+    // (and Node 17+ stopped reordering DNS results to prefer IPv4), while the agent
+    // binds IPv4 only — so the proxy dialled ::1, got ECONNREFUSED, and every dev
+    // WebSocket died with a bare "socket hang up". The app itself, test.config.json
+    // and the compose healthchecks all already use 127.0.0.1; this was the one place
+    // that did not.
+    target: `ws://127.0.0.1:${process.env.AGENT_PORT ?? '12345'}`,
     ws: true,
     // Strip `/ws`, so the agent sees `/` - byte-identical to what the production nginx sends it
     // (`proxy_pass http://<upstream>/`, whose trailing slash does the same strip). The agent

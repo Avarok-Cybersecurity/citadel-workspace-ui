@@ -47,7 +47,16 @@ const App = () => {
             */}
             <Sonner />
             <PwaUpdatePrompt />
-            <BrowserRouter>
+            {/*
+              Opt into the v7 behaviours now. Both were logging deprecation
+              warnings on every boot; adopting them here means the eventual
+              react-router v7 upgrade is a version bump rather than a behaviour
+              change, and the console stays clean enough that a real warning
+              is noticeable.
+            */}
+            <BrowserRouter
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   {/* Public routes that don't require workspace data */}
