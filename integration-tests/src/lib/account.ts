@@ -104,7 +104,16 @@ export async function createAccount(page: Page, username: string, options: Creat
   // Handle Initialize Workspace modal (only for first user)
   if (isFirstUser) {
     const passwordField = page.locator('input#masterPassword');
-    if (await passwordField.isVisible({ timeout: 5000 }).catch(() => false)) {
+    // waitFor, NOT isVisible({ timeout }) — Playwright ignores that option, so
+    // this was an immediate snapshot taken right after registration. A genuinely
+    // first user whose modal had not rendered yet would silently skip
+    // initialisation and end up a NON-ADMIN, which then surfaces much later as
+    // "Permission denied: EditTreeStructure required" on the first create.
+    const modalAppeared = await passwordField
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (modalAppeared) {
       await passwordField.fill(config.WORKSPACE_PASSWORD);
       await sleep(500);
 

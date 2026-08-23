@@ -191,6 +191,7 @@ export {
   navigateToOfficeViaUI,
   deleteNodeViaUI,
   nodeExistsInUI,
+  nodeGoneFromUI,
 } from './tree-helpers.js';
 export type {
   NodeEntityType,

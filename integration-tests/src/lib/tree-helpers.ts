@@ -468,10 +468,31 @@ export async function createOfficeViaUI(
     let addBtn = null;
     for (const selector of addBtnSelectors) {
       const btn = page.locator(selector).first();
-      if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      // waitFor, not isVisible({ timeout }) — Playwright ignores the timeout on
+      // isVisible, making it an immediate snapshot.
+      const visible = await btn.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+      if (visible) {
         addBtn = btn;
         console.log(`  [UI] Found Add Node button with selector: ${selector}`);
         break;
+      }
+    }
+
+    // The button is disabled until the workspace tree schema arrives — creating a
+    // node needs it to know which child types are allowed. Clicking early opened
+    // no modal and raised a "schema is still loading" toast instead, which is
+    // exactly the race this helper used to lose.
+    if (addBtn) {
+      await addBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+      const enabled = await addBtn
+        .evaluate((el: HTMLButtonElement) => !el.disabled)
+        .catch(() => true);
+      if (!enabled) {
+        console.log('  [UI] Waiting for workspace schema before creating a node...');
+        await page
+          .locator(`${addBtnSelectors[0]}:not([disabled])`)
+          .waitFor({ state: 'visible', timeout: 30_000 })
+          .catch(() => undefined);
       }
     }
 
@@ -508,9 +529,11 @@ export async function createOfficeViaUI(
       await createBtn.click();
       await sleep(2000);
 
-      // Verify creation
-      const nodeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
-      const exists = await nodeInSidebar.isVisible({ timeout: 3000 }).catch(() => false);
+      // Verify creation. waitFor, not isVisible({ timeout }) — see nodeExistsInUI.
+      const exists = await sidebarNode(page, name)
+        .waitFor({ state: 'visible', timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false);
 
       console.log(`  [UI] Node "${name}" created: ${exists}`);
       return { success: exists, name };
@@ -575,7 +598,12 @@ export async function createRoomViaUI(
     // Now look for the create-child item in the open dropdown
     const createChildTestId = `create-child-${nodeId}`;
     const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
-    if (!await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // waitFor, not isVisible({ timeout }) — the dropdown animates in.
+    const itemVisible = await createItem
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!itemVisible) {
       // Debug: log what menu items ARE visible
       const menuItems = await page.locator('[role="menuitem"]').allTextContents();
       console.log(`  [UI] Create Child option not found. Visible menu items: ${JSON.stringify(menuItems)}`);
@@ -769,9 +797,48 @@ export async function deleteNodeViaUI(
 /**
  * Check if a node exists in the sidebar.
  */
-export async function nodeExistsInUI(page: Page, nodeName: string): Promise<boolean> {
-  const node = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
-  const exists = await node.isVisible({ timeout: 2000 }).catch(() => false);
+/**
+ * Locator for a node in the hierarchy sidebar.
+ *
+ * Matches any button carrying the name rather than only
+ * `[data-sidebar="menu-button"]`. The tree renders through SidebarMenuButton,
+ * which does emit that attribute — but there are two SidebarMenuButton
+ * implementations in the tree (components/ui/sidebar.tsx and
+ * components/ui/sidebar/SidebarMenu.tsx), so pinning to the attribute makes the
+ * helper depend on which one a given node happens to use. The broader match is
+ * what the passing legacy suite has always used.
+ */
+export function sidebarNode(page: Page, nodeName: string) {
+  return page.locator(`button:has-text("${nodeName}"), [data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
+}
+
+/**
+ * Wait for a node to disappear from the sidebar.
+ *
+ * Asserting absence with `nodeExistsInUI(...) === false` burns the full
+ * appearance timeout on every deletion check, because it waits for something
+ * that is never going to show up. This waits for the opposite state, so it
+ * returns as soon as the node is actually gone.
+ */
+export async function nodeGoneFromUI(page: Page, nodeName: string, timeout = 10_000): Promise<boolean> {
+  const gone = await sidebarNode(page, nodeName)
+    .waitFor({ state: 'hidden', timeout })
+    .then(() => true)
+    .catch(() => false);
+  console.log(`  [UI] Node "${nodeName}" gone: ${gone}`);
+  return gone;
+}
+
+export async function nodeExistsInUI(page: Page, nodeName: string, timeout = 10_000): Promise<boolean> {
+  // waitFor, NOT isVisible({ timeout }). Playwright ignores the timeout option on
+  // isVisible — it is an immediate snapshot, not a wait. Creation round-trips to
+  // the workspace server and the sidebar re-renders from the response, so an
+  // immediate check reports "does not exist" for a node that is about to appear.
+  // That mistake is why so much of this suite needed sleeps to work at all.
+  const exists = await sidebarNode(page, nodeName)
+    .waitFor({ state: 'visible', timeout })
+    .then(() => true)
+    .catch(() => false);
   console.log(`  [UI] Node "${nodeName}" exists: ${exists}`);
   return exists;
 }

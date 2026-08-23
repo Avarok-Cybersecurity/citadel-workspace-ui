@@ -34,6 +34,14 @@ export interface TreeNodesSectionProps {
   onSetDefault?: (node: DomainNode) => void;
   title?: string;
   isLoading?: boolean;
+  /**
+   * Whether the tree schema has arrived. Creating a node needs it (the allowed
+   * child types come from there), so until it does the create button cannot
+   * succeed — it can only raise a "schema is still loading" error. Offering a
+   * control whose only outcome is an error message is worse than not offering
+   * it yet, so the button is disabled and says why.
+   */
+  canCreate?: boolean;
   initialExpandedIds?: string[];
   maxHeight?: string;
 }
@@ -50,6 +58,7 @@ export function TreeNodesSection({
   onSetDefault,
   title = "HIERARCHY",
   isLoading = false,
+  canCreate = true,
   initialExpandedIds = [],
   maxHeight = "50vh",
 }: TreeNodesSectionProps) {
@@ -212,10 +221,12 @@ export function TreeNodesSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white"
+              className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white disabled:opacity-40"
               onClick={handleCreateRoot}
+              disabled={canCreate === false}
               data-testid="add-node-button"
-              aria-label="Add node"
+              aria-label={canCreate === false ? 'Add node (waiting for workspace schema)' : 'Add node'}
+              title={canCreate === false ? 'Waiting for the workspace schema to load' : 'Add node'}
             >
               <Plus className="h-4 w-4" />
             </Button>

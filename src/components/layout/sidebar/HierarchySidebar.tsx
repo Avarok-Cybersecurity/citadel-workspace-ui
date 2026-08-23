@@ -136,6 +136,9 @@ export function HierarchySidebar() {
   return (
     <>
       <TreeNodesSection
+      // The create button needs the tree schema to know what child types are
+      // allowed; until it arrives, clicking it can only produce an error toast.
+      canCreate={Boolean(state.treeSchema)}
         nodes={nodes.length > 0 ? nodes : undefined}
         selectedNodeId={selectedNodeId ?? undefined}
         onNodeSelect={handleNodeSelect}
