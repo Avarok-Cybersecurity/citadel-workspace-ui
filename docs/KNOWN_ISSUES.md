@@ -66,3 +66,21 @@ flakiest area of this codebase — with no signal to verify against.
 Connection's channels are released and should emit that as an event. Once it
 does, replace the delay with `waitForEvent(...)` from `lib/utils/scheduling`, and
 login proceeds the instant teardown completes.
+
+### Continuous re-renders keep buttons from ever being "stable"
+
+Playwright's actionability check waits for an element to stop moving before
+clicking. On this app it can wait forever — observed as
+`232 x waiting for element to be visible, enabled and stable` before a 120s test
+timeout — because the UI re-renders continuously while BroadcastChannel leader
+election settles.
+
+Both test suites work around it by force-clicking (`click({ force: true })`), and
+the legacy helpers say so explicitly: *"BroadcastChannel leader election can cause
+continuous re-renders that keep the button 'not stable' indefinitely."*
+
+The workaround is fine for tests, but the churn itself is a real cost: it burns
+CPU and battery on every session, and it is why a click can feel unresponsive
+just after load. The fix is on the app side — leader-election state changes should
+not propagate into component render on every heartbeat. Worth profiling with the
+React DevTools render highlighter before changing anything.

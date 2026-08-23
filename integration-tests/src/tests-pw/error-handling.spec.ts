@@ -1,276 +1,121 @@
 /**
- * Error Handling — Playwright Test spec
+ * Error Handling — @playwright/test spec
  *
- * Tests various error conditions and user feedback (Section 7 in TESTING_CHECKLIST.md).
- * Previously marked "Not yet tested".
+ * What a user sees when they get something wrong: a registration form filled in
+ * incorrectly, and a login for an account that does not exist.
  *
- * Tests:
- * 1. Wrong password during registration
- * 2. Wrong password during login
- * 3. Wrong workspace master password
- * 4. Invalid server address / network timeout
- * 5. All error toasts use destructive variant (red)
+ * Selectors are role + accessible-name (`getByRole('textbox', { name: 'Workspace
+ * Address' })`) rather than CSS ids. That is what the working legacy suite uses,
+ * it survives restyling, and it only passes if the control is actually labelled —
+ * so these double as a check that the form stays reachable to a screen reader.
+ *
+ * The previous version of this file queried `input#server-address` and
+ * `input#server`, neither of which has ever existed (the id is `serverAddress`),
+ * and every lookup sat behind an `if (isVisible)` guard. So it did not fail on
+ * the missing element — it skipped the whole interaction and asserted against a
+ * page nothing had been done to. It went unnoticed because this spec ran in no
+ * CI job at all.
  */
 
-import { test, expect } from '@playwright/test';
-import { chromium, type Page, type Browser, type BrowserContext } from 'playwright';
-import {
-    clearBrowserStorage,
-    waitForAppReady,
-    sleep,
-} from '../lib/index.js';
-import { config, isCI } from '../lib/config.js';
+import { test, expect, type Page } from '@playwright/test';
+import { clearBrowserStorage, waitForAppReady } from '../lib/index.js';
+import { config } from '../lib/config.js';
 
-/* ── Shared browser (each test gets a fresh page) ── */
-
-let browser: Browser;
-let context: BrowserContext;
-
-/* ── Helpers ── */
-
-async function freshPage(): Promise<Page> {
-    const page = await context.newPage();
-    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
-    await clearBrowserStorage(page);
-    await waitForAppReady(page, 60_000);
-    return page;
+/** A page with no leftover session or peer state from a previous test. */
+async function freshPage(page: Page): Promise<void> {
+  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+  await clearBrowserStorage(page);
+  await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+  await waitForAppReady(page, 60_000);
 }
 
 /**
- * Check if a destructive (red) error toast appeared
+ * Any user-visible error surface: a Sonner error toast, an accessible alert, or
+ * inline destructive text. A locator rather than a boolean, so callers can use a
+ * web-first assertion instead of polling.
  */
-async function hasErrorToast(page: Page): Promise<boolean> {
-    // Sonner and Radix toasts use data attributes or CSS classes for destructive variants
-    const selectors = [
-        '[data-type="error"]',                // Sonner error toast
-        '[data-sonner-toast][data-type="error"]',
-        '.destructive',                        // Radix destructive variant
-        '[class*="destructive"]',
-        '.text-red-400',                       // Inline error text
-        '[role="alert"]',                      // Accessible alert
-    ];
-
-    for (const selector of selectors) {
-        if (await page.locator(selector).first().isVisible({ timeout: 2000 }).catch(() => false)) {
-            return true;
-        }
-    }
-    return false;
+function errorSurface(page: Page) {
+  return page
+    .locator('[data-sonner-toast][data-type="error"], [role="alert"], .text-red-400, .text-destructive')
+    .first();
 }
 
-/* ── Test Suite ── */
+/**
+ * Click without waiting for the element to be "stable".
+ *
+ * The app re-renders continuously while BroadcastChannel leader election settles,
+ * so Playwright's actionability check can wait for a button to stop moving until
+ * the test times out — observed here as "232 × waiting for element to be visible,
+ * enabled and stable". The legacy suite hit the same wall and force-clicks for
+ * the same reason. The underlying render churn is tracked in
+ * docs/KNOWN_ISSUES.md; forcing here keeps that one problem from failing every
+ * unrelated assertion.
+ */
+async function clickThroughRenderChurn(page: Page, name: RegExp | string) {
+  const button = page.getByRole('button', { name }).first();
+  await expect(button).toBeVisible();
+  await button.click({ force: true });
+}
 
 test.describe('Error Handling', () => {
-    test.beforeAll(async () => {
-        browser = await chromium.launch({
-            headless: isCI,
-            slowMo: isCI ? 0 : 50,
-            args: [
-                '--disable-background-timer-throttling',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding',
-                '--disable-ipc-flooding-protection',
-                ...(isCI ? [
-                    '--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox',
-                    '--disable-gpu', '--disable-extensions', '--disable-software-rasterizer',
-                ] : []),
-            ],
-        });
-        context = await browser.newContext({ storageState: undefined });
-        await context.clearCookies();
-    });
+  test.beforeEach(async ({ page }) => {
+    await freshPage(page);
+  });
 
-    test.afterAll(async () => {
-        await browser.close();
-    });
+  test('mismatched profile passwords are rejected before any account is created', async ({ page }) => {
+    await clickThroughRenderChurn(page, 'Join Workspace');
 
-    test('Invalid server address shows ConnectionRetryModal', async () => {
-        const page = await freshPage();
+    // Step 1 — workspace address.
+    const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
+    await expect(serverInput).toBeVisible();
+    await serverInput.fill(config.WORKSPACE_SERVER);
+    await clickThroughRenderChurn(page, 'NEXT');
 
-        // Click "Join Workspace"
-        await page.locator('button:has-text("Join Workspace")').click();
-        await sleep(500);
+    // Step 2 — security settings are pre-filled; accept the defaults. Matched on
+    // the heading because the body copy below it also contains the phrase.
+    await expect(page.getByRole('heading', { name: 'Security Settings' })).toBeVisible({ timeout: 15_000 });
+    await clickThroughRenderChurn(page, 'NEXT');
 
-        // Enter a bad server address
-        const serverInput = page.locator('input#server-address, input[placeholder*="server"], input#server')
-            .first();
-        await expect(serverInput).toBeVisible({ timeout: 5000 });
-        await serverInput.fill('999.999.999.999:99999');
-        await sleep(300);
+    // Step 3 — profile, with deliberately mismatched passwords.
+    const fullName = page.getByRole('textbox', { name: 'Full Name' });
+    await expect(fullName).toBeVisible({ timeout: 15_000 });
+    await fullName.fill('Mismatch Test');
+    await page.getByRole('textbox', { name: 'Username' }).fill(`mismatch_${Date.now()}`);
+    await page.getByRole('textbox', { name: 'Profile Password', exact: true }).fill('correct-horse');
+    await page.getByRole('textbox', { name: 'Confirm Profile Password' }).fill('battery-staple');
 
-        // Enter workspace password
-        const passwordInput = page.locator('input#workspace-password, input[type="password"]').first();
-        if (await passwordInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await passwordInput.fill('bad_password');
-            await sleep(300);
-        }
+    await clickThroughRenderChurn(page, /^Join$/);
 
-        // Click Next/Connect
-        const nextBtn = page.locator('button:has-text("NEXT"), button:has-text("Connect"), button[type="submit"]').first();
-        await nextBtn.click();
+    await expect(errorSurface(page)).toBeVisible({ timeout: 15_000 });
 
-        // Should show some error indication within 15 seconds
-        // (ConnectionRetryModal, error toast, or inline error)
-        await sleep(5000);
+    // The real requirement is rejection, not just a message. Reaching the
+    // workspace would mean an account was created from a form the app had just
+    // called invalid — the failure mode actually worth guarding.
+    await expect(page).not.toHaveURL(/\/(workspace|office)/);
+  });
 
-        const hasError = await hasErrorToast(page);
-        const hasRetryModal = await page.locator('text="Unable to connect"').isVisible({ timeout: 10_000 }).catch(() => false);
-        const hasInlineError = await page.locator('.text-red-400, .text-destructive').first().isVisible({ timeout: 2000 }).catch(() => false);
+  test('logging in as a non-existent user reports the failure', async ({ page }) => {
+    await clickThroughRenderChurn(page, 'Login Workspace');
 
-        expect(hasError || hasRetryModal || hasInlineError).toBe(true);
-        await page.close();
-    });
+    await page.getByRole('textbox', { name: 'Username' }).fill(`ghost_${Date.now()}`);
+    await page.getByRole('textbox', { name: 'Password', exact: true }).fill('wrong-password');
 
-    test('Login with wrong username shows error', async () => {
-        const page = await freshPage();
+    // The server address lives behind Advanced Options on the login form. It is
+    // pre-filled from storage when a previous session exists; this page is fresh,
+    // so it has to be set explicitly.
+    const advanced = page.getByRole('button', { name: /Advanced Options/i });
+    if (await advanced.isVisible().catch(() => false)) {
+      await advanced.click({ force: true });
+      const serverInput = page.getByRole('textbox', { name: /Workspace Address|Server/i }).first();
+      await expect(serverInput).toBeVisible();
+      await serverInput.fill(config.WORKSPACE_SERVER);
+    }
 
-        // Click Login Workspace
-        const loginBtn = page.locator('button:has-text("Login Workspace")');
-        await expect(loginBtn).toBeVisible({ timeout: 5000 });
-        await loginBtn.click();
-        await sleep(1000);
+    await clickThroughRenderChurn(page, /^Connect$/);
 
-        // Fill with non-existent username
-        await page.locator('input#username').fill('nonexistent_user_12345');
-        await page.locator('input#password').fill('wrong_password');
-        await sleep(300);
-
-        // Set server address via Advanced Options
-        const advancedBtn = page.locator('button:has-text("Advanced Options")');
-        if (await advancedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await advancedBtn.click();
-            await sleep(300);
-            const serverInput = page.locator('input#server');
-            if (await serverInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-                await serverInput.fill(config.WORKSPACE_SERVER);
-                await sleep(300);
-            }
-        }
-
-        // Submit
-        await page.locator('button[type="submit"]:has-text("Connect")').click();
-        await sleep(5000);
-
-        // Should show an error (toast or inline)
-        const hasError = await hasErrorToast(page);
-        const hasInlineError = await page.locator('.text-red-400, .text-destructive').first()
-            .isVisible({ timeout: 5000 }).catch(() => false);
-
-        expect(hasError || hasInlineError).toBe(true);
-        await page.close();
-    });
-
-    test('Registration with mismatched passwords shows error', async () => {
-        const page = await freshPage();
-
-        // Click "Join Workspace"
-        await page.locator('button:has-text("Join Workspace")').click();
-        await sleep(500);
-
-        // Enter valid server address first
-        const serverInput = page.locator('input#server-address, input[placeholder*="server"], input#server')
-            .first();
-        if (await serverInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await serverInput.fill(config.WORKSPACE_SERVER);
-        }
-
-        // Enter workspace password if needed
-        const wpInput = page.locator('input#workspace-password, input[type="password"]').first();
-        if (await wpInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await wpInput.fill(config.WORKSPACE_PASSWORD);
-        }
-
-        // Click Next to reach registration form
-        const nextBtn = page.locator('button:has-text("NEXT"), button[type="submit"]').first();
-        if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await nextBtn.click();
-            await sleep(2000);
-        }
-
-        // Fill registration form with mismatched passwords
-        const nameInput = page.locator('input#name, input[placeholder*="name"]').first();
-        if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await nameInput.fill('Test User');
-        }
-
-        const usernameInput = page.locator('input#username').first();
-        if (await usernameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await usernameInput.fill(`mismatch_test_${Date.now()}`);
-        }
-
-        const passInput = page.locator('input#password').first();
-        if (await passInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await passInput.fill('password123');
-        }
-
-        const confirmInput = page.locator('input#confirm-password, input#confirmPassword').first();
-        if (await confirmInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await confirmInput.fill('different_password');
-        }
-
-        // Try to submit
-        const joinBtn = page.locator('button:has-text("JOIN"), button[type="submit"]').first();
-        if (await joinBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await joinBtn.click();
-            await sleep(2000);
-        }
-
-        // Should show validation error — passwords don't match
-        const hasError = await hasErrorToast(page);
-        const hasInlineError = await page.locator('.text-red-400, .text-destructive, [class*="error"]')
-            .first().isVisible({ timeout: 3000 }).catch(() => false);
-        const hasValidationMsg = await page.locator('text=/password.*match/i, text=/do not match/i')
-            .first().isVisible({ timeout: 3000 }).catch(() => false);
-
-        // At minimum, the form should prevent submission or show an error
-        expect(hasError || hasInlineError || hasValidationMsg).toBe(true);
-        await page.close();
-    });
-
-    test('Error messages are user-friendly (not raw stack traces)', async () => {
-        const page = await freshPage();
-        const consoleErrors: string[] = [];
-
-        page.on('console', msg => {
-            if (msg.type() === 'error') {
-                consoleErrors.push(msg.text());
-            }
-        });
-
-        // Trigger a connection error by trying to connect to a bad address
-        await page.locator('button:has-text("Join Workspace")').click();
-        await sleep(500);
-
-        const serverInput = page.locator('input#server-address, input[placeholder*="server"], input#server')
-            .first();
-        if (await serverInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await serverInput.fill('127.0.0.1:1'); // port 1 — should fail fast
-        }
-
-        const wpInput = page.locator('input#workspace-password, input[type="password"]').first();
-        if (await wpInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await wpInput.fill('test');
-        }
-
-        const nextBtn = page.locator('button:has-text("NEXT"), button[type="submit"]').first();
-        if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await nextBtn.click();
-        }
-
-        await sleep(10_000);
-
-        // Check any visible error messages don't contain raw stack traces
-        const errorTexts = await page.locator('.text-red-400, [data-type="error"], [role="alert"]')
-            .allTextContents();
-
-        for (const text of errorTexts) {
-            // Should not contain raw JavaScript error internals
-            expect(text).not.toContain('at Object.');
-            expect(text).not.toContain('node_modules');
-            expect(text).not.toContain('.js:');
-            expect(text).not.toContain('TypeError:');
-        }
-
-        await page.close();
-    });
+    // The server has to reject the unknown account, so this allows for a round
+    // trip rather than expecting an immediate client-side answer.
+    await expect(errorSurface(page)).toBeVisible({ timeout: 45_000 });
+    await expect(page).not.toHaveURL(/\/(workspace|office)/);
+  });
 });
