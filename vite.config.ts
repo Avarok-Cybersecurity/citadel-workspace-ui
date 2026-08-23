@@ -99,9 +99,25 @@ export default defineConfig(({ mode }) => {
         output: {
           // Split vendor dependencies into separate chunks for better caching
           manualChunks(id) {
+            // Keep each of these service directories whole. Their barrel (index.ts)
+            // re-exports a module that transitively depends on the barrel again, so
+            // if the two land in different route chunks Rollup emits a circular-chunk
+            // warning and, in its own words, "will likely lead to broken execution
+            // order". Co-locating them removes the cycle at the chunk level and also
+            // caches better: these services change far less often than the pages that
+            // use them.
+            if (/[\\/]src[\\/]lib[\\/](p2p|connection-service|peer-registration-store)[\\/]/.test(id)) {
+              return 'app-services';
+            }
+
             if (id.includes('node_modules')) {
-              // React DOM only (react-router may import components that use the editor, so let it fall to default)
-              if (id.includes('react-dom') && !id.includes('react-router')) {
+              // The whole React runtime in ONE chunk. Splitting react-dom out while
+              // leaving `react` itself in the entry chunk produced a genuine cycle
+              // (vendor-react -> vendor-collab -> vendor-react), because the editor
+              // vendor chunk imports React. Rollup warns that such a cycle "will
+              // likely lead to broken execution order", so this is a correctness fix
+              // rather than a size one.
+              if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
                 return 'vendor-react';
               }
               // Radix UI components

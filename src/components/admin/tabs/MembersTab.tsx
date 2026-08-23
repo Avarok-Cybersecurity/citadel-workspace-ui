@@ -88,7 +88,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       toast({
         title: 'Role Updated',
         description: `Member role updated to ${newRole}`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
+        variant: 'success',
       });
     } catch (error) {
       debugLog('MembersTab', 'Failed to update role:', error);
@@ -117,7 +117,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       toast({
         title: 'Member Removed',
         description: `${memberToRemove.name || memberToRemove.username} has been removed`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
+        variant: 'success',
       });
     } catch (error) {
       debugLog('MembersTab', 'Failed to remove member:', error);

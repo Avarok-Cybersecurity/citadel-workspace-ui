@@ -73,7 +73,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       toast({
         title: "Changes saved",
         description: `The ${entityData?.name || title} page has been updated`,
-        className: "bg-[#232536] border-purple-800 text-purple-200",
+        variant: 'success',
       });
     } catch (error) {
       debugLog('BaseOffice', 'Failed to save MDX content:', error);
@@ -132,7 +132,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     toast({
       title: "Template applied",
       description: `Applied "${template.name}" template. You can now customize it.`,
-      className: "bg-[#232536] border-purple-800 text-purple-200",
+      variant: 'success',
     });
 
     // Content is no longer new once a template is applied

@@ -18,7 +18,6 @@ import { websocketService } from '@/lib/websocket-service';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
-import { ToastAction } from '@/components/ui/toast';
 import { healthCheckService } from '@/lib/health-check';
 import { getSelectedUser } from '@/lib/tab-context';
 import { TIMEOUT } from '@/lib/timeout-constants';
@@ -27,7 +26,6 @@ import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { debugLog } from '@/lib/debug-config';
-import React from 'react';
 
 interface ConnectionHandlerState {
   showConnectionRetry: boolean;
@@ -166,18 +164,29 @@ export function useConnectionHandler() {
         title: "Session Already Connected",
         description: "You are already connected in another window or tab.",
         variant: "destructive",
-        action: React.createElement(ToastAction, {
-          altText: "Try again",
-          onClick: async () => {
-            try {
-              await websocketService.setOrphanMode(true);
-              await websocketService.disconnectOrphan(null);
-              toast({ title: "Orphaned sessions cleared", description: "Please try logging in again" });
-            } catch (error) {
-              debugLog('WorkspaceApp', 'Failed to disconnect orphan sessions:', error);
-            }
-          }
-        }, "Clear Sessions") as React.ReactElement
+        action: {
+          label: "Clear Sessions",
+          onClick: () => {
+            void (async () => {
+              try {
+                await websocketService.setOrphanMode(true);
+                await websocketService.disconnectOrphan(null);
+                toast({
+                  title: "Orphaned sessions cleared",
+                  description: "Please try logging in again",
+                  variant: "success",
+                });
+              } catch (error) {
+                debugLog('WorkspaceApp', 'Failed to disconnect orphan sessions:', error);
+                toast({
+                  title: "Could not clear sessions",
+                  description: error instanceof Error ? error.message : "Unknown error",
+                  variant: "destructive",
+                });
+              }
+            })();
+          },
+        },
       });
       setState(prev => ({ ...prev, showConnectionRetry: false }));
     };

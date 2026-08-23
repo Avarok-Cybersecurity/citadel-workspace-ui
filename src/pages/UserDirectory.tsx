@@ -81,7 +81,7 @@ export const UserDirectory = () => {
       toast({
         title: 'Request Sent',
         description: `Connection request sent to ${selectedUser.displayName}`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
+        variant: 'success',
       });
 
       setRequestDialogOpen(false);

@@ -90,7 +90,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
       toast({
         title: 'Success',
         description: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} updated successfully`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
+        variant: 'success',
       });
 
       setOriginalName(name);

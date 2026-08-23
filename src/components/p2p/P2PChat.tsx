@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { P2PMessengerManager } from '@/lib/p2p';
+import { P2PMessengerManager } from '@/lib/p2p/p2p-messenger-manager';
 import { notificationService } from '@/lib/notification-service';
 import { MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';

@@ -1,60 +1,98 @@
-import { Toaster } from "@/components/ui/toaster";
+import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Office } from "@/components/Office";
-import Landing from "./pages/Landing";
-import NotFound from "./pages/NotFound";
-import Messages from "./pages/Messages";
-import { Connect } from "./pages/Connect";
-import UserDirectory from "./pages/UserDirectory";
 import WorkspaceApp from "./components/WorkspaceApp";
 import { WorkspaceLoader } from "./components/ui/workspace-loader";
-import { GroupChatPage } from "./pages/GroupChatPage";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import { RouteFallback } from "./components/RouteFallback";
+
+// Landing is the route almost every session starts on, so it is imported eagerly:
+// code-splitting it would only add a network round trip before first paint.
+import Landing from "./pages/Landing";
+
+/**
+ * Every other route is split out. Nothing here was split before, so a visitor to
+ * the landing page downloaded the workspace shell, the group chat page, the file
+ * manager and the collaborative editor (TipTap + Yjs + ProseMirror) before it
+ * could render — none of which that page uses.
+ */
+const Office = lazy(() =>
+  import("@/components/Office").then(m => ({ default: m.Office }))
+);
+const Messages = lazy(() => import("./pages/Messages"));
+const Connect = lazy(() =>
+  import("./pages/Connect").then(m => ({ default: m.Connect }))
+);
+const UserDirectory = lazy(() => import("./pages/UserDirectory"));
+const GroupChatPage = lazy(() =>
+  import("./pages/GroupChatPage").then(m => ({ default: m.GroupChatPage }))
+);
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
 const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WorkspaceApp>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes that don't require workspace data */}
-              <Route path="/" element={<Landing />} />
-              <Route path="/connect" element={<Connect />} />
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WorkspaceApp>
+            {/*
+              One toast system. The app used to mount shadcn's <Toaster /> AND
+              <Sonner /> simultaneously, so a notification's appearance depended
+              on which feature raised it. useToast() now renders through Sonner.
+            */}
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={<RouteFallback />}>
+                <Routes>
+                  {/* Public routes that don't require workspace data */}
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/connect" element={<Connect />} />
 
-              {/* Protected routes that require workspace data to be loaded */}
-              <Route path="/workspace" element={
-                <WorkspaceLoader>
-                  <Office />
-                </WorkspaceLoader>
-              } />
-              <Route path="/messages" element={
-                <WorkspaceLoader>
-                  <Messages />
-                </WorkspaceLoader>
-              } />
-              <Route path="/directory" element={
-                <WorkspaceLoader>
-                  <UserDirectory />
-                </WorkspaceLoader>
-              } />
-              <Route path="/groups/:groupId" element={
-                <WorkspaceLoader>
-                  <GroupChatPage />
-                </WorkspaceLoader>
-              } />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </WorkspaceApp>
-      </TooltipProvider>
-    </QueryClientProvider>
+                  {/* Protected routes that require workspace data to be loaded */}
+                  <Route
+                    path="/workspace"
+                    element={
+                      <WorkspaceLoader>
+                        <Office />
+                      </WorkspaceLoader>
+                    }
+                  />
+                  <Route
+                    path="/messages"
+                    element={
+                      <WorkspaceLoader>
+                        <Messages />
+                      </WorkspaceLoader>
+                    }
+                  />
+                  <Route
+                    path="/directory"
+                    element={
+                      <WorkspaceLoader>
+                        <UserDirectory />
+                      </WorkspaceLoader>
+                    }
+                  />
+                  <Route
+                    path="/groups/:groupId"
+                    element={
+                      <WorkspaceLoader>
+                        <GroupChatPage />
+                      </WorkspaceLoader>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </WorkspaceApp>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 };
 

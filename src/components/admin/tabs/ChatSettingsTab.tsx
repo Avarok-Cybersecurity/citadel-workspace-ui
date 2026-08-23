@@ -54,7 +54,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
       toast({
         title: 'Chat Settings Updated',
         description: `Chat ${chatEnabled ? 'enabled' : 'disabled'} for this ${entityType}`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
+        variant: 'success',
       });
 
       setOriginalEnabled(chatEnabled);

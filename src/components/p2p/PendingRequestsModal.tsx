@@ -74,7 +74,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
       toast({
         title: 'Request Declined',
         description: `Declined connection from ${request.peer_username}`,
-        className: 'bg-[#232536] border-red-600 text-red-400',
+        variant: 'destructive',
       });
     } catch (error) {
       toast({
