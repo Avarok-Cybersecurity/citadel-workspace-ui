@@ -77,24 +77,24 @@ export function AdminModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="sm:max-w-[700px] bg-[#282A42] border-[#3D3F5A]"
+        className="sm:max-w-[700px] bg-card border-surface"
         data-testid="admin-modal"
       >
         <DialogHeader>
-          <DialogTitle className="text-white text-xl flex items-center">
+          <DialogTitle className="text-foreground text-xl flex items-center">
             <EntityIcon className="h-5 w-5 mr-2" />
             {loading ? `Loading ${meta.label}...` : `${entity?.name || meta.label} Settings`}
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Manage {meta.label.toLowerCase()} settings, members, and chat configuration
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3 bg-[#1a1b26] h-12">
+          <TabsList className="grid w-full grid-cols-3 bg-background h-12">
             <TabsTrigger
               value="general"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-general"
             >
               <Settings className="h-4 w-4" />
@@ -102,7 +102,7 @@ export function AdminModal({
             </TabsTrigger>
             <TabsTrigger
               value="members"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-members"
             >
               <Users className="h-4 w-4" />
@@ -110,7 +110,7 @@ export function AdminModal({
             </TabsTrigger>
             <TabsTrigger
               value="chat"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-chat"
             >
               <MessageSquare className="h-4 w-4" />

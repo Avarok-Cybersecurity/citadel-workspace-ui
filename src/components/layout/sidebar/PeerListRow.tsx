@@ -39,22 +39,22 @@ export function PeerListRow({
       <SidebarMenuButton
         onClick={onClick}
         data-peer-cid={cid}
-        className="text-white hover:bg-purple-500/15 hover:text-white transition-colors h-8 py-1"
+        className="text-foreground hover:bg-purple-500/15 hover:text-foreground transition-colors h-8 py-1"
       >
         <div className="flex items-center gap-2 w-full">
           {/* Avatar with status indicator */}
           <div className="relative w-6 h-6 flex-shrink-0">
-            <div className="w-6 h-6 rounded-full bg-[#6E59A5] flex items-center justify-center text-xs font-medium">
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-xs font-medium">
               {username[0]?.toUpperCase() || '?'}
             </div>
             {/* Status indicator - top-right corner */}
-            <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#262C4A] ${statusColor}`} />
+            <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface ${statusColor}`} />
           </div>
           {/* Username */}
           <span className="flex-1 truncate text-sm">{username}</span>
           {/* Unread count badge */}
           {unreadCount !== undefined && unreadCount > 0 && (
-            <Badge className="h-5 min-w-[20px] px-1.5 bg-[#6E59A5] text-white">
+            <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground">
               {unreadCount}
             </Badge>
           )}

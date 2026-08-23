@@ -102,16 +102,16 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const allPermissions = Object.entries(PERMISSION_CATEGORIES);
 
   return (
-    <div className="bg-[#1C1D28] border border-[#2D3548] rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="bg-background border border-border rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-[#2D3548] flex-shrink-0">
+      <div className="px-6 py-5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
             <Shield className="h-4.5 w-4.5 text-purple-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Permission Manager</h2>
-            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+            <h2 className="text-lg font-bold text-foreground">Permission Manager</h2>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
               <DomainIcon className="h-3 w-3" />
               {getEntityMetadata(domainType).label} permissions
             </p>
@@ -123,17 +123,17 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
       <div className="flex-1 overflow-auto min-h-0">
         <table className="w-full border-collapse">
           {/* Role column headers */}
-          <thead className="sticky top-0 z-10 bg-[#1C1D28]">
+          <thead className="sticky top-0 z-10 bg-background">
             <tr>
-              <th className="text-left text-[11px] font-semibold tracking-wider uppercase text-gray-500 px-6 py-3 w-[200px] border-b border-[#2D3548]">
+              <th className="text-left text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-6 py-3 w-[200px] border-b border-border">
                 Permission
               </th>
               {ROLE_HIERARCHY.map(role => (
                 <th
                   key={role.value}
-                  className="text-center px-3 py-3 border-b border-[#2D3548] min-w-[90px]"
+                  className="text-center px-3 py-3 border-b border-border min-w-[90px]"
                 >
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-gray-300">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-foreground/80">
                     <div className={`w-1.5 h-1.5 rounded-full ${role.color}`} />
                     {role.label}
                   </span>
@@ -166,7 +166,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                     }`}
                   >
                     <td className="px-6 py-2">
-                      <span className="text-sm text-gray-300">{permission.label}</span>
+                      <span className="text-sm text-foreground/80">{permission.label}</span>
                     </td>
                     {ROLE_HIERARCHY.map(role => {
                       const isChecked = rolePermissions[role.value]?.has(permission.id) ?? false;
@@ -176,7 +176,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                             <Checkbox
                               checked={isChecked}
                               onCheckedChange={() => togglePermission(role.value, permission.id)}
-                              className="h-4 w-4 border-[#3B3D57] data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                              className="h-4 w-4 border-surface data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
                             />
                           </div>
                         </td>
@@ -191,14 +191,14 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t border-[#2D3548]">
+      <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t border-border">
         <div className="flex gap-2">
           {onClose && (
             <Button
               variant="ghost"
               onClick={onClose}
               disabled={isSaving}
-              className="text-gray-400 hover:text-white hover:bg-transparent h-9 text-sm"
+              className="text-muted-foreground hover:text-foreground hover:bg-transparent h-9 text-sm"
             >
               Cancel
             </Button>
@@ -206,7 +206,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-purple-600 hover:bg-purple-500 text-white h-9 text-sm rounded-lg shadow-lg shadow-purple-500/20 gap-2 px-5"
+            className="bg-purple-600 hover:bg-purple-500 text-foreground h-9 text-sm rounded-lg shadow-lg shadow-purple-500/20 gap-2 px-5"
           >
             {isSaving ? (
               <>

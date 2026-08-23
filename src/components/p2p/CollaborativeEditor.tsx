@@ -119,17 +119,17 @@ export function CollaborativeEditor({
   // Show loading state while provider initializes
   if (!provider) {
     return (
-      <div className="h-full flex flex-col bg-[#1C1D28]">
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-[#262C4A]/50 bg-[#1a1b26] relative z-10">
-          <span className="text-xs text-gray-400">Collaborators:</span>
-          <span className="px-2 py-0.5 rounded-full text-xs bg-[#6E59A5]/30 text-purple-300 ring-2 ring-green-500 ring-offset-1 ring-offset-[#1a1b26]">
+      <div className="h-full flex flex-col bg-background">
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-surface/50 bg-background relative z-10">
+          <span className="text-xs text-muted-foreground">Collaborators:</span>
+          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/30 text-purple-300 ring-2 ring-green-500 ring-offset-1 ring-offset-background">
             {currentUserName}
           </span>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
-            <div className="w-6 h-6 border-2 border-[#6E59A5] border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-gray-400">Connecting to document...</span>
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Connecting to document...</span>
           </div>
         </div>
       </div>
@@ -137,19 +137,19 @@ export function CollaborativeEditor({
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#1C1D28]">
+    <div className="h-full flex flex-col bg-background">
       {/* Connected users indicator */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#262C4A]/50 bg-[#1a1b26]">
-        <span className="text-xs text-gray-400">Collaborators:</span>
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-surface/50 bg-background">
+        <span className="text-xs text-muted-foreground">Collaborators:</span>
         <div className="flex items-center gap-2">
           {connectedUsers.map((user, i) => (
             <span
               key={i}
               className={`
-                px-2 py-0.5 rounded-full text-xs bg-[#6E59A5]/30 text-purple-300
+                px-2 py-0.5 rounded-full text-xs bg-primary/30 text-purple-300
                 transition-all duration-200
                 ${user.isActive
-                  ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-[#1a1b26]'
+                  ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-background'
                   : 'opacity-60'}
               `}
               title={user.isActive ? `${user.name} is actively viewing` : `${user.name} is connected`}
@@ -165,7 +165,7 @@ export function CollaborativeEditor({
               syncState === 'syncing' ? 'bg-yellow-500 animate-pulse' :
                 'bg-gray-500'}
           `} />
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted-foreground">
             {syncState === 'synced' ? 'Synced' :
               syncState === 'syncing' ? 'Syncing...' :
                 'Connecting...'}

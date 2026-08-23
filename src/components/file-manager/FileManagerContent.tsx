@@ -35,7 +35,7 @@ export const FileManagerContent = () => {
   // ── Main VFS Browser ──────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-[#1C1D28]">
+    <div className="flex flex-col h-full bg-background">
       <FileManagerStorageBar
         storageMode={fm.storageMode}
         setStorageMode={fm.setStorageMode}

@@ -135,11 +135,11 @@ export function EntityManagementModal<TMode extends string>({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] bg-[#232536] border-purple-800">
+      <DialogContent className="sm:max-w-[425px] bg-card border-purple-800">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-white">{modeConfig.title}</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogTitle className="text-foreground">{modeConfig.title}</DialogTitle>
+            <DialogDescription className="text-foreground/80">
               {modeConfig.description}
             </DialogDescription>
           </DialogHeader>
@@ -161,7 +161,7 @@ export function EntityManagementModal<TMode extends string>({
               variant="outline"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="bg-transparent border-gray-600 text-white hover:bg-[#232536]"
+              className="bg-transparent border-gray-600 text-foreground hover:bg-card"
             >
               Cancel
             </Button>
@@ -170,8 +170,8 @@ export function EntityManagementModal<TMode extends string>({
               disabled={isSubmitting}
               className={
                 modeConfig.submitVariant === 'destructive'
-                  ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-purple-500/20 text-purple-200 hover:bg-purple-500/25 hover:text-white"
+                  ? "bg-red-600 text-foreground hover:bg-red-700"
+                  : "bg-purple-500/20 text-purple-200 hover:bg-purple-500/25 hover:text-primary-foreground"
               }
             >
               {isSubmitting ? modeConfig.submittingLabel : modeConfig.submitLabel}
@@ -195,13 +195,13 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
     case 'input':
       return (
         <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-white">{field.label}</Label>
+          <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
           <Input
             id={field.id}
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-[#232536] border-gray-600 text-white placeholder:text-gray-400"
+            className="bg-card border-gray-600 text-foreground placeholder:text-muted-foreground"
             required={field.required}
             disabled={disabled}
           />
@@ -210,13 +210,13 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
     case 'textarea':
       return (
         <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-white">{field.label}</Label>
+          <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
           <Textarea
             id={field.id}
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-[#232536] border-gray-600 text-white placeholder:text-gray-400 min-h-[100px]"
+            className="bg-card border-gray-600 text-foreground placeholder:text-muted-foreground min-h-[100px]"
             disabled={disabled}
           />
         </div>
@@ -224,17 +224,17 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
     case 'select':
       return (
         <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-white">{field.label}</Label>
+          <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger className="bg-[#232536] border-gray-600 text-white">
+            <SelectTrigger className="bg-card border-gray-600 text-foreground">
               <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
             </SelectTrigger>
-            <SelectContent className="bg-[#232536] border-purple-800">
+            <SelectContent className="bg-card border-purple-800">
               {field.options?.map(option => (
                 <SelectItem
                   key={option.value}
                   value={option.value}
-                  className="text-white hover:bg-[#232536]"
+                  className="text-foreground hover:bg-card"
                 >
                   {option.label}
                 </SelectItem>

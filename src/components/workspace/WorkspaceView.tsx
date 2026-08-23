@@ -92,7 +92,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     const parsedCurrentUserCid = tryParseCid(currentUserCid);
 
     return (
-      <div className="h-full bg-[#1C1D28]">
+      <div className="h-full bg-background">
         <P2PChat
           peerCid={parsedPeerCid}
           peerName={peerName || undefined}

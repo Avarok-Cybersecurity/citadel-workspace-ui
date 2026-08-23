@@ -143,18 +143,18 @@ export const Landing = () => {
 
 
   return (
-    <div className="h-screen flex items-center relative overflow-hidden bg-[#1C1D28]">
+    <div className="h-screen flex items-center relative overflow-hidden bg-background">
       {/* Orphan sessions navbar */}
       <OrphanSessionsNavbar />
 
       {/* Solid background base */}
-      <div className="absolute inset-0 z-0 bg-[#1C1D28] fixed" />
+      <div className="absolute inset-0 z-0 bg-background fixed" />
 
       {/* Subtle dot grid pattern */}
       <div
         className="absolute inset-0 z-[0] fixed pointer-events-none opacity-[0.03]"
         style={{
-          backgroundImage: 'radial-gradient(circle, #8B5CF6 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, hsl(var(--primary)) 1px, transparent 1px)',
           backgroundSize: '24px 24px',
         }}
       />
@@ -163,7 +163,7 @@ export const Landing = () => {
       <div
         className="absolute inset-0 z-[0] fixed pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 80% 60% at 70% 50%, rgba(139, 92, 246, 0.06) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 80% 60% at 70% 50%, hsl(var(--primary) / 0.06) 0%, transparent 70%)',
         }}
       />
 
@@ -179,7 +179,12 @@ export const Landing = () => {
       <div
         className="absolute inset-0 z-[2] fixed pointer-events-none"
         style={{
-          background: 'linear-gradient(to right, #1C1D28 0%, #1C1D28 30%, rgba(28, 29, 40, 0.7) 60%, rgba(28, 29, 40, 0.2) 80%, rgba(28, 29, 40, 0) 100%)',
+          // Built from the --background token rather than a hardcoded #1C1D28, so
+          // the scrim follows the active theme. Hardcoding it kept the hero dark
+          // even in light mode, which is what made the theme look half-applied.
+          background:
+            'linear-gradient(to right, hsl(var(--background)) 0%, hsl(var(--background)) 30%, ' +
+            'hsl(var(--background) / 0.7) 60%, hsl(var(--background) / 0.2) 80%, hsl(var(--background) / 0) 100%)',
         }}
       />
 
@@ -195,7 +200,7 @@ export const Landing = () => {
             <p className="text-xs font-semibold tracking-[0.25em] text-purple-400 uppercase">Citadel</p>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-[1.1] tracking-tight">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground mb-6 leading-[1.1] tracking-tight">
             The World's First
             <br />
             <span className="bg-gradient-to-r from-purple-400 to-purple-300 bg-clip-text text-transparent">Post-Quantum</span>
@@ -203,7 +208,7 @@ export const Landing = () => {
             Virtual Workspace
           </h1>
 
-          <p className="text-lg text-gray-400 mb-10 max-w-md leading-relaxed">
+          <p className="text-lg text-muted-foreground mb-10 max-w-md leading-relaxed">
             Hyper-security and control over defense and privacy at your fingertips
           </p>
 
@@ -211,7 +216,7 @@ export const Landing = () => {
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={startLogin}
-              className="bg-purple-600 text-white hover:bg-purple-500 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
+              className="bg-purple-600 text-foreground hover:bg-purple-500 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
               size="lg"
             >
               <LogIn className="w-4 h-4" />
@@ -221,7 +226,7 @@ export const Landing = () => {
             <Button
               onClick={startRegistration}
               variant="outline"
-              className="border-[#3B3D57] text-gray-300 hover:bg-[#232536] hover:text-white hover:border-purple-500/50 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg"
+              className="border-surface text-foreground/80 hover:bg-card hover:text-foreground hover:border-purple-500/50 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg"
               size="lg"
             >
               Join Workspace
@@ -236,7 +241,7 @@ export const Landing = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="gap-2 text-gray-500 hover:text-gray-300 hover:bg-transparent px-0 h-auto text-xs"
+              className="gap-2 text-muted-foreground hover:text-foreground/80 hover:bg-transparent px-0 h-auto text-xs"
               onClick={() => setSettingsOpen(true)}
             >
               <Settings className="h-3.5 w-3.5" />
@@ -244,13 +249,13 @@ export const Landing = () => {
             </Button>
             {/* Renders only when the browser has actually offered an install
                 prompt and we are not already running installed — see usePwaInstall. */}
-            <InstallAppButton className="gap-2 text-gray-500 hover:text-gray-300 text-xs inline-flex items-center" />
+            <InstallAppButton className="gap-2 text-muted-foreground hover:text-foreground/80 text-xs inline-flex items-center" />
           </div>
 
           {/* Security badge */}
           <div className="mt-12 flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-500/5 border border-purple-500/10 max-w-md">
             <Shield className="w-5 h-5 text-purple-400 flex-shrink-0" />
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Citadel uses <span className="text-purple-300 font-medium">lattice-based cryptography</span>. All connections are end-to-end encrypted and resistant to quantum compute attacks.
             </p>
           </div>

@@ -33,13 +33,13 @@ export function RevfsDisabledModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#2E3450] border-purple-800 text-gray-200 sm:max-w-md">
+      <DialogContent className="bg-surface border-purple-800 text-foreground sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <AlertTriangle className="h-5 w-5 text-yellow-400" />
             Remote Storage Unavailable
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             {isPeerDisabled
               ? 'P2P remote storage is not enabled for this peer.'
               : 'Server storage is not available.'}
@@ -49,7 +49,7 @@ export function RevfsDisabledModal({
         <div className="space-y-4 py-4">
           {/* Icon display */}
           <div className="flex justify-center py-4">
-            <div className="rounded-full bg-[#1E2235] p-6">
+            <div className="rounded-full bg-card p-6">
               {isPeerDisabled ? (
                 <UserCircle2 className="h-12 w-12 text-yellow-400" />
               ) : (
@@ -59,13 +59,13 @@ export function RevfsDisabledModal({
           </div>
 
           {/* Explanation */}
-          <div className="bg-[#1E2235] rounded-lg p-4 space-y-3">
+          <div className="bg-card rounded-lg p-4 space-y-3">
             {isPeerDisabled ? (
               <>
-                <p className="text-sm text-gray-300">
+                <p className="text-sm text-foreground/80">
                   Your peer hasn't enabled remote storage on their device. To use the shared file system:
                 </p>
-                <ul className="text-sm text-gray-400 space-y-2 list-disc list-inside">
+                <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
                   <li>Ask your peer to enable remote storage in their Chat Settings</li>
                   <li>Both users must have remote storage enabled</li>
                   <li>You can still use standard file transfers</li>
@@ -73,10 +73,10 @@ export function RevfsDisabledModal({
               </>
             ) : (
               <>
-                <p className="text-sm text-gray-300">
+                <p className="text-sm text-foreground/80">
                   The server administrator has disabled RE-VFS storage:
                 </p>
-                <ul className="text-sm text-gray-400 space-y-2 list-disc list-inside">
+                <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
                   <li>Server-side encrypted storage is not available</li>
                   <li>Contact the administrator to request access</li>
                   <li>You can still use P2P storage with peers</li>
@@ -89,7 +89,7 @@ export function RevfsDisabledModal({
         <DialogFooter className="gap-2">
           <Button
             onClick={onClose}
-            className="bg-[#232536] border-purple-700 text-gray-200 hover:bg-[#555B8C] hover:text-white"
+            className="bg-card border-purple-700 text-foreground hover:bg-border hover:text-foreground"
           >
             {isPeerDisabled ? 'OK' : 'Close'}
           </Button>
@@ -99,7 +99,7 @@ export function RevfsDisabledModal({
                 onOpenSettings();
                 onClose();
               }}
-              className="bg-purple-700 text-white hover:bg-purple-600"
+              className="bg-purple-700 text-foreground hover:bg-purple-600"
             >
               <Settings className="h-4 w-4 mr-2" />
               Open Settings

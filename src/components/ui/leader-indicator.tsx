@@ -39,8 +39,8 @@ export const LeaderIndicator: React.FC = () => {
               </>
             ) : (
               <>
-                <WifiOff className="h-4 w-4 text-gray-500" />
-                <span className="text-xs text-gray-500 font-medium">Follower</span>
+                <WifiOff className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-medium">Follower</span>
               </>
             )}
           </div>

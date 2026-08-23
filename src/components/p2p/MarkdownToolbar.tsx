@@ -41,8 +41,8 @@ function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonPr
       onClick={onClick}
       className={`p-1.5 rounded transition-colors ${
         active
-          ? 'bg-[#6E59A5] text-white'
-          : 'hover:bg-white/10 text-gray-400 hover:text-white'
+          ? 'bg-primary text-primary-foreground'
+          : 'hover:bg-white/10 text-muted-foreground hover:text-foreground'
       }`}
       title={title}
     >
@@ -81,7 +81,7 @@ export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePrevie
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="overflow-hidden border-t border-[#262C4A]/50 bg-[#1a1b26]"
+          className="overflow-hidden border-t border-surface/50 bg-background"
         >
           <div className="flex flex-wrap items-center gap-0.5 p-2">
             {/* Text formatting */}

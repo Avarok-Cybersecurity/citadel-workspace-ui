@@ -47,7 +47,7 @@ function getReadStatus(message: GroupMessage, totalMembers: number): ReadStatus 
 function getReadStatusIcon(status: ReadStatus) {
   switch (status) {
     case 'sent':
-      return <Check className="h-3 w-3 text-gray-400" data-testid="message-status-sent" />;
+      return <Check className="h-3 w-3 text-muted-foreground" data-testid="message-status-sent" />;
     case 'partial':
       // Amber/yellow for partial reads
       return <CheckCheck className="h-3 w-3 text-amber-400" data-testid="message-status-partial" />;
@@ -70,7 +70,7 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
     return (
       <div className="text-sm">
         <p className="text-sky-400 font-medium">Read by everyone</p>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           {readBy.length} member{readBy.length !== 1 ? 's' : ''}
         </p>
       </div>
@@ -85,18 +85,18 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
           Seen by {readBy.length} of {totalMembers - 1}
         </p>
         <div className="space-y-1">
-          <p className="text-xs text-gray-400">Viewed by:</p>
+          <p className="text-xs text-muted-foreground">Viewed by:</p>
           {readBy.map((reader) => (
             <div key={reader.user_id} className="flex items-center gap-2 text-xs">
-              <span className="text-gray-300">{reader.user_name}</span>
-              <span className="text-gray-500">
+              <span className="text-foreground/80">{reader.user_name}</span>
+              <span className="text-muted-foreground">
                 {formatTime(reader.read_at)}
               </span>
             </div>
           ))}
         </div>
         {unreadCount > 0 && (
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             {unreadCount} member{unreadCount !== 1 ? 's' : ''} haven't seen this yet
           </p>
         )}
@@ -107,8 +107,8 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
   // Sent status
   return (
     <div className="text-sm">
-      <p className="text-gray-400">Message sent</p>
-      <p className="text-xs text-gray-500 mt-1">Not yet read by anyone</p>
+      <p className="text-muted-foreground">Message sent</p>
+      <p className="text-xs text-muted-foreground mt-1">Not yet read by anyone</p>
     </div>
   );
 }
@@ -124,7 +124,7 @@ export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessag
         {formatTime(message.timestamp)}
       </span>
       {message.edited_at != null && (
-        <span className="text-xs text-gray-500 italic">(edited)</span>
+        <span className="text-xs text-muted-foreground italic">(edited)</span>
       )}
       {isOwn && statusIcon && (
         <TooltipProvider delayDuration={300}>
@@ -136,7 +136,7 @@ export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessag
             </TooltipTrigger>
             <TooltipContent
               side="top"
-              className="bg-[#1C1D28] border-gray-700 p-3"
+              className="bg-background border-gray-700 p-3"
             >
               <ReadByTooltipContent
                 readBy={readBy}

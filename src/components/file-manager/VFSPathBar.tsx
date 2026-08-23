@@ -85,9 +85,9 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 border-b border-purple-800 bg-[#3A4060]">
-      <FolderOpen className="h-4 w-4 text-gray-400 shrink-0" />
-      <span className="text-xs text-gray-400 shrink-0">Path:</span>
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-purple-800 bg-surface">
+      <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+      <span className="text-xs text-muted-foreground shrink-0">Path:</span>
       <input
         ref={inputRef}
         type="text"
@@ -97,9 +97,9 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         className={cn(
-          'flex-1 bg-[#1E2235] text-gray-200 text-sm px-3 py-1.5 rounded border border-transparent',
+          'flex-1 bg-card text-foreground text-sm px-3 py-1.5 rounded border border-transparent',
           'focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50',
-          'placeholder:text-gray-500',
+          'placeholder:text-muted-foreground',
           hasError && 'animate-shake border-red-500 focus:border-red-500 focus:ring-red-500/50'
         )}
         placeholder="/"

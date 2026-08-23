@@ -110,7 +110,7 @@ export function GroupChatHeader({
   const canAccessSettings = can('editGroupSettings') || can('manageRoles');
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-[#2D3548] bg-[#1C1D28]">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
       {/* Left: Group Info */}
       <div className="flex items-center gap-3">
         {/* Overlapping Avatars */}
@@ -118,7 +118,7 @@ export function GroupChatHeader({
           {visibleMembers.map((member, index) => (
             <div
               key={member.cid}
-              className="relative rounded-full flex items-center justify-center text-xs font-medium text-white border-2 border-[#1C1D28]"
+              className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground border-2 border-background"
               style={{
                 width: 32,
                 height: 32,
@@ -133,7 +133,7 @@ export function GroupChatHeader({
           ))}
           {overflowCount > 0 && (
             <div
-              className="relative rounded-full flex items-center justify-center text-xs font-medium text-white bg-[#4A4A6A] border-2 border-[#1C1D28]"
+              className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground bg-surface border-2 border-background"
               style={{
                 width: 32,
                 height: 32,
@@ -149,8 +149,8 @@ export function GroupChatHeader({
 
         {/* Group Name & Member Count */}
         <div>
-          <h2 className="text-base font-semibold text-white">{group.name}</h2>
-          <p className="text-xs text-gray-400">
+          <h2 className="text-base font-semibold text-foreground">{group.name}</h2>
+          <p className="text-xs text-muted-foreground">
             {group.members.length} member{group.members.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -164,7 +164,7 @@ export function GroupChatHeader({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-gray-400 hover:text-white hover:bg-[#262C4A]"
+              className="h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-surface"
             >
               <Settings className="h-4 w-4 mr-1" />
               <ChevronDown className="h-3 w-3" />
@@ -172,30 +172,30 @@ export function GroupChatHeader({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-48 bg-[#1C1D28] border-[#2D3548]"
+            className="w-48 bg-background border-border"
           >
             {canAccessSettings && (
               <>
                 <DropdownMenuItem
                   onClick={onOpenSettings}
-                  className="text-white hover:bg-[#262C4A] cursor-pointer"
+                  className="text-foreground hover:bg-surface cursor-pointer"
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Group Settings
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-[#2D3548]" />
+                <DropdownMenuSeparator className="bg-border" />
               </>
             )}
             <DropdownMenuItem
               onClick={onOpenSettings}
-              className="text-white hover:bg-[#262C4A] cursor-pointer"
+              className="text-foreground hover:bg-surface cursor-pointer"
             >
               <Users className="h-4 w-4 mr-2" />
               View Members
             </DropdownMenuItem>
             {!isOwner && (
               <>
-                <DropdownMenuSeparator className="bg-[#2D3548]" />
+                <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem
                   onClick={() => setShowLeaveConfirm(true)}
                   className="text-red-400 hover:bg-red-500/10 cursor-pointer"
@@ -211,12 +211,12 @@ export function GroupChatHeader({
 
       {/* Leave Confirmation Dialog */}
       <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
-        <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
+        <AlertDialogContent className="bg-background border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">
+            <AlertDialogTitle className="text-foreground">
               Leave "{group.name}"?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
+            <AlertDialogDescription className="text-muted-foreground">
               You will no longer receive messages from this group. You can be
               re-invited by a group admin.
             </AlertDialogDescription>
@@ -224,14 +224,14 @@ export function GroupChatHeader({
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={isLeaving}
-              className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
+              className="bg-transparent border-border text-foreground hover:bg-surface"
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLeaveConfirm}
               disabled={isLeaving}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-foreground"
             >
               {isLeaving ? 'Leaving...' : 'Leave Group'}
             </AlertDialogAction>

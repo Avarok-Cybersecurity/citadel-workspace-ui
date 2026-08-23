@@ -4,6 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { ThemeSelector } from './ThemeSelector';
 
 const STORAGE_KEY = 'citadel:appearance-settings';
 
@@ -58,17 +59,19 @@ export function AppearanceSettingsTab() {
 
   return (
     <div className="space-y-5">
+      <ThemeSelector />
+
       {/* Display Density */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
           <Layout className="h-4 w-4 text-purple-400" />
           Display
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Compact Mode</Label>
-            <p className="text-xs text-gray-500">Reduce spacing between elements</p>
+            <p className="text-xs text-muted-foreground">Reduce spacing between elements</p>
           </div>
           <Switch
             checked={settings.compactMode}
@@ -76,10 +79,10 @@ export function AppearanceSettingsTab() {
           />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Show Avatars</Label>
-            <p className="text-xs text-gray-500">Display user avatars in messages and lists</p>
+            <p className="text-xs text-muted-foreground">Display user avatars in messages and lists</p>
           </div>
           <Switch
             checked={settings.showAvatars}
@@ -87,10 +90,10 @@ export function AppearanceSettingsTab() {
           />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Group Messages</Label>
-            <p className="text-xs text-gray-500">Visually group consecutive messages from the same sender</p>
+            <p className="text-xs text-muted-foreground">Visually group consecutive messages from the same sender</p>
           </div>
           <Switch
             checked={settings.messageGrouping}
@@ -101,15 +104,15 @@ export function AppearanceSettingsTab() {
 
       {/* Typography */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
           <Type className="h-4 w-4 text-purple-400" />
           Typography
         </div>
 
-        <div className="p-3 rounded-lg bg-[#1a1b26]/50 space-y-2">
+        <div className="p-3 rounded-lg bg-background/50 space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Font Size</Label>
-            <span className="text-xs text-gray-400">{settings.fontSize}px</span>
+            <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
           </div>
           <Slider
             value={[settings.fontSize]}
@@ -124,22 +127,22 @@ export function AppearanceSettingsTab() {
 
       {/* Sidebar */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
           <Monitor className="h-4 w-4 text-purple-400" />
           Layout
         </div>
 
-        <div className="p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="p-3 rounded-lg bg-background/50">
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-sm font-medium">Sidebar Width</Label>
-              <p className="text-xs text-gray-500">Adjust the navigation sidebar width</p>
+              <p className="text-xs text-muted-foreground">Adjust the navigation sidebar width</p>
             </div>
             <Select
               value={settings.sidebarWidth}
               onValueChange={(v) => update('sidebarWidth', v as AppearanceSettings['sidebarWidth'])}
             >
-              <SelectTrigger className="w-28 h-8 bg-[#262C4A] border-[#3D4567] text-sm">
+              <SelectTrigger className="w-28 h-8 bg-surface border-surface text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -151,10 +154,10 @@ export function AppearanceSettingsTab() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Animations</Label>
-            <p className="text-xs text-gray-500">Enable smooth transitions and effects</p>
+            <p className="text-xs text-muted-foreground">Enable smooth transitions and effects</p>
           </div>
           <Switch
             checked={settings.animationsEnabled}

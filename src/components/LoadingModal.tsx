@@ -123,7 +123,7 @@ export const LoadingModal = ({
 
       {/* Modal Content */}
       <div
-        className={`relative z-10 bg-[#1C1D28] border border-gray-700 rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
+        className={`relative z-10 bg-background border border-gray-700 rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
           }`}
       >
         {/* Icon */}
@@ -137,7 +137,7 @@ export const LoadingModal = ({
         </div>
 
         {/* Title */}
-        <h2 className="text-xl font-semibold text-white text-center mb-2">
+        <h2 className="text-xl font-semibold text-foreground text-center mb-2">
           {title}
         </h2>
 
@@ -154,7 +154,7 @@ export const LoadingModal = ({
         )}
 
         {/* Description */}
-        <p className="text-gray-400 text-center text-sm">{description}</p>
+        <p className="text-muted-foreground text-center text-sm">{description}</p>
 
         {/* Progress indicator */}
         {isLoading && config.steps.length > 0 && (
@@ -171,7 +171,7 @@ export const LoadingModal = ({
               ))}
               <div className="w-2 h-2 rounded-full bg-purple-400/30" />
             </div>
-            <div className="flex justify-center gap-4 mt-2 text-xs text-gray-500">
+            <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
               {config.steps.map((step, index) => (
                 <span
                   key={step.key}
@@ -207,7 +207,7 @@ export const LoadingModal = ({
             <Button
               variant="ghost"
               size="sm"
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
               onClick={onCancel}
             >
               <X className="h-4 w-4 mr-1" />

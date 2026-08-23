@@ -4,7 +4,7 @@ import type React from 'react';
  * Thin wrappers so success/error toasts are consistent everywhere.
  *
  * `toastSuccess` used to pass a hardcoded `className` of hex colours
- * ("bg-[#232536] border-purple-800 ...") to tint the toast. That both bypassed
+ * ("bg-card border-purple-800 ...") to tint the toast. That both bypassed
  * the theme tokens and broke in light mode. The variant is semantic now, and
  * Sonner colours it from the active theme.
  *

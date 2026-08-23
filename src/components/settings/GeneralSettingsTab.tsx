@@ -84,7 +84,7 @@ export function GeneralSettingsTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -94,8 +94,8 @@ export function GeneralSettingsTab() {
       {/* Profile Section */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-white">User Profile</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Update your photo and personal details</p>
+          <h3 className="text-sm font-semibold text-foreground">User Profile</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Update your photo and personal details</p>
         </div>
 
         <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -111,7 +111,7 @@ export function GeneralSettingsTab() {
           {/* Name Input */}
           <div className="flex-1 space-y-4 w-full">
             <div className="space-y-1.5">
-              <label htmlFor="displayName" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+              <label htmlFor="displayName" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                 Display Name
               </label>
               <Input
@@ -120,9 +120,9 @@ export function GeneralSettingsTab() {
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Enter your display name"
                 disabled={isSaving}
-                className="bg-[#131420] border-[#2D3548] text-white h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                className="bg-input border-border text-foreground h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
               />
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-muted-foreground">
                 This is how your name appears to other workspace members.
               </p>
             </div>
@@ -131,7 +131,7 @@ export function GeneralSettingsTab() {
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end pt-4 border-t border-[#2D3548]">
+      <div className="flex justify-end pt-4 border-t border-border">
         <Button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}

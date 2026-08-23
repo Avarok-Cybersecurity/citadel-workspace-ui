@@ -72,18 +72,18 @@ export function GroupSettingsPanel({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        className="w-full sm:max-w-md bg-[#1C1D28] border-l border-[#2D3548] p-0 flex flex-col"
+        className="w-full sm:max-w-md bg-background border-l border-border p-0 flex flex-col"
         side="right"
       >
         {/* Header */}
-        <SheetHeader className="px-4 py-3 border-b border-[#2D3548]">
+        <SheetHeader className="px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-white text-lg">Group Settings</SheetTitle>
+            <SheetTitle className="text-foreground text-lg">Group Settings</SheetTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onOpenChange(false)}
-              className="h-8 w-8 text-gray-400 hover:text-white"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -96,10 +96,10 @@ export function GroupSettingsPanel({
           onValueChange={setActiveTab}
           className="flex-1 flex flex-col overflow-hidden"
         >
-          <TabsList className="mx-4 mt-4 bg-[#262C4A] border border-[#3D4663]">
+          <TabsList className="mx-4 mt-4 bg-surface border border-border">
             <TabsTrigger
               value="members"
-              className="flex-1 data-[state=active]:bg-[#6E59A5]"
+              className="flex-1 data-[state=active]:bg-primary"
             >
               <Users className="h-4 w-4 mr-1" />
               Members
@@ -107,7 +107,7 @@ export function GroupSettingsPanel({
             {canManageRoles && (
               <TabsTrigger
                 value="roles"
-                className="flex-1 data-[state=active]:bg-[#6E59A5]"
+                className="flex-1 data-[state=active]:bg-primary"
               >
                 <Shield className="h-4 w-4 mr-1" />
                 Roles
@@ -116,7 +116,7 @@ export function GroupSettingsPanel({
             {canEditSettings && (
               <TabsTrigger
                 value="settings"
-                className="flex-1 data-[state=active]:bg-[#6E59A5]"
+                className="flex-1 data-[state=active]:bg-primary"
               >
                 <Settings className="h-4 w-4 mr-1" />
                 Settings
@@ -146,7 +146,7 @@ export function GroupSettingsPanel({
               <div className="space-y-6">
                 {/* Group Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="groupName" className="text-sm text-gray-300">
+                  <Label htmlFor="groupName" className="text-sm text-foreground/80">
                     Group Name
                   </Label>
                   <div className="flex gap-2">
@@ -154,31 +154,31 @@ export function GroupSettingsPanel({
                       id="groupName"
                       value={groupName}
                       onChange={e => setGroupName(e.target.value)}
-                      className="flex-1 bg-[#262C4A] border-[#3D4663] text-white"
+                      className="flex-1 bg-surface border-border text-foreground"
                     />
                     <Button
                       onClick={handleNameSave}
                       disabled={isSaving || groupName.trim() === group.name}
-                      className="bg-[#6E59A5] hover:bg-[#5D4A94] text-white"
+                      className="bg-primary hover:bg-primary text-primary-foreground"
                     >
                       {isSaving ? 'Saving...' : 'Save'}
                     </Button>
                   </div>
                 </div>
 
-                <Separator className="bg-[#3D4663]" />
+                <Separator className="bg-border" />
 
                 {/* Group Info */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-gray-300">Group Information</h4>
+                  <h4 className="text-sm font-medium text-foreground/80">Group Information</h4>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="bg-[#262C4A] rounded-lg p-3">
-                      <p className="text-gray-400">Members</p>
-                      <p className="text-white font-medium">{group.members.length}</p>
+                    <div className="bg-surface rounded-lg p-3">
+                      <p className="text-muted-foreground">Members</p>
+                      <p className="text-foreground font-medium">{group.members.length}</p>
                     </div>
-                    <div className="bg-[#262C4A] rounded-lg p-3">
-                      <p className="text-gray-400">Roles</p>
-                      <p className="text-white font-medium">
+                    <div className="bg-surface rounded-lg p-3">
+                      <p className="text-muted-foreground">Roles</p>
+                      <p className="text-foreground font-medium">
                         {group.settings.roles.length}
                       </p>
                     </div>
@@ -188,12 +188,12 @@ export function GroupSettingsPanel({
                 {/* Danger Zone */}
                 {canDeleteGroup && (
                   <>
-                    <Separator className="bg-[#3D4663]" />
+                    <Separator className="bg-border" />
 
                     <div className="space-y-3">
                       <h4 className="text-sm font-medium text-red-400">Danger Zone</h4>
                       <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
-                        <p className="text-sm text-gray-300 mb-3">
+                        <p className="text-sm text-foreground/80 mb-3">
                           Permanently delete this group. This action cannot be undone.
                           All messages and settings will be lost.
                         </p>

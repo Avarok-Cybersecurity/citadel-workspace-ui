@@ -49,7 +49,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
             disabled={isSwitching}
           >
             {isInitials ? (
-              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white text-sm font-semibold">
+              <div className="w-8 h-8 rounded flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
                 {workspaceLogo || getWorkspaceInitials(workspaceName || currentWorkspace?.username || "W")}
               </div>
             ) : (
@@ -61,11 +61,11 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
               />
             )}
             <div className="flex-1 text-left">
-              <span className="font-semibold text-white block group-hover:text-white">
+              <span className="font-semibold text-foreground block group-hover:text-foreground">
                 {workspaceName || currentWorkspace?.workspaceName || "Select Workspace"}
               </span>
               {currentWorkspace && (
-                <span className="text-xs text-gray-500 group-hover:text-gray-400">
+                <span className="text-xs text-muted-foreground group-hover:text-muted-foreground">
                   {currentWorkspace.fullName || currentWorkspace.username}
                 </span>
               )}
@@ -75,7 +75,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
             ) : (
               <ChevronRight
                 className={cn(
-                  "w-5 h-5 text-gray-400 group-hover:text-white transition-transform duration-300 mr-2",
+                  "w-5 h-5 text-muted-foreground group-hover:text-foreground transition-transform duration-300 mr-2",
                   isOpen && "rotate-90"
                 )}
               />

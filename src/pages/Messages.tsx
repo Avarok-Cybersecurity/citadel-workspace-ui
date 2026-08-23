@@ -41,9 +41,9 @@ const Messages = () => {
     <AppLayout>
       <div className="flex h-full">
         {/* Conversation List */}
-        <div className="w-72 border-r border-[#2D3548] bg-[#131420] flex-shrink-0 flex flex-col">
-          <div className="px-4 py-3 border-b border-[#2D3548]">
-            <h2 className="text-[11px] font-semibold tracking-wider uppercase text-gray-500">
+        <div className="w-72 border-r border-border bg-input flex-shrink-0 flex flex-col">
+          <div className="px-4 py-3 border-b border-border">
+            <h2 className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
               Conversations
             </h2>
           </div>
@@ -56,7 +56,7 @@ const Messages = () => {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-[#1C1D28]">
+        <div className="flex-1 flex flex-col bg-background">
           {selectedPeerCid && currentUserCid ? (
             <P2PChat
               peerCid={BigInt(selectedPeerCid)}
@@ -70,13 +70,13 @@ const Messages = () => {
                 <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-5">
                   <MessageCircle className="h-8 w-8 text-purple-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">No conversation selected</h3>
-                <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                <h3 className="text-lg font-semibold text-foreground mb-2">No conversation selected</h3>
+                <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
                   Choose a peer from the list to start an encrypted conversation
                 </p>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/5 border border-purple-500/10">
                   <Shield className="w-3.5 h-3.5 text-purple-400" />
-                  <span className="text-[11px] text-gray-400">End-to-end encrypted</span>
+                  <span className="text-[11px] text-muted-foreground">End-to-end encrypted</span>
                 </div>
               </div>
             </div>

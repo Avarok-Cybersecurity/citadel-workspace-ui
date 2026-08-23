@@ -56,13 +56,13 @@ export function StorageLimitModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#2E3450] border-purple-800 text-gray-200 sm:max-w-md">
+      <DialogContent className="bg-surface border-purple-800 text-foreground sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <AlertCircle className="h-5 w-5 text-red-400" />
             Storage Limit Reached
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Not enough space to upload this file.
           </DialogDescription>
         </DialogHeader>
@@ -71,17 +71,17 @@ export function StorageLimitModal({
           {/* Storage usage display */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-1.5 text-gray-400">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
                 <HardDrive className="h-4 w-4" />
                 Current Usage
               </span>
-              <span className="text-gray-300">
+              <span className="text-foreground/80">
                 {formatBytes(usedBytes)} / {formatBytes(quotaBytes)}
               </span>
             </div>
 
             {/* Progress bar */}
-            <div className="w-full h-2 bg-[#1E2235] rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-card rounded-full overflow-hidden">
               <div
                 className={cn('h-full rounded-full transition-all duration-300', barColor)}
                 style={{ width: `${percentage}%` }}
@@ -90,24 +90,24 @@ export function StorageLimitModal({
           </div>
 
           {/* File size info */}
-          <div className="bg-[#1E2235] rounded-lg p-3 space-y-2">
+          <div className="bg-card rounded-lg p-3 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">File size:</span>
-              <span className="text-white font-medium">{formatBytes(attemptedFileSize)}</span>
+              <span className="text-muted-foreground">File size:</span>
+              <span className="text-foreground font-medium">{formatBytes(attemptedFileSize)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Available space:</span>
+              <span className="text-muted-foreground">Available space:</span>
               <span className="text-red-400 font-medium">{formatBytes(availableBytes)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Space needed:</span>
+              <span className="text-muted-foreground">Space needed:</span>
               <span className="text-yellow-400 font-medium">
                 {formatBytes(Math.max(0, attemptedFileSize - availableBytes))} more
               </span>
             </div>
           </div>
 
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Delete some files to free up space, or contact the server administrator to increase your quota.
           </p>
         </div>
@@ -116,7 +116,7 @@ export function StorageLimitModal({
           <Button
             variant="outline"
             onClick={onClose}
-            className="bg-[#232536] border-purple-700 text-gray-200 hover:bg-[#555B8C] hover:text-white"
+            className="bg-card border-purple-700 text-foreground hover:bg-border hover:text-foreground"
           >
             Cancel
           </Button>
@@ -126,7 +126,7 @@ export function StorageLimitModal({
                 onManageStorage();
                 onClose();
               }}
-              className="bg-purple-700 text-white hover:bg-purple-600"
+              className="bg-purple-700 text-foreground hover:bg-purple-600"
             >
               Manage Storage
             </Button>

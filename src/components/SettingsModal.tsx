@@ -24,19 +24,19 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const connectionInfo = connectionManager.getConnectionInfo();
   const isConnected = !!connectionInfo?.cid;
 
-  const tabTriggerClass = "data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-500 gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-purple-500/20";
+  const tabTriggerClass = "data-[state=active]:bg-purple-600 data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-purple-500/20";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40 sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-[#2D3548]">
-          <DialogTitle className="text-xl font-bold text-white">Settings</DialogTitle>
-          <p className="text-sm text-gray-400 mt-1">Configure your workspace preferences</p>
+      <DialogContent className="sm:max-w-[640px] bg-background border-border shadow-2xl shadow-black/40 sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+          <DialogTitle className="text-xl font-bold text-foreground">Settings</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">Configure your workspace preferences</p>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-4 pb-2">
-            <TabsList className="grid w-full grid-cols-5 bg-[#131420] h-10 rounded-lg p-1">
+            <TabsList className="grid w-full grid-cols-5 bg-input h-10 rounded-lg p-1">
               <TabsTrigger value="general" className={tabTriggerClass}>
                 <Settings className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">General</span>

@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
  */
 export function RoleBadge({ role }: { role: UserRole | null }) {
   if (!role) {
-    return <Badge variant="outline" className="text-gray-400 border-gray-600">Unknown</Badge>;
+    return <Badge variant="outline" className="text-muted-foreground border-gray-600">Unknown</Badge>;
   }
 
   const roleString = typeof role === 'string' ? role : 'Custom';
@@ -37,7 +37,7 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
     Admin: 'bg-purple-600/20 text-purple-400 border-purple-500/50',
     Owner: 'bg-amber-600/20 text-amber-400 border-amber-500/50',
     Member: 'bg-blue-600/20 text-blue-400 border-blue-500/50',
-    Guest: 'bg-gray-600/20 text-gray-400 border-gray-500/50',
+    Guest: 'bg-gray-600/20 text-muted-foreground border-gray-500/50',
     Banned: 'bg-red-600/20 text-red-400 border-red-500/50',
     Custom: 'bg-teal-600/20 text-teal-400 border-teal-500/50',
   };
@@ -96,14 +96,14 @@ export function PermissionTable({
     <Table>
       <TableHeader>
         <TableRow className="border-gray-700 hover:bg-transparent">
-          <TableHead className="text-gray-400 w-1/2">Permission</TableHead>
-          <TableHead className="text-gray-400">Status</TableHead>
+          <TableHead className="text-muted-foreground w-1/2">Permission</TableHead>
+          <TableHead className="text-muted-foreground">Status</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {uniquePermissions.map((permission) => (
           <TableRow key={permission} className="border-gray-700/50 hover:bg-gray-800/50">
-            <TableCell className="text-gray-300 font-medium">
+            <TableCell className="text-foreground/80 font-medium">
               {getPermissionLabel(permission)}
             </TableCell>
             <TableCell>
@@ -136,7 +136,7 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }) {
 
         return (
           <AccordionItem key={key} value={key} className="border-gray-700/50">
-            <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2">
+            <AccordionTrigger className="text-foreground/80 hover:text-foreground hover:no-underline py-2">
               <div className="flex items-center gap-3">
                 <span>{category.label}</span>
                 <Badge
@@ -161,7 +161,7 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }) {
                     key={permission}
                     className="flex items-center justify-between py-1.5 text-sm"
                   >
-                    <span className="text-gray-400">{getPermissionLabel(permission)}</span>
+                    <span className="text-muted-foreground">{getPermissionLabel(permission)}</span>
                     <PermissionStatus allowed={hasPermission(domainId, permission)} />
                   </div>
                 ))}

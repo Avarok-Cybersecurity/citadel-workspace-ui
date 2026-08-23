@@ -70,20 +70,20 @@ export function Login({ onNext, onCancel }: LoginProps) {
           isFromLogin={true}
         />
       ) : (
-        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40 w-full max-w-md">
+        <Card className="bg-background border-border shadow-2xl shadow-black/40 w-full max-w-md">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <Button
                 onClick={onCancel}
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-gray-400 hover:text-white hover:bg-purple-500/15 rounded-lg"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-purple-500/15 rounded-lg"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h2 className="text-xl font-bold text-white">Login to Workspace</h2>
-                <p className="text-sm text-gray-400 mt-0.5">
+                <h2 className="text-xl font-bold text-foreground">Login to Workspace</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
                   Enter your credentials to connect
                 </p>
               </div>
@@ -94,40 +94,40 @@ export function Login({ onNext, onCancel }: LoginProps) {
             <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
               {/* Username */}
               <div className="space-y-1.5">
-                <label htmlFor="username" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="username" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                   Username
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="username"
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 pr-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -137,17 +137,17 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
               {/* Server Address */}
               <div className="space-y-1.5">
-                <label htmlFor="server" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="server" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                   Server Address
                 </label>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="server"
                     placeholder="workspace.example.com:12349"
                     value={server}
                     onChange={(e) => setServer(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
                   />
                 </div>
               </div>
@@ -155,7 +155,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
               {/* Advanced Options */}
               <button
                 type="button"
-                className="flex items-center gap-2 text-gray-400 w-full transition-colors duration-200 hover:text-purple-300 py-1"
+                className="flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-purple-300 py-1"
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
               >
                 <Settings className="h-3.5 w-3.5" />
@@ -164,16 +164,16 @@ export function Login({ onNext, onCancel }: LoginProps) {
               </button>
 
               {isAdvancedOpen && (
-                <div className="space-y-3 p-3 bg-[#131420] rounded-lg border border-[#2D3548]">
+                <div className="space-y-3 p-3 bg-input rounded-lg border border-border">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                    <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                       Security Settings
                     </span>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-white text-xs h-7 px-3 rounded-md"
+                      className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-foreground text-xs h-7 px-3 rounded-md"
                       onClick={() => setShowSecuritySettings(true)}
                     >
                       Configure
@@ -181,7 +181,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                    <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                       Remember Credentials
                     </span>
                     <Switch
@@ -208,7 +208,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
             <CardFooter className="pt-2">
               <Button
                 type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white h-11 rounded-lg shadow-lg shadow-purple-500/20 transition-all gap-2"
+                className="w-full bg-purple-600 hover:bg-purple-500 text-foreground h-11 rounded-lg shadow-lg shadow-purple-500/20 transition-all gap-2"
                 disabled={loading}
               >
                 {loading ? (

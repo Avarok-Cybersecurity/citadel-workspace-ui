@@ -63,6 +63,18 @@ export default tseslint.config(
       // Disable non-critical rules to unblock CI - TODO: fix these later
       "@typescript-eslint/no-empty-object-type": "off",
       "@typescript-eslint/no-unsafe-function-type": "off",
+      // Keep the design system from eroding again. The app previously carried 647
+      // hardcoded hex colours across 130 files — five competing "background"
+      // values among them — while the tokens in index.css went unused, which is
+      // why a theme switch was impossible. Use bg-card / text-muted-foreground /
+      // border-border instead; add a token if none of them fit.
+      "no-restricted-syntax": ["error", {
+        selector: "JSXAttribute[name.name='className'] Literal[value=/\\[#[0-9A-Fa-f]{6}\\]/]",
+        message: "Hardcoded hex colour in className. Use a design token (bg-card, text-muted-foreground, border-border, bg-surface, text-primary-accent) — see src/index.css.",
+      }, {
+        selector: "JSXAttribute[name.name='className'] TemplateElement[value.raw=/\\[#[0-9A-Fa-f]{6}\\]/]",
+        message: "Hardcoded hex colour in className. Use a design token — see src/index.css.",
+      }],
       "no-case-declarations": "off",
       "no-useless-escape": "off",
       // Keep rules-of-hooks as error but will fix the violations

@@ -104,12 +104,12 @@ export function VFSContentGrid({
     return (
       <VFSContextMenu {...emptyContextProps}>
         <div
-          className={cn("flex-1 flex flex-col items-center justify-center text-gray-500 text-sm", rootDragOver && "bg-green-900/10")}
+          className={cn("flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm", rootDragOver && "bg-green-900/10")}
           onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
         >
-          <FolderOpen className="h-12 w-12 mb-3 text-gray-600" />
+          <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
           <p>This folder is empty</p>
-          <p className="text-xs text-gray-600 mt-1">Drag files here or right-click to create a folder</p>
+          <p className="text-xs text-muted-foreground mt-1">Drag files here or right-click to create a folder</p>
         </div>
       </VFSContextMenu>
     );

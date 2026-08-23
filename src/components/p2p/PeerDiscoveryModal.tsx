@@ -29,7 +29,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#232536] text-white border-gray-700 max-w-2xl">
+      <DialogContent className="bg-card text-foreground border-gray-700 max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span className="flex items-center">
@@ -50,20 +50,20 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               )}
             </Button>
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Discover and connect with other users in your workspace
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-4">
-          <div className="mb-3 p-3 bg-[#232536] rounded-lg">
+          <div className="mb-3 p-3 bg-card rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Signal className="h-4 w-4 text-green-400" />
                 <span className="text-sm">You are connected as: <strong>{currentUsername}</strong></span>
               </div>
               {currentCid !== undefined && currentCid !== null && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted-foreground">
                   {/* A short handle, not the raw routing identifier — enough to tell two
                       sessions apart in a screenshot without putting a u64 in the UI. */}
                   Session {shortPeerHandle(currentCid)}
@@ -78,7 +78,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                 <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
               </div>
             ) : peers.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>No other users found in the workspace</p>
                 <p className="text-sm mt-2">Open another tab and connect as a different user to test P2P</p>
@@ -102,8 +102,8 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           </ScrollArea>
 
           {peers.length > 0 && (
-            <div className="mt-4 p-3 bg-[#3A3F5C] rounded-lg">
-              <p className="text-xs text-gray-400">
+            <div className="mt-4 p-3 bg-surface rounded-lg">
+              <p className="text-xs text-muted-foreground">
                 <strong>Tip:</strong> Click "Connect" to establish a P2P connection with a peer.
                 Once connected, you can exchange direct messages without going through the server.
               </p>

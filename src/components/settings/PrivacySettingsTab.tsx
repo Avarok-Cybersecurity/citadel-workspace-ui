@@ -52,15 +52,15 @@ export function PrivacySettingsTab() {
     <div className="space-y-5">
       {/* Visibility */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
           <Eye className="h-4 w-4 text-purple-400" />
           Visibility
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Online Status</Label>
-            <p className="text-xs text-gray-500">Let others see when you're online</p>
+            <p className="text-xs text-muted-foreground">Let others see when you're online</p>
           </div>
           <Switch
             checked={settings.showOnlineStatus}
@@ -68,10 +68,10 @@ export function PrivacySettingsTab() {
           />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Profile Visibility</Label>
-            <p className="text-xs text-gray-500">Show your profile to non-connected peers</p>
+            <p className="text-xs text-muted-foreground">Show your profile to non-connected peers</p>
           </div>
           <Switch
             checked={settings.showProfileToStrangers}
@@ -82,15 +82,15 @@ export function PrivacySettingsTab() {
 
       {/* Messaging Privacy */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
           <MessageSquare className="h-4 w-4 text-purple-400" />
           Messaging
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Typing Indicators</Label>
-            <p className="text-xs text-gray-500">Show when you're typing a message</p>
+            <p className="text-xs text-muted-foreground">Show when you're typing a message</p>
           </div>
           <Switch
             checked={settings.showTypingIndicators}
@@ -98,10 +98,10 @@ export function PrivacySettingsTab() {
           />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Read Receipts</Label>
-            <p className="text-xs text-gray-500">Let others know when you've read their messages</p>
+            <p className="text-xs text-muted-foreground">Let others know when you've read their messages</p>
           </div>
           <Switch
             checked={settings.sendReadReceipts}
@@ -112,22 +112,22 @@ export function PrivacySettingsTab() {
 
       {/* Access Control */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
           <Users className="h-4 w-4 text-purple-400" />
           Access Control
         </div>
 
-        <div className="p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="p-3 rounded-lg bg-background/50">
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-sm font-medium">Who Can Message You</Label>
-              <p className="text-xs text-gray-500">Control who can send you direct messages</p>
+              <p className="text-xs text-muted-foreground">Control who can send you direct messages</p>
             </div>
             <Select
               value={settings.allowDirectMessages}
               onValueChange={(v) => update('allowDirectMessages', v as PrivacySettings['allowDirectMessages'])}
             >
-              <SelectTrigger className="w-32 h-8 bg-[#262C4A] border-[#3D4567] text-sm">
+              <SelectTrigger className="w-32 h-8 bg-surface border-surface text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -139,10 +139,10 @@ export function PrivacySettingsTab() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label className="text-sm font-medium">Screenshot Alerts</Label>
-            <p className="text-xs text-gray-500">Get notified if someone takes a screenshot</p>
+            <p className="text-xs text-muted-foreground">Get notified if someone takes a screenshot</p>
           </div>
           <Switch
             checked={settings.notifyOnScreenshot}

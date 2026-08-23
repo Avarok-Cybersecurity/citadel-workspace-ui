@@ -22,25 +22,25 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+      <label htmlFor={id} className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
         {label}
       </label>
       <div className="relative">
-        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           id={id}
           name={name}
           type={inputType}
           value={value}
           onChange={onChange}
-          className="bg-[#131420] border-[#2D3548] text-white pl-10 pr-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+          className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
           placeholder={placeholder}
         />
         {isPassword && (
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors"
             tabIndex={-1}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -48,7 +48,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
         )}
       </div>
       {hint && (
-        <p className="text-[11px] text-gray-500 pl-1">{hint}</p>
+        <p className="text-[11px] text-muted-foreground pl-1">{hint}</p>
       )}
     </div>
   );
@@ -78,7 +78,7 @@ function PasswordStrength({ password }: { password: string }) {
         {[1, 2, 3, 4].map(i => (
           <div
             key={i}
-            className={`h-1 flex-1 rounded-full transition-colors ${i <= strength.level ? strength.color : 'bg-[#2D3548]'}`}
+            className={`h-1 flex-1 rounded-full transition-colors ${i <= strength.level ? strength.color : 'bg-border'}`}
           />
         ))}
       </div>

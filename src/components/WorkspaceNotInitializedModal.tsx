@@ -24,13 +24,13 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg w-full max-w-md">
+            <Card className="bg-card border-surface shadow-lg w-full max-w-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <AlertCircle className="h-6 w-6 text-yellow-500" />
                         <div>
-                            <CardTitle className="text-white text-xl">Workspace Not Initialized</CardTitle>
-                            <CardDescription className="text-gray-300">
+                            <CardTitle className="text-foreground text-xl">Workspace Not Initialized</CardTitle>
+                            <CardDescription className="text-foreground/80">
                                 Setup required before you can register
                             </CardDescription>
                         </div>
@@ -44,7 +44,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
                         </p>
                     </div>
 
-                    <div className="space-y-2 text-gray-300 text-sm">
+                    <div className="space-y-2 text-foreground/80 text-sm">
                         <p>The administrator needs to:</p>
                         <ul className="list-disc list-inside space-y-1 ml-2">
                             <li>Log in with their admin credentials</li>
@@ -63,7 +63,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
                 <CardFooter>
                     <Button
                         onClick={handleReturnToLogin}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-foreground transition-colors"
                     >
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Return to Login

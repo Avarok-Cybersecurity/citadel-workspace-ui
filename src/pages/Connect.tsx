@@ -102,27 +102,27 @@ export const Connect = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#1C1D28]">
-      <Card className="w-full max-w-xl bg-[#282A42] border-[#3D3F5A] shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-full max-w-xl bg-card border-surface shadow-lg">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8 text-white" />
-            <CardTitle className="text-white text-2xl">Connect to Workspace</CardTitle>
+            <Shield className="w-8 h-8 text-foreground" />
+            <CardTitle className="text-foreground text-2xl">Connect to Workspace</CardTitle>
           </div>
-          <CardDescription className="text-gray-300">Select a saved workspace to connect</CardDescription>
+          <CardDescription className="text-foreground/80">Select a saved workspace to connect</CardDescription>
         </CardHeader>
 
         {loading ? (
           <CardContent className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
-            <p className="text-white mt-4">Loading saved workspaces...</p>
+            <p className="text-foreground mt-4">Loading saved workspaces...</p>
           </CardContent>
         ) : servers.length === 0 ? (
           <CardContent className="text-center py-8">
-            <p className="text-white mb-4">No saved workspaces found</p>
+            <p className="text-foreground mb-4">No saved workspaces found</p>
             <Button
               onClick={() => navigate("/")}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-foreground"
             >
               Go Back
             </Button>
@@ -131,7 +131,7 @@ export const Connect = () => {
           <>
           <CardContent className="space-y-6">
             <div className="space-y-4">
-              <label className="text-sm font-medium text-gray-200 uppercase">
+              <label className="text-sm font-medium text-foreground uppercase">
                 Select Workspace
               </label>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
@@ -140,15 +140,15 @@ export const Connect = () => {
                     key={server.serverAddress}
                     className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${selectedServer === server.serverAddress
                       ? "bg-purple-700/50 border border-purple-500"
-                      : "bg-[#221F26]/70 hover:bg-[#221F26] border border-purple-400/20"
+                      : "bg-card/70 hover:bg-card border border-purple-400/20"
                       }`}
                     onClick={() => setSelectedServer(server.serverAddress)}
                   >
                     <Server className="w-5 h-5 text-purple-300 mr-3" />
                     <div>
-                      <p className="text-white font-medium">{server.serverAddress}</p>
+                      <p className="text-foreground font-medium">{server.serverAddress}</p>
                       {server.serverName && (
-                        <p className="text-gray-300 text-sm">{server.serverName}</p>
+                        <p className="text-foreground/80 text-sm">{server.serverName}</p>
                       )}
                     </div>
                     {selectedServer === server.serverAddress && (
@@ -165,13 +165,13 @@ export const Connect = () => {
                 type="button"
                 variant="ghost"
                 onClick={() => navigate("/")}
-                className="text-white hover:bg-purple-500/20"
+                className="text-foreground hover:bg-purple-500/20"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConnect}
-                className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                className="bg-purple-600 hover:bg-purple-700 text-foreground transition-colors"
               >
                 Connect
               </Button>

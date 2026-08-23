@@ -103,20 +103,20 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#232536] text-white border-gray-700 max-w-lg">
+      <DialogContent className="bg-card text-foreground border-gray-700 max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <UserPlus className="h-5 w-5 mr-2" />
             Pending Connection Requests
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Users requesting to connect with you
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="h-[350px] mt-4">
           {pendingRequests.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-muted-foreground">
               <UserX className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>No pending requests</p>
               <p className="text-sm mt-2">
@@ -128,17 +128,17 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
               {pendingRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-[#232536] hover:bg-[#4F5889] transition-colors"
+                  className="flex items-center justify-between p-4 rounded-lg bg-card hover:bg-surface transition-colors"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
+                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-foreground font-semibold">
                       {peerInitials({ cid: request.peer_cid, username: request.peer_username })}
                     </div>
                     <div>
-                      <p className="font-medium text-white">
+                      <p className="font-medium text-foreground">
                         {peerDisplayName({ cid: request.peer_cid, username: request.peer_username })}
                       </p>
-                      <div className="flex items-center text-xs text-gray-400">
+                      <div className="flex items-center text-xs text-muted-foreground">
                         <Clock className="h-3 w-3 mr-1" />
                         {formatTimestamp(request.timestamp)}
                       </div>
@@ -148,7 +148,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+                      className="border-green-600 text-green-400 hover:bg-green-600 hover:text-foreground"
                       onClick={() => handleAccept(request)}
                       disabled={processingId === request.id}
                     >
@@ -161,7 +161,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                      className="border-red-600 text-red-400 hover:bg-red-600 hover:text-foreground"
                       onClick={() => handleDecline(request)}
                       disabled={processingId === request.id}
                     >
@@ -175,8 +175,8 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
         </ScrollArea>
 
         {pendingRequests.length > 0 && (
-          <div className="mt-4 p-3 bg-[#3A3F5C] rounded-lg">
-            <p className="text-xs text-gray-400">
+          <div className="mt-4 p-3 bg-surface rounded-lg">
+            <p className="text-xs text-muted-foreground">
               <strong>Tip:</strong> Accepting a connection allows you to
               exchange direct messages with that user.
             </p>

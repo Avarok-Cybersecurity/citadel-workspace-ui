@@ -63,11 +63,11 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md">
-        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+        <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
             <StepIndicator currentStep={1} totalSteps={3} labels={["Server", "Security", "Profile"]} />
-            <h2 className="text-xl font-bold text-white mt-5">{title || "Join Workspace"}</h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <h2 className="text-xl font-bold text-foreground mt-5">{title || "Join Workspace"}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
             </p>
           </CardHeader>
@@ -76,16 +76,16 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
             <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto">
               {/* Workspace Address */}
               <div className="space-y-2">
-                <label htmlFor="serverAddress" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="serverAddress" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                   Workspace Address
                 </label>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="serverAddress"
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
                     placeholder="workspace.example.com"
                   />
                 </div>
@@ -93,17 +93,17 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
 
               {/* Workspace Password */}
               <div className="space-y-2">
-                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
                   Workspace Password (Optional)
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
                     placeholder="••••••••••••"
                   />
                 </div>
@@ -112,7 +112,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
               {/* Security info banner */}
               <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-purple-500/5 border border-purple-500/10">
                 <Shield className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-gray-400 leading-relaxed">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Citadel uses <span className="text-purple-300">lattice-based cryptography</span>. All connections are
                   end-to-end encrypted and resistant to quantum compute attacks.
                 </p>
@@ -124,13 +124,13 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                 type="button"
                 variant="ghost"
                 onClick={onCancel || (() => navigate("/"))}
-                className="text-gray-400 hover:text-white hover:bg-transparent"
+                className="text-muted-foreground hover:text-foreground hover:bg-transparent"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
+                className="bg-purple-600 hover:bg-purple-500 text-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
               >
                 Next
                 <ArrowRight className="w-4 h-4" />

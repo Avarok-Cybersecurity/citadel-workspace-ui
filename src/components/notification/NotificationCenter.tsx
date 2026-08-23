@@ -98,14 +98,14 @@ const NotificationCenter = () => {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px] bg-[#232536] text-white border-purple-800">
+      <SheetContent className="w-[400px] sm:w-[540px] bg-card text-foreground border-purple-800">
         <SheetHeader className="border-b border-gray-700 pb-4">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-white">Notifications</SheetTitle>
+            <SheetTitle className="text-foreground">Notifications</SheetTitle>
             <Button 
               variant="ghost" 
               size="sm" 
-              className="text-gray-300"
+              className="text-foreground/80"
               onClick={handleClearAll}
             >
               {activeTab === 'all' ? 'Clear All' : 'Clear Shown'}
@@ -114,17 +114,17 @@ const NotificationCenter = () => {
         </SheetHeader>
         
         <Tabs defaultValue="all" value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | NotificationType)}>
-          <TabsList className="grid grid-cols-4 mt-4 mb-6 bg-[#232536]">
-            <TabsTrigger value="all" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+          <TabsList className="grid grid-cols-4 mt-4 mb-6 bg-card">
+            <TabsTrigger value="all" className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
               All {unreadCount > 0 && `(${unreadCount})`}
             </TabsTrigger>
-            <TabsTrigger value={NotificationType.MESSAGE} className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+            <TabsTrigger value={NotificationType.MESSAGE} className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
               Messages {messageCount > 0 && `(${messageCount})`}
             </TabsTrigger>
-            <TabsTrigger value={NotificationType.PEER_REGISTRATION} className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+            <TabsTrigger value={NotificationType.PEER_REGISTRATION} className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
               Requests {requestCount > 0 && `(${requestCount})`}
             </TabsTrigger>
-            <TabsTrigger value={NotificationType.SYSTEM} className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+            <TabsTrigger value={NotificationType.SYSTEM} className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
               System {systemCount > 0 && `(${systemCount})`}
             </TabsTrigger>
           </TabsList>
@@ -132,7 +132,7 @@ const NotificationCenter = () => {
           <TabsContent value={activeTab} className="mt-0">
             <ScrollArea className="h-[calc(100vh-180px)]">
               {filteredNotifications.length === 0 ? (
-                <div className="py-8 text-center text-gray-400">
+                <div className="py-8 text-center text-muted-foreground">
                   No notifications to display
                 </div>
               ) : (

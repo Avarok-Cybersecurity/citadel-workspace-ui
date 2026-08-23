@@ -42,20 +42,20 @@ export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsag
     ? 'text-red-400'
     : isWarning
       ? 'text-yellow-400'
-      : 'text-gray-400';
+      : 'text-muted-foreground';
 
   return (
-    <div className="px-2 py-2 border-t border-purple-800 bg-[#2E3450]">
+    <div className="px-2 py-2 border-t border-purple-800 bg-surface">
       {/* Label row */}
       <div className="flex items-center gap-1.5 mb-1.5">
         <HardDrive className={cn('h-3 w-3', textColor)} />
-        <span className="text-xs text-gray-400 truncate">
+        <span className="text-xs text-muted-foreground truncate">
           {label ? `${label} Storage` : 'Storage'}
         </span>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1.5 bg-[#1E2235] rounded-full overflow-hidden mb-1">
+      <div className="w-full h-1.5 bg-card rounded-full overflow-hidden mb-1">
         <div
           className={cn('h-full rounded-full transition-all duration-300', barColor)}
           style={{ width: `${percentage}%` }}

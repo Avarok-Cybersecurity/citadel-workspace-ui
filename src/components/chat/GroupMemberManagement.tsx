@@ -97,21 +97,21 @@ export function GroupMemberManagement({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">
+        <h3 className="text-sm font-semibold text-foreground">
           Members ({group.members.length})
         </h3>
       </div>
 
       {/* Member Table */}
       <ScrollArea className="max-h-[400px]">
-        <div className="rounded-md border border-[#2D3548] overflow-hidden">
+        <div className="rounded-md border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-[#2D3548] hover:bg-transparent">
-                <TableHead className="text-gray-400 h-10">Member</TableHead>
-                <TableHead className="text-gray-400 h-10 w-40">Role</TableHead>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground h-10">Member</TableHead>
+                <TableHead className="text-muted-foreground h-10 w-40">Role</TableHead>
                 {canKick && (
-                  <TableHead className="text-gray-400 h-10 w-20 text-right">
+                  <TableHead className="text-muted-foreground h-10 w-20 text-right">
                     Actions
                   </TableHead>
                 )}
@@ -126,19 +126,19 @@ export function GroupMemberManagement({
                 return (
                   <TableRow
                     key={member.cid}
-                    className="border-[#2D3548] hover:bg-[#262C4A]"
+                    className="border-border hover:bg-surface"
                   >
                     {/* Member Info */}
                     <TableCell className="py-3">
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white"
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-foreground"
                           style={{ backgroundColor: getAvatarColor(member, index) }}
                         >
                           {member.username[0]?.toUpperCase() || '?'}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-white font-medium">
+                          <span className="text-sm text-foreground font-medium">
                             {member.username}
                           </span>
                           {getRoleIcon(member.role)}
@@ -156,17 +156,17 @@ export function GroupMemberManagement({
                           value={member.roleId}
                           onValueChange={value => handleRoleChange(member, value)}
                         >
-                          <SelectTrigger className="h-8 w-32 bg-[#262C4A] border-[#3D4663] text-white text-xs">
+                          <SelectTrigger className="h-8 w-32 bg-surface border-border text-foreground text-xs">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-[#1C1D28] border-[#2D3548]">
+                          <SelectContent className="bg-background border-border">
                             {assignableRoles
                               .filter(r => canAssignRole(r.id))
                               .map(r => (
                                 <SelectItem
                                   key={r.id}
                                   value={r.id}
-                                  className="text-white hover:bg-[#262C4A]"
+                                  className="text-foreground hover:bg-surface"
                                 >
                                   <div className="flex items-center gap-2">
                                     {r.color && (
@@ -182,7 +182,7 @@ export function GroupMemberManagement({
                           </SelectContent>
                         </Select>
                       ) : (
-                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <div className="flex items-center gap-2 text-sm text-foreground/80">
                           {member.role.color && (
                             <span
                               className="w-2 h-2 rounded-full"

@@ -139,13 +139,13 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg w-full max-w-md">
+            <Card className="bg-card border-surface shadow-lg w-full max-w-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <Shield className="h-6 w-6 text-purple-500" />
                         <div>
-                            <CardTitle className="text-white text-xl">Initialize Workspace</CardTitle>
-                            <CardDescription className="text-gray-300">
+                            <CardTitle className="text-foreground text-xl">Initialize Workspace</CardTitle>
+                            <CardDescription className="text-foreground/80">
                                 Enter the workspace password to initialize
                             </CardDescription>
                         </div>
@@ -180,7 +180,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="masterPassword" className="text-gray-300">
+                            <Label htmlFor="masterPassword" className="text-foreground/80">
                                 Workspace Password
                             </Label>
                             <Input
@@ -189,11 +189,11 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                                 type="password"
                                 value={masterPassword}
                                 onChange={handleInputChange}
-                                className="bg-[#3B3D57] border-[#4D4F6C] text-white"
+                                className="bg-surface border-border text-foreground"
                                 placeholder="Enter the workspace password"
                                 disabled={isSubmitting}
                             />
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-muted-foreground">
                                 Contact your workspace administrator if you don't have the password.
                             </p>
                         </div>
@@ -211,14 +211,14 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                             type="button"
                             variant="ghost"
                             onClick={onClose}
-                            className="text-white hover:bg-purple-500/20"
+                            className="text-foreground hover:bg-purple-500/20"
                             disabled={isSubmitting}
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
-                            className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                            className="bg-purple-600 hover:bg-purple-700 text-foreground transition-colors"
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? (

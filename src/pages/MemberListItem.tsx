@@ -41,24 +41,24 @@ interface MemberListItemProps {
 
 export function MemberListItem({ member, variant, onSendMessage, onInvite }: MemberListItemProps) {
   return (
-    <div className="flex items-center justify-between p-4 hover:bg-[#232536] transition-colors">
+    <div className="flex items-center justify-between p-4 hover:bg-card transition-colors">
       <div className="flex items-center space-x-3">
         <Avatar className="h-10 w-10 relative">
           <AvatarImage src={member.avatarUrl} />
           <AvatarFallback className="bg-purple-900">{member.displayName.charAt(0)}</AvatarFallback>
           {member.isOnline && (
-            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#232536]" />
+            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" />
           )}
         </Avatar>
         <div>
-          <h3 className="font-medium text-white">{member.displayName}</h3>
+          <h3 className="font-medium text-foreground">{member.displayName}</h3>
           <div className="flex items-center space-x-2">
             {member.role && (
               <Badge className={`text-xs ${getRoleBadgeClass(member.role)}`}>
                 {member.role}
               </Badge>
             )}
-            <span className={`text-xs ${variant === 'online' ? 'text-green-400' : 'text-gray-400'}`}>
+            <span className={`text-xs ${variant === 'online' ? 'text-green-400' : 'text-muted-foreground'}`}>
               {variant === 'online'
                 ? 'Online now'
                 : member.isOnline ? 'Online' : `Last active ${formatRelativeTime(member.lastActive)}`}
@@ -71,7 +71,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite }: Mem
           <Button
             variant="ghost"
             size="sm"
-            className="text-purple-400 hover:text-white hover:bg-gray-700"
+            className="text-purple-400 hover:text-foreground hover:bg-gray-700"
           >
             <Star className="h-4 w-4 fill-current" />
           </Button>
@@ -80,7 +80,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite }: Mem
           <Button
             variant="ghost"
             size="sm"
-            className="text-gray-400 hover:text-white hover:bg-gray-700"
+            className="text-muted-foreground hover:text-foreground hover:bg-gray-700"
             onClick={() => onInvite(member.id)}
           >
             <UserPlus className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite }: Mem
         <Button
           variant="ghost"
           size="sm"
-          className="text-gray-400 hover:text-white hover:bg-gray-700"
+          className="text-muted-foreground hover:text-foreground hover:bg-gray-700"
           onClick={() => onSendMessage(member.id)}
         >
           <MessageCircle className="h-4 w-4" />

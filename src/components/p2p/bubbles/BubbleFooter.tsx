@@ -18,11 +18,11 @@ interface BubbleFooterProps {
 function getMessageStatusIcon(message: P2PMessage) {
   switch (message.status) {
     case 'pending':
-      return <Clock className="h-3 w-3 text-gray-400" data-testid="message-status-pending" />;
+      return <Clock className="h-3 w-3 text-muted-foreground" data-testid="message-status-pending" />;
     case 'sent':
-      return <Check className="h-3 w-3 text-gray-400" data-testid="message-status-sent" />;
+      return <Check className="h-3 w-3 text-muted-foreground" data-testid="message-status-sent" />;
     case 'delivered':
-      return <CheckCheck className="h-3 w-3 text-gray-400" data-testid="message-status-delivered" />;
+      return <CheckCheck className="h-3 w-3 text-muted-foreground" data-testid="message-status-delivered" />;
     case 'read':
       return <CheckCheck className="h-3 w-3 text-sky-400" data-testid="message-status-read" />;
     case 'failed':
@@ -52,7 +52,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
               </TooltipTrigger>
               <TooltipContent
                 side="top"
-                className="bg-[#1C1D28] border-gray-700 p-3"
+                className="bg-background border-gray-700 p-3"
               >
                 <MessageStatusDetails message={message} />
               </TooltipContent>
@@ -66,7 +66,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
             className="ml-1 p-0.5 rounded hover:bg-white/10 transition-colors"
             title="Retry sending"
           >
-            <RefreshCw className="h-3 w-3 text-red-400 hover:text-white" />
+            <RefreshCw className="h-3 w-3 text-red-400 hover:text-foreground" />
           </button>
         )}
       </div>

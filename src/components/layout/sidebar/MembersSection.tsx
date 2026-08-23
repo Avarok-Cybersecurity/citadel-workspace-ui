@@ -127,13 +127,13 @@ export const MembersSection = () => {
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
           <div className="flex items-center gap-2">
-            <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0 px-0">
+            <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
               {getLocationText().toUpperCase()}
             </SidebarGroupLabel>
             {pendingRequestCount > 0 && (
               <Badge
                 data-testid="pending-requests-badge"
-                className="h-5 min-w-[20px] px-1.5 bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors"
+                className="h-5 min-w-[20px] px-1.5 bg-red-500 text-foreground cursor-pointer hover:bg-red-600 transition-colors"
                 onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
                 title={`${pendingRequestCount} pending connection request${pendingRequestCount > 1 ? 's' : ''}`}
               >
@@ -141,7 +141,7 @@ export const MembersSection = () => {
               </Badge>
             )}
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-accent hover:bg-purple-500/15 hover:text-foreground" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
             <UserPlus className="h-4 w-4" />
           </Button>
         </div>
@@ -168,7 +168,7 @@ export const MembersSection = () => {
           </ScrollArea>
 
           {filteredRegisteredPeers.length > 0 && (
-            <div className="mt-2 border-t border-[#232536] pt-2">
+            <div className="mt-2 border-t border-card pt-2">
               <SidebarMenu>
                 {filteredRegisteredPeers.map((peer) => (
                   <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} isOnline={peer.isOnline} isConnected={peer.isConnected} onClick={() => handlePeerClick(peer.cid, peer.username)} />
@@ -182,10 +182,10 @@ export const MembersSection = () => {
       {(peersWithConversations.length > 0 || groupConversations.length > 0) && (
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
           <div className="flex items-center justify-between px-3">
-            <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-0">CONVERSATIONS</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-primary-accent font-semibold text-xs px-0">CONVERSATIONS</SidebarGroupLabel>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-[#9b87f5] hover:text-white hover:bg-[#6E59A5]" onClick={() => setShowCreateGroupDialog(true)}>
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-primary-accent hover:text-primary-foreground hover:bg-primary" onClick={() => setShowCreateGroupDialog(true)}>
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>

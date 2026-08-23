@@ -9,16 +9,16 @@ import { CheckCircle2, AlertCircle } from "lucide-react";
 
 export const components: MDXComponents = {
   h1: ({ children }: { children?: React.ReactNode }) => (
-    <h1 className="text-4xl font-bold mb-4 text-white">{children}</h1>
+    <h1 className="text-4xl font-bold mb-4 text-foreground">{children}</h1>
   ),
   h2: ({ children }: { children?: React.ReactNode }) => (
-    <h2 className="text-2xl font-semibold mb-3 text-white">{children}</h2>
+    <h2 className="text-2xl font-semibold mb-3 text-foreground">{children}</h2>
   ),
   p: ({ children }: { children?: React.ReactNode }) => (
-    <p className="mb-4 text-gray-300">{children}</p>
+    <p className="mb-4 text-foreground/80">{children}</p>
   ),
   ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="list-disc list-inside mb-4 text-gray-300">{children}</ul>
+    <ul className="list-disc list-inside mb-4 text-foreground/80">{children}</ul>
   ),
   li: ({ children }: { children?: React.ReactNode }) => (
     <li className="mb-2">{children}</li>
@@ -29,7 +29,7 @@ export const components: MDXComponents = {
     </a>
   ),
   del: ({ children }: { children?: React.ReactNode }) => (
-    <del className="text-gray-400 line-through">{children}</del>
+    <del className="text-muted-foreground line-through">{children}</del>
   ),
   img: ({ src, alt }: { src?: string; alt?: string }) => (
     <img src={src} alt={alt} className="max-w-full h-auto rounded-lg shadow-lg my-4" />
@@ -49,28 +49,28 @@ export const components: MDXComponents = {
     </TableRow>
   ),
   th: ({ children, ...props }: React.DetailedHTMLProps<React.ThHTMLAttributes<HTMLTableHeaderCellElement>, HTMLTableHeaderCellElement>) => (
-    <TableHead {...props} className="border-b border-gray-800 bg-gray-900/50 text-white font-medium p-4">
+    <TableHead {...props} className="border-b border-gray-800 bg-gray-900/50 text-foreground font-medium p-4">
       {children}
     </TableHead>
   ),
   td: ({ children, ...props }: React.DetailedHTMLProps<React.TdHTMLAttributes<HTMLTableDataCellElement>, HTMLTableDataCellElement>) => (
-    <TableCell {...props} className="border-b border-gray-800 text-gray-300 p-4">
+    <TableCell {...props} className="border-b border-gray-800 text-foreground/80 p-4">
       {children}
     </TableCell>
   ),
   Card: ({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) => (
-    <Card className="bg-[#232536] border-gray-700 mb-6">
+    <Card className="bg-card border-gray-700 mb-6">
       <CardHeader>
-        <CardTitle className="text-white">{title}</CardTitle>
-        {description && <CardDescription className="text-gray-300">{description}</CardDescription>}
+        <CardTitle className="text-foreground">{title}</CardTitle>
+        {description && <CardDescription className="text-foreground/80">{description}</CardDescription>}
       </CardHeader>
-      <CardContent className="text-gray-300">{children}</CardContent>
+      <CardContent className="text-foreground/80">{children}</CardContent>
     </Card>
   ),
   Alert: ({ title, children, variant = "default" }: { title: string; children: React.ReactNode; variant?: "default" | "destructive" }) => (
-    <Alert variant={variant} className="mb-6 bg-[#232536] border-purple-800">
-      <AlertTitle className="text-white">{title}</AlertTitle>
-      <AlertDescription className="text-gray-300">{children}</AlertDescription>
+    <Alert variant={variant} className="mb-6 bg-card border-purple-800">
+      <AlertTitle className="text-foreground">{title}</AlertTitle>
+      <AlertDescription className="text-foreground/80">{children}</AlertDescription>
     </Alert>
   ),
   Badge: ({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "secondary" | "destructive" | "outline" }) => {
@@ -110,6 +110,11 @@ export const components: MDXComponents = {
         language={language}
       >
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          // Night Owl's editor background. A code block carries its own syntax
+          // palette, deliberately independent of the UI theme: the token colours
+          // inside it are tuned against THIS background, so bg-card would break
+          // their contrast.
+          // eslint-disable-next-line no-restricted-syntax
           <pre className="p-4 rounded-lg overflow-x-auto bg-[#011627] my-4">
             <code className={className} style={style}>
               {tokens.map((line, i) => (

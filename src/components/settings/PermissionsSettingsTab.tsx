@@ -73,10 +73,10 @@ export function PermissionsSettingsTab() {
 
   if (!workspaceId) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <Building2 className="h-12 w-12 mb-4 opacity-50" />
         <p>No workspace loaded</p>
-        <p className="text-sm text-gray-500 mt-1">Join a workspace to view your permissions</p>
+        <p className="text-sm text-muted-foreground mt-1">Join a workspace to view your permissions</p>
       </div>
     );
   }
@@ -86,7 +86,7 @@ export function PermissionsSettingsTab() {
       <div className="flex flex-col items-center justify-center py-12">
         <XCircle className="h-12 w-12 text-red-400 mb-4" />
         <p className="text-red-400">Failed to load permissions</p>
-        <p className="text-sm text-gray-500 mt-1">{error}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error}</p>
         <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-4">
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
@@ -100,15 +100,15 @@ export function PermissionsSettingsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-gray-200">Your Permissions</h3>
-          <p className="text-sm text-gray-500 mt-1">View your access rights across all domains</p>
+          <h3 className="text-lg font-medium text-foreground">Your Permissions</h3>
+          <p className="text-sm text-muted-foreground mt-1">View your access rights across all domains</p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing || loading}
-          className="text-gray-400 border-gray-600 hover:bg-gray-700"
+          className="text-muted-foreground border-gray-600 hover:bg-gray-700"
         >
           {isRefreshing || loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -122,12 +122,12 @@ export function PermissionsSettingsTab() {
       {/* Nested Permission Tree */}
       <Accordion type="multiple" defaultValue={[`workspace-${workspaceId}`]} className="w-full">
         <AccordionItem value={`workspace-${workspaceId}`} className="border-gray-700">
-          <AccordionTrigger className="text-gray-200 hover:text-white hover:no-underline">
+          <AccordionTrigger className="text-foreground hover:text-foreground hover:no-underline">
             <div className="flex items-center gap-3">
               <Building2 className="h-5 w-5 text-purple-400" />
               <span className="font-medium">{workspaceName}</span>
               <RoleBadge role={workspaceRole} />
-              {loading && <Loader2 className="h-4 w-4 animate-spin text-gray-500" />}
+              {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             </div>
           </AccordionTrigger>
           <AccordionContent>
@@ -138,7 +138,7 @@ export function PermissionsSettingsTab() {
 
               {nodesWithChildren.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">Nodes</h4>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Nodes</h4>
                   <Accordion type="multiple" className="w-full">
                     {nodesWithChildren.map((node) => (
                       <ParentNodePermissionSection
@@ -154,7 +154,7 @@ export function PermissionsSettingsTab() {
               )}
 
               {nodesWithChildren.length === 0 && (
-                <p className="text-sm text-gray-500 italic pl-2">No nodes in this workspace</p>
+                <p className="text-sm text-muted-foreground italic pl-2">No nodes in this workspace</p>
               )}
             </div>
           </AccordionContent>
@@ -163,19 +163,19 @@ export function PermissionsSettingsTab() {
 
       {/* Legend */}
       <div className="border-t border-gray-700 pt-4">
-        <p className="text-xs text-gray-500 mb-2">Legend</p>
+        <p className="text-xs text-muted-foreground mb-2">Legend</p>
         <div className="flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-            <span className="text-gray-400">Allowed</span>
+            <span className="text-muted-foreground">Allowed</span>
           </div>
           <div className="flex items-center gap-1.5">
             <XCircle className="h-3.5 w-3.5 text-red-400" />
-            <span className="text-gray-400">Denied</span>
+            <span className="text-muted-foreground">Denied</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5 text-purple-400" />
-            <span className="text-gray-400">Workspace</span>
+            <span className="text-muted-foreground">Workspace</span>
           </div>
         </div>
       </div>

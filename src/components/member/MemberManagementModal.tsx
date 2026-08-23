@@ -76,7 +76,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
   };
 
   const customContent = mode === "remove" && member ? (
-    <div className="text-white">
+    <div className="text-foreground">
       Are you sure you want to remove <strong>{member.username}</strong> from this {location}?
     </div>
   ) : undefined;

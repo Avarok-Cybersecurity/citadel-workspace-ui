@@ -161,7 +161,7 @@ export const RetryableMessageSender: React.FC<RetryableMessageSenderProps> = ({
           placeholder={placeholder}
           disabled={isLoading}
           ref={inputRef}
-          className="flex-1 bg-[#232536] border-gray-700 text-white placeholder:text-gray-400"
+          className="flex-1 bg-card border-gray-700 text-foreground placeholder:text-muted-foreground"
         />
         <Button
           type="submit"

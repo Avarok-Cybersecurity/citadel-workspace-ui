@@ -124,7 +124,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
   return (
     <div className="space-y-6" data-testid="general-tab-content">
       <div className="space-y-2">
-        <Label htmlFor="entity-name" className="text-white">
+        <Label htmlFor="entity-name" className="text-foreground">
           Name <span className="text-red-400">*</span>
         </Label>
         <Input
@@ -132,15 +132,15 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={`Enter ${entityType} name`}
-          className="bg-[#232536] border-[#3D3F5A] text-white placeholder:text-gray-500"
+          className="bg-card border-surface text-foreground placeholder:text-muted-foreground"
           maxLength={100}
           data-testid="general-name-input"
         />
-        <p className="text-xs text-gray-400">{name.length}/100 characters</p>
+        <p className="text-xs text-muted-foreground">{name.length}/100 characters</p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="entity-description" className="text-white">
+        <Label htmlFor="entity-description" className="text-foreground">
           Description
         </Label>
         <Textarea
@@ -148,11 +148,11 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={`Enter ${entityType} description (optional)`}
-          className="bg-[#232536] border-[#3D3F5A] text-white placeholder:text-gray-500 min-h-[100px]"
+          className="bg-card border-surface text-foreground placeholder:text-muted-foreground min-h-[100px]"
           maxLength={500}
           data-testid="general-description-input"
         />
-        <p className="text-xs text-gray-400">{description.length}/500 characters</p>
+        <p className="text-xs text-muted-foreground">{description.length}/500 characters</p>
       </div>
 
       <div className="flex justify-end gap-3 pt-4">
@@ -160,7 +160,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
           variant="outline"
           onClick={handleCancel}
           disabled={!hasChanges || saving}
-          className="border-gray-600 text-white hover:bg-[#232536]"
+          className="border-gray-600 text-foreground hover:bg-card"
           data-testid="general-cancel-button"
         >
           Reset
@@ -168,7 +168,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
         <Button
           onClick={handleSave}
           disabled={!hasChanges || saving}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
+          className="bg-purple-600 hover:bg-purple-700 text-foreground"
           data-testid="general-save-button"
         >
           {saving ? (

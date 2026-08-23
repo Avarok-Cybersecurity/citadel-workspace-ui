@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { ThemeProvider } from "next-themes";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -37,6 +38,24 @@ const queryClient = new QueryClient();
 const App = () => {
   return (
     <AppErrorBoundary>
+      {/*
+        next-themes was already a dependency and ui/sonner.tsx already called
+        useTheme() — with no provider mounted, so it always read "system" and
+        toasts could render light inside a permanently-dark app.
+
+        defaultTheme="dark" keeps the product looking exactly as it does today;
+        the difference is that light is now reachable rather than theoretical.
+        `attribute="class"` matches tailwind.config's darkMode: ["class"], and
+        disableTransitionOnChange stops every transition on the page firing at
+        once when the class flips.
+      */}
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem
+        disableTransitionOnChange
+        storageKey="citadel:theme"
+      >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <WorkspaceApp>
@@ -103,6 +122,7 @@ const App = () => {
           </WorkspaceApp>
         </TooltipProvider>
       </QueryClientProvider>
+      </ThemeProvider>
     </AppErrorBoundary>
   );
 };

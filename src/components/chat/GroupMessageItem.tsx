@@ -39,7 +39,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
       isOwnMessage && 'flex-row-reverse'
     )}>
       <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarFallback className="bg-purple-600 text-white text-xs">
+        <AvatarFallback className="bg-purple-600 text-foreground text-xs">
           {initials}
         </AvatarFallback>
       </Avatar>
@@ -49,7 +49,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
           'flex items-center gap-2 mb-1',
           isOwnMessage && 'flex-row-reverse'
         )}>
-          <span className="text-sm font-medium text-gray-300">
+          <span className="text-sm font-medium text-foreground/80">
             {message.sender_name}
           </span>
         </div>
@@ -57,11 +57,11 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
         <div className={cn(
           'rounded-lg px-3 py-2 text-sm',
           isOwnMessage
-            ? 'bg-purple-600 text-white'
-            : 'bg-gray-700 text-gray-100'
+            ? 'bg-purple-600 text-foreground'
+            : 'bg-gray-700 text-foreground'
         )}>
           {message.reply_to && (
-            <div className="text-xs text-gray-400 mb-1 border-l-2 border-gray-500 pl-2">
+            <div className="text-xs text-muted-foreground mb-1 border-l-2 border-gray-500 pl-2">
               Replying to a message
             </div>
           )}
@@ -86,7 +86,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6">
-              <MoreVertical className="h-4 w-4 text-gray-400" />
+              <MoreVertical className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'}>

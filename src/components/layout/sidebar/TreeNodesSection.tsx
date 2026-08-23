@@ -185,14 +185,14 @@ export function TreeNodesSection({
     return (
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
-          <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0 px-0">
+          <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
             {title}
           </SidebarGroupLabel>
           {onNodeCreate && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white"
+              className="h-6 w-6 text-primary-accent hover:bg-purple-500/15 hover:text-foreground"
               onClick={handleCreateRoot}
               data-testid="add-root-node-button"
               aria-label="Add node"
@@ -214,14 +214,14 @@ export function TreeNodesSection({
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
-          <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0 px-0">
+          <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
             {title}
           </SidebarGroupLabel>
           {onNodeCreate && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white disabled:opacity-40"
+              className="h-6 w-6 text-primary-accent hover:bg-purple-500/15 hover:text-foreground disabled:opacity-40"
               onClick={handleCreateRoot}
               disabled={canCreate === false}
               data-testid="add-node-button"
@@ -236,12 +236,12 @@ export function TreeNodesSection({
         {treeData && treeData.children.length > 0 && (
           <div className="px-3 mb-2">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Filter nodes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-7 pl-7 text-xs bg-[#262C4A] border-[#3D4567] text-gray-300 placeholder:text-gray-500"
+                className="h-7 pl-7 text-xs bg-surface border-surface text-foreground/80 placeholder:text-muted-foreground"
                 data-testid="tree-search-input"
               />
             </div>

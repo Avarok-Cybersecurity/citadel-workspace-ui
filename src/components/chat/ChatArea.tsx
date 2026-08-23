@@ -98,26 +98,26 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
   const channelAvatar = '';
 
   return (
-    <div className="flex flex-col h-full bg-[#1C1D28]">
+    <div className="flex flex-col h-full bg-background">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-[#232536]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-card">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={channelAvatar} />
             <AvatarFallback>{channelName[0]}</AvatarFallback>
           </Avatar>
           <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-semibold text-white">
+            <h1 className="text-xl font-semibold text-foreground">
               {channelName}
             </h1>
-            <ChevronDown className="h-4 w-4 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-700">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-gray-700">
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-700">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-gray-700">
             <Bell className="h-5 w-5" />
           </Button>
         </div>
@@ -139,19 +139,19 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-foreground">
                       {message.sender.name}
                     </span>
                     <span className="text-sm text-muted-foreground">
                       {formatRelativeTime(message.timestamp)}
                     </span>
                     {message.pending && (
-                      <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded-full">
+                      <span className="text-xs px-2 py-0.5 bg-gray-700 text-foreground/80 rounded-full">
                         Sending...
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 text-white whitespace-pre-line">
+                  <div className="mt-1 text-foreground whitespace-pre-line">
                     {message.content}
                   </div>
                 </div>
@@ -173,10 +173,10 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-gray-800 bg-[#232536]">
+      <div className="p-4 border-t border-gray-800 bg-card">
         <div className="flex items-center space-x-2">
           <div className="flex items-center space-x-1">
-            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-700" type="button">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-gray-700" type="button">
               <Upload className="h-5 w-5" />
             </Button>
           </div>
@@ -187,10 +187,10 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
             className="flex-1"
           />
 
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-700" type="button">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-gray-700" type="button">
             <Shield className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-700" type="button">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-gray-700" type="button">
             <MoreVertical className="h-5 w-5" />
           </Button>
         </div>

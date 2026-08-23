@@ -27,19 +27,19 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
 }) => {
   return (
     <div
-      className="flex items-center justify-between p-3 rounded-lg bg-[#232536] hover:bg-[#4F5889] transition-colors"
+      className="flex items-center justify-between p-3 rounded-lg bg-card hover:bg-surface transition-colors"
     >
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
+        <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-foreground font-semibold">
           {peerInitials(peer)}
         </div>
         <div>
           <p className="font-medium">{peerDisplayName(peer)}</p>
           {peer.fullName && peer.username && (
-            <p className="text-xs text-gray-400">{peer.username}</p>
+            <p className="text-xs text-muted-foreground">{peer.username}</p>
           )}
           {isUnnamedPeer(peer) && (
-            <p className="text-xs text-gray-500">Name not shared yet</p>
+            <p className="text-xs text-muted-foreground">Name not shared yet</p>
           )}
         </div>
       </div>
@@ -71,7 +71,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             size="sm"
             onClick={() => onAccept(incomingRequest)}
             disabled={acceptingPeerCid === peer.cid}
-            className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+            className="border-green-600 text-green-400 hover:bg-green-600 hover:text-foreground"
           >
             {acceptingPeerCid === peer.cid ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -85,7 +85,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             variant="outline"
             size="sm"
             onClick={() => onRegister(peer.cid, peer.username)}
-            className="border-purple-600 text-purple-400 hover:bg-purple-600 hover:text-white"
+            className="border-purple-600 text-purple-400 hover:bg-purple-600 hover:text-foreground"
           >
             <UserPlus className="h-3 w-3 mr-1" />
             Connect

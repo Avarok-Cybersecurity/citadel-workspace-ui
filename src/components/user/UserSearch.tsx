@@ -145,8 +145,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-center bg-[#232536] rounded-md border border-gray-700">
-        <Search className="h-4 w-4 text-gray-400 ml-3" />
+      <div className="flex items-center bg-card rounded-md border border-gray-700">
+        <Search className="h-4 w-4 text-muted-foreground ml-3" />
         <Input
           ref={inputRef}
           type="text"
@@ -154,13 +154,13 @@ export const UserSearch: React.FC<UserSearchProps> = ({
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={handleFocus}
-          className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0"
+          className="border-0 bg-transparent text-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
         />
         {searchTerm && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 mr-1 text-gray-400 hover:text-white hover:bg-gray-700"
+            className="h-8 w-8 p-0 mr-1 text-muted-foreground hover:text-foreground hover:bg-gray-700"
             onClick={handleClearSearch}
           >
             <X className="h-4 w-4" />
@@ -171,13 +171,13 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       {showResults && (
         <Card
           ref={resultsRef}
-          className="absolute z-50 w-full mt-1 bg-[#232536] border-gray-700 text-white shadow-lg overflow-hidden"
+          className="absolute z-50 w-full mt-1 bg-card border-gray-700 text-foreground shadow-lg overflow-hidden"
         >
           <CardHeader className="p-3 border-b border-gray-700">
             <CardTitle className="text-sm">
               {searchTerm ? 'Search Results' : 'Recent Users'}
             </CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-muted-foreground">
               {loading ? 'Searching...' : searchTerm ? `Found ${results.length} users` : "People you've interacted with"}
             </CardDescription>
           </CardHeader>
@@ -192,7 +192,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                   {(results.length > 0 ? results : searchTerm ? [] : getRecentUsers()).map((user) => (
                     <li
                       key={user.id}
-                      className="hover:bg-[#232536] transition-colors p-3 cursor-pointer"
+                      className="hover:bg-card transition-colors p-3 cursor-pointer"
                       onClick={() => handleSelectUser(user)}
                     >
                       <div className="flex items-center space-x-3">
@@ -200,13 +200,13 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                           <AvatarImage src={user.avatarUrl} />
                           <AvatarFallback className="bg-purple-900">{user.displayName.charAt(0)}</AvatarFallback>
                           {user.isOnline && (
-                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#232536]" />
+                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" />
                           )}
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{user.displayName}</p>
                           {user.email && (
-                            <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                           )}
                         </div>
                         {user.role && (
@@ -219,8 +219,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                   ))}
 
                   {results.length === 0 && searchTerm && (
-                    <li className="p-6 text-center text-gray-400">
-                      <User className="h-10 w-10 mx-auto mb-2 text-gray-500" />
+                    <li className="p-6 text-center text-muted-foreground">
+                      <User className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
                       <p>No users found</p>
                       {enableInvite && (
                         <Button className="mt-3 bg-purple-600 hover:bg-purple-700" size="sm">

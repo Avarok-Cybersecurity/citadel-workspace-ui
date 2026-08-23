@@ -75,13 +75,13 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">Roles</h3>
+        <h3 className="text-sm font-semibold text-foreground">Roles</h3>
         {canManageRoles && (
           <Button
             variant="outline"
             size="sm"
             onClick={handleCreateRole}
-            className="h-8 bg-[#262C4A] border-[#3D4663] text-white hover:bg-[#3D4663]"
+            className="h-8 bg-surface border-border text-foreground hover:bg-border"
           >
             <Plus className="h-4 w-4 mr-1" />
             New Role
@@ -100,9 +100,9 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
             return (
               <div
                 key={role.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-[#262C4A] border border-[#3D4663] group"
+                className="flex items-center gap-3 p-3 rounded-lg bg-surface border border-border group"
               >
-                <div className="text-gray-500 cursor-grab">
+                <div className="text-muted-foreground cursor-grab">
                   <GripVertical className="h-4 w-4" />
                 </div>
 
@@ -119,19 +119,19 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-white truncate">{role.name}</span>
-                    <span className="text-xs text-gray-500">(position: {role.position})</span>
+                    <span className="text-sm font-medium text-foreground truncate">{role.name}</span>
+                    <span className="text-xs text-muted-foreground">(position: {role.position})</span>
                     {isDefault && (
                       <Badge
                         variant="outline"
-                        className="h-5 text-xs bg-[#6E59A5]/20 border-[#6E59A5] text-[#9b87f5]"
+                        className="h-5 text-xs bg-primary/20 border-primary text-primary-accent"
                       >
                         <Star className="h-3 w-3 mr-1" />
                         Default
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 truncate">{formatPermissions(role)}</p>
+                  <p className="text-xs text-muted-foreground truncate">{formatPermissions(role)}</p>
                 </div>
 
                 {/* Actions */}
@@ -149,7 +149,7 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
                   {(canEdit || role.isBuiltIn) && (
                     <Button
                       variant="ghost" size="icon"
-                      className="h-7 w-7 text-gray-400 hover:text-white hover:bg-[#3D4663]"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-border"
                       onClick={() => handleEditRole(role)}
                       title="Edit role"
                     >

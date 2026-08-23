@@ -34,7 +34,7 @@ export const OrphanSessionIcon = ({
         onClick={onNavigate}
         className={cn(
           "flex items-center gap-2 h-8 pl-1 pr-3 rounded-full",
-          "bg-[#232536] border border-[#2D3548] text-white",
+          "bg-card border border-border text-foreground",
           "hover:bg-purple-500/15 hover:border-purple-500/30 transition-all duration-200",
           "cursor-pointer",
           shouldGlow && "border-purple-500/50 bg-purple-500/10"
@@ -45,19 +45,19 @@ export const OrphanSessionIcon = ({
         {/* Small avatar */}
         <div className={cn(
           "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
-          "bg-[#6E59A5] text-white text-[10px] font-bold"
+          "bg-primary text-primary-foreground text-[10px] font-bold"
         )}>
           {initials}
         </div>
 
         {/* Username */}
-        <span className="text-xs font-medium text-gray-300 max-w-[100px] truncate">
+        <span className="text-xs font-medium text-foreground/80 max-w-[100px] truncate">
           {displayName}
         </span>
 
         {/* Unread badge */}
         {unreadCount > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] font-bold px-1 leading-none">
+          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-red-500 text-foreground text-[10px] font-bold px-1 leading-none">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -71,7 +71,7 @@ export const OrphanSessionIcon = ({
         }}
         className={cn(
           "absolute -top-1 -right-1 w-4 h-4 rounded-full",
-          "bg-[#1C1D28] border border-[#2D3548] text-gray-400 hover:text-red-400 hover:border-red-500/50",
+          "bg-background border border-border text-muted-foreground hover:text-red-400 hover:border-red-500/50",
           "flex items-center justify-center",
           "opacity-0 group-hover:opacity-100 transition-all duration-200",
           "cursor-pointer"

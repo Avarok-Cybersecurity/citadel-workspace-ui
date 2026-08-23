@@ -95,9 +95,9 @@ export function VFSRenameInput({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
-        className={`h-6 px-1 py-0 text-xs bg-[#2a2f4a] border ${
+        className={`h-6 px-1 py-0 text-xs bg-surface border ${
           error ? 'border-red-500' : 'border-purple-500'
-        } text-white focus:ring-1 focus:ring-purple-500`}
+        } text-foreground focus:ring-1 focus:ring-purple-500`}
         onClick={(e) => e.stopPropagation()}
       />
       {error && (

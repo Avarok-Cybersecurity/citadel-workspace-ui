@@ -121,7 +121,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
                 onClick={handleRemove}
                 className="absolute top-0 right-0 p-1 bg-red-600 rounded-full transform translate-x-1/4 -translate-y-1/4 hover:bg-red-500 transition-colors"
               >
-                <X className="h-3 w-3 text-white" />
+                <X className="h-3 w-3 text-foreground" />
               </button>
             )}
           </>
@@ -131,8 +131,8 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
             ) : (
               <>
-                <User className="h-12 w-12 text-gray-500" />
-                <Upload className="h-5 w-5 text-gray-500 mt-1" />
+                <User className="h-12 w-12 text-muted-foreground" />
+                <Upload className="h-5 w-5 text-muted-foreground mt-1" />
               </>
             )}
           </div>
@@ -148,7 +148,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         />
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-muted-foreground">
         {isDragActive ? 'Drop image here' : 'Click or drag to upload'}
       </p>
 

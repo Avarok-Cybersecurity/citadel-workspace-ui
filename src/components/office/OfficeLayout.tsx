@@ -36,11 +36,11 @@ export const OfficeLayout = ({
   };
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] overflow-hidden bg-[#1C1D28]">
+    <div className="h-[calc(100vh-3.5rem)] overflow-hidden bg-background">
       <div className="h-full flex flex-col">
-        <div className="flex justify-between items-center px-4 py-2 border-b border-[#2D3548] bg-[#232536]">
+        <div className="flex justify-between items-center px-4 py-2 border-b border-border bg-card">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-white hidden md:block">
+            <h1 className="text-xl font-semibold text-foreground hidden md:block">
               <button
                 onClick={handleNavigateUp}
                 className="hover:text-purple-300 transition-colors"
@@ -53,7 +53,7 @@ export const OfficeLayout = ({
             <Button
               variant="ghost"
               size="icon"
-              className="text-gray-300 hover:bg-purple-500/15 hover:text-white"
+              className="text-foreground/80 hover:bg-purple-500/15 hover:text-foreground"
               onClick={() => navigate('/messages')}
               title="Messages"
             >
@@ -62,7 +62,7 @@ export const OfficeLayout = ({
             <Button
               variant="ghost"
               size="icon"
-              className="text-gray-300 hover:bg-purple-500/15 hover:text-white"
+              className="text-foreground/80 hover:bg-purple-500/15 hover:text-foreground"
               onClick={() => setShowSettingsModal(true)}
               title="Settings"
             >
@@ -72,14 +72,14 @@ export const OfficeLayout = ({
               <>
                 <Button
                   variant="ghost"
-                  className="text-gray-300 hover:bg-purple-500/15 hover:text-white"
+                  className="text-foreground/80 hover:bg-purple-500/15 hover:text-foreground"
                   onClick={onEditToggle}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={onSave}
-                  className="bg-purple-600 text-white hover:bg-purple-700"
+                  className="bg-purple-600 text-foreground hover:bg-purple-700"
                 >
                   Save Changes
                 </Button>
@@ -91,7 +91,7 @@ export const OfficeLayout = ({
               >
                 <Button
                   variant="outline"
-                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-white hover:border-purple-400"
+                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-foreground hover:border-purple-400"
                   onClick={canEdit ? onEditToggle : undefined}
                 >
                   Edit

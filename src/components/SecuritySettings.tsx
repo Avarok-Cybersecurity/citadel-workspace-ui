@@ -101,13 +101,13 @@ export const SecuritySettings = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
       <div className="w-full max-w-xl">
-        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+        <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
             {!isFromLogin && (
               <StepIndicator currentStep={2} totalSteps={3} labels={["Server", "Security", "Profile"]} />
             )}
-            <h2 className="text-xl font-bold text-white mt-5">Security Settings</h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <h2 className="text-xl font-bold text-foreground mt-5">Security Settings</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Configure security settings for your workspace connection
             </p>
           </CardHeader>
@@ -126,7 +126,7 @@ export const SecuritySettings = ({
             <div className="space-y-2">
               <button
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                className="flex items-center gap-2 text-gray-400 w-full transition-colors duration-200 hover:text-purple-300 py-2"
+                className="flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-purple-300 py-2"
               >
                 <span className="text-[11px] font-semibold tracking-wider uppercase">Advanced Settings</span>
                 <ChevronDown
@@ -153,14 +153,14 @@ export const SecuritySettings = ({
               type="button"
               variant="ghost"
               onClick={onBack}
-              className="text-gray-400 hover:text-white hover:bg-transparent"
+              className="text-muted-foreground hover:text-foreground hover:bg-transparent"
             >
               Back
             </Button>
             <Button
               type="button"
               onClick={handleNext}
-              className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
+              className="bg-purple-600 hover:bg-purple-500 text-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
             >
               {isFromLogin ? "Save" : "Next"}
               {!isFromLogin && <ArrowRight className="w-4 h-4" />}

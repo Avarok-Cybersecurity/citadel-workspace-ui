@@ -52,27 +52,27 @@ export function ChatSettingsPanel({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#1C1D28] border-[#262C4A] text-white sm:max-w-[600px] max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="bg-background border-surface text-foreground sm:max-w-[600px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-[#6E59A5]/20">
+            <div className="p-2 rounded-lg bg-primary/20">
               <Settings className="h-5 w-5 text-purple-400" />
             </div>
             <DialogTitle className="text-lg font-semibold">
               Chat Settings
             </DialogTitle>
           </div>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Configure your chat preferences with {peerName}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeOuterTab} onValueChange={setActiveOuterTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-4 bg-[#262C4A] h-12 flex-shrink-0" data-testid="outer-tabs">
+          <TabsList className="grid w-full grid-cols-4 bg-surface h-12 flex-shrink-0" data-testid="outer-tabs">
             <TabsTrigger
               value="general"
               data-testid="tab-general"
-              className="data-[state=active]:bg-[#6E59A5] data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">General</span>
@@ -80,7 +80,7 @@ export function ChatSettingsPanel({
             <TabsTrigger
               value="file"
               data-testid="tab-file"
-              className="data-[state=active]:bg-[#6E59A5] data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
             >
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">File</span>
@@ -88,7 +88,7 @@ export function ChatSettingsPanel({
             <TabsTrigger
               value="advanced"
               data-testid="tab-advanced"
-              className="data-[state=active]:bg-[#6E59A5] data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
             >
               <Sliders className="h-4 w-4" />
               <span className="hidden sm:inline">Advanced</span>
@@ -96,7 +96,7 @@ export function ChatSettingsPanel({
             <TabsTrigger
               value="stats"
               data-testid="tab-stats"
-              className="data-[state=active]:bg-[#6E59A5] data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
             >
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Stats</span>
@@ -107,34 +107,34 @@ export function ChatSettingsPanel({
             {/* General Tab */}
             <TabsContent value="general" className="space-y-6 m-0" data-testid="content-general">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-[#262C4A]/50">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <Bell className="h-5 w-5 text-purple-400" />
                     <div>
                       <Label className="text-sm font-medium">Notifications</Label>
-                      <p className="text-xs text-gray-400">Receive alerts for new messages</p>
+                      <p className="text-xs text-muted-foreground">Receive alerts for new messages</p>
                     </div>
                   </div>
                   <Switch defaultChecked />
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-[#262C4A]/50">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <Eye className="h-5 w-5 text-blue-400" />
                     <div>
                       <Label className="text-sm font-medium">Read Receipts</Label>
-                      <p className="text-xs text-gray-400">Show when you've read messages</p>
+                      <p className="text-xs text-muted-foreground">Show when you've read messages</p>
                     </div>
                   </div>
                   <Switch defaultChecked />
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-[#262C4A]/50">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <MessageSquare className="h-5 w-5 text-green-400" />
                     <div>
                       <Label className="text-sm font-medium">Typing Indicators</Label>
-                      <p className="text-xs text-gray-400">Show when you're typing</p>
+                      <p className="text-xs text-muted-foreground">Show when you're typing</p>
                     </div>
                   </div>
                   <Switch defaultChecked />
@@ -164,16 +164,16 @@ export function ChatSettingsPanel({
             {/* Advanced Tab */}
             <TabsContent value="advanced" className="space-y-4 m-0" data-testid="content-advanced">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-[#262C4A]/50">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <Sliders className="h-5 w-5 text-orange-400" />
                     <div>
                       <Label className="text-sm font-medium">Encryption Level</Label>
-                      <p className="text-xs text-gray-400">Security level for this conversation</p>
+                      <p className="text-xs text-muted-foreground">Security level for this conversation</p>
                     </div>
                   </div>
                   <select
-                    className="bg-[#262C4A] border border-[#3D4567] rounded px-2 py-1 text-sm text-gray-300"
+                    className="bg-surface border border-surface rounded px-2 py-1 text-sm text-foreground/80"
                     defaultValue="standard"
                   >
                     <option value="standard">Standard</option>
@@ -182,16 +182,16 @@ export function ChatSettingsPanel({
                   </select>
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-[#262C4A]/50">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <Settings className="h-5 w-5 text-blue-400" />
                     <div>
                       <Label className="text-sm font-medium">Connection Priority</Label>
-                      <p className="text-xs text-gray-400">Prefer direct P2P or server relay</p>
+                      <p className="text-xs text-muted-foreground">Prefer direct P2P or server relay</p>
                     </div>
                   </div>
                   <select
-                    className="bg-[#262C4A] border border-[#3D4567] rounded px-2 py-1 text-sm text-gray-300"
+                    className="bg-surface border border-surface rounded px-2 py-1 text-sm text-foreground/80"
                     defaultValue="p2p"
                   >
                     <option value="p2p">P2P First</option>
@@ -200,16 +200,16 @@ export function ChatSettingsPanel({
                   </select>
                 </div>
 
-                <div className="p-4 rounded-lg bg-[#262C4A]/50">
+                <div className="p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <MessageSquare className="h-5 w-5 text-green-400" />
                       <div>
                         <Label className="text-sm font-medium">Message Retention</Label>
-                        <p className="text-xs text-gray-400">Days to keep message history locally</p>
+                        <p className="text-xs text-muted-foreground">Days to keep message history locally</p>
                       </div>
                     </div>
-                    <span className="text-sm text-gray-400">90 days</span>
+                    <span className="text-sm text-muted-foreground">90 days</span>
                   </div>
                   <input
                     type="range"
@@ -218,7 +218,7 @@ export function ChatSettingsPanel({
                     defaultValue={90}
                     className="w-full accent-purple-500"
                   />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>7 days</span>
                     <span>1 year</span>
                   </div>
@@ -241,9 +241,9 @@ export function ChatSettingsPanel({
             <TabsContent value="stats" className="space-y-4 m-0" data-testid="content-stats">
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-lg bg-[#262C4A]/50 text-center">
+                  <div className="p-4 rounded-lg bg-surface/50 text-center">
                     <BarChart3 className="h-5 w-5 text-purple-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-2xl font-bold text-foreground">
                       {(() => {
                         try {
                           const stored = localStorage.getItem(`p2p-messages:${peerCid}`);
@@ -251,11 +251,11 @@ export function ChatSettingsPanel({
                         } catch { return 0; }
                       })()}
                     </p>
-                    <p className="text-xs text-gray-400">Messages</p>
+                    <p className="text-xs text-muted-foreground">Messages</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-[#262C4A]/50 text-center">
+                  <div className="p-4 rounded-lg bg-surface/50 text-center">
                     <FileText className="h-5 w-5 text-blue-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-2xl font-bold text-foreground">
                       {(() => {
                         try {
                           const stored = localStorage.getItem(`file-transfers:${peerCid}`);
@@ -263,22 +263,22 @@ export function ChatSettingsPanel({
                         } catch { return 0; }
                       })()}
                     </p>
-                    <p className="text-xs text-gray-400">Files Transferred</p>
+                    <p className="text-xs text-muted-foreground">Files Transferred</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
-                    <span className="text-sm text-gray-400">Peer CID</span>
-                    <span className="text-sm text-gray-300 font-mono">{peerCid.slice(0, 16)}...</span>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
+                    <span className="text-sm text-muted-foreground">Peer CID</span>
+                    <span className="text-sm text-foreground/80 font-mono">{peerCid.slice(0, 16)}...</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
-                    <span className="text-sm text-gray-400">Connection Type</span>
-                    <span className="text-sm text-gray-300">P2P Encrypted</span>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
+                    <span className="text-sm text-muted-foreground">Connection Type</span>
+                    <span className="text-sm text-foreground/80">P2P Encrypted</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
-                    <span className="text-sm text-gray-400">First Connected</span>
-                    <span className="text-sm text-gray-300">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
+                    <span className="text-sm text-muted-foreground">First Connected</span>
+                    <span className="text-sm text-foreground/80">
                       {(() => {
                         try {
                           const ts = localStorage.getItem(`peer-first-seen:${peerCid}`);
@@ -291,9 +291,9 @@ export function ChatSettingsPanel({
                       })()}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#262C4A]/50">
-                    <span className="text-sm text-gray-400">Storage Used</span>
-                    <span className="text-sm text-gray-300">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
+                    <span className="text-sm text-muted-foreground">Storage Used</span>
+                    <span className="text-sm text-foreground/80">
                       {formatBytes(settings.revfsQuota - (settings.revfsQuota * 0.85))}
                     </span>
                   </div>

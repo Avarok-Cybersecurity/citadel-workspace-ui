@@ -53,23 +53,23 @@ export function canManageSpecificRole(
 export function DeleteRoleDialog({ roleToDelete, onOpenChange, onConfirm }: DeleteRoleDialogProps) {
   return (
     <AlertDialog open={!!roleToDelete} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
+      <AlertDialogContent className="bg-background border-border">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">
+          <AlertDialogTitle className="text-foreground">
             Delete Role &ldquo;{roleToDelete?.name}&rdquo;?
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-400">
+          <AlertDialogDescription className="text-muted-foreground">
             This action cannot be undone. Members with this role will need to
             be reassigned to another role.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]">
+          <AlertDialogCancel className="bg-transparent border-border text-foreground hover:bg-surface">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-red-600 hover:bg-red-700 text-foreground"
           >
             Delete
           </AlertDialogAction>

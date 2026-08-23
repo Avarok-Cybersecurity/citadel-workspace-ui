@@ -105,17 +105,17 @@ export const UserDirectory = () => {
     <AppLayout>
     <div className="container mx-auto p-4 md:p-6 max-w-6xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-2">User Directory</h1>
-        <p className="text-gray-400">Find and connect with people in your workspace</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">User Directory</h1>
+        <p className="text-muted-foreground">Find and connect with people in your workspace</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - User search and directory */}
         <div className="lg:col-span-2 space-y-4">
-          <Card className="bg-[#232536] border-[#2D3548] text-white shadow-sm">
+          <Card className="bg-card border-border text-foreground shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle>Find People</CardTitle>
-              <CardDescription className="text-gray-400">Search for users by name or email</CardDescription>
+              <CardDescription className="text-muted-foreground">Search for users by name or email</CardDescription>
             </CardHeader>
             <CardContent>
               <UserSearch
@@ -127,11 +127,11 @@ export const UserDirectory = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#232536] border-[#2D3548] text-white shadow-sm">
+          <Card className="bg-card border-border text-foreground shadow-sm">
             <CardHeader className="pb-3">
               <div>
                 <CardTitle>Workspace Directory</CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardDescription className="text-muted-foreground">
                   {filteredMembers.length} {tab === 'online' ? 'online ' : ''}members
                 </CardDescription>
               </div>
@@ -139,9 +139,9 @@ export const UserDirectory = () => {
 
             <Tabs defaultValue="all" value={tab} onValueChange={setTab} className="w-full">
               <div className="px-6">
-                <TabsList className="bg-[#232536] w-full">
-                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400">All</TabsTrigger>
-                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400">Online</TabsTrigger>
+                <TabsList className="bg-card w-full">
+                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground">All</TabsTrigger>
+                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground">Online</TabsTrigger>
                 </TabsList>
               </div>
 

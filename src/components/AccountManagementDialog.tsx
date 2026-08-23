@@ -97,10 +97,10 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[600px] bg-[#282A42] border-[#3D3F5A]">
+        <DialogContent className="sm:max-w-[600px] bg-card border-surface">
           <DialogHeader>
-            <DialogTitle className="text-white">Manage Accounts</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogTitle className="text-foreground">Manage Accounts</DialogTitle>
+            <DialogDescription className="text-foreground/80">
               Manage your saved workspace accounts and sessions.
             </DialogDescription>
           </DialogHeader>
@@ -108,23 +108,23 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
           <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
             {activeSessions.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Wifi className="h-4 w-4 text-green-400" />Active Sessions ({activeSessions.length})
                 </h3>
                 {activeSessions.map((session) => {
                   const isCurrentSession = currentConnection?.cid === session.cid;
                   return (
-                    <div key={session.cid} className="flex items-center justify-between p-4 rounded-lg bg-[#1a1b26] border border-green-500/30">
+                    <div key={session.cid} className="flex items-center justify-between p-4 rounded-lg bg-background border border-green-500/30">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10"><AvatarFallback className="bg-green-600">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="text-white font-medium">{session.username}</h4>
+                            <h4 className="text-foreground font-medium">{session.username}</h4>
                             {isCurrentSession && <UserCheck className="h-4 w-4 text-green-500" />}
                             <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Active</span>
                           </div>
-                          <p className="text-sm text-gray-400">{session.server_address}</p>
-                          <p className="text-xs text-gray-500">Session {shortPeerHandle(session.cid)}</p>
+                          <p className="text-sm text-muted-foreground">{session.server_address}</p>
+                          <p className="text-xs text-muted-foreground">Session {shortPeerHandle(session.cid)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -140,25 +140,25 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
 
             {storedSessions.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Clock className="h-4 w-4" />Saved Accounts ({storedSessions.length})
                 </h3>
                 {storedSessions.map((session) => {
                   const isConnected = currentConnection?.serverAddress === session.serverAddress && currentConnection?.username === session.username;
                   const hasActiveSession = activeSessions.some(a => a.username === session.username && a.server_address === session.serverAddress);
                   return (
-                    <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-[#1a1b26] border ${hasActiveSession ? 'border-green-500/30' : 'border-[#262C4A]/50'}`}>
+                    <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-background border ${hasActiveSession ? 'border-green-500/30' : 'border-surface/50'}`}>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10"><AvatarFallback className="bg-purple-600">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="text-white font-medium">{session.username}</h4>
+                            <h4 className="text-foreground font-medium">{session.username}</h4>
                             {isConnected && <UserCheck className="h-4 w-4 text-green-500" />}
                             {hasActiveSession && <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Active</span>}
                           </div>
-                          <p className="text-sm text-gray-400">{session.serverAddress}</p>
+                          <p className="text-sm text-muted-foreground">{session.serverAddress}</p>
                           {session.lastConnected && (
-                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-1"><Clock className="h-3 w-3" />{formatLastConnected(session.lastConnected)}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Clock className="h-3 w-3" />{formatLastConnected(session.lastConnected)}</p>
                           )}
                         </div>
                       </div>
@@ -178,7 +178,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
 
             {activeSessions.length === 0 && storedSessions.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-gray-400 mb-4">No accounts found. Join a workspace to get started.</p>
+                <p className="text-muted-foreground mb-4">No accounts found. Join a workspace to get started.</p>
                 <Button
                   variant="outline"
                   className="border-purple-500 text-purple-400 hover:bg-purple-500/20"
@@ -197,7 +197,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
             )}
 
             {storedSessions.length > 0 && (
-              <div className="flex justify-end pt-4 border-t border-[#262C4A]/50">
+              <div className="flex justify-end pt-4 border-t border-surface/50">
                 <Button variant="destructive" onClick={() => setClearAllConfirmOpen(true)}>Clear Saved Accounts</Button>
               </div>
             )}

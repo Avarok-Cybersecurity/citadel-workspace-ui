@@ -148,14 +148,14 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     return (
       <div className="space-y-4" data-testid="members-advanced-permissions">
         <div className="flex items-center justify-between">
-          <h3 className="text-white font-medium">
+          <h3 className="text-foreground font-medium">
             Permissions for {selectedMember.name || selectedMember.username}
           </h3>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setSelectedMember(null)}
-            className="border-gray-600 text-white hover:bg-[#232536]"
+            className="border-gray-600 text-foreground hover:bg-card"
           >
             Back to Members
           </Button>
@@ -173,10 +173,10 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   return (
     <div className="space-y-4" data-testid="members-tab-content">
       {/* Advanced Toggle */}
-      <div className="flex items-center justify-between p-3 bg-[#1a1b26] rounded-lg">
+      <div className="flex items-center justify-between p-3 bg-background rounded-lg">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-purple-400" />
-          <Label htmlFor="advanced-toggle" className="text-white cursor-pointer">
+          <Label htmlFor="advanced-toggle" className="text-foreground cursor-pointer">
             Show Advanced Permissions
           </Label>
         </div>
@@ -192,7 +192,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       <ScrollArea className="h-[300px] pr-4">
         <div className="space-y-2">
           {members.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               No members found
             </div>
           ) : (
@@ -217,7 +217,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
           <Badge
             key={role}
             variant="outline"
-            className="border-gray-600 text-gray-400"
+            className="border-gray-600 text-muted-foreground"
           >
             <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]} mr-1`} />
             {role}

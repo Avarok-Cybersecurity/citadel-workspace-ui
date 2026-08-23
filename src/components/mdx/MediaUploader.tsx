@@ -108,10 +108,10 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-[#232536] text-white border-gray-800">
+      <DialogContent className="sm:max-w-md bg-card text-foreground border-gray-800">
         <DialogHeader>
-          <DialogTitle className="text-white">Insert Media</DialogTitle>
-          <DialogDescription className="text-gray-300">
+          <DialogTitle className="text-foreground">Insert Media</DialogTitle>
+          <DialogDescription className="text-foreground/80">
             Upload an image to embed in your content
           </DialogDescription>
         </DialogHeader>
@@ -138,11 +138,11 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                 onChange={handleFileChange}
               />
               <div className="flex flex-col items-center justify-center gap-2 text-center">
-                <Upload className="h-10 w-10 text-gray-400" />
-                <p className="text-sm font-medium text-gray-300">
+                <Upload className="h-10 w-10 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground/80">
                   Drag and drop your image here or click to browse
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   Supports JPG, PNG, GIF up to 5MB
                 </p>
               </div>
@@ -159,12 +159,12 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                   className="absolute top-2 right-2 rounded-full bg-gray-800/80 p-1 hover:bg-gray-700"
                   onClick={() => setUploadedImage(null)}
                 >
-                  <X className="h-4 w-4 text-white" />
+                  <X className="h-4 w-4 text-foreground" />
                 </button>
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="alt-text" className="text-sm font-medium text-gray-200">
+                <label htmlFor="alt-text" className="text-sm font-medium text-foreground">
                   Alt Text (Accessibility)
                 </label>
                 <input
@@ -173,7 +173,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                   value={altText}
                   onChange={(e) => setAltText(e.target.value)}
                   placeholder="Describe this image for screen readers"
-                  className="w-full px-3 py-2 bg-[#232536] border border-gray-700 rounded-md text-white"
+                  className="w-full px-3 py-2 bg-card border border-gray-700 rounded-md text-foreground"
                 />
               </div>
             </div>
@@ -183,14 +183,14 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             <Button 
               variant="ghost" 
               onClick={handleCancel}
-              className="text-gray-200 hover:bg-gray-800"
+              className="text-foreground hover:bg-gray-800"
             >
               Cancel
             </Button>
             <Button
               onClick={handleInsert}
               disabled={!uploadedImage || uploading}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-foreground"
             >
               {uploading ? 'Uploading...' : 'Insert Image'}
             </Button>

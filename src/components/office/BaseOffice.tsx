@@ -161,7 +161,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const contentView = isEditing ? (
     <div className="px-6 lg:px-10 pt-8 pb-4 max-w-4xl">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-white">Edit Content</h2>
+        <h2 className="text-lg font-semibold text-foreground">Edit Content</h2>
         <div className="flex gap-2">
           {(isNewContent || content.trim() === '') && (
             <TemplateSelector
@@ -216,8 +216,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       editDeniedReason={editDeniedReason || undefined}
     >
       <Tabs defaultValue="content" className="w-full h-full flex flex-col">
-        <div className="px-4 pt-4 border-b border-[#2D3548] flex-shrink-0">
-          <TabsList className="bg-[#1C1D28]">
+        <div className="px-4 pt-4 border-b border-border flex-shrink-0">
+          <TabsList className="bg-background">
             <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
               <FileText className="h-4 w-4 mr-2" />
               Content

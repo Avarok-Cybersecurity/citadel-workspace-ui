@@ -48,6 +48,24 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        /* Elevated surface: menus, popovers, hover and selected rows. The app
+           had ~10 near-identical hexes doing this job; they collapse here. */
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          foreground: "hsl(var(--surface-foreground))",
+        },
+        /* The lighter brand tone, for accent text and icons on a dark surface.
+           Distinct from `primary`, which is a button FILL and must carry
+           primary-foreground text at AA. */
+        "primary-accent": "hsl(var(--primary-accent))",
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

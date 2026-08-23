@@ -5,60 +5,109 @@
 @tailwind utilities;
  
 @layer base {
+  /*
+   * Design tokens.
+   *
+   * Every colour the product uses lives here once. Components reference the
+   * semantic name (bg-card, border-border, text-primary), never a hex — which is
+   * what makes a theme switch possible at all, and what stops the palette drifting
+   * into thirty near-identical greys again.
+   *
+   * :root is the LIGHT theme and .dark is the dark one, per the shadcn convention
+   * the rest of the stack assumes. Both were previously filled with the same dark
+   * values, so `.dark` toggled nothing and light mode did not exist.
+   *
+   * The dark values are the ones the app already shipped, so its appearance is
+   * unchanged; they are just named now. Where several hexes were doing the same
+   * job (#2A2438 / #3D3F5A / #3B3D57 / #3A3F5C / #282A42 / #1E2235 all sat between
+   * "card" and "border") they collapse onto the nearest role.
+   */
   :root {
-    /* Use actual HSL values (hue, saturation, lightness) */
-    --background: 240 17% 14%; /* Dark blue-gray background */
-    --foreground: 0 0% 100%; /* White text */
-    --card: 232 23% 18%; /* Slightly lighter background for cards */
-    --card-foreground: 0 0% 100%; /* White text in cards */
-    --popover: 232 23% 18%; /* Match card background for popovers */
-    --popover-foreground: 0 0% 100%; /* White text in popovers */
-    --primary: 265 84% 66%; /* Purple primary color */
-    --primary-foreground: 0 0% 100%; /* White text on primary color */
-    --secondary: 265 100% 94%; /* Light purple for secondary elements */
-    --secondary-foreground: 240 17% 14%; /* Dark text on secondary color */
-    --muted: 265 100% 94%; /* Light purple for muted areas */
-    /* L raised from 54% to 72%. At 54% this rendered #8465ae on the #1e1e2a card
-       background — a 3.49:1 contrast ratio, below the 4.5:1 WCAG AA minimum for
-       body text, which Lighthouse flagged on every toast description. 72% clears
-       it with room to spare while staying in the same purple family. */
-    --muted-foreground: 265 25% 72%; /* Muted purple text, AA on dark surfaces */
-    --accent: 267 90% 86%; /* Light purple accent */
-    --accent-foreground: 240 17% 14%; /* Dark text on accent */
-    --destructive: 0 84% 60%; /* Red for destructive actions */
-    --destructive-foreground: 0 0% 100%; /* White text on destructive */
-    --border: 265 31% 54%; /* Purple border color */
-    --input: 265 31% 54%; /* Purple input border */
-    --ring: 265 84% 66%; /* Purple focus ring */
+    /* Surfaces, lightest to deepest */
+    --background: 0 0% 100%;
+    --foreground: 235 18% 13%;
+    --card: 240 20% 99%;
+    --card-foreground: 235 18% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 235 18% 13%;
+    /* Elevated surface: menus, hover states, selected rows */
+    --surface: 240 20% 96%;
+    --surface-foreground: 235 18% 13%;
+
+    /* Brand. --primary is the button FILL, so it must carry white text at AA:
+       hsl(257 45% 45%) on white gives ~7:1, and white on it ~6.6:1. */
+    --primary: 257 45% 45%;
+    --primary-foreground: 0 0% 100%;
+    /* The lighter brand tone used for accent text and icons. Darkened for light
+       mode so it still passes contrast on a white background. */
+    --primary-accent: 257 45% 42%;
+
+    --secondary: 240 20% 96%;
+    --secondary-foreground: 235 18% 13%;
+    --muted: 240 20% 96%;
+    --muted-foreground: 235 12% 38%;
+    --accent: 240 20% 94%;
+    --accent-foreground: 235 18% 13%;
+
+    /* Status */
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 160 84% 28%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 38%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Lines and controls */
+    --border: 240 15% 88%;
+    --input: 240 20% 97%;
+    --ring: 257 45% 45%;
+
     --radius: 0.75rem;
   }
- 
+
   .dark {
-    --background: 240 17% 14%; /* Dark blue-gray background */
-    --foreground: 0 0% 100%; /* White text */
-    --card: 232 23% 18%; /* Slightly lighter background for cards */
-    --card-foreground: 0 0% 100%; /* White text in cards */
-    --popover: 232 23% 18%; /* Match card background for popovers */
-    --popover-foreground: 0 0% 100%; /* White text in popovers */
-    --primary: 265 84% 66%; /* Purple primary color */
-    --primary-foreground: 0 0% 100%; /* White text on primary color */
-    --secondary: 232 23% 16%; /* Darker secondary elements */
-    --secondary-foreground: 0 0% 100%; /* White text on secondary color */
-    --muted: 232 23% 16%; /* Dark muted areas */
-    --muted-foreground: 0 0% 59%; /* Light gray for muted text */
-    --accent: 232 23% 16%; /* Dark accent background */
-    --accent-foreground: 0 0% 100%; /* White text on accent */
-    --destructive: 0 84% 60%; /* Red for destructive actions */
-    --destructive-foreground: 0 0% 100%; /* White text on destructive */
-    --border: 229 21% 23%; /* Dark border color */
-    --input: 229 21% 23%; /* Dark input border */
-    --ring: 265 84% 66%; /* Purple focus ring */
+    /* Surfaces, deepest to lightest — the values the app already shipped */
+    --background: 235 18% 13%;      /* was #1C1D28 */
+    --foreground: 0 0% 100%;
+    --card: 234 21% 17%;            /* was #232536 */
+    --card-foreground: 0 0% 100%;
+    --popover: 234 21% 17%;
+    --popover-foreground: 0 0% 100%;
+    --surface: 230 32% 22%;         /* was #262C4A */
+    --surface-foreground: 0 0% 100%;
+
+    --primary: 257 30% 50%;         /* was #6E59A5 */
+    --primary-foreground: 0 0% 100%;
+    --primary-accent: 251 85% 75%;  /* was #9B87F5 */
+
+    --secondary: 234 21% 17%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 234 21% 17%;
+    /* 72%, not 54%: at 54% this rendered 3.49:1 on the card surface, below the
+       4.5:1 AA minimum, which Lighthouse flagged on every toast description. */
+    --muted-foreground: 265 25% 72%;
+    --accent: 230 32% 22%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;       /* was #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 160 84% 39%;         /* was #10B981 */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;          /* was #F59E0B */
+    --warning-foreground: 235 18% 13%;
+
+    --border: 222 23% 23%;          /* was #2D3548 */
+    --input: 235 25% 10%;           /* was #131420 */
+    --ring: 251 85% 75%;
   }
 }
 
 /* Ensure no yellow backgrounds on scroll */
 html, body, #root {
-  background-color: #1C1D28 !important;
+  /* Token, not a hardcoded hex with !important. The old rule pinned every surface
+     to the dark background regardless of theme, so a theme toggle could never
+     take effect no matter what the tokens said. */
+  background-color: hsl(var(--background));
   height: 100%;
   width: 100%;
   margin: 0;

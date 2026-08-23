@@ -52,15 +52,15 @@ export function LiveDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#1C1D28] border-[#262C4A] text-white sm:max-w-md">
+      <DialogContent className="bg-background border-surface text-foreground sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-[#6E59A5]/20">
+            <div className="p-2 rounded-lg bg-primary/20">
               <FileText className="h-5 w-5 text-purple-400" />
             </div>
             <DialogTitle className="text-lg font-semibold">Create Live Document</DialogTitle>
           </div>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Enter a title for your collaborative document. Both you and your peer will be able to edit it in real-time.
           </DialogDescription>
         </DialogHeader>
@@ -71,10 +71,10 @@ export function LiveDocumentModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="bg-[#262C4A] border-[#3a3f5c] text-white placeholder-gray-400 focus:border-[#6E59A5]"
+            className="bg-surface border-surface text-foreground placeholder-gray-400 focus:border-primary"
             autoFocus
           />
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             This will send a live document invitation to your peer.
           </p>
         </div>
@@ -83,14 +83,14 @@ export function LiveDocumentModal({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-gray-400 hover:text-white hover:bg-white/5"
+            className="text-muted-foreground hover:text-foreground hover:bg-white/5"
           >
             Cancel
           </Button>
           <Button
             onClick={handleCreate}
             disabled={!title.trim() || isCreating}
-            className="bg-[#6E59A5] hover:bg-[#7c68d6] text-white"
+            className="bg-primary hover:bg-primary text-primary-foreground"
           >
             {isCreating ? 'Creating...' : 'Create & Send'}
           </Button>

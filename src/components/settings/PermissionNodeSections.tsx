@@ -40,12 +40,12 @@ export function ChildNodePermissionSection({
 
   return (
     <AccordionItem value={`child-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-teal-500/30 ml-4">
-      <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
+      <AccordionTrigger className="text-foreground/80 hover:text-foreground hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
           <Icon className="h-4 w-4 text-teal-400" />
           <span>{nodeName}</span>
           <RoleBadge role={role} />
-          {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
       </AccordionTrigger>
       <AccordionContent className="pl-6">
@@ -82,12 +82,12 @@ export function ParentNodePermissionSection({
 
   return (
     <AccordionItem value={`node-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-blue-500/30 ml-2">
-      <AccordionTrigger className="text-gray-300 hover:text-white hover:no-underline py-2 pl-3">
+      <AccordionTrigger className="text-foreground/80 hover:text-foreground hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
           <Icon className="h-4 w-4 text-blue-400" />
           <span>{nodeName}</span>
           <RoleBadge role={role} />
-          {loading && <Loader2 className="h-3 w-3 animate-spin text-gray-500" />}
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
       </AccordionTrigger>
       <AccordionContent className="pl-4">
@@ -97,7 +97,7 @@ export function ParentNodePermissionSection({
 
         {children.length > 0 && (
           <div className="mt-4">
-            <h4 className="text-sm font-medium text-gray-400 mb-2 pl-2">Children</h4>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2 pl-2">Children</h4>
             <Accordion type="multiple" className="w-full">
               {children.map((child) => (
                 <ChildNodePermissionSection

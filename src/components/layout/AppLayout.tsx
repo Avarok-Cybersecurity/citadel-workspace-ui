@@ -16,10 +16,10 @@ interface AppLayoutProps {
 export const AppLayout = ({ children }: AppLayoutProps) => {
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-[#1C1D28] text-white overflow-hidden">
+      <div className="h-screen flex w-full bg-background text-foreground overflow-hidden">
         <TopBar />
 
-        <Sidebar className="pt-14 bg-[#131420] border-r border-[#2D3548] transition-transform duration-300 ease-in-out">
+        <Sidebar className="pt-14 bg-input border-r border-border transition-transform duration-300 ease-in-out">
           <SidebarContent>
             <HierarchySidebar />
             <MembersSection />

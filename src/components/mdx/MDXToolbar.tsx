@@ -95,7 +95,7 @@ export function MDXToolbar({
 
   return (
     <TooltipProvider>
-      <div className="bg-[#232536] p-2 mb-2 rounded-t-md border-b border-gray-700 flex flex-wrap gap-1">
+      <div className="bg-card p-2 mb-2 rounded-t-md border-b border-gray-700 flex flex-wrap gap-1">
         {renderGroup(formatGroup)}
         <ToolbarDivider />
         {renderGroup(headingGroup)}

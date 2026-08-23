@@ -111,13 +111,13 @@ export function CreateGroupDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] bg-[#1C1D28] border-[#2D3548] text-white">
+      <DialogContent className="sm:max-w-[500px] bg-background border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
-            <Users className="h-5 w-5 text-[#6E59A5]" />
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <Users className="h-5 w-5 text-primary" />
             Create New Group
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Create a group chat with your P2P peers.
           </DialogDescription>
         </DialogHeader>
@@ -125,7 +125,7 @@ export function CreateGroupDialog({
         <div className="space-y-6 py-4">
           {/* Group Name Section */}
           <div className="space-y-2">
-            <Label htmlFor="groupName" className="text-sm text-gray-300">
+            <Label htmlFor="groupName" className="text-sm text-foreground/80">
               Group Name
             </Label>
             <Input
@@ -133,9 +133,9 @@ export function CreateGroupDialog({
               placeholder={`${currentUsername}'s Group`}
               value={groupName}
               onChange={e => setGroupName(e.target.value)}
-              className="bg-[#262C4A] border-[#3D4663] text-white placeholder:text-gray-500"
+              className="bg-surface border-border text-foreground placeholder:text-muted-foreground"
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Leave empty to use default: "{currentUsername}'s Group"
             </p>
           </div>
@@ -143,26 +143,26 @@ export function CreateGroupDialog({
           {/* Members Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm text-gray-300">Members</Label>
+              <Label className="text-sm text-foreground/80">Members</Label>
               <Popover open={showPeerSelector} onOpenChange={setShowPeerSelector}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={unselectedPeers.length === 0}
-                    className="h-8 bg-[#262C4A] border-[#3D4663] text-white hover:bg-[#3D4663]"
+                    className="h-8 bg-surface border-border text-foreground hover:bg-border"
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     Add Member
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-64 p-2 bg-[#1C1D28] border-[#2D3548]"
+                  className="w-64 p-2 bg-background border-border"
                   align="end"
                 >
                   <ScrollArea className="max-h-48">
                     {unselectedPeers.length === 0 ? (
-                      <p className="text-sm text-gray-500 p-2">
+                      <p className="text-sm text-muted-foreground p-2">
                         No more peers available
                       </p>
                     ) : (
@@ -171,10 +171,10 @@ export function CreateGroupDialog({
                           <button
                             key={peer.cid}
                             onClick={() => handleAddMember(peer)}
-                            className="w-full flex items-center gap-2 p-2 rounded hover:bg-[#262C4A] text-left"
+                            className="w-full flex items-center gap-2 p-2 rounded hover:bg-surface text-left"
                           >
                             <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white"
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
                               style={{
                                 backgroundColor: getAvatarColor(
                                   parseInt(peer.cid) % AVATAR_COLORS_LENGTH
@@ -183,7 +183,7 @@ export function CreateGroupDialog({
                             >
                               {peer.username[0]?.toUpperCase() || '?'}
                             </div>
-                            <span className="text-sm text-white flex-1 truncate">
+                            <span className="text-sm text-foreground flex-1 truncate">
                               {peer.username}
                             </span>
                             {peer.isOnline && (
@@ -213,14 +213,14 @@ export function CreateGroupDialog({
             variant="outline"
             onClick={handleClose}
             disabled={isCreating}
-            className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
+            className="bg-transparent border-border text-foreground hover:bg-surface"
           >
             Cancel
           </Button>
           <Button
             onClick={handleCreate}
             disabled={selectedMembers.length === 0 || isCreating}
-            className="bg-[#6E59A5] hover:bg-[#5D4A94] text-white"
+            className="bg-primary hover:bg-primary text-primary-foreground"
           >
             {isCreating ? 'Creating...' : 'Create Group'}
           </Button>

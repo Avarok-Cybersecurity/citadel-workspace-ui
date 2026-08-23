@@ -15,10 +15,10 @@ interface ProfileModalProps {
 export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#232536] text-white border-purple-800 sm:max-w-[500px]">
+      <DialogContent className="bg-card text-foreground border-purple-800 sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Profile Settings</DialogTitle>
-          <DialogDescription className="text-gray-300">
+          <DialogDescription className="text-foreground/80">
             Update your profile information
           </DialogDescription>
         </DialogHeader>

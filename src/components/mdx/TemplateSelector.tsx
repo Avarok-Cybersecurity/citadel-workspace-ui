@@ -86,24 +86,24 @@ const TemplateSelector = ({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-3xl bg-[#232536] text-white border-purple-800">
+      <DialogContent className="w-full max-w-3xl bg-card text-foreground border-purple-800">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CategoryIcon className="h-[18px] w-[18px]" />
             {categoryLabel} Templates
           </DialogTitle>
-          <DialogDescription className="text-gray-300">
+          <DialogDescription className="text-foreground/80">
             Choose a template to start with pre-configured content tailored for specific {category.toLowerCase()} types.
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
           <Tabs defaultValue="gallery" className="w-full">
-            <TabsList className="grid grid-cols-2 mb-4 bg-[#232536]">
-              <TabsTrigger value="gallery" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+            <TabsList className="grid grid-cols-2 mb-4 bg-card">
+              <TabsTrigger value="gallery" className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
                 Gallery View
               </TabsTrigger>
-              <TabsTrigger value="list" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+              <TabsTrigger value="list" className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
                 List View
               </TabsTrigger>
             </TabsList>
@@ -129,7 +129,7 @@ const TemplateSelector = ({
                         )}
                       </div>
 
-                      <div className="h-32 bg-[#262C4A] flex items-center justify-center">
+                      <div className="h-32 bg-surface flex items-center justify-center">
                         {template.thumbnail ? (
                           <img
                             src={template.thumbnail}
@@ -137,7 +137,7 @@ const TemplateSelector = ({
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="flex flex-col items-center justify-center text-gray-400">
+                          <div className="flex flex-col items-center justify-center text-muted-foreground">
                             <CategoryIcon className="h-12 w-12" />
                             <span className="text-xs mt-2">{template.type.toString().replace('_', ' ')}</span>
                           </div>
@@ -145,7 +145,7 @@ const TemplateSelector = ({
                       </div>
                       <div className="p-3">
                         <h3 className="font-medium text-sm">{template.name}</h3>
-                        <p className="text-xs text-gray-400 mt-1">{template.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
                       </div>
                     </div>
                   ))}
@@ -162,7 +162,7 @@ const TemplateSelector = ({
                       className={`flex items-start p-3 rounded-md transition-all cursor-pointer
                         ${selectedTemplate?.id === template.id
                           ? 'bg-purple-900/30 border-l-4 border-purple-500'
-                          : 'hover:bg-[#232536]'
+                          : 'hover:bg-card'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
                     >
@@ -171,7 +171,7 @@ const TemplateSelector = ({
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-sm">{template.name}</h3>
-                        <p className="text-xs text-gray-400 mt-1">{template.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
                       </div>
                       {selectedTemplate?.id === template.id && (
                         <div className="rounded-full bg-purple-500 p-1 ml-2">
@@ -190,7 +190,7 @@ const TemplateSelector = ({
           <Button
             variant="outline"
             onClick={() => setOpen(false)}
-            className="border-gray-700 text-gray-300 hover:bg-gray-700"
+            className="border-gray-700 text-foreground/80 hover:bg-gray-700"
           >
             Cancel
           </Button>

@@ -30,18 +30,18 @@ const getFileIcon = (fileName: string) => {
   switch (extension) {
     case 'xlsx':
     case 'xls':
-      return <FileSpreadsheet className="h-5 w-5 text-gray-300" />;
+      return <FileSpreadsheet className="h-5 w-5 text-foreground/80" />;
     case 'pdf':
-      return <FileType className="h-5 w-5 text-gray-300" />;
+      return <FileType className="h-5 w-5 text-foreground/80" />;
     case 'md':
     case 'mdx':
     case 'txt':
     case 'doc':
     case 'docx':
     case 'odt':
-      return <FileText className="h-5 w-5 text-gray-300" />;
+      return <FileText className="h-5 w-5 text-foreground/80" />;
     default:
-      return <FileCode className="h-5 w-5 text-gray-300" />;
+      return <FileCode className="h-5 w-5 text-foreground/80" />;
   }
 };
 
@@ -61,8 +61,8 @@ const renderFilePreview = (file: FileDetails) => {
     case 'md':
     case 'mdx':
       return (
-        <div className="w-full max-h-[600px] overflow-auto bg-[#232536] p-4 rounded-lg">
-          <pre className="text-white whitespace-pre-wrap">{file.url}</pre>
+        <div className="w-full max-h-[600px] overflow-auto bg-card p-4 rounded-lg">
+          <pre className="text-foreground whitespace-pre-wrap">{file.url}</pre>
         </div>
       );
     case 'xlsx':
@@ -86,9 +86,9 @@ const renderFilePreview = (file: FileDetails) => {
       );
     default:
       return (
-        <div className="text-center p-8 bg-[#232536] rounded-lg">
-          <FileCode className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-          <p className="text-white">Preview not available for this file type</p>
+        <div className="text-center p-8 bg-card rounded-lg">
+          <FileCode className="mx-auto h-12 w-12 text-foreground/80 mb-4" />
+          <p className="text-foreground">Preview not available for this file type</p>
         </div>
       );
   }
@@ -114,7 +114,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#232536] border-[#262C4A] text-white max-w-md">
+      <DialogContent className="bg-card border-surface text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider">
             {getFileIcon(file.name)}
@@ -136,14 +136,14 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="bg-[#232536] rounded-lg p-4">
+            <div className="bg-card rounded-lg p-4">
               <div className="flex flex-col space-y-6">
                 <div className="text-center">
-                  <div className="text-sm text-gray-300 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
+                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
                     <User className="h-5 w-5" />
                     Sent by
                   </div>
-                  <div className="inline-flex items-center gap-3 bg-[#232536] rounded-full px-6 py-2">
+                  <div className="inline-flex items-center gap-3 bg-card rounded-full px-6 py-2">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={file.sender.avatar} />
                       <AvatarFallback>{file.sender.name.charAt(0)}</AvatarFallback>
@@ -153,41 +153,41 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
                 </div>
 
                 <div className="text-center">
-                  <div className="text-sm text-gray-300 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
+                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
                     {getFileIcon(file.name)}
                     Filename
                   </div>
-                  <div className="bg-[#232536] rounded-full px-6 py-2">
+                  <div className="bg-card rounded-full px-6 py-2">
                     {file.name}
                   </div>
                 </div>
 
                 <div className="text-center">
-                  <div className="text-sm text-gray-300 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
+                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
                     <Calendar className="h-5 w-5" />
                     Create Date
                   </div>
-                  <div className="bg-[#232536] rounded-full px-6 py-2">
+                  <div className="bg-card rounded-full px-6 py-2">
                     {file.createdAt}
                   </div>
                 </div>
 
                 <div className="text-center">
-                  <div className="text-sm text-gray-300 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
+                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
                     {getFileIcon(file.name)}
                     File Type
                   </div>
-                  <div className="bg-[#232536] rounded-full px-6 py-2">
+                  <div className="bg-card rounded-full px-6 py-2">
                     {file.type}
                   </div>
                 </div>
 
                 <div className="text-center">
-                  <div className="text-sm text-gray-300 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
+                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
                     {getFileIcon(file.name)}
                     File Size
                   </div>
-                  <div className="bg-[#232536] rounded-full px-6 py-2">
+                  <div className="bg-card rounded-full px-6 py-2">
                     {formatFileSize(file.size)}
                   </div>
                 </div>

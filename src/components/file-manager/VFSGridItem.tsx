@@ -117,7 +117,7 @@ export function GridItem({
       <div
         className={cn(
           "relative flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer",
-          "hover:bg-[#232536] transition-colors select-none",
+          "hover:bg-card transition-colors select-none",
           dragOver && "bg-green-900/30 ring-1 ring-green-500",
           isCutItem && "opacity-50",
           isSelected && "bg-purple-700/40 ring-1 ring-purple-500",
@@ -130,7 +130,7 @@ export function GridItem({
       >
         <Icon className={cn(
           "h-10 w-10 mb-1.5",
-          isDir ? (isProtected ? "text-gray-400" : "text-yellow-400") : "text-gray-300",
+          isDir ? (isProtected ? "text-muted-foreground" : "text-yellow-400") : "text-foreground/80",
         )} />
 
         {StateIcon && (
@@ -147,11 +147,11 @@ export function GridItem({
             isDirectory={isDir}
           />
         ) : (
-          <span className="text-xs text-gray-200 text-center truncate w-full">{node.name}</span>
+          <span className="text-xs text-foreground text-center truncate w-full">{node.name}</span>
         )}
 
         {node.fileMetadata && !isRenaming && (
-          <span className="text-[10px] text-gray-500">{formatSize(node.fileMetadata.fileSize)}</span>
+          <span className="text-[10px] text-muted-foreground">{formatSize(node.fileMetadata.fileSize)}</span>
         )}
       </div>
     </VFSContextMenu>

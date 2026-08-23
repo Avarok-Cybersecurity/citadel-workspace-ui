@@ -108,19 +108,19 @@ export function MembersSectionModals({
 
       {/* All Members Dialog */}
       <Dialog open={showAllMembersDialog} onOpenChange={onSetShowAllMembersDialog}>
-        <DialogContent className="max-w-2xl bg-[#2E3356] border-purple-800">
-          <DialogHeader><DialogTitle className="text-white">{locationText}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl bg-surface border-purple-800">
+          <DialogHeader><DialogTitle className="text-foreground">{locationText}</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-2">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[#232536] transition-colors">
+                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-card transition-colors">
                   <div className="flex items-center gap-3 flex-1">
                     {getRoleIcon(member.role || 'member')}
                     <div className="flex-1">
-                      <p className="text-white font-medium">{member.displayName || member.username}</p>
+                      <p className="text-foreground font-medium">{member.displayName || member.username}</p>
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
                     </div>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-white text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-foreground text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
                   {currentUsername !== member.username && (
                     <DropdownMenu>

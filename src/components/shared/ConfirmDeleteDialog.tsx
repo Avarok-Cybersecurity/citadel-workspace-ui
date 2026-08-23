@@ -29,24 +29,24 @@ export function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#232536] border-purple-800">
+      <AlertDialogContent className="bg-card border-purple-800">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">
+          <AlertDialogTitle className="text-foreground">
             {title}
           </AlertDialogTitle>
           {description && (
-            <AlertDialogDescription className="text-gray-300">
+            <AlertDialogDescription className="text-foreground/80">
               {description}
             </AlertDialogDescription>
           )}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-transparent border-gray-600 text-white hover:bg-[#232536]">
+          <AlertDialogCancel className="bg-transparent border-gray-600 text-foreground hover:bg-card">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-red-600 text-white hover:bg-red-700"
+            className="bg-red-600 text-foreground hover:bg-red-700"
           >
             {confirmLabel}
           </AlertDialogAction>

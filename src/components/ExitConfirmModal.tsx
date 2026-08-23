@@ -31,17 +31,17 @@ export const ExitConfirmModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#1C1D28] border-gray-800 text-white max-w-md">
+      <DialogContent className="bg-background border-gray-800 text-foreground max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600">
-              <ArrowLeft className="w-6 h-6 text-white" />
+              <ArrowLeft className="w-6 h-6 text-foreground" />
             </div>
-            <DialogTitle className="text-xl font-semibold text-white">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Exit Workspace?
             </DialogTitle>
           </div>
-          <DialogDescription className="text-gray-400 mt-4">
+          <DialogDescription className="text-muted-foreground mt-4">
             Return to the landing page? You'll stay logged in as{" "}
             <span className="font-semibold text-purple-400">{userName}</span>{" "}
             and can access{" "}
@@ -50,8 +50,8 @@ export const ExitConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-[#131420] rounded-lg border border-gray-800">
-          <p className="text-sm text-gray-300">
+        <div className="my-4 p-4 bg-input rounded-lg border border-gray-800">
+          <p className="text-sm text-foreground/80">
             💡 <strong>Tip:</strong> Your session will remain active. Click the
             workspace icon on the landing page to return instantly without
             re-entering your password.
@@ -62,13 +62,13 @@ export const ExitConfirmModal = ({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+            className="bg-transparent border-gray-700 text-foreground/80 hover:bg-gray-800 hover:text-foreground"
           >
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-purple-600 hover:bg-purple-700 text-foreground"
           >
             Exit to Landing
           </Button>

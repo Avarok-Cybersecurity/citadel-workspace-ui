@@ -62,7 +62,7 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
     };
 
     return (
-      <div className="border-t border-[#262C4A]/50 bg-[#1a1b26]">
+      <div className="border-t border-surface/50 bg-background">
         <MarkdownToolbar
           visible={isMarkdownMode}
           onFormat={onFormat}
@@ -71,9 +71,9 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
         />
 
         {isMarkdownMode && showMarkdownPreview && inputMessage.trim() && (
-          <div className="p-4 border-b border-[#262C4A]/50 bg-[#1C1D28]">
-            <p className="text-xs text-gray-400 mb-2">Preview:</p>
-            <div className="prose prose-sm prose-invert max-w-none bg-[#262C4A] rounded-lg p-3 max-h-32 overflow-y-auto">
+          <div className="p-4 border-b border-surface/50 bg-background">
+            <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+            <div className="prose prose-sm prose-invert max-w-none bg-surface rounded-lg p-3 max-h-32 overflow-y-auto">
               <ReactMarkdown>{inputMessage}</ReactMarkdown>
             </div>
           </div>
@@ -87,7 +87,7 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
               variant="ghost"
               onClick={onFileClick}
               disabled={!canSendMessages}
-              className="text-gray-400 hover:text-white hover:bg-white/10"
+              className="text-muted-foreground hover:text-foreground hover:bg-white/10"
               title="Send file"
             >
               <Paperclip className="h-4 w-4" />
@@ -100,13 +100,13 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
               onBlur={onInputBlur}
               placeholder={getPlaceholder()}
               disabled={!canSendMessages}
-              className="flex-1 bg-[#262C4A] border-[#3a3f5c] text-white placeholder-gray-400 focus:border-[#6E59A5]"
+              className="flex-1 bg-surface border-surface text-foreground placeholder-gray-400 focus:border-primary"
             />
             <Button
               type="submit"
               size="icon"
               disabled={!canSendMessages || (!inputMessage.trim() && !isLiveDocMode)}
-              className="bg-[#6E59A5] hover:bg-[#7c68d6] text-white"
+              className="bg-primary hover:bg-primary text-primary-foreground"
             >
               <Send className="h-4 w-4" />
             </Button>

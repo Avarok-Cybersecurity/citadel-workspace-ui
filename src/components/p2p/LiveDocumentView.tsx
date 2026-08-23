@@ -51,20 +51,20 @@ export function LiveDocumentView({
   }, [documentTitle]);
 
   return (
-    <div className="h-full flex flex-col bg-[#1C1D28]">
+    <div className="h-full flex flex-col bg-background">
       {/* Document header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#262C4A]/50 bg-[#1a1b26]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-surface/50 bg-background">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[#6E59A5]/20">
+          <div className="p-2 rounded-lg bg-primary/20">
             <FileText className="h-5 w-5 text-purple-400" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-white">{documentTitle}</h2>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+            <h2 className="text-base font-semibold text-foreground">{documentTitle}</h2>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Editing with {peerName}</span>
               {lastSaved && (
                 <>
-                  <span className="text-gray-600">|</span>
+                  <span className="text-muted-foreground">|</span>
                   <span>
                     {isSaving ? 'Saving...' : `Last saved ${lastSaved.toLocaleTimeString()}`}
                   </span>
@@ -79,7 +79,7 @@ export function LiveDocumentView({
             variant="ghost"
             size="sm"
             onClick={handleDownload}
-            className="text-gray-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             <Download className="h-4 w-4 mr-1" />
             Export
@@ -91,20 +91,20 @@ export function LiveDocumentView({
       <div className="flex-1 overflow-hidden">
         <ErrorBoundary
           fallback={
-            <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-[#1C1D28]">
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-background">
               <div className="p-4 rounded-full bg-red-500/10 mb-4">
                 <FileText className="h-12 w-12 text-red-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 Failed to load document editor
               </h3>
-              <p className="text-gray-400 text-sm mb-4 max-w-md">
+              <p className="text-muted-foreground text-sm mb-4 max-w-md">
                 There was an error initializing the collaborative editor. This may be due to a connection issue with your peer.
               </p>
               <Button
                 variant="outline"
                 onClick={() => window.location.reload()}
-                className="bg-[#262C4A] border-[#3a3f5c] text-white hover:bg-[#3a3f5c]"
+                className="bg-surface border-surface text-foreground hover:bg-surface"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Reload Page

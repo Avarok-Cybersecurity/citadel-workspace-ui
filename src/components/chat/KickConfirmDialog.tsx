@@ -30,12 +30,12 @@ export function KickConfirmDialog({
 }: KickConfirmDialogProps) {
   return (
     <AlertDialog open={!!member} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
+      <AlertDialogContent className="bg-background border-border">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">
+          <AlertDialogTitle className="text-foreground">
             Kick "{member?.username}"?
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-400">
+          <AlertDialogDescription className="text-muted-foreground">
             This member will be removed from the group. They can be re-invited
             later by a group admin.
           </AlertDialogDescription>
@@ -43,14 +43,14 @@ export function KickConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel
             disabled={isKicking}
-            className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
+            className="bg-transparent border-border text-foreground hover:bg-surface"
           >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isKicking}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-red-600 hover:bg-red-700 text-foreground"
           >
             {isKicking ? 'Kicking...' : 'Kick Member'}
           </AlertDialogAction>

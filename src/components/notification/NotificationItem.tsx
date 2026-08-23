@@ -81,25 +81,25 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
   return (
     <Card
       onClick={handleCardClick}
-      className={`bg-[#262C4A] border-l-4 ${getBorderColor()}
-        hover:bg-[#2E355A] transition-colors duration-200
+      className={`bg-surface border-l-4 ${getBorderColor()}
+        hover:bg-surface transition-colors duration-200
         ${notification.read ? 'opacity-80' : 'opacity-100'}
         ${isClickable ? 'cursor-pointer' : ''}`}
     >
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="bg-[#232536] p-1 rounded-full">
+            <div className="bg-card p-1 rounded-full">
               {getNotificationIcon()}
             </div>
-            <CardTitle className="text-sm font-medium text-white">
+            <CardTitle className="text-sm font-medium text-foreground">
               {notification.title}
             </CardTitle>
           </div>
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-6 w-6 text-gray-400 hover:text-white"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
             onClick={handleDismiss}
           >
             <span className="sr-only">Dismiss</span>
@@ -107,7 +107,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
           </Button>
         </div>
         <CardDescription 
-          className="text-xs text-gray-400"
+          className="text-xs text-muted-foreground"
           title={exactTime}
         >
           {formattedTime}
@@ -119,7 +119,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
           {notification.senderId && (
             <Avatar className="h-8 w-8">
               <AvatarImage src="" />
-              <AvatarFallback className="bg-[#444A6C] text-white text-xs">
+              <AvatarFallback className="bg-surface text-foreground text-xs">
                 {String(notification.senderId).substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>

@@ -81,8 +81,8 @@ function SidebarNode({
     >
       <div
         className={cn(
-          "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-gray-300 hover:bg-[#232536]",
-          isActive && "bg-purple-700/50 text-white",
+          "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-foreground/80 hover:bg-card",
+          isActive && "bg-purple-700/50 text-foreground",
           dragOver && "bg-green-900/30 ring-1 ring-green-500",
         )}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
@@ -92,12 +92,12 @@ function SidebarNode({
         onDrop={handleDrop}
       >
         <span
-          className="mr-0.5 text-gray-400 hover:text-gray-200"
+          className="mr-0.5 text-muted-foreground hover:text-foreground"
           onClick={handleChevronClick}
         >
           {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </span>
-        <FolderIcon className={cn("h-4 w-4 mr-1.5 shrink-0", isProtected ? "text-gray-400" : "text-yellow-400")} />
+        <FolderIcon className={cn("h-4 w-4 mr-1.5 shrink-0", isProtected ? "text-muted-foreground" : "text-yellow-400")} />
         <span className="truncate text-xs">{node.name}</span>
       </div>
     </VFSContextMenu>
@@ -185,14 +185,14 @@ export function VFSTreeView({
   const showStorageUsage = storageUsed !== undefined && storageQuota !== undefined;
 
   return (
-    <div className="w-52 shrink-0 border-r border-purple-800 flex flex-col bg-[#2E3450]">
+    <div className="w-52 shrink-0 border-r border-purple-800 flex flex-col bg-surface">
       {/* Scrollable tree area */}
       <div className="flex-1 overflow-y-auto py-1">
         {/* Root entry */}
         <div
           className={cn(
-            "flex items-center py-1 px-2 cursor-pointer rounded text-xs text-gray-400 hover:bg-[#232536] mx-1 mb-0.5",
-            currentPath === '/' && "bg-purple-700/50 text-white",
+            "flex items-center py-1 px-2 cursor-pointer rounded text-xs text-muted-foreground hover:bg-card mx-1 mb-0.5",
+            currentPath === '/' && "bg-purple-700/50 text-foreground",
           )}
           onClick={() => onNavigate('/')}
         >

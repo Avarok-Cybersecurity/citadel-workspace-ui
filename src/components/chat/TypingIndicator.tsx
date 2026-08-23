@@ -37,7 +37,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
   if (!visible) return null;
   
   return (
-    <div className={`flex items-center space-x-2 text-gray-400 text-sm py-2 px-3 ${className}`}>
+    <div className={`flex items-center space-x-2 text-muted-foreground text-sm py-2 px-3 ${className}`}>
       <span>{peerName} is typing</span>
       <div className="flex space-x-1">
         <div className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1.5s' }} />

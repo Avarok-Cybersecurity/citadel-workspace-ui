@@ -36,7 +36,7 @@ export function TextBubble({
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="bg-purple-600 text-white text-xs">
+          <AvatarFallback className="bg-purple-600 text-foreground text-xs">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
@@ -45,7 +45,7 @@ export function TextBubble({
       <div className={`flex flex-col ${isOwn ? 'items-end' : ''}`}>
         {/* Sender name (group mode) */}
         {showSenderName && !isOwn && (
-          <span className="text-xs text-gray-400 mb-1 px-1">
+          <span className="text-xs text-muted-foreground mb-1 px-1">
             {displayName}
           </span>
         )}
@@ -60,7 +60,7 @@ export function TextBubble({
               {onRetry && (
                 <button
                   onClick={onRetry}
-                  className="underline hover:text-white transition-colors ml-1"
+                  className="underline hover:text-foreground transition-colors ml-1"
                 >
                   Retry
                 </button>
@@ -77,7 +77,7 @@ export function TextBubble({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-6 w-6">
-                <MoreVertical className="h-4 w-4 text-gray-400" />
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align={isOwn ? 'start' : 'end'}>

@@ -46,7 +46,7 @@ function getStatusDisplay(
     case MessagingLayerType.Away:
       return { text: 'Away', color: 'bg-yellow-500', textColor: 'text-yellow-400' };
     case MessagingLayerType.Offline:
-      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-gray-400' };
+      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-muted-foreground' };
     case MessagingLayerType.CustomState:
       return {
         text: presence.customText || 'Custom',
@@ -55,7 +55,7 @@ function getStatusDisplay(
         customColor: presence.customColor
       };
     default:
-      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-gray-400' };
+      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-muted-foreground' };
   }
 }
 
@@ -70,15 +70,15 @@ export function P2PChatHeader({
   const statusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
 
   return (
-    <div className="border-b border-[#262C4A]/50 p-4 bg-[#1a1b26]">
+    <div className="border-b border-surface/50 p-4 bg-background">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             <AvatarFallback>{getInitials(peerName)}</AvatarFallback>
           </Avatar>
           <div>
-            <h3 className="text-base font-semibold text-white">{peerName}</h3>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+            <h3 className="text-base font-semibold text-foreground">{peerName}</h3>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <div
                 className={`h-2 w-2 rounded-full ${statusDisplay.color || ''}`}
                 style={statusDisplay.customColor ? { backgroundColor: statusDisplay.customColor } : undefined}
@@ -94,7 +94,7 @@ export function P2PChatHeader({
           variant="ghost"
           size="icon"
           onClick={onSettingsClick}
-          className="text-gray-400 hover:text-white hover:bg-[#262C4A]"
+          className="text-muted-foreground hover:text-foreground hover:bg-surface"
           data-testid="chat-settings-button"
         >
           <Settings className="h-5 w-5" />

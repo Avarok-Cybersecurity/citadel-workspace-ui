@@ -140,7 +140,7 @@ export function GroupConversationRow({
     <SidebarMenuItem>
       <SidebarMenuButton
         onClick={handleClick}
-        className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors h-9 py-1 ${
+        className={`text-primary-foreground hover:bg-purple-500/15 hover:text-primary-foreground transition-colors h-9 py-1 ${
           isActive ? 'bg-purple-500/20 text-purple-200' : ''
         }`}
       >
@@ -150,7 +150,7 @@ export function GroupConversationRow({
             {displayMembers.map((member, index) => (
               <div
                 key={member.cid}
-                className="relative rounded-full flex items-center justify-center text-[10px] font-medium text-white border border-[#262C4A]"
+                className="relative rounded-full flex items-center justify-center text-[10px] font-medium text-foreground border border-surface"
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,
@@ -167,7 +167,7 @@ export function GroupConversationRow({
             {/* Overflow indicator */}
             {overflowCount > 0 && (
               <div
-                className="relative rounded-full flex items-center justify-center text-[9px] font-medium text-white bg-[#4A4A6A] border border-[#262C4A]"
+                className="relative rounded-full flex items-center justify-center text-[9px] font-medium text-foreground bg-surface border border-surface"
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,
@@ -188,7 +188,7 @@ export function GroupConversationRow({
 
           {/* Unread Count Badge */}
           {group.unreadCount > 0 && (
-            <Badge className="h-5 min-w-[20px] px-1.5 bg-[#6E59A5] text-white text-xs">
+            <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground text-xs">
               {group.unreadCount > 99 ? '99+' : group.unreadCount}
             </Badge>
           )}

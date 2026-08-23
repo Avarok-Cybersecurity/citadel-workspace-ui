@@ -94,14 +94,14 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
         };
       }
       return {
-        icon: <X className="h-4 w-4 text-gray-400" />,
+        icon: <X className="h-4 w-4 text-muted-foreground" />,
         text: 'You declined this file'
       };
 
     case 'cancelled':
       if (isOwn) {
         return {
-          icon: <Ban className="h-4 w-4 text-gray-400" />,
+          icon: <Ban className="h-4 w-4 text-muted-foreground" />,
           text: 'Transfer cancelled'
         };
       }

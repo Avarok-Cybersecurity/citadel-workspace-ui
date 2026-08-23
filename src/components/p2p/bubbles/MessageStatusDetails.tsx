@@ -14,8 +14,8 @@ const statusLabels: Record<P2PMessage['status'], string> = {
 };
 
 const statusColors: Record<P2PMessage['status'], string> = {
-  pending: 'text-gray-400',
-  sent: 'text-gray-300',
+  pending: 'text-muted-foreground',
+  sent: 'text-foreground/80',
   delivered: 'text-green-400',
   read: 'text-sky-400',
   failed: 'text-red-400'
@@ -54,7 +54,7 @@ interface RowProps {
   fullValue?: string;
 }
 
-function Row({ label, value, valueClassName = 'text-gray-200', copyable, fullValue }: RowProps) {
+function Row({ label, value, valueClassName = 'text-foreground', copyable, fullValue }: RowProps) {
   const handleCopy = () => {
     runAsyncSetup(async () => {
       await navigator.clipboard.writeText(fullValue || value);
@@ -63,7 +63,7 @@ function Row({ label, value, valueClassName = 'text-gray-200', copyable, fullVal
 
   return (
     <div className="flex justify-between gap-4">
-      <span className="text-gray-500">{label}:</span>
+      <span className="text-muted-foreground">{label}:</span>
       <span
         className={`font-mono ${valueClassName} ${copyable ? 'cursor-pointer hover:underline' : ''}`}
         onClick={copyable ? handleCopy : undefined}
@@ -78,7 +78,7 @@ function Row({ label, value, valueClassName = 'text-gray-200', copyable, fullVal
 export function MessageStatusDetails({ message }: MessageStatusDetailsProps) {
   return (
     <div className="space-y-1 text-xs min-w-[200px]">
-      <div className="font-semibold text-gray-200 border-b border-gray-600 pb-1 mb-2">
+      <div className="font-semibold text-foreground border-b border-gray-600 pb-1 mb-2">
         Message Details
       </div>
       <Row

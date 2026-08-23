@@ -27,16 +27,16 @@ interface DeleteConfirmDialogProps {
 export function DeleteConfirmDialog({ open, onOpenChange, username, onConfirm }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#282A42] border-[#3D3F5A]">
+      <AlertDialogContent className="bg-card border-surface">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">Remove Account</AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-300">
+          <AlertDialogTitle className="text-foreground">Remove Account</AlertDialogTitle>
+          <AlertDialogDescription className="text-foreground/80">
             Are you sure you want to remove {username} from your saved accounts?
             This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+          <AlertDialogCancel className="bg-transparent border-gray-600 text-foreground/80 hover:bg-gray-700">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={onConfirm}>
@@ -57,16 +57,16 @@ interface ClearAllConfirmDialogProps {
 export function ClearAllConfirmDialog({ open, onOpenChange, onConfirm }: ClearAllConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#282A42] border-[#3D3F5A]">
+      <AlertDialogContent className="bg-card border-surface">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">Clear All Accounts</AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-300">
+          <AlertDialogTitle className="text-foreground">Clear All Accounts</AlertDialogTitle>
+          <AlertDialogDescription className="text-foreground/80">
             Are you sure you want to remove all saved accounts? This will sign you out and remove
             all stored credentials. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">
+          <AlertDialogCancel className="bg-transparent border-gray-600 text-foreground/80 hover:bg-gray-700">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={onConfirm}>

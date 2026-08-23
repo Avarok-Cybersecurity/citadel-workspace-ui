@@ -47,12 +47,12 @@ export const DisconnectConfirmModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#1C1D28] border-gray-800 text-white max-w-md">
+      <DialogContent className="bg-background border-gray-800 text-foreground max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-white">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             Remove Workspace Session?
           </DialogTitle>
-          <DialogDescription className="text-gray-400 mt-2">
+          <DialogDescription className="text-muted-foreground mt-2">
             Choose how to remove{" "}
             <span className="font-semibold text-purple-400">
               {workspaceName || session.username}
@@ -60,17 +60,17 @@ export const DisconnectConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-[#131420] rounded-lg border border-gray-800">
+        <div className="my-4 p-4 bg-input rounded-lg border border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#6E59A5] text-white font-semibold">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-primary-foreground font-semibold">
               {session.full_name?.charAt(0).toUpperCase() ||
                 session.username.charAt(0).toUpperCase()}
             </div>
             <div>
-              <div className="font-medium text-white">
+              <div className="font-medium text-foreground">
                 {session.full_name || session.username}
               </div>
-              <div className="text-sm text-gray-400">@{session.username}</div>
+              <div className="text-sm text-muted-foreground">@{session.username}</div>
             </div>
           </div>
         </div>
@@ -103,7 +103,7 @@ export const DisconnectConfirmModal = ({
             </Button>
             <Button
               onClick={() => handleConfirm("deregister")}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-foreground"
               disabled={isProcessing}
             >
               {isProcessing && selectedAction === "deregister" ? (
@@ -119,7 +119,7 @@ export const DisconnectConfirmModal = ({
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="w-full text-gray-400 hover:bg-gray-800 hover:text-white"
+            className="w-full text-muted-foreground hover:bg-gray-800 hover:text-foreground"
             disabled={isProcessing}
           >
             Cancel

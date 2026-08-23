@@ -80,7 +80,7 @@ export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
         <TooltipContent
           side={side}
           className={cn(
-            'max-w-xs bg-gray-900 text-gray-100 border-gray-700',
+            'max-w-xs bg-gray-900 text-foreground border-gray-700',
             'px-3 py-2 text-sm'
           )}
         >

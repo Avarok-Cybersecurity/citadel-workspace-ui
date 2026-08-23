@@ -164,14 +164,14 @@ export const FilesSection = () => {
   return (
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem]" data-testid="files-section">
-        <SidebarGroupLabel className="text-[#9b87f5] font-semibold px-0 ml-3">FILES</SidebarGroupLabel>
+        <SidebarGroupLabel className="text-primary-accent font-semibold px-0 ml-3">FILES</SidebarGroupLabel>
         <SidebarGroupContent>
           <ScrollArea className="max-h-[30vh]">
             <SidebarMenu>
               {files.length === 0 ? (
                 <SidebarMenuItem>
                   <div
-                    className="px-3 py-2 text-sm text-gray-400 flex items-center gap-2"
+                    className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2"
                     data-testid="no-files-message"
                   >
                     <FileX className="h-4 w-4" />
@@ -182,7 +182,7 @@ export const FilesSection = () => {
                 files.map((file) => (
                   <SidebarMenuItem key={file.id} data-testid={`file-item-${file.id}`}>
                     <SidebarMenuButton
-                      className="text-white hover:bg-purple-500/15 hover:text-white transition-colors"
+                      className="text-foreground hover:bg-purple-500/15 hover:text-foreground transition-colors"
                       onClick={() => handleFileClick(file)}
                     >
                       {getFileIcon(file.name)}
@@ -196,7 +196,7 @@ export const FilesSection = () => {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={isFileManagerActive}
-                  className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors ${
+                  className={`text-primary-foreground hover:bg-purple-500/15 hover:text-primary-foreground transition-colors ${
                     isFileManagerActive ? "bg-purple-500/20 text-purple-200" : ""
                   }`}
                   onClick={handleFileManagerClick}

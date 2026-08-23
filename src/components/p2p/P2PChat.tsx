@@ -138,9 +138,9 @@ export function P2PChat({
 
   if (!peerCid) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-[#1C1D28]">
-        <MessageCircle className="h-12 w-12 text-gray-400 mb-4" />
-        <p className="text-gray-500">Select a conversation to start messaging</p>
+      <div className="h-full flex flex-col items-center justify-center bg-background">
+        <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">Select a conversation to start messaging</p>
       </div>
     );
   }
@@ -148,7 +148,7 @@ export function P2PChat({
   const isViewingDocument = activeTab?.type === 'live_document';
 
   return (
-    <div className="h-full flex flex-col bg-[#1C1D28]">
+    <div className="h-full flex flex-col bg-background">
       <P2PChatHeader peerName={peerName} peerPresence={peerPresence} peerTyping={peerTyping} isConnected={isConnected} isRegistered={isRegistered} onSettingsClick={() => setShowSettingsModal(true)} />
       <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} />
 

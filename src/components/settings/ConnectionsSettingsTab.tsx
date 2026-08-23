@@ -93,17 +93,17 @@ export function ConnectionsSettingsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+      <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
         <div className="space-y-0.5 flex-1 mr-4">
-          <Label htmlFor="auto-reconnect" className="text-white font-medium cursor-pointer">
+          <Label htmlFor="auto-reconnect" className="text-foreground font-medium cursor-pointer">
             Auto-reconnect
           </Label>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             Automatically reconnect to servers when disconnected. When disabled, you will need to manually enter credentials each time.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {saving && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+          {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           <Switch
             id="auto-reconnect"
             checked={autoReconnect}
@@ -113,17 +113,17 @@ export function ConnectionsSettingsTab() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+      <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
         <div className="space-y-0.5 flex-1 mr-4">
-          <Label htmlFor="auto-accept-registrations" className="text-white font-medium cursor-pointer">
+          <Label htmlFor="auto-accept-registrations" className="text-foreground font-medium cursor-pointer">
             Auto-accept P2P registrations
           </Label>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             Automatically accept P2P registration requests from new users. Registered users are always accepted regardless of this setting.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {savingAutoAccept && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+          {savingAutoAccept && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           <Switch
             id="auto-accept-registrations"
             checked={autoAcceptRegistrations}

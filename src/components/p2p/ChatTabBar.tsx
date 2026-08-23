@@ -32,8 +32,8 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
         group flex items-center gap-1.5 px-3 py-2 cursor-pointer
         border-b-2 transition-all duration-150
         ${active
-          ? 'border-[#6E59A5] text-white bg-[#1C1D28]'
-          : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+          ? 'border-primary text-foreground bg-background'
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
         }
       `}
       onClick={onSelect}
@@ -67,7 +67,7 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
 
 export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose }: ChatTabBarProps) {
   return (
-    <div className="flex items-center border-b border-[#262C4A]/50 bg-[#1a1b26] overflow-x-auto">
+    <div className="flex items-center border-b border-surface/50 bg-background overflow-x-auto">
       {tabs.map((tab) => (
         <Tab
           key={tab.id}

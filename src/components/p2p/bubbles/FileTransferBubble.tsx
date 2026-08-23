@@ -171,7 +171,7 @@ export function FileTransferBubble({
           <div className="mt-2">
             <button
               onClick={handleCancel}
-              className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 rounded text-sm transition-colors"
+              className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-gray-500/20 hover:bg-gray-500/30 text-foreground/80 rounded text-sm transition-colors"
             >
               <X className="h-4 w-4" />
               Cancel
