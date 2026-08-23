@@ -6,7 +6,8 @@
  */
 
 import { openDB, IDBPDatabase, DBSchema } from 'idb';
-import { debugLog } from './debug-config';
+import { debugLog, errorLog, warnLog } from './debug-config';
+import { DB_NAME, DB_VERSION, runMigrations, missingStores } from './storage-migrations';
 
 // ============================================================================
 // Database Schema
@@ -49,9 +50,6 @@ interface CitadelDBSchema extends DBSchema {
   };
 }
 
-const DB_NAME = 'citadel-workspace';
-const DB_VERSION = 1;
-
 let dbPromise: Promise<IDBPDatabase<CitadelDBSchema>> | null = null;
 
 /**
@@ -61,27 +59,72 @@ let dbPromise: Promise<IDBPDatabase<CitadelDBSchema>> | null = null;
 export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        // Create all object stores
-        if (!db.objectStoreNames.contains('keyValue')) {
-          db.createObjectStore('keyValue');
-        }
-        if (!db.objectStoreNames.contains('sessions')) {
-          db.createObjectStore('sessions');
-        }
-        if (!db.objectStoreNames.contains('messages')) {
-          db.createObjectStore('messages');
-        }
-        if (!db.objectStoreNames.contains('peers')) {
-          db.createObjectStore('peers');
-        }
-        if (!db.objectStoreNames.contains('tabContext')) {
-          db.createObjectStore('tabContext');
-        }
-        if (!db.objectStoreNames.contains('instances')) {
-          db.createObjectStore('instances');
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(db, oldVersion, newVersion, tx);
+
+        const missing = missingStores(db.objectStoreNames);
+        if (missing.length > 0) {
+          // The migration list has drifted from the schema. Failing here aborts
+          // the upgrade transaction and keeps the old database, which is far
+          // easier to diagnose than a NotFoundError from an unrelated read later.
+          throw new Error(
+            `Schema v${newVersion ?? DB_VERSION} is missing object stores after migration: ${missing.join(', ')}`
+          );
         }
       },
+
+      /**
+       * Another tab is still holding the previous version open, so this upgrade
+       * cannot start. Without this the open() call simply never settles and the
+       * app hangs with no explanation — and this app is explicitly multi-tab, so
+       * it is the normal case during an update, not an edge case.
+       */
+      blocked(currentVersion, blockedVersion) {
+        warnLog(
+          'Storage',
+          `Database upgrade to v${blockedVersion} is blocked by another tab still on v${currentVersion}. ` +
+            'Close other Citadel tabs to finish updating.'
+        );
+      },
+
+      /**
+       * THIS tab is the one holding an old version open while another tab tries
+       * to upgrade. Closing our connection lets that upgrade proceed; the next
+       * database call transparently reopens at the new version.
+       */
+      blocking(currentVersion, blockedVersion) {
+        warnLog(
+          'Storage',
+          `Closing our v${currentVersion} connection so another tab can upgrade to v${blockedVersion}`
+        );
+        void dbPromise?.then(db => db.close());
+        dbPromise = null;
+      },
+
+      /**
+       * The browser closed the connection unexpectedly (storage eviction, or the
+       * user cleared site data). Dropping the cached promise means the next call
+       * reopens rather than reusing a dead handle forever.
+       */
+      terminated() {
+        errorLog('Storage', 'Database connection terminated unexpectedly; will reopen on next use');
+        dbPromise = null;
+      },
+    }).catch(error => {
+      // A VersionError means the on-disk database is NEWER than this build asks
+      // for — the user ran a newer version, then loaded an older one (a stale
+      // cached bundle, or a rollback). IndexedDB has no downgrade, so say that
+      // plainly instead of surfacing an opaque DOMException.
+      dbPromise = null;
+      if (error instanceof DOMException && error.name === 'VersionError') {
+        errorLog(
+          'Storage',
+          `Local database is newer than this version of Citadel expects (wants v${DB_VERSION}). ` +
+            'This usually means an older build was loaded from cache — reload to get the current version.',
+          error
+        );
+      }
+      throw error;
     });
   }
   return dbPromise;
