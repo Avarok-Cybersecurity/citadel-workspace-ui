@@ -10,6 +10,7 @@ import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, TransferProgressEvent } from './types';
 import { debugLog } from '@/lib/debug-config';
+import { yieldToEventLoop } from '@/lib/utils/scheduling';
 
 export interface P2PTransferDeps {
   state: FileTransferState;
@@ -60,7 +61,11 @@ export async function streamFileToRecipient(
       deps.emitStateChange(transfer);
 
       if (i < totalChunks - 1) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // Yield so the progress bar above can paint. The send itself is already
+        // fully awaited down to the WebSocket write, so it needs no pacing of its
+        // own; this was a flat 10ms per chunk, which on a 5 MB file at 64 KB
+        // chunks added roughly 0.8s of pure sleep to every transfer.
+        await yieldToEventLoop();
       }
     }
 

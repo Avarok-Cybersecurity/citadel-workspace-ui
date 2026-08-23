@@ -4,6 +4,9 @@ import { PollingService } from './utils/polling-service';
 import { INTERVAL } from './timeout-constants';
 import { debugLog } from './debug-config';
 
+/** How often to re-probe while waiting for the service to become healthy. */
+const HEALTH_POLL_INTERVAL_MS = 1000;
+
 export interface ServiceHealth {
   isHealthy: boolean;
   lastCheck: number;
@@ -106,7 +109,10 @@ class HealthCheckService extends PollingService {
         return;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // A real delay, deliberately. There is no push signal for "the service came
+      // up", so this polls; the interval exists to avoid hammering a service that
+      // is already struggling. Not a settling hack — see lib/utils/scheduling.ts.
+      await new Promise(resolve => setTimeout(resolve, HEALTH_POLL_INTERVAL_MS));
     }
 
     throw new Error(`Service did not become healthy within ${timeoutMs}ms`);

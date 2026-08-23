@@ -42,6 +42,13 @@ import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { wasmConnectionManager } from './wasm-connection-manager';
 import { debugLog } from '@/lib/debug-config';
 
+/**
+ * How long to let the backend settle after a login before starting P2P setup.
+ * A placeholder for a readiness signal the internal service does not yet emit —
+ * see the @human-review note at its use site.
+ */
+const SDK_TEARDOWN_SETTLE_MS = 2000;
+
 export interface SessionActivatedEvent {
   cid: string;
   username: string;
@@ -143,12 +150,26 @@ class SessionStartupService {
         await p2pAutoConnectService.resetConnectionState();
       }
 
-      // 0.25. For login reconnections, wait for SDK stabilization after prior session cleanup
-      // The backend needs time for the old Connection's channel drops to propagate through
-      // the protocol layer before we establish a new P2P session
+      // 0.25. For login reconnections, wait for the backend to finish tearing down
+      // the previous session before we establish a new P2P one: the old
+      // Connection's channel drops have to propagate through the protocol layer
+      // first.
+      //
+      // @human-review This is a fixed delay standing in for a signal we do not
+      // have. It is a guess in both directions — too short on a loaded backend and
+      // it races anyway; too long and every login pays the difference. It is kept
+      // because the alternative today is blind-changing P2P connection sequencing,
+      // historically the flakiest area of this codebase, with nothing to verify
+      // against.
+      //
+      // The real fix is on the backend: the internal service knows exactly when
+      // the old Connection's channels are released, and should emit that. Once it
+      // does, replace this with waitForEvent(...) from lib/utils/scheduling — the
+      // login path then proceeds the instant teardown completes instead of always
+      // costing SDK_TEARDOWN_SETTLE_MS. Tracked in docs/KNOWN_ISSUES.md.
       if (event.activationType === 'login') {
-        debugLog('SessionStartupService', 'SessionStartup: Waiting 2s for SDK stabilization after login');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        debugLog('SessionStartupService', `SessionStartup: Waiting ${SDK_TEARDOWN_SETTLE_MS}ms for SDK stabilization after login`);
+        await new Promise(resolve => setTimeout(resolve, SDK_TEARDOWN_SETTLE_MS));
       }
 
       // 0.5. CRITICAL: Start WASM connection manager to open ILM messenger handle

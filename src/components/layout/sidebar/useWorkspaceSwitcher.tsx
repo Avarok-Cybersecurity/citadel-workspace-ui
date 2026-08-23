@@ -11,6 +11,7 @@ import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
 import { getWorkspaceLogo, getWorkspaceInitials } from "@/lib/workspace-metadata-service";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { yieldToEventLoop } from '@/lib/utils/scheduling';
 
 export interface StoredWorkspace {
   id: string;
@@ -109,8 +110,13 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     try {
       toastSuccess(toast, "Switching workspace...", `Connecting as ${workspace.fullName || workspace.username}`);
 
-      // Brief delay to show switching toast before heavy work
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Hand control back so the toast above actually paints before the work
+      // below starts. This was a flat 100ms guess: too short on a loaded machine
+      // (the toast never appeared), and 100ms of dead time on every switch
+      // otherwise. A macrotask yield returns the moment the browser has had its
+      // chance to render — awaiting alone would not, since that only queues a
+      // microtask, which runs before paint.
+      await yieldToEventLoop();
 
       const storedSessions = connectionManager.getStoredSessions();
       const targetSession = storedSessions.sessions.find(

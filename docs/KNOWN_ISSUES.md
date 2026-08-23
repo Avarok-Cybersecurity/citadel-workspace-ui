@@ -50,3 +50,19 @@ The only way to clear the last 4 points is to add `'unsafe-eval'` to `script-src
 which would materially weaken XSS protection on a security product to satisfy a
 cosmetic score. Not done deliberately. Revisit only if cbor-x gains a build that
 skips the probe.
+
+### Fixed 2s delay on every login (needs a backend signal)
+
+`lib/session-startup-service.ts` waits `SDK_TEARDOWN_SETTLE_MS` (2000ms) after a
+login before starting P2P setup, so the previous session's channel drops can
+propagate through the protocol layer first.
+
+It is a guess in both directions: too short on a loaded backend and it races
+anyway, too long and every login pays the difference. It stands because the
+alternative today is blind-changing P2P connection sequencing — historically the
+flakiest area of this codebase — with no signal to verify against.
+
+**The fix belongs in the internal service.** It knows exactly when the old
+Connection's channels are released and should emit that as an event. Once it
+does, replace the delay with `waitForEvent(...)` from `lib/utils/scheduling`, and
+login proceeds the instant teardown completes.
