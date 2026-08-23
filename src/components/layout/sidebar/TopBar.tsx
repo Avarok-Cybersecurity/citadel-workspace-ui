@@ -151,7 +151,14 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
   return (
     <div className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border flex items-center justify-between pr-4 z-50">
-      <div className="flex items-center">
+      {/*
+        min-w-0 so this group can shrink. Flex children default to
+        min-width:auto, meaning they refuse to go narrower than their content —
+        so a long workspace name pushed the group on the right, avatar included,
+        clean off a 375px viewport. That put Profile, Settings and Sign out out
+        of reach entirely on a phone.
+      */}
+      <div className="flex items-center min-w-0 flex-1">
         {/*
           Shown at every width, not just on mobile. The toggle was gated behind
           `isMobile` AND `md:hidden`, so on a desktop viewport there was no way to
@@ -173,7 +180,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         </Button>
         <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
-      <div className="flex items-center space-x-2">
+      {/* shrink-0: these controls are the way out of the app and must never be
+          what gives way when space runs short. */}
+      <div className="flex items-center space-x-2 flex-shrink-0">
         {/* Internal multi-tab state — hidden from end users; see isDiagnosticsUiEnabled. */}
         {isDiagnosticsUiEnabled() && <LeaderIndicator />}
         <NotificationCenter />

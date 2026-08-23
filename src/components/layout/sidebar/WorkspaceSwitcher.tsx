@@ -60,12 +60,12 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
-            <div className="flex-1 text-left">
-              <span className="font-semibold text-foreground block group-hover:text-foreground">
+            <div className="flex-1 min-w-0 text-left">
+              <span className="font-semibold text-foreground block truncate group-hover:text-foreground">
                 {workspaceName || currentWorkspace?.workspaceName || "Select Workspace"}
               </span>
               {currentWorkspace && (
-                <span className="text-xs text-muted-foreground group-hover:text-muted-foreground">
+                <span className="block truncate text-xs text-muted-foreground group-hover:text-muted-foreground">
                   {currentWorkspace.fullName || currentWorkspace.username}
                 </span>
               )}

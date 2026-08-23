@@ -169,6 +169,12 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
+    // Registering and loading a workspace is well over the 120s default this
+    // hook inherits from the per-test timeout — it involves a real server
+    // round-trip and the P2P stack coming up. Timing out here reports as a
+    // layout failure, which is misleading; the scans themselves are fast.
+    test.setTimeout(300_000);
+
     // newContext, not browser.newPage(): the latter creates an implicit context
     // and axe refuses to run in one ("Please use browser.newContext()").
     context = await browser.newContext();
