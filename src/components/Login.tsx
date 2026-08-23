@@ -77,9 +77,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 onClick={onCancel}
                 variant="ghost"
                 size="icon"
+                aria-label="Back"
                 className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-purple-500/15 rounded-lg"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
               <div>
                 <h2 className="text-xl font-bold text-foreground">Login to Workspace</h2>
@@ -127,10 +128,13 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors"
-                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPassword}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword
+                      ? <EyeOff className="h-4 w-4" aria-hidden="true" />
+                      : <Eye className="h-4 w-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>
@@ -181,9 +185,12 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                    <label
+                      htmlFor="remember"
+                      className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground cursor-pointer"
+                    >
                       Remember Credentials
-                    </span>
+                    </label>
                     <Switch
                       id="remember"
                       checked={securitySettings.storeCredentials}
