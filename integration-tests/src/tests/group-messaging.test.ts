@@ -387,9 +387,6 @@ async function runTest(): Promise<boolean> {
 
     harness.finalize(allPassed, results);
 
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
-
     return allPassed;
 
   } catch (error) {

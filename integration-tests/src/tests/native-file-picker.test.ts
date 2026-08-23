@@ -451,9 +451,6 @@ async function runTest(): Promise<boolean> {
 
     harness.finalize(nativePickerPassed, results);
 
-    console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
-    await sleep(20000);
-
     return nativePickerPassed;
 
   } catch (error) {

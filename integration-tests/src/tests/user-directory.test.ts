@@ -583,9 +583,6 @@ async function runTest(): Promise<boolean> {
 
     harness.finalize(corePassed, results);
 
-    console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
-    await sleep(10000);
-
     return corePassed; // Pass if core functionality works
 
   } catch (error) {

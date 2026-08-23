@@ -1479,11 +1479,6 @@ async function runTest(): Promise<boolean> {
 
     harness.finalize(corePassed, results);
 
-    if (!process.env.IN_CI) {
-      console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
-      await sleep(20000);
-    }
-
     return corePassed;
 
   } catch (error) {

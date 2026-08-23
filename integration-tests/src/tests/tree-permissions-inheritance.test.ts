@@ -686,10 +686,6 @@ async function runTest(): Promise<boolean> {
     console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);
     console.log('='.repeat(60));
 
-    // Keep browser open for inspection
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
-
     if (browser) {
       await browser.close();
     }

@@ -417,8 +417,6 @@ async function runTest(): Promise<boolean> {
     } as unknown as Record<string, any>);
 
     console.log('\nCheck screenshots directory for visual verification');
-    console.log('Browser will remain open for 30 seconds for manual inspection...');
-    await sleep(30000);
 
     return testPassed;
 

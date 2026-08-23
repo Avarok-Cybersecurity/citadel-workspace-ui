@@ -6,6 +6,7 @@ import type { Page } from 'playwright';
 import { sleep } from '../utils.js';
 import { waitForWorkspaceLoaded, closeAnyModals } from '../modals.js';
 import { takeScreenshot } from '../screenshots.js';
+import { waitForAppReady } from '../browser.js';
 import { UxIssueTracker } from '../ux-tracker.js';
 
 /**
@@ -79,7 +80,10 @@ export async function assertSessionInOrphanNavbar(
         // Reload to get fresh session list from internal service
         const config = await import('../config.js');
         await page.goto(config.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-        await sleep(3000 + attempt * 1000); // Increasing delay: 4s, 5s, 6s, 7s
+        // Wait for the app to actually mount rather than guessing 4-7s. `commit`
+        // resolves as soon as the navigation is committed, long before React has
+        // rendered, which is what the escalating sleep was standing in for.
+        await waitForAppReady(page);
       }
     }
 
@@ -278,16 +282,18 @@ export async function disconnectViaTopBar(
       await sleep(5000);
     }
 
-    // Give a moment for navigation to complete
-    await sleep(300);
-
-    // Verify we're on landing page
     const config = await import('../config.js');
+
+    // Wait for the landing navigation itself rather than guessing 300ms and then,
+    // if that guess was wrong, another 2s. Resolves the moment the URL settles.
+    await page
+      .waitForURL(url => url.href.includes(config.config.BASE_URL) && !url.href.includes('/office'),
+                  { timeout: 5000 })
+      .catch(() => { /* verified below, which reports the actual URL */ });
+
     const currentUrl = page.url();
     if (!currentUrl.includes(config.config.BASE_URL) || currentUrl.includes('/office')) {
       console.log(`  Expected landing page but got: ${currentUrl}`);
-      // Try waiting a bit more for navigation
-      await sleep(2000);
     }
 
     console.log(`  ${username} signed out successfully`);
@@ -319,7 +325,7 @@ export async function assertSessionNotInOrphanNavbar(
     for (let attempt = 1; attempt <= 3; attempt++) {
       // Navigate to landing page where OrphanSessionsNavbar would be visible
       await page.goto(config.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-      await sleep(3000 + (attempt - 1) * 2000); // 3s, 5s, 7s
+      await waitForAppReady(page);
 
       await takeScreenshot(page, `${username}_landing_for_orphan_check`);
 
@@ -385,7 +391,7 @@ export async function loginAfterDisconnect(
     console.log(`  Using server address: ${effectiveServerAddress}`);
 
     await page.goto(configModule.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-    await sleep(2000);
+    await waitForAppReady(page);
 
     // NOTE: Browser storage clearing was removed because:
     // 1. We use separate browsers per user, so no cross-contamination
@@ -426,14 +432,13 @@ export async function loginAfterDisconnect(
         }
         console.log('  ClaimSession failed, falling back to fresh login...');
         await page.goto(configModule.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-        await sleep(2000);
+        await waitForAppReady(page);
         break; // Don't retry orphan claim, fall through to fresh login
       }
       if (orphanAttempt < 3) {
         console.log(`  No orphan found on attempt ${orphanAttempt}, waiting and reloading...`);
-        await sleep(2000);
         await page.goto(configModule.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-        await sleep(2000);
+        await waitForAppReady(page);
       }
     }
 
@@ -517,16 +522,14 @@ export async function loginAfterDisconnect(
     }
 
     console.log('  Waiting for login to complete...');
-    await sleep(3000);
-
-    // Check if navigation to workspace happened
-    const postLoginUrl = page.url();
-    const navigatedToWorkspace = postLoginUrl.includes('/workspace') || postLoginUrl.includes('/office');
-    if (!navigatedToWorkspace) {
-      console.log(`  Page still on: ${postLoginUrl} (not /workspace yet)`);
-      // Wait a bit more for navigation
-      await sleep(5000);
-    }
+    // Wait for the navigation itself rather than sleeping 3s and then, if that
+    // guess was wrong, another 5s. Same 8s ceiling, but it continues the moment
+    // the URL changes — which is the thing the sleeps were approximating.
+    await page
+      .waitForURL(/\/(workspace|office)/, { timeout: 8000 })
+      .catch(() => {
+        console.log(`  Page still on: ${page.url()} (not /workspace yet)`);
+      });
 
     // Wait for workspace to load
     const loaded = await waitForWorkspaceLoaded(page, 45000);
@@ -539,7 +542,8 @@ export async function loginAfterDisconnect(
       if (currentUrl.includes('/workspace') || currentUrl.includes('/office')) {
         console.log('  On workspace URL but sidebar not rendered - reloading page...');
         await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
-        await sleep(3000);
+        // No sleep here: waitForWorkspaceLoaded below already polls for the
+        // sidebar for up to 30s, so a fixed delay only added to that budget.
         const reloadLoaded = await waitForWorkspaceLoaded(page, 30000);
         if (reloadLoaded) {
           console.log(`  ${username} workspace loaded after reload`);

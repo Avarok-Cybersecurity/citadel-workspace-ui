@@ -734,10 +734,6 @@ async function runTest(): Promise<boolean> {
     const allCriticalPassed = criticalTests.every(Boolean);
     const overallPass = allCriticalPassed;
 
-    // Keep browser open for inspection
-    console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
-    await sleep(10000);
-
     if (browser) {
       await browser.close();
     }
