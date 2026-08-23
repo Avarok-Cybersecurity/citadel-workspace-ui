@@ -11,6 +11,7 @@ import { websocketService } from "@/lib/websocket-service";
 import { postAuthSetup } from "@/lib/post-auth-setup";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { activateOnKey } from '@/lib/a11y';
 
 export const Connect = () => {
   const navigate = useNavigate();
@@ -131,10 +132,18 @@ export const Connect = () => {
           <>
           <CardContent className="space-y-6">
             <div className="space-y-4">
-              <label className="text-sm font-medium text-foreground uppercase">
+              {/* A group label, not a field label: it names a list of choices
+                  rather than one control, so <label> was the wrong element —
+                  it had nothing to be `for`. The list is a radiogroup labelled
+                  by this heading. */}
+              <h2 id="workspace-choice-label" className="text-sm font-medium text-foreground uppercase">
                 Select Workspace
-              </label>
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+              </h2>
+              <div
+                role="radiogroup"
+                aria-labelledby="workspace-choice-label"
+                className="space-y-2 max-h-60 overflow-y-auto pr-2"
+              >
                 {servers.map((server) => (
                   <div
                     key={server.serverAddress}
@@ -143,6 +152,9 @@ export const Connect = () => {
                       : "bg-card/70 hover:bg-card border border-purple-400/20"
                       }`}
                     onClick={() => setSelectedServer(server.serverAddress)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateOnKey(() => { (() => setSelectedServer(server.serverAddress))(); })}
                   >
                     <Server className="w-5 h-5 text-purple-300 mr-3" />
                     <div>

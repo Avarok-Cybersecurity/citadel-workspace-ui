@@ -7,6 +7,7 @@ import { GridItem } from "./VFSGridItem";
 import { cn } from "@/lib/utils";
 import { findNodeByPath, type SortField, type SortDirection } from "./vfs-content-helpers";
 import { useVFSKeyboardShortcuts } from "./useVFSKeyboardShortcuts";
+import { activateOnKey } from '@/lib/a11y';
 
 export type { SortField, SortDirection };
 
@@ -120,6 +121,9 @@ export function VFSContentGrid({
       <div
         className={cn("flex-1 overflow-y-auto p-4", rootDragOver && "bg-green-900/10")}
         onClick={handleBackgroundClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleBackgroundClick)}
         onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
       >
         <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">

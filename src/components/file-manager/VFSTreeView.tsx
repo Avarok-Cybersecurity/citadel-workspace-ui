@@ -11,6 +11,7 @@ import { PROTECTED_DIRS } from "@/types/revfs-types";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSStorageUsage } from "./VFSStorageUsage";
 import { cn } from "@/lib/utils";
+import { activateOnKey } from '@/lib/a11y';
 
 // ============================================================================
 // Sidebar Tree Node (directories only)
@@ -65,7 +66,9 @@ function SidebarNode({
     if (!expanded) onToggle();
   };
 
-  const handleChevronClick = (e: React.MouseEvent) => {
+  // Widened from MouseEvent: also the keyboard activation handler, and it only
+  // uses stopPropagation, which both event types have.
+  const handleChevronClick = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     onToggle();
   };
@@ -87,6 +90,9 @@ function SidebarNode({
         )}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleClick)}
         onDragOver={handleDragOver}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
@@ -94,6 +100,9 @@ function SidebarNode({
         <span
           className="mr-0.5 text-muted-foreground hover:text-foreground"
           onClick={handleChevronClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey(handleChevronClick)}
         >
           {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </span>
@@ -195,6 +204,9 @@ export function VFSTreeView({
             currentPath === '/' && "bg-purple-700/50 text-foreground",
           )}
           onClick={() => onNavigate('/')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey(() => { (() => onNavigate('/'))(); })}
         >
           <Folder className="h-3.5 w-3.5 mr-1.5 text-yellow-400" />
           <span>Root</span>

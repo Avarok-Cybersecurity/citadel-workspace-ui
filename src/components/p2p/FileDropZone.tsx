@@ -1,4 +1,5 @@
 import { Upload, FolderOpen, FileImage, FileText, FileVideo, FileAudio, File, X } from 'lucide-react';
+import { activateOnKey } from '@/lib/a11y';
 
 function getFileIcon(mimeType: string) {
   if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-purple-400" />;
@@ -111,6 +112,9 @@ export function FileDropZone({
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onClick={onBrowseClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(onBrowseClick)}
         className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
           isDragging
             ? 'border-purple-500 bg-purple-500/10'

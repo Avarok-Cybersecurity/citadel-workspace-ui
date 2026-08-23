@@ -7,6 +7,7 @@ import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSRenameInput } from "./VFSRenameInput";
 import { cn } from "@/lib/utils";
 import { getFileIcon, formatSize, stateConfig } from "./vfs-content-helpers";
+import { activateOnKey } from '@/lib/a11y';
 
 export interface GridItemProps {
   node: RevfsNode;
@@ -65,7 +66,10 @@ export function GridItem({
     if (isDir) onNavigate(node.path);
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  // Widened from MouseEvent: this is now also the keyboard activation handler,
+  // and every property it reads (stopPropagation, ctrlKey/metaKey/shiftKey for
+  // the selection mode) exists on both event types.
+  const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     let mode: SelectMode = 'replace';
     if (e.ctrlKey || e.metaKey) {
@@ -123,6 +127,9 @@ export function GridItem({
           isSelected && "bg-purple-700/40 ring-1 ring-purple-500",
         )}
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleClick)}
         onDoubleClick={handleDoubleClick}
         onDragOver={handleDragOver}
         onDragLeave={() => setDragOver(false)}

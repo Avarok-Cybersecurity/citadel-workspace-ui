@@ -9,6 +9,7 @@ import { MessageSquare } from 'lucide-react';
 import { useCollaborativeEditor } from './useCollaborativeEditor';
 import { EditorToolbar } from './EditorToolbar';
 import { eventEmitter } from '@/lib/event-emitter';
+import { activateOnKey } from '@/lib/a11y';
 
 interface CollaborativeEditorProps {
   documentId: string;
@@ -214,6 +215,9 @@ export function CollaborativeEditor({
             <div
               className="editor-context-menu__item"
               onClick={handleFlashCommentFromContextMenu}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateOnKey(handleFlashCommentFromContextMenu)}
             >
               <MessageSquare />
               Flash Comment

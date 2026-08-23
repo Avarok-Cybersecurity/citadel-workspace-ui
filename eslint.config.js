@@ -4,6 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import unusedImports from "eslint-plugin-unused-imports";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 
 export default tseslint.config(
   { ignores: [
@@ -30,9 +31,13 @@ export default tseslint.config(
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
       "unused-imports": unusedImports,
+      "jsx-a11y": jsxA11y,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Accessibility. Previously unenforced, which is why aria-* appeared in
+      // only 10 of ~207 component files and several <img> shipped with no alt.
+      ...jsxA11y.configs.recommended.rules,
       "react-hooks/exhaustive-deps": "error",
       // Disabled: HMR optimization warning, not code quality issue
       // Many UI components legitimately export variants alongside components

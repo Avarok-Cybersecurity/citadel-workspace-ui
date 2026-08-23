@@ -1,4 +1,5 @@
 import { MessageSquare, FileText, X } from 'lucide-react';
+import { activateOnKey } from '@/lib/a11y';
 
 export interface ChatTab {
   id: string;
@@ -37,6 +38,9 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
         }
       `}
       onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={activateOnKey(onSelect)}
     >
       <Icon className="h-4 w-4 flex-shrink-0" />
       <span className="text-sm font-medium truncate max-w-[120px]">{tab.title}</span>

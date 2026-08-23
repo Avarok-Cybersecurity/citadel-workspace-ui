@@ -1,5 +1,6 @@
 import type { P2PMessage } from '@/lib/p2p';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { interactive } from '@/lib/a11y';
 
 interface MessageStatusDetailsProps {
   message: P2PMessage;
@@ -66,7 +67,10 @@ function Row({ label, value, valueClassName = 'text-foreground', copyable, fullV
       <span className="text-muted-foreground">{label}:</span>
       <span
         className={`font-mono ${valueClassName} ${copyable ? 'cursor-pointer hover:underline' : ''}`}
-        onClick={copyable ? handleCopy : undefined}
+        // Only interactive when it is actually copyable: giving a non-copyable
+        // value role="button" and a tab stop would put it in the tab order and
+        // announce it as actionable when nothing happens on activation.
+        {...(copyable ? interactive(handleCopy) : {})}
         title={copyable ? `Click to copy: ${fullValue || value}` : undefined}
       >
         {value}

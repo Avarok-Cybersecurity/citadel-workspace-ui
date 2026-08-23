@@ -5,6 +5,7 @@ import { Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { activateOnKey } from '@/lib/a11y';
 
 interface MediaUploaderProps {
   open: boolean;
@@ -129,6 +130,9 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               onDragLeave={handleDrag}
               onDrop={handleDrop}
               onClick={handleButtonClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateOnKey(handleButtonClick)}
             >
               <input
                 ref={fileInputRef}

@@ -190,11 +190,16 @@ export const UserSearch: React.FC<UserSearchProps> = ({
               ) : (
                 <ul className="divide-y divide-gray-700">
                   {(results.length > 0 ? results : searchTerm ? [] : getRecentUsers()).map((user) => (
-                    <li
-                      key={user.id}
-                      className="hover:bg-card transition-colors p-3 cursor-pointer"
-                      onClick={() => handleSelectUser(user)}
-                    >
+                    // The list item stays a list item; the control goes INSIDE it.
+                    // Giving the <li> role="button" would have removed it from the
+                    // list semantics, so a screen reader would stop announcing
+                    // "list, N items" and lose the user's position in the results.
+                    <li key={user.id}>
+                      <button
+                        type="button"
+                        className="w-full text-left hover:bg-card transition-colors p-3 cursor-pointer"
+                        onClick={() => handleSelectUser(user)}
+                      >
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10 relative">
                           <AvatarImage src={user.avatarUrl} />
@@ -215,6 +220,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                           </Badge>
                         )}
                       </div>
+                      </button>
                     </li>
                   ))}
 

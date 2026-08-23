@@ -4,6 +4,7 @@ import { BubbleFooter } from './BubbleFooter';
 import type { FileTransferBubbleProps } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
+import { activateOnKey } from '@/lib/a11y';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -94,6 +95,9 @@ export function FileTransferBubble({
       <div
         className={`${status.clickable ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleClick)}
       >
         {/* File info header */}
         <div className="flex items-start gap-3 mb-2">

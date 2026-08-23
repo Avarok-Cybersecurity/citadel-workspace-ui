@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Upload, X, User } from 'lucide-react';
 import { processAvatarImage, validateAvatarFile, avatarToDataUrl } from '@/lib/image-processor';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { activateOnKey } from '@/lib/a11y';
 
 interface AvatarUploadProps {
   currentAvatar?: string; // Base64-encoded current avatar
@@ -98,6 +99,9 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     <div className="flex flex-col items-center gap-3">
       <div
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleClick)}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

@@ -72,7 +72,11 @@ export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
               className
             )}
             aria-disabled="true"
-            role="presentation"
+            // group, not presentation: role="presentation" removes the element
+            // from the accessibility tree, which silently discards the
+            // aria-disabled beside it — the one thing this wrapper exists to
+            // announce. group keeps it announced as a disabled region.
+            role="group"
           >
             {children}
           </div>

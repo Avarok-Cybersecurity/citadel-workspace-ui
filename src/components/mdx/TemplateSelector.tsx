@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, FileText } from 'lucide-react';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { activateOnKey } from '@/lib/a11y';
 
 import {
   TemplateCategory,
@@ -120,6 +121,9 @@ const TemplateSelector = ({
                           : 'border-gray-700 hover:border-gray-500'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={activateOnKey(() => { (() => setSelectedTemplate(template))(); })}
                     >
                       <div className="absolute top-2 right-2 z-10">
                         {selectedTemplate?.id === template.id && (
@@ -165,6 +169,9 @@ const TemplateSelector = ({
                           : 'hover:bg-card'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={activateOnKey(() => { (() => setSelectedTemplate(template))(); })}
                     >
                       <div className="mr-3 mt-1">
                         <CategoryIcon className="h-5 w-5" />

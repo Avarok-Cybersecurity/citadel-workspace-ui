@@ -36,6 +36,9 @@ const AlertTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
+  // Generic wrapper: the heading text is supplied as children by every call
+  // site, so the rule cannot see it from here.
+  // eslint-disable-next-line jsx-a11y/heading-has-content
   <h5
     ref={ref}
     className={cn("mb-1 font-medium leading-none tracking-tight", className)}

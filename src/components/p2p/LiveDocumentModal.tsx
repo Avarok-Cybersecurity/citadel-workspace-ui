@@ -72,6 +72,10 @@ export function LiveDocumentModal({
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             className="bg-surface border-surface text-foreground placeholder-gray-400 focus:border-primary"
+            // Focus moving into a dialog when it opens is expected: it is where
+            // the user just asked to go, and without it a keyboard user is left
+            // outside the dialog they just opened.
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
           />
           <p className="text-xs text-muted-foreground mt-2">
