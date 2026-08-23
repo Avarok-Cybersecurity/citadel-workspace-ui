@@ -158,8 +158,11 @@ async function verifyModalStructure(page: Page): Promise<{
   };
 
   // Check title
-  const title = page.locator('[role="dialog"] text="Settings"').first();
-  results.title = await title.isVisible({ timeout: 3000 }).catch(() => false);
+  // getByRole, not '[role="dialog"] text="Settings"' — that mixes a CSS selector
+  // with the text engine in one string, which Playwright cannot parse as intended,
+  // so the check could never have matched.
+  const title = page.getByRole('heading', { name: 'Settings' }).first();
+  results.title = await isVisibleWithin(title, 3000);
   console.log(`  Title visible: ${results.title}`);
 
   // Check description
@@ -168,7 +171,8 @@ async function verifyModalStructure(page: Page): Promise<{
   console.log(`  Description visible: ${results.description}`);
 
   // Check tabs (General, Connections, Appearance, Privacy, Permissions)
-  const generalTab = page.locator('button[role="tab"]:has-text("General"), button[role="tab"]:has(svg.lucide-settings)');
+  const dialog = page.locator('[role="dialog"]');
+  const generalTab = dialog.locator('button[role="tab"]').nth(0);
   const connectionsTab = page.locator('button[role="tab"]:has-text("Connections"), button[role="tab"]:has(svg.lucide-wifi)');
   const appearanceTab = page.locator('button[role="tab"]:has-text("Appearance"), button[role="tab"]:has(svg.lucide-palette)');
   const privacyTab = page.locator('button[role="tab"]:has-text("Privacy"), button[role="tab"]:has(svg.lucide-shield)');
@@ -190,90 +194,78 @@ async function verifyModalStructure(page: Page): Promise<{
 /**
  * Test tab switching and content
  */
+/**
+ * Click a tab and report whether it actually became active.
+ *
+ * Waits for `data-state="active"` rather than clicking and reading the attribute
+ * after a fixed 300ms — Radix sets it asynchronously, so the old version was
+ * sampling a race.
+ *
+ * A tab that is DISABLED is reported as such rather than as a failure. Connections
+ * and Permissions carry `disabled={!isConnected}` in SettingsModal, so on a
+ * disconnected session they are correctly unavailable; failing the suite for that
+ * would be asserting the opposite of the intended behaviour.
+ */
+async function activateTab(
+  page: Page,
+  index: number,
+  name: string
+): Promise<{ works: boolean; hasContent: boolean; disabled: boolean }> {
+  // Scoped to the dialog. A bare `button[role="tab"]` matches page-wide, and the
+  // office view behind the modal renders its own "Content"/"Chat" tabs FIRST — so
+  // nth(0) and nth(1) were the office's tabs, not Settings'. This test was
+  // reporting on the wrong control entirely, and the modal being on top is why
+  // clicking one of them did not activate it.
+  const tab = page.locator('[role="dialog"] button[role="tab"]').nth(index);
+  if (!(await isVisibleWithin(tab, 2000))) {
+    console.log(`  ${name}: tab not present`);
+    return { works: false, hasContent: false, disabled: false };
+  }
+
+  if (await tab.isDisabled()) {
+    console.log(`  ${name}: disabled (requires an active workspace connection)`);
+    return { works: false, hasContent: false, disabled: true };
+  }
+
+  await tab.click({ force: true });
+
+  // Wait for THIS tab to report active, rather than for any active tab to exist —
+  // one always does, so the latter would be satisfied before the click landed.
+  const works = await tab
+    .and(page.locator('[data-state="active"]'))
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+
+  // The panel this tab controls, not merely "a" panel: Radix mounts only the
+  // active one, but the office view behind the dialog has panels of its own.
+  const panelId = await tab.getAttribute('aria-controls');
+  const hasContent = panelId
+    // An attribute selector, not `#id` — Radix ids contain characters that need
+    // escaping, and CSS.escape is a browser API that does not exist in the Node
+    // process the runner executes in.
+    ? await isVisibleWithin(page.locator(`[id="${panelId}"]`), 5000)
+    : await isVisibleWithin(page.locator('[role="dialog"] [role="tabpanel"]').first(), 5000);
+
+  console.log(`  ${name}: works=${works}, hasContent=${hasContent}`);
+  return { works, hasContent, disabled: false };
+}
+
 async function testTabSwitching(page: Page): Promise<{
-  general: { works: boolean; hasContent: boolean };
-  connections: { works: boolean; hasContent: boolean };
-  appearance: { works: boolean; hasContent: boolean };
-  privacy: { works: boolean; hasContent: boolean };
-  permissions: { works: boolean; hasContent: boolean };
+  general: { works: boolean; hasContent: boolean; disabled: boolean };
+  connections: { works: boolean; hasContent: boolean; disabled: boolean };
+  appearance: { works: boolean; hasContent: boolean; disabled: boolean };
+  privacy: { works: boolean; hasContent: boolean; disabled: boolean };
+  permissions: { works: boolean; hasContent: boolean; disabled: boolean };
 }> {
   console.log('\n=== Testing Tab Switching ===');
-
-  const results = {
-    general: { works: false, hasContent: false },
-    connections: { works: false, hasContent: false },
-    appearance: { works: false, hasContent: false },
-    privacy: { works: false, hasContent: false },
-    permissions: { works: false, hasContent: false },
+  return {
+    general: await activateTab(page, 0, 'General'),
+    connections: await activateTab(page, 1, 'Connections'),
+    appearance: await activateTab(page, 2, 'Appearance'),
+    privacy: await activateTab(page, 3, 'Privacy'),
+    permissions: await activateTab(page, 4, 'Permissions'),
   };
-
-  // Test General tab (default)
-  const generalTab = page.locator('button[role="tab"]').first(); // First tab is General
-  if (await isVisibleWithin(generalTab, 2000)) {
-    await generalTab.click({ force: true });
-    await sleep(300);
-    const isActive = await generalTab.getAttribute('data-state');
-    results.general.works = isActive === 'active';
-
-    // Check for tab content (GeneralSettingsTab should have some content)
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.general.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  General: works=${results.general.works}, hasContent=${results.general.hasContent}`);
-  }
-
-  // Test Connections tab
-  const connectionsTab = page.locator('button[role="tab"]').nth(1);
-  if (await isVisibleWithin(connectionsTab, 2000)) {
-    await connectionsTab.click({ force: true });
-    await sleep(300);
-    const isActive = await connectionsTab.getAttribute('data-state');
-    results.connections.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.connections.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Connections: works=${results.connections.works}, hasContent=${results.connections.hasContent}`);
-  }
-
-  // Test Appearance tab
-  const appearanceTab = page.locator('button[role="tab"]').nth(2);
-  if (await isVisibleWithin(appearanceTab, 2000)) {
-    await appearanceTab.click({ force: true });
-    await sleep(300);
-    const isActive = await appearanceTab.getAttribute('data-state');
-    results.appearance.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.appearance.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Appearance: works=${results.appearance.works}, hasContent=${results.appearance.hasContent}`);
-  }
-
-  // Test Privacy tab
-  const privacyTab = page.locator('button[role="tab"]').nth(3);
-  if (await isVisibleWithin(privacyTab, 2000)) {
-    await privacyTab.click({ force: true });
-    await sleep(300);
-    const isActive = await privacyTab.getAttribute('data-state');
-    results.privacy.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.privacy.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Privacy: works=${results.privacy.works}, hasContent=${results.privacy.hasContent}`);
-  }
-
-  // Test Permissions tab
-  const permissionsTab = page.locator('button[role="tab"]').nth(4);
-  if (await isVisibleWithin(permissionsTab, 2000)) {
-    await permissionsTab.click({ force: true });
-    await sleep(300);
-    const isActive = await permissionsTab.getAttribute('data-state');
-    results.permissions.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.permissions.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Permissions: works=${results.permissions.works}, hasContent=${results.permissions.hasContent}`);
-  }
-
-  return results;
 }
 
 /**
@@ -421,11 +413,14 @@ async function runTest(): Promise<boolean> {
 
     if (results.tabsVisible) {
       const tabResults = await testTabSwitching(page);
-      results.generalTabWorks = tabResults.general.works;
-      results.connectionsTabWorks = tabResults.connections.works;
-      results.appearanceTabWorks = tabResults.appearance.works;
-      results.privacyTabWorks = tabResults.privacy.works;
-      results.permissionsTabWorks = tabResults.permissions.works;
+      // "reachable" = it activated, OR it is deliberately disabled (Connections and
+      // Permissions require an active workspace connection). Both are correct
+      // behaviour; only a tab that is enabled and still will not activate is a bug.
+      results.generalTabWorks = tabResults.general.works || tabResults.general.disabled;
+      results.connectionsTabWorks = tabResults.connections.works || tabResults.connections.disabled;
+      results.appearanceTabWorks = tabResults.appearance.works || tabResults.appearance.disabled;
+      results.privacyTabWorks = tabResults.privacy.works || tabResults.privacy.disabled;
+      results.permissionsTabWorks = tabResults.permissions.works || tabResults.permissions.disabled;
 
       results.generalTabHasContent = tabResults.general.hasContent;
       results.connectionsTabHasContent = tabResults.connections.hasContent;
@@ -454,7 +449,29 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated && results.userDropdownOpens;
+    // Gate on what this spec is FOR. It previously passed on
+    // `accountCreated && userDropdownOpens` alone, so a Settings Modal Test would
+    // report PASSED with the modal broken, every tab dead and the close button
+    // gone — the other 16 results were printed and thrown away.
+    //
+    // Tab *content* is deliberately not gated: some tabs render conditionally on
+    // permissions, so "has content" is genuinely informational. Whether each tab
+    // is reachable is not.
+    const criticalResults = [
+      results.accountCreated,
+      results.userDropdownOpens,
+      results.settingsMenuItemVisible,
+      results.modalOpens,
+      results.titleVisible,
+      results.tabsVisible,
+      results.generalTabWorks,
+      results.connectionsTabWorks,
+      results.appearanceTabWorks,
+      results.privacyTabWorks,
+      results.permissionsTabWorks,
+      results.modalCloses,
+    ];
+    const corePassed = criticalResults.every(Boolean);
 
     console.log('\nAccount Creation:');
     console.log(`  Account Created:          ${results.accountCreated ? 'PASS' : 'FAIL'}`);
