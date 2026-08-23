@@ -210,3 +210,4 @@ export type {
 // Workspace admin registered by global-setup (see src/global-setup.ts).
 export { adminCredentials, hasWorkspaceAdmin, type AdminCredentials } from './admin.js';
 export { activateTab, type TabActivation } from './tabs.js';
+export { navigateInApp, navigateToDirectory } from './navigation.js';

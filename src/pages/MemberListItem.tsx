@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, UserPlus, Star } from 'lucide-react';
-import { formatRelativeTime } from '@/lib/date-utils';
+import { formatPresence } from '@/lib/date-utils';
 import { UserRole } from '@/types/workspace-entities';
 import { interactive } from '@/lib/a11y';
 
@@ -13,7 +13,7 @@ export interface MemberDisplay {
   email?: string;
   role?: UserRole;
   isOnline: boolean;
-  lastActive: number;
+  lastActive?: number;
 }
 
 function getRoleBadgeClass(role?: UserRole): string {
@@ -74,7 +74,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
             <span className={`text-xs ${variant === 'online' ? 'text-green-400' : 'text-muted-foreground'}`}>
               {variant === 'online'
                 ? 'Online now'
-                : member.isOnline ? 'Online' : `Last active ${formatRelativeTime(member.lastActive)}`}
+                : formatPresence(member.isOnline, member.lastActive)}
             </span>
           </div>
         </div>

@@ -41,7 +41,8 @@ export const UserDirectory = () => {
     email: member.email,
     role: member.role,
     isOnline: connectionService.canMessageUser(member.id),
-    lastActive: 0,
+    // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
+    lastActive: undefined,
   }));
 
   const filteredMembers = allMembers.filter(member => {

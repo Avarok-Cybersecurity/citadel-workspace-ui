@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { debugLog } from '@/lib/debug-config';
 import { Search, User, UserPlus, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,8 +14,16 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { ConnectionService } from '@/lib/connection-service';
 import { Badge } from '@/components/ui/badge';
 import type { UserData, UserSearchProps } from './user-search-types';
+
+/**
+ * Ties the input to the list it controls via aria-controls/aria-expanded.
+ * A constant rather than useId: there is one search panel open at a time, and a
+ * stable id keeps the relationship legible.
+ */
+const RESULTS_LIST_ID = 'user-search-results';
 import { getRoleBadgeClass } from './user-search-types';
 
 // Re-export types for backward compatibility
@@ -33,6 +41,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const [results, setResults] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const connectionService = useMemo(() => ConnectionService.getInstance(), []);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const { state } = useWorkspace();
@@ -109,8 +118,15 @@ export const UserSearch: React.FC<UserSearchProps> = ({
             avatarUrl: member.avatarUrl,
             email: member.email,
             role: member.role,
-            isOnline: Math.random() > 0.5,
-            lastActive: Date.now() - Math.floor(Math.random() * 1000000)
+            // Real presence, from the service that knows. This was
+            // `Math.random() > 0.5`, so the green dot beside a user's name was a
+            // coin flip — it told the viewer nothing and contradicted the same
+            // user's status elsewhere in the app on every render.
+            isOnline: connectionService.canMessageUser(member.id),
+            // Deliberately absent: nothing tracks last-seen time yet, and the
+            // previous value was a random offset from now. Undefined lets the UI
+            // say it does not know instead of stating a time that is made up.
+            lastActive: undefined,
           }));
 
         setResults(filteredMembers);
@@ -126,7 +142,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     return () => {
       clearTimeout(debounceTimeout);
     };
-  }, [searchTerm, state.members, exclude]);
+  }, [searchTerm, state.members, exclude, connectionService]);
 
   const handleFocus = () => {
     setShowResults(true);
@@ -157,8 +173,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         avatarUrl: member.avatarUrl,
         email: member.email,
         role: member.role,
-        isOnline: Math.random() > 0.5,
-        lastActive: Date.now() - Math.floor(Math.random() * 1000000)
+        isOnline: connectionService.canMessageUser(member.id),
+        lastActive: undefined,
       }));
   };
 
@@ -169,6 +185,10 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         <Input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={showResults}
+          aria-controls={RESULTS_LIST_ID}
+          aria-autocomplete="list"
           placeholder={placeholder}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -207,13 +227,13 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                   <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500"></div>
                 </div>
               ) : (
-                <ul className="divide-y divide-gray-700">
+                <ul id={RESULTS_LIST_ID} role="listbox" aria-label="User search results" className="divide-y divide-gray-700">
                   {(results.length > 0 ? results : searchTerm ? [] : getRecentUsers()).map((user) => (
                     // The list item stays a list item; the control goes INSIDE it.
                     // Giving the <li> role="button" would have removed it from the
                     // list semantics, so a screen reader would stop announcing
                     // "list, N items" and lose the user's position in the results.
-                    <li key={user.id}>
+                    <li key={user.id} role="option" aria-selected={false}>
                       <button
                         type="button"
                         className="w-full text-left hover:bg-card transition-colors p-3 cursor-pointer"

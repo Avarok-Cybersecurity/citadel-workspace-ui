@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, Mail, UserPlus, Clock, UserX, User, Search, AlertCircle, CheckCircle } from 'lucide-react';
-import { formatRelativeTime } from '@/lib/date-utils';
+import { formatPresence } from '@/lib/date-utils';
 import type { UserData } from '@/components/user/UserSearch';
 import { getRoleBadgeClass } from './MemberListItem';
 
@@ -81,10 +81,7 @@ export function UserProfileCard({
           )}
           <CardDescription className="text-muted-foreground flex items-center justify-center">
             <Clock className="h-3.5 w-3.5 mr-1.5" />
-            {selectedUser.isOnline
-              ? 'Online now'
-              : `Last active ${formatRelativeTime(selectedUser.lastActive ?? Date.now())}`
-            }
+            {formatPresence(selectedUser.isOnline ?? false, selectedUser.lastActive)}
           </CardDescription>
         </div>
       </CardHeader>

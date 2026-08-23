@@ -12,6 +12,7 @@
 
 import { Page } from 'playwright';
 import {
+  navigateToDirectory,
   activateTab,
   sleep,
   createBrowser,
@@ -76,50 +77,6 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 /**
  * Navigate to the User Directory page using client-side navigation
  */
-async function navigateToDirectory(page: Page): Promise<boolean> {
-  console.log('\n=== Navigating to User Directory ===');
-
-  try {
-    // Use client-side navigation to preserve session state
-    // This is equivalent to react-router's navigate('/directory')
-    await page.evaluate(() => {
-      window.history.pushState({}, '', '/directory');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-    await sleep(3000);
-
-    // Verify we're on the directory page
-    const title = page.locator('h1:has-text("User Directory")');
-    if (await title.isVisible({ timeout: 10000 }).catch(() => false)) {
-      console.log('  Successfully navigated to User Directory');
-      return true;
-    }
-
-    // Alternative: try sidebar link if available
-    console.log('  Client-side navigation may have failed, trying sidebar...');
-    const sidebarLink = page.locator('a[href*="directory"], button:has-text("Directory")').first();
-    if (await isVisibleWithin(sidebarLink, 3000)) {
-      await sidebarLink.click();
-      await sleep(2000);
-      return await title.isVisible({ timeout: 5000 }).catch(() => false);
-    }
-
-    // Alternative: Try react-router Link click via navigation
-    // Some apps use a top navigation or user menu
-    const navLink = page.locator('[href="/directory"]').first();
-    if (await isVisibleWithin(navLink, 2000)) {
-      await navLink.click();
-      await sleep(2000);
-      return await title.isVisible({ timeout: 5000 }).catch(() => false);
-    }
-
-    console.log('  Could not navigate to directory');
-    return false;
-  } catch (error) {
-    console.error('  Error navigating to directory:', error);
-    return false;
-  }
-}
 
 /**
  * Verify page structure elements
