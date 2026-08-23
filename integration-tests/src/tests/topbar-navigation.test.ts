@@ -5,8 +5,7 @@
  * 1. LeaderIndicator (admin ring on avatar)
  * 2. WorkspaceSwitcher renders
  * 3. ProfileModal (open, verify fields, close)
- * 4. PreferencesDialog (open, verify controls, close)
- * 5. ExitConfirmModal (cancel + confirm flows)
+ * 4. ExitConfirmModal (cancel + confirm flows)
  */
 
 import { Page } from 'playwright';
@@ -41,11 +40,6 @@ interface TestResults {
   profileHasDisplayName: boolean;
   profileModalCloses: boolean;
 
-  // Preferences dialog
-  preferencesOpens: boolean;
-  preferencesHasControls: boolean;
-  preferencesCloses: boolean;
-
   // Exit to Landing
   exitConfirmModalAppears: boolean;
   cancelKeepsWorkspace: boolean;
@@ -72,18 +66,14 @@ async function openUserDropdown(page: Page): Promise<boolean> {
 
   if (await isVisibleWithin(avatarButton, 5000)) {
     await avatarButton.click();
-    await sleep(500);
-    const menu = page.locator('[role="menu"]');
-    return await menu.isVisible({ timeout: 3000 }).catch(() => false);
+    return await isVisibleWithin(page.locator('[role="menu"]'), 5000);
   }
 
   // Fallback: button with Avatar child
   const altButton = page.locator('button:has([class*="Avatar"])').first();
   if (await isVisibleWithin(altButton, 3000)) {
     await altButton.click();
-    await sleep(500);
-    const menu = page.locator('[role="menu"]');
-    return await menu.isVisible({ timeout: 3000 }).catch(() => false);
+    return await isVisibleWithin(page.locator('[role="menu"]'), 5000);
   }
 
   return false;
@@ -209,56 +199,6 @@ async function testProfileModal(page: Page): Promise<{
 }
 
 /**
- * Test PreferencesDialog
- */
-async function testPreferencesDialog(page: Page): Promise<{
-  opens: boolean;
-  hasControls: boolean;
-  closes: boolean;
-}> {
-  console.log('\n=== Testing Preferences Dialog ===');
-
-  const results = { opens: false, hasControls: false, closes: false };
-
-  const opened = await openUserDropdown(page);
-  if (!opened) {
-    console.log('  Could not open dropdown');
-    return results;
-  }
-
-  // Look for Preferences menu item
-  const prefsItem = page.locator('[role="menuitem"]:has-text("Preferences")');
-  if (!(await prefsItem.isVisible({ timeout: 3000 }).catch(() => false))) {
-    console.log('  Preferences menu item not found');
-    // Close dropdown
-    await page.keyboard.press('Escape');
-    return results;
-  }
-
-  await prefsItem.click();
-  await sleep(1000);
-
-  const prefsDialog = page.locator('[role="dialog"]').first();
-  results.opens = await prefsDialog.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`  Preferences dialog opens: ${results.opens}`);
-
-  if (results.opens) {
-    // Check for auto-accept switch
-    const autoAcceptSwitch = page.locator('#auto-accept-registrations, [role="switch"]').first();
-    results.hasControls = await autoAcceptSwitch.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Has controls: ${results.hasControls}`);
-
-    // Close
-    await page.keyboard.press('Escape');
-    await sleep(500);
-    results.closes = !(await prefsDialog.isVisible({ timeout: 1000 }).catch(() => false));
-    console.log(`  Preferences dialog closes: ${results.closes}`);
-  }
-
-  return results;
-}
-
-/**
  * Test ExitConfirmModal (cancel + confirm)
  */
 async function testExitConfirmModal(page: Page): Promise<{
@@ -358,9 +298,6 @@ async function runTest(): Promise<boolean> {
     profileModalOpens: false,
     profileHasDisplayName: false,
     profileModalCloses: false,
-    preferencesOpens: false,
-    preferencesHasControls: false,
-    preferencesCloses: false,
     exitConfirmModalAppears: false,
     cancelKeepsWorkspace: false,
     confirmExitsToLanding: false,
@@ -420,20 +357,9 @@ async function runTest(): Promise<boolean> {
     results.profileModalCloses = profileResult.closes;
     await takeScreenshot(page, '04_profile_modal');
 
-    // ========== STEP 5: Test Preferences Dialog ==========
+    // ========== STEP 5: Test Exit Confirm Modal ==========
     console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 5: Test Preferences Dialog');
-    console.log('\u2500'.repeat(50));
-
-    const prefsResult = await testPreferencesDialog(page);
-    results.preferencesOpens = prefsResult.opens;
-    results.preferencesHasControls = prefsResult.hasControls;
-    results.preferencesCloses = prefsResult.closes;
-    await takeScreenshot(page, '05_preferences_dialog');
-
-    // ========== STEP 6: Test Exit Confirm Modal ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 6: Test Exit Confirm Modal');
+    console.log('STEP 5: Test Exit Confirm Modal');
     console.log('\u2500'.repeat(50));
 
     const exitResult = await testExitConfirmModal(page);
@@ -447,7 +373,28 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated;
+    // Gate on the chrome this spec exists to check. It previously passed on
+    // accountCreated alone, so a TopBar & Navigation test would report PASSED with
+    // the workspace switcher missing, the profile dialog broken and the exit
+    // confirmation gone — 12 results printed and discarded.
+    //
+    // Left ungated deliberately: leaderIndicatorVisible is a diagnostics-only
+    // control, hidden from end users unless diagnostics are enabled, so its absence
+    // is correct in a production build rather than a regression.
+    const criticalResults = [
+      results.accountCreated,
+      results.workspaceSwitcherVisible,
+      results.workspaceSwitcherDropdownWorks,
+      results.profileModalOpens,
+      results.profileModalCloses,
+      results.exitConfirmModalAppears,
+      results.cancelKeepsWorkspace,
+    ];
+    // Preferences dialog assertions are deliberately absent. PreferencesDialog was
+    // never mounted anywhere in the app, and its only control — auto-accept P2P
+    // registrations — already exists in Settings > Connections. It has been deleted
+    // as dead, duplicated code, so asserting on it would assert a non-feature.
+    const corePassed = criticalResults.every(Boolean);
 
     console.log('\nAccount:');
     console.log(`  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
@@ -462,10 +409,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Has Display Name:          ${results.profileHasDisplayName ? 'PASS' : 'CHECK'}`);
     console.log(`  Closes:                    ${results.profileModalCloses ? 'PASS' : 'CHECK'}`);
 
-    console.log('\nPreferences Dialog:');
-    console.log(`  Opens:                     ${results.preferencesOpens ? 'PASS' : 'CHECK'}`);
-    console.log(`  Has Controls:              ${results.preferencesHasControls ? 'PASS' : 'CHECK'}`);
-    console.log(`  Closes:                    ${results.preferencesCloses ? 'PASS' : 'CHECK'}`);
 
     console.log('\nExit Confirm Modal:');
     console.log(`  Modal Appears:             ${results.exitConfirmModalAppears ? 'PASS' : 'CHECK'}`);

@@ -6,6 +6,7 @@ import { MessageCircle, Shield } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { connectionManager } from "@/lib/connection";
 import { useRegisteredPeers } from "@/hooks";
+import { peerDisplayName } from "@/lib/peer-display";
 
 const Messages = () => {
   const location = useLocation();
@@ -23,8 +24,10 @@ const Messages = () => {
   const selectedPeerName = useMemo(() => {
     if (!selectedPeerCid) return '';
     const peer = registeredPeers.find(p => p.cid === selectedPeerCid);
-    if (peer && peer.username && peer.username !== 'Unknown') return peer.username;
-    return `User ${selectedPeerCid.slice(0, 8)}…`;
+    const username = peer && peer.username !== 'Unknown' ? peer.username : undefined;
+    // peerDisplayName, not a truncated CID: the decimal prefix is unreadable and
+    // identical for peers whose CIDs share leading digits. See lib/peer-display.
+    return peerDisplayName({ cid: selectedPeerCid, username });
   }, [selectedPeerCid, registeredPeers]);
 
   // Sync URL param with selected peer

@@ -62,20 +62,24 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 async function testMessagesRoute(page: Page): Promise<boolean> {
   console.log('\n=== Testing /messages Route ===');
 
-  await page.goto(`${config.BASE_URL}/?section=messages`, { waitUntil: 'commit', timeout: 30000 });
+  // /messages is the actual route (see App.tsx). `?section=messages` is not a
+  // route at all, so this had been loading the landing page and asserting against it.
+  await page.goto(`${config.BASE_URL}/messages`, { waitUntil: 'commit', timeout: 30000 });
   await sleep(3000);
 
-  // Check if messages/chat area rendered
-  const chatArea = page.locator('text="Messages", text="Direct Messages", text="DIRECT MESSAGES", [class*="chat"]').first();
-  const visible = await chatArea.isVisible({ timeout: 5000 }).catch(() => false);
+  // The /messages route renders AppLayout with the peer list and chat panes, so
+  // the sidebar is the reliable signal that the route mounted.
+  //
+  // The previous check was
+  //   'text="Messages", text="Direct Messages", ..., [class*="chat"]'
+  // which puts several text engines and a CSS selector in one comma-separated
+  // string. Playwright cannot parse that as intended, so it never matched, and the
+  // fallback ("did ANY content render") meant the assertion could pass on the
+  // landing page — which is what it was actually loading, since the old URL used a
+  // ?section= query that is not a route.
+  const shell = page.locator('[data-sidebar="sidebar"]').first();
+  const visible = await isVisibleWithin(shell, 15000);
   console.log(`  Messages route loaded: ${visible}`);
-
-  if (!visible) {
-    // Alternative check: any content loaded (not blank page)
-    const content = await page.locator('main, [role="main"]').first().textContent().catch(() => '');
-    return (content?.length ?? 0) > 20;
-  }
-
   return visible;
 }
 
@@ -108,8 +112,11 @@ async function testSidebarCollapse(page: Page): Promise<{
 
   const results = { visible: false, collapseWorks: false, expandWorks: false };
 
-  // Navigate back to workspace first
-  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
+  // Navigate to the WORKSPACE, not the site root. BASE_URL lands on the marketing
+  // page, which has no sidebar at all — so this check reported "sidebar not
+  // visible" and returned early, taking the collapse and expand assertions with
+  // it. All three had been failing silently since they were never gated.
+  await page.goto(`${config.BASE_URL}/workspace`, { waitUntil: 'commit', timeout: 30000 });
   await waitForWorkspaceLoaded(page, 15000);
 
   // Check sidebar is visible
@@ -120,31 +127,29 @@ async function testSidebarCollapse(page: Page): Promise<{
   if (!results.visible) return results;
 
   // Find collapse toggle button
-  const collapseBtn = page.locator('button:has(svg.lucide-panel-left), button:has(svg.lucide-sidebar), button[aria-label*="Collapse"], button[aria-label*="sidebar"]').first();
+  const collapseBtn = page.locator('[data-testid="sidebar-toggle"]').first();
   if (await isVisibleWithin(collapseBtn, 3000)) {
+    // Assert the STATE, not the visibility of the collapsed element. A collapsed
+    // sidebar has zero width, so `isVisible()` on it is false either way — the
+    // previous check could not distinguish "collapsed" from "never collapsed".
+    const stateEl = page.locator('[data-state="expanded"], [data-state="collapsed"]').last();
+
     await collapseBtn.click();
-    await sleep(500);
-
-    // Check if sidebar collapsed (width reduced or hidden)
-    const sidebarAfter = page.locator('[data-sidebar="sidebar"], aside').first();
-    const stillVisible = await sidebarAfter.isVisible({ timeout: 1000 }).catch(() => false);
-
-    // Sidebar might still be visible but narrower, check for collapsed state
-    const collapsedState = page.locator('[data-collapsed="true"], [data-state="collapsed"]').first();
-    const isCollapsed = (await collapsedState.isVisible({ timeout: 1000 }).catch(() => false)) || !stillVisible;
-
-    results.collapseWorks = isCollapsed;
+    results.collapseWorks = await stateEl
+      .and(page.locator('[data-state="collapsed"]'))
+      .waitFor({ state: 'attached', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
     console.log(`  Collapse works: ${results.collapseWorks}`);
 
-    // Expand again
     if (results.collapseWorks) {
-      const expandBtn = page.locator('button:has(svg.lucide-panel-left), button:has(svg.lucide-sidebar), button[aria-label*="Expand"], button[aria-label*="sidebar"]').first();
-      if (await isVisibleWithin(expandBtn, 3000)) {
-        await expandBtn.click();
-        await sleep(500);
-        results.expandWorks = true;
-        console.log('  Expand works: true');
-      }
+      await collapseBtn.click();
+      results.expandWorks = await stateEl
+        .and(page.locator('[data-state="expanded"]'))
+        .waitFor({ state: 'attached', timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+      console.log(`  Expand works: ${results.expandWorks}`);
     }
   } else {
     console.log('  Collapse button not found');
@@ -326,7 +331,19 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated;
+    // Gate on the routes and chrome this spec is named for. It previously passed
+    // on accountCreated alone, so the 404 page, the sidebar and profile editing
+    // could all be broken and it would still report PASSED.
+    const criticalResults = [
+      results.accountCreated,
+      results.messagesRouteWorks,
+      results.notFoundPageRenders,
+      results.sidebarVisible,
+      results.sidebarCollapseWorks,
+      results.sidebarExpandWorks,
+      results.profileEditWorks,
+    ];
+    const corePassed = criticalResults.every(Boolean);
 
     console.log(`\n  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Messages Route:            ${results.messagesRouteWorks ? 'PASS' : 'CHECK'}`);

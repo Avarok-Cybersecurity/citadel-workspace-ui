@@ -152,16 +152,25 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   return (
     <div className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border flex items-center justify-between pr-4 z-50">
       <div className="flex items-center">
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-foreground hover:bg-purple-500/15 hover:text-foreground md:hidden mr-4"
-            onClick={toggleSidebar}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
+        {/*
+          Shown at every width, not just on mobile. The toggle was gated behind
+          `isMobile` AND `md:hidden`, so on a desktop viewport there was no way to
+          collapse the sidebar at all — even though useSidebar().toggleSidebar and
+          the Sidebar's own collapse behaviour were already wired up. Reclaiming
+          that horizontal space matters most on the wide screens where the control
+          was missing.
+        */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-foreground hover:bg-purple-500/15 hover:text-foreground mr-4"
+          onClick={toggleSidebar}
+          aria-label={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
+          title={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
+          data-testid="sidebar-toggle"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
       <div className="flex items-center space-x-2">
