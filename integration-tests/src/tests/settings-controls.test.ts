@@ -160,7 +160,7 @@ async function testAppearanceTab(page: Page): Promise<boolean> {
 
   if (!visible) {
     // Alternative: look for theme-related text
-    const themeText = page.locator('text="Theme", text="Dark", text="Light", text="System"').first();
+    const themeText = page.getByText(/Theme|Dark|Light|System/).first();
     visible = await themeText.isVisible({ timeout: 2000 }).catch(() => false);
   }
 

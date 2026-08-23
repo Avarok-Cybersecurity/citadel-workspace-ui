@@ -49,7 +49,7 @@ export async function navigateToOffice(
     }
 
     // Try expanding hierarchy section first
-    const officesHeader = page.locator('text="HIERARCHY", [data-testid="hierarchy-section"]').first();
+    const officesHeader = page.getByText('HIERARCHY').or(page.locator('[data-testid="hierarchy-section"]')).first();
     if (await isVisibleWithin(officesHeader, 2000)) {
       await officesHeader.click();
       await sleep(1000);

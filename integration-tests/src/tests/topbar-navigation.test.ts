@@ -183,7 +183,7 @@ async function testProfileModal(page: Page): Promise<{
 
     if (!results.hasDisplayName) {
       // Alternative: check for any text mentioning profile/name
-      const profileText = page.locator('text="Display Name", text="Full Name", text="Profile"').first();
+      const profileText = page.getByText(/Display Name|Full Name|Profile/).first();
       results.hasDisplayName = await profileText.isVisible({ timeout: 2000 }).catch(() => false);
       console.log(`  Has profile text: ${results.hasDisplayName}`);
     }

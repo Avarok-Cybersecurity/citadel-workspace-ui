@@ -91,7 +91,7 @@ async function testNotFoundPage(page: Page): Promise<boolean> {
 
   // Check for 404 elements
   const notFound404 = page.locator('text="404"').first();
-  const notFoundMsg = page.locator('text="not found", text="Not Found", text="Page not found"').first();
+  const notFoundMsg = page.getByText(/not found/i).first();
   const homeLink = page.locator('a[href="/"], a:has-text("Home"), a:has-text("Return")').first();
 
   const has404 = await notFound404.isVisible({ timeout: 3000 }).catch(() => false);

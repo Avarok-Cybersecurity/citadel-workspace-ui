@@ -408,7 +408,7 @@ async function closeAllOverlays(page: Page): Promise<void> {
  * Check for permission denied message
  */
 async function hasPermissionDenied(page: Page): Promise<boolean> {
-  const denied = page.locator('text="Permission denied", text="Unauthorized", text="Admin"').first();
+  const denied = page.getByText(/Permission denied|Unauthorized|Admin/).first();
   return await denied.isVisible({ timeout: 2000 }).catch(() => false);
 }
 

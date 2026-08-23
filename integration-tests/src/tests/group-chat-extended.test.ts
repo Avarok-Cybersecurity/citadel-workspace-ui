@@ -275,7 +275,7 @@ async function runTest(): Promise<boolean> {
       // Extract current office route and re-navigate directly
       await page.goto(currentUrl, { waitUntil: 'commit', timeout: 30000 });
       await sleep(3000);
-      results.directRouteWorks = await page.locator('text="General", h2').first()
+      results.directRouteWorks = await page.getByText('General').or(page.locator('h2')).first()
         .isVisible({ timeout: 10000 }).catch(() => false);
     } else {
       results.directRouteWorks = false;

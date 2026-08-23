@@ -85,7 +85,7 @@ async function navigateToFileManager(page: Page): Promise<boolean> {
   }
 
   // Verify file manager loaded
-  const fileManagerContent = page.locator('text="File Manager", text="Files", text="Sent Files", text="Received Files"').first();
+  const fileManagerContent = page.getByText(/File Manager|Files|Sent Files|Received Files/).first();
   const loaded = await fileManagerContent.isVisible({ timeout: 10000 }).catch(() => false);
   console.log(`  File manager loaded: ${loaded}`);
   return loaded;

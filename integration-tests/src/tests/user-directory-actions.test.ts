@@ -136,7 +136,7 @@ async function checkRoleBadges(page: Page): Promise<boolean> {
   console.log('\n=== Checking Role Badges ===');
 
   // Look for role text (Admin, Member, Owner, Guest)
-  const roleBadge = page.locator('text="Admin", text="Member", text="Owner", text="Guest"').first();
+  const roleBadge = page.getByText(/Admin|Member|Owner|Guest/).first();
   const visible = await isVisibleWithin(roleBadge, 5000);
   console.log(`  Role badge visible: ${visible}`);
 
