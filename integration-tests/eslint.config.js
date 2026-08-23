@@ -32,6 +32,17 @@ export default tseslint.config(
       // disable it here rather than scattering disable comments across
       // every fixture file.
       "no-empty-pattern": "off",
+
+      "no-restricted-syntax": ["error", {
+        // Mixing Playwright's text= engine with anything else in a comma list
+        // does not produce a union. `'text="A", text="B"'` parses as ONE text
+        // selector for the literal `A", text="B` and matches nothing, silently;
+        // `'#id, text="X"'` throws a CSS parse error that the usual
+        // `.catch(() => false)` turns into a quiet false. Eight of these were in
+        // the suite, every one a dead assertion.
+        selector: 'Literal[value=/text=\"[^\"]*\",/]',
+        message: 'This selector cannot match. A comma list mixing text= with another engine is not a union: `text="A", text="B"` matches the literal string `A", text="B`, and `#id, text="X"` throws. Use page.getByText(/A|B/) for any-of-these, or locatorA.or(locatorB) for a real union.',
+      }],
     },
   }
 );
