@@ -6,16 +6,26 @@ import './index.css'
 import { initWasmPeerBridge } from './lib/wasm-peer-bridge'
 initWasmPeerBridge();
 
-// Expose singleton services on window for dev tools and integration testing
-import { p2pRegistrationService } from './lib/p2p-registration-service';
-import { p2pAutoConnectService } from './lib/p2p-auto-connect-service';
-import { websocketService } from './lib/websocket-service';
-import { connectionManager } from './lib/connection/service';
+// Expose singleton services on window for dev tools and integration testing.
+//
+// These are imported DYNAMICALLY inside the DEV branch, not at module scope. A
+// static import runs regardless of the `if`, so the production bundle carried
+// four service modules whose only purpose was to be assigned to window in
+// development — and, because they sit on the entry chunk's import graph, they
+// were fetched and evaluated before React could paint anything. Rollup drops
+// this branch entirely from a production build.
 if (import.meta.env.DEV) {
-  window.__p2pRegistrationService = p2pRegistrationService;
-  window.__p2pAutoConnectService = p2pAutoConnectService;
-  window.__websocketService = websocketService;
-  window.__connectionManager = connectionManager;
+  void Promise.all([
+    import('./lib/p2p-registration-service'),
+    import('./lib/p2p-auto-connect-service'),
+    import('./lib/websocket-service'),
+    import('./lib/connection/service'),
+  ]).then(([reg, auto, ws, conn]) => {
+    window.__p2pRegistrationService = reg.p2pRegistrationService;
+    window.__p2pAutoConnectService = auto.p2pAutoConnectService;
+    window.__websocketService = ws.websocketService;
+    window.__connectionManager = conn.connectionManager;
+  });
 }
 
 // Initialize instance inbound router (routes WebSocket responses to correct instance)

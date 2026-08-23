@@ -27,3 +27,26 @@ rather than carried forward.
 | "Coming soon" placeholder settings tabs | `AppearanceSettingsTab` / `PrivacySettingsTab` are real, localStorage-backed |
 | `Math.random()` mock presence in the user directory | Removed in the auth/session refactor |
 | Simulated demo chat ("Kathy McCooper", Unsplash avatars) | Removed in the auth/session refactor |
+
+## Accepted trade-offs
+
+### Lighthouse "Best Practices" is 96, not 100
+
+`inspector-issues` reports one `ContentSecurityPolicyIssue` — a `kEvalViolation`
+from cbor-x, the CBOR codec used for the P2P wire format.
+
+It is a **feature probe, not a failure**. cbor-x runs `new Function('')` inside a
+`try/catch` at module load (`node_modules/cbor-x/decode.js:46`) to decide whether
+it may compile inline object readers for speed. Our production CSP is
+`script-src 'self' 'wasm-unsafe-eval'` with no `'unsafe-eval'`, so the probe
+throws, cbor-x catches it and permanently disables that optimisation. Chrome logs
+the blocked probe regardless of the catch, and Lighthouse counts the log.
+
+Verified under the production CSP that the fallback path is correct, not merely
+quiet: an encode/decode round trip preserves nested structures and, critically,
+`bigint` values (CIDs are bigint end-to-end — see CLAUDE.md).
+
+The only way to clear the last 4 points is to add `'unsafe-eval'` to `script-src`,
+which would materially weaken XSS protection on a security product to satisfy a
+cosmetic score. Not done deliberately. Revisit only if cbor-x gains a build that
+skips the probe.

@@ -18,7 +18,11 @@
     --secondary: 265 100% 94%; /* Light purple for secondary elements */
     --secondary-foreground: 240 17% 14%; /* Dark text on secondary color */
     --muted: 265 100% 94%; /* Light purple for muted areas */
-    --muted-foreground: 265 31% 54%; /* Medium purple for muted text */
+    /* L raised from 54% to 72%. At 54% this rendered #8465ae on the #1e1e2a card
+       background — a 3.49:1 contrast ratio, below the 4.5:1 WCAG AA minimum for
+       body text, which Lighthouse flagged on every toast description. 72% clears
+       it with room to spare while staying in the same purple family. */
+    --muted-foreground: 265 25% 72%; /* Muted purple text, AA on dark surfaces */
     --accent: 267 90% 86%; /* Light purple accent */
     --accent-foreground: 240 17% 14%; /* Dark text on accent */
     --destructive: 0 84% 60%; /* Red for destructive actions */
