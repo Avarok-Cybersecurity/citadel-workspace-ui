@@ -25,3 +25,17 @@ dist-ssr
 screenshots/*
 integration-tests/screenshots/*
 public/wasm/*
+# Test artifacts (never commit — regenerated on every run)
+test-screenshots/
+screenshots/
+reports/
+test-results/
+integration-tests/test-results/
+integration-tests/reports/
+integration-tests/screenshots/
+playwright-report/
+integration-tests/playwright-report/
+*.tsbuildinfo
+
+# Local test config (use test.config.example.json as the template)
+integration-tests/test.config.json
