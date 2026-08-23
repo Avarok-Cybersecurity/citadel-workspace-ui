@@ -23,7 +23,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { isVisibleWithin } from '../lib/index.js';
+import { activateTab, isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -104,6 +104,16 @@ async function openNotificationCenter(page: Page): Promise<boolean> {
 }
 
 /**
+ * A notification-center tab, scoped to the sheet.
+ *
+ * The sheet renders over the office view, which has Content/Chat tabs of its
+ * own; an unscoped `button[role="tab"]` matches those first.
+ */
+function notificationTab(page: Page, label: string) {
+  return page.locator(`[role="dialog"] button[role="tab"]:has-text("${label}")`);
+}
+
+/**
  * Verify sheet structure elements
  */
 async function verifySheetStructure(page: Page): Promise<{
@@ -125,17 +135,11 @@ async function verifySheetStructure(page: Page): Promise<{
   console.log(`  Title visible: ${results.title}`);
 
   // Check tabs (All, Messages, Requests, System)
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  const messagesTab = page.locator('button[role="tab"]:has-text("Messages")');
-  const requestsTab = page.locator('button[role="tab"]:has-text("Requests")');
-  const systemTab = page.locator('button[role="tab"]:has-text("System")');
-
-  const tabsVisible = await Promise.all([
-    allTab.isVisible({ timeout: 3000 }).catch(() => false),
-    messagesTab.isVisible({ timeout: 3000 }).catch(() => false),
-    requestsTab.isVisible({ timeout: 3000 }).catch(() => false),
-    systemTab.isVisible({ timeout: 3000 }).catch(() => false),
-  ]);
+  const tabsVisible = await Promise.all(
+    ['All', 'Messages', 'Requests', 'System'].map((label) =>
+      isVisibleWithin(notificationTab(page, label), 5000)
+    )
+  );
   results.tabs = tabsVisible.every(Boolean);
   console.log(`  Tabs visible: ${results.tabs} (All: ${tabsVisible[0]}, Messages: ${tabsVisible[1]}, Requests: ${tabsVisible[2]}, System: ${tabsVisible[3]})`);
 
@@ -165,49 +169,21 @@ async function testTabSwitching(page: Page): Promise<{
     systemTab: false,
   };
 
-  // Click "All" tab
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  if (await isVisibleWithin(allTab, 3000)) {
-    await allTab.click();
-    await sleep(300);
-    const isActive = await allTab.getAttribute('data-state');
-    results.allTab = isActive === 'active';
-    console.log(`  All tab works: ${results.allTab}`);
-  }
+  results.allTab = (await activateTab(page, notificationTab(page, 'All'), 'All tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Click "Messages" tab
-  const messagesTab = page.locator('button[role="tab"]:has-text("Messages")');
-  if (await isVisibleWithin(messagesTab, 3000)) {
-    await messagesTab.click();
-    await sleep(300);
-    const isActive = await messagesTab.getAttribute('data-state');
-    results.messagesTab = isActive === 'active';
-    console.log(`  Messages tab works: ${results.messagesTab}`);
-  }
+  results.messagesTab = (await activateTab(page, notificationTab(page, 'Messages'), 'Messages tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Click "Requests" tab
-  const requestsTab = page.locator('button[role="tab"]:has-text("Requests")');
-  if (await isVisibleWithin(requestsTab, 3000)) {
-    await requestsTab.click();
-    await sleep(300);
-    const isActive = await requestsTab.getAttribute('data-state');
-    results.requestsTab = isActive === 'active';
-    console.log(`  Requests tab works: ${results.requestsTab}`);
-  }
+  results.requestsTab = (await activateTab(page, notificationTab(page, 'Requests'), 'Requests tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Click "System" tab
-  const systemTab = page.locator('button[role="tab"]:has-text("System")');
-  if (await isVisibleWithin(systemTab, 3000)) {
-    await systemTab.click();
-    await sleep(300);
-    const isActive = await systemTab.getAttribute('data-state');
-    results.systemTab = isActive === 'active';
-    console.log(`  System tab works: ${results.systemTab}`);
-  }
+  results.systemTab = (await activateTab(page, notificationTab(page, 'System'), 'System tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Go back to All tab
-  await allTab.click();
-  await sleep(300);
+  // Leave the All tab selected for whatever runs next.
+  await activateTab(page, notificationTab(page, 'All'), 'All tab (restore)',
+    page.locator('[role="dialog"] [role="tabpanel"]').first());
 
   return results;
 }
@@ -219,8 +195,18 @@ async function checkEmptyState(page: Page): Promise<boolean> {
   console.log('\n=== Checking Empty State ===');
 
   // Look for the empty state message
+  // Check the Requests tab specifically. This used to inspect whichever tab the
+  // previous step left active — System — which by then holds real connection
+  // notifications, so the empty state was correctly absent and the assertion
+  // reported a failure the app had not made. A fresh account has received no peer
+  // registration requests, so Requests is the one tab that must be empty.
+  await activateTab(page, notificationTab(page, 'Requests'), 'Requests tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first());
+
+  // isVisibleWithin, not isVisible({ timeout }): the latter never waits, and the
+  // list has just re-rendered.
   const emptyState = page.locator('text="No notifications to display"');
-  const visible = await emptyState.isVisible({ timeout: 3000 }).catch(() => false);
+  const visible = await isVisibleWithin(emptyState, 5000);
   console.log(`  Empty state visible: ${visible}`);
   return visible;
 }
@@ -470,7 +456,22 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated && results.bellIconVisible;
+    const corePassed = [
+      results.accountCreated,
+      results.bellIconVisible,
+      results.sheetOpens,
+      results.titleVisible,
+      results.tabsVisible,
+      results.clearAllButtonVisible,
+      results.allTabWorks,
+      results.messagesTabWorks,
+      results.requestsTabWorks,
+      results.systemTabWorks,
+      results.emptyStateVisible,
+      results.sheetCloses,
+      results.notificationBadgeChecked,
+      results.notificationItemInteraction,
+    ].every(Boolean);
 
     console.log('\nAccount Creation:');
     console.log(`  Account Created:          ${results.accountCreated ? 'PASS' : 'FAIL'}`);

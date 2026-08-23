@@ -22,7 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { isVisibleWithin } from '../lib/index.js';
+import { activateTab as sharedActivateTab, isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -206,49 +206,18 @@ async function verifyModalStructure(page: Page): Promise<{
  * disconnected session they are correctly unavailable; failing the suite for that
  * would be asserting the opposite of the intended behaviour.
  */
-async function activateTab(
-  page: Page,
-  index: number,
-  name: string
-): Promise<{ works: boolean; hasContent: boolean; disabled: boolean }> {
-  // Scoped to the dialog. A bare `button[role="tab"]` matches page-wide, and the
-  // office view behind the modal renders its own "Content"/"Chat" tabs FIRST — so
+async function activateTab(page: Page, index: number, name: string) {
+  // Scoped to the dialog: a bare `button[role="tab"]` matches page-wide, and the
+  // office view behind the modal renders its own Content/Chat tabs FIRST — so
   // nth(0) and nth(1) were the office's tabs, not Settings'. This test was
   // reporting on the wrong control entirely, and the modal being on top is why
   // clicking one of them did not activate it.
-  const tab = page.locator('[role="dialog"] button[role="tab"]').nth(index);
-  if (!(await isVisibleWithin(tab, 2000))) {
-    console.log(`  ${name}: tab not present`);
-    return { works: false, hasContent: false, disabled: false };
-  }
-
-  if (await tab.isDisabled()) {
-    console.log(`  ${name}: disabled (requires an active workspace connection)`);
-    return { works: false, hasContent: false, disabled: true };
-  }
-
-  await tab.click({ force: true });
-
-  // Wait for THIS tab to report active, rather than for any active tab to exist —
-  // one always does, so the latter would be satisfied before the click landed.
-  const works = await tab
-    .and(page.locator('[data-state="active"]'))
-    .waitFor({ state: 'visible', timeout: 5000 })
-    .then(() => true)
-    .catch(() => false);
-
-  // The panel this tab controls, not merely "a" panel: Radix mounts only the
-  // active one, but the office view behind the dialog has panels of its own.
-  const panelId = await tab.getAttribute('aria-controls');
-  const hasContent = panelId
-    // An attribute selector, not `#id` — Radix ids contain characters that need
-    // escaping, and CSS.escape is a browser API that does not exist in the Node
-    // process the runner executes in.
-    ? await isVisibleWithin(page.locator(`[id="${panelId}"]`), 5000)
-    : await isVisibleWithin(page.locator('[role="dialog"] [role="tabpanel"]').first(), 5000);
-
-  console.log(`  ${name}: works=${works}, hasContent=${hasContent}`);
-  return { works, hasContent, disabled: false };
+  return sharedActivateTab(
+    page,
+    page.locator('[role="dialog"] button[role="tab"]').nth(index),
+    name,
+    page.locator('[role="dialog"] [role="tabpanel"]').first()
+  );
 }
 
 async function testTabSwitching(page: Page): Promise<{
