@@ -44,10 +44,14 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
 
       let freshPeers: Array<{ cid?: bigint; username?: string }> = [];
       try {
-        freshPeers = await p2pRegistrationService.listRegisteredPeers();
+        // Retrying variant, not the single-shot one. ListRegisteredPeers times out
+        // intermittently under concurrent P2P activity; with a single attempt this
+        // hook silently fell back to the cache, which is why a freshly-registered
+        // peer could take a poll cycle (or several) to appear in the sidebar.
+        freshPeers = await p2pRegistrationService.listRegisteredPeersWithRetry();
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
-        debugLog('UseRegisteredPeers', `listRegisteredPeers failed (${errorMessage}), using cached peers`);
+        debugLog('UseRegisteredPeers', `listRegisteredPeers failed after retries (${errorMessage}), using cached peers`);
       }
 
       // Merge cached and fresh peers

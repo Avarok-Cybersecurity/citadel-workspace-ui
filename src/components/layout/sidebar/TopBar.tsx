@@ -20,6 +20,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal } from "@/components/SettingsModal";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
+import { isDiagnosticsUiEnabled } from "@/lib/debug-config";
 import { connectionManager } from "@/lib/connection";
 import { useNavigate } from "react-router-dom";
 import { clearSelectedUser, getSelectedUser } from "@/lib/tab-context";
@@ -164,7 +165,8 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
       <div className="flex items-center space-x-2">
-        <LeaderIndicator />
+        {/* Internal multi-tab state — hidden from end users; see isDiagnosticsUiEnabled. */}
+        {isDiagnosticsUiEnabled() && <LeaderIndicator />}
         <NotificationCenter />
 
 
