@@ -19,7 +19,7 @@ import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { applyGfmStrikethrough } from '../room/mdx-preprocess';
+import { applyGfmStrikethrough } from './mdx-preprocess';
 import { debugLog } from '@/lib/debug-config';
 
 interface BaseOfficeProps {

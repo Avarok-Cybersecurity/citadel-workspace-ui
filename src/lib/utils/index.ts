@@ -12,7 +12,10 @@ export {
   cidToString,
   cidKey,
   cidPairKey,
-  isCidLike
+  isCidLike,
+  toCidKey,
+  tryParseCid,
+  type CidLike
 } from './cid-utils';
 
 // Request tracking

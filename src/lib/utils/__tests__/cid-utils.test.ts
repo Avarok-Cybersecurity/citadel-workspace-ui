@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tryParseCid } from '../cid-utils';
+import { tryParseCid, toCidKey } from '../cid-utils';
 
 /**
  * Tests for `tryParseCid`. The function is the single source of
@@ -99,5 +99,43 @@ describe('tryParseCid', () => {
     // CIDs are unsigned. `BigInt('-1')` is `-1n`, but the parser enforces
     // the positive-integer contract and returns undefined.
     expect(tryParseCid('-1')).toBeUndefined();
+  });
+});
+
+describe('toCidKey', () => {
+  it('produces the full-precision decimal string for a bigint CID', () => {
+    expect(toCidKey(7040934265064422768n)).toBe('7040934265064422768');
+  });
+
+  it('accepts the string and number forms a CID may arrive in', () => {
+    expect(toCidKey('7040934265064422768')).toBe('7040934265064422768');
+    expect(toCidKey(12345)).toBe('12345');
+  });
+
+  it('distinguishes CIDs that share their last 10 digits', () => {
+    // The regression this function exists to prevent. The previous `normalizeCid`
+    // compared only the last 10 digits, so these two distinct peers compared EQUAL
+    // and a registration response could be matched to the wrong peer.
+    const a = toCidKey(11111111111234567890n);
+    const b = toCidKey(99999999991234567890n);
+    expect(a).not.toBe(b);
+    expect(a.slice(-10)).toBe(b.slice(-10)); // the collision the old code accepted
+  });
+
+  it('returns the empty string for absent or unusable values', () => {
+    // '' is the documented "no match" sentinel, so callers never need a try/catch.
+    expect(toCidKey(null)).toBe('');
+    expect(toCidKey(undefined)).toBe('');
+    expect(toCidKey('not-a-cid')).toBe('');
+    expect(toCidKey('')).toBe('');
+    expect(toCidKey(0n)).toBe('');
+    expect(toCidKey(-1n)).toBe('');
+  });
+
+  it('collapses every unusable value to the same empty key', () => {
+    // Two different bad inputs both yield '', so a caller comparing keys must also
+    // check truthiness — which is exactly why waitForAcceptResponse guards on
+    // `!!targetKey` before trusting a match.
+    expect(toCidKey('garbage')).toBe(toCidKey(null));
   });
 });

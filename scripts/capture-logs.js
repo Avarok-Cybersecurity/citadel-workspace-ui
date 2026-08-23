@@ -7,7 +7,7 @@
  * without starting the development server itself.
  */
 
-import puppeteer from 'puppeteer';
+import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -38,10 +38,9 @@ async function captureLogs() {
   log('Starting browser console capture...');
   
   try {
-    const browser = await puppeteer.launch({
+    const browser = await chromium.launch({
       headless: false,
-      devtools: true,
-      args: ['--window-size=1280,800']
+      args: ['--window-size=1280,800', '--auto-open-devtools-for-tabs'],
     });
     
     const page = await browser.newPage();
@@ -61,7 +60,7 @@ async function captureLogs() {
     
     // Capture network errors
     page.on('requestfailed', (request) => {
-      log(`[NETWORK ERROR] ${request.url()} failed: ${request.failure().errorText}`);
+      log(`[NETWORK ERROR] ${request.url()} failed: ${request.failure()?.errorText ?? 'unknown'}`);
     });
     
     log('Navigating to app...');

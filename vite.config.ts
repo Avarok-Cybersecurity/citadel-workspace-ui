@@ -4,20 +4,33 @@ import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
 
 /**
- * The Content-Security-Policy the app ships under. Declared once so the dev server, `preview` and
- * the production nginx config cannot drift apart - that drift is the whole bug this change fixes.
+ * The Content-Security-Policy the app ships under.
  *
- * `connect-src 'self'` is the load-bearing part: the agent socket is now same-origin (`/ws`), so
- * 'self' covers it, and no `ws:`/`wss:` wildcard is needed. A bare scheme source would match ANY
- * host, which would let an XSS payload exfiltrate to an attacker's socket.
+ * PRODUCTION_CSP is byte-identical to the policy nginx sends in
+ * docker/ui/nginx.conf.template. That is the whole point: `npm run preview` is the only
+ * command that serves the real production bundle, so it is the only local place a CSP
+ * violation can surface before deploy. It previously allowed `'unsafe-inline'` in
+ * script-src plus https://cdn.gpteng.co and https://images.unsplash.com - none of which
+ * nginx allows - which made preview STRICTLY MORE PERMISSIVE than production and unable
+ * to catch the very class of bug it exists to catch. The gpteng/unsplash origins were
+ * scaffold residue: nothing in the app loads from either.
+ *
+ * `connect-src 'self'` is the load-bearing part: the agent socket is same-origin (`/ws`),
+ * so 'self' covers it and no `ws:`/`wss:` wildcard is needed. A bare scheme source would
+ * match ANY host, which would let an XSS payload exfiltrate to an attacker's socket.
  */
 const PRODUCTION_CSP =
-  "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;";
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 
-/** Identical to production except for `unsafe-eval`, which Vite's dev transform requires and
- *  production must never have. `connect-src` is deliberately the SAME in both. */
+/**
+ * Identical to production except for the two script-src sources Vite's dev transform
+ * genuinely requires: 'unsafe-eval' and 'unsafe-inline' (the HMR client and the
+ * react-refresh preamble are injected inline). Production has neither and must not.
+ * Every other directive - and `connect-src` in particular - is deliberately the SAME,
+ * so a violation fails in dev, where someone will notice.
+ */
 const DEV_CSP =
-  "default-src 'self' https://cdn.gpteng.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.gpteng.co https://dns.google; frame-src 'self' https://cdn.gpteng.co; img-src 'self' data: https://cdn.gpteng.co https://images.unsplash.com;";
+  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 
 /**
  * Proxy the agent's WebSocket so a locally-served app reaches it at the same same-origin `/ws`
@@ -112,10 +125,6 @@ export default defineConfig(({ mode }) => {
               // Date utilities
               if (id.includes('date-fns')) {
                 return 'vendor-date';
-              }
-              // Charts
-              if (id.includes('recharts') || id.includes('d3-')) {
-                return 'vendor-charts';
               }
               // Animations
               if (id.includes('framer-motion')) {

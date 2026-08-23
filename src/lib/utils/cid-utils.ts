@@ -54,10 +54,40 @@ export function cidToString(cid: bigint): string {
 
 /**
  * Creates a CID key for Map/Set operations.
- * Uses string representation for consistent hashing.
+ *
+ * Delegates to `cidToString` rather than repeating `cid.toString()`: the two were
+ * byte-identical implementations, so any future change to how a CID is stringified
+ * had to be made in two places to stay correct. The distinct name is kept because it
+ * documents intent at the call site (a Map key, not a display string).
  */
 export function cidKey(cid: bigint): string {
-  return cid.toString();
+  return cidToString(cid);
+}
+
+/** A CID as it may arrive from the wire, a URL param, or storage. */
+export type CidLike = bigint | string | number | null | undefined;
+
+/**
+ * Canonical, full-precision key for a CID that may not already be a bigint.
+ *
+ * Returns '' for anything that is not a usable CID, so callers can treat '' as
+ * "no match" without a try/catch.
+ *
+ * This replaces an older `normalizeCid` that compared only the LAST 10 DIGITS to
+ * "handle JS precision loss with u64 values". That truncation predates the bigint
+ * migration: CIDs are canonically bigint and cross the wire as CBOR with native
+ * BigInt, so no precision is lost and the workaround is obsolete. Worse, it made two
+ * distinct CIDs sharing their last 10 digits compare EQUAL, which in peer-registration
+ * matching means accepting a response that belongs to a different peer.
+ */
+export function toCidKey(value: CidLike): string {
+  if (value === null || value === undefined) return '';
+  try {
+    const cid = typeof value === 'bigint' ? value : BigInt(value);
+    return cid > 0n ? cidToString(cid) : '';
+  } catch {
+    return '';
+  }
 }
 
 /**

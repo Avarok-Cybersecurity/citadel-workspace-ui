@@ -9,18 +9,7 @@ import { eventEmitter } from '../event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '../timeout-constants';
-
-type CidLike = bigint | string | number | null | undefined;
-
-/**
- * Normalize CID for comparison - extract last 10 digits to handle JS precision loss
- * with u64 values.
- */
-export function normalizeCid(cid: CidLike): string {
-  if (!cid) return '';
-  const str = cid.toString();
-  return str.length > 10 ? str.slice(-10) : str;
-}
+import { toCidKey, type CidLike } from '@/lib/utils/cid-utils';
 
 /**
  * Wait for a PeerRegister/PeerConnect response matching the given request.
@@ -31,7 +20,7 @@ export function waitForAcceptResponse(
   targetPeerCid: bigint,
   currentCid: bigint
 ): Promise<void> {
-  const targetNormalized = normalizeCid(targetPeerCid);
+  const targetKey = toCidKey(targetPeerCid);
 
   return new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -55,12 +44,13 @@ export function waitForAcceptResponse(
         msg.PeerConnectNotification?.peer_cid;
       const responseCid = msg.PeerConnectNotification?.cid;
 
-      const matchesByPeerCid = normalizeCid(responsePeerCid as CidLike) === targetNormalized && !!targetNormalized;
-      const matchesByCid = normalizeCid(responseCid as CidLike) === targetNormalized && !!targetNormalized;
+      const matchesByPeerCid = !!targetKey && toCidKey(responsePeerCid as CidLike) === targetKey;
+      const matchesByCid = !!targetKey && toCidKey(responseCid as CidLike) === targetKey;
 
-      const isOurNotification = msg.PeerConnectNotification &&
-        (normalizeCid(msg.PeerConnectNotification.cid as CidLike) === normalizeCid(currentCid) ||
-         normalizeCid(msg.PeerConnectNotification.peer_cid as CidLike) === normalizeCid(currentCid));
+      const currentKey = toCidKey(currentCid);
+      const isOurNotification = !!msg.PeerConnectNotification && !!currentKey &&
+        (toCidKey(msg.PeerConnectNotification.cid as CidLike) === currentKey ||
+         toCidKey(msg.PeerConnectNotification.peer_cid as CidLike) === currentKey);
 
       if (msg.PeerRegisterSuccess || msg.PeerConnectSuccess || msg.PeerConnectNotification) {
         debugLog('PeerRegistrationStore', 'Checking response match', {
