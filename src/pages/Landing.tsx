@@ -11,7 +11,6 @@ import { listKnownServers } from "@/lib/server-utils";
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
 import { ConnectionManager } from "@/lib/connection";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
-import { LoginConflictModal } from "@/components/LoginConflictModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
@@ -26,10 +25,6 @@ export const Landing = () => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
-  const [orphanSessionCount, setOrphanSessionCount] = useState(0);
-  // TODO: showLoginConflict is never set to true — LoginConflictModal is never displayed.
-  // Either wire this up to detect login conflicts, or remove the modal and state.
-  const [showLoginConflict, setShowLoginConflict] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Server connection data lifted to Landing state to avoid React Query GC eviction
@@ -53,17 +48,14 @@ export const Landing = () => {
         if (activeSessions && activeSessions.length > 0) {
           debugLog('Landing', 'Landing: Found orphan sessions:', activeSessions.length);
           setHasOrphanSessions(true);
-          setOrphanSessionCount(activeSessions.length);
           // Note: Don't auto-navigate - let user choose from the navbar
         } else {
           debugLog('Landing', 'Landing: No orphan sessions found');
           setHasOrphanSessions(false);
-          setOrphanSessionCount(0);
         }
       } catch (error) {
         debugLog('Landing', 'Landing: Error checking orphan sessions:', error);
         setHasOrphanSessions(false);
-        setOrphanSessionCount(0);
       }
     };
 
@@ -284,17 +276,6 @@ export const Landing = () => {
       {currentStep === 'login' && (
         <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} />
       )}
-
-      {/* Login conflict modal */}
-      <LoginConflictModal
-        open={showLoginConflict}
-        onOpenChange={setShowLoginConflict}
-        workspaceCount={orphanSessionCount}
-        onDismiss={() => {
-          // Just close the modal - user can use the navbar icons
-          setShowLoginConflict(false);
-        }}
-      />
 
       {/* Settings modal */}
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
