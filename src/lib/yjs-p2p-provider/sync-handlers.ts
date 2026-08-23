@@ -11,7 +11,6 @@ import { debugLog } from '@/lib/debug-config';
 import type { YjsSyncMessage, SyncState } from './types';
 import { sendSyncMessage, sendAck } from './sending';
 import type { SendingContext } from './sending';
-import type { YjsMerkleTree } from '@/lib/yjs-merkle-strategy';
 
 /** Subset of provider state needed by sync handlers */
 export interface SyncHandlerContext extends SendingContext {
@@ -31,7 +30,7 @@ export interface SyncHandlerContext extends SendingContext {
 export function handleSyncStep1(
   ctx: SyncHandlerContext,
   stateVector: Uint8Array,
-  message: YjsSyncMessage
+  _message: YjsSyncMessage
 ): void {
   // Avoid responding to duplicate/old sync messages
   if (ctx.syncState === 'synced' && ctx.initialSyncComplete) {
@@ -156,7 +155,7 @@ export function handleFullState(
  */
 export function handleRequestFullState(
   ctx: SyncHandlerContext,
-  message: YjsSyncMessage
+  _message: YjsSyncMessage
 ): void {
   // Only creator should respond
   if (ctx.ownCid !== ctx.creatorCid) {

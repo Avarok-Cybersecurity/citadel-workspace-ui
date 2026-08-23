@@ -8,7 +8,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';

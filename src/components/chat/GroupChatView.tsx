@@ -25,7 +25,7 @@ interface GroupChatViewProps {
 export const GroupChatView: React.FC<GroupChatViewProps> = ({
   groupId,
   currentUserId,
-  currentUserName,
+  currentUserName: _currentUserName,
   rules,
   totalMembers = 2,
 }) => {

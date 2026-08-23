@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ConnectionService } from './connection-service';
-import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
+import NotificationService, { NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection';
 import { p2pMessengerManager } from './p2p';
@@ -91,7 +91,7 @@ export class MessagingService {
     this.onTypingStatusChange = handler;
   }
 
-  public async sendMessage(recipientId: string, content: string, securityLevel: number = 0): Promise<Message> {
+  public async sendMessage(recipientId: string, content: string, _securityLevel: number = 0): Promise<Message> {
     // Check if the current user is connected with the recipient
     if (!this.getConnectionService().canMessageUser(recipientId)) {
       throw new Error('Cannot send message to this user. Connection not established.');
@@ -156,13 +156,6 @@ export class MessagingService {
     }
 
     try {
-      // Reset message status to pending
-      const pendingMessage: Message = {
-        ...message,
-        status: 'pending',
-        timestamp: Date.now() // Update timestamp for resent message
-      };
-
       // Attempt to send the message again
       return await this.sendMessage(message.recipientId, message.content);
     } catch (error) {

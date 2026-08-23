@@ -13,11 +13,9 @@ import type {
   YjsAckMessage,
   YjsDivergenceMessage,
   SyncState,
-  PendingAck,
 } from './types';
 import { sendSyncMessage } from './sending';
 import type { SendingContext } from './sending';
-import type { YjsMerkleTree } from '@/lib/yjs-merkle-strategy';
 
 /** Subset of provider state needed by message handlers */
 export interface MessageHandlerContext extends SendingContext {

@@ -5,13 +5,11 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps } from '../types';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Loader2, MessageSquare, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { debugLog } from '@/lib/debug-config';
 
-export function ChatSettingsTab({ entityType, entityId, onClose }: AdminTabProps) {
-  const { state } = useWorkspace();
+export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
   const { toast } = useToast();
   const [chatEnabled, setChatEnabled] = useState(true);
   const [chatRules, setChatRules] = useState('');

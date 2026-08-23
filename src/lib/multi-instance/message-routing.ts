@@ -6,7 +6,6 @@
  */
 
 import { debugLog } from '@/lib/debug-config';
-import type { ResponseType } from 'citadel-workspace-client-ts';
 import {
   CID_FIELDS,
   CID_ROUTED_NOTIFICATIONS,

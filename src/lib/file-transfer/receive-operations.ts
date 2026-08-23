@@ -180,7 +180,7 @@ export function createCompleteHandler(
 
 export function createStatusChangeHandler(
   callback: (event: TransferStatusEvent) => void,
-  objectIdToTransferId: Map<string, string>
+  _objectIdToTransferId: Map<string, string>
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
     const notification = message.FileTransferStatusNotification as

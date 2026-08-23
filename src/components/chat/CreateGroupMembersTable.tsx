@@ -50,7 +50,7 @@ interface MembersTableProps {
 export function MembersTable({
   selectedMembers,
   assignableRoles,
-  defaultRoles,
+  defaultRoles: _defaultRoles,
   onRoleChange,
   onRemoveMember,
 }: MembersTableProps) {

@@ -120,7 +120,7 @@ export function setupWasmDebugBridge() {
     try {
       const mappedLog = parseAndFormatMixedContent(logStr);
       debugLog('WasmDebugBridge', "sanitized log: " + mappedLog);
-    } catch (error) {
+    } catch (_error) {
       // If any error occurs, just log the original string
       debugLog('WasmDebugBridge', logStr);
     }

@@ -13,15 +13,13 @@ import {
   placeFile,
   renameNode,
   moveNode,
-  copyNode,
-  applyRemoteOp,
 } from '../tree-operations';
 import {
   RevfsOpType,
   SENT_FILES_DIR,
   RECEIVED_FILES_DIR,
 } from '@/types/revfs-types';
-import { CID_A, CID_B, makeMeta } from './tree-test-helpers';
+import { CID_A, makeMeta } from './tree-test-helpers';
 
 // ============================================================================
 // renameNode

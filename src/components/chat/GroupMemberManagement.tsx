@@ -39,7 +39,7 @@ export function GroupMemberManagement({
   onRoleChange,
   onKickMember,
 }: GroupMemberManagementProps) {
-  const { can, canManageMember, canAssignRole, isOwner } = useGroupPermissions(group);
+  const { can, canManageMember, canAssignRole } = useGroupPermissions(group);
   const [memberToKick, setMemberToKick] = useState<GroupMemberWithRole | null>(null);
   const [isKicking, setIsKicking] = useState(false);
 

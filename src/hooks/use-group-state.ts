@@ -4,7 +4,7 @@
  * Handles event listeners, state updates, and persistence for group conversations.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import type {
   GroupConversation,

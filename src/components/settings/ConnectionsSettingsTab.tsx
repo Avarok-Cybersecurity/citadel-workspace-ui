@@ -48,7 +48,7 @@ export function ConnectionsSettingsTab() {
           ? 'Sessions will automatically reconnect when disconnected.'
           : 'You will need to manually enter credentials to reconnect.',
       });
-    } catch (error) {
+    } catch (_error) {
       // Revert on error
       setAutoReconnect(!enabled);
       toast({

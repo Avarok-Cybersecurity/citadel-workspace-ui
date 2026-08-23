@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Palette, Monitor, Type, Layout } from 'lucide-react';
+import { Monitor, Type, Layout } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

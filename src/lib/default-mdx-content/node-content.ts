@@ -4,7 +4,6 @@
  * Default MDX content for office and room nodes.
  */
 
-import { debugLog } from '@/lib/debug-config';
 export const getDefaultNodeContent = (nodeName: string) => `# Welcome to ${nodeName}
 
 Welcome to your new office workspace! This is a **powerful MDX editor** that supports rich content formatting, interactive components, and collaborative editing.

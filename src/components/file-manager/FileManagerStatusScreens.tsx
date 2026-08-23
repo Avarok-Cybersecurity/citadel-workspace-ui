@@ -1,5 +1,4 @@
 import { Loader2, Users, FolderOpen, Server } from "lucide-react";
-import { TreeScope } from "@/types/revfs-types";
 
 interface ConnectingScreenProps {}
 

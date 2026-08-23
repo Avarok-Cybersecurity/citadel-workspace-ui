@@ -5,7 +5,7 @@
  * Used by the RealProtocolIORouter implementation.
  */
 
-import type { FileTransferMode, FileTransferState } from '@/types/messaging-layer';
+import type { FileTransferMode } from '@/types/messaging-layer';
 
 // ============================================================================
 // FileSource Enum (matches Rust definition)

@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { usePermissions, Permission, PERMISSION_CATEGORIES } from '@/contexts/PermissionsContext';
+import { usePermissions, PERMISSION_CATEGORIES } from '@/contexts/PermissionsContext';
 import type { UserRole } from '@/lib/permissions-service';
 import { cn } from '@/lib/utils';
 

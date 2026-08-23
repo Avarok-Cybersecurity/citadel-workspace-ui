@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
 import NotificationService, { 
   Notification, 
   NotificationType 
@@ -23,7 +22,6 @@ interface NotificationItemProps {
 
 const NotificationItem = ({ notification }: NotificationItemProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { toast } = useToast();
   const notificationService = NotificationService.getInstance();
   
   // Mark as read when rendered

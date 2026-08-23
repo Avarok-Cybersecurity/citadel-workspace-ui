@@ -4,7 +4,6 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
 import { websocketService } from "@/lib/websocket-service";
-import WorkspaceService from "@/lib/workspace-service";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";

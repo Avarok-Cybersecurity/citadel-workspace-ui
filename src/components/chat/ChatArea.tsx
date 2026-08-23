@@ -1,11 +1,9 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Bell, Search, Shield, Send, MoreVertical, Upload, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bell, Search, Shield, MoreVertical, Upload, ChevronDown } from "lucide-react";
 // Removed messageChannels import - now handled internally
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useEffect, useRef, useState } from "react";
 import { formatRelativeTime } from "../../lib/date-utils";
 import { RetryableMessageSender } from "./RetryableMessageSender";
 import { TypingIndicator } from "./TypingIndicator";
@@ -29,7 +27,6 @@ interface ChatAreaProps {
 }
 
 export const ChatArea = ({ recipientId }: ChatAreaProps) => {
-  const { state } = useWorkspace();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -39,7 +36,6 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
   // Get real user info from connection
   const connectionInfo = connectionManager.getConnectionInfo();
   const currentUserId = connectionInfo?.cid ? String(connectionInfo.cid) : 'current-user';
-  const currentUserName = connectionInfo?.username || 'You';
 
   // Initialize with any existing messages from the current conversation
   useEffect(() => {

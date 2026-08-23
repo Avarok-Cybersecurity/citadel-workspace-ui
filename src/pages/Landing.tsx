@@ -7,7 +7,6 @@ import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
 import { Login } from "@/components/Login";
 import { postAuthSetup } from '@/lib/post-auth-setup';
-import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { listKnownServers } from "@/lib/server-utils";
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
 import { ConnectionManager } from "@/lib/connection";

@@ -1,4 +1,4 @@
-import { Download, X, Check, Zap } from 'lucide-react';
+import { X, Check, Zap } from 'lucide-react';
 import { getBubbleStyles } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import type { FileTransferBubbleProps } from './types';

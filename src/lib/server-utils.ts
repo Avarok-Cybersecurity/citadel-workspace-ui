@@ -2,7 +2,7 @@ import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { debugLog } from '@/lib/debug-config';
-import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
+import { narrowWebSocketMessage, getVariant } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from './timeout-constants';
 
 /**

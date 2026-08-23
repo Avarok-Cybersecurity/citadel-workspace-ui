@@ -19,7 +19,6 @@
 
 import { useEffect, useRef } from 'react';
 import { eventEmitter, type EventHandler } from '@/lib/event-emitter';
-import { debugLog } from '@/lib/debug-config';
 
 /**
  * Subscribe to a single event with automatic cleanup.

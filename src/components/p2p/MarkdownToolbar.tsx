@@ -17,7 +17,7 @@ import {
   Eye,
   Edit,
 } from 'lucide-react';
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 
 interface MarkdownToolbarProps {
   visible: boolean;

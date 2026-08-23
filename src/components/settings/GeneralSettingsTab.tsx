@@ -3,7 +3,6 @@ import { debugLog } from '@/lib/debug-config';
 import { Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast, useEventListener } from '@/hooks';
 import { AvatarUpload } from './AvatarUpload';
 import WorkspaceService from '@/lib/workspace-service';

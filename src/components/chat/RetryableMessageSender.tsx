@@ -3,7 +3,6 @@ import { Send, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useRetry } from '../../hooks/use-retry';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Alert, AlertDescription } from '../ui/alert';
 import { MessagingService } from '../../lib/messaging-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';

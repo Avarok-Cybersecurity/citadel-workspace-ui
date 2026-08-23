@@ -4,7 +4,7 @@
  * Low-level P2P command sending and raw message operations.
  */
 
-import type { P2PCommand, P2PAttachment } from '@/types/p2p-types';
+import type { P2PCommand } from '@/types/p2p-types';
 import {
   createMessagingLayerCommand,
   createMessageAckCommand,
@@ -13,7 +13,6 @@ import {
 import type { MessagingLayer } from '@/types/messaging-layer';
 import { websocketService } from '../websocket-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
-import type { P2PConversation } from './p2p-types';
 import type { MessageSenderConfig } from './message-sender-types';
 import { debugLog } from '@/lib/debug-config';
 

@@ -15,7 +15,6 @@ import { websocketService } from '../websocket-service';
 import { RealProtocolIORouter } from './real-protocol-io-router';
 import type { FileSource } from './io-router-types';
 import type {
-  FileTransfer,
   FileTransferIntent,
   SendTransferRequestIntent,
   SendChunkIntent,

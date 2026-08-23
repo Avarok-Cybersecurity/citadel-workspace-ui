@@ -9,11 +9,8 @@
 import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
 import type { MessageType } from './message-protocol';
 import type { MessagingLayer } from './messaging-layer';
-import {
-  MessagingLayerType,
-  serializeMessagingLayer,
-  deserializeMessagingLayer
-} from './messaging-layer';
+
+
 
 // Re-export MessagingLayer types for convenience
 export type { MessagingLayer } from './messaging-layer';

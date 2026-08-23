@@ -15,7 +15,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
 
-export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
+export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
   const { state } = useWorkspace();
   const { toast } = useToast();
   const [members, setMembers] = useState<MemberData[]>([]);

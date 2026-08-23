@@ -46,7 +46,7 @@ export function P2PChat({
   currentUserCid,
   currentUserName = 'You',
   mode = 'p2p',
-  groupId,
+  groupId: _groupId,
   showSenderName,
   showSenderAvatar,
   rules,

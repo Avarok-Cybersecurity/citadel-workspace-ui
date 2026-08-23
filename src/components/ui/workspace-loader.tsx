@@ -4,7 +4,6 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ConnectionService } from '@/lib/connection-service';
 import { ConnectionManager } from '@/lib/connection';
 import { websocketService } from '@/lib/websocket-service';
-import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';

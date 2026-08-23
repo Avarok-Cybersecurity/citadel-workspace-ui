@@ -15,7 +15,7 @@ interface JoinProps {
   serverPassword: string;
 }
 
-export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword }: JoinProps) => {
+export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword }: JoinProps) => {
   const {
     formData,
     isRegistering,

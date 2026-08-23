@@ -1,5 +1,5 @@
 import { CollaborativeEditor } from './CollaborativeEditor';
-import { FileText, Save, Download, RefreshCw } from 'lucide-react';
+import { FileText, Download, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useState, useCallback } from 'react';

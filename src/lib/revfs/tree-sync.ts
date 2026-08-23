@@ -12,7 +12,6 @@ import {
   PROTECTED_DIRS,
 } from '@/types/revfs-types';
 import {
-  normalizePath,
   parentPath,
   baseName,
   cloneTree,

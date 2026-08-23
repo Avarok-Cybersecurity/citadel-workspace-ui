@@ -31,7 +31,6 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   onClose,
 }) => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Track permissions per role

@@ -11,7 +11,6 @@ import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { getDefaultSecuritySettings } from '../security-utils';
 import { messagePaginationStore } from './message-pagination-store';
 import type { ConversationManager } from './conversation-manager';
-import type { CheckStateManager } from './checkstate-manager';
 import type { P2PMessage } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
 

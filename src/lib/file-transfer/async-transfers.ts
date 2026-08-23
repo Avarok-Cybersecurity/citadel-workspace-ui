@@ -10,18 +10,14 @@
 
 import { eventEmitter } from '../event-emitter';
 import {
-  type MessagingLayer,
   MessagingLayerType,
   type FileTransferRequestData,
   type FileTransferResponseData,
-  isFileTransferRequest,
-  isFileTransferResponse,
 } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
-import type { FileTransfer, TransferProgressEvent } from './types';
-import { debugLog } from '@/lib/debug-config';
+import type { FileTransfer } from './types';
 
 /** Dependencies injected from the FileTransferService */
 export interface AsyncTransferDeps {

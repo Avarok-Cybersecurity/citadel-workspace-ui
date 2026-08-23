@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal } from "./LoadingModal";
-import { notificationService } from "@/lib/notification-service";
 import { useOrphanSessions } from "./useOrphanSessions";
 
 export const OrphanSessionsNavbar = () => {

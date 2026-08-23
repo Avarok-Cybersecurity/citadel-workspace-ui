@@ -38,7 +38,7 @@ export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
       currentUserCid,
       currentUserName,
       peerName,
-      peerCid,
+      peerCid: _peerCid,
       isLoadingMore,
       hasMorePages,
       displaySenderName,

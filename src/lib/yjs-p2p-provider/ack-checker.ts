@@ -7,7 +7,7 @@
 
 import * as Y from 'yjs';
 import { debugLog } from '@/lib/debug-config';
-import type { PendingAck, SyncState } from './types';
+import type { SyncState } from './types';
 import { sendSyncMessage } from './sending';
 import type { SendingContext } from './sending';
 import { YJS_ACK_TIMEOUT_MS, YJS_MAX_RETRIES } from './constants';
@@ -50,7 +50,7 @@ export function checkPendingAcks(ctx: AckCheckerContext): void {
 /**
  * Handle hash mismatch - initiate divergence recovery
  */
-export function handleHashMismatch(ctx: SendingContext, remoteHash: string): void {
+export function handleHashMismatch(ctx: SendingContext, _remoteHash: string): void {
   debugLog('YjsP2PProvider', 'Hash mismatch detected, initiating divergence recovery');
 
   if (ctx.ownCid === ctx.creatorCid) {

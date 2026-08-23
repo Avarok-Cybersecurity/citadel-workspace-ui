@@ -3,6 +3,7 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import unusedImports from "eslint-plugin-unused-imports";
 
 export default tseslint.config(
   { ignores: [
@@ -28,6 +29,7 @@ export default tseslint.config(
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      "unused-imports": unusedImports,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -35,7 +37,24 @@ export default tseslint.config(
       // Disabled: HMR optimization warning, not code quality issue
       // Many UI components legitimately export variants alongside components
       "react-refresh/only-export-components": "off",
+      // Re-enabled. With this off, dead variables, unused imports and orphaned
+      // parameters accumulate invisibly — which is how several unreferenced modules
+      // survived in this tree. Unused *imports* are delegated to unused-imports,
+      // which (unlike the base rule) can auto-fix them, so `eslint --fix` keeps the
+      // bundle free of dead imports. `_`-prefixed names stay exempt for the
+      // genuinely-unused-by-design cases: unused catch bindings, and positional
+      // parameters that exist only to satisfy a shared prop type.
       "@typescript-eslint/no-unused-vars": "off",
+      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-vars": ["error", {
+        args: "after-used",
+        argsIgnorePattern: "^_",
+        vars: "all",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+        ignoreRestSiblings: true,
+      }],
       // Prevent accidentally not awaiting a Promise
       // Use "void someAsyncFunction();" to explicitly run in background
       "@typescript-eslint/no-floating-promises": "error",

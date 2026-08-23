@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Info, Shield, Zap } from 'lucide-react';
 import { REVFS_DEFAULT_QUOTA_BYTES } from '@/types/messaging-layer';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { FileTransferSettings, TransferModePreference } from '@/lib/file-transfer';
+import type { FileTransferSettings } from '@/lib/file-transfer';
 
 interface ChatSettingsRemoteTabProps {
   peerName: string;

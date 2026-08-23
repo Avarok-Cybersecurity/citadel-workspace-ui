@@ -8,10 +8,8 @@ import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
 import type { LeaderElectionState } from './channel-leader-election';
 import {
   startLeaderElection,
-  tryBecomeLeader,
   handleLeaderElection,
   handleLeaderHeartbeat,
-  sendHeartbeat,
 } from './channel-leader-election';
 import {
   handleOutboundRequest,

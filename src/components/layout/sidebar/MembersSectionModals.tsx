@@ -10,7 +10,7 @@
  * - CreateGroupDialog
  */
 
-import { Users, MoreVertical, Shield, User as UserIcon } from "lucide-react";
+import { MoreVertical, Shield, User as UserIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {

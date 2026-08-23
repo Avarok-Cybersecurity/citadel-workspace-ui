@@ -25,7 +25,7 @@ export function FileTransferModal({
   isOpen,
   onClose,
   onSendFile,
-  onSendWithNativePicker,
+  onSendWithNativePicker: _onSendWithNativePicker,
   peerCid,
   maxFileSizeMb = 100,
 }: FileTransferModalProps) {

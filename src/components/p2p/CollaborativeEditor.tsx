@@ -25,7 +25,7 @@ export function CollaborativeEditor({
   peerCid,
   currentUserCid,
   currentUserName,
-  peerName = 'Peer',
+  peerName: _peerName = 'Peer',
   creatorCid,
   onSave,
 }: CollaborativeEditorProps) {

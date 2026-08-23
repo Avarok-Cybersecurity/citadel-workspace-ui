@@ -59,7 +59,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const domainId = nodeId;
 
   // Check if user can edit the MDX content using the permissions system
-  const { allowed: canEditMdx, reason: editDeniedReason, loading: permissionLoading } = usePermission(
+  const { allowed: canEditMdx, reason: editDeniedReason } = usePermission(
     domainId,
     Permission.EditMdx
   );

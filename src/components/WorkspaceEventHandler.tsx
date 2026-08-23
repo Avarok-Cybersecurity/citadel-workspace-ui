@@ -7,7 +7,6 @@ import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
 import { connectionManager } from '../lib/connection';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 
 import {
   useWorkspaceEventSetup,
