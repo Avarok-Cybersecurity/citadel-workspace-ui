@@ -4,10 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { UserPlus, UserCheck, Loader2, Clock } from 'lucide-react';
 import type { PendingPeerRequest } from '@/lib/peer-registration-store';
 import type { Peer } from './usePeerDiscovery';
-
-function getUserInitial(username: string) {
-  return username.charAt(0).toUpperCase();
-}
+import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
 
 interface PeerListItemProps {
   peer: Peer;
@@ -34,14 +31,16 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
     >
       <div className="flex items-center space-x-3">
         <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
-          {getUserInitial(peer.username)}
+          {peerInitials(peer)}
         </div>
         <div>
-          <p className="font-medium">{peer.username}</p>
-          {peer.fullName && (
-            <p className="text-xs text-gray-400">{peer.fullName}</p>
+          <p className="font-medium">{peerDisplayName(peer)}</p>
+          {peer.fullName && peer.username && (
+            <p className="text-xs text-gray-400">{peer.username}</p>
           )}
-          <p className="text-xs text-gray-500">CID: {peer.cid}</p>
+          {isUnnamedPeer(peer) && (
+            <p className="text-xs text-gray-500">Name not shared yet</p>
+          )}
         </div>
       </div>
       <div className="flex items-center space-x-2">

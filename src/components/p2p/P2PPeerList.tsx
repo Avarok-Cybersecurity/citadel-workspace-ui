@@ -11,6 +11,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
+import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
@@ -33,7 +34,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       const peerCidStr = conv.peerCid.toString();
       return {
         cid: peerCidStr,
-        name: conv.peerUsername || `User ${peerCidStr.slice(0, 8)}...`,
+        name: peerDisplayName({ cid: conv.peerCid, username: conv.peerUsername }),
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
         lastMessage: lastMessage?.content,
@@ -169,17 +170,19 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                       <div className="flex items-center gap-3 w-full">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="text-xs">
-                            {peer.username?.[0] || peerCidStr.slice(0, 2)}
+                            {peerInitials({ cid: peer.cid, username: peer.username, fullName: peer.fullName })}
                           </AvatarFallback>
                         </Avatar>
 
                         <div className="flex-1 text-left">
                           <div className="font-medium text-sm">
-                            {peer.fullName || peer.username || `User ${peerCidStr.slice(0, 8)}...`}
+                            {peerDisplayName({ cid: peer.cid, username: peer.username, fullName: peer.fullName })}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {peerCidStr.slice(0, 16)}...
-                          </div>
+                          {isUnnamedPeer({ cid: peer.cid, username: peer.username, fullName: peer.fullName }) && (
+                            <div className="text-xs text-muted-foreground">
+                              Name not shared yet
+                            </div>
+                          )}
                         </div>
 
                         {peer.isRegistered ? (

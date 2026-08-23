@@ -1,6 +1,7 @@
 import { UserCircle2, Server } from "lucide-react";
 import { TreeScope } from "@/types/revfs-types";
 import type { Peer } from "@/lib/p2p-registration-service";
+import { peerDisplayName } from '@/lib/peer-display';
 
 interface FileManagerStorageBarProps {
   storageMode: TreeScope;
@@ -61,7 +62,7 @@ export function FileManagerStorageBar({
                     : 'bg-[#232536] text-gray-300 hover:bg-[#555B8C]'
                 }`}
               >
-                {peer.username ?? peer.cid.toString().slice(0, 8)}
+                {peerDisplayName({ cid: peer.cid, username: peer.username })}
               </button>
             ))}
           </div>

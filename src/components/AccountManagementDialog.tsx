@@ -16,6 +16,7 @@ import type { ActiveSession } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { DeleteConfirmDialog, ClearAllConfirmDialog } from './AccountConfirmDialogs';
+import { shortPeerHandle } from '@/lib/peer-display';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -123,7 +124,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                             <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Active</span>
                           </div>
                           <p className="text-sm text-gray-400">{session.server_address}</p>
-                          <p className="text-xs text-gray-500">CID: {session.cid.toString()}</p>
+                          <p className="text-xs text-gray-500">Session {shortPeerHandle(session.cid)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

@@ -20,6 +20,7 @@ import { peerRegistrationStore, PendingPeerRequest } from '@/lib/peer-registrati
 import { useToast, useEventListener } from '@/hooks';
 import { formatDistanceToNow } from 'date-fns';
 import { debugLog } from '@/lib/debug-config';
+import { peerDisplayName, peerInitials } from '@/lib/peer-display';
 
 interface PendingRequestsModalProps {
   isOpen: boolean;
@@ -100,10 +101,6 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     return formatDistanceToNow(timestamp, { addSuffix: true });
   };
 
-  const getUserInitial = (username: string): string => {
-    return username.charAt(0).toUpperCase();
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-[#232536] text-white border-gray-700 max-w-lg">
@@ -135,17 +132,13 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
-                      {getUserInitial(request.peer_username)}
+                      {peerInitials({ cid: request.peer_cid, username: request.peer_username })}
                     </div>
                     <div>
                       <p className="font-medium text-white">
-                        {request.peer_username}
+                        {peerDisplayName({ cid: request.peer_cid, username: request.peer_username })}
                       </p>
                       <div className="flex items-center text-xs text-gray-400">
-                        <span className="truncate max-w-[120px]">
-                          CID: {request.peer_cid.toString().slice(0, 8)}...
-                        </span>
-                        <span className="mx-2">•</span>
                         <Clock className="h-3 w-3 mr-1" />
                         {formatTimestamp(request.timestamp)}
                       </div>

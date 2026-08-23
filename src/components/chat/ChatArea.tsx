@@ -9,6 +9,7 @@ import { RetryableMessageSender } from "./RetryableMessageSender";
 import { TypingIndicator } from "./TypingIndicator";
 import { MessagingService, Message as MessageType } from "../../lib/messaging-service";
 import { connectionManager } from '@/lib/connection';
+import { peerDisplayName } from '@/lib/peer-display';
 
 interface Message {
   id?: string;
@@ -83,9 +84,7 @@ export const ChatArea = ({ recipientId }: ChatAreaProps) => {
   }, [recipientId, messagingService, currentUserId]);
 
   // Helper functions to get peer info
-  const getPeerName = (peerId: string): string => {
-    return `User ${peerId.slice(0, 8)}...`;
-  };
+  const getPeerName = (peerId: string): string => peerDisplayName({ cid: peerId });
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {

@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users, RefreshCw, Loader2, Signal } from 'lucide-react';
 import { usePeerDiscovery } from './usePeerDiscovery';
 import { PeerListItem } from './PeerListItem';
+import { shortPeerHandle } from '@/lib/peer-display';
 
 interface PeerDiscoveryModalProps {
   isOpen: boolean;
@@ -61,7 +62,13 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                 <Signal className="h-4 w-4 text-green-400" />
                 <span className="text-sm">You are connected as: <strong>{currentUsername}</strong></span>
               </div>
-              <span className="text-xs text-gray-400">CID: {currentCid?.toString()}</span>
+              {currentCid !== undefined && currentCid !== null && (
+                <span className="text-xs text-gray-400">
+                  {/* A short handle, not the raw routing identifier — enough to tell two
+                      sessions apart in a screenshot without putting a u64 in the UI. */}
+                  Session {shortPeerHandle(currentCid)}
+                </span>
+              )}
             </div>
           </div>
 
