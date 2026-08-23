@@ -590,3 +590,35 @@ h1, h2, h3, h4, h5, h6 {
     transform: scale(1);
   }
 }
+/*
+ * Landing hero scrim.
+ *
+ * The gradient is horizontal so the copy on the left stays readable over the
+ * image on the right — which only works when the two sit side by side. Below md
+ * they stack, the image sits BEHIND the text, and a left-to-right fade leaves the
+ * headline over the busiest part of the photo. Vertical there instead.
+ *
+ * Lives here rather than as an inline style because a media query cannot be
+ * expressed in one, and this is exactly the case that needs one.
+ */
+.landing-scrim {
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--background)) 0%,
+    hsl(var(--background) / 0.92) 55%,
+    hsl(var(--background) / 0.65) 100%
+  );
+}
+
+@media (min-width: 768px) {
+  .landing-scrim {
+    background: linear-gradient(
+      to right,
+      hsl(var(--background)) 0%,
+      hsl(var(--background)) 30%,
+      hsl(var(--background) / 0.7) 60%,
+      hsl(var(--background) / 0.2) 80%,
+      hsl(var(--background) / 0) 100%
+    );
+  }
+}

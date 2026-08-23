@@ -175,18 +175,10 @@ export const Landing = () => {
         }}
       />
 
-      {/* Strong gradient overlay for smooth transition */}
-      <div
-        className="absolute inset-0 z-[2] fixed pointer-events-none"
-        style={{
-          // Built from the --background token rather than a hardcoded #1C1D28, so
-          // the scrim follows the active theme. Hardcoding it kept the hero dark
-          // even in light mode, which is what made the theme look half-applied.
-          background:
-            'linear-gradient(to right, hsl(var(--background)) 0%, hsl(var(--background)) 30%, ' +
-            'hsl(var(--background) / 0.7) 60%, hsl(var(--background) / 0.2) 80%, hsl(var(--background) / 0) 100%)',
-        }}
-      />
+      {/* Scrim between the hero image and the copy. The gradient direction is
+          responsive (vertical when stacked, horizontal side-by-side), which a
+          media query has to express — see .landing-scrim in index.css. */}
+      <div className="absolute inset-0 z-[2] fixed pointer-events-none landing-scrim" />
 
       {/* Content */}
       <div className={cn(
