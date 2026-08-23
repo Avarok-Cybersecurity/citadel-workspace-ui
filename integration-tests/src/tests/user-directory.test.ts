@@ -5,13 +5,14 @@
  * 1. Navigate to /directory page
  * 2. Verify page structure (title, search, tabs, member list)
  * 3. Verify workspace members appear in directory
- * 4. Test tab switching (All, Online, Favorites)
+ * 4. Test tab switching (All, Online)
  * 5. Test user selection and profile panel
  * 6. Test connection request dialog
  */
 
 import { Page } from 'playwright';
 import {
+  activateTab,
   sleep,
   createBrowser,
   createAccount,
@@ -45,7 +46,6 @@ interface TestResults {
   // Tab functionality
   allTabWorks: boolean;
   onlineTabWorks: boolean;
-  favoritesTabWorks: boolean;
 
   // User list
   memberListVisible: boolean;
@@ -155,19 +155,20 @@ async function verifyPageStructure(page: Page): Promise<{
   console.log(`  Directory card visible: ${results.directoryCard}`);
 
   // Check tabs
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  const onlineTab = page.locator('button[role="tab"]:has-text("Online")');
-  const favoritesTab = page.locator('button[role="tab"]:has-text("Favorites")');
+  // Two tabs, not three: the directory has no Favorites tab and never has.
 
-  const tabsVisible = await Promise.all([
-    allTab.isVisible({ timeout: 3000 }).catch(() => false),
-    onlineTab.isVisible({ timeout: 3000 }).catch(() => false),
-    favoritesTab.isVisible({ timeout: 3000 }).catch(() => false),
-  ]);
+  const tabsVisible = await Promise.all(
+    ['All', 'Online'].map((label) => isVisibleWithin(directoryTab(page, label), 5000))
+  );
   results.tabs = tabsVisible.every(Boolean);
-  console.log(`  Tabs visible: ${results.tabs} (All: ${tabsVisible[0]}, Online: ${tabsVisible[1]}, Favorites: ${tabsVisible[2]})`);
+  console.log(`  Tabs visible: ${results.tabs} (All: ${tabsVisible[0]}, Online: ${tabsVisible[1]})`);
 
   return results;
+}
+
+/** A directory tab, by its visible label. */
+function directoryTab(page: Page, label: string) {
+  return page.locator(`button[role="tab"]:has-text("${label}")`);
 }
 
 /**
@@ -176,50 +177,31 @@ async function verifyPageStructure(page: Page): Promise<{
 async function testTabSwitching(page: Page): Promise<{
   allTab: boolean;
   onlineTab: boolean;
-  favoritesTab: boolean;
 }> {
   console.log('\n=== Testing Tab Switching ===');
 
   const results = {
     allTab: false,
     onlineTab: false,
-    favoritesTab: false,
   };
 
-  // Click "All" tab
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  if (await isVisibleWithin(allTab, 3000)) {
-    await allTab.click();
-    await sleep(500);
-    // Check if tab is selected (data-state="active")
-    const isActive = await allTab.getAttribute('data-state');
-    results.allTab = isActive === 'active';
-    console.log(`  All tab works: ${results.allTab}`);
-  }
+  // The search step before this leaves UserSearch's results panel open. It is
+  // absolutely positioned at z-50 directly over the tabs, so Playwright's
+  // hit-target check refuses to click through it. Escape is how a user dismisses
+  // it, so that is what this does — and it only works because UserSearch now
+  // handles Escape at all.
+  await page.keyboard.press('Escape');
 
-  // Click "Online" tab
-  const onlineTab = page.locator('button[role="tab"]:has-text("Online")');
-  if (await isVisibleWithin(onlineTab, 3000)) {
-    await onlineTab.click();
-    await sleep(500);
-    const isActive = await onlineTab.getAttribute('data-state');
-    results.onlineTab = isActive === 'active';
-    console.log(`  Online tab works: ${results.onlineTab}`);
-  }
+  results.allTab = (await activateTab(page, directoryTab(page, 'All'),
+    'All tab', page.locator('[role="tabpanel"]').first())).works;
 
-  // Click "Favorites" tab
-  const favoritesTab = page.locator('button[role="tab"]:has-text("Favorites")');
-  if (await isVisibleWithin(favoritesTab, 3000)) {
-    await favoritesTab.click();
-    await sleep(500);
-    const isActive = await favoritesTab.getAttribute('data-state');
-    results.favoritesTab = isActive === 'active';
-    console.log(`  Favorites tab works: ${results.favoritesTab}`);
-  }
+  results.onlineTab = (await activateTab(page, directoryTab(page, 'Online'),
+    'Online tab', page.locator('[role="tabpanel"]').first())).works;
 
-  // Go back to All tab for subsequent tests
-  await allTab.click();
-  await sleep(500);
+
+  // Leave All selected for the steps that follow.
+  await activateTab(page, directoryTab(page, 'All'), 'All tab (restore)',
+    page.locator('[role="tabpanel"]').first());
 
   return results;
 }
@@ -251,9 +233,11 @@ async function selectUserAndVerifyPanel(page: Page, displayName: string): Promis
     userInfoCorrect: false,
   };
 
-  // Find and click on the user entry - target the row that contains the user's name
-  // The member list has rows with flex items - we need to click anywhere in the row
-  const userRow = page.locator(`div:has(h3:has-text("${displayName}"))`).first();
+  // The row by its accessible name. The previous selector,
+  // `div:has(h3:has-text(name))`, matched every ancestor div containing that
+  // heading, and `.first()` took the OUTERMOST — the grid wrapper — so the click
+  // landed on a container and never reached the row.
+  const userRow = page.getByRole('button', { name: `View profile for ${displayName}` });
 
   if (await isVisibleWithin(userRow, 5000)) {
     await userRow.click();
@@ -262,13 +246,13 @@ async function selectUserAndVerifyPanel(page: Page, displayName: string): Promis
     // Check if profile panel shows the selected user's name
     // The profile panel is on the right side and shows the user's name in a CardTitle
     const profilePanel = page.locator('div.lg\\:col-span-1');
-    if (await profilePanel.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(profilePanel, 5000)) {
       results.panelVisible = true;
       console.log('  Profile panel visible: true');
 
       // Check if the user's name appears in the profile panel
       const panelTitle = profilePanel.locator(`text="${displayName}"`);
-      results.userInfoCorrect = await panelTitle.isVisible({ timeout: 3000 }).catch(() => false);
+      results.userInfoCorrect = await isVisibleWithin(panelTitle, 5000);
       console.log(`  User info correct: ${results.userInfoCorrect}`);
     }
   } else {
@@ -295,7 +279,7 @@ async function testConnectionRequestFlow(page: Page): Promise<{
   // Look for "Send Connection Request" button in the profile panel
   // For unconnected users, this should be visible in the CardFooter
   const requestButton = page.locator('button:has-text("Send Connection Request")');
-  results.buttonVisible = await requestButton.isVisible({ timeout: 5000 }).catch(() => false);
+  results.buttonVisible = await isVisibleWithin(requestButton, 5000);
   console.log(`  Request button visible: ${results.buttonVisible}`);
 
   if (results.buttonVisible) {
@@ -304,8 +288,11 @@ async function testConnectionRequestFlow(page: Page): Promise<{
     await sleep(1000);
 
     // Check if dialog opened
-    const dialogTitle = page.locator('text="Send Connection Request"').last();
-    results.dialogOpens = await dialogTitle.isVisible({ timeout: 3000 }).catch(() => false);
+    // Scoped to the dialog. Unscoped, this text also matches the button that was
+    // just clicked, so `.last()` was relying on portal ordering to tell the two
+    // apart — and reported on whichever the DOM happened to put second.
+    const dialogTitle = page.locator('[role="dialog"]').getByText('Send Connection Request');
+    results.dialogOpens = await isVisibleWithin(dialogTitle, 5000);
     console.log(`  Dialog opens: ${results.dialogOpens}`);
 
     // Close the dialog
@@ -321,8 +308,8 @@ async function testConnectionRequestFlow(page: Page): Promise<{
       await inviteButton.click();
       await sleep(1000);
 
-      const dialogTitle = page.locator('text="Send Connection Request"').last();
-      results.dialogOpens = await dialogTitle.isVisible({ timeout: 3000 }).catch(() => false);
+      const dialogTitle = page.locator('[role="dialog"]').getByText('Send Connection Request');
+      results.dialogOpens = await isVisibleWithin(dialogTitle, 5000);
       results.buttonVisible = true;
       console.log(`  (via inline button) Dialog opens: ${results.dialogOpens}`);
 
@@ -368,7 +355,6 @@ async function runTest(): Promise<boolean> {
     tabsVisible: false,
     allTabWorks: false,
     onlineTabWorks: false,
-    favoritesTabWorks: false,
     memberListVisible: false,
     bobAppearsInList: false,
     profilePanelVisible: false,
@@ -462,7 +448,6 @@ async function runTest(): Promise<boolean> {
       const tabResults = await testTabSwitching(alicePage);
       results.allTabWorks = tabResults.allTab;
       results.onlineTabWorks = tabResults.onlineTab;
-      results.favoritesTabWorks = tabResults.favoritesTab;
 
       await takeScreenshot(alicePage, '05_tabs_tested');
     }
@@ -548,9 +533,25 @@ async function runTest(): Promise<boolean> {
     console.log('='.repeat(60));
 
     // Core functionality that must pass
-    const corePassed =
-      results.aliceCreated &&
-      results.bobCreated;
+    // Every assertion this spec reports, gated. It previously printed 15 results
+    // and let 5 of them fail silently.
+    const corePassed = [
+      results.aliceCreated,
+      results.bobCreated,
+      results.navigatedToDirectory,
+      results.pageTitleVisible,
+      results.searchCardVisible,
+      results.directoryCardVisible,
+      results.tabsVisible,
+      results.allTabWorks,
+      results.onlineTabWorks,
+      results.memberListVisible,
+      results.bobAppearsInList,
+      results.profilePanelVisible,
+      results.selectedUserInfo,
+      results.requestButtonVisible,
+      results.requestDialogOpens,
+    ].every(Boolean);
 
     console.log('\nAccount Creation:');
     console.log(`  Alice Created:          ${results.aliceCreated ? 'PASS' : 'FAIL'}`);
@@ -568,7 +569,6 @@ async function runTest(): Promise<boolean> {
     console.log('\nTab Functionality:');
     console.log(`  All Tab Works:          ${results.allTabWorks ? 'PASS' : 'CHECK'}`);
     console.log(`  Online Tab Works:       ${results.onlineTabWorks ? 'PASS' : 'CHECK'}`);
-    console.log(`  Favorites Tab Works:    ${results.favoritesTabWorks ? 'PASS' : 'CHECK'}`);
 
     console.log('\nMember List:');
     console.log(`  Member List Visible:    ${results.memberListVisible ? 'PASS' : 'CHECK'}`);

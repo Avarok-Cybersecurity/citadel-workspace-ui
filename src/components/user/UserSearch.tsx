@@ -44,9 +44,16 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     }
   }, [initialFocus]);
 
-  // Handle click outside to close results
+  // Dismiss the results panel: pointer outside it, or Escape.
+  //
+  // Escape matters because the panel is `position: absolute; z-index: 50` and
+  // covers the controls beneath it — on the directory page, the All/Online tabs.
+  // A mouse user was already fine (mousedown closes the panel before the click
+  // lands), but with no key handler a keyboard user had no way to dismiss it and
+  // no way to reach what it covered. That is the combobox behaviour anyone would
+  // expect, and its absence was a dead end rather than a cosmetic gap.
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const dismissOnPointerOutside = (event: MouseEvent) => {
       if (
         resultsRef.current &&
         !resultsRef.current.contains(event.target as Node) &&
@@ -57,9 +64,21 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      // Only when open, so Escape stays available to whatever is behind us —
+      // a dialog holding this search, for instance.
+      setShowResults((open) => {
+        if (open) event.stopPropagation();
+        return false;
+      });
+    };
+
+    document.addEventListener('mousedown', dismissOnPointerOutside);
+    document.addEventListener('keydown', dismissOnEscape);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', dismissOnPointerOutside);
+      document.removeEventListener('keydown', dismissOnEscape);
     };
   }, []);
 

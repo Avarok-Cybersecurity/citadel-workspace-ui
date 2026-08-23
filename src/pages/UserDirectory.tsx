@@ -155,6 +155,7 @@ export const UserDirectory = () => {
                         variant={tabValue as 'all' | 'online'}
                         onSendMessage={handleSendMessage}
                         onInvite={handleInviteUser}
+                        onSelect={(userId) => setSelectedUser(allMembers.find((m) => m.id === userId) ?? null)}
                       />
                     ))}
                   </div>
