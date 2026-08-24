@@ -28,6 +28,7 @@
  */
 
 import {
+  settleServerAutoConnect,
   sleep,
   createSeparateBrowsers,
   createAccount,
@@ -253,10 +254,13 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 5: Initial Bidirectional Messaging');
     console.log('─'.repeat(50));
 
-    // ServerAutoConnect polls every ~30s and can cause "Session Already Connected"
-    // errors that block ILM. Wait for one full cycle to pass before messaging.
-    console.log('  Waiting 35s for ServerAutoConnect cycle to settle...');
-    await sleep(35000);
+    // ServerAutoConnect polls every ~30s and a reconnect landing mid-test can
+    // cause "Session Already Connected", which blocks ILM. This used to sleep 35s
+    // — one full cycle — to be sure. Waiting for the reconnect queue to empty
+    // asks the actual question and returns as soon as it is true.
+    console.log('  Waiting for the ServerAutoConnect cycle to settle...');
+    await settleServerAutoConnect(page1);
+    await settleServerAutoConnect(page2);
 
     const INITIAL_MSG_1 = `Hello Bob! Time: ${new Date().toLocaleTimeString()}`;
     const INITIAL_MSG_2 = `Hi Alice! Got it! Time: ${new Date().toLocaleTimeString()}`;
