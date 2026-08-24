@@ -298,22 +298,33 @@ export async function verifyGroupMessageReceived(
   console.log(`  Looking for: "${expectedMessage.substring(0, 50)}..."`);
 
   try {
-    // The exact text, or a prefix of it — waited for together, once.
+    // Wait for the message text itself, and nothing broader.
     //
-    // This is the assertion that decides whether a group message arrived, and it
-    // used `isVisible({ timeout })`, which ignores the timeout and answers
-    // instantly. So a 15-second budget was really "is it on screen this exact
-    // millisecond", and delivery only ever looked to work because of a sleep
-    // somewhere upstream. Racing both forms in one wait also returns as soon as
-    // either matches, instead of spending the full budget on the exact text
-    // before starting a second 5-second wait on the prefix.
+    // This assertion decides whether a group message arrived. It used to call
+    // `isVisible({ timeout })`, which ignores the timeout and answers about the
+    // current instant, so a 15-second budget was really "is it on screen this
+    // millisecond" and delivery only looked to work because of a sleep upstream.
     //
-    // getByText rather than `text="..."`: the message is interpolated, and a
-    // quotation mark in it would break a hand-built text selector.
-    const exact = page.getByText(expectedMessage, { exact: true }).first();
-    const prefix = page.getByText(expectedMessage.substring(0, 20)).first();
+    // The first repair raced the exact text against a 20-character prefix in one
+    // locator: `exact.or(prefix)`. That is WRONG here, and subtly. Spec messages
+    // are built as `${type} msg from ${sender} to ${receiver} @ ${ts}`, so every
+    // message in a run shares its first 20 characters. As soon as a second
+    // message is on screen the union matches two DIFFERENT elements, Playwright
+    // raises a strict-mode violation, and isVisibleWithin's catch turns that into
+    // a plain `false` — reported as "message not received" for a message sitting
+    // visibly on the page. It made office-chat and room-chat fail on the second
+    // direction of every exchange while the product was working correctly.
+    //
+    // A prefix fallback cannot be made safe: it is by construction ambiguous
+    // between messages. It is also unnecessary — each message ends in a unique
+    // timestamp, so the full string identifies exactly one bubble.
+    //
+    // Substring rather than exact match, so surrounding whitespace or wrapping in
+    // the bubble does not matter. getByText rather than `text="..."` because the
+    // message is interpolated and a quote in it would break a hand-built selector.
+    const message = page.getByText(expectedMessage).first();
 
-    if (await isVisibleWithin(exact.or(prefix), timeout)) {
+    if (await isVisibleWithin(message, timeout)) {
       console.log(`  Message found`);
       await takeScreenshot(page, `${username}_received_group_msg`);
       return true;
