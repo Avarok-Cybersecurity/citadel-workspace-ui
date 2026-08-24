@@ -189,6 +189,22 @@ async function typeInEditor(page: Page, username: string, text: string): Promise
 /**
  * Get content from the ProseMirror editor
  */
+/**
+ * Wait for `text` to appear in the collaborative editor.
+ *
+ * Polls the editor's own content rather than using a locator, because the text
+ * arrives inside ProseMirror's managed DOM and the assertion is about the
+ * document's value, not about any one element rendering.
+ */
+async function waitForEditorText(page: Page, text: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if ((await getEditorContent(page)).includes(text)) return true;
+    await sleep(500);
+  }
+  return false;
+}
+
 async function getEditorContent(page: Page): Promise<string> {
   const editor = page.locator('.ProseMirror').first();
   if (await isVisibleWithin(editor, 3000)) {
@@ -328,7 +344,11 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 6: User 1 Types Text');
     console.log('─'.repeat(50));
 
-    const TEXT1 = 'Hello from User 1!';
+    // Unique per run. The document can outlive a run, so a fixed string like
+    // "Hello from User 1!" could still be sitting in it from last time and the
+    // sync check would pass without anything having synced now.
+    const RUN = Date.now().toString(36);
+    const TEXT1 = `Hello from User 1 [${RUN}]`;
     await typeInEditor(page1, USER1, TEXT1);
 
     // ========== STEP 7: User 2 Opens Live Doc ==========
@@ -345,8 +365,11 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 8: Verify Sync (User 1 -> User 2)');
     console.log('─'.repeat(50));
 
+    // Wait for the text to arrive rather than sleeping a fixed 5s: it returns as
+    // soon as sync lands, and on failure it has genuinely waited the full budget
+    // instead of giving up at exactly 5s.
     console.log('  Waiting for YJS sync...');
-    await sleep(5000);
+    const arrivedAt2 = await waitForEditorText(page2, TEXT1, 20_000);
     const content2 = await getEditorContent(page2);
 
     console.log(`\n${'='.repeat(40)}`);
@@ -354,7 +377,9 @@ async function runTest(): Promise<boolean> {
     console.log('='.repeat(40));
     console.log(`User 2 editor content: "${content2}"`);
 
-    if (content2.includes(TEXT1) || content2.includes('Hello')) {
+    // Only the exact marker counts. The old check also accepted the substring
+    // 'Hello', which any greeting in the document would satisfy.
+    if (arrivedAt2) {
       console.log('  PASS: User 2 received User 1\'s text');
       results.user1ToUser2Sync = true;
     } else {
@@ -366,7 +391,7 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 9: User 2 Types Text');
     console.log('─'.repeat(50));
 
-    const TEXT2 = ' And hello from User 2!';
+    const TEXT2 = ` And hello from User 2 [${RUN}]`;
     await takeScreenshot(page2, `${USER2}_before_typing`);
     await typeInEditor(page2, USER2, TEXT2);
 
@@ -376,11 +401,11 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     console.log('  Waiting for reverse sync...');
-    await sleep(5000);
+    const arrivedAt1 = await waitForEditorText(page1, TEXT2.trim(), 20_000);
     const content1 = await getEditorContent(page1);
     console.log(`User 1 editor content: "${content1}"`);
 
-    if (content1.includes('User 2') || content1.includes('hello from User 2')) {
+    if (arrivedAt1) {
       console.log('  PASS: User 1 received User 2\'s text (bidirectional sync works!)');
       results.user2ToUser1Sync = true;
     } else {
