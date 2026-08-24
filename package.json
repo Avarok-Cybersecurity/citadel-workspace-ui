@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "debug:ui": "node scripts/debug-ui.js",
-    "capture:logs": "node scripts/capture-logs.js"
+    "capture:logs": "node scripts/capture-logs.js",
+    "check:bundle": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",
