@@ -98,7 +98,15 @@ export class P2POperations {
         request_id: requestId,
         cid: cid,
         peer_cid: targetCid,
-        udp_mode: 'Disabled',
+        // Enabled so a call has a datagram path. Media cannot ride the reliable
+        // channel: there is no such thing as a lost packet there, so congestion
+        // becomes unbounded latency instead of loss, and a call three seconds
+        // behind is worse than one that dropped a frame.
+        //
+        // Messaging is unaffected — it keeps using the reliable channel. If UDP
+        // negotiation fails the connection still comes up; only calling is lost,
+        // and the media layer reports that explicitly rather than hanging.
+        udp_mode: 'Enabled',
         session_security_settings: getDefaultSecuritySettings()
       }
     };
@@ -150,7 +158,10 @@ export class P2POperations {
         cid: cid,
         peer_cid: peerCid,
         accept: true,
-        udp_mode: (notification?.udp_mode as string) || 'Disabled',
+        // Mirrors the initiator, defaulting to Enabled: a call needs BOTH ends
+        // to have negotiated a datagram path, so an acceptor that quietly
+        // dropped to Disabled would make every call it answered media-less.
+        udp_mode: (notification?.udp_mode as string) || 'Enabled',
         session_security_settings: notification?.session_security_settings || getDefaultSecuritySettings(),
         peer_session_password: null
       }
