@@ -11,6 +11,7 @@ import {
   handleLeaderElection,
   handleLeaderHeartbeat,
 } from './channel-leader-election';
+import { setupBeforeUnloadHandler } from './channel-lifecycle';
 import {
   handleOutboundRequest,
   handleOutboundAck,
@@ -60,7 +61,7 @@ class InstanceChannel {
       this.setupEventListeners();
       startLeaderElection(this.electionState);
       this.announcePresence();
-      this.setupBeforeUnloadHandler();
+      setupBeforeUnloadHandler(this);
       debugLog('InstanceChannel', '[InstanceChannel] Initialized');
     } catch (error) {
       debugLog('InstanceChannel', 'Failed to initialize:', error);
@@ -93,28 +94,6 @@ class InstanceChannel {
 
     this.channel.addEventListener('messageerror', (event: MessageEvent) => {
       debugLog('InstanceChannel', 'Channel error:', event);
-    });
-  }
-
-  private setupBeforeUnloadHandler(): void {
-    window.addEventListener('beforeunload', () => {
-      const myCid = instanceManager.cid;
-
-      if (myCid) {
-        const otherInstancesWithSameCid = instanceManager.getAllInstances()
-          .filter(i => i.instanceId !== instanceManager.instanceId && i.cid === myCid);
-
-        if (otherInstancesWithSameCid.length === 0) {
-          debugLog('InstanceChannel', `[InstanceChannel] Last tab with CID ${myCid} closing, releasing session`);
-          if (instanceManager.isLeader) {
-            eventEmitter.emit('session:release-request', { cid: myCid });
-          } else {
-            this.send({ type: 'session-release', targetInstanceId: 'leader', payload: { cid: myCid } });
-          }
-        }
-      }
-
-      this.announceGoodbye();
     });
   }
 

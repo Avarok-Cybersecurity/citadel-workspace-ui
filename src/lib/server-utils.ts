@@ -1,5 +1,6 @@
 import { websocketService } from './websocket-service';
 import { eventEmitter } from './event-emitter';
+import { getRecentServers } from './recent-servers';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, getVariant } from '@/lib/ws-message-boundary';
@@ -199,54 +200,6 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
   }
 }
 
-// ─── localStorage-based fallback for recent servers ─────────────────
-
-const RECENT_SERVERS_KEY = 'citadel_recent_servers';
-
-/**
- * How many servers to remember.
- *
- * This is a convenience list on the connect screen, not a record — beyond a
- * handful, scrolling to find one is slower than typing the address. Capping it
- * also stops localStorage growing for the lifetime of the install.
- */
-const MAX_RECENT_SERVERS = 10;
-
-/**
- * Save a server to localStorage for offline/fallback access.
- * Called during auth flow so Connect page always has data.
- */
-export function saveRecentServer(server: StoredServer): void {
-  try {
-    const existing = getRecentServers().filter(
-      s => s.serverAddress !== server.serverAddress
-    );
-
-    // Most recent first, and capped. The list is called "recent" and is shown to
-    // the user in order, but entries used to be appended in first-seen order and
-    // never removed — so the oldest server sat at the top forever and the list
-    // grew without limit.
-    const updated = [{ ...server, lastConnected: Date.now() }, ...existing].slice(
-      0,
-      MAX_RECENT_SERVERS
-    );
-
-    localStorage.setItem(RECENT_SERVERS_KEY, JSON.stringify(updated));
-  } catch (e) {
-    debugLog('ServerUtils', 'Error saving recent server to localStorage:', e);
-  }
-}
-
-/**
- * Get recent servers from localStorage (fallback when WASM client unavailable).
- */
-export function getRecentServers(): StoredServer[] {
-  try {
-    const raw = localStorage.getItem(RECENT_SERVERS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
+// The localStorage recent-servers fallback lives in recent-servers.ts;
+// re-exported so existing import sites keep working.
+export { saveRecentServer, getRecentServers } from './recent-servers';

@@ -1,0 +1,128 @@
+/**
+ * Draft lifecycle for the Workspace Appearance editor.
+ *
+ * Owns the editable copy of the workspace theme: seeding it from the saved
+ * theme on open, previewing it app-wide while the modal is up, copy-on-edit of
+ * presets, colour/selection changes, dirtiness, and the save flow. Split from
+ * WorkspaceAppearanceModal.tsx so the modal is layout and the theme-editing
+ * state machine lives here.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
+import { PRESET_THEMES } from '@/lib/theme/presets';
+import { beginEdit, setToken } from '@/lib/theme/theme-editing';
+import { PREVIEW_REGIONS } from '@/lib/theme/preview-regions';
+import type { WorkspaceTheme, ThemeTokenKey, ThemeMode, HslColor } from '@/lib/theme/theme-types';
+import { debugLog } from '@/lib/debug-config';
+
+/**
+ * What the colour wheel is pointed at. The workspace icon is not a palette
+ * token, so this is a tagged union rather than a nullable token.
+ */
+export type Selection = { kind: 'token'; token: ThemeTokenKey } | { kind: 'icon' } | null;
+
+interface UseAppearanceDraftParams {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (theme: WorkspaceTheme) => Promise<void>;
+}
+
+export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearanceDraftParams) {
+  // savedTheme, NOT theme: `theme` becomes our own preview the moment we set
+  // one, so comparing against it would make `dirty` permanently false.
+  const { savedTheme, previewTheme } = useWorkspaceTheme();
+
+  const [draft, setDraft] = useState<WorkspaceTheme>(savedTheme);
+  const [mode, setMode] = useState<ThemeMode>('dark');
+  /**
+   * What the colour wheel is editing. The workspace icon is not a palette token,
+   * so a plain token union cannot express it — hence a tagged selection rather
+   * than a second piece of state that could disagree with the first.
+   */
+  const [selection, setSelection] = useState<Selection>(null);
+  const selectedToken = selection?.kind === 'token' ? selection.token : null;
+  const [saving, setSaving] = useState(false);
+
+  // Reopening starts from whatever is saved, so an abandoned edit does not
+  // resurrect itself the next time the modal opens.
+  useEffect(() => {
+    if (open) {
+      setDraft(savedTheme);
+      setSelection(null);
+    }
+  }, [open, savedTheme]);
+
+  // Preview the draft across the entire app while the modal is open, and hand
+  // the app back its saved theme on close.
+  useEffect(() => {
+    previewTheme(open ? draft : null);
+    return () => previewTheme(null);
+  }, [open, draft, previewTheme]);
+
+  const allThemes = useMemo(() => {
+    // A custom draft is offered alongside the presets so it can be switched back
+    // to after trying another one.
+    const customs = draft.isPreset ? [] : [draft];
+    return [...PRESET_THEMES, ...customs];
+  }, [draft]);
+
+  const palette = mode === 'dark' ? draft.dark : draft.light;
+  const activeRegion = selectedToken
+    ? PREVIEW_REGIONS.find((r) => r.token === selectedToken) ?? null
+    : null;
+
+  const editDraft = useCallback(
+    (change: (t: WorkspaceTheme) => WorkspaceTheme) => {
+      setDraft((current) => {
+        // Editing a preset copies it first, so presets stay pristine and
+        // "put it back" is always available.
+        const editable = beginEdit(current, allThemes.map((t) => t.name));
+        return change(editable);
+      });
+    },
+    [allThemes],
+  );
+
+  const handleColorChange = useCallback(
+    (color: HslColor) => {
+      if (!selection) return;
+      if (selection.kind === 'icon') {
+        editDraft((t) => ({ ...t, icon: { ...t.icon, color } }));
+        return;
+      }
+      editDraft((t) => setToken(t, mode, selection.token, color));
+    },
+    [editDraft, mode, selection],
+  );
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(draft);
+      toast.success('Workspace appearance updated', {
+        description: 'Every member will see this theme.',
+      });
+      onOpenChange(false);
+    } catch (error) {
+      debugLog('WorkspaceAppearance', 'Failed to save theme', error);
+      toast.error('Could not save appearance', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dirty = draft !== savedTheme;
+
+  return {
+    draft, setDraft,
+    mode, setMode,
+    selection, setSelection, selectedToken,
+    saving,
+    allThemes, palette, activeRegion,
+    editDraft, handleColorChange, handleSave, dirty,
+  };
+}

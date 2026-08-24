@@ -6,15 +6,10 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { P2PMessengerManager } from '@/lib/p2p/p2p-messenger-manager';
-import type { P2PMessage } from '@/lib/p2p/p2p-types';
 import { notificationService } from '@/lib/notification-service';
 import { MessageCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { debugLog } from '@/lib/debug-config';
 import { ChatTabBar } from './ChatTabBar';
 import { ComposeContextBanner } from './ComposeContextBanner';
-import { useMarkdownFormat } from './MarkdownToolbar';
 import { LiveDocumentView } from './LiveDocumentView';
 import { LiveDocumentModal } from './LiveDocumentModal';
 import { FileTransferModal } from './FileTransferModal';
@@ -25,7 +20,7 @@ import { useDirectCall } from './hooks/use-direct-call';
 import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
-import type { MessageType } from '@/types/message-protocol';
+import { useP2PCompose } from './hooks/useP2PCompose';
 
 export type ChatMode = 'p2p' | 'group';
 
@@ -67,20 +62,10 @@ export function P2PChat({
   const displaySenderName = showSenderName ?? isGroupMode;
   const displaySenderAvatar = showSenderAvatar ?? isGroupMode;
 
-  const [inputMessage, setInputMessage] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const inputMessageRef = useRef(inputMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [messageType, setMessageType] = useState<MessageType>('text');
-  const [showDocModal, setShowDocModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
-
-  const { toast } = useToast();
-  const messenger = P2PMessengerManager.getInstance();
-  const applyFormat = useMarkdownFormat(inputRef, setInputMessage, () => inputMessage);
 
   // Tabs hook
   const {
@@ -102,7 +87,22 @@ export function P2PChat({
   // File transfer hook
   const fileTransfer = useP2PFileTransfer({ peerCid, peerName });
 
-  useEffect(() => { inputMessageRef.current = inputMessage; }, [inputMessage]);
+  // Composition hook (input, reply/edit context, send, live-doc flow)
+  const {
+    inputRef, inputMessage, setInputMessage,
+    messageType, showDocModal, setShowDocModal,
+    showMarkdownPreview, setShowMarkdownPreview,
+    applyFormat,
+    replyingTo, editingMessage,
+    handleReplyMessage, handleStartEdit, cancelComposeContext,
+    handleSendMessage, handleDocCreate, handleMessageTypeChange,
+    handleInputFocus, handleInputBlur,
+  } = useP2PCompose({
+    peerCid, messages,
+    editMessage: handleEditMessage,
+    createDocument: handleCreateDocument,
+  });
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
@@ -113,80 +113,6 @@ export function P2PChat({
       notificationService.markMessageNotificationsAsReadBySender(peerCid.toString());
     }
   }, [peerCid, activeTabId]);
-
-  // The message this composition is replying to, if any. Cleared on send and on
-  // explicit cancel, so a reply cannot silently attach itself to a later message.
-  const [replyingTo, setReplyingTo] = useState<P2PMessage | null>(null);
-
-  // The message being edited. The bubble's Edit action hands us the CURRENT
-  // content, so it cannot be an edit on its own — it loads the message into the
-  // composer and the next submit commits the change.
-  const [editingMessage, setEditingMessage] = useState<P2PMessage | null>(null);
-
-  const handleReplyMessage = useCallback((messageId: string) => {
-    const target = messages.find((m) => m.id === messageId);
-    if (!target) return;
-    setEditingMessage(null);
-    setReplyingTo(target);
-    inputRef.current?.focus();
-  }, [messages]);
-
-  const handleStartEdit = useCallback((messageId: string, content: string) => {
-    const target = messages.find((m) => m.id === messageId);
-    if (!target) return;
-    setReplyingTo(null);
-    setEditingMessage(target);
-    setInputMessage(content);
-    inputRef.current?.focus();
-  }, [messages]);
-
-  const cancelComposeContext = useCallback(() => {
-    if (editingMessage) setInputMessage('');
-    setEditingMessage(null);
-    setReplyingTo(null);
-  }, [editingMessage]);
-
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    if (messageType === 'live_document') { setShowDocModal(true); return; }
-    messenger.stopTypingPolling(peerCid);
-    try {
-      if (editingMessage) {
-        await handleEditMessage(editingMessage.id, inputMessage);
-        setEditingMessage(null);
-        setInputMessage('');
-        return;
-      }
-      await messenger.sendMessage(peerCid, inputMessage, {
-        messageType,
-        replyTo: replyingTo?.id,
-      });
-      setInputMessage('');
-      setReplyingTo(null);
-    } catch (error) {
-      debugLog('P2PChat', 'Failed to send message:', error);
-      toast({ variant: 'destructive', title: 'Failed to send message', description: 'Check your connection and try again.' });
-    }
-  };
-
-  const handleDocCreate = useCallback(async (title: string, initialContent: string) => {
-    await handleCreateDocument(title, initialContent);
-    setShowDocModal(false);
-    setInputMessage('');
-  }, [handleCreateDocument]);
-
-  const handleMessageTypeChange = useCallback((type: MessageType) => {
-    setMessageType(type);
-    if (type === 'live_document' && inputMessage.trim()) setShowDocModal(true);
-  }, [inputMessage]);
-
-  const handleInputFocus = useCallback(() => {
-    if (peerCid) messenger.startTypingPolling(peerCid, () => inputMessageRef.current);
-  }, [peerCid, messenger]);
-
-  const handleInputBlur = useCallback(() => {
-    if (peerCid) messenger.stopTypingPolling(peerCid);
-  }, [peerCid, messenger]);
 
   if (!peerCid) {
     return (

@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
-import { CallManager } from '@/lib/call/call-manager';
-import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
 import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
-import type { CallSession } from '@/lib/call/call-session';
 import type { CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
+import { useCallRuntime } from './use-call-runtime';
 import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
@@ -35,11 +33,6 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     reason: 'Checking whether this browser supports calls…',
   });
 
-  const managerRef = useRef<CallManager | null>(null);
-  /** In-flight construction, so two callers cannot each build a manager. */
-  const managerPromiseRef = useRef<Promise<CallManager> | null>(null);
-  const sessionRef = useRef<CallSession | null>(null);
-
   useEffect(() => {
     let cancelled = false;
     // Imported on demand, like the session below: the probe lives in
@@ -54,86 +47,13 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     };
   }, []);
 
-  /** Torn down together: a session without its manager cannot end a call. */
-  const teardown = useCallback(() => {
-    sessionRef.current?.close();
-    sessionRef.current = null;
-    managerRef.current = null;
-    managerPromiseRef.current = null;
-    setStreamsVersion((v) => v + 1);
-  }, []);
-
-  const ensureManager = useCallback(async (): Promise<CallManager | null> => {
-    if (!selfCid) return null;
-    if (managerRef.current) return managerRef.current;
-    // Memoized while under construction: the async gap below used to let a
-    // second caller build a SECOND manager, and whichever finished last won —
-    // losing the invite the first one had already handled.
-    if (managerPromiseRef.current) return managerPromiseRef.current;
-
-    const build = (async () => {
-      const { localCapabilities } = await import('@/lib/call/codec-support');
-      const capabilities = await localCapabilities();
-      const manager = new CallManager({
-        transport: new WebSocketCallTransport({ selfCid, senderConfig }),
-        selfCid,
-        capabilities,
-        now: () => Date.now(),
-        schedule: (fn, delayMs) => {
-          const id = window.setTimeout(fn, delayMs);
-          return () => window.clearTimeout(id);
-        },
-        onStateChanged: (next) => {
-          setCall(next);
-          if (next) {
-            // A departed participant's decoders and tracks are released the
-            // moment they leave: browsers cap concurrent decoders, so leaks
-            // here make later joiners fail for no visible reason.
-            for (const p of next.participants.values()) {
-              if (p.status === 'left' || p.status === 'declined') {
-                sessionRef.current?.removePeer(p.cid);
-              }
-            }
-          }
-          // Releasing the camera the moment a call reaches a terminal state,
-          // not when the surface happens to unmount — the light staying on
-          // after a call ends is what users notice and remember.
-          if (next && (next.status === 'ended' || next.status === 'failed')) teardown();
-        },
-        onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),
-      });
-      managerRef.current = manager;
-      return manager;
-    })();
-    managerPromiseRef.current = build;
-    return build;
-  }, [selfCid, senderConfig, teardown]);
-
-  /**
-   * Loaded on demand, not at import time.
-   *
-   * CallSession pulls in the capture pump, the WebCodecs pipeline, the codec
-   * table and the receive path — none of which can possibly be needed before
-   * there is a call. Imported statically it landed in the landing-page entry
-   * chunk, so every visitor downloaded a video encoder before the login form
-   * had painted.
-   */
-  const ensureSession = useCallback(async (): Promise<CallSession> => {
-    if (sessionRef.current) return sessionRef.current;
-    const { CallSession } = await import('@/lib/call/call-session');
-    // Re-checked after the await: two callers can race this import, and the
-    // second must not replace a session the first already started capturing on.
-    if (sessionRef.current) return sessionRef.current;
-    const session = new CallSession({
-      onFrame: (frame) => managerRef.current?.sendFrame(frame),
-      onStreamsChanged: () => setStreamsVersion((v) => v + 1),
-      onCaptureFailed: setCaptureFailure,
-      // Our decoder for this peer is stuck; ask their encoder for a keyframe.
-      onNeedKeyframe: (peerCid, track) => void managerRef.current?.requestKeyframe(peerCid, track),
-    });
-    sessionRef.current = session;
-    return session;
-  }, []);
+  const { managerRef, sessionRef, teardown, ensureManager, ensureSession } = useCallRuntime({
+    selfCid,
+    senderConfig,
+    setCall,
+    setStreamsVersion,
+    setCaptureFailure,
+  });
 
   // Inbound call control.
   useEffect(() => {
@@ -151,7 +71,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     };
     eventEmitter.on('call:signal', onSignal);
     return () => eventEmitter.off('call:signal', onSignal);
-  }, [ensureManager]);
+  }, [ensureManager, sessionRef]);
 
   useInboundMedia(sessionRef);
 
@@ -166,7 +86,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       }
       teardown();
     },
-    [teardown],
+    [teardown, managerRef],
   );
 
   const startCall = useCallback(
@@ -210,22 +130,22 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       adoptPeerCodecs(manager, session);
       await manager.accept(got, session.getCodec());
     },
-    [ensureSession, teardown],
+    [ensureSession, teardown, managerRef],
   );
 
   const decline = useCallback(async () => {
     await managerRef.current?.decline('rejected');
     teardown();
-  }, [teardown]);
+  }, [teardown, managerRef]);
 
   const leave = useCallback(async () => {
     await managerRef.current?.end('hangup');
     teardown();
-  }, [teardown]);
+  }, [teardown, managerRef]);
 
   const setMedia = useCallback(async (next: CallMediaKinds) => {
     await managerRef.current?.setSelfMedia(next);
-  }, []);
+  }, [managerRef]);
 
   const toggleMic = useCallback(async () => {
     const current = managerRef.current?.getState()?.selfMedia;
@@ -233,7 +153,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     const stream = sessionRef.current?.getLocalStream();
     for (const track of stream?.getAudioTracks() ?? []) track.enabled = !current.audio;
     await setMedia({ ...current, audio: !current.audio });
-  }, [setMedia]);
+  }, [setMedia, managerRef, sessionRef]);
 
   const toggleCamera = useCallback(async () => {
     const current = managerRef.current?.getState()?.selfMedia;
@@ -241,7 +161,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     const stream = sessionRef.current?.getLocalStream();
     for (const track of stream?.getVideoTracks() ?? []) track.enabled = !current.video;
     await setMedia({ ...current, video: !current.video });
-  }, [setMedia]);
+  }, [setMedia, managerRef, sessionRef]);
 
   const value = useMemo<CallContextValue>(() => {
     debugLog('Call', 'context updated', { status: call?.status, streamsVersion });
@@ -261,7 +181,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     };
     // streamsVersion is a dependency on purpose: streams live on a ref, so this
     // counter is the only thing that tells React they changed.
-  }, [call, streamsVersion, captureFailure, capability, startCall, accept, decline, leave, toggleMic, toggleCamera]);
+  }, [call, streamsVersion, captureFailure, capability, startCall, accept, decline, leave, toggleMic, toggleCamera, sessionRef]);
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 }

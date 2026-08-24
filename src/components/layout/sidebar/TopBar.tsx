@@ -11,8 +11,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
-import { toastSuccess } from "@/lib/toast-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import NotificationCenter from "@/components/notification/NotificationCenter";
@@ -22,16 +20,13 @@ import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
 import { isDiagnosticsUiEnabled } from "@/lib/debug-config";
 import { connectionManager } from "@/lib/connection";
-import { useNavigate } from "react-router-dom";
-import { clearSelectedUser, getSelectedUser } from "@/lib/tab-context";
-import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
+import { getSelectedUser } from "@/lib/tab-context";
 import { useState, useEffect } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
-import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
+import { DisconnectLoadingModal } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
-import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { debugLog } from '@/lib/debug-config';
+import { useSessionExit } from './use-session-exit';
 
 interface TopBarProps {
   // Optional prop for backward compatibility
@@ -41,15 +36,14 @@ interface TopBarProps {
 export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
-  const { toast } = useToast();
   const { state } = useWorkspace();
-  const navigate = useNavigate();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [disconnectStatus, setDisconnectStatus] = useState<DisconnectStatus>("disconnecting");
-  const [disconnectError, setDisconnectError] = useState<string | undefined>();
+  const {
+    showDisconnectModal, disconnectStatus, disconnectError,
+    handleExit, handleSignOut, handleDisconnectComplete,
+  } = useSessionExit();
 
   // Get workspace name from context or fallback to prop
   const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
@@ -79,75 +73,6 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const userRole = state.currentUser?.role;
   const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
 
-
-  const handleExit = () => {
-    // Stop WASM connection manager polling (session stays active but this tab won't poll)
-    wasmConnectionManager.stop();
-
-    // Just navigate to landing page, keep session active
-    runAsyncSetup(clearSelectedUser);
-    navigate('/');
-
-    toastSuccess(toast, "Returned to landing page", "Your session is still active. Click your workspace icon to return instantly.");
-  };
-
-  const handleSignOut = async () => {
-    // Show the disconnect modal immediately
-    setDisconnectStatus("disconnecting");
-    setDisconnectError(undefined);
-    setShowDisconnectModal(true);
-
-    // Sign Out is an explicit user intent — even if the backend disconnect
-    // fails (e.g., WS already dropped, no current session on this tab), the
-    // local saved-session + tab-context must be cleared and we must navigate
-    // to the landing page. Otherwise WorkspaceLoader's auto-claim re-attaches
-    // the orphan and the user ends up right back where they started.
-    const currentSession = await connectionManager.getTabSelectedSession();
-    const tabSelection = await getSelectedUser();
-    const cid = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
-
-    // Stop WASM connection manager polling regardless of below outcome
-    wasmConnectionManager.stop();
-
-    if (cid) {
-      try {
-        debugLog('TopBar', 'Fully signing out user', currentSession?.username, 'CID:', cid.toString());
-        await connectionManager.disconnect({
-          cid,
-          username: currentSession?.username,
-          serverAddress: currentSession?.serverAddress,
-        });
-      } catch (error) {
-        // Best-effort: log the failure but keep cleaning up locally so the user
-        // ends up signed out on this device. The server-side orphan (if any)
-        // will time out on its own.
-        debugLog('TopBar', 'Backend disconnect failed, continuing local sign-out:', error);
-      }
-    } else {
-      debugLog('TopBar', 'No CID available for backend disconnect, skipping');
-    }
-
-    setDisconnectStatus("cleaning");
-
-    try {
-      if (currentSession?.username && currentSession?.serverAddress) {
-        await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
-      }
-      await clearSelectedUser();
-    } catch (error) {
-      debugLog('TopBar', 'Local sign-out cleanup raised, ignoring:', error);
-    }
-
-    setDisconnectStatus("ready");
-  };
-
-  const handleDisconnectComplete = () => {
-    setShowDisconnectModal(false);
-    if (disconnectStatus === "ready") {
-      navigate('/');
-      toastSuccess(toast, "Signed out", "You have been fully logged out. You'll need to login again to access this workspace.");
-    }
-  };
 
   return (
     <div className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border flex items-center justify-between pr-4 z-50">

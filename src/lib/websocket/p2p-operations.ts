@@ -8,7 +8,7 @@
 import { requestResponse, requestResponseSoft } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
 import { getDefaultSecuritySettings } from '../security-utils';
-import { stringToBytes } from '../utils/encoding-utils';
+import { sendP2PMessage, sendP2PMessageBytes } from './p2p-message-dispatch';
 import { TIMEOUT } from '../timeout-constants';
 
 export interface P2PConfig {
@@ -24,56 +24,14 @@ export class P2POperations {
     this.config = config;
   }
 
-  /**
-   * Common send path for both string- and bytes-shaped P2P message APIs.
-   * Validates the CID pair, builds the `InternalServiceRequest::Message`
-   * envelope, and dispatches via `config.sendMessage`. The wire `message`
-   * field is `Vec<u8>` on the Rust side — `number[]` is the JSON-friendly
-   * representation both branches converge on.
-   */
-  private async dispatchP2PMessage(
-    cid: bigint, targetCid: bigint, messageBytes: number[], callerLabel: string
-  ): Promise<void> {
-    await this.config.init();
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required to send P2P message');
-    }
-    if (targetCid === undefined || targetCid === null) {
-      throw new Error('Target CID (peer_cid) is required to send P2P message');
-    }
-
-    const messageRequest = {
-      Message: {
-        request_id: crypto.randomUUID(),
-        message: messageBytes,
-        cid: cid,
-        peer_cid: targetCid,
-        security_level: 'Standard'
-      }
-    };
-
-    debugLog('P2POperations', `[P2P] ${callerLabel}`, {
-      cid: cid.toString(), targetCid: targetCid.toString(), messageLength: messageBytes.length,
-    });
-
-    await this.config.sendMessage(messageRequest);
-  }
-
-  /**
-   * Send a P2P message to a peer.
-   */
+  /** Send a P2P message to a peer. Delegates to the dispatch module. */
   async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> {
-    return this.dispatchP2PMessage(cid, targetCid, stringToBytes(message), 'sendP2PMessage');
+    return sendP2PMessage(this.config, cid, targetCid, message);
   }
 
-  /**
-   * Send raw bytes over the P2P channel. Mirrors `sendP2PMessage` but skips
-   * the UTF-8 reinterpretation step — callers (e.g. the Yjs provider, which
-   * CBOR-encodes its messages) already have bytes and would otherwise lose
-   * data when `stringToBytes` round-trips them through `TextEncoder`.
-   */
+  /** Send raw bytes over the P2P channel. Delegates to the dispatch module. */
   async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
-    return this.dispatchP2PMessage(cid, targetCid, Array.from(message), 'sendP2PMessageBytes');
+    return sendP2PMessageBytes(this.config, cid, targetCid, message);
   }
 
   /**

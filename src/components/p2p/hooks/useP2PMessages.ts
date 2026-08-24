@@ -9,7 +9,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
-import { eventEmitter } from '@/lib/event-emitter';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { toast } from 'sonner';
 import { debugLog } from '@/lib/debug-config';
@@ -17,6 +16,7 @@ import { MessagingLayerType } from '@/types/messaging-layer';
 import type { P2PMessage, PeerPresence } from '@/lib/p2p';
 import type { UseP2PMessagesProps, UseP2PMessagesReturn } from './useP2PMessages-types';
 import { mergeMessages, prependMessages } from './useP2PMessages-types';
+import { subscribeToConversationEvents } from './useP2PMessages-subscriptions';
 
 export function useP2PMessages({
   peerCid,
@@ -78,79 +78,9 @@ export function useP2PMessages({
     };
     runAsyncSetup(loadConversation);
 
-    const unsubscribeMessage = messenger.onMessage((message) => {
-      if (message.senderCid === peerCid || message.recipientCid === peerCid) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message].sort((a, b) => a.timestamp - b.timestamp);
-        });
-
-        if (message.senderCid === peerCid) {
-          if (activeTabIdRef.current !== 'messages') onUnreadMessage();
-          if (document.visibilityState === 'visible' && activeTabIdRef.current === 'messages') {
-            messenger.markMessagesAsRead(peerCid, [message.id]).catch(err => debugLog('UseP2PMessages', 'Error:', err));
-          }
-        }
-      }
-    });
-
-    const unsubscribeStatusChange = messenger.onMessageStatusChange((messageId, status) => {
-      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, status } : m));
-    });
-
-    const unsubscribeMessageUpdate = eventEmitter.on('p2p:message-updated', (updatedMessage: P2PMessage) => {
-      if (updatedMessage.senderCid === peerCid || updatedMessage.recipientCid === peerCid) {
-        setMessages(prev => prev.map(m => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m));
-      }
-    });
-
-    // Deletion removes the message rather than tombstoning it, matching group
-    // chat. Scoped to this conversation so an unrelated peer's delete cannot
-    // drop a message from the one on screen.
-    const unsubscribeMessageDeleted = eventEmitter.on(
-      'p2p:message-deleted',
-      ({ peerCid: fromCid, messageId }: { peerCid: bigint; messageId: string }) => {
-        if (fromCid !== peerCid) return;
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-      },
-    );
-
-    const unsubscribeTyping = messenger.onTyping((cid, isTyping) => {
-      if (cid === peerCid) setPeerTyping(isTyping);
-    });
-
-    const unsubscribeConnection = messenger.onConnectionChange((cid, connected) => {
-      if (cid === peerCid) setIsConnected(connected);
-    });
-
-    const unsubscribePresence = messenger.onPresenceChange((cid, presence) => {
-      if (cid === peerCid) setPeerPresence(presence);
-    });
-
-    const unsubscribeRegistration = eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: bigint } }) => {
-      if (peer.cid === peerCid) {
-        setIsRegistered(true);
-        p2pAutoConnectService.poll();
-      }
-    });
-
-    // NOTE: This handles messages from non-messenger sources (file transfers, etc.)
-    // that emit 'p2p:message-received' but NOT messenger.onMessage().
-    // The dedup check (prev.some(m => m.id === ...)) prevents double-processing
-    // when both paths fire for the same message.
-    const unsubscribeMessageReceived = eventEmitter.on('p2p:message-received', (eventData: { peerCid: bigint; messageId: string; message?: P2PMessage }) => {
-      const { peerCid: messagePeerCid, messageId, message: eventMessage } = eventData;
-      if (messagePeerCid === peerCid) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === messageId)) return prev;
-          const newMessage = eventMessage || (() => {
-            const conversation = messenger.getConversation(peerCid);
-            return conversation?.messages.find(m => m.id === messageId);
-          })();
-          if (newMessage) return [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp);
-          return prev;
-        });
-      }
+    const unsubscribeConversationEvents = subscribeToConversationEvents({
+      messenger, peerCid, activeTabIdRef, onUnreadMessage,
+      setMessages, setPeerTyping, setIsConnected, setPeerPresence, setIsRegistered,
     });
 
     const checkInitialConnection = async () => {
@@ -181,15 +111,7 @@ export function useP2PMessages({
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      unsubscribeMessage();
-      unsubscribeStatusChange();
-      unsubscribeMessageUpdate();
-      unsubscribeMessageDeleted();
-      unsubscribeTyping();
-      unsubscribeConnection();
-      unsubscribePresence();
-      unsubscribeRegistration();
-      unsubscribeMessageReceived();
+      unsubscribeConversationEvents();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearTimeout(refreshTimeout);
       messenger.stopTypingPolling(peerCid);

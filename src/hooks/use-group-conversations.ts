@@ -29,11 +29,15 @@
  */
 
 import { useCallback } from 'react';
-import { websocketService } from '@/lib/websocket-service';
 import type { UseGroupConversationsResult } from './use-group-conversations.types';
-import { toInternalServiceRequest } from './use-group-conversations.types';
 import { useGroupState, useSortedGroups } from './use-group-state';
-import { groupIdToKey } from '@/lib/group-conversations/group-key';
+import {
+  sendGroupCreate,
+  sendGroupInvite,
+  sendGroupLeave,
+  sendGroupKick,
+  sendGroupListRequest,
+} from '@/lib/group-conversations/group-requests';
 
 // ============================================================================
 // Hook Implementation
@@ -50,29 +54,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       initialMembers: Array<{ cid: string; username: string; roleId?: string }>
     ): Promise<string> => {
       try {
-        const requestId = crypto.randomUUID();
-        const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo();
-        const cid = connectionInfo?.cid || null;
-
-        if (!cid) {
-          throw new Error('Not connected to server');
-        }
-
-        const request = {
-          GroupCreate: {
-            cid: BigInt(cid),
-            request_id: requestId,
-            initial_users_to_invite: initialMembers.map(m => BigInt(m.cid)),
-          },
-        };
-
-        const client = websocketService.getClient();
-        if (!client) {
-          throw new Error('WebSocket client not initialized');
-        }
-
-        await client.sendDirectToInternalService(toInternalServiceRequest(request));
-        return requestId;
+        return await sendGroupCreate(initialMembers);
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to create group';
         setError(errorMsg);
@@ -86,28 +68,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const invitePeer = useCallback(
     async (groupId: string, peerCid: string): Promise<void> => {
       try {
-        const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo();
-        const cid = connectionInfo?.cid || null;
-        if (!cid) {
-          throw new Error('Not connected to server');
-        }
-
-        const request = {
-          GroupInvite: {
-            cid: BigInt(cid),
-            peer_cid: BigInt(peerCid),
-            group_key: groupIdToKey(groupId),
-            request_id: crypto.randomUUID(),
-          },
-        };
-
-        const client = websocketService.getClient();
-        if (!client) {
-          throw new Error('WebSocket client not initialized');
-        }
-
-        await client.sendDirectToInternalService(toInternalServiceRequest(request));
-
+        await sendGroupInvite(groupId, peerCid);
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to invite peer';
         setError(errorMsg);
@@ -120,26 +81,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   // Leave a group
   const leaveGroup = useCallback(async (groupId: string): Promise<void> => {
     try {
-      const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo();
-      const cid = connectionInfo?.cid || null;
-      if (!cid) {
-        throw new Error('Not connected to server');
-      }
-
-      const request = {
-        GroupLeave: {
-          cid: BigInt(cid),
-          group_key: groupIdToKey(groupId),
-          request_id: crypto.randomUUID(),
-        },
-      };
-
-      const client = websocketService.getClient();
-      if (!client) {
-        throw new Error('WebSocket client not initialized');
-      }
-
-      await client.sendDirectToInternalService(toInternalServiceRequest(request));
+      await sendGroupLeave(groupId);
       setGroups(prev => prev.filter(g => g.id !== groupId));
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : 'Failed to leave group';
@@ -152,27 +94,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const kickMember = useCallback(
     async (groupId: string, memberCid: string): Promise<void> => {
       try {
-        const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo();
-        const cid = connectionInfo?.cid || null;
-        if (!cid) {
-          throw new Error('Not connected to server');
-        }
-
-        const request = {
-          GroupKick: {
-            cid: BigInt(cid),
-            peer_cid: BigInt(memberCid),
-            group_key: groupIdToKey(groupId),
-            request_id: crypto.randomUUID(),
-          },
-        };
-
-        const client = websocketService.getClient();
-        if (!client) {
-          throw new Error('WebSocket client not initialized');
-        }
-
-        await client.sendDirectToInternalService(toInternalServiceRequest(request));
+        await sendGroupKick(groupId, memberCid);
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to kick member';
         setError(errorMsg);
@@ -220,26 +142,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const refresh = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
-      const connectionInfo = (await import("../lib/connection")).connectionManager.getConnectionInfo();
-      const cid = connectionInfo?.cid || null;
-      if (!cid) {
-        throw new Error('Not connected to server');
-      }
-
-      const request = {
-        GroupListGroupsFor: {
-          cid: BigInt(cid),
-          peer_cid: null,
-          request_id: crypto.randomUUID(),
-        },
-      };
-
-      const client = websocketService.getClient();
-      if (!client) {
-        throw new Error('WebSocket client not initialized');
-      }
-
-      await client.sendDirectToInternalService(toInternalServiceRequest(request));
+      await sendGroupListRequest();
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : 'Failed to refresh groups';
       setError(errorMsg);
