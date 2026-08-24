@@ -25,6 +25,7 @@ export {
   findNode,
   pathExists,
   calculateStorageUsage,
+  collectFiles,
   flipFileState,
   flipNodeStates,
 } from './tree-queries';

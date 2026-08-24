@@ -135,6 +135,32 @@ export function pathExists(tree: RevfsNode, path: string): boolean {
  * @param scope - TreeScope.Peer or TreeScope.Server
  * @returns Total bytes used
  */
+/**
+ * Every file node at or beneath `node`, in depth-first order.
+ *
+ * Removing a directory from the tree drops its whole subtree in one step, which
+ * loses the list of files that were inside it. Callers that have to tell the
+ * backend what to delete need that list BEFORE the removal, so this is
+ * deliberately a read-only query rather than something rmdir returns.
+ */
+export function collectFiles(node: RevfsNode): RevfsNode[] {
+  const files: RevfsNode[] = [];
+
+  const traverse = (current: RevfsNode): void => {
+    if (current.type === 'file') {
+      files.push(current);
+    }
+    if (current.children) {
+      for (const child of current.children) {
+        traverse(child);
+      }
+    }
+  };
+
+  traverse(node);
+  return files;
+}
+
 export function calculateStorageUsage(tree: RevfsNode, scope: TreeScope): number {
   let total = 0;
 
