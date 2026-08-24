@@ -7,7 +7,7 @@ import { sleep } from '../utils.js';
 import { waitForWorkspaceLoaded, closeAnyModals } from '../modals.js';
 import { takeScreenshot } from '../screenshots.js';
 import { UxIssueTracker } from '../ux-tracker.js';
-import { isVisibleWithin } from '../utils.js';
+import { isHiddenWithin, isVisibleWithin } from '../utils.js';
 
 /**
  * Options for p2pRegister function
@@ -53,46 +53,49 @@ export async function p2pRegister(
   await sleep(5000);
 
   // Try to open Peer Discovery modal
+  // The modal appearing IS the signal each of these is waiting for, so each
+  // method waits for it rather than sleeping and assuming.
+  //
+  // This also makes the fallbacks reachable. `modalOpened` used to be set to
+  // true immediately after Method 1's click, without checking anything, so
+  // Methods 2 and 3 could never run — the chain looked like a retry strategy but
+  // only ever had one attempt. Three fixed 2s waits are gone with it.
+  const modalTitle = page.locator('text="Peer Discovery"');
   let modalOpened = false;
 
-  // Method 1: Click the UserPlus button directly
+  // Method 1: click the UserPlus button directly.
   const userPlusBtn = page.locator('button:has(svg.lucide-user-plus), button[title="Discover Peers"]').first();
   if (await isVisibleWithin(userPlusBtn, 3000)) {
     console.log('  Found Discover Peers button, clicking...');
     await userPlusBtn.click();
-    await sleep(2000);
-    modalOpened = true;
+    modalOpened = await isVisibleWithin(modalTitle, 8000);
   }
 
-  // Method 2: Hover over WORKSPACE MEMBERS section first
+  // Method 2: the button only appears on hover over WORKSPACE MEMBERS.
   if (!modalOpened) {
     const membersSection = page.locator('text="WORKSPACE MEMBERS"').first();
     if (await isVisibleWithin(membersSection, 2000)) {
       console.log('  Hovering over WORKSPACE MEMBERS...');
       await membersSection.hover();
-      await sleep(1000);
 
       const discoverBtn = page.locator('button[title="Discover Peers"], button:has(svg.lucide-user-plus)').first();
-      if (await isVisibleWithin(discoverBtn, 2000)) {
+      if (await isVisibleWithin(discoverBtn, 3000)) {
         await discoverBtn.click();
-        await sleep(2000);
-        modalOpened = true;
+        modalOpened = await isVisibleWithin(modalTitle, 8000);
       }
     }
   }
 
-  // Method 3: Force click
+  // Method 3: force past whatever is overlapping it.
   if (!modalOpened) {
     console.log('  Attempting force click on Discover Peers...');
     await page.locator('button[title="Discover Peers"]').click({ force: true, timeout: 5000 }).catch(() => {});
-    await sleep(2000);
+    modalOpened = await isVisibleWithin(modalTitle, 8000);
   }
 
   await takeScreenshot(page, `${myUsername}_peer_discovery`);
 
-  // Wait for peer list modal
-  const modalTitle = page.locator('text="Peer Discovery"');
-  if (!await isVisibleWithin(modalTitle, 8000)) {
+  if (!modalOpened) {
     const altModal = page.locator('[role="dialog"]:has-text("Peer"), [role="dialog"]:has-text("Discovery")');
     if (!await isVisibleWithin(altModal, 2000)) {
       if (uxTracker) {
@@ -199,7 +202,10 @@ export async function p2pRegister(
   // Conditionally close modal based on keepModalOpen option
   if (!keepModalOpen) {
     await page.keyboard.press('Escape');
-    await sleep(500);
+    // The modal being gone is the signal; sleeping 500ms and hoping left the
+    // next step racing a dialog that was still animating out and swallowing its
+    // clicks.
+    await isHiddenWithin(page.locator('[role="dialog"]'), 5000);
   } else {
     console.log(`  Keeping modal open for badge verification`);
   }
@@ -287,7 +293,7 @@ export async function verifyConnectedBadgeInModal(
 export async function closePeerDiscoveryModal(page: Page): Promise<void> {
   console.log('  Closing Peer Discovery modal');
   await page.keyboard.press('Escape');
-  await sleep(500);
+  await isHiddenWithin(page.locator('[role="dialog"]'), 5000);
 }
 
 /**
@@ -301,7 +307,8 @@ export async function acceptP2PRequest(
   console.log(`\n=== ${username}: Checking for P2P requests ===`);
 
   await waitForWorkspaceLoaded(page, 30000);
-  await sleep(3000); // Give more time for P2P notification to arrive
+  // No fixed wait here: the badge poll below already retries for as long as it
+  // takes, so a 3s sleep only delayed the first look.
 
   // Look for pending request badge using specific selector
   // The badge is in the sidebar with data-testid="pending-requests-badge"
