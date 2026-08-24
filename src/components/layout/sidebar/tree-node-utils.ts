@@ -21,11 +21,22 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     childrenMap.set(parentId, siblings);
   }
 
-  // Find root nodes: parent_id is null OR "workspace-root" (synthetic sentinel)
-  const roots = [
-    ...(childrenMap.get(null) ?? []),
-    ...(childrenMap.get('workspace-root') ?? []),
-  ];
+  // A root is a node whose parent is not in this set.
+  //
+  // This used to be "children of null" PLUS "children of 'workspace-root'",
+  // which double-counts whenever the server includes the workspace root node
+  // itself: the root has parent_id null so it is a root, and its children name
+  // 'workspace-root' as their parent so they were treated as roots too. Every
+  // top-level office then rendered TWICE — once beside the root and once
+  // beneath it — with duplicate ids and duplicate data-testids, which is how
+  // this surfaced (a testid lookup resolving to 2 elements).
+  //
+  // Deriving it from the data answers both cases with one rule: when the root
+  // node is present its children have a resolvable parent and are not roots;
+  // when it is absent they have a dangling 'workspace-root' parent and are.
+  const roots = nodes.filter(
+    (node) => node.parent_id === null || !nodeMap.has(node.parent_id)
+  );
   if (roots.length === 0) return null;
 
   // Sort roots by name
