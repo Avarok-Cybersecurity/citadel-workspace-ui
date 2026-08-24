@@ -162,7 +162,7 @@ async function testProfileModal(page: Page): Promise<{
   }
 
   const profileItem = page.locator('[role="menuitem"]:has-text("Profile")');
-  if (!(await profileItem.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(profileItem, 3000))) {
     console.log('  Profile menu item not found');
     return results;
   }
@@ -191,7 +191,7 @@ async function testProfileModal(page: Page): Promise<{
     // Close
     await page.keyboard.press('Escape');
     await sleep(500);
-    results.closes = !(await profileDialog.isVisible({ timeout: 1000 }).catch(() => false));
+    results.closes = !(await isVisibleWithin(profileDialog, 1000));
     console.log(`  Profile modal closes: ${results.closes}`);
   }
 
@@ -218,7 +218,7 @@ async function testExitConfirmModal(page: Page): Promise<{
   }
 
   const exitItem = page.locator('[role="menuitem"]:has-text("Exit to Landing"), [role="menuitem"]:has-text("Exit")');
-  if (!(await exitItem.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(exitItem, 3000))) {
     console.log('  Exit to Landing menu item not found');
     await page.keyboard.press('Escape');
     return results;
@@ -261,8 +261,8 @@ async function testExitConfirmModal(page: Page): Promise<{
         // Verify we're on the landing page
         const joinBtn = page.locator('button:has-text("Join Workspace")');
         const loginBtn = page.locator('button:has-text("Login Workspace")');
-        const onLanding = (await joinBtn.isVisible({ timeout: 5000 }).catch(() => false)) ||
-                          (await loginBtn.isVisible({ timeout: 2000 }).catch(() => false));
+        const onLanding = (await isVisibleWithin(joinBtn, 5000)) ||
+                          (await isVisibleWithin(loginBtn, 2000));
         results.confirmExits = onLanding;
         console.log(`  Confirm exits to landing: ${results.confirmExits}`);
       }

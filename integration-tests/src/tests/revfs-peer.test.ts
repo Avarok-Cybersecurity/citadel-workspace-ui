@@ -162,7 +162,7 @@ async function createFolder(page: Page, label: string, folderName: string): Prom
 
     // Click the New Folder button in toolbar (FolderPlus icon)
     const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') });
-    if (await newFolderBtn.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(newFolderBtn, 5000)) {
       await newFolderBtn.click();
       console.log('  Clicked New Folder button');
       await sleep(2000);
@@ -229,7 +229,7 @@ async function deleteFolder(page: Page, label: string, folderName: string): Prom
 
     // Right-click on the folder
     const folder = page.getByText(folderName, { exact: true }).first();
-    if (!await folder.isVisible({ timeout: 5000 })) {
+    if (!await isVisibleWithin(folder, 5000)) {
       console.log('  Folder not found');
       return false;
     }
@@ -240,7 +240,7 @@ async function deleteFolder(page: Page, label: string, folderName: string): Prom
 
     // Click Delete in context menu
     const deleteItem = page.locator('[role="menuitem"]').filter({ hasText: /delete/i });
-    if (await deleteItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(deleteItem, 3000)) {
       await deleteItem.click();
       console.log('  Clicked Delete menu item');
       await sleep(2000);

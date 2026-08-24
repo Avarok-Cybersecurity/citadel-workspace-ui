@@ -133,7 +133,7 @@ async function createPeerGroup(
   // The button is a small icon-only button within the SidebarGroup containing "CONVERSATIONS"
   const newGroupBtn = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:has-text("CONVERSATIONS")) button').first();
 
-  if (!await newGroupBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (!await isVisibleWithin(newGroupBtn, 5000)) {
     console.log('    New Group button not found in sidebar');
     uxTracker.log('critical', 'functional', 'New Group button not found in sidebar');
     await takeScreenshot(page, `${creator.username}_new_group_btn_not_found`);
@@ -163,7 +163,7 @@ async function createPeerGroup(
 
     // Click "Add Member" button
     const addMemberBtn = page.locator('button:has-text("Add Member")').first();
-    if (!await addMemberBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(addMemberBtn, 2000)) {
       console.log(`    Add Member button not found for ${member.username}`);
       continue;
     }
@@ -187,7 +187,7 @@ async function createPeerGroup(
 
   // Click "Create Group" button
   const createBtn = page.locator('button:has-text("Create Group")').last();
-  if (!await createBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (!await isVisibleWithin(createBtn, 3000)) {
     console.log('    Create Group button not found');
     uxTracker.log('critical', 'functional', 'Create Group button not found in dialog');
     await takeScreenshot(page, `${creator.username}_create_btn_not_found`);
@@ -212,7 +212,7 @@ async function createPeerGroup(
 
   // Alternative: Look for group in sidebar
   const groupRow = page.locator(`text="${groupName}"`).first();
-  if (await groupRow.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(groupRow, 3000)) {
     console.log(`    Group "${groupName}" visible in sidebar`);
     // Return a placeholder ID - the actual ID would come from state
     return `group-${Date.now()}`;
@@ -238,7 +238,7 @@ async function navigateToGroup(
   // Look for group in sidebar
   const groupRow = page.locator(`text="${groupName}"`).first();
 
-  if (!await groupRow.isVisible({ timeout: 10000 }).catch(() => false)) {
+  if (!await isVisibleWithin(groupRow, 10000)) {
     console.log(`    Group "${groupName}" not visible in sidebar for ${user.username}`);
     uxTracker.log('major', 'functional', `Group "${groupName}" not visible for ${user.username}`);
     await takeScreenshot(page, `${user.username}_group_not_visible`);
@@ -276,7 +276,7 @@ async function sendGroupChatMessage(
   // Find message input
   const messageInput = page.locator('input[placeholder*="message"], textarea[placeholder*="message"]').first();
 
-  if (!await messageInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (!await isVisibleWithin(messageInput, 5000)) {
     console.log(`    Message input not found for ${sender.username}`);
     uxTracker.log('major', 'functional', `Message input not found for ${sender.username}`);
     return false;

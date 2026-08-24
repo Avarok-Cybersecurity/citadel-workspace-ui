@@ -92,7 +92,7 @@ async function registerUser(page: Page, username: string, password: string): Pro
 
     // Step 2: Security Settings - just click NEXT
     const securityTitle = page.locator('text="Security Settings"');
-    if (await securityTitle.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(securityTitle, 3000)) {
       const nextBtn = page.getByRole('button', { name: 'NEXT' });
       await nextBtn.click();
       await sleep(2000);
@@ -237,7 +237,7 @@ async function submitInitialization(page: Page, password: string): Promise<boole
   try {
     // Fill password
     const passwordField = page.locator('input#masterPassword');
-    if (!(await passwordField.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(passwordField, 3000))) {
       console.log('  Password field not found');
       return false;
     }
@@ -247,7 +247,7 @@ async function submitInitialization(page: Page, password: string): Promise<boole
 
     // Click "Initialize & Become Admin" button
     const initButton = page.locator('button:has-text("Initialize & Become Admin")');
-    if (!(await initButton.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(initButton, 3000))) {
       console.log('  Initialize button not found');
       return false;
     }

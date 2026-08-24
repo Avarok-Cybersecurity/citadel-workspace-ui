@@ -82,7 +82,7 @@ async function openNotificationCenter(page: Page): Promise<boolean> {
     // It's a ghost button with a Bell icon
     const bellButton = page.locator('button:has(svg.lucide-bell)').first();
 
-    if (!(await bellButton.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(bellButton, 5000))) {
       console.log('  Bell icon not found');
       return false;
     }

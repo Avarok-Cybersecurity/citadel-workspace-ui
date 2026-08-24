@@ -28,8 +28,17 @@ const CONTAINER_POLL_INTERVAL_MS = 2_000;
  * and then coming up healthy later. Spaced out rather than immediate, so a
  * container that is simply slow is not restarted out from under itself.
  */
-const MAX_CONTAINER_RESTARTS = 3;
-const RESTART_BACKOFF_MS = 15_000;
+const MAX_CONTAINER_RESTARTS = 4;
+
+/**
+ * Gap between restart attempts.
+ *
+ * The common failure is the server exiting with "Address already in use (os
+ * error 98)" because the previous process has not released the port yet.
+ * Restarting again immediately just reproduces it, so the gap has to be long
+ * enough for the socket to clear — this is waiting on the OS, not on the app.
+ */
+const RESTART_BACKOFF_MS = 25_000;
 
 /**
  * Get the workspace root directory dynamically.
@@ -133,7 +142,14 @@ export async function restartBackendServices(): Promise<void> {
       if (exited && restarts < MAX_CONTAINER_RESTARTS && Date.now() >= nextRestartAllowedAt) {
         restarts += 1;
         nextRestartAllowedAt = Date.now() + RESTART_BACKOFF_MS;
-        console.log(`  A container exited; restart attempt ${restarts}/${MAX_CONTAINER_RESTARTS}...`);
+        // Name the bind failure when it is the cause; it looks like a crash
+        // otherwise and sends people looking at the wrong thing.
+        let why = '';
+        try {
+          const recent = execSync('docker compose logs --tail=20 server', { cwd, timeout: 15000 }).toString();
+          if (/Address already in use/.test(recent)) why = ' (port not released yet)';
+        } catch { /* the log is a nicety here, not worth failing over */ }
+        console.log(`  A container exited${why}; restart attempt ${restarts}/${MAX_CONTAINER_RESTARTS}...`);
         if (server?.State === 'exited') {
           execSync('docker restart --timeout 15 citadel-workspace-server-1', { stdio: 'inherit', timeout: 60000 });
         }

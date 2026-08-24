@@ -79,14 +79,14 @@ async function openFileTransferModal(page: Page, username: string): Promise<bool
   try {
     const attachButton = page.locator('button').filter({ has: page.locator('svg.lucide-paperclip') });
 
-    if (await attachButton.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(attachButton, 5000)) {
       await attachButton.click();
       console.log('  Clicked attachment button');
 
       await sleep(1000);
 
       const modalTitle = page.getByRole('heading', { name: 'Send File' });
-      if (await modalTitle.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(modalTitle, 3000)) {
         console.log('  File transfer modal opened');
         return true;
       }
@@ -131,7 +131,7 @@ async function clickNativePickerButton(page: Page, username: string): Promise<bo
       has: page.locator('svg.lucide-folder-open')
     }).first();
 
-    if (await nativeButton.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(nativeButton, 3000)) {
       await nativeButton.click();
       console.log('  Clicked native file picker button');
       return true;
@@ -139,7 +139,7 @@ async function clickNativePickerButton(page: Page, username: string): Promise<bo
 
     // Fallback to text match
     const byText = page.locator('button').filter({ hasText: 'Browse Files' }).first();
-    if (await byText.isVisible({ timeout: 2000 })) {
+    if (await isVisibleWithin(byText, 2000)) {
       await byText.click();
       console.log('  Clicked Browse Files button (text match)');
       return true;
@@ -195,7 +195,7 @@ async function waitForNativeDialogResult(
 
     // Check if "Opening file picker..." text is still showing
     const pickingText = page.getByText('Opening file picker...');
-    if (await pickingText.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(pickingText, 500)) {
       // Still waiting for dialog
       continue;
     }
@@ -405,7 +405,7 @@ async function runTest(): Promise<boolean> {
             const startTime = Date.now();
             while (Date.now() - startTime < 30000) {
               const completeIndicator = page2.getByText(/Downloaded|complete/i);
-              if (await completeIndicator.isVisible({ timeout: 2000 }).catch(() => false)) {
+              if (await isVisibleWithin(completeIndicator, 2000)) {
                 results.nativePickerFlow.transferCompleted = true;
                 console.log('  Transfer completed on receiver side');
                 break;

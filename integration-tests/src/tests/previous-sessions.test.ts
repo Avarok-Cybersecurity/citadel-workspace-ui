@@ -86,7 +86,7 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
     await waitForAppReady(page, 15000);
 
     const loginBtn = page.locator('button:has-text("Login Workspace")');
-    if (!await loginBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (!await isVisibleWithin(loginBtn, 3000)) {
       console.log('  tryLoginQuick: Login button not found');
       return false;
     }
@@ -118,7 +118,7 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
  */
 async function getSessionCount(page: Page): Promise<number> {
   const container = page.locator('[data-testid="sessions-scroll-container"]');
-  if (!(await container.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(container, 3000))) {
     return 0;
   }
   const icons = container.locator('[data-testid^="session-icon-"]');
@@ -130,7 +130,7 @@ async function getSessionCount(page: Page): Promise<number> {
  */
 async function sessionExistsInNavbar(page: Page, username: string): Promise<boolean> {
   const icon = page.locator(`[data-testid="session-icon-${username}"]`);
-  return await icon.isVisible({ timeout: 3000 }).catch(() => false);
+  return await isVisibleWithin(icon, 3000);
 }
 
 /**
@@ -209,7 +209,7 @@ async function waitForAllSessionsInNavbar(
  */
 async function getSessionOrder(page: Page): Promise<string[]> {
   const container = page.locator('[data-testid="sessions-scroll-container"]');
-  if (!(await container.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(container, 3000))) {
     return [];
   }
 
@@ -236,7 +236,7 @@ async function clickSessionIcon(page: Page, username: string): Promise<boolean> 
   console.log(`\n=== Clicking session icon for ${username} ===`);
 
   const button = page.locator(`[data-testid="session-button-${username}"]`);
-  if (!(await button.isVisible({ timeout: 5000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(button, 5000))) {
     console.log('  Session button not found');
     return false;
   }
@@ -275,7 +275,7 @@ async function disconnectViaNavbar(
   let iconFound = false;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
-    iconFound = await icon.isVisible({ timeout: 8000 }).catch(() => false);
+    iconFound = await isVisibleWithin(icon, 8000);
     if (iconFound) break;
     if (attempt < 3) {
       console.log(`  Session icon not visible on attempt ${attempt}, reloading...`);
@@ -296,7 +296,7 @@ async function disconnectViaNavbar(
   for (let attempt = 1; attempt <= 3; attempt++) {
     await icon.hover();
     await sleep(1000);
-    btnVisible = await disconnectBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    btnVisible = await isVisibleWithin(disconnectBtn, 3000);
     if (btnVisible) break;
     if (attempt < 3) {
       console.log(`  Disconnect button not visible on attempt ${attempt}, re-hovering...`);

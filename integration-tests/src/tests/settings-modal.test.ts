@@ -122,7 +122,7 @@ async function clickSettingsMenuItem(page: Page): Promise<boolean> {
 
   try {
     const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-    if (!(await settingsItem.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(settingsItem, 3000))) {
       console.log('  Settings menu item not found');
       return false;
     }
@@ -179,11 +179,11 @@ async function verifyModalStructure(page: Page): Promise<{
   const permissionsTab = page.locator('button[role="tab"]:has-text("Permissions"), button[role="tab"]:has(svg.lucide-lock)');
 
   const tabsVisible = await Promise.all([
-    generalTab.isVisible({ timeout: 3000 }).catch(() => false),
-    connectionsTab.isVisible({ timeout: 3000 }).catch(() => false),
-    appearanceTab.isVisible({ timeout: 3000 }).catch(() => false),
-    privacyTab.isVisible({ timeout: 3000 }).catch(() => false),
-    permissionsTab.isVisible({ timeout: 3000 }).catch(() => false),
+    isVisibleWithin(generalTab, 3000),
+    isVisibleWithin(connectionsTab, 3000),
+    isVisibleWithin(appearanceTab, 3000),
+    isVisibleWithin(privacyTab, 3000),
+    isVisibleWithin(permissionsTab, 3000),
   ]);
   results.tabs = tabsVisible.some(Boolean); // At least some tabs visible (icons might be shown without text on small screens)
   console.log(`  Tabs visible: ${results.tabs} (${tabsVisible.filter(Boolean).length}/5 visible)`);

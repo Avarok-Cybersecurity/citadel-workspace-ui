@@ -89,7 +89,7 @@ async function loginWithCredentials(
 
     // Ensure we're on the landing page
     const loginBtn = page.locator('button:has-text("Login Workspace")');
-    if (!(await loginBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(loginBtn, 2000))) {
       console.log('  Not on landing page, navigating...');
       await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
       await waitForAppReady(page, 30000);
@@ -97,7 +97,7 @@ async function loginWithCredentials(
 
     // Click "Login Workspace" button
     const loginBtnVisible = page.locator('button:has-text("Login Workspace")');
-    if (!(await loginBtnVisible.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(loginBtnVisible, 5000))) {
       console.log('  Login button not found');
       return false;
     }
@@ -107,7 +107,7 @@ async function loginWithCredentials(
 
     // Wait for Login modal to appear
     const loginTitle = page.locator('text="Login to Workspace"');
-    if (!(await loginTitle.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(loginTitle, 5000))) {
       console.log('  Login modal did not appear');
       return false;
     }

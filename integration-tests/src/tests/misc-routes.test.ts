@@ -163,13 +163,13 @@ async function testProfileEdit(page: Page): Promise<boolean> {
 
   // Open user dropdown
   const avatarButton = page.locator('[data-testid="user-avatar-button"]');
-  if (!(await avatarButton.isVisible({ timeout: 5000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(avatarButton, 5000))) return false;
 
   await avatarButton.click();
   await sleep(500);
 
   const profileItem = page.locator('[role="menuitem"]:has-text("Profile")');
-  if (!(await profileItem.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(profileItem, 3000))) {
     await page.keyboard.press('Escape');
     return false;
   }
@@ -179,7 +179,7 @@ async function testProfileEdit(page: Page): Promise<boolean> {
 
   // Check if profile modal opened with editable fields
   const dialog = page.locator('[role="dialog"]').first();
-  if (!(await dialog.isVisible({ timeout: 3000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(dialog, 3000))) return false;
 
   // Try editing display name
   const nameInput = page.locator('input[name="displayName"], input[placeholder*="name"], input[placeholder*="Name"]').first();
@@ -190,7 +190,7 @@ async function testProfileEdit(page: Page): Promise<boolean> {
 
     // Look for Save button
     const saveBtn = page.locator('button:has-text("Save"), button:has-text("Update"), button[type="submit"]').first();
-    if (await saveBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(saveBtn, 2000)) {
       console.log('  Profile edit fields found and editable');
       // Restore original value
       await nameInput.fill(originalValue || USERNAME);

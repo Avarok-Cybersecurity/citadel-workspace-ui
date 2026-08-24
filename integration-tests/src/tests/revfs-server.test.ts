@@ -108,7 +108,7 @@ async function switchToServerStorageMode(page: Page): Promise<boolean> {
     }
 
     // Click the Server Storage button
-    if (await serverStorageBtn.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(serverStorageBtn, 5000)) {
       await serverStorageBtn.click();
       console.log('  Clicked Server Storage button');
       await sleep(1000);
@@ -124,7 +124,7 @@ async function switchToServerStorageMode(page: Page): Promise<boolean> {
 
     // Alternative: try clicking by text if role selector doesn't work
     const altBtn = page.locator('button').filter({ hasText: 'Server Storage' });
-    if (await altBtn.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(altBtn, 3000)) {
       await altBtn.click();
       console.log('  Clicked Server Storage button (alt selector)');
       await sleep(1000);
@@ -175,7 +175,7 @@ async function createFolder(page: Page, folderName: string): Promise<boolean> {
 
     // Click the New Folder button in toolbar (FolderPlus icon)
     const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') });
-    if (await newFolderBtn.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(newFolderBtn, 5000)) {
       await newFolderBtn.click();
       console.log('  Clicked New Folder button');
       await sleep(2000);
@@ -206,7 +206,7 @@ async function deleteFolder(page: Page, folderName: string): Promise<boolean> {
 
     // Right-click on the folder
     const folder = page.getByText(folderName, { exact: true }).first();
-    if (!await folder.isVisible({ timeout: 5000 })) {
+    if (!await isVisibleWithin(folder, 5000)) {
       console.log('  Folder not found');
       return false;
     }
@@ -217,7 +217,7 @@ async function deleteFolder(page: Page, folderName: string): Promise<boolean> {
 
     // Click Delete in context menu
     const deleteItem = page.locator('[role="menuitem"]').filter({ hasText: /delete/i });
-    if (await deleteItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(deleteItem, 3000)) {
       await deleteItem.click();
       console.log('  Clicked Delete menu item');
       await sleep(2000);
@@ -336,7 +336,7 @@ async function runTest(): Promise<boolean> {
       console.log('  Detected "No Peers Connected" state');
       // Click the "Use Server Storage" button
       const useServerBtn = page.getByRole('button', { name: /use server storage/i });
-      if (await useServerBtn.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(useServerBtn, 3000)) {
         await useServerBtn.click();
         console.log('  Clicked "Use Server Storage" button');
         await sleep(2000);

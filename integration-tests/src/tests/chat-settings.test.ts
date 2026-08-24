@@ -86,7 +86,7 @@ async function openChatSettingsModal(page: Page, username: string): Promise<bool
     // Find the settings button using data-testid
     const settingsButton = page.locator('[data-testid="chat-settings-button"]');
 
-    if (await settingsButton.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(settingsButton, 5000)) {
       await settingsButton.click();
       console.log('  Clicked settings button');
 
@@ -95,7 +95,7 @@ async function openChatSettingsModal(page: Page, username: string): Promise<bool
 
       // Check for modal title
       const modalTitle = page.getByRole('heading', { name: 'Chat Settings' });
-      if (await modalTitle.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(modalTitle, 3000)) {
         console.log('  Chat settings modal opened');
         return true;
       }
@@ -113,7 +113,7 @@ async function clickOuterTab(page: Page, tabName: string): Promise<boolean> {
   console.log(`  Clicking outer tab: ${tabName}`);
   try {
     const tabTrigger = page.locator(`[data-testid="tab-${tabName.toLowerCase()}"]`);
-    if (await tabTrigger.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(tabTrigger, 3000)) {
       await tabTrigger.click();
       await sleep(300);
       return true;
@@ -130,7 +130,7 @@ async function clickInnerFileTab(page: Page, tabName: string): Promise<boolean> 
   try {
     const testId = tabName === 'standard' ? 'tab-file-standard' : 'tab-file-remote';
     const tabTrigger = page.locator(`[data-testid="${testId}"]`);
-    if (await tabTrigger.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(tabTrigger, 3000)) {
       await tabTrigger.click();
       await sleep(300);
       return true;
@@ -145,7 +145,7 @@ async function clickInnerFileTab(page: Page, tabName: string): Promise<boolean> 
 async function isContentVisible(page: Page, testId: string): Promise<boolean> {
   try {
     const content = page.locator(`[data-testid="${testId}"]`);
-    return await content.isVisible({ timeout: 2000 });
+    return await isVisibleWithin(content, 2000);
   } catch {
     return false;
   }
@@ -154,7 +154,7 @@ async function isContentVisible(page: Page, testId: string): Promise<boolean> {
 async function isElementVisible(page: Page, testId: string): Promise<boolean> {
   try {
     const element = page.locator(`[data-testid="${testId}"]`);
-    return await element.isVisible({ timeout: 2000 });
+    return await isVisibleWithin(element, 2000);
   } catch {
     return false;
   }
@@ -170,7 +170,7 @@ async function closeChatSettingsModal(page: Page): Promise<void> {
     console.log('  Could not close modal with Escape, trying close button');
     // Try clicking close button
     const closeButton = page.locator('button[aria-label="Close"]').first();
-    if (await closeButton.isVisible({ timeout: 1000 })) {
+    if (await isVisibleWithin(closeButton, 1000)) {
       await closeButton.click();
       await sleep(300);
     }

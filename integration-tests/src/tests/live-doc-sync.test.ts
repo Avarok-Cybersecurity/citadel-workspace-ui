@@ -136,7 +136,7 @@ async function typeInEditor(page: Page, username: string, text: string): Promise
   let editorFound = false;
   for (let attempt = 0; attempt < 20; attempt++) {
     try {
-      const visible = await editor.isVisible({ timeout: 1000 });
+      const visible = await isVisibleWithin(editor, 1000);
       if (visible) {
         console.log(`  Editor found after ${attempt + 1} seconds`);
         editorFound = true;

@@ -81,7 +81,7 @@ async function openNodeContextMenu(page: Page, _nodeName: string): Promise<boole
     await nodeItem.click({ force: true, timeout: 5000 });
     await sleep(300);
     const menu = page.locator('[role="menu"]');
-    return await menu.isVisible({ timeout: 3000 });
+    return await isVisibleWithin(menu, 3000);
   } catch {
     return false;
   }
@@ -93,7 +93,7 @@ const openOfficeContextMenu = openNodeContextMenu;
 async function clickAdminSettingsMenuItem(page: Page): Promise<boolean> {
   try {
     const menuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
-    if (await menuItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(menuItem, 3000)) {
       await menuItem.click();
       await sleep(500);
       return true;
@@ -108,11 +108,11 @@ async function navigateToTab(page: Page, tabName: 'general' | 'members' | 'chat'
   const dialog = getAdminDialog(page);
   try {
     const tab = dialog.locator(`[data-testid="admin-tab-${tabName}"]`);
-    if (await tab.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(tab, 3000)) {
       await tab.click();
       await sleep(300);
       const content = dialog.locator(`[data-testid="admin-content-${tabName}"]`);
-      return await content.isVisible({ timeout: 2000 });
+      return await isVisibleWithin(content, 2000);
     }
     return false;
   } catch {
@@ -139,7 +139,7 @@ async function openRoomContextMenu(page: Page): Promise<boolean> {
     await allMenuBtns.nth(1).click({ force: true, timeout: 5000 });
     await sleep(300);
     const menu = page.locator('[role="menu"]');
-    return await menu.isVisible({ timeout: 3000 });
+    return await isVisibleWithin(menu, 3000);
   } catch {
     return false;
   }
@@ -148,7 +148,7 @@ async function openRoomContextMenu(page: Page): Promise<boolean> {
 async function clickRoomAdminSettings(page: Page): Promise<boolean> {
   try {
     const menuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
-    if (await menuItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(menuItem, 3000)) {
       await menuItem.click();
       await sleep(500);
       return true;

@@ -129,7 +129,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
     // Find the permissions tab button and get its aria-controls to find the panel ID
     const permissionsTab = dialog.locator('button[aria-controls*="permissions"]').first();
 
-    if (!await permissionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(permissionsTab, 2000)) {
       console.log('    Permissions tab button not found');
       return false;
     }
@@ -192,7 +192,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
 async function countSettingsTabs(page: Page): Promise<number> {
   const dialog = getSettingsDialog(page);
   const tabsList = dialog.locator('[role="tablist"]').first();
-  if (!await tabsList.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (!await isVisibleWithin(tabsList, 3000)) {
     return 0;
   }
 
@@ -206,7 +206,7 @@ async function countSettingsTabs(page: Page): Promise<number> {
 async function tabExists(page: Page, tabText: string): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   const tab = dialog.locator(`[role="tablist"] button:has-text("${tabText}")`).first();
-  return await tab.isVisible({ timeout: 2000 }).catch(() => false);
+  return await isVisibleWithin(tab, 2000);
 }
 
 /**
@@ -216,7 +216,7 @@ async function permissionsTabHasLockIcon(page: Page): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   // Look for lock icon in the permissions tab trigger using aria-controls attribute
   const permissionsTab = dialog.locator('button[aria-controls*="permissions"]').first();
-  if (await permissionsTab.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await isVisibleWithin(permissionsTab, 1000)) {
     // Check for any SVG (lucide icons render as SVG)
     const svg = permissionsTab.locator('svg').first();
     const hasSvg = await isVisibleWithin(svg, 1000);
@@ -249,7 +249,7 @@ async function workspaceAccordionExists(page: Page): Promise<boolean> {
 
   for (const selector of workspaceSelectors) {
     const element = dialog.locator(selector).first();
-    if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(element, 1000)) {
       console.log(`    Found workspace element: ${selector}`);
       return true;
     }
@@ -293,7 +293,7 @@ async function permissionCategoriesExist(page: Page): Promise<boolean> {
 
   for (const category of categories) {
     const categoryElement = dialog.locator(`text="${category}"`).first();
-    if (await categoryElement.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(categoryElement, 1000)) {
       foundCount++;
     }
   }
@@ -319,7 +319,7 @@ async function permissionRowsExist(page: Page): Promise<boolean> {
   let foundCount = 0;
   for (const label of permissionLabels) {
     const row = dialog.locator(`text="${label}"`).first();
-    if (await row.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(row, 1000)) {
       foundCount++;
     }
   }
@@ -367,7 +367,7 @@ async function editButtonExists(page: Page): Promise<boolean> {
 
   // Look for Edit button in the office header
   const editButton = page.locator('button:has-text("Edit")').first();
-  return await editButton.isVisible({ timeout: 3000 }).catch(() => false);
+  return await isVisibleWithin(editButton, 3000);
 }
 
 /**
@@ -376,7 +376,7 @@ async function editButtonExists(page: Page): Promise<boolean> {
 async function legendVisible(page: Page): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   const legend = dialog.locator('text="Legend"').first();
-  return await legend.isVisible({ timeout: 2000 }).catch(() => false);
+  return await isVisibleWithin(legend, 2000);
 }
 
 // ============================================================================
@@ -584,7 +584,7 @@ async function runTest(): Promise<boolean> {
     // Scroll to bottom to see legend (scoped to dialog)
     const dialogForLegend = getSettingsDialog(page);
     const tabContent = dialogForLegend.locator('[role="tabpanel"]').first();
-    if (await tabContent.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(tabContent, 1000)) {
       await tabContent.evaluate((el) => el.scrollTop = el.scrollHeight);
       await sleep(500);
     }

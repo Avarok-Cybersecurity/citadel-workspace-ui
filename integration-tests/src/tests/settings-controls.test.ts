@@ -56,19 +56,19 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 
 async function openSettingsModal(page: Page): Promise<boolean> {
   const avatarButton = page.locator('[data-testid="user-avatar-button"]');
-  if (!(await avatarButton.isVisible({ timeout: 5000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(avatarButton, 5000))) return false;
 
   await avatarButton.click();
   await sleep(500);
 
   const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-  if (!(await settingsItem.isVisible({ timeout: 3000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(settingsItem, 3000))) return false;
 
   await settingsItem.click();
   await sleep(500);
 
   const modal = page.locator('[role="dialog"]').first();
-  return await modal.isVisible({ timeout: 3000 }).catch(() => false);
+  return await isVisibleWithin(modal, 3000);
 }
 
 async function testGeneralTab(page: Page): Promise<boolean> {
@@ -106,7 +106,7 @@ async function testConnectionsTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Connections Tab ===');
 
   const connectionsTab = page.locator('[role="dialog"] button[role="tab"]').nth(1);
-  if (!(await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(connectionsTab, 2000))) {
     console.log('  Connections tab not found');
     return false;
   }
@@ -153,7 +153,7 @@ async function testAppearanceTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Appearance Tab ===');
 
   const appearanceTab = page.locator('[role="dialog"] button[role="tab"]').nth(2);
-  if (!(await appearanceTab.isVisible({ timeout: 2000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(appearanceTab, 2000))) {
     console.log('  Appearance tab not found');
     return false;
   }
@@ -163,12 +163,12 @@ async function testAppearanceTab(page: Page): Promise<boolean> {
 
   // Look for theme toggle/select (dark/light/system)
   const themeControl = page.locator('[role="combobox"], [role="switch"], [role="radiogroup"], select').first();
-  let visible = await themeControl.isVisible({ timeout: 3000 }).catch(() => false);
+  let visible = await isVisibleWithin(themeControl, 3000);
 
   if (!visible) {
     // Alternative: look for theme-related text
     const themeText = page.getByText(/Theme|Dark|Light|System/).first();
-    visible = await themeText.isVisible({ timeout: 2000 }).catch(() => false);
+    visible = await isVisibleWithin(themeText, 2000);
   }
 
   console.log(`  Theme control visible: ${visible}`);
@@ -179,7 +179,7 @@ async function testPrivacyTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Privacy Tab ===');
 
   const privacyTab = page.locator('[role="dialog"] button[role="tab"]').nth(3);
-  if (!(await privacyTab.isVisible({ timeout: 2000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(privacyTab, 2000))) {
     console.log('  Privacy tab not found');
     return false;
   }
@@ -189,7 +189,7 @@ async function testPrivacyTab(page: Page): Promise<boolean> {
 
   // Look for any privacy-related controls
   const privacyControl = page.locator('[role="switch"], input[type="checkbox"], [role="combobox"]').first();
-  let visible = await privacyControl.isVisible({ timeout: 3000 }).catch(() => false);
+  let visible = await isVisibleWithin(privacyControl, 3000);
 
   if (!visible) {
     // Check for content in the tab panel

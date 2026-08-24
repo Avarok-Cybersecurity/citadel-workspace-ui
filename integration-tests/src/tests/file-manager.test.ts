@@ -302,9 +302,9 @@ async function openContextMenu(page: Page, label: string, folderName: string): P
 
       // Context menu uses radix-ui, items are rendered in a portal
       // Look for menu items by role or by containing text
-      const hasNewFolder = await page.locator('[role="menuitem"]:has-text("New Folder")').isVisible({ timeout: 3000 }).catch(() => false);
-      const hasDeleteFolder = await page.locator('[role="menuitem"]:has-text("Delete Folder")').isVisible({ timeout: 1000 }).catch(() => false);
-      const hasDelete = await page.locator('[role="menuitem"]:has-text("Delete")').first().isVisible({ timeout: 1000 }).catch(() => false);
+      const hasNewFolder = await isVisibleWithin(page.locator('[role="menuitem"]:has-text("New Folder")'), 3000);
+      const hasDeleteFolder = await isVisibleWithin(page.locator('[role="menuitem"]:has-text("Delete Folder")'), 1000);
+      const hasDelete = await isVisibleWithin(page.locator('[role="menuitem"]:has-text("Delete")').first(), 1000);
 
       console.log(`  New Folder: ${hasNewFolder}, Delete Folder: ${hasDeleteFolder}, Delete: ${hasDelete}`);
       await page.keyboard.press('Escape');
@@ -366,7 +366,7 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
 
     // Context menu uses radix-ui, items are rendered in a portal with role="menuitem"
     let deleteOption = page.locator('[role="menuitem"]:has-text("Delete Folder")');
-    if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(deleteOption, 2000)) {
       // Fallback to "Delete" if "Delete Folder" not found
       deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
     }
@@ -609,7 +609,7 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
 
     // Click Delete option in context menu
     let deleteOption = page.locator('[role="menuitem"]:has-text("Delete File")');
-    if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(deleteOption, 2000)) {
       deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
     }
 

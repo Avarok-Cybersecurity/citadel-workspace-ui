@@ -348,7 +348,7 @@ async function openFileTransferModal(page: Page, username: string): Promise<bool
       console.log('  Attachment button never became visible');
       return false;
     }
-    if (await attachButton.isVisible({ timeout: 100 })) {
+    if (await isVisibleWithin(attachButton, 100)) {
       await attachButton.click();
       console.log('  Clicked attachment button');
 
@@ -357,7 +357,7 @@ async function openFileTransferModal(page: Page, username: string): Promise<bool
 
       // Use role selector to avoid ambiguity with "Send File" button vs heading
       const modalTitle = page.getByRole('heading', { name: 'Send File' });
-      if (await modalTitle.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(modalTitle, 3000)) {
         console.log('  File transfer modal opened');
         return true;
       }
@@ -383,7 +383,7 @@ async function _selectFileAndMode(
     // Click on the drop zone to trigger file input
     const dropZone = page.locator('[class*="border-dashed"]').first();
 
-    if (await dropZone.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(dropZone, 3000)) {
       // Use page.setInputFiles to simulate file selection
       const fileInput = page.locator('input[type="file"]');
       if (await fileInput.count() > 0) {
@@ -404,7 +404,7 @@ async function _selectFileAndMode(
         ? page.locator('label').filter({ hasText: 'P2P Only Transfer' })
         : page.locator('label').filter({ hasText: 'Send File' }).filter({ hasText: 'Recommended' });
 
-      if (await modeSelector.isVisible({ timeout: 2000 })) {
+      if (await isVisibleWithin(modeSelector, 2000)) {
         await modeSelector.click();
         console.log(`  Selected ${mode} mode`);
       }
@@ -426,7 +426,7 @@ async function _sendFileTransferRequest(page: Page, username: string): Promise<b
   try {
     const sendButton = page.locator('button').filter({ hasText: 'Send' }).last();
 
-    if (await sendButton.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(sendButton, 3000)) {
       await sendButton.click();
       console.log('  Clicked Send button');
       await sleep(2000);
@@ -734,13 +734,13 @@ async function sendMultipleFiles(
 
       // Select P2P mode
       const modeSelector = page.locator('label').filter({ hasText: 'P2P Only Transfer' });
-      if (await modeSelector.isVisible({ timeout: 2000 })) {
+      if (await isVisibleWithin(modeSelector, 2000)) {
         await modeSelector.click();
       }
 
       // Send
       const sendButton = page.locator('button').filter({ hasText: 'Send' }).last();
-      if (await sendButton.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(sendButton, 3000)) {
         await sendButton.click();
         await sleep(2000);
 
@@ -842,7 +842,7 @@ async function verifySidebarFiles(
 
   // Wait for FILES section to be present
   const filesSection = page.locator('[data-testid="files-section"]');
-  if (!await filesSection.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (!await isVisibleWithin(filesSection, 5000)) {
     console.log('  FILES section not found');
     return { found: false, fileCount: 0, orderCorrect: false, filesFound: [] };
   }
@@ -855,7 +855,7 @@ async function verifySidebarFiles(
   // If no files found, check for empty message
   if (fileCount === 0) {
     const emptyMessage = page.locator('[data-testid="no-files-message"]');
-    if (await emptyMessage.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(emptyMessage, 1000)) {
       console.log('  No downloaded files yet message visible');
     }
     return { found: false, fileCount: 0, orderCorrect: false, filesFound: [] };

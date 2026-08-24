@@ -14,6 +14,7 @@
 
 import type { Page, Browser, BrowserContext } from 'playwright';
 import {
+  isVisibleWithin,
   sleep,
   createBrowser,
   createAccount,
@@ -121,7 +122,7 @@ async function runTest(): Promise<boolean> {
     // Navigate to General office if visible (optional — not a test criterion)
     try {
       const generalOffice = page.locator('text=General').first();
-      if (await generalOffice.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(generalOffice, 3000)) {
         await generalOffice.click();
         await sleep(1000);
         console.log('  Clicked General office');
@@ -200,7 +201,7 @@ async function runTest(): Promise<boolean> {
     // Try to navigate to General office again to verify workspace functionality
     try {
       const generalOffice = page.locator('text=General').first();
-      if (await generalOffice.isVisible({ timeout: 5000 })) {
+      if (await isVisibleWithin(generalOffice, 5000)) {
         await generalOffice.click();
         await sleep(1000);
         console.log('  Clicked General office after reconnection');
