@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { User } from '../types/workspace-entities';
@@ -73,7 +72,6 @@ export const WorkspaceEventHandler: React.FC<{
   onStateChange?: (state: WorkspaceEventState) => void;
   children?: React.ReactNode;
 }> = ({ onStateChange, children }) => {
-  const navigate = useNavigate();
   const [state, setState] = useState<WorkspaceEventState>({
     workspace: undefined,
     workspaces: [],
@@ -143,12 +141,18 @@ export const WorkspaceEventHandler: React.FC<{
    * returns to the index rather than leaving the user inside a workspace that
    * does not exist yet — which showed an empty, non-functional shell with no
    * way back and no explanation.
+   *
+   * A location assignment, NOT useNavigate: this component is mounted ABOVE
+   * BrowserRouter (App.tsx renders WorkspaceApp outside it), so the router hooks
+   * throw here and take the whole app down with them — tsc cannot see that, and
+   * the first symptom is a blank page. A full load is also the right semantics
+   * for declining setup, since it drops the half-built workspace context.
    */
   const handleInitCancelled = () => {
     setShowInitModal(false);
     setInitModalDismissed(true);
     sessionStorage.setItem('workspace-init-modal-dismissed', 'true');
-    navigate('/');
+    window.location.assign('/');
   };
 
   return (
