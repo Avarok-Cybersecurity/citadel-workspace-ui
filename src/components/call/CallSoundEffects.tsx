@@ -1,0 +1,69 @@
+import { useEffect, useRef } from 'react';
+import { useCall } from '@/lib/call/call-context';
+import type { CallStatus } from '@/lib/call/call-state';
+
+/** Lazy so the audio code never rides along with the app shell (see below). */
+type SoundModule = typeof import('@/lib/call/call-sounds');
+
+/**
+ * Turns call state transitions into sound, and renders nothing.
+ *
+ * Sound reacts to the same reducer state the visuals react to, rather than to
+ * the actions that caused it — so a decline arriving over the wire silences
+ * the ring exactly as pressing Decline does, with no second code path.
+ *
+ * The sound module is imported on demand: no call has ever been placed on the
+ * landing page, and the bundle budget there is nearly spent. Because dynamic
+ * imports of the same module resolve in registration order, transitions are
+ * applied to the player in the order they happened even while the first
+ * import is still in flight.
+ */
+export function CallSoundEffects() {
+  const { call } = useCall();
+  const status: CallStatus | null = call?.status ?? null;
+  const callId = call?.callId ?? null;
+  const prevStatusRef = useRef<CallStatus | null>(null);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+    // Nothing has happened and nothing needs stopping: leave the module unloaded.
+    if (status === null && prev === null) return;
+
+    loadedRef.current = true;
+    void import('@/lib/call/call-sounds')
+      .then(({ callSounds }: SoundModule) => {
+        const player = callSounds();
+        if (status === 'ringing-in' && callId) {
+          void player.startRing('incoming', callId);
+        } else if (status === 'ringing-out' && callId) {
+          void player.startRing('ringback', callId);
+        } else {
+          // Accept, decline, timeout, failure, hangup: the ring stops NOW.
+          player.stopRing();
+          if (status === 'active' && prev !== 'active') player.chime('connected');
+          const wasLive = prev === 'active' || prev === 'connecting';
+          if (wasLive && (status === null || status === 'ended' || status === 'failed')) {
+            player.chime('ended');
+          }
+        }
+      })
+      .catch(() => {
+        // No sound is an acceptable outcome; a broken call is not.
+      });
+  }, [status, callId]);
+
+  // A ring must not outlive the surface that owns it (e.g. logout mid-ring).
+  useEffect(
+    () => () => {
+      if (!loadedRef.current) return;
+      void import('@/lib/call/call-sounds')
+        .then(({ callSounds }: SoundModule) => callSounds().stopRing())
+        .catch(() => {});
+    },
+    [],
+  );
+
+  return null;
+}

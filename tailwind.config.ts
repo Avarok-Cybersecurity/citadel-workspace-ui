@@ -102,6 +102,13 @@ export default {
           "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-4px)" },
           "20%, 40%, 60%, 80%": { transform: "translateX(4px)" },
         },
+        // A ring that swells outward and dissolves — the visual grammar of a
+        // ringing phone. Deliberately slower and softer than animate-ping.
+        "ring-pulse": {
+          "0%": { transform: "scale(1)", opacity: "0.7" },
+          "70%": { transform: "scale(1.4)", opacity: "0" },
+          "100%": { transform: "scale(1.4)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -111,6 +118,7 @@ export default {
         "slide-in": "slide-in 0.3s ease-out",
         "slide-out": "slide-out 0.3s ease-out",
         "shake": "shake 0.5s ease-in-out",
+        "ring-pulse": "ring-pulse 2.4s ease-out infinite",
       },
       fontFamily: {
         sans: ["SF Pro Display", "system-ui", "sans-serif"],

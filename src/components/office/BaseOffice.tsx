@@ -11,11 +11,9 @@ import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
-import { FileText, MessageSquare } from "lucide-react";
 import { saveOfficeContent } from "./save-office-content";
 import WorkspaceService from "@/lib/workspace-service";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import GroupChatView from "@/components/chat/GroupChatView";
+import { OfficeChatTabs } from "./OfficeChatTabs";
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
@@ -215,33 +213,15 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       canEdit={hasEditPermission}
       editDeniedReason={editDeniedReason || undefined}
     >
-      <Tabs defaultValue="content" className="w-full h-full flex flex-col">
-        <div className="px-4 pt-4 border-b border-border flex-shrink-0">
-          <TabsList className="bg-background">
-            <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
-              <FileText className="h-4 w-4 mr-2" />
-              Content
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="data-[state=active]:bg-purple-600">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Chat
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="content" className="mt-0 flex-1 overflow-auto">
-          {contentView}
-        </TabsContent>
-
-        <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
-          <GroupChatView
-            groupId={chatChannelId}
-            currentUserId={currentUserId}
-            currentUserName={currentUserName}
-            rules={entityData?.rules ?? undefined}
-          />
-        </TabsContent>
-      </Tabs>
+      <OfficeChatTabs
+        contentView={contentView}
+        chatChannelId={chatChannelId}
+        nodeId={nodeId}
+        roomName={entityData?.name || title}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        rules={entityData?.rules ?? undefined}
+      />
     </OfficeLayout>
   );
 };

@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { debugLog } from '@/lib/debug-config';
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { loadCallSoundSettings, saveCallSoundSettings } from '@/lib/call/call-sound-preferences';
 import { useToast, useEventListener } from '@/hooks';
 import { AvatarUpload } from './AvatarUpload';
 import WorkspaceService from '@/lib/workspace-service';
@@ -17,6 +20,14 @@ export function GeneralSettingsTab() {
   const [originalAvatarData, setOriginalAvatarData] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [callSoundsEnabled, setCallSoundsEnabled] = useState(() => loadCallSoundSettings().enabled);
+
+  // Saved on change like the privacy toggles — this is a device preference,
+  // not part of the profile form, so it does not wait on the Save button.
+  const handleCallSoundsChange = (enabled: boolean) => {
+    setCallSoundsEnabled(enabled);
+    saveCallSoundSettings({ enabled });
+  };
 
   // Load current user data on mount
   useEffect(() => {
@@ -127,6 +138,27 @@ export function GeneralSettingsTab() {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Sounds */}
+      <div className="space-y-3 pt-4 border-t border-border">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
+          <Volume2 className="h-4 w-4 text-primary-accent" />
+          Sounds
+        </div>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
+          <div>
+            <Label className="text-sm font-medium">Call sounds</Label>
+            <p className="text-xs text-muted-foreground">
+              Ring for incoming calls and while waiting for someone to answer
+            </p>
+          </div>
+          <Switch
+            checked={callSoundsEnabled}
+            onCheckedChange={handleCallSoundsChange}
+            data-testid="call-sounds-toggle"
+          />
         </div>
       </div>
 

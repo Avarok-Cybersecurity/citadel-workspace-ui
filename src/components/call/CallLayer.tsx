@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CallProvider } from './CallProvider';
+import { CallSoundEffects } from './CallSoundEffects';
 import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
 import { connectionManager } from '@/lib/connection';
@@ -30,6 +31,7 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
 
   return (
     <CallProvider selfCid={selfCid} senderConfig={senderConfig as MessageSenderConfig}>
+      <CallSoundEffects />
       <RingingCall />
       {children}
     </CallProvider>

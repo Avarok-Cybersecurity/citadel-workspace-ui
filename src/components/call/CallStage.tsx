@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { AlertCircle, PhoneOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { getInitials } from '@/components/chat/shared/formatters';
 import { ParticipantTile, type ConnectionQuality } from './ParticipantTile';
 import { CallControls } from './CallControls';
-import type { CallState } from '@/lib/call/call-state';
+import type { CallParticipant, CallState } from '@/lib/call/call-state';
 
 interface CallStageProps {
   call: CallState;
@@ -55,15 +58,18 @@ export function CallStage({
       className="m-3 rounded-lg border border-border bg-card p-3"
     >
       {call.status === 'failed' ? (
-        <StatusPanel
-          tone="error"
+        <ErrorPanel
           title="The call could not start"
           detail={call.reason ?? 'Something went wrong setting up the call.'}
         />
       ) : call.status === 'ringing-out' ? (
-        <StatusPanel tone="pending" title="Calling…" detail={ringingDetail(visible.length)} />
+        <OutgoingCallPanel invitees={visible} onCancel={onLeave} />
       ) : (
-        <div
+        <>
+          {/* Accept-to-first-frame gap: without this the stage looks frozen at
+              the exact moment the user is judging whether the call worked. */}
+          {call.status === 'connecting' && <ConnectingBanner />}
+          <div
           className={cn(
             'grid gap-2',
             // Audio-only stays a compact strip: a grid of avatars is a lot of
@@ -95,7 +101,8 @@ export function CallStage({
             stream={localStream}
             isSelf
           />
-        </div>
+          </div>
+        </>
       )}
 
       <div className="mt-3">
@@ -114,6 +121,7 @@ export function CallStage({
 
 function callLabel(call: CallState, others: number): string {
   if (call.status === 'ringing-out') return 'Outgoing call, ringing';
+  if (call.status === 'connecting') return 'Call connecting';
   return others === 1 ? 'Call in progress' : `Call in progress with ${others} people`;
 }
 
@@ -121,28 +129,82 @@ function ringingDetail(count: number): string {
   return count === 1 ? 'Waiting for them to answer.' : `Waiting for ${count} people to answer.`;
 }
 
-function StatusPanel({
-  tone,
-  title,
-  detail,
+/**
+ * Who is being called, not just that a call exists. The halo rings animate
+ * only under motion-safe; reduced-motion users get the same layout with a
+ * static accent ring, not a slowed-down animation.
+ */
+function OutgoingCallPanel({
+  invitees,
+  onCancel,
 }: {
-  tone: 'pending' | 'error';
-  title: string;
-  detail: string;
+  invitees: CallParticipant[];
+  onCancel: () => void;
 }) {
+  const first = invitees[0];
+  const calleeName = first?.username ?? 'Unknown';
+  const title =
+    invitees.length > 1 ? `Calling ${calleeName} and ${invitees.length - 1} more…` : `Calling ${calleeName}…`;
+
+  return (
+    // Polite live region: ringing is information, not a demand.
+    <div
+      role="status"
+      data-testid="call-ringing"
+      className="flex flex-col items-center gap-4 rounded-md bg-surface px-4 py-8"
+    >
+      <div className="relative">
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full border-2 border-primary-accent motion-safe:animate-ring-pulse"
+        />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full border-2 border-primary-accent motion-safe:animate-ring-pulse motion-safe:[animation-delay:1.2s]"
+        />
+        <Avatar className="h-16 w-16 ring-2 ring-primary-accent/70">
+          <AvatarFallback className="bg-card text-lg text-foreground">
+            {getInitials(calleeName)}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{ringingDetail(invitees.length)}</p>
+      </div>
+      <Button variant="destructive" size="sm" onClick={onCancel} data-testid="call-cancel">
+        <PhoneOff className="mr-1.5 h-4 w-4" aria-hidden="true" />
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
+function ConnectingBanner() {
   return (
     <div
-      className="flex items-center gap-3 rounded-md bg-surface p-4"
-      // Assertive for a failure the user must act on; polite while ringing,
-      // which is information rather than a demand.
-      role={tone === 'error' ? 'alert' : 'status'}
-      data-testid={tone === 'error' ? 'call-error' : 'call-ringing'}
+      role="status"
+      data-testid="call-connecting"
+      className="mb-2 flex items-center gap-2 rounded-md bg-surface px-3 py-2"
     >
-      {tone === 'error' ? (
-        <AlertCircle className="h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
-      ) : (
-        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary-accent" aria-hidden="true" />
-      )}
+      <span className="relative flex h-2 w-2" aria-hidden="true">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-primary-accent opacity-75 motion-safe:animate-ping" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-accent" />
+      </span>
+      <p className="text-xs text-muted-foreground">Connecting…</p>
+    </div>
+  );
+}
+
+function ErrorPanel({ title, detail }: { title: string; detail: string }) {
+  return (
+    // Assertive: a failure the user must act on.
+    <div
+      className="flex items-center gap-3 rounded-md bg-surface p-4"
+      role="alert"
+      data-testid="call-error"
+    >
+      <AlertCircle className="h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs text-muted-foreground">{detail}</p>

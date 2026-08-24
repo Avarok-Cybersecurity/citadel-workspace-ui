@@ -5,7 +5,7 @@
  * and action buttons (settings, leave).
  */
 
-import { useState, useMemo } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Settings, LogOut, Users, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,8 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
+import type { GroupConversation } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
+import { GroupMemberAvatars } from './GroupMemberAvatars';
 
 // ============================================================================
 // Types
@@ -38,24 +39,9 @@ interface GroupChatHeaderProps {
   onOpenSettings: () => void;
   /** Callback when user leaves the group */
   onLeaveGroup: () => Promise<void>;
+  /** Call entry/leave controls, supplied by the surface that knows the roster. */
+  callControls?: ReactNode;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const MAX_VISIBLE_AVATARS = 5;
-
-const AVATAR_COLORS = [
-  '#FFD700', // Gold - Owner
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
 
 // ============================================================================
 // Component
@@ -65,35 +51,11 @@ export function GroupChatHeader({
   group,
   onOpenSettings,
   onLeaveGroup,
+  callControls,
 }: GroupChatHeaderProps) {
   const { isOwner, can } = useGroupPermissions(group);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
-
-  // Get members sorted by role position
-  const sortedMembers = useMemo(() => {
-    return [...group.members]
-      .flatMap(member => {
-        const role = group.settings.roles.find(r => r.id === member.roleId);
-        if (!role) return [];
-        return [{ ...member, role } as GroupMemberWithRole];
-      })
-      .sort((a, b) => {
-        if (a.role.position !== b.role.position) {
-          return b.role.position - a.role.position;
-        }
-        return a.username.localeCompare(b.username);
-      });
-  }, [group.members, group.settings.roles]);
-
-  const visibleMembers = sortedMembers.slice(0, MAX_VISIBLE_AVATARS);
-  const overflowCount = Math.max(0, sortedMembers.length - MAX_VISIBLE_AVATARS);
-
-  // Get avatar color
-  const getAvatarColor = (member: GroupMemberWithRole, index: number): string => {
-    if (member.role?.color) return member.role.color;
-    return AVATAR_COLORS[index % AVATAR_COLORS.length];
-  };
 
   // Handle leave confirmation
   const handleLeaveConfirm = async () => {
@@ -111,45 +73,15 @@ export function GroupChatHeader({
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
-      {/* Left: Group Info */}
-      <div className="flex items-center gap-3">
+      {/* Left: Group Info. min-w-0 lets the name truncate at narrow widths
+          instead of shoving the call controls off-screen. */}
+      <div className="flex items-center gap-3 min-w-0">
         {/* Overlapping Avatars */}
-        <div className="flex items-center">
-          {visibleMembers.map((member, index) => (
-            <div
-              key={member.cid}
-              className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground border-2 border-background"
-              style={{
-                width: 32,
-                height: 32,
-                backgroundColor: getAvatarColor(member, index),
-                marginLeft: index === 0 ? 0 : -10,
-                zIndex: visibleMembers.length - index,
-              }}
-              title={member.username}
-            >
-              {member.username[0]?.toUpperCase() || '?'}
-            </div>
-          ))}
-          {overflowCount > 0 && (
-            <div
-              className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground bg-surface border-2 border-background"
-              style={{
-                width: 32,
-                height: 32,
-                marginLeft: -10,
-                zIndex: 0,
-              }}
-              title={`+${overflowCount} more members`}
-            >
-              +{overflowCount}
-            </div>
-          )}
-        </div>
+        <GroupMemberAvatars group={group} />
 
         {/* Group Name & Member Count */}
-        <div>
-          <h2 className="text-base font-semibold text-foreground">{group.name}</h2>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-foreground truncate">{group.name}</h2>
           <p className="text-xs text-muted-foreground">
             {group.members.length} member{group.members.length !== 1 ? 's' : ''}
           </p>
@@ -157,7 +89,8 @@ export function GroupChatHeader({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
+        {callControls}
         {/* Settings Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -42,14 +42,27 @@ export function IncomingCallCard({
       role="group"
       aria-label={`${description} from ${callerName}`}
       data-testid="incoming-call-card"
-      className="fixed inset-x-3 top-16 z-[60] rounded-lg border border-border bg-popover p-4 shadow-xl sm:inset-x-auto sm:right-4 sm:w-80"
+      className="fixed inset-x-3 top-16 z-[60] rounded-lg border border-border bg-popover p-4 shadow-xl motion-safe:animate-fade-in sm:inset-x-auto sm:right-4 sm:w-80"
     >
       <div className="flex items-center gap-3">
-        <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary-accent motion-safe:animate-pulse">
-          <AvatarFallback className="bg-card text-foreground">
-            {getInitials(callerName)}
-          </AvatarFallback>
-        </Avatar>
+        {/* Halo rings radiating from the caller, not a whole-avatar opacity
+            blink: the motion says "ringing" instead of "loading". Under
+            reduced motion the static accent ring alone carries the state. */}
+        <div className="relative shrink-0">
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 rounded-full border-2 border-primary-accent motion-safe:animate-ring-pulse"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 rounded-full border-2 border-primary-accent motion-safe:animate-ring-pulse motion-safe:[animation-delay:1.2s]"
+          />
+          <Avatar className="h-12 w-12 ring-2 ring-primary-accent">
+            <AvatarFallback className="bg-card text-foreground">
+              {getInitials(callerName)}
+            </AvatarFallback>
+          </Avatar>
+        </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-popover-foreground">{callerName}</p>
           <p className="truncate text-sm text-muted-foreground">{description}</p>

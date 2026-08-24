@@ -16,6 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 import { groupIdToKey } from '@/lib/group-conversations/group-key';
 import { useRegisteredPeers } from '@/hooks/use-registered-peers';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
+import { GroupCallControls } from '@/components/call/GroupCallControls';
+import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
 import { GroupChatView } from '@/components/chat/GroupChatView';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
@@ -95,6 +97,15 @@ export function GroupChatPage() {
     },
     [groupId, updateMemberRole]
   );
+
+  // Everyone except the current user — startCall invites this exact list, so
+  // including ourselves would make the engine ring us in our own call.
+  const callMembers = useMemo(() => {
+    if (!group) return [];
+    return group.members
+      .filter((m) => m.cid.toString() !== currentUserId)
+      .map((m) => ({ cid: m.cid, username: m.username }));
+  }, [group, currentUserId]);
 
   // Anyone already in the group would be a no-op invite, so they are filtered
   // out rather than offered and silently rejected by the backend.
@@ -177,16 +188,26 @@ export function GroupChatPage() {
         group={group}
         onOpenSettings={() => setShowSettings(true)}
         onLeaveGroup={handleLeaveGroup}
+        callControls={
+          <GroupCallControls roomId={group.id} roomName={group.name} members={callMembers} />
+        }
       />
 
-      {/* Real group chat with backend messaging */}
+      {/* Docked above the messages, scoped to this group's call and no other. */}
+      <GroupCallDock roomId={group.id} />
+
+      {/* Real group chat with backend messaging. The wrapper gives the
+          h-full chat view a bounded flex slot, so a docked call stage
+          shrinks the messages instead of pushing the composer off-screen. */}
       {currentUserId && groupId && (
-        <GroupChatView
-          groupId={groupId}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          totalMembers={group.members.length}
-        />
+        <div className="flex-1 min-h-0">
+          <GroupChatView
+            groupId={groupId}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            totalMembers={group.members.length}
+          />
+        </div>
       )}
 
       {/* Settings Panel */}

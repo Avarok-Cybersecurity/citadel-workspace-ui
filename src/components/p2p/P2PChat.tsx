@@ -21,8 +21,7 @@ import { FileTransferModal } from './FileTransferModal';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
 import { CallStage } from '@/components/call/CallStage';
-import { useCall } from '@/lib/call/call-context';
-import { useCallDuration } from '@/components/call/use-call-duration';
+import { useDirectCall } from './hooks/use-direct-call';
 import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
@@ -62,16 +61,7 @@ export function P2PChat({
   // Hooks first, before any early return in this component. Placing them lower
   // put them after one, which breaks React's hook ordering and fails
   // intermittently at runtime rather than reliably.
-  const { call, localStream, remoteStreams, remoteAudioStreams, capability, startCall, leave, toggleMic, toggleCamera } = useCall();
-  // Scoped to THIS conversation: a call with someone else must not render its
-  // stage over an unrelated chat.
-  // 'ended' is excluded but 'failed' is NOT. A call the user deliberately left
-  // has nothing left to say, and leaving its surface on screen makes Leave look
-  // like it did not work. A call that FAILED still owes them the reason, which
-  // the stage renders — hiding both would swallow the one explanation they get.
-  const isCallWithThisPeer =
-    call !== null && call.participants.has(peerCid) && call.status !== 'ended';
-  const callDuration = useCallDuration(isCallWithThisPeer && call?.status === 'active');
+  const callBinding = useDirectCall(peerCid, peerName);
 
   const isGroupMode = mode === 'group';
   const displaySenderName = showSenderName ?? isGroupMode;
@@ -221,26 +211,26 @@ export function P2PChat({
         onSettingsClick={() => setShowSettingsModal(true)}
         call={{
           canCall: isConnected,
-          inCall: isCallWithThisPeer,
-          capability,
-          onStartCall: (video) => void startCall([{ cid: peerCid, username: peerName }], video),
-          onLeave: () => void leave(),
+          inCall: callBinding.active,
+          capability: callBinding.capability,
+          onStartCall: callBinding.startCall,
+          onLeave: callBinding.leave,
         }}
       />
 
       {/* Docked above the messages, so the conversation stays usable during a
           call — which is the entire reason to put calling inside a messenger. */}
-      {isCallWithThisPeer && call && (
+      {callBinding.call && (
         <CallStage
-          call={call}
+          call={callBinding.call}
           selfUsername="You"
-          localStream={localStream}
-          remoteStreams={remoteStreams}
-          remoteAudioStreams={remoteAudioStreams}
-          duration={callDuration}
-          onToggleMic={() => void toggleMic()}
-          onToggleCamera={() => void toggleCamera()}
-          onLeave={() => void leave()}
+          localStream={callBinding.localStream}
+          remoteStreams={callBinding.remoteStreams}
+          remoteAudioStreams={callBinding.remoteAudioStreams}
+          duration={callBinding.duration}
+          onToggleMic={callBinding.toggleMic}
+          onToggleCamera={callBinding.toggleCamera}
+          onLeave={callBinding.leave}
         />
       )}
       <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} />
