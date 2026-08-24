@@ -14,6 +14,7 @@ import { websocketService } from '../websocket-service';
 import { RealProtocolIORouter } from './real-protocol-io-router';
 import type { FileSource } from './io-router-types';
 import type {
+  FileTransfer,
   FileTransferIntent,
   SendTransferRequestIntent,
   SendChunkIntent,
@@ -27,6 +28,8 @@ import type {
   FilePickerResult,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
+import { P2PCommandType, serializeP2PCommand } from '@/types/p2p-types';
+import { buildTransferAnnouncement } from './transfer-announcement';
 import { awaitSendFileAck, uploadFileToServer } from './server-upload';
 import { downloadFileFromServer } from './server-download';
 
@@ -103,9 +106,12 @@ export class FileTransferIO extends RealProtocolIORouter {
       }
       debugLog(
         'FileTransferIO',
-        'send-transfer-request without file in async mode — skipping protocol send (recipient discovers via virtualPath)',
+        'send-transfer-request without file in async mode — skipping protocol send (recipient discovers via the announcement below)',
         { transferId: transfer.id, virtualPath: transfer.virtualPath },
       );
+      // The bytes are already on the server; this is the ONLY thing that tells
+      // the recipient the transfer exists.
+      await this.announceTransfer(transfer);
       return;
     }
 
@@ -119,6 +125,10 @@ export class FileTransferIO extends RealProtocolIORouter {
         `executeSendTransferRequest requires a File for non-async transfers (transferId=${transfer.id}, mode=${transfer.mode})`,
       );
     }
+
+    // Announce before sending the bytes, so the conversation shows the transfer
+    // by the time the protocol notification and progress ticks arrive.
+    await this.announceTransfer(transfer);
 
     await this.sendFile({
       source: file,
@@ -134,6 +144,29 @@ export class FileTransferIO extends RealProtocolIORouter {
         expiresAt: transfer.expiresAt,
       },
     });
+  }
+
+  /**
+   * Send the in-band message that makes a transfer appear in the recipient's
+   * conversation. Without it they receive bytes with nothing to show for them.
+   */
+  private async announceTransfer(transfer: FileTransfer): Promise<void> {
+    const payload = buildTransferAnnouncement(transfer);
+    const bytes = serializeP2PCommand({
+      type: P2PCommandType.MessagingLayerCommand,
+      payload,
+    });
+
+    debugLog('FileTransferIO', `announceTransfer: ${transfer.fileName} -> ${transfer.recipientCid}`, {
+      transferId: transfer.id,
+      mode: transfer.mode,
+    });
+
+    await websocketService.sendP2PMessageReliable(
+      BigInt(transfer.senderCid),
+      BigInt(transfer.recipientCid),
+      bytes,
+    );
   }
 
   private async executeSendChunk(intent: SendChunkIntent): Promise<void> {
