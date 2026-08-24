@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Palette } from 'lucide-react';
@@ -31,11 +31,32 @@ const WorkspaceAppearanceModal = lazy(() =>
  */
 export function WorkspaceAppearanceSection() {
   const { state } = useWorkspace();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, fetchPermissionsForDomain } = usePermissions();
   const { theme, isDefault } = useWorkspaceTheme();
   const [open, setOpen] = useState(false);
 
-  const canEdit = hasPermission(WORKSPACE_ROOT_ID, Permission.Themes);
+  const workspaceId = state.workspace?.id;
+
+  // Two things had to be handled here, both found by running the Playwright spec
+  // rather than by reading the code.
+  //
+  // 1. PermissionsContext only SYNCS from the service cache; it never fetches.
+  //    A check against a domain nobody loaded returns false, which is
+  //    indistinguishable from a genuine denial.
+  // 2. The creator's permissions are stored against the WORKSPACE'S ID —
+  //    async_domain_server_ops calls set_role_permissions(&workspace_id) — while
+  //    the sentinel 'workspace-root' carries none. Asking only for the sentinel
+  //    reports the workspace's own admin as an unprivileged member.
+  //
+  // So both domains are loaded, and either may grant.
+  useEffect(() => {
+    void fetchPermissionsForDomain(WORKSPACE_ROOT_ID);
+    if (workspaceId) void fetchPermissionsForDomain(workspaceId);
+  }, [fetchPermissionsForDomain, workspaceId]);
+
+  const canEdit =
+    hasPermission(WORKSPACE_ROOT_ID, Permission.Themes) ||
+    (workspaceId !== undefined && hasPermission(workspaceId, Permission.Themes));
 
   const handleSave = useCallback(async (next: WorkspaceTheme) => {
     // Rides in the workspace's metadata bytes, so every member receives it with
