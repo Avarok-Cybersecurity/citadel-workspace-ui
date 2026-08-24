@@ -24,37 +24,70 @@ interface ThemeEnvelope {
   theme: unknown;
 }
 
+/**
+ * The versioned envelope sent to the server, which merges it into the
+ * workspace's metadata under a `theme` key — so this is deliberately NOT the
+ * whole metadata document that deserializeTheme reads back.
+ *
+ * The envelope is versioned because it outlives the client that wrote it. A
+ * member on an older build must not be handed a payload it silently
+ * misinterprets; it gets the default instead, and the workspace still renders.
+ */
 export function serializeTheme(theme: WorkspaceTheme): Uint8Array {
   const envelope: ThemeEnvelope = { v: ENVELOPE_VERSION, theme };
   return new TextEncoder().encode(JSON.stringify(envelope));
 }
 
 /**
- * Read a theme out of workspace metadata.
+ * Read a theme out of a workspace's metadata.
+ *
+ * `metadata` is a single JSON object shared by several features — initialisation
+ * writes `{"initialized": true}` into it — so the theme lives under a `theme`
+ * key rather than owning the whole document. The server merges it in on save
+ * for the same reason: overwriting the blob erased the initialisation marker and
+ * made a configured workspace reopen its setup modal.
+ *
+ * Both shapes are accepted because both genuinely occur: the wire delivers
+ * metadata as bytes, while the workspace event handler parses it and stores an
+ * object on state. Accepting only one silently returned null for the other,
+ * which is how the theme appeared to save and then never come back.
  *
  * Returns null rather than throwing on anything unusable — absent metadata, a
- * different producer's bytes, a newer version, a malformed palette. The caller
- * falls back to the default, because a workspace that will not render is a far
- * worse outcome than one that renders in the default theme.
+ * different producer's bytes, a newer envelope version, a malformed palette. The
+ * caller falls back to the default, because a workspace that will not render is
+ * a far worse outcome than one that renders in the default theme.
  */
-export function deserializeTheme(bytes: Uint8Array | number[] | null | undefined): WorkspaceTheme | null {
-  if (!bytes) return null;
-  const array = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  if (array.length === 0) return null;
+export function deserializeTheme(
+  metadata: Uint8Array | number[] | Record<string, unknown> | null | undefined,
+): WorkspaceTheme | null {
+  if (!metadata) return null;
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(new TextDecoder().decode(array));
-  } catch {
-    // Metadata is a general-purpose field; another feature's bytes landing here
-    // is expected, not exceptional.
-    return null;
+  let document: unknown;
+  // ArrayBuffer.isView, not `instanceof Uint8Array`: a typed array that crossed
+  // a realm boundary — the WASM bindings, a worker, jsdom in the unit tests —
+  // fails the instanceof check while being a perfectly good byte array, and the
+  // miss is silent, landing the bytes in the object branch below.
+  if (ArrayBuffer.isView(metadata) || Array.isArray(metadata)) {
+    const array = new Uint8Array(metadata as ArrayLike<number>);
+    if (array.length === 0) return null;
+    try {
+      document = JSON.parse(new TextDecoder().decode(array));
+    } catch {
+      // Metadata is a general-purpose field; another feature's bytes landing
+      // here is expected, not exceptional.
+      return null;
+    }
+  } else {
+    document = metadata;
   }
 
-  if (!isRecord(parsed)) return null;
-  if (parsed.v !== ENVELOPE_VERSION) return null;
+  if (!isRecord(document)) return null;
 
-  return validateTheme(parsed.theme);
+  const envelope = document.theme;
+  if (!isRecord(envelope)) return null;
+  if (envelope.v !== ENVELOPE_VERSION) return null;
+
+  return validateTheme(envelope.theme);
 }
 
 /**

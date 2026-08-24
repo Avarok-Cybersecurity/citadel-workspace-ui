@@ -8,18 +8,37 @@ import { describe, it, expect } from 'vitest';
 import { serializeTheme, deserializeTheme, validateTheme } from '../theme-serialization';
 import { defaultTheme, findPreset } from '../presets';
 import { beginEdit, setToken } from '../theme-editing';
+import type { WorkspaceTheme } from '../theme-types';
+
+/**
+ * What the server stores: one metadata document shared by several features,
+ * with the theme envelope merged in under `theme`. Building it here rather than
+ * asserting against a bare envelope is the point — the round trip that matters
+ * is the one through the shape the workspace actually carries.
+ */
+function metadataCarrying(theme: WorkspaceTheme): Record<string, unknown> {
+  return {
+    initialized: true,
+    theme: JSON.parse(new TextDecoder().decode(serializeTheme(theme))) as unknown,
+  };
+}
+
+/** The same document as the bytes a wire decoder hands back. */
+function metadataBytes(theme: WorkspaceTheme): Uint8Array {
+  return new TextEncoder().encode(JSON.stringify(metadataCarrying(theme)));
+}
 
 describe('round trip', () => {
   it('survives serialization unchanged', () => {
     const theme = defaultTheme();
 
-    expect(deserializeTheme(serializeTheme(theme))).toEqual(theme);
+    expect(deserializeTheme(metadataCarrying(theme))).toEqual(theme);
   });
 
   it('preserves a user theme, including its edits and derived flag', () => {
     const edited = setToken(beginEdit(findPreset('nord')!), 'light', 'primary', { h: 12, s: 34, l: 56 });
 
-    const restored = deserializeTheme(serializeTheme(edited));
+    const restored = deserializeTheme(metadataCarrying(edited));
 
     expect(restored).toEqual(edited);
     expect(restored?.light.primary).toEqual({ h: 12, s: 34, l: 56 });
@@ -29,14 +48,32 @@ describe('round trip', () => {
   it('preserves an emoji icon and one without', () => {
     const withEmoji = { ...defaultTheme(), icon: { emoji: '🛡️', color: { h: 10, s: 20, l: 30 } } };
 
-    expect(deserializeTheme(serializeTheme(withEmoji))?.icon.emoji).toBe('🛡️');
-    expect(deserializeTheme(serializeTheme(defaultTheme()))?.icon.emoji).toBeUndefined();
+    expect(deserializeTheme(metadataCarrying(withEmoji))?.icon.emoji).toBe('🛡️');
+    expect(deserializeTheme(metadataCarrying(defaultTheme()))?.icon.emoji).toBeUndefined();
   });
 
   it('accepts the plain number[] form a wire decoder may hand back', () => {
-    const bytes = Array.from(serializeTheme(defaultTheme()));
+    expect(deserializeTheme(Array.from(metadataBytes(defaultTheme())))).toEqual(defaultTheme());
+  });
 
-    expect(deserializeTheme(bytes)).toEqual(defaultTheme());
+  it('accepts the parsed object the workspace keeps on state', () => {
+    // The wire delivers bytes, but the workspace event handler parses metadata
+    // and stores an object. Reading only one of the two shapes returned null for
+    // the other, which looked exactly like a theme that saved and never came
+    // back.
+    expect(deserializeTheme(metadataBytes(defaultTheme()))).toEqual(defaultTheme());
+    expect(deserializeTheme(metadataCarrying(defaultTheme()))).toEqual(defaultTheme());
+  });
+
+  it('reads the theme from a document that carries other features too', () => {
+    // The regression this pins: the theme is one key in a shared document, not
+    // the whole of it. A save that replaced the document erased
+    // `initialized`, and the workspace reopened its setup modal over a working
+    // workspace — with a backdrop that swallowed every click.
+    const document = metadataCarrying(defaultTheme());
+
+    expect(document.initialized).toBe(true);
+    expect(deserializeTheme(document)).toEqual(defaultTheme());
   });
 });
 
@@ -54,10 +91,14 @@ describe('rejecting unusable metadata', () => {
     // expected rather than exceptional.
     expect(deserializeTheme(new TextEncoder().encode('not json at all'))).toBeNull();
     expect(deserializeTheme(new TextEncoder().encode('{"some":"other feature"}'))).toBeNull();
+    // An initialised workspace that has never had a theme set.
+    expect(deserializeTheme({ initialized: true })).toBeNull();
   });
 
   it('refuses a version it does not understand rather than guessing', () => {
-    const future = new TextEncoder().encode(JSON.stringify({ v: 99, theme: defaultTheme() }));
+    const future = new TextEncoder().encode(
+      JSON.stringify({ initialized: true, theme: { v: 99, theme: defaultTheme() } }),
+    );
 
     expect(deserializeTheme(future)).toBeNull();
   });

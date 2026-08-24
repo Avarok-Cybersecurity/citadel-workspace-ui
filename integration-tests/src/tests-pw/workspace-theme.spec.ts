@@ -33,8 +33,20 @@ async function readToken(page: Page, name: string): Promise<string> {
 }
 
 async function openAppearanceSettings(page: Page): Promise<void> {
-  await page.getByTestId('user-avatar-button').click();
-  await page.locator('[role="menuitem"]:has-text("Settings")').click();
+  const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
+
+  // The workspace keeps streaming data in for a while after it first renders,
+  // and a re-render dismisses an open Radix dropdown. Clicking the avatar once
+  // and then waiting on the menu item means waiting forever on a menu that
+  // closed a frame after it opened — which is exactly how this step hung for a
+  // full timeout after a reload. Reopen until the item is really there.
+  const avatar = page.getByTestId('user-avatar-button');
+  await expect(async () => {
+    await avatar.click({ timeout: 5_000 });
+    await expect(settingsItem).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
+
+  await settingsItem.click();
   // The tab is labelled "Theme"; its visible text is hidden below `sm`, so the
   // accessible name comes from the aria-label rather than the span.
   await page.getByRole('tab', { name: /^theme$/i }).click();
@@ -157,33 +169,30 @@ test.describe.serial('Workspace theming', () => {
   });
 
   test('saving persists the theme across a reload', async () => {
-    // A full reload plus reconnect costs more than the inherited 120s budget on
-    // its own: waitForAppReady and waitForWorkspaceLoaded are 60s each, so the
-    // test could exhaust its time before asserting anything.
-    test.setTimeout(300_000);
+    // A reload plus a full workspace restore is a real server round-trip, over
+    // the inherited per-test budget.
+    test.setTimeout(180_000);
 
     await page.getByTestId('appearance-save').click();
+    // Saving closes the editor. Waiting for that rather than assuming it keeps
+    // the reload below from racing a modal still animating out.
+    await expect(page.getByTestId('workspace-appearance-modal')).toHaveCount(0);
 
-    // Saved into the workspace's metadata, so it has to survive a full reload
-    // and come back with the workspace — this is the assertion a unit test
-    // cannot make.
+    // The theme rides in the workspace's metadata, so proving it persisted means
+    // making a cold client load the workspace afresh — the assertion no unit
+    // test can make.
     //
-    // Logging in again is required, not incidental: a reload drops the session,
-    // so the app returns to the landing page and the workspace shell never
-    // renders. Waiting for it without re-authenticating just burns the timeout.
-    const admin = adminCredentials();
+    // A reload is all that is needed: the app restores the session by itself and
+    // comes back into the workspace shell. Earlier versions of this test called
+    // loginAfterDisconnect, which navigates to the landing page and hunts for an
+    // orphaned session — actively undoing a restore that had already succeeded,
+    // and burning 300s in cascading fallbacks before failing. If session restore
+    // ever regresses, the workspace assertion below is what catches it.
     await page.reload({ waitUntil: 'commit', timeout: 60_000 });
     await waitForAppReady(page, 60_000);
-    const loggedInAgain = await loginAfterDisconnect(
-      page,
-      admin.username,
-      admin.password,
-      null,
-      config.WORKSPACE_SERVER,
-    );
-    expect(loggedInAgain, 'could not log back in after reload').toBe(true);
-    await waitForWorkspaceLoaded(page, 60_000);
-    await closeAnyModals(page);
+
+    const loaded = await waitForWorkspaceLoaded(page, 90_000);
+    expect(loaded, 'the app should restore the session and workspace after a reload').toBe(true);
 
     await openAppearanceSettings(page);
     await expect(page.getByTestId('current-theme-name')).toHaveText('Dracula Copy');
