@@ -27,3 +27,25 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
       dispatchEvent: () => false,
     }) as unknown as MediaQueryList;
 }
+
+/**
+ * jsdom does not implement the Pointer Capture API.
+ *
+ * Anything that drags calls `setPointerCapture` on pointerdown — Sonner's
+ * swipe-to-dismiss, and the theme editor's colour wheel. Without these, a plain
+ * click on a toast action throws inside an event listener, which vitest reports
+ * as an unhandled error and explicitly warns can cause false positives: the test
+ * still passes while an exception escapes mid-interaction.
+ *
+ * No-ops rather than a real implementation. Capture only affects where
+ * subsequent pointer events are routed, and jsdom dispatches directly to the
+ * target anyway, so nothing under test depends on the behaviour — only on the
+ * methods existing.
+ */
+if (typeof Element !== 'undefined' && !Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = function setPointerCapture() {};
+  Element.prototype.releasePointerCapture = function releasePointerCapture() {};
+  Element.prototype.hasPointerCapture = function hasPointerCapture() {
+    return false;
+  };
+}
