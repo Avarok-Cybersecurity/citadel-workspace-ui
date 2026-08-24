@@ -15,6 +15,7 @@
 
 import { Page } from 'playwright';
 import {
+  isHiddenWithin,
   sleep,
   createSeparateBrowsers,
   createAccount,
@@ -47,6 +48,8 @@ interface TestResults {
     syncFolder: boolean;
     deleteFolder: boolean;
     peerSeesChanges: boolean;
+    /** The folder disappearing from the PEER after deletion, not just locally. */
+    peerSeesFolderRemoved: boolean;
   };
   fileOperations: {
     uploadFile: boolean;
@@ -408,31 +411,55 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
 async function verifyPeerSeesChanges(page: Page, label: string, folderName: string, shouldExist: boolean): Promise<boolean> {
   console.log(`\n=== ${label}: Sync and check folder "${folderName}" (expect ${shouldExist ? 'present' : 'absent'}) ===`);
 
-  // Try multiple sync attempts with increasing wait times
+  // Wait for the state we expect, rather than sleeping and sampling once.
+  //
+  // Each attempt used to sleep and then call isVisible({ timeout }), which does
+  // not wait at all — so whether propagation was seen came down to whether it
+  // happened to land inside a fixed 4/5/6 second sleep. That is why this was
+  // flaky in BOTH directions: one run the folder had not arrived yet, the next
+  // run it had not gone away yet, and neither was a product failure.
+  //
+  // isHiddenWithin for the absent case: waiting for something to appear and
+  // waiting for it to go away are different questions, and using the presence
+  // helper for both would report "not there yet" as success.
+  const target = () => page.getByText(folderName, { exact: true }).first();
+
   for (let attempt = 1; attempt <= 3; attempt++) {
     await clickSyncButton(page, label);
-    // Wait longer for sync response to be processed
-    await sleep(3000 + attempt * 1000);
 
-    const visible = await page.getByText(folderName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
-    const result = shouldExist ? visible : !visible;
+    const result = shouldExist
+      ? await isVisibleWithin(target(), 15_000)
+      : await isHiddenWithin(target(), 15_000);
 
-    console.log(`  Attempt ${attempt}: Folder visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
-
-    if (result) {
-      return true;
-    }
-
-    if (attempt < 3) {
-      console.log(`  Retrying sync...`);
-    }
+    console.log(`  Attempt ${attempt}: expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
+    if (result) return true;
   }
 
   const finalVisible = await page.getByText(folderName, { exact: true }).first()
     .isVisible({ timeout: 2000 }).catch(() => false);
   const finalResult = shouldExist ? finalVisible : !finalVisible;
   console.log(`  Final result: Folder visible: ${finalVisible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${finalResult ? 'PASS' : 'FAIL'}`);
+
+  if (!finalResult && !shouldExist) {
+    // getByText matches the whole page, so a name left in a breadcrumb or a
+    // toast looks identical to a row that never went away. Report where it
+    // actually is, so this says which.
+    const where = await page.evaluate((name) => {
+      const out: string[] = [];
+      for (const el of Array.from(document.querySelectorAll('*'))) {
+        if (el.children.length) continue;
+        if ((el.textContent || '').trim() !== name) continue;
+        const path: string[] = [];
+        for (let e: Element | null = el; e && path.length < 5; e = e.parentElement) {
+          path.push(`${e.tagName.toLowerCase()}${e.getAttribute('data-testid') ? `[${e.getAttribute('data-testid')}]` : ''}`);
+        }
+        out.push(path.join(' < '));
+      }
+      return out;
+    }, folderName);
+    console.log(`  STILL-PRESENT AT: ${JSON.stringify(where)}`);
+  }
+
   return finalResult;
 }
 
@@ -686,6 +713,7 @@ async function runTest(): Promise<boolean> {
       syncFolder: false,
       deleteFolder: false,
       peerSeesChanges: false,
+      peerSeesFolderRemoved: false,
     },
     fileOperations: {
       uploadFile: false,
@@ -892,7 +920,8 @@ async function runTest(): Promise<boolean> {
     results.folderOperations.deleteFolder = await deleteFolderViaContextMenu(page1, 'Alice', TEST_FOLDER);
     await takeScreenshot(page1, '09_folder_deleted');
 
-    await verifyPeerSeesChanges(page2, 'Bob', TEST_FOLDER, false);
+    results.folderOperations.peerSeesFolderRemoved =
+      await verifyPeerSeesChanges(page2, 'Bob', TEST_FOLDER, false);
     await takeScreenshot(page2, '09_bob_folder_gone');
 
     await takeScreenshot(page1, 'FINAL_alice');
@@ -921,7 +950,15 @@ async function runTest(): Promise<boolean> {
       results.fileOperations.fileVisible &&
       results.fileOperations.deleteFile &&
       results.fileOperations.fileRemoved &&
-      results.contextMenu.openContextMenu;
+      results.contextMenu.openContextMenu &&
+      // Peer propagation is the whole point of a peer-to-peer filesystem, and
+      // none of it was gated: a folder could fail to reach Bob, or a file could
+      // fail to disappear from Bob, and this spec still reported PASS. These two
+      // hold reliably once the checks actually wait.
+      results.folderOperations.peerSeesChanges &&
+      results.fileOperations.peerSeesFileRemoved;
+      // peerSeesFolderRemoved is deliberately NOT gated — see the note where it
+      // is reported.
 
     console.log('\nAccount Creation:');
     console.log(`  Alice:                     ${results.accountCreation.alice ? 'PASS' : 'FAIL'}`);
@@ -948,6 +985,22 @@ async function runTest(): Promise<boolean> {
     console.log(`  Breadcrumb Navigation:     ${results.folderOperations.breadcrumbNavigation ? 'PASS' : 'FAIL'}`);
     console.log(`  Sync Folder:               ${results.folderOperations.syncFolder ? 'PASS' : 'CHECK'}`);
     console.log(`  Delete Folder:             ${results.folderOperations.deleteFolder ? 'PASS' : 'FAIL'}`);
+    // KNOWN GAP, not a flake and not a test bug. Reproduced on consecutive runs
+    // once the check actually waits (it used to sleep and sample once, which is
+    // what hid this). Deleting a folder does not reach the peer, while deleting
+    // a FILE does — peerSeesFileRemoved passes in the same runs.
+    //
+    // Two things point at the cause. In one run Alice emitted no Rmdir at all,
+    // only SyncResponse traffic; serverRmdir (revfs-dir-ops.ts:98) computes the
+    // operation and throws it away — `const [newTree] = treeRmdir(...)` — where
+    // peerRmdir keeps it and calls sendAndAwaitAck. And because mergeTrees is a
+    // union that only ever adds, a removal that is missed once can never be
+    // recovered by a later sync: the peer's copy wins every time.
+    //
+    // Left ungated rather than made to pass: whether directory deletion is meant
+    // to propagate in server-backed mode is a product decision about revfs
+    // semantics, not something to settle from a test.
+    console.log(`  Peer Sees Folder Removed:  ${results.folderOperations.peerSeesFolderRemoved ? 'PASS' : 'KNOWN GAP (see note above)'}`);
     console.log(`  Peer Sees Changes:         ${results.folderOperations.peerSeesChanges ? 'PASS' : 'CHECK'}`);
 
     console.log('\nFile Operations:');
