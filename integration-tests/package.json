@@ -29,6 +29,7 @@
     "test:revfs:peer": "npm run build && node dist/tests/revfs-peer.test.js",
     "test:revfs:server": "npm run build && node dist/tests/revfs-server.test.js",
     "test:notifications": "npm run build && node dist/tests/notification-center.test.js",
+    "test:native-file-picker": "npm run build && node dist/tests/native-file-picker.test.js",
     "test:settings": "npm run build && node dist/tests/settings-modal.test.js",
     "test:workspace-init": "npm run build && node dist/tests/workspace-init.test.js",
     "test:security": "npm run build && node dist/tests/security-settings.test.js",
