@@ -7,7 +7,11 @@
  * 3. Navigate through outer tabs (General, File, Advanced, Stats)
  * 4. Navigate through inner tabs in File section (Standard, Remote Storage)
  * 5. Test the transfer mode toggle (Browser vs Citadel Protocol)
- * 6. Verify settings persist and UI updates correctly
+ *
+ * Note: this covers the per-conversation chat settings modal, not the admin
+ * modal's Chat tab (that is admin-modal.test.ts). It checks the controls render
+ * and respond; it does not reopen the modal to confirm the transfer mode was
+ * stored, so do not read a pass here as evidence of persistence.
  */
 
 import { Page } from 'playwright';

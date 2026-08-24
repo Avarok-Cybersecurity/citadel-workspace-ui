@@ -52,6 +52,12 @@ interface TestResults {
   // Step 6: Chat settings tab navigation
   chatTabActive: boolean;
   chatTabContentCorrect: boolean;
+  /**
+   * Left undefined — and so excluded from the verdict, like the optional room
+   * fields — when the entity is workspace-level, where chat settings have no
+   * backend to persist to.
+   */
+  chatSettingsPersist?: boolean;
 
   // Step 7: Room admin modal (only tested when rooms exist in sidebar)
   roomCreated?: boolean;
@@ -195,6 +201,7 @@ async function runTest(): Promise<boolean> {
     advancedToggleVisible: false,
     chatTabActive: false,
     chatTabContentCorrect: false,
+    chatSettingsPersist: undefined,
   };
 
   try {
@@ -404,6 +411,44 @@ async function runTest(): Promise<boolean> {
       }
 
       console.log(`  Chat tab content correct: ${results.chatTabContentCorrect ? 'PASS' : 'FAIL'}`);
+
+      // Save-and-reopen round trip. This is the assertion that distinguishes a
+      // real save from a success toast: ChatSettingsTab used to persist nothing
+      // and report success anyway, and every check above still passed.
+      if (!isWorkspaceMsg && results.chatTabContentCorrect) {
+        const toggle = dialog.locator('[data-testid="chat-enabled-toggle"]');
+        const before = await toggle.getAttribute('data-state');
+        await toggle.click();
+        const after = await toggle.getAttribute('data-state');
+
+        if (before === after) {
+          console.log('  Chat toggle did not change state - cannot test persistence');
+          results.chatSettingsPersist = false;
+        } else {
+          await dialog.locator('[data-testid="chat-save-button"]').click();
+          await sleep(1500);
+          await page.keyboard.press('Escape');
+          await sleep(500);
+
+          await clickAdminSettingsMenuItem(page);
+          await sleep(500);
+          const reopened = await navigateToTab(page, 'chat');
+          if (!reopened) {
+            console.log('  Could not reopen chat tab to verify persistence');
+            results.chatSettingsPersist = false;
+          } else {
+            const persisted = await getAdminDialog(page)
+              .locator('[data-testid="chat-enabled-toggle"]')
+              .getAttribute('data-state');
+            results.chatSettingsPersist = persisted === after;
+            console.log(`  Chat setting persisted: ${after} -> reopened as ${persisted}`);
+          }
+          await takeScreenshot(page, 'admin_08_chat_persistence');
+        }
+        console.log(`  Chat settings persist: ${results.chatSettingsPersist ? 'PASS' : 'FAIL'}`);
+      } else if (isWorkspaceMsg) {
+        console.log('  Chat settings persist: SKIP (workspace level has no chat backend)');
+      }
 
       // Close the modal
       await page.keyboard.press('Escape');
