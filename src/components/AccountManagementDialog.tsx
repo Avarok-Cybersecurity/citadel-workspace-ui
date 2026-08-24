@@ -109,19 +109,19 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
             {activeSessions.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Wifi className="h-4 w-4 text-green-400" />Active Sessions ({activeSessions.length})
+                  <Wifi className="h-4 w-4 text-success" />Active Sessions ({activeSessions.length})
                 </h3>
                 {activeSessions.map((session) => {
                   const isCurrentSession = currentConnection?.cid === session.cid;
                   return (
-                    <div key={session.cid} className="flex items-center justify-between p-4 rounded-lg bg-background border border-green-500/30">
+                    <div key={session.cid} className="flex items-center justify-between p-4 rounded-lg bg-background border border-success/30">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10"><AvatarFallback className="bg-green-600">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
+                        <Avatar className="h-10 w-10"><AvatarFallback className="bg-success">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-foreground font-medium">{session.username}</h4>
-                            {isCurrentSession && <UserCheck className="h-4 w-4 text-green-500" />}
-                            <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Active</span>
+                            {isCurrentSession && <UserCheck className="h-4 w-4 text-success" />}
+                            <span className="text-xs text-success bg-success/20 px-2 py-0.5 rounded">Active</span>
                           </div>
                           <p className="text-sm text-muted-foreground">{session.server_address}</p>
                           <p className="text-xs text-muted-foreground">Session {shortPeerHandle(session.cid)}</p>
@@ -129,7 +129,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                       </div>
                       <div className="flex items-center gap-2">
                         {!isCurrentSession && (
-                          <Button variant="outline" size="sm" className="border-green-500 text-green-400 hover:bg-green-500/20" onClick={() => handleSwitchAccount(session.username, session.server_address)}>Switch</Button>
+                          <Button variant="outline" size="sm" className="border-success text-success hover:bg-success/20" onClick={() => handleSwitchAccount(session.username, session.server_address)}>Switch</Button>
                         )}
                       </div>
                     </div>
@@ -147,14 +147,14 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                   const isConnected = currentConnection?.serverAddress === session.serverAddress && currentConnection?.username === session.username;
                   const hasActiveSession = activeSessions.some(a => a.username === session.username && a.server_address === session.serverAddress);
                   return (
-                    <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-background border ${hasActiveSession ? 'border-green-500/30' : 'border-surface/50'}`}>
+                    <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-background border ${hasActiveSession ? 'border-success/30' : 'border-surface/50'}`}>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10"><AvatarFallback className="bg-purple-600">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
+                        <Avatar className="h-10 w-10"><AvatarFallback className="bg-primary">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-foreground font-medium">{session.username}</h4>
-                            {isConnected && <UserCheck className="h-4 w-4 text-green-500" />}
-                            {hasActiveSession && <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Active</span>}
+                            {isConnected && <UserCheck className="h-4 w-4 text-success" />}
+                            {hasActiveSession && <span className="text-xs text-success bg-success/20 px-2 py-0.5 rounded">Active</span>}
                           </div>
                           <p className="text-sm text-muted-foreground">{session.serverAddress}</p>
                           {session.lastConnected && (
@@ -164,9 +164,9 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                       </div>
                       <div className="flex items-center gap-2">
                         {!isConnected && (
-                          <Button variant="outline" size="sm" className="border-purple-500 text-purple-400 hover:bg-purple-500/20" onClick={() => handleSwitchAccount(session.username, session.serverAddress)}>Switch</Button>
+                          <Button variant="outline" size="sm" className="border-primary-accent text-primary-accent hover:bg-primary-accent/20" onClick={() => handleSwitchAccount(session.username, session.serverAddress)}>Switch</Button>
                         )}
-                        <Button variant="ghost" size="icon" className="text-red-400 hover:bg-red-500/20" onClick={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/20" onClick={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -181,7 +181,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                 <p className="text-muted-foreground mb-4">No accounts found. Join a workspace to get started.</p>
                 <Button
                   variant="outline"
-                  className="border-purple-500 text-purple-400 hover:bg-purple-500/20"
+                  className="border-primary-accent text-primary-accent hover:bg-primary-accent/20"
                   onClick={() => {
                     onClose();
                     // Use a URL query param rather than a window event so the

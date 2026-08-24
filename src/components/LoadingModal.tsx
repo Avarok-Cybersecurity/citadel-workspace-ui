@@ -98,10 +98,10 @@ export const LoadingModal = ({
 
   const Icon = isError ? XCircle : isReady ? CheckCircle2 : Loader2;
   const iconClass = isError
-    ? "text-red-400"
+    ? "text-destructive"
     : isReady
-      ? "text-green-400"
-      : "animate-spin text-purple-400";
+      ? "text-success"
+      : "animate-spin text-primary-accent";
 
   const title = config.titles[status] || "Processing...";
   const description = errorMessage || config.descriptions[status] || "";
@@ -130,7 +130,7 @@ export const LoadingModal = ({
         <div className="flex justify-center mb-6">
           <div className="relative">
             {isLoading && (
-              <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl animate-pulse" />
+              <div className="absolute inset-0 bg-primary-accent/20 rounded-full blur-xl animate-pulse" />
             )}
             <Icon className={`w-16 h-16 ${iconClass} relative z-10`} />
           </div>
@@ -144,9 +144,9 @@ export const LoadingModal = ({
         {/* Display name badge */}
         {displayName && (
           <div className="text-center mb-4">
-            <span className="inline-flex items-center gap-2 px-3 py-1 bg-purple-900/30 border border-purple-700/50 rounded-full">
-              <div className="w-2 h-2 rounded-full bg-purple-400" />
-              <span className="text-purple-300 font-medium text-sm">
+            <span className="inline-flex items-center gap-2 px-3 py-1 bg-primary-accent/10 border border-primary-accent/30 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-primary-accent" />
+              <span className="text-primary-accent font-medium text-sm">
                 {displayName}
               </span>
             </span>
@@ -164,18 +164,18 @@ export const LoadingModal = ({
                 <div
                   key={step.key}
                   className={`w-2 h-2 rounded-full transition-colors duration-300 ${index === currentStepIndex
-                    ? "bg-purple-400"
-                    : "bg-purple-400/30"
+                    ? "bg-primary-accent"
+                    : "bg-primary-accent/30"
                     }`}
                 />
               ))}
-              <div className="w-2 h-2 rounded-full bg-purple-400/30" />
+              <div className="w-2 h-2 rounded-full bg-primary-accent/30" />
             </div>
             <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
               {config.steps.map((step, index) => (
                 <span
                   key={step.key}
-                  className={index === currentStepIndex ? "text-purple-400" : ""}
+                  className={index === currentStepIndex ? "text-primary-accent" : ""}
                 >
                   {step.shortLabel}
                 </span>
@@ -188,7 +188,7 @@ export const LoadingModal = ({
         {/* Success animation */}
         {isReady && (
           <div className="mt-4 flex justify-center">
-            <span className="text-green-400 text-sm font-medium animate-pulse">
+            <span className="text-success text-sm font-medium animate-pulse">
               {config.successMessage}
             </span>
           </div>
