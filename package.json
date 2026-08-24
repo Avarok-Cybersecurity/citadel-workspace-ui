@@ -18,7 +18,8 @@
     "debug:ui": "node scripts/debug-ui.js",
     "capture:logs": "node scripts/capture-logs.js",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
-    "check:pwa": "node scripts/check-pwa-installable.mjs"
+    "check:pwa": "node scripts/check-pwa-installable.mjs",
+    "check:lighthouse": "node scripts/check-lighthouse.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",
@@ -89,6 +90,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.20",
+    "chrome-launcher": "^1.2.1",
     "eslint": "^9.18.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
@@ -96,6 +98,7 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^15.9.0",
     "jsdom": "^26.0.0",
+    "lighthouse": "^12.8.2",
     "playwright": "^1.57.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
