@@ -11,6 +11,7 @@ import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { toast } from 'sonner';
 import { debugLog } from '@/lib/debug-config';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { P2PMessage, PeerPresence } from '@/lib/p2p';
@@ -103,6 +104,17 @@ export function useP2PMessages({
       }
     });
 
+    // Deletion removes the message rather than tombstoning it, matching group
+    // chat. Scoped to this conversation so an unrelated peer's delete cannot
+    // drop a message from the one on screen.
+    const unsubscribeMessageDeleted = eventEmitter.on(
+      'p2p:message-deleted',
+      ({ peerCid: fromCid, messageId }: { peerCid: bigint; messageId: string }) => {
+        if (fromCid !== peerCid) return;
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      },
+    );
+
     const unsubscribeTyping = messenger.onTyping((cid, isTyping) => {
       if (cid === peerCid) setPeerTyping(isTyping);
     });
@@ -172,6 +184,7 @@ export function useP2PMessages({
       unsubscribeMessage();
       unsubscribeStatusChange();
       unsubscribeMessageUpdate();
+      unsubscribeMessageDeleted();
       unsubscribeTyping();
       unsubscribeConnection();
       unsubscribePresence();
@@ -230,6 +243,28 @@ export function useP2PMessages({
     }
   }, [peerCid, messenger]);
 
+  const handleEditMessage = useCallback(async (messageId: string, content: string) => {
+    try {
+      await messenger.editMessage(peerCid, messageId, content);
+    } catch (error) {
+      debugLog('UseP2PMessages', 'Failed to edit message:', error);
+      toast.error('Could not edit message', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    }
+  }, [peerCid, messenger]);
+
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    try {
+      await messenger.deleteMessage(peerCid, messageId);
+    } catch (error) {
+      debugLog('UseP2PMessages', 'Failed to delete message:', error);
+      toast.error('Could not delete message', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    }
+  }, [peerCid, messenger]);
+
   return {
     messages,
     peerTyping,
@@ -240,5 +275,7 @@ export function useP2PMessages({
     hasMorePages,
     handleScroll,
     handleRetryMessage,
+    handleEditMessage,
+    handleDeleteMessage,
   };
 }

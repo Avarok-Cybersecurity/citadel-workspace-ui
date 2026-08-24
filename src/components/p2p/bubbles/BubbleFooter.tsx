@@ -42,6 +42,17 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
         <span className="text-xs opacity-70" data-testid="message-timestamp">
           {formatTime(message.timestamp)}
         </span>
+        {message.edited_at !== undefined && (
+          // Both parties need to see that a message was revised, or an edit is
+          // indistinguishable from having misread the original.
+          <span
+            className="text-xs opacity-70"
+            data-testid="message-edited-marker"
+            title={`Edited ${formatTime(message.edited_at)}`}
+          >
+            (edited)
+          </span>
+        )}
         {isOwn && statusIcon && (
           <TooltipProvider delayDuration={300}>
             <Tooltip>

@@ -7,11 +7,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { P2PMessengerManager } from '@/lib/p2p/p2p-messenger-manager';
+import type { P2PMessage } from '@/lib/p2p/p2p-types';
 import { notificationService } from '@/lib/notification-service';
 import { MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 import { ChatTabBar } from './ChatTabBar';
+import { ComposeContextBanner } from './ComposeContextBanner';
 import { useMarkdownFormat } from './MarkdownToolbar';
 import { LiveDocumentView } from './LiveDocumentView';
 import { LiveDocumentModal } from './LiveDocumentModal';
@@ -84,6 +86,7 @@ export function P2PChat({
   const {
     messages, peerTyping, peerPresence, isConnected, isRegistered,
     isLoadingMore, hasMorePages, handleScroll, handleRetryMessage,
+    handleEditMessage, handleDeleteMessage,
   } = useP2PMessages({
     peerCid, activeTabIdRef, scrollRef,
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
@@ -104,13 +107,55 @@ export function P2PChat({
     }
   }, [peerCid, activeTabId]);
 
+  // The message this composition is replying to, if any. Cleared on send and on
+  // explicit cancel, so a reply cannot silently attach itself to a later message.
+  const [replyingTo, setReplyingTo] = useState<P2PMessage | null>(null);
+
+  // The message being edited. The bubble's Edit action hands us the CURRENT
+  // content, so it cannot be an edit on its own — it loads the message into the
+  // composer and the next submit commits the change.
+  const [editingMessage, setEditingMessage] = useState<P2PMessage | null>(null);
+
+  const handleReplyMessage = useCallback((messageId: string) => {
+    const target = messages.find((m) => m.id === messageId);
+    if (!target) return;
+    setEditingMessage(null);
+    setReplyingTo(target);
+    inputRef.current?.focus();
+  }, [messages]);
+
+  const handleStartEdit = useCallback((messageId: string, content: string) => {
+    const target = messages.find((m) => m.id === messageId);
+    if (!target) return;
+    setReplyingTo(null);
+    setEditingMessage(target);
+    setInputMessage(content);
+    inputRef.current?.focus();
+  }, [messages]);
+
+  const cancelComposeContext = useCallback(() => {
+    if (editingMessage) setInputMessage('');
+    setEditingMessage(null);
+    setReplyingTo(null);
+  }, [editingMessage]);
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
     if (messageType === 'live_document') { setShowDocModal(true); return; }
     messenger.stopTypingPolling(peerCid);
     try {
-      await messenger.sendMessage(peerCid, inputMessage, { messageType });
+      if (editingMessage) {
+        await handleEditMessage(editingMessage.id, inputMessage);
+        setEditingMessage(null);
+        setInputMessage('');
+        return;
+      }
+      await messenger.sendMessage(peerCid, inputMessage, {
+        messageType,
+        replyTo: replyingTo?.id,
+      });
       setInputMessage('');
+      setReplyingTo(null);
     } catch (error) {
       debugLog('P2PChat', 'Failed to send message:', error);
       toast({ variant: 'destructive', title: 'Failed to send message', description: 'Check your connection and try again.' });
@@ -174,8 +219,14 @@ export function P2PChat({
               onDeclineTransfer={fileTransfer.handleDeclineTransfer}
               onCancelTransfer={fileTransfer.handleCancelTransfer}
               onOpenFile={fileTransfer.handleOpenFile}
-              onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage}
-              onReplyMessage={onReplyMessage}
+              onEditMessage={onEditMessage ?? handleStartEdit}
+              onDeleteMessage={onDeleteMessage ?? handleDeleteMessage}
+              onReplyMessage={onReplyMessage ?? handleReplyMessage}
+            />
+            <ComposeContextBanner
+              replyingTo={replyingTo}
+              editingMessage={editingMessage}
+              onCancel={cancelComposeContext}
             />
             <P2PMessageInput
               ref={inputRef} inputMessage={inputMessage} messageType={messageType}

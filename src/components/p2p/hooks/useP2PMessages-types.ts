@@ -21,6 +21,8 @@ export interface UseP2PMessagesReturn {
   hasMorePages: boolean;
   handleScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   handleRetryMessage: (message: P2PMessage) => Promise<void>;
+  handleEditMessage: (messageId: string, content: string) => Promise<void>;
+  handleDeleteMessage: (messageId: string) => Promise<void>;
 }
 
 /**
