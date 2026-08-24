@@ -89,7 +89,7 @@
     --accent: 230 32% 22%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;       /* was #EF4444 */
+    --destructive: 0 84% 50%;       /* was #EF4444, then 60% — see below */
     --destructive-foreground: 0 0% 100%;
     --success: 160 84% 39%;         /* was #10B981 */
     --success-foreground: 0 0% 100%;

@@ -92,15 +92,29 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   const step = ELEVATION[mode];
   const status = DEFAULT_STATUS[mode];
 
-  const card = lighten(background, step.card);
-  const surface = lighten(background, step.surface);
-  const accent = lighten(background, step.accent);
+  const rawCard = lighten(background, step.card);
+  const rawSurface = lighten(background, step.surface);
+  const rawAccent = lighten(background, step.accent);
   const border = lighten(background, step.border);
   const input = lighten(background, step.input);
 
   // Chosen for contrast rather than asked for, which is the commonest way a
   // hand-made theme becomes unreadable.
   const foreground = seed.foreground ?? readableForeground(background);
+
+  // The neutral fills carry body text at full `foreground`, so they need the
+  // same AA guarantee the coloured fills below already get. They did not have
+  // it: each was a fixed elevation step off the background, and where the seed
+  // put background and foreground close together — Solarized dark — lifting the
+  // surface far enough for depth pushed it under 4.5:1 against the very text it
+  // carries. Solarized's `surface` and `accent` both shipped unreadable.
+  //
+  // The elevation steps stay the intent; this only pulls a fill back when that
+  // intent would cost legibility.
+  const card = ensureFillContrast(rawCard, foreground);
+  const surface = ensureFillContrast(rawSurface, foreground);
+  const accent = ensureFillContrast(rawAccent, foreground);
+
   const mutedForeground = mutedAgainst(card, foreground);
 
   // Every fill that carries a label is held to AA here, so a preset cannot ship
@@ -124,7 +138,8 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
     background,
     foreground,
     card,
-    cardForeground: readableForeground(card, foreground, foreground),
+    // The fill was already lifted to clear AA against this text above.
+    cardForeground: foreground,
     popover: card,
     popoverForeground: foreground,
     surface,

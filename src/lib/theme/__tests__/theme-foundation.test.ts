@@ -10,7 +10,7 @@ import { paletteToCssVars, cssVarName, applyTheme, clearTheme } from '../apply-t
 import { buildPalette, deriveDarkPalette } from '../palette-builder';
 import { contrastRatio, fromHex, toHex, fromCssValue, toCssValue } from '../hsl';
 import { beginEdit, setToken, renameTheme, canRename, uniqueName, resetDarkToDerived } from '../theme-editing';
-import type { ThemePalette } from '../theme-types';
+import type { ThemePalette, HslColor } from '../theme-types';
 
 describe('Avarok Purple, the default', () => {
   it('is the default theme', () => {
@@ -82,12 +82,42 @@ describe('presets', () => {
     expect(contrastRatio(palette.card, palette.mutedForeground)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each(PRESET_THEMES.flatMap((t) => [
-    [`${t.name} light`, t.light] as const,
-    [`${t.name} dark`, t.dark] as const,
-  ]))('%s keeps button labels readable on the fill', (_label, palette: ThemePalette) => {
-    expect(contrastRatio(palette.primary, palette.primaryForeground)).toBeGreaterThanOrEqual(4.5);
-  });
+  // Every fill that carries text, not a hand-picked few. Checking only
+  // background, card and primary is what let dark `destructive` ship at 3.78:1 —
+  // white on a red that every delete button in the app uses. axe found it in the
+  // theme preview; this is where it should have been caught.
+  const TEXT_ON_FILL: ReadonlyArray<readonly [keyof ThemePalette, keyof ThemePalette]> = [
+    ['background', 'foreground'],
+    ['card', 'cardForeground'],
+    ['card', 'mutedForeground'],
+    ['surface', 'foreground'],
+    ['muted', 'mutedForeground'],
+    ['primary', 'primaryForeground'],
+    ['secondary', 'secondaryForeground'],
+    ['accent', 'accentForeground'],
+    ['destructive', 'destructiveForeground'],
+  ];
+
+  it.each(
+    PRESET_THEMES.flatMap((t) =>
+      (['light', 'dark'] as const).flatMap((mode) =>
+        TEXT_ON_FILL.map(
+          ([fill, text]) =>
+            [`${t.name} ${mode}: ${String(text)} on ${String(fill)}`, t[mode], fill, text] as const,
+        ),
+      ),
+    ),
+  )(
+    '%s clears AA',
+    (
+      _label,
+      palette: ThemePalette,
+      fill: keyof ThemePalette,
+      text: keyof ThemePalette,
+    ) => {
+      expect(contrastRatio(palette[fill] as HslColor, palette[text] as HslColor)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
 
   it('finds a preset by id, and reports a miss', () => {
     expect(findPreset('nord')?.name).toBe('Nord');

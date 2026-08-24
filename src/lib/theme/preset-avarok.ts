@@ -71,7 +71,11 @@ export const AVAROK_DARK: ThemePalette = {
   accent: { h: 230, s: 32, l: 22 },
   accentForeground: { h: 0, s: 0, l: 100 },
 
-  destructive: { h: 0, s: 84, l: 60 },
+  // 50%, not the 60% this used to be: white on the lighter red measured 3.78:1,
+  // under the 4.5:1 WCAG AA needs for normal text, so every destructive button
+  // in dark mode failed. 50% measures 4.53:1. Kept in step with index.css, which
+  // the test below asserts verbatim.
+  destructive: { h: 0, s: 84, l: 50 },
   destructiveForeground: { h: 0, s: 0, l: 100 },
   success: { h: 160, s: 84, l: 39 },
   successForeground: { h: 0, s: 0, l: 100 },

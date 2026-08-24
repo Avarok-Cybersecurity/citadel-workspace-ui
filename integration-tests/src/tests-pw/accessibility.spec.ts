@@ -17,9 +17,12 @@ import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { AxeBuilder } from '@axe-core/playwright';
 import type { Result } from 'axe-core';
 import {
+  adminCredentials,
   clearBrowserStorage,
   closeAnyModals,
   createAccount,
+  hasWorkspaceAdmin,
+  loginAfterDisconnect,
   waitForAppReady,
   waitForWorkspaceLoaded,
 } from '../lib/index.js';
@@ -228,5 +231,74 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     await expect(page.getByRole('heading', { name: 'User Directory' })).toBeVisible({ timeout: 30_000 });
 
     await expectNoBlockingViolations(page, 'directory');
+  });
+});
+
+/**
+ * The theme editor needs its own session. Only the account that INITIALISES the
+ * workspace holds the `themes` permission, and the describe above deliberately
+ * registers a fresh user — who gets a correctly read-only editor with no colour
+ * wheel to scan. Logging in as the admin here is the difference between scanning
+ * the widget and scanning a disabled placeholder.
+ */
+test.describe.serial('Accessibility (theme editor)', () => {
+  let context: BrowserContext;
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    context = await browser.newContext();
+    page = await context.newPage();
+    await freshPage(page);
+
+    const admin = adminCredentials();
+    const loggedIn = await loginAfterDisconnect(
+      page,
+      admin.username,
+      admin.password,
+      null,
+      config.WORKSPACE_SERVER,
+    );
+    expect(loggedIn, `could not log in as the workspace admin (${admin.username})`).toBe(true);
+
+    await waitForWorkspaceLoaded(page, 60_000);
+    await closeAnyModals(page);
+
+    expect(
+      hasWorkspaceAdmin(),
+      'global-setup did not initialise the workspace, so no account here can open the theme editor. ' +
+        'Restart the stack: docker compose restart server internal-service',
+    ).toBe(true);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test('theme editor, including the colour wheel', async () => {
+    // The largest surface added recently and the one axe is most likely to have
+    // something to say about: a custom colour wheel is a hand-built widget, not
+    // a native control, and the preview is a grid of buttons standing in for
+    // parts of the app.
+    const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
+    await expect(async () => {
+      await page.getByTestId('user-avatar-button').click({ force: true });
+      await expect(settingsItem).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
+    await settingsItem.click({ force: true });
+
+    await page.getByRole('tab', { name: /^theme$/i }).click({ force: true });
+    await page.getByTestId('open-workspace-appearance').click({ force: true });
+    await expect(page.getByTestId('workspace-appearance-modal')).toBeVisible({ timeout: 30_000 });
+
+    await expectNoBlockingViolations(page, 'theme editor');
+
+    // The wheel only exists once a part of the preview is selected, so scanning
+    // the editor alone would never see it.
+    await page.getByTestId('preview-region-sidebar').click({ force: true });
+    await expect(page.getByTestId('color-wheel')).toBeVisible({ timeout: 30_000 });
+
+    await expectNoBlockingViolations(page, 'theme editor — colour wheel');
   });
 });
