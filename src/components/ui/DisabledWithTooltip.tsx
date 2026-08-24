@@ -45,6 +45,28 @@ interface DisabledWithTooltipProps {
  * </DisabledWithTooltip>
  * ```
  */
+/**
+ * Mark the wrapped control as genuinely disabled, not merely styled as such.
+ *
+ * Both wrappers below grey the region out and set `pointer-events: none`. CSS
+ * does not stop the KEYBOARD, so the button inside stayed focusable and Enter
+ * still fired its onClick — a permission-gated action was fully operable by
+ * anyone not using a mouse. It also reported `isEnabled()` as true, which is how
+ * this surfaced.
+ *
+ * Shared by both components so the two cannot drift apart.
+ */
+function disableChildren(children: React.ReactNode): React.ReactNode {
+  return React.Children.map(children, (child) =>
+    React.isValidElement(child)
+      ? React.cloneElement(
+          child as React.ReactElement<{ disabled?: boolean; tabIndex?: number }>,
+          { disabled: true, tabIndex: -1 }
+        )
+      : child
+  );
+}
+
 export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
   disabled,
   tooltip,
@@ -58,6 +80,7 @@ export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
   if (!disabled) {
     return <>{children}</>;
   }
+
 
   return (
     <TooltipProvider>
@@ -78,7 +101,7 @@ export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
             // announce. group keeps it announced as a disabled region.
             role="group"
           >
-            {children}
+            {disableChildren(children)}
           </div>
         </TooltipTrigger>
         <TooltipContent
@@ -127,7 +150,7 @@ export const DisabledWithError: React.FC<DisabledWithTooltipProps> = ({
             )}
             aria-disabled="true"
           >
-            {children}
+            {disableChildren(children)}
           </div>
         </TooltipTrigger>
         <TooltipContent

@@ -65,16 +65,21 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   );
 
   const handleSave = async () => {
-    try {
-      if (nodeId) {
-        await WorkspaceService.updateNode(nodeId, { mdxContent: content });
-      }
-
+    // Without a nodeId there is nothing to write to. This used to fall straight
+    // through to the success toast, so the user was told "Changes saved" while
+    // nothing had been persisted and their edit existed only in component state.
+    if (!nodeId) {
+      debugLog('BaseOffice', 'Refusing to save: no nodeId for', title);
       toast({
-        title: "Changes saved",
-        description: `The ${entityData?.name || title} page has been updated`,
-        variant: 'success',
+        title: "Cannot save yet",
+        description: "This page is still loading. Try again in a moment.",
+        variant: "destructive",
       });
+      return;
+    }
+
+    try {
+      await WorkspaceService.updateNode(nodeId, { mdxContent: content });
     } catch (error) {
       debugLog('BaseOffice', 'Failed to save MDX content:', error);
       toast({
@@ -82,8 +87,17 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         description: "There was a problem saving your changes. Please try again.",
         variant: "destructive",
       });
+      // Stay in edit mode. setIsEditing(false) used to run regardless of the
+      // outcome, so a failed save also closed the editor and threw away whatever
+      // the user had typed — losing the work and the chance to retry it.
+      return;
     }
 
+    toast({
+      title: "Changes saved",
+      description: `The ${entityData?.name || title} page has been updated`,
+      variant: 'success',
+    });
     setIsEditing(false);
   };
 

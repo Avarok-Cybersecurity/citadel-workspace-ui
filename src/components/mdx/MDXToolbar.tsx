@@ -85,7 +85,13 @@ export function MDXToolbar({
     buttons.map(({ icon, label, onClick }) => (
       <Tooltip key={label}>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" onClick={onClick}>
+          {/*
+            aria-label from the same `label` the tooltip shows. Without it these
+            are twelve icon-only buttons whose name lives in a TooltipContent
+            that is not rendered until hover, so a screen reader announces
+            "button" twelve times and a keyboard user cannot tell them apart.
+          */}
+          <Button variant="ghost" size="icon" onClick={onClick} aria-label={label}>
             {icon}
           </Button>
         </TooltipTrigger>
