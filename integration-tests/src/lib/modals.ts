@@ -108,6 +108,13 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
         'text="FILES"',
         // Office/room navigation elements
         'text="General"',
+        // Width-independent. Every indicator above lives in the sidebar, which
+        // at phone widths is a drawer that starts CLOSED — so on mobile this
+        // helper reported "not loaded" for a workspace that had rendered fine.
+        // The avatar sits in the top bar, which the workspace shell always
+        // renders at any width, so it is the one signal that does not depend on
+        // the sidebar being open.
+        '[data-testid="user-avatar-button"]',
       ];
 
       for (const selector of sidebarIndicators) {

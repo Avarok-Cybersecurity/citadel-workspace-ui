@@ -192,7 +192,13 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     });
     expect(registered, `could not register ${username}`).toBe(true);
 
-    await waitForWorkspaceLoaded(page, 60_000);
+    // Checked, not fired and forgotten: this returns false rather than
+    // throwing, so ignoring it let a workspace that never loaded run the
+    // whole block and fail later somewhere unrelated.
+    expect(
+      await waitForWorkspaceLoaded(page, 60_000),
+      'the workspace should finish loading',
+    ).toBe(true);
     await closeAnyModals(page);
   });
 
@@ -262,7 +268,13 @@ test.describe.serial('Accessibility (theme editor)', () => {
     );
     expect(loggedIn, `could not log in as the workspace admin (${admin.username})`).toBe(true);
 
-    await waitForWorkspaceLoaded(page, 60_000);
+    // Checked, not fired and forgotten: this returns false rather than
+    // throwing, so ignoring it let a workspace that never loaded run the
+    // whole block and fail later somewhere unrelated.
+    expect(
+      await waitForWorkspaceLoaded(page, 60_000),
+      'the workspace should finish loading',
+    ).toBe(true);
     await closeAnyModals(page);
 
     expect(

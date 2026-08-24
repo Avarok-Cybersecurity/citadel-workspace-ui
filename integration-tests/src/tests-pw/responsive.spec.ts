@@ -15,9 +15,12 @@
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
+  adminCredentials,
   clearBrowserStorage,
   closeAnyModals,
   createAccount,
+  hasWorkspaceAdmin,
+  loginAfterDisconnect,
   waitForAppReady,
   waitForWorkspaceLoaded,
 } from '../lib/index.js';
@@ -177,7 +180,13 @@ test.describe.serial('Responsive workspace at 375px', () => {
     });
     expect(registered, `could not register ${username}`).toBe(true);
 
-    await waitForWorkspaceLoaded(page, 60_000);
+    // Checked, not fired and forgotten: this returns false rather than
+    // throwing, so ignoring it let a workspace that never loaded run the
+    // whole block and fail later somewhere unrelated.
+    expect(
+      await waitForWorkspaceLoaded(page, 60_000),
+      'the workspace should finish loading',
+    ).toBe(true);
     await closeAnyModals(page);
   });
 
@@ -231,5 +240,112 @@ test.describe.serial('Responsive workspace at 375px', () => {
     await expect(page.getByRole('heading', { name: 'User Directory' })).toBeVisible({ timeout: 30_000 });
 
     await expectNoHorizontalOverflow(page, 'directory');
+  });
+});
+
+/**
+ * The theme editor is the densest thing in the app — a preview of the whole
+ * workspace, a preset gallery and a colour wheel — and a colour wheel is a
+ * fixed-size widget, exactly the sort that survives a desktop layout and pushes
+ * a phone sideways.
+ *
+ * Its own session, for the same reason as the accessibility spec: only the
+ * account that INITIALISES the workspace holds the `themes` permission, and the
+ * block above deliberately registers a fresh user, who gets a correctly
+ * read-only editor with no wheel in it to measure.
+ */
+test.describe.serial('Responsive theme editor at 375px', () => {
+  let context: BrowserContext;
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    context = await browser.newContext({ viewport: PHONE });
+    page = await context.newPage();
+
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+    await clearBrowserStorage(page);
+    await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+    await waitForAppReady(page, 60_000);
+
+    const admin = adminCredentials();
+    const loggedIn = await loginAfterDisconnect(
+      page,
+      admin.username,
+      admin.password,
+      null,
+      config.WORKSPACE_SERVER,
+    );
+    expect(loggedIn, `could not log in as the workspace admin (${admin.username})`).toBe(true);
+
+    // Checked, not fired and forgotten: this returns false rather than
+    // throwing, so ignoring it let a workspace that never loaded run the
+    // whole block and fail later somewhere unrelated.
+    expect(
+      await waitForWorkspaceLoaded(page, 60_000),
+      'the workspace should finish loading',
+    ).toBe(true);
+    await closeAnyModals(page);
+
+    expect(
+      hasWorkspaceAdmin(),
+      'global-setup did not initialise the workspace, so no account here can open the theme editor. ' +
+        'Restart the stack: docker compose restart server internal-service',
+    ).toBe(true);
+
+    // The workspace keeps streaming data in after it first renders, and a
+    // re-render dismisses an open Radix dropdown, so opening the menu is
+    // retried rather than clicked once and waited on.
+    const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
+    await expect(async () => {
+      await page.getByTestId('user-avatar-button').click({ force: true });
+      await expect(settingsItem).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 60_000 });
+    await settingsItem.click({ force: true });
+
+    // Wait for the dialog, do not assume it. Clicking the tab straight after
+    // the menu item raced the modal mounting: the click landed on nothing and
+    // then waited out the whole hook timeout with no useful diagnosis.
+    await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
+    // A settle, not a poll. Retrying the tab click instead re-clicks the avatar
+    // path underneath and ends up dismissing the settings dialog entirely — the
+    // run finished with no dialog at all. The dialog reports visible the moment
+    // its open animation starts, and a click that lands before Radix has
+    // mounted the panel activates nothing.
+    await page.waitForTimeout(2_000);
+
+    const openEditor = page.getByTestId('open-workspace-appearance');
+    await page.getByRole('tab', { name: /^theme$/i }).click({ force: true });
+    await expect(openEditor).toBeVisible({ timeout: 30_000 });
+
+    // The settings modal scrolls its own body, and at this width the appearance
+    // section sits below the fold, so the click needs it laid out on screen.
+    await openEditor.scrollIntoViewIfNeeded();
+    await openEditor.click();
+    await expect(page.getByTestId('workspace-appearance-modal')).toBeVisible({ timeout: 30_000 });
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test('the editor fits the viewport', async () => {
+    await expectNoHorizontalOverflow(page, 'theme editor');
+  });
+
+  test('the colour wheel fits the viewport', async () => {
+    // Only rendered once a part of the preview is selected, so the editor above
+    // never measures it.
+    await page.getByTestId('preview-region-sidebar').click({ force: true });
+    await expect(page.getByTestId('color-wheel')).toBeVisible({ timeout: 30_000 });
+
+    await expectNoHorizontalOverflow(page, 'theme editor — colour wheel');
+  });
+
+  test('save and cancel stay reachable', async () => {
+    // A tall editor on a short screen can push its own actions off the bottom,
+    // leaving no way to apply or abandon the edit — the modal becomes a trap.
+    await expect(page.getByTestId('appearance-save')).toBeInViewport();
   });
 });

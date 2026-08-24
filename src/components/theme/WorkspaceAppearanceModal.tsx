@@ -142,7 +142,16 @@ export function WorkspaceAppearanceModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl" data-testid="workspace-appearance-modal">
+      {/* Rows, so only the middle scrolls: the header says what this is and the
+          footer is the way out, and both must stay put. Letting the whole
+          dialog scroll instead means the actions are reachable but only after
+          scrolling past a colour wheel, which on a phone reads as no actions at
+          all. minmax(0,1fr) is what actually lets the middle row shrink —
+          without it the grid floors at content height and overflows anyway. */}
+      <DialogContent
+        className="grid max-h-[calc(100dvh-2rem)] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
+        data-testid="workspace-appearance-modal"
+      >
         <DialogHeader>
           <DialogTitle>Workspace Appearance</DialogTitle>
           <DialogDescription>
@@ -152,7 +161,7 @@ export function WorkspaceAppearanceModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-5 md:grid-cols-[1fr_220px]">
+        <div className="grid gap-5 overflow-y-auto md:grid-cols-[1fr_220px]">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               {/* A radiogroup, not Tabs. These pick WHICH PALETTE you are

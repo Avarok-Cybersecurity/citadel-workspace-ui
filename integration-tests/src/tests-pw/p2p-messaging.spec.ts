@@ -80,7 +80,13 @@ async function createSession(label: 'a' | 'b', isFirst: boolean): Promise<UserSe
         throw new Error(`Failed to register ${label}: ${user.username}`);
     }
 
-    await waitForWorkspaceLoaded(page, 30_000);
+    // Checked, not fired and forgotten: this returns false rather than
+    // throwing, so ignoring it let a workspace that never loaded run the
+    // whole block and fail later somewhere unrelated.
+    expect(
+      await waitForWorkspaceLoaded(page, 30_000),
+      'the workspace should finish loading',
+    ).toBe(true);
     await closeAnyModals(page);
 
     return { browser, context, page, username: user.username };
