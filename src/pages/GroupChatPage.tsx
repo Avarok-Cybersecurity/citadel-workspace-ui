@@ -2,7 +2,11 @@
  * GroupChatPage Component
  *
  * Page for viewing and interacting with a custom peer group chat.
- * Uses GroupChatView with the real GroupMessagingAdapter for backend-connected messaging.
+ *
+ * Renders GroupChatView directly. It does NOT use GroupMessagingAdapter, despite
+ * what this comment used to say — GroupChatView takes a groupId and does its own
+ * fetching, and nothing in the app constructs an adapter. See the note at the top
+ * of lib/chat-messaging-adapter.ts.
  */
 
 import { useState, useEffect, useCallback } from 'react';

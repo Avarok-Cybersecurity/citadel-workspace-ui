@@ -1,4 +1,25 @@
 /**
+ * NOT WIRED UP.
+ *
+ * Nothing in the app constructs one of these. The two implementations
+ * (p2p-messaging-adapter, group-messaging-adapter) and their factory functions
+ * have no callers, and the views they were meant for do not accept an adapter:
+ * GroupChatView takes a groupId and fetches for itself, and P2PChat uses the
+ * messenger directly. GroupChatPage's header comment claimed otherwise and has
+ * been corrected.
+ *
+ * Deliberately kept rather than deleted with the rest of the dead code. This is
+ * where editMessage / deleteMessage / replyToMessage are actually implemented —
+ * group-messaging-adapter routes them to WorkspaceService, and
+ * p2p-messaging-adapter implements reply and explicitly refuses edit and delete
+ * because the P2P path does not support them. The message actions menu is
+ * currently unreachable for exactly that reason: P2PChat accepts
+ * onEditMessage/onDeleteMessage/onReplyMessage and neither of its mounts passes
+ * any. Wiring that up is the decision this layer is waiting on, and deleting it
+ * would throw away the answer.
+ */
+
+/**
  * Chat Messaging Adapter
  *
  * Abstract interface for chat messaging that unifies P2P and Group messaging APIs.
