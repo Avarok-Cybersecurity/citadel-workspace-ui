@@ -349,6 +349,7 @@ async function disconnectViaNavbar(
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Previous Sessions Navbar Test',
     reportFileName: 'PREVIOUS_SESSIONS_TEST_REPORT.json',
     metadata: { users: USERS, sessionCount: SESSION_COUNT, isCI },

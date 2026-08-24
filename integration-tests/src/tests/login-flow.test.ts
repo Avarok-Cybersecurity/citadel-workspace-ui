@@ -224,6 +224,7 @@ async function verifyWorkspaceLoaded(page: Page, username: string): Promise<bool
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Login Flow Test',
     reportFileName: 'LOGIN_FLOW_TEST_REPORT.json',
     metadata: { username: USERNAME },

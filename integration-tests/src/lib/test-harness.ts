@@ -20,8 +20,19 @@ export interface TestHarnessConfig {
   reportFileName?: string;
   /** Extra metadata logged with test-start observation */
   metadata?: Record<string, unknown>;
-  /** Restart backend services before the test (default: false) */
-  restartBackend?: boolean;
+  /**
+   * Restart backend services before the test. REQUIRED — not optional, and
+   * deliberately has no default.
+   *
+   * Specs share one backend, so a spec that does not reset it inherits every
+   * account and orphaned session the previous spec left behind. That is not a
+   * theoretical hazard: `hard-disconnect-offline` failed in a batch run because
+   * seven stale sessions from earlier specs were auto-reconnecting over the
+   * landing page, so its login click never reached the form.
+   *
+   * Pass `false` only if the spec genuinely needs the previous state, and say why.
+   */
+  restartBackend: boolean;
 }
 
 export class TestHarness {

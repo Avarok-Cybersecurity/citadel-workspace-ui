@@ -112,6 +112,7 @@ const USER2 = `harddc_bob_${timestamp}`;
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Hard Disconnect Offline Messaging Test',
     reportFileName: 'HARD_DISCONNECT_OFFLINE_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },

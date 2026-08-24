@@ -56,6 +56,7 @@ interface TestResult {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'P2P + One C2S Reconnection Test',
     reportFileName: 'p2p-one-c2s-reconnect-test.json',
     metadata: { user1: USER1_NAME, user2: USER2_NAME },

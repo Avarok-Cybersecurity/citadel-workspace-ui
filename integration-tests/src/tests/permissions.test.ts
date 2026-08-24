@@ -385,6 +385,7 @@ async function legendVisible(page: Page): Promise<boolean> {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Permissions System Test',
     reportFileName: 'PERMISSIONS_TEST_REPORT.json',
     metadata: { username: USERNAME },

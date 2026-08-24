@@ -42,6 +42,7 @@ interface TestResult {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'C2S Reconnection Test',
     reportFileName: 'c2s-reconnection-test.json',
     metadata: { username: USERNAME },

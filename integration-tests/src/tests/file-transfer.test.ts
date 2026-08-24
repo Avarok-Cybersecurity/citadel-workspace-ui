@@ -1106,6 +1106,7 @@ async function testRealProtocolTransfer(
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'File Transfer Integration Test',
     reportFileName: 'FILE_TRANSFER_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },

@@ -219,6 +219,7 @@ async function runChatSettingsTest(): Promise<boolean> {
   };
 
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Chat Settings Integration Test',
     reportFileName: 'CHAT_SETTINGS_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },

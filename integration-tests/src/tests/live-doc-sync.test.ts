@@ -251,6 +251,7 @@ async function openLiveDocTab(page: Page, username: string, docTitle: string): P
 async function runTest(): Promise<boolean> {
   // Initialize test harness
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Live Doc Bidirectional Sync Test',
     reportFileName: 'LIVE_DOC_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2, docTitle: DOC_TITLE },

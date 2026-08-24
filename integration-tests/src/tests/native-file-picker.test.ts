@@ -258,6 +258,7 @@ async function verifySendFileProtocolUsed(page: Page, username: string): Promise
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Native File Picker Integration Test',
     reportFileName: 'NATIVE_FILE_PICKER_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },
