@@ -1,25 +1,22 @@
 /**
  * Tree Structure Editor Integration Test
  *
- * Tests the generalized tree hierarchy operations via WorkspaceProtocol:
- * 1. Create workspace root node (GetTreeStructure to verify initial state)
- * 2. Create child nodes (CreateNode with entity_type: Child("Office"))
- * 3. Create nested child (CreateNode with entity_type: Child("Room") under office)
- * 4. Get single node (GetNode)
- * 5. List nodes with filters (ListNodes { entity_types: [Child("Office")] })
- * 6. Get full tree structure (GetTreeStructure)
- * 7. Update node properties (UpdateNode)
- * 8. Move node to new parent (MoveNode) - verify no cycles created
- * 9. Delete node without cascade (should fail if has children)
- * 10. Delete node with cascade (deletes children)
- * 11. Verify TreeValidator prevents:
- *     - Cycle creation (MoveNode to descendant)
- *     - Orphan nodes (DeleteNode without cascade when children exist)
+ * Drives the hierarchy sidebar the way a user does — create, rename, delete —
+ * and checks what the server actually recorded for each action:
  *
- * This test validates the protocol layer directly via UI interactions.
+ * 1. Workspace root resolves and the tree loads
+ * 2. Create a child node at depth 1 (Office) and confirm its depth
+ * 3. Create a nested child at depth 2 (Room) and confirm its parent
+ * 4. GetNode / ListNodes-with-filter / GetTreeStructure agree with the sidebar
+ * 5. UpdateNode via the edit modal
+ * 6. Delete via the sidebar, which always cascades — see STEP 11
+ *
+ * Where a claim cannot be seen in the DOM (depth, parentage, entity type) it is
+ * read back over WorkspaceProtocol. The sidebar can only show you a name in a
+ * list; it cannot show you which parent the server wrote down.
  */
 
-import type { Page, Browser } from 'playwright';
+import type { Page, Browser, Locator } from 'playwright';
 import {
   sleep,
   createBrowser,
@@ -29,9 +26,18 @@ import {
   startDiagnostics,
   TestHarness,
   runTestMain,
+  isVisibleWithin,
+  isHiddenWithin,
+  // Protocol reads — verification only; every mutation below goes through the UI.
+  getWorkspaceRootId,
+  getTreeStructure,
+  getNodeViaProtocol,
+  listNodesViaProtocol,
+  verifyNodeDepth,
+  verifyNodeParent,
+  type TreeNode,
   type DiagnosticsHandle,
 } from '../lib/index.js';
-import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -51,60 +57,27 @@ interface TestResults {
   nodesListedWithFilter: boolean;
   fullTreeStructureLoaded: boolean;
   nodeUpdated: boolean;
-  deleteWithoutCascadeFailed: boolean;
-  deleteWithCascadeSucceeded: boolean;
 
-  // Validation Tests
-  cycleCreationPrevented: boolean;
+  // Delete Operations
+  /**
+   * The sidebar's delete removes the node together with its children.
+   *
+   * There is no non-cascading delete in this UI: HierarchySidebar's
+   * handleNodeDelete calls `WorkspaceService.deleteNode(node.id, true)`
+   * unconditionally. The old `deleteWithoutCascadeFailed` result asserted the
+   * opposite — that deleting a parent would be refused — and printed
+   * "FAIL: Delete cascaded (unexpected for non-cascade delete)" when the app
+   * did exactly what it is written to do. The non-cascading path is covered at
+   * the protocol level in tree-cascade-delete.test.ts.
+   */
+  uiDeleteCascadesToChildren: boolean;
+  deleteWithCascadeSucceeded: boolean;
+  /** Nothing survives a parent's deletion with a dangling parent_id. */
   orphanNodePrevented: boolean;
 
-  // Depth Calculation
+  // Depth / relationship
   depthCalculatedCorrectly: boolean;
   parentChildRelationshipMaintained: boolean;
-}
-
-// Response message types from console logs
-interface WorkspaceProtocolResponse {
-  Node?: {
-    id: string;
-    parent_id: string | null;
-    entity_type: 'Workspace' | { Child: string };
-    depth: number;
-    name: string;
-    description: string;
-    children: string[];
-  };
-  Nodes?: Array<{
-    id: string;
-    parent_id: string | null;
-    entity_type: 'Workspace' | { Child: string };
-    depth: number;
-    name: string;
-    children: string[];
-  }>;
-  TreeStructure?: {
-    root: {
-      node: {
-        id: string;
-        entity_type: 'Workspace' | { Child: string };
-        depth: number;
-        name: string;
-        children: string[];
-      };
-      children: unknown[];
-    };
-  };
-  NodeDeleted?: {
-    node_id: string;
-    children_deleted: string[];
-  };
-  NodeMoved?: {
-    node_id: string;
-    old_parent_id: string | null;
-    new_parent_id: string | null;
-  };
-  Success?: string;
-  Error?: string;
 }
 
 // ============================================================================
@@ -119,223 +92,86 @@ const TEST_OFFICE_NAME = `TestOffice_${timestamp}`;
 const TEST_OFFICE_2_NAME = `TestOffice2_${timestamp}`;
 const TEST_ROOM_NAME = `TestRoom_${timestamp}`;
 const TEST_ROOM_2_NAME = `TestRoom2_${timestamp}`;
+const TEMP_ROOM_NAME = `TempRoom_${timestamp}`;
 
-// Store created node IDs for subsequent operations
+// Store created node IDs. These are the real server ids read out of the
+// `tree-node-<id>` testids, so they stay valid across a rename.
 let workspaceRootId: string | null = null;
 let testOfficeId: string | null = null;
 let testOffice2Id: string | null = null;
 let testRoomId: string | null = null;
 let testRoom2Id: string | null = null;
+let tempRoomId: string | null = null;
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
+/** The open modal. Every form lookup below is scoped to this. */
+function dialog(page: Page): Locator {
+  return page.locator('[role="dialog"]').first();
+}
+
 /**
- * Execute a workspace protocol request via the browser console.
- * This directly tests the protocol layer by injecting requests through
- * the WebSocket service.
+ * The server id of a sidebar node, read from its `tree-node-<id>` testid.
  *
- * @human-review This function is available for future direct protocol testing.
- * Currently the test uses UI interactions which implicitly test the protocol.
+ * The row button carries both `data-sidebar="menu-button"` and the testid;
+ * the ⋯ trigger (`tree-node-menu-…`) and the expand chevron
+ * (`tree-node-toggle-…`) also start with `tree-node-`, which is why the
+ * `data-sidebar` attribute is part of the selector rather than a prefix match
+ * on its own.
+ *
+ * This replaces a lookup for `[data-node-id]` and `window.__workspaceContext`,
+ * neither of which the app has ever rendered or exposed — so it always fell
+ * through to `created-${Date.now()}`, a fabricated id that could not be used to
+ * check anything and was passed around as if it were real.
  */
-async function _executeProtocolRequest(
-  page: Page,
-  request: Record<string, unknown>
-): Promise<WorkspaceProtocolResponse | null> {
-  console.log(`  Executing protocol request:`, JSON.stringify(request).substring(0, 100));
-
-  try {
-    const result = await page.evaluate(async (req) => {
-      // Access the workspace service through the window object
-      // The frontend exposes these via globals for debugging
-      const workspaceService = (window as any).__workspaceService;
-      const websocketService = (window as any).__websocketService;
-
-      if (!workspaceService && !websocketService) {
-        // Try to access via the module system if available
-        console.log('[Test] Services not directly accessible, trying via modules...');
-        return { Error: 'Services not accessible via window globals' };
+async function sidebarNodeId(page: Page, nodeName: string): Promise<string | null> {
+  return page.evaluate((name: string) => {
+    const rows = Array.from(
+      document.querySelectorAll('[data-sidebar="menu-button"][data-testid^="tree-node-"]')
+    );
+    for (const row of rows) {
+      if (row.textContent?.includes(name)) {
+        return row.getAttribute('data-testid')!.replace('tree-node-', '');
       }
-
-      // Construct the payload
-      const payload = { Request: req };
-
-      try {
-        if (workspaceService?.sendWorkspaceRequest) {
-          await workspaceService.sendWorkspaceRequest(payload);
-          // Wait for response via event
-          return new Promise((resolve) => {
-            const timeout = setTimeout(() => {
-              resolve({ Error: 'Request timed out' });
-            }, 10000);
-
-            // Listen for the response event
-            const handler = (event: CustomEvent) => {
-              clearTimeout(timeout);
-              resolve(event.detail);
-            };
-            window.addEventListener('workspace-response', handler as EventListener, { once: true });
-          });
-        } else {
-          return { Error: 'WorkspaceService not available' };
-        }
-      } catch (err) {
-        return { Error: String(err) };
-      }
-    }, request);
-
-    return result as WorkspaceProtocolResponse;
-  } catch (error) {
-    console.log(`  Protocol request failed:`, error);
+    }
     return null;
-  }
+  }, nodeName);
 }
 
-// Export for potential future use
-export { _executeProtocolRequest };
+/** Whether a node with this name is currently in the sidebar. */
+async function nodeExistsInSidebar(page: Page, nodeName: string, timeout = 5000): Promise<boolean> {
+  return isVisibleWithin(
+    page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first(),
+    timeout
+  );
+}
 
 /**
- * Alternative approach: Use UI actions to trigger protocol requests
- * and capture responses from console logs.
- * This is more reliable as it uses the actual UI flow.
+ * Whether a node with this name has left the sidebar.
  *
- * @human-review This function is available for future protocol response capture.
+ * Not `!(await nodeExistsInSidebar(...))`: that spends the whole appearance
+ * timeout waiting for something that is never going to show up. Waiting for the
+ * hidden state returns as soon as it holds.
  */
-async function _captureProtocolResponse(
-  page: Page,
-  action: () => Promise<void>,
-  responsePattern: RegExp,
-  timeout = 10000
-): Promise<WorkspaceProtocolResponse | null> {
-  const responses: string[] = [];
-
-  // Set up console listener
-  const consoleHandler = (msg: { type: () => string; text: () => string }) => {
-    const text = msg.text();
-    if (responsePattern.test(text)) {
-      responses.push(text);
-    }
-  };
-
-  page.on('console', consoleHandler);
-
-  try {
-    // Execute the action
-    await action();
-
-    // Wait for response with timeout
-    const startTime = Date.now();
-    while (responses.length === 0 && Date.now() - startTime < timeout) {
-      await sleep(100);
-    }
-
-    if (responses.length > 0) {
-      // Try to parse the response
-      const match = responses[0].match(/\{.*\}/s);
-      if (match) {
-        try {
-          return JSON.parse(match[0]) as WorkspaceProtocolResponse;
-        } catch {
-          console.log('  Could not parse response JSON');
-        }
-      }
-    }
-
-    return null;
-  } finally {
-    page.off('console', consoleHandler);
-  }
-}
-
-// Export for potential future use
-export { _captureProtocolResponse };
-
-/**
- * Get the initial tree structure to find the workspace root ID
- */
-async function getInitialTreeStructure(page: Page): Promise<string | null> {
-  console.log('\n  Getting initial tree structure...');
-
-  // Use page.evaluate to call the workspace service directly
-  const result = await page.evaluate(async () => {
-    // Access workspace context or service
-    const wsContext = (window as any).__workspaceContext;
-    // wsService available for direct protocol calls if needed
-    const _wsService = (window as any).__workspaceService;
-    void _wsService; // Suppress unused variable warning
-
-    // Return workspace ID from context if available
-    if (wsContext?.workspace?.id) {
-      return { workspaceId: wsContext.workspace.id };
-    }
-
-    // Try to find workspace ID from the DOM
-    const workspaceElement = document.querySelector('[data-workspace-id]');
-    if (workspaceElement) {
-      return { workspaceId: workspaceElement.getAttribute('data-workspace-id') };
-    }
-
-    // Look for workspace ID in localStorage or sessionStorage
-    const storedWorkspace = localStorage.getItem('currentWorkspace') ||
-      sessionStorage.getItem('currentWorkspace');
-    if (storedWorkspace) {
-      try {
-        const parsed = JSON.parse(storedWorkspace);
-        return { workspaceId: parsed.id || parsed.workspaceId };
-      } catch {
-        // Not JSON, might be the ID directly
-        return { workspaceId: storedWorkspace };
-      }
-    }
-
-    return { workspaceId: null };
-  });
-
-  if (result?.workspaceId) {
-    console.log(`  Found workspace root ID: ${result.workspaceId}`);
-    return result.workspaceId;
-  }
-
-  // Fallback: Get workspace ID from URL. Two URL shapes are observed:
-  //   1. /workspace/<id>          (legacy, hex/uuid id)
-  //   2. /workspace?id=<id>       (current, may be 'root' or a uuid)
-  // The legacy regex only handled (1); the current single-tenant
-  // default sets activeWorkspaceId='root', which (1) cannot match.
-  const url = page.url();
-  const pathMatch = url.match(/workspace\/([a-zA-Z0-9_-]+)/);
-  if (pathMatch) {
-    console.log(`  Extracted workspace ID from URL path: ${pathMatch[1]}`);
-    return pathMatch[1];
-  }
-  const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (queryMatch) {
-    console.log(`  Extracted workspace ID from URL query: ${queryMatch[1]}`);
-    return queryMatch[1];
-  }
-
-  // Final fallback: the single-tenant sentinel. Mirrors
-  // `tree-helpers.ts#getWorkspaceRootId` — every server in this
-  // codebase recognises `workspace-root` as the synthetic root, so a
-  // test that just needs *some* root identifier to proceed should
-  // not bail here.
-  console.log('  Using default workspace-root sentinel');
-  return 'workspace-root';
+async function nodeGoneFromSidebar(page: Page, nodeName: string, timeout = 8000): Promise<boolean> {
+  return isHiddenWithin(
+    page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first(),
+    timeout
+  );
 }
 
 /**
- * Open a TreeNodeItem's per-node dropdown menu and return the item's
- * node id. Used by Room creation, Edit, and Delete flows because the
- * Radix `DropdownMenuContent` only renders its items after the trigger
- * is clicked — querying `[data-testid^="create-child-"]` (or
- * `edit-node-…` / `delete-node-…`) without first opening the menu
- * never finds anything.
+ * Open a TreeNodeItem's ⋯ dropdown and return the node's id.
  *
- * The menu trigger button uses Tailwind `opacity-0
- * group-hover:opacity-100`, which makes Playwright's plain `.click()`
- * fail the actionability check; `force: true` is required to bypass
- * it. Hover alone is unreliable because the hover gets dropped the
- * moment the locator query re-runs.
+ * Radix only renders `DropdownMenuContent` after the trigger is clicked, so
+ * querying for `create-child-…` / `edit-node-…` / `delete-node-…` without
+ * opening the menu first finds nothing.
+ *
+ * The trigger is `opacity-0 group-hover:opacity-100`, which fails Playwright's
+ * actionability check, hence `force: true`. Hovering first is not reliable —
+ * the hover is dropped as soon as the locator query re-runs.
  */
 async function openNodeMenu(page: Page, nodeName?: string): Promise<string | null> {
   await page.keyboard.press('Escape');
@@ -358,13 +194,74 @@ async function openNodeMenu(page: Page, nodeName?: string): Promise<string | nul
   }
 
   await page.locator(`[data-testid="${menuTestId}"]`).click({ force: true, timeout: 2000 });
-  await sleep(400);
+
+  // Wait for the menu itself rather than sleeping past its open animation.
+  if (!(await isVisibleWithin(page.locator('[role="menu"]').first(), 5000))) {
+    console.log('  WARNING: node menu did not open');
+    return null;
+  }
 
   return menuTestId.replace('tree-node-menu-', '');
 }
 
 /**
- * Create a node via UI (clicking add button and filling form)
+ * Fill and submit the node create/edit modal.
+ *
+ * Everything is scoped to `[role="dialog"]`: `input#name` and
+ * `button:has-text("Create Office")` were page-wide, and the second also
+ * assumed the submit label. EntityManagementModal builds that label from the
+ * schema (`Create ${meta.label}`), so it changes with the entity type's
+ * configured label — `button[type="submit"]` inside the dialog is the same
+ * button without the guess.
+ */
+async function submitNodeForm(
+  page: Page,
+  values: { name?: string; description?: string }
+): Promise<boolean> {
+  const modal = dialog(page);
+  if (!(await isVisibleWithin(modal, 5000))) {
+    console.log('  WARNING: node modal did not open');
+    return false;
+  }
+
+  if (values.name !== undefined) {
+    const nameInput = modal.locator('input#name');
+    if (!(await isVisibleWithin(nameInput, 3000))) {
+      console.log('  WARNING: name input not found in modal');
+      await page.keyboard.press('Escape');
+      return false;
+    }
+    await nameInput.fill(values.name);
+  }
+
+  if (values.description !== undefined) {
+    const descInput = modal.locator('textarea#description');
+    if (await isVisibleWithin(descInput, 1000)) {
+      await descInput.fill(values.description);
+    }
+  }
+
+  const submitBtn = modal.locator('button[type="submit"]');
+  if (!(await isVisibleWithin(submitBtn, 3000))) {
+    console.log('  WARNING: submit button not found in modal');
+    await page.keyboard.press('Escape');
+    return false;
+  }
+
+  await submitBtn.click();
+
+  // The modal closes on a successful submit and stays open on a validation or
+  // request error, so its disappearance is the completion signal.
+  return isHiddenWithin(modal, 15_000);
+}
+
+/**
+ * Create a node through the sidebar and return the server id it was given.
+ *
+ * `nodeType` is documentation only — the app picks the entity type from the
+ * schema's allowed children for the chosen parent (HierarchySidebar
+ * handleNodeCreate). Under the default Workspace → Office → Room schema that
+ * means root creates an Office and a child of an Office is a Room.
  */
 async function createNodeViaUI(
   page: Page,
@@ -379,254 +276,119 @@ async function createNodeViaUI(
     const addBtn = page
       .locator('[data-testid="add-node-button"], [data-testid="add-root-node-button"]')
       .first();
-    if (!await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log('  WARNING: Add Office button not found');
+    if (!(await isVisibleWithin(addBtn, 10_000))) {
+      console.log('  WARNING: Add node button not found');
       return null;
     }
+    // The button is disabled until the tree schema arrives — it needs the
+    // schema to know which child types are allowed — and clicking early only
+    // raises a "schema is still loading" toast.
+    await page
+      .locator('[data-testid="add-node-button"]:not([disabled])')
+      .waitFor({ state: 'visible', timeout: 30_000 })
+      .catch(() => undefined);
     await addBtn.click();
-    await sleep(500);
   } else {
-    // Room: open the parent office's dropdown, then click "Add Child".
     const parentNodeId = await openNodeMenu(page, parentName);
     if (!parentNodeId) {
-      console.log('  WARNING: Add Room button not found (parent menu unreachable)');
+      console.log('  WARNING: parent node menu unreachable');
       return null;
     }
     const createChild = page.locator(`[data-testid="create-child-${parentNodeId}"]`);
-    if (!await createChild.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log('  WARNING: Add Room button not found (create-child item missing)');
+    if (!(await isVisibleWithin(createChild, 5000))) {
+      console.log('  WARNING: "Add Child" item missing from the parent menu');
       await page.keyboard.press('Escape');
       return null;
     }
     await createChild.click();
-    await sleep(500);
   }
 
-  // Fill the form
-  const nameInput = page.locator('input#name, input[id="name"]').first();
-  if (!await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log('  WARNING: Name input not found in modal');
+  if (!(await submitNodeForm(page, { name, description }))) {
     return null;
   }
 
-  await nameInput.fill(name);
-
-  const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-  if (await isVisibleWithin(descInput, 1000)) {
-    await descInput.fill(description);
-  }
-
-  await sleep(300);
-
-  // Submit
-  const createBtn = page.locator(`button:has-text("Create ${nodeType}")`).first();
-  if (!await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log('  WARNING: Create button not found');
-    await page.keyboard.press('Escape');
+  if (!(await nodeExistsInSidebar(page, name, 15_000))) {
+    console.log(`  WARNING: "${name}" never appeared in the sidebar`);
     return null;
   }
 
-  await createBtn.click();
-  await sleep(2000);
-
-  // Try to extract the created node ID from the response
-  // This could be done by listening to console or checking the sidebar
-  const newNodeId = await page.evaluate((nodeName) => {
-    // Look for the node in the sidebar by name and extract its ID
-    const elements = Array.from(document.querySelectorAll('[data-node-id]'));
-    for (const el of elements) {
-      if (el.textContent?.includes(nodeName)) {
-        return el.getAttribute('data-node-id');
-      }
-    }
-
-    // Alternative: Check recent office/room creation response
-    const offices = (window as any).__workspaceContext?.offices;
-    if (offices) {
-      const office = Object.values(offices).find((o: any) => o.name === nodeName);
-      if (office) return (office as any).id;
-    }
-
-    return null;
-  }, name);
-
-  if (newNodeId) {
-    console.log(`  Created node with ID: ${newNodeId}`);
-    return newNodeId;
-  }
-
-  // Check if node appears in sidebar
-  const nodeInSidebar = await page.locator(`button:has-text("${name}")`).first();
-  if (await nodeInSidebar.isVisible({ timeout: 3000 }).catch(() => false)) {
-    console.log(`  Node "${name}" appears in sidebar (ID unknown)`);
-    // Generate a placeholder ID - the actual ID will be retrieved later
-    return `created-${Date.now()}`;
-  }
-
-  console.log(`  WARNING: Could not verify node creation`);
-  return null;
+  const newNodeId = await sidebarNodeId(page, name);
+  console.log(`  Created node "${name}" with id: ${newNodeId}`);
+  return newNodeId;
 }
 
-/**
- * Navigate to an office (select it in the sidebar)
- */
-async function navigateToOffice(page: Page, officeName: string): Promise<boolean> {
-  console.log(`  Navigating to office: ${officeName}`);
+/** Select a node in the sidebar. */
+async function navigateToNode(page: Page, nodeName: string): Promise<boolean> {
+  console.log(`  Navigating to node: ${nodeName}`);
 
-  const officeBtn = page.locator(`[data-sidebar="menu-button"]:has-text("${officeName}")`).first();
-  if (await isVisibleWithin(officeBtn, 3000)) {
-    await officeBtn.click();
-    await sleep(1000);
+  const btn = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
+  if (await isVisibleWithin(btn, 5000)) {
+    await btn.click();
     return true;
   }
 
-  console.log(`  WARNING: Office "${officeName}" not found in sidebar`);
+  console.log(`  WARNING: node "${nodeName}" not found in sidebar`);
   return false;
 }
 
-/**
- * Delete a node via UI
- */
-async function deleteNodeViaUI(
-  page: Page,
-  nodeName: string,
-  nodeType: 'Office' | 'Room'
-): Promise<{ success: boolean; childrenDeleted?: string[] }> {
-  console.log(`\n  Deleting ${nodeType}: ${nodeName}`);
+/** Delete a node through its ⋯ menu and confirm the alert dialog. */
+async function deleteNodeViaUI(page: Page, nodeName: string): Promise<boolean> {
+  console.log(`\n  Deleting: ${nodeName}`);
 
   const nodeId = await openNodeMenu(page, nodeName);
-  if (!nodeId) {
-    return { success: false };
-  }
+  if (!nodeId) return false;
 
-  // Prefer the testid'd item (`delete-node-${id}`) — it sidesteps the
-  // dynamic typeName text in the visible label ("Delete Office",
-  // "Delete Room", etc.).
+  // The testid'd item rather than the visible label: the label is
+  // `Delete ${typeName}` and typeName comes from the schema.
   const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`);
-  if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log(`  WARNING: Delete ${nodeType} option not found`);
+  if (!(await isVisibleWithin(deleteOption, 5000))) {
+    console.log('  WARNING: Delete option not found');
     await page.keyboard.press('Escape');
-    return { success: false };
-  }
-
-  await deleteOption.click();
-  await sleep(500);
-
-  // Confirm deletion
-  const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-  if (await isVisibleWithin(confirmBtn, 2000)) {
-    await confirmBtn.click();
-    await sleep(2000);
-
-    // Verify deletion
-    const nodeStillExists = await page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first()
-      .isVisible({ timeout: 1000 }).catch(() => false);
-
-    return { success: !nodeStillExists };
-  }
-
-  console.log('  WARNING: Confirm button not found');
-  return { success: false };
-}
-
-/**
- * Update a node's properties via UI (open edit modal)
- */
-async function updateNodeViaUI(
-  page: Page,
-  nodeName: string,
-  nodeType: 'Office' | 'Room',
-  updates: { name?: string; description?: string }
-): Promise<boolean> {
-  console.log(`\n  Updating ${nodeType}: ${nodeName}`);
-
-  const nodeId = await openNodeMenu(page, nodeName);
-  if (!nodeId) {
     return false;
   }
 
+  await deleteOption.click();
+
+  const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
+  if (!(await isVisibleWithin(confirmBtn, 5000))) {
+    console.log('  WARNING: confirmation dialog not found');
+    return false;
+  }
+
+  await confirmBtn.click();
+  return nodeGoneFromSidebar(page, nodeName, 15_000);
+}
+
+/** Rename / re-describe a node through its edit modal. */
+async function updateNodeViaUI(
+  page: Page,
+  nodeName: string,
+  updates: { name?: string; description?: string }
+): Promise<boolean> {
+  console.log(`\n  Updating: ${nodeName}`);
+
+  const nodeId = await openNodeMenu(page, nodeName);
+  if (!nodeId) return false;
+
   const editOption = page.locator(`[data-testid="edit-node-${nodeId}"]`);
-  if (!await editOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log(`  WARNING: Edit ${nodeType} option not found`);
+  if (!(await isVisibleWithin(editOption, 5000))) {
+    console.log('  WARNING: Edit option not found');
     await page.keyboard.press('Escape');
     return false;
   }
 
   await editOption.click();
-  await sleep(500);
-
-  if (updates.name) {
-    const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (await isVisibleWithin(nameInput, 1000)) {
-      await nameInput.clear();
-      await nameInput.fill(updates.name);
-    }
-  }
-
-  if (updates.description) {
-    const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-    if (await isVisibleWithin(descInput, 1000)) {
-      await descInput.clear();
-      await descInput.fill(updates.description);
-    }
-  }
-
-  const saveBtn = page.locator('button:has-text("Save"), button:has-text("Update")').first();
-  if (await isVisibleWithin(saveBtn, 1000)) {
-    await saveBtn.click();
-    await sleep(2000);
-    return true;
-  }
-
-  await page.keyboard.press('Escape');
-  console.log(`  WARNING: Could not update ${nodeType}`);
-  return false;
+  return submitNodeForm(page, updates);
 }
 
-/**
- * Check if a node exists in the sidebar
- */
-async function nodeExistsInSidebar(page: Page, nodeName: string): Promise<boolean> {
-  const node = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
-  return await node.isVisible({ timeout: 3000 }).catch(() => false);
-}
-
-/**
- * Get the depth of a node by counting its ancestors in the UI
- * (Offices are depth 1, Rooms are depth 2 in the default schema)
- */
-async function verifyNodeDepth(
-  page: Page,
-  nodeName: string,
-  expectedDepth: number
-): Promise<boolean> {
-  console.log(`  Verifying depth of "${nodeName}" is ${expectedDepth}`);
-
-  // In the default schema:
-  // - Workspace root is depth 0
-  // - Offices are depth 1
-  // - Rooms are depth 2
-
-  // Check if node is in offices section (depth 1)
-  const inOfficesSection = await page.locator(`section:has-text("OFFICES") [data-sidebar="menu-button"]:has-text("${nodeName}")`).first()
-    .isVisible({ timeout: 1000 }).catch(() => false);
-
-  if (inOfficesSection && expectedDepth === 1) {
-    console.log(`  Node is in OFFICES section (depth 1) - correct`);
-    return true;
+/** Find a node by id anywhere in a TreeStructure response. */
+function findInTree(tree: TreeNode, nodeId: string): TreeNode | null {
+  if (tree.node.id === nodeId) return tree;
+  for (const child of tree.children) {
+    const found = findInTree(child, nodeId);
+    if (found) return found;
   }
-
-  // Check if node is in rooms section (depth 2)
-  const inRoomsSection = await page.locator(`section:has-text("ROOMS") [data-sidebar="menu-button"]:has-text("${nodeName}")`).first()
-    .isVisible({ timeout: 1000 }).catch(() => false);
-
-  if (inRoomsSection && expectedDepth === 2) {
-    console.log(`  Node is in ROOMS section (depth 2) - correct`);
-    return true;
-  }
-
-  console.log(`  WARNING: Node depth verification failed`);
-  return false;
+  return null;
 }
 
 // ============================================================================
@@ -657,9 +419,8 @@ async function runTest(): Promise<boolean> {
     nodesListedWithFilter: false,
     fullTreeStructureLoaded: false,
     nodeUpdated: false,
-    deleteWithoutCascadeFailed: false,
+    uiDeleteCascadesToChildren: false,
     deleteWithCascadeSucceeded: false,
-    cycleCreationPrevented: false,
     orphanNodePrevented: false,
     depthCalculatedCorrectly: false,
     parentChildRelationshipMaintained: false,
@@ -694,14 +455,28 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(page);
-    results.workspaceLoaded = true;
+    // waitForWorkspaceLoaded returns whether the sidebar ever appeared; it does
+    // not throw on timeout. Discarding it and assigning `true` made this a
+    // result that could only ever print PASS, including on the run where the
+    // workspace never loaded and everything after it failed for that reason.
+    results.workspaceLoaded = await waitForWorkspaceLoaded(page);
     await takeScreenshot(page, `${ADMIN_USER}_admin_ready`);
 
-    // Check if user is admin
-    const adminIndicator = page.locator('text="ADMIN SETTINGS"').first();
-    results.isAdmin = await adminIndicator.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Admin status: ${results.isAdmin}`);
+    // Admin status.
+    //
+    // This used to look for `text="ADMIN SETTINGS"`, which could not match
+    // anything: the app renders "Admin Settings" (mixed case, and `text="…"`
+    // is an exact case-sensitive match), and it renders it inside a node's ⋯
+    // dropdown, which is closed. So this always reported false.
+    //
+    // TopBar puts `title="Workspace Administrator"` on the avatar button when
+    // the user's role is Admin or Owner, and that is on screen from the moment
+    // the workspace loads.
+    results.isAdmin = await isVisibleWithin(
+      page.locator('[data-testid="user-avatar-button"][title="Workspace Administrator"]'),
+      10_000
+    );
+    console.log(`  Admin status: ${results.isAdmin ? 'PASS' : 'FAIL'}`);
 
     // ========================================================================
     // STEP 2: Get Initial Tree Structure (Verify Workspace Root)
@@ -710,10 +485,26 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 2: Get Initial Tree Structure');
     console.log('-'.repeat(50));
 
-    workspaceRootId = await getInitialTreeStructure(page);
-    results.initialTreeLoaded = workspaceRootId !== null;
-    console.log(`  Initial tree loaded: ${results.initialTreeLoaded}`);
-    console.log(`  Workspace root ID: ${workspaceRootId || 'unknown'}`);
+    // The local getInitialTreeStructure this replaces probed
+    // `window.__workspaceContext`, `[data-workspace-id]` and a
+    // `currentWorkspace` storage key — none of which exist in the app — and
+    // then fell back to the 'workspace-root' sentinel, so `!== null` was
+    // always true and `initialTreeLoaded` could not fail.
+    workspaceRootId = await getWorkspaceRootId(page);
+    console.log(`  Workspace root ID: ${workspaceRootId}`);
+
+    const rootNode = workspaceRootId ? await getNodeViaProtocol(page, workspaceRootId) : null;
+    const initialTree = await getTreeStructure(page);
+    results.initialTreeLoaded =
+      rootNode !== null &&
+      rootNode.entity_type === 'Workspace' &&
+      rootNode.depth === 0 &&
+      initialTree !== null;
+    console.log(`  Initial tree loaded: ${results.initialTreeLoaded ? 'PASS' : 'FAIL'}`);
+
+    if (!workspaceRootId) {
+      throw new Error('Could not determine the workspace root id');
+    }
 
     // ========================================================================
     // STEP 3: Create Office Node (Child at depth 1)
@@ -725,10 +516,15 @@ async function runTest(): Promise<boolean> {
     testOfficeId = await createNodeViaUI(page, 'Office', TEST_OFFICE_NAME, 'Test office description');
     results.officeNodeCreated = testOfficeId !== null;
 
-    if (results.officeNodeCreated) {
-      // Verify depth is 1 (office level)
-      results.depthCalculatedCorrectly = await verifyNodeDepth(page, TEST_OFFICE_NAME, 1);
-      console.log(`  Office depth correct: ${results.depthCalculatedCorrectly}`);
+    let officeDepthCorrect = false;
+    if (testOfficeId) {
+      // Depth is not visible in the DOM. The check this replaces looked for
+      // `section:has-text("OFFICES")` and `section:has-text("ROOMS")` — the
+      // sidebar has neither; it renders one SidebarGroup titled "HIERARCHY"
+      // (HierarchySidebar passes title="HIERARCHY") with the whole tree inside
+      // it. Those locators matched nothing, so this result was always FAIL.
+      officeDepthCorrect = await verifyNodeDepth(page, testOfficeId, 1);
+      console.log(`  Office depth is 1: ${officeDepthCorrect ? 'PASS' : 'FAIL'}`);
     }
 
     await takeScreenshot(page, `${ADMIN_USER}_office_created`);
@@ -740,32 +536,32 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 4: Create Room Node Under Office');
     console.log('-'.repeat(50));
 
-    if (results.officeNodeCreated) {
-      // Navigate to the office first
-      const navigated = await navigateToOffice(page, TEST_OFFICE_NAME);
-      if (navigated) {
-        await sleep(1000);
-        testRoomId = await createNodeViaUI(
-          page,
-          'Room',
-          TEST_ROOM_NAME,
-          'Test room description',
-          TEST_OFFICE_NAME,
-        );
-        results.roomNodeCreated = testRoomId !== null;
+    let roomDepthCorrect = false;
+    if (results.officeNodeCreated && testOfficeId) {
+      await navigateToNode(page, TEST_OFFICE_NAME);
+      testRoomId = await createNodeViaUI(
+        page,
+        'Room',
+        TEST_ROOM_NAME,
+        'Test room description',
+        TEST_OFFICE_NAME,
+      );
+      results.roomNodeCreated = testRoomId !== null;
 
-        if (results.roomNodeCreated) {
-          // Verify depth is 2 (room level)
-          const roomDepthCorrect = await verifyNodeDepth(page, TEST_ROOM_NAME, 2);
-          results.depthCalculatedCorrectly = results.depthCalculatedCorrectly && roomDepthCorrect;
-          console.log(`  Room depth correct: ${roomDepthCorrect}`);
+      if (testRoomId) {
+        roomDepthCorrect = await verifyNodeDepth(page, testRoomId, 2);
+        console.log(`  Room depth is 2: ${roomDepthCorrect ? 'PASS' : 'FAIL'}`);
 
-          // Verify parent-child relationship
-          results.parentChildRelationshipMaintained = await nodeExistsInSidebar(page, TEST_ROOM_NAME);
-          console.log(`  Parent-child relationship: ${results.parentChildRelationshipMaintained}`);
-        }
+        // The old check here was `nodeExistsInSidebar(TEST_ROOM_NAME)` — the
+        // room's presence somewhere in the list, which says nothing about its
+        // parent. A room created at the workspace root would have passed it.
+        results.parentChildRelationshipMaintained =
+          await verifyNodeParent(page, testRoomId, testOfficeId);
+        console.log(`  Room's parent is the office: ${results.parentChildRelationshipMaintained ? 'PASS' : 'FAIL'}`);
       }
     }
+
+    results.depthCalculatedCorrectly = officeDepthCorrect && roomDepthCorrect;
 
     await takeScreenshot(page, `${ADMIN_USER}_room_created`);
 
@@ -776,9 +572,15 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 5: Get Single Node');
     console.log('-'.repeat(50));
 
-    // Verify we can retrieve the created office by checking it exists
-    results.nodeRetrieved = await nodeExistsInSidebar(page, TEST_OFFICE_NAME);
-    console.log(`  Node retrieved: ${results.nodeRetrieved}`);
+    if (testOfficeId) {
+      const office = await getNodeViaProtocol(page, testOfficeId);
+      results.nodeRetrieved =
+        office !== null &&
+        office.name === TEST_OFFICE_NAME &&
+        typeof office.entity_type === 'object' &&
+        office.entity_type.Child === 'Office';
+      console.log(`  GetNode returned the office we created: ${results.nodeRetrieved ? 'PASS' : 'FAIL'}`);
+    }
 
     // ========================================================================
     // STEP 6: List Nodes with Filter (ListNodes with entity_types)
@@ -787,14 +589,23 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 6: List Nodes with Filter');
     console.log('-'.repeat(50));
 
-    // Verify offices section shows our office (filtered by entity_type: Office)
-    const officesSection = page.locator('section:has-text("OFFICES")').first();
-    if (await officesSection.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const officeVisible = await officesSection.locator(`[data-sidebar="menu-button"]:has-text("${TEST_OFFICE_NAME}")`).first()
-        .isVisible({ timeout: 1000 }).catch(() => false);
-      results.nodesListedWithFilter = officeVisible;
+    // This step is named for ListNodes-with-entity_types, so exercise it. The
+    // previous version looked for the office inside
+    // `section:has-text("OFFICES")` — a section the app does not render — and
+    // therefore never verified the filter at all.
+    if (testOfficeId) {
+      const offices = await listNodesViaProtocol(page, {
+        parentId: workspaceRootId,
+        entityTypes: [{ Child: 'Office' }],
+      });
+      const nonOfficeLeaked = offices.some(
+        n => typeof n.entity_type !== 'object' || n.entity_type.Child !== 'Office'
+      );
+      results.nodesListedWithFilter =
+        offices.some(n => n.id === testOfficeId) && !nonOfficeLeaked;
+      console.log(`  ListNodes(entity_types=[Office]) returned ${offices.length} nodes`);
+      console.log(`  Contains our office and nothing else: ${results.nodesListedWithFilter ? 'PASS' : 'FAIL'}`);
     }
-    console.log(`  Nodes listed with filter: ${results.nodesListedWithFilter}`);
 
     // ========================================================================
     // STEP 7: Get Full Tree Structure (GetTreeStructure)
@@ -803,11 +614,15 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 7: Get Full Tree Structure');
     console.log('-'.repeat(50));
 
-    // Verify the full tree is visible (workspace contains offices contains rooms)
-    const officeInSidebar = await nodeExistsInSidebar(page, TEST_OFFICE_NAME);
-    const roomInSidebar = await nodeExistsInSidebar(page, TEST_ROOM_NAME);
-    results.fullTreeStructureLoaded = officeInSidebar && roomInSidebar;
-    console.log(`  Full tree loaded: ${results.fullTreeStructureLoaded}`);
+    if (testOfficeId && testRoomId) {
+      const tree = await getTreeStructure(page);
+      const officeInTree = tree ? findInTree(tree, testOfficeId) : null;
+      // The room has to appear *under the office*, not merely somewhere in the
+      // tree — that nesting is what GetTreeStructure is for.
+      results.fullTreeStructureLoaded =
+        officeInTree !== null && officeInTree.children.some(c => c.node.id === testRoomId);
+      console.log(`  Room nested under office in GetTreeStructure: ${results.fullTreeStructureLoaded ? 'PASS' : 'FAIL'}`);
+    }
 
     await takeScreenshot(page, `${ADMIN_USER}_tree_structure`);
 
@@ -819,34 +634,38 @@ async function runTest(): Promise<boolean> {
     console.log('-'.repeat(50));
 
     const updatedOfficeName = `${TEST_OFFICE_NAME}_Updated`;
-    results.nodeUpdated = await updateNodeViaUI(page, TEST_OFFICE_NAME, 'Office', {
-      name: updatedOfficeName,
-      description: 'Updated description',
-    });
+    if (testOfficeId) {
+      const submitted = await updateNodeViaUI(page, TEST_OFFICE_NAME, {
+        name: updatedOfficeName,
+        description: 'Updated description',
+      });
 
-    if (results.nodeUpdated) {
-      // Verify the name changed
-      const nameChanged = await nodeExistsInSidebar(page, updatedOfficeName);
-      results.nodeUpdated = nameChanged;
-      console.log(`  Node name updated: ${nameChanged}`);
+      // Read the node back by id rather than searching the sidebar for the new
+      // name: the id survives the rename, and a name search would also match
+      // the pre-rename name, since `TestOffice_<ts>_Updated` contains
+      // `TestOffice_<ts>`.
+      const office = submitted ? await getNodeViaProtocol(page, testOfficeId) : null;
+      results.nodeUpdated =
+        office !== null &&
+        office.name === updatedOfficeName &&
+        office.description === 'Updated description';
+      console.log(`  Node renamed and re-described: ${results.nodeUpdated ? 'PASS' : 'FAIL'}`);
     }
 
     await takeScreenshot(page, `${ADMIN_USER}_node_updated`);
 
     // ========================================================================
-    // STEP 9: Create Second Office for Move Test
+    // STEP 9: Build a second subtree for the delete tests
     // ========================================================================
     console.log('\n' + '-'.repeat(50));
-    console.log('STEP 9: Create Second Office for Move Test');
+    console.log('STEP 9: Create Second Office and Rooms');
     console.log('-'.repeat(50));
 
     testOffice2Id = await createNodeViaUI(page, 'Office', TEST_OFFICE_2_NAME, 'Second test office');
     console.log(`  Second office created: ${testOffice2Id !== null}`);
 
-    // Create a second room in the first office
     if (results.nodeUpdated) {
-      await navigateToOffice(page, updatedOfficeName);
-      await sleep(1000);
+      await navigateToNode(page, updatedOfficeName);
       testRoom2Id = await createNodeViaUI(
         page,
         'Room',
@@ -858,105 +677,93 @@ async function runTest(): Promise<boolean> {
     }
 
     // ========================================================================
-    // STEP 10: MoveNode (not implemented in UI — excluded from results)
+    // STEP 10: MoveNode — SKIPPED
     // ========================================================================
     console.log('\n' + '-'.repeat(50));
-    console.log('STEP 10: MoveNode — SKIPPED (no UI support)');
+    console.log('STEP 10: MoveNode — SKIPPED');
     console.log('-'.repeat(50));
-    console.log('  MoveNode requires drag-drop UI or admin panel — not yet implemented');
+    console.log("  The sidebar exposes no move affordance: TreeNodeItem's menu offers");
+    console.log('  Edit, Admin Settings, Add Child, Set as Default and Delete, and there');
+    console.log('  is no drag-and-drop. MoveNode is covered at the protocol level in');
+    console.log('  tree-move-operations.test.ts.');
 
     // ========================================================================
-    // STEP 11: Test Delete Without Cascade (Should Fail if Has Children)
+    // STEP 11: Delete a node that has children (the UI always cascades)
     // ========================================================================
     console.log('\n' + '-'.repeat(50));
-    console.log('STEP 11: Test Delete Without Cascade');
+    console.log('STEP 11: Delete a Parent Node');
     console.log('-'.repeat(50));
 
-    // Try to delete the office that has rooms - this should either:
-    // 1. Be prevented by the UI
-    // 2. Show a warning about cascading delete
-    // 3. Or fail with an error
     if (testOffice2Id) {
-      // First navigate to office 2 and create a room
-      await navigateToOffice(page, TEST_OFFICE_2_NAME);
-      await sleep(1000);
-      const tempRoomId = await createNodeViaUI(
+      const office2Id = testOffice2Id;
+      await navigateToNode(page, TEST_OFFICE_2_NAME);
+      tempRoomId = await createNodeViaUI(
         page,
         'Room',
-        'TempRoom',
+        TEMP_ROOM_NAME,
         'Temporary room',
         TEST_OFFICE_2_NAME,
       );
 
       if (tempRoomId) {
-        // Now try to delete the office - the UI typically asks for confirmation
-        // and may mention cascade behavior
-        // We don't use the result directly since we check sidebar state after
-        await deleteNodeViaUI(page, TEST_OFFICE_2_NAME, 'Office');
+        const deleted = await deleteNodeViaUI(page, TEST_OFFICE_2_NAME);
+        console.log(`  Office removed from the sidebar: ${deleted}`);
 
-        // Check if office still exists after delete attempt
-        const officeExistsAfterDelete = await nodeExistsInSidebar(page, TEST_OFFICE_2_NAME);
-        console.log(`  Office still exists after delete attempt: ${officeExistsAfterDelete}`);
+        // HierarchySidebar always passes cascade=true, so both the office and
+        // its room must be gone. The result this replaces expected the delete
+        // to be *refused* and logged a FAIL when it cascaded, i.e. it failed
+        // the app for behaving as written.
+        const officeGone = (await getNodeViaProtocol(page, office2Id)) === null;
+        const tempRoomGone = (await getNodeViaProtocol(page, tempRoomId)) === null;
+        results.uiDeleteCascadesToChildren = deleted && officeGone && tempRoomGone;
+        console.log(`  Office gone: ${officeGone}, child room gone: ${tempRoomGone}`);
+        console.log(`  UI delete cascades: ${results.uiDeleteCascadesToChildren ? 'PASS' : 'FAIL'}`);
 
-        if (officeExistsAfterDelete) {
-          // Delete was blocked because office has children — correct behavior
-          results.deleteWithoutCascadeFailed = true;
-          results.orphanNodePrevented = true;
-          console.log('  Delete without cascade correctly blocked (office has children)');
-        } else {
-          // Office was deleted — check if children were also cleaned up
-          const tempRoomExists = await nodeExistsInSidebar(page, 'TempRoom');
-          if (!tempRoomExists) {
-            // Cascade delete happened — not expected for "without cascade"
-            results.deleteWithoutCascadeFailed = false;
-            results.orphanNodePrevented = true;
-            console.log('  FAIL: Delete cascaded (unexpected for non-cascade delete)');
-          } else {
-            // Office deleted but children remain — orphan created
-            results.deleteWithoutCascadeFailed = false;
-            results.orphanNodePrevented = false;
-            console.log('  FAIL: Office deleted but children orphaned');
-          }
-        }
+        // An orphan is the specific bad outcome: parent deleted, child left
+        // behind pointing at an id that no longer resolves.
+        results.orphanNodePrevented = !(officeGone && !tempRoomGone);
+        console.log(`  No orphaned child: ${results.orphanNodePrevented ? 'PASS' : 'FAIL'}`);
+
+        if (officeGone) testOffice2Id = null;
       }
     }
 
     // ========================================================================
-    // STEP 12: Test Delete With Cascade
+    // STEP 12: Cascade delete of the first office
     // ========================================================================
     console.log('\n' + '-'.repeat(50));
-    console.log('STEP 12: Test Delete With Cascade');
+    console.log('STEP 12: Cascade Delete');
     console.log('-'.repeat(50));
 
-    // Delete the office that has rooms (cascade should delete children)
-    if (results.nodeUpdated) {
-      const deleteResult = await deleteNodeViaUI(page, updatedOfficeName, 'Office');
+    if (results.nodeUpdated && testOfficeId) {
+      const officeId = testOfficeId;
+      const deleted = await deleteNodeViaUI(page, updatedOfficeName);
 
-      if (deleteResult.success) {
-        // Verify both office and its rooms are gone
-        const officeGone = !(await nodeExistsInSidebar(page, updatedOfficeName));
-        const roomsGone = !(await nodeExistsInSidebar(page, TEST_ROOM_NAME));
-        results.deleteWithCascadeSucceeded = officeGone && roomsGone;
-        console.log(`  Office deleted: ${officeGone}`);
-        console.log(`  Rooms also deleted: ${roomsGone}`);
-      }
+      const officeGone = (await getNodeViaProtocol(page, officeId)) === null;
+      const roomGone = testRoomId ? (await getNodeViaProtocol(page, testRoomId)) === null : true;
+      const room2Gone = testRoom2Id ? (await getNodeViaProtocol(page, testRoom2Id)) === null : true;
+
+      results.deleteWithCascadeSucceeded = deleted && officeGone && roomGone && room2Gone;
+      console.log(`  Office deleted: ${officeGone}`);
+      console.log(`  Both rooms deleted: ${roomGone && room2Gone}`);
+      console.log(`  Cascade delete: ${results.deleteWithCascadeSucceeded ? 'PASS' : 'FAIL'}`);
+
+      if (officeGone) testOfficeId = null;
     }
 
     await takeScreenshot(page, `${ADMIN_USER}_after_delete`);
 
     // ========================================================================
-    // STEP 13: Test Cycle Prevention (MoveNode to Descendant)
+    // STEP 13: Cycle prevention — SKIPPED
     // ========================================================================
     console.log('\n' + '-'.repeat(50));
-    console.log('STEP 13: Test Cycle Prevention');
+    console.log('STEP 13: Cycle Prevention — SKIPPED');
     console.log('-'.repeat(50));
-
-    // This test requires moving a node to its own descendant
-    // The TreeValidator should prevent this
-    // Since UI may not expose move operations, we note this as protocol-level test
-    console.log('  NOTE: Cycle prevention is enforced at the protocol level');
-    console.log('  The TreeValidator prevents MoveNode to descendant');
-    results.cycleCreationPrevented = true; // TreeValidator handles this
+    console.log('  A cycle can only be created by MoveNode, which this UI does not expose,');
+    console.log('  so there is nothing to drive from here. This result used to be assigned');
+    console.log('  `true` unconditionally with the comment "TreeValidator handles this" — a');
+    console.log("  PASS printed for an assertion that was never made. TreeValidator's cycle");
+    console.log('  and self-move rejections are exercised in tree-move-operations.test.ts.');
 
     // ========================================================================
     // CLEANUP
@@ -965,9 +772,8 @@ async function runTest(): Promise<boolean> {
     console.log('CLEANUP');
     console.log('-'.repeat(50));
 
-    // Delete any remaining test nodes
-    if (await nodeExistsInSidebar(page, TEST_OFFICE_2_NAME)) {
-      await deleteNodeViaUI(page, TEST_OFFICE_2_NAME, 'Office');
+    if (await nodeExistsInSidebar(page, TEST_OFFICE_2_NAME, 2000)) {
+      await deleteNodeViaUI(page, TEST_OFFICE_2_NAME);
     }
 
     await takeScreenshot(page, 'FINAL_cleanup');
@@ -1005,27 +811,42 @@ async function runTest(): Promise<boolean> {
     console.log(`  Node Updated:               ${results.nodeUpdated ? 'PASS' : 'FAIL'}`);
 
     console.log('\nDelete Operations:');
-    console.log(`  Delete Without Cascade:     ${results.deleteWithoutCascadeFailed ? 'PASS' : 'FAIL'}`);
+    console.log(`  UI Delete Cascades:         ${results.uiDeleteCascadesToChildren ? 'PASS' : 'FAIL'}`);
     console.log(`  Delete With Cascade:        ${results.deleteWithCascadeSucceeded ? 'PASS' : 'FAIL'}`);
-
-    console.log('\nValidation Tests:');
-    console.log(`  Cycle Prevention:           ${results.cycleCreationPrevented ? 'PASS' : 'FAIL'}`);
-    console.log(`  Orphan Prevention:          ${results.orphanNodePrevented ? 'PASS' : 'FAIL'}`);
+    console.log(`  No Orphans Left Behind:     ${results.orphanNodePrevented ? 'PASS' : 'FAIL'}`);
 
     console.log('\nDepth/Relationship Tests:');
     console.log(`  Depth Calculated:           ${results.depthCalculatedCorrectly ? 'PASS' : 'FAIL'}`);
     console.log(`  Parent-Child Maintained:    ${results.parentChildRelationshipMaintained ? 'PASS' : 'FAIL'}`);
 
-    // Determine overall pass/fail
+    console.log('\nSkipped (no UI affordance):');
+    console.log('  MoveNode                    SKIP — no move control in the sidebar');
+    console.log('  Cycle Prevention            SKIP — requires MoveNode');
+
+    // Every result printed above is gated. The old list read four of them
+    // (account, workspace, office created, room created), so wrong depths, a
+    // room attached to the wrong parent, a rename that did not take, a filter
+    // that returned the wrong set and a cascade that orphaned children all
+    // printed FAIL against a run that exited 0.
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
+      results.isAdmin,
+      results.initialTreeLoaded,
       results.officeNodeCreated,
       results.roomNodeCreated,
+      results.nodeRetrieved,
+      results.nodesListedWithFilter,
+      results.fullTreeStructureLoaded,
+      results.nodeUpdated,
+      results.uiDeleteCascadesToChildren,
+      results.deleteWithCascadeSucceeded,
+      results.orphanNodePrevented,
+      results.depthCalculatedCorrectly,
+      results.parentChildRelationshipMaintained,
     ];
 
-    const allCriticalPassed = criticalTests.every(Boolean);
-    const overallPass = allCriticalPassed;
+    const overallPass = criticalTests.every(Boolean);
 
     console.log('\n' + '='.repeat(60));
     console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);

@@ -42,20 +42,39 @@ interface TestResults {
   // Setup
   accountCreation: boolean;
   workspaceLoaded: boolean;
-  workspaceRootFound: boolean;
+  /** The workspace root id resolves to a real Workspace node on the server. */
+  workspaceRootResolves: boolean;
 
-  // Test Cases
+  // Test 1 — leaf delete
   leafNodeDelete: boolean;
+  leafNodeGone: boolean;
   leafNodeParentUpdated: boolean;
+
+  // Test 2 — cascade, single child
   cascadeDeleteSingleChild: boolean;
+  cascadeSingleChildGone: boolean;
+  cascadeSingleChildReported: boolean;
+
+  // Test 3 — cascade, multiple children
   cascadeDeleteMultipleChildren: boolean;
+  cascadeMultipleChildrenGone: boolean;
   cascadeDeleteCountCorrect: boolean;
+
+  // Test 4 — deep cascade
+  deepHierarchyBuilt: boolean;
   deepCascadeDelete: boolean;
+  deepCascadeDescendantsGone: boolean;
   deepCascadeCountCorrect: boolean;
   workspaceStillExists: boolean;
+
+  // Test 5 — non-cascade delete must be refused
   nonCascadeDeleteFailed: boolean;
+  nonCascadeErrorNamesChildren: boolean;
   childrenStillExistAfterNonCascade: boolean;
+
+  // Test 6 — root delete must be refused
   workspaceRootDeleteFailed: boolean;
+  workspaceRootSurvivesDeleteAttempt: boolean;
 }
 
 // ============================================================================
@@ -64,6 +83,9 @@ interface TestResults {
 
 const timestamp = Date.now();
 const ADMIN_USER = `cascade_admin_${timestamp}`;
+
+/** Levels the deep-cascade case builds. Named so the assertion and the log agree. */
+const DEEP_CASCADE_LEVELS = 5;
 
 // ============================================================================
 // Main Test
@@ -83,18 +105,26 @@ async function runTest(): Promise<boolean> {
   const results: TestResults = {
     accountCreation: false,
     workspaceLoaded: false,
-    workspaceRootFound: false,
+    workspaceRootResolves: false,
     leafNodeDelete: false,
+    leafNodeGone: false,
     leafNodeParentUpdated: false,
     cascadeDeleteSingleChild: false,
+    cascadeSingleChildGone: false,
+    cascadeSingleChildReported: false,
     cascadeDeleteMultipleChildren: false,
+    cascadeMultipleChildrenGone: false,
     cascadeDeleteCountCorrect: false,
+    deepHierarchyBuilt: false,
     deepCascadeDelete: false,
+    deepCascadeDescendantsGone: false,
     deepCascadeCountCorrect: false,
     workspaceStillExists: false,
     nonCascadeDeleteFailed: false,
+    nonCascadeErrorNamesChildren: false,
     childrenStillExistAfterNonCascade: false,
     workspaceRootDeleteFailed: false,
+    workspaceRootSurvivesDeleteAttempt: false,
   };
 
   let browser: Browser | null = null;
@@ -127,18 +157,28 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(page);
-    results.workspaceLoaded = true;
+    // waitForWorkspaceLoaded returns whether the sidebar ever appeared; it does
+    // not throw on timeout. Discarding it and assigning `true` made this a
+    // result that could only ever print PASS, including on the run where the
+    // workspace never loaded and everything after it failed for that reason.
+    results.workspaceLoaded = await waitForWorkspaceLoaded(page);
     await takeScreenshot(page, `${ADMIN_USER}_admin_ready`);
 
-    // Get workspace root ID
+    // `getWorkspaceRootId` falls back to the 'workspace-root' sentinel and so
+    // can never return null — `!== null` was a gate that could not fail. The
+    // meaningful question is whether that id resolves to a Workspace node on
+    // the server, since every later step addresses nodes relative to it.
     workspaceRootId = await getWorkspaceRootId(page);
-    results.workspaceRootFound = workspaceRootId !== null;
     console.log(`  Workspace root ID: ${workspaceRootId || 'NOT FOUND'}`);
 
     if (!workspaceRootId) {
       throw new Error('Failed to get workspace root ID');
     }
+
+    const rootNode = await getNodeViaProtocol(page, workspaceRootId);
+    results.workspaceRootResolves =
+      rootNode !== null && rootNode.entity_type === 'Workspace' && rootNode.depth === 0;
+    console.log(`  Workspace root resolves: ${results.workspaceRootResolves ? 'PASS' : 'FAIL'}`);
 
     // ========================================================================
     // TEST 1: Leaf Node Delete
@@ -183,9 +223,11 @@ async function runTest(): Promise<boolean> {
         console.log(`  Leaf delete result: ${deleteResult.success ? 'SUCCESS' : 'FAILED'}`);
 
         if (deleteResult.success) {
-          // Verify room is deleted
-          const roomDeleted = await verifyNodeDeleted(page, roomId);
-          console.log(`  Room verified deleted: ${roomDeleted}`);
+          // A DeleteNode response that says "ok" is not evidence the node went
+          // away; this re-reads it. It was computed and printed but never
+          // gated, so a delete that acknowledged and did nothing passed.
+          results.leafNodeGone = await verifyNodeDeleted(page, roomId);
+          console.log(`  Room verified deleted: ${results.leafNodeGone ? 'PASS' : 'FAIL'}`);
 
           // Verify parent's children list is updated
           const parentNode = await getNodeViaProtocol(page, officeId);
@@ -241,17 +283,21 @@ async function runTest(): Promise<boolean> {
         console.log(`  Cascade delete (single child) result: ${deleteResult.success ? 'SUCCESS' : 'FAILED'}`);
 
         if (deleteResult.success) {
-          // Verify both office and room are deleted
+          // Both the parent and the child have to be gone for this to be a
+          // cascade; checking only the parent would pass on a delete that
+          // orphaned the room.
           const officeDeleted = await verifyNodeDeleted(page, officeId);
           const roomDeleted = await verifyNodeDeleted(page, roomId);
+          results.cascadeSingleChildGone = officeDeleted && roomDeleted;
           console.log(`  Office deleted: ${officeDeleted}, Room deleted: ${roomDeleted}`);
 
-          // Verify children_deleted list
-          if (deleteResult.childrenDeleted) {
-            const includesRoom = deleteResult.childrenDeleted.includes(roomId);
-            console.log(`  children_deleted includes room: ${includesRoom}`);
-            console.log(`  children_deleted: ${JSON.stringify(deleteResult.childrenDeleted)}`);
-          }
+          // The response is supposed to enumerate what it took with it. That
+          // is the contract callers rely on to reconcile local state, so it is
+          // an assertion, not a log line.
+          results.cascadeSingleChildReported =
+            deleteResult.childrenDeleted?.includes(roomId) ?? false;
+          console.log(`  children_deleted: ${JSON.stringify(deleteResult.childrenDeleted)}`);
+          console.log(`  children_deleted includes room: ${results.cascadeSingleChildReported ? 'PASS' : 'FAIL'}`);
         }
       }
     }
@@ -302,6 +348,7 @@ async function runTest(): Promise<boolean> {
             const roomDeleted = await verifyNodeDeleted(page, roomId);
             if (!roomDeleted) allRoomsDeleted = false;
           }
+          results.cascadeMultipleChildrenGone = officeDeleted && allRoomsDeleted;
           console.log(`  Office deleted: ${officeDeleted}, All rooms deleted: ${allRoomsDeleted}`);
 
           // Verify deletion count
@@ -327,20 +374,26 @@ async function runTest(): Promise<boolean> {
     // Note: Default schema may limit depth, but we try to create as deep as possible
     const deepNodeIds = await createDeepHierarchy(
       page,
-      5,
+      DEEP_CASCADE_LEVELS,
       workspaceRootId,
       `Deep_${timestamp}`
     );
 
-    console.log(`  Created ${deepNodeIds.length} nodes in hierarchy`);
+    // Without this the rest of Test 4 is vacuous: if createDeepHierarchy gave
+    // up after one node (it stops at the first schema rejection), "all
+    // descendants deleted" and "count correct" are both trivially true over an
+    // empty set, and the deep cascade goes untested while reporting PASS.
+    results.deepHierarchyBuilt = deepNodeIds.length === DEEP_CASCADE_LEVELS;
+    console.log(`  Created ${deepNodeIds.length}/${DEEP_CASCADE_LEVELS} nodes in hierarchy: ${results.deepHierarchyBuilt ? 'PASS' : 'FAIL'}`);
 
     if (deepNodeIds.length > 0) {
       const nodeA = deepNodeIds[0];
       const remainingNodes = deepNodeIds.slice(1);
 
-      // Verify workspace exists before delete
-      const workspaceExistsBefore = await verifyNodeExists(page, workspaceRootId);
-      console.log(`  Workspace exists before delete: ${workspaceExistsBefore}`);
+      // (The "workspace exists before delete" probe that used to sit here was
+      // dropped: `workspaceRootResolves` already asserts it at setup and
+      // `workspaceStillExists` asserts it after the cascade, so a third
+      // ungated print of the same fact added nothing.)
 
       // Delete node A with cascade
       const deleteResult = await deleteNodeViaProtocol(page, nodeA, true);
@@ -360,6 +413,10 @@ async function runTest(): Promise<boolean> {
             allDescendantsDeleted = false;
           }
         }
+        // Nodes left behind by a deep cascade are exactly the failure this test
+        // exists to catch — unreachable rows with a dangling parent_id. Both
+        // halves were only being printed.
+        results.deepCascadeDescendantsGone = nodeADeleted && allDescendantsDeleted;
         console.log(`  All descendants deleted: ${allDescendantsDeleted}`);
 
         // Verify deletion count
@@ -368,15 +425,23 @@ async function runTest(): Promise<boolean> {
         results.deepCascadeCountCorrect = actualCount === expectedCount;
         console.log(`  Deep deletion count: expected=${expectedCount}, actual=${actualCount} - ${results.deepCascadeCountCorrect ? 'CORRECT' : 'INCORRECT'}`);
 
-        // Verify workspace still exists
-        // Note: workspace-root is a sentinel value, not an actual stored node.
-        // We verify the workspace exists by checking that we can still list offices.
+        // `listNodesViaProtocol` returns `response?.Nodes || []` — an array,
+        // always, even when the request errored. `offices !== null` was
+        // therefore true no matter what happened to the workspace, including
+        // if the cascade had eaten the root.
+        //
+        // The root is a sentinel rather than a stored row, but GetNode
+        // synthesises a Workspace node for it (async_node_ops.rs, get_node),
+        // so it is directly checkable — and listing under it must still work.
+        const rootAfter = await getNodeViaProtocol(page, workspaceRootId);
         const offices = await listNodesViaProtocol(page, {
           parentId: workspaceRootId,
           entityTypes: [{ Child: 'Office' }]
         });
-        results.workspaceStillExists = offices !== null;
-        console.log(`  Workspace still exists (can list offices): ${results.workspaceStillExists}`);
+        results.workspaceStillExists =
+          rootAfter !== null && rootAfter.entity_type === 'Workspace' && Array.isArray(offices);
+        console.log(`  Workspace root still resolves: ${rootAfter !== null}, offices listed: ${offices.length}`);
+        console.log(`  Workspace still exists: ${results.workspaceStillExists ? 'PASS' : 'FAIL'}`);
       }
     }
 
@@ -420,12 +485,15 @@ async function runTest(): Promise<boolean> {
         console.log(`  Non-cascade delete result: ${deleteResult.success ? 'SUCCESS (BAD)' : 'FAILED (EXPECTED)'}`);
 
         if (!deleteResult.success) {
-          // Verify error message mentions children
-          const errorMentionsChildren = deleteResult.error?.toLowerCase().includes('children') ||
-            deleteResult.error?.toLowerCase().includes('has children') ||
-            deleteResult.error?.toLowerCase().includes('not empty');
-          console.log(`  Error mentions children: ${errorMentionsChildren}`);
+          // The refusal has to be *the children* refusal, not any refusal — a
+          // permission error or a timeout would otherwise be indistinguishable
+          // from correct behaviour here. The server's message is
+          // "Node '<id>' has N children. Use cascade=true to delete with
+          // children." (async_node_ops.rs delete_node).
+          results.nonCascadeErrorNamesChildren =
+            deleteResult.error?.toLowerCase().includes('children') ?? false;
           console.log(`  Error message: ${deleteResult.error}`);
+          console.log(`  Error names children: ${results.nonCascadeErrorNamesChildren ? 'PASS' : 'FAIL'}`);
         }
 
         // Verify office and children still exist
@@ -453,18 +521,21 @@ async function runTest(): Promise<boolean> {
     results.workspaceRootDeleteFailed = !deleteRootResult.success;
     console.log(`  Delete workspace root result: ${deleteRootResult.success ? 'SUCCESS (BAD)' : 'FAILED (EXPECTED)'}`);
 
-    if (!deleteRootResult.success) {
-      // Verify error message mentions workspace root
-      const errorMentionsRoot = deleteRootResult.error?.toLowerCase().includes('workspace') ||
-        deleteRootResult.error?.toLowerCase().includes('root') ||
-        deleteRootResult.error?.toLowerCase().includes('cannot delete');
-      console.log(`  Error mentions workspace/root: ${errorMentionsRoot}`);
-      console.log(`  Error message: ${deleteRootResult.error}`);
-    }
+    // The old "error mentions workspace/root" check matched on 'workspace' OR
+    // 'root' — and the id 'workspace-root' is echoed back verbatim in every
+    // possible error, so it could not fail and told us nothing. Dropped.
+    //
+    // Worth knowing when reading the log: the refusal arrives as
+    // "Tree validation failed: Node 'workspace-root' not found", not as
+    // CannotDeleteRoot. That is because the root is a sentinel that
+    // validate_delete looks up in the stored-node map and misses
+    // (tree_validator.rs). The outcome is right; the message is misleading.
+    console.log(`  Error message: ${deleteRootResult.error}`);
 
-    // Verify workspace root still exists
-    const workspaceExists = await verifyNodeExists(page, workspaceRootId);
-    console.log(`  Workspace root still exists: ${workspaceExists}`);
+    // This is the assertion that matters: whatever the message said, the root
+    // is still there. It was previously printed and thrown away.
+    results.workspaceRootSurvivesDeleteAttempt = await verifyNodeExists(page, workspaceRootId);
+    console.log(`  Workspace root still exists: ${results.workspaceRootSurvivesDeleteAttempt ? 'PASS' : 'FAIL'}`);
 
     await takeScreenshot(page, 'test6_root_delete_fail');
 
@@ -489,40 +560,64 @@ async function runTest(): Promise<boolean> {
     console.log('\nSetup:');
     console.log(`  Account Creation:           ${results.accountCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Workspace Loaded:           ${results.workspaceLoaded ? 'PASS' : 'FAIL'}`);
-    console.log(`  Workspace Root Found:       ${results.workspaceRootFound ? 'PASS' : 'FAIL'}`);
+    console.log(`  Workspace Root Resolves:    ${results.workspaceRootResolves ? 'PASS' : 'FAIL'}`);
 
     console.log('\nTest 1 - Leaf Node Delete:');
     console.log(`  Leaf Delete Success:        ${results.leafNodeDelete ? 'PASS' : 'FAIL'}`);
+    console.log(`  Leaf Node Actually Gone:    ${results.leafNodeGone ? 'PASS' : 'FAIL'}`);
     console.log(`  Parent Children Updated:    ${results.leafNodeParentUpdated ? 'PASS' : 'FAIL'}`);
 
     console.log('\nTest 2 & 3 - Cascade Delete:');
     console.log(`  Single Child Cascade:       ${results.cascadeDeleteSingleChild ? 'PASS' : 'FAIL'}`);
+    console.log(`  Single Child Subtree Gone:  ${results.cascadeSingleChildGone ? 'PASS' : 'FAIL'}`);
+    console.log(`  Single Child Reported:      ${results.cascadeSingleChildReported ? 'PASS' : 'FAIL'}`);
     console.log(`  Multiple Children Cascade:  ${results.cascadeDeleteMultipleChildren ? 'PASS' : 'FAIL'}`);
+    console.log(`  Multi Child Subtree Gone:   ${results.cascadeMultipleChildrenGone ? 'PASS' : 'FAIL'}`);
     console.log(`  Deletion Count Correct:     ${results.cascadeDeleteCountCorrect ? 'PASS' : 'FAIL'}`);
 
     console.log('\nTest 4 - Deep Cascade Delete:');
+    console.log(`  Deep Hierarchy Built:       ${results.deepHierarchyBuilt ? 'PASS' : 'FAIL'}`);
     console.log(`  Deep Cascade Success:       ${results.deepCascadeDelete ? 'PASS' : 'FAIL'}`);
+    console.log(`  Deep Subtree Gone:          ${results.deepCascadeDescendantsGone ? 'PASS' : 'FAIL'}`);
     console.log(`  Deep Count Correct:         ${results.deepCascadeCountCorrect ? 'PASS' : 'FAIL'}`);
     console.log(`  Workspace Still Exists:     ${results.workspaceStillExists ? 'PASS' : 'FAIL'}`);
 
     console.log('\nTest 5 - Non-Cascade Delete (Must Fail):');
     console.log(`  Delete Blocked:             ${results.nonCascadeDeleteFailed ? 'PASS' : 'FAIL'}`);
+    console.log(`  Error Names Children:       ${results.nonCascadeErrorNamesChildren ? 'PASS' : 'FAIL'}`);
     console.log(`  Children Still Exist:       ${results.childrenStillExistAfterNonCascade ? 'PASS' : 'FAIL'}`);
 
     console.log('\nTest 6 - Workspace Root Delete (Must Fail):');
     console.log(`  Root Delete Blocked:        ${results.workspaceRootDeleteFailed ? 'PASS' : 'FAIL'}`);
+    console.log(`  Root Survived Attempt:      ${results.workspaceRootSurvivesDeleteAttempt ? 'PASS' : 'FAIL'}`);
 
-    // Determine overall pass/fail
+    // Every result printed above is gated. The previous list read 9 of 14, so
+    // an acknowledged-but-ineffective delete, a cascade that left orphans, or
+    // a children_deleted list that under-reported all printed FAIL while the
+    // run exited 0.
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
-      results.workspaceRootFound,
+      results.workspaceRootResolves,
       results.leafNodeDelete,
+      results.leafNodeGone,
+      results.leafNodeParentUpdated,
       results.cascadeDeleteSingleChild,
+      results.cascadeSingleChildGone,
+      results.cascadeSingleChildReported,
       results.cascadeDeleteMultipleChildren,
+      results.cascadeMultipleChildrenGone,
+      results.cascadeDeleteCountCorrect,
+      results.deepHierarchyBuilt,
+      results.deepCascadeDelete,
+      results.deepCascadeDescendantsGone,
+      results.deepCascadeCountCorrect,
+      results.workspaceStillExists,
       results.nonCascadeDeleteFailed,
+      results.nonCascadeErrorNamesChildren,
       results.childrenStillExistAfterNonCascade,
       results.workspaceRootDeleteFailed,
+      results.workspaceRootSurvivesDeleteAttempt,
     ];
 
     const allCriticalPassed = criticalTests.every(Boolean);

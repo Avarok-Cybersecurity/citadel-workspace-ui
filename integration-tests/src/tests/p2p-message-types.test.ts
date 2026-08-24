@@ -5,8 +5,13 @@
  * 1. TypeSelectorBar (Text / Markdown / Live Doc buttons)
  * 2. MarkdownToolbar (Bold, Italic, etc.)
  * 3. MarkdownBubble (formatted message display)
- * 4. Message context menu (edit/delete/reply)
- * 5. ChatSettingsPanel (settings drawer)
+ * 4. ChatSettingsPanel (settings drawer)
+ *
+ * Message edit/delete/reply used to be exercised here too. It no longer is:
+ * MessageBubble only renders the "..." actions dropdown when it receives
+ * onEdit/onDelete/onReply, and neither of the two places that mount P2PChat
+ * (WorkspaceView.tsx and pages/Messages.tsx) passes them, so the trigger
+ * cannot appear on any screen a user can reach. See STEP 7 below.
  */
 
 import { Page } from 'playwright';
@@ -25,7 +30,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { isVisibleWithin } from '../lib/index.js';
+import { isVisibleWithin, isHiddenWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -49,10 +54,6 @@ interface TestResults {
   italicButtonVisible: boolean;
   markdownMessageSent: boolean;
   markdownBubbleRendered: boolean;
-
-  // Message context menu
-  contextMenuTriggerVisible: boolean;
-  contextMenuOpens: boolean;
 
   // ChatSettingsPanel
   chatSettingsOpens: boolean;
@@ -85,16 +86,25 @@ async function verifyTypeSelectorBar(page: Page): Promise<{
 
   const results = { visible: false, textBtn: false, markdownBtn: false, liveDocBtn: false };
 
-  // TypeSelectorBar buttons use title attributes
-  const textBtn = page.locator('button[title="Text"], button:has-text("Text")').first();
-  const markdownBtn = page.locator('button[title="Markdown"], button:has-text("Markdown")').first();
-  const liveDocBtn = page.locator('button[title="Live Doc"], button:has-text("Live Doc")').first();
+  // TypeSelectorBar gives each button a `title` equal to its label, and those
+  // three titles are unique on the chat screen. The old selectors unioned in
+  // `button:has-text("Text")`, which matches any button whose text merely
+  // contains that word, and `.first()` then picked whichever the DOM happened
+  // to order first — so a passing result did not mean the type bar was there.
+  const textBtn = page.locator('button[title="Text"]');
+  const markdownBtn = page.locator('button[title="Markdown"]');
+  const liveDocBtn = page.locator('button[title="Live Doc"]');
 
-  results.textBtn = await textBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  results.markdownBtn = await markdownBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  results.liveDocBtn = await liveDocBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  // isVisibleWithin, not isVisible({ timeout }): Playwright ignores the timeout
+  // option on isVisible, so the old calls were instantaneous snapshots taken
+  // while the chat pane was still mounting.
+  results.textBtn = await isVisibleWithin(textBtn, 10000);
+  results.markdownBtn = await isVisibleWithin(markdownBtn, 5000);
+  results.liveDocBtn = await isVisibleWithin(liveDocBtn, 5000);
 
-  results.visible = results.textBtn || results.markdownBtn || results.liveDocBtn;
+  // TypeSelectorBar renders all three buttons unconditionally, so this is an
+  // AND. As an OR it reported "visible" with two thirds of the bar missing.
+  results.visible = results.textBtn && results.markdownBtn && results.liveDocBtn;
 
   console.log(`  Text: ${results.textBtn}, Markdown: ${results.markdownBtn}, LiveDoc: ${results.liveDocBtn}`);
   return results;
@@ -112,32 +122,34 @@ async function testMarkdownMode(page: Page): Promise<{
 
   const results = { toolbarAppears: false, boldVisible: false, italicVisible: false };
 
-  // Click Markdown button
-  const markdownBtn = page.locator('button[title="Markdown"], button:has-text("Markdown")').first();
-  if (!(await markdownBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
+  const markdownBtn = page.locator('button[title="Markdown"]');
+  if (!(await isVisibleWithin(markdownBtn, 5000))) {
     console.log('  Markdown button not found');
     return results;
   }
 
   await markdownBtn.click();
-  await sleep(500);
 
-  // Verify MarkdownToolbar appeared
-  const boldBtn = page.locator('button[title*="Bold"], button:has(svg.lucide-bold)').first();
-  const italicBtn = page.locator('button[title*="Italic"], button:has(svg.lucide-italic)').first();
+  // MarkdownToolbar labels its buttons "Bold (Ctrl+B)" / "Italic (Ctrl+I)", so
+  // match on the title prefix. The toolbar animates in via framer-motion, hence
+  // a real wait rather than an immediate probe.
+  const boldBtn = page.locator('button[title^="Bold"]');
+  const italicBtn = page.locator('button[title^="Italic"]');
 
-  results.boldVisible = await boldBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  results.italicVisible = await italicBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  results.toolbarAppears = results.boldVisible || results.italicVisible;
+  results.boldVisible = await isVisibleWithin(boldBtn, 5000);
+  results.italicVisible = await isVisibleWithin(italicBtn, 5000);
+  // Both buttons come from the same toolbar render, so AND: an OR would call
+  // the toolbar present when half of it failed to render.
+  results.toolbarAppears = results.boldVisible && results.italicVisible;
 
   console.log(`  Toolbar: ${results.toolbarAppears}, Bold: ${results.boldVisible}, Italic: ${results.italicVisible}`);
   return results;
 }
 
 /**
- * Send a markdown message and verify it renders
+ * Send a markdown message and verify it renders as formatted HTML
  */
-async function sendMarkdownMessage(page: Page, username: string): Promise<{
+async function sendMarkdownMessage(page: Page, username: string, marker: string): Promise<{
   sent: boolean;
   rendered: boolean;
 }> {
@@ -145,91 +157,45 @@ async function sendMarkdownMessage(page: Page, username: string): Promise<{
 
   const results = { sent: false, rendered: false };
 
-  // Type markdown content in the input
-  const messageInput = page.locator('input[placeholder*="message"], textarea[placeholder*="message"]').first();
-  if (!(await messageInput.isVisible({ timeout: 3000 }).catch(() => false))) {
+  const messageInput = page.locator('input[placeholder*="message"]').first();
+  if (!(await isVisibleWithin(messageInput, 5000))) {
     console.log('  Message input not found');
     return results;
   }
 
-  await messageInput.fill('**Bold text** and *italic text*');
-  await sleep(300);
+  await messageInput.fill(`**Bold ${marker}** and *italic ${marker}*`);
 
-  // Click send
   const sendBtn = page.locator('button[type="submit"]').last();
-  if (await isVisibleWithin(sendBtn, 2000)) {
-    await sendBtn.click();
-    await sleep(2000);
-    results.sent = true;
-    console.log('  Markdown message sent');
+  if (!(await isVisibleWithin(sendBtn, 5000))) {
+    console.log('  Send button not found');
+    return results;
   }
 
-  // Check if a MarkdownBubble rendered (prose class or rendered markdown)
-  const markdownBubble = page.locator('.prose, [class*="markdown"], [data-message-type="markdown"]').first();
-  results.rendered = await markdownBubble.isVisible({ timeout: 5000 }).catch(() => false);
-  console.log(`  Markdown bubble rendered: ${results.rendered}`);
-
-  return results;
-}
-
-/**
- * Test message context menu
- */
-async function testMessageContextMenu(page: Page): Promise<{
-  triggerVisible: boolean;
-  menuOpens: boolean;
-}> {
-  console.log('\n=== Testing Message Context Menu ===');
-
-  const results = { triggerVisible: false, menuOpens: false };
-
-  // First, switch back to Text mode and send a plain message
-  const textBtn = page.locator('button[title="Text"], button:has-text("Text")').first();
-  if (await isVisibleWithin(textBtn, 2000)) {
-    await textBtn.click();
-    await sleep(300);
+  // P2PMessageInput disables submit while the input is empty, so "enabled"
+  // is the app confirming it accepted the typed markdown. The old code set
+  // sent=true merely because a button was on screen.
+  if (!(await sendBtn.isEnabled())) {
+    console.log('  Send button is disabled - input was not accepted');
+    return results;
   }
+  await sendBtn.click();
+  results.sent = true;
+  console.log('  Markdown message sent');
 
-  await sendMessage(page, 'p2ptype', 'Test message for context menu');
-  await sleep(2000);
-
-  // Hover over the last sent message to reveal context menu trigger
-  const messages = page.locator('[data-message-id], [class*="message"], [class*="bubble"]');
-  const messageCount = await messages.count();
-
-  if (messageCount > 0) {
-    const lastMessage = messages.last();
-    await lastMessage.hover();
-    await sleep(500);
-
-    // Look for the MoreVertical icon (context menu trigger)
-    const moreBtn = page.locator('button:has(svg.lucide-more-vertical), button:has(svg.lucide-ellipsis-vertical), [aria-label="More options"]').first();
-    results.triggerVisible = await moreBtn.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Context menu trigger visible: ${results.triggerVisible}`);
-
-    if (results.triggerVisible) {
-      await moreBtn.click();
-      await sleep(500);
-
-      // Check for menu items
-      const replyOption = page.locator('[role="menuitem"]:has-text("Reply"), button:has-text("Reply")').first();
-      const editOption = page.locator('[role="menuitem"]:has-text("Edit"), button:has-text("Edit")').first();
-      const deleteOption = page.locator('[role="menuitem"]:has-text("Delete"), button:has-text("Delete")').first();
-
-      const hasReply = await replyOption.isVisible({ timeout: 2000 }).catch(() => false);
-      const hasEdit = await editOption.isVisible({ timeout: 2000 }).catch(() => false);
-      const hasDelete = await deleteOption.isVisible({ timeout: 2000 }).catch(() => false);
-
-      results.menuOpens = hasReply || hasEdit || hasDelete;
-      console.log(`  Menu opens: ${results.menuOpens} (Reply: ${hasReply}, Edit: ${hasEdit}, Delete: ${hasDelete})`);
-
-      // Close menu
-      await page.keyboard.press('Escape');
-      await sleep(300);
-    }
-  } else {
-    console.log('  No messages found to test context menu');
-  }
+  // MessageSender adds the message to the conversation optimistically (status
+  // 'pending') before the wire send, so the bubble is local rendering — but it
+  // sits behind an await on peer-readiness, so allow a generous wait.
+  //
+  // Assert on the rendered markup, not on a `.prose` class: `.prose` also
+  // matches the input's live preview pane, so the old check could pass with no
+  // message in the list at all. react-markdown turns **/* into <strong>/<em>,
+  // which is exactly the behaviour under test.
+  const boldRendered = page.locator('strong', { hasText: `Bold ${marker}` }).first();
+  const italicRendered = page.locator('em', { hasText: `italic ${marker}` }).first();
+  const hasBold = await isVisibleWithin(boldRendered, 20000);
+  const hasItalic = await isVisibleWithin(italicRendered, 5000);
+  results.rendered = hasBold && hasItalic;
+  console.log(`  Markdown bubble rendered: ${results.rendered} (strong: ${hasBold}, em: ${hasItalic})`);
 
   return results;
 }
@@ -245,35 +211,41 @@ async function testChatSettingsPanel(page: Page): Promise<{
 
   const results = { opens: false, hasTabs: false };
 
-  // Look for settings/gear icon in chat header
-  const settingsBtn = page.locator('button:has(svg.lucide-settings), button:has(svg.lucide-settings-2), [aria-label="Settings"]').first();
-  if (!(await settingsBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-    // Try the panel toggle button
-    const panelToggle = page.locator('button:has(svg.lucide-panel-right), button:has(svg.lucide-sidebar-right)').first();
-    if (await isVisibleWithin(panelToggle, 3000)) {
-      await panelToggle.click();
-      await sleep(1000);
-    } else {
-      console.log('  Settings button not found');
-      return results;
-    }
-  } else {
-    await settingsBtn.click();
-    await sleep(1000);
+  // P2PChatHeader ships a data-testid for this button. The old lookup guessed
+  // at lucide's internal svg class names and then fell back to a
+  // "panel-right" toggle that does not exist in this app at all.
+  const settingsBtn = page.locator('[data-testid="chat-settings-button"]');
+  if (!(await isVisibleWithin(settingsBtn, 10000))) {
+    console.log('  Settings button not found');
+    return results;
   }
 
-  // Check if ChatSettingsPanel opened (has tabs: General, File, Advanced, Stats)
-  const generalTab = page.locator('[data-testid="tab-general"]');
-  const fileTab = page.locator('[data-testid="tab-file"]');
-  const advancedTab = page.locator('[data-testid="tab-advanced"]');
+  await settingsBtn.click();
 
-  const hasGeneral = await generalTab.isVisible({ timeout: 3000 }).catch(() => false);
-  const hasFile = await fileTab.isVisible({ timeout: 2000 }).catch(() => false);
-  const hasAdvanced = await advancedTab.isVisible({ timeout: 2000 }).catch(() => false);
+  // Identify the dialog by its title so a stray dialog elsewhere on the page
+  // cannot satisfy this assertion.
+  const dialog = page.getByRole('dialog').filter({ hasText: 'Chat Settings' });
+  results.opens = await isVisibleWithin(dialog, 5000);
+  if (!results.opens) {
+    console.log('  Panel did not open');
+    return results;
+  }
 
-  results.opens = hasGeneral || hasFile || hasAdvanced;
-  results.hasTabs = hasGeneral || hasFile || hasAdvanced;
-  console.log(`  Panel opens: ${results.opens} (General: ${hasGeneral}, File: ${hasFile}, Advanced: ${hasAdvanced})`);
+  // Scope the tab lookups to the dialog. The tab-* testids are unique to
+  // ChatSettingsPanel today, but a page-wide match would start picking up the
+  // office view behind the modal the moment it grows its own tabs.
+  const tabNames = ['general', 'file', 'advanced', 'stats'] as const;
+  const seen: Record<string, boolean> = {};
+  for (const name of tabNames) {
+    seen[name] = await isVisibleWithin(dialog.locator(`[data-testid="tab-${name}"]`), 3000);
+  }
+  // ChatSettingsPanel always renders all four triggers, so a missing one is a
+  // failure rather than a variant.
+  results.hasTabs = tabNames.every((name) => seen[name]);
+  console.log(`  Panel opens: ${results.opens}, tabs: ${JSON.stringify(seen)}`);
+
+  await page.keyboard.press('Escape');
+  await isHiddenWithin(dialog, 3000);
 
   return results;
 }
@@ -312,8 +284,6 @@ async function runTest(): Promise<boolean> {
     italicButtonVisible: false,
     markdownMessageSent: false,
     markdownBubbleRendered: false,
-    contextMenuTriggerVisible: false,
-    contextMenuOpens: false,
     chatSettingsOpens: false,
     chatSettingsHasTabs: false,
   };
@@ -323,9 +293,9 @@ async function runTest(): Promise<boolean> {
     setupConsoleCapture(page2, 'User2', ['error', 'Error', 'P2P']);
 
     // ========== STEP 1: Create Accounts ==========
-    console.log('\n' + '\u2500'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
     console.log('STEP 1: Create Accounts');
-    console.log('\u2500'.repeat(50));
+    console.log('─'.repeat(50));
 
     results.accountCreation.user1 = await createAccount(page1, USER1, {
       isFirstUser: true,
@@ -346,9 +316,9 @@ async function runTest(): Promise<boolean> {
     }
 
     // ========== STEP 2: P2P Registration ==========
-    console.log('\n' + '\u2500'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
     console.log('STEP 2: P2P Registration');
-    console.log('\u2500'.repeat(50));
+    console.log('─'.repeat(50));
 
     results.p2pRegistration = await p2pRegister(page1, USER1, USER2);
     await sleep(3000);
@@ -361,107 +331,127 @@ async function runTest(): Promise<boolean> {
     await waitForP2PReady(page1, USER1, USER2, 30000);
 
     // ========== STEP 3: Open Conversation ==========
-    console.log('\n' + '\u2500'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
     console.log('STEP 3: Open Conversation');
-    console.log('\u2500'.repeat(50));
+    console.log('─'.repeat(50));
 
     results.conversationOpened = await openConversation(page1, USER1, USER2);
     await takeScreenshot(page1, '03_conversation_opened');
 
-    if (!results.conversationOpened) {
-      console.log('  WARNING: Could not open conversation');
+    if (results.conversationOpened) {
+      // Send a warmup message to establish channel
+      await sendMessage(page1, USER1, 'Warmup message');
+      await sleep(3000);
+
+      // ========== STEP 4: Verify TypeSelectorBar ==========
+      console.log('\n' + '─'.repeat(50));
+      console.log('STEP 4: Verify TypeSelectorBar');
+      console.log('─'.repeat(50));
+
+      const selectorResult = await verifyTypeSelectorBar(page1);
+      results.typeSelectorVisible = selectorResult.visible;
+      results.textButtonVisible = selectorResult.textBtn;
+      results.markdownButtonVisible = selectorResult.markdownBtn;
+      results.liveDocButtonVisible = selectorResult.liveDocBtn;
+      await takeScreenshot(page1, '04_type_selector');
+
+      // ========== STEP 5: Test Markdown Mode ==========
+      console.log('\n' + '─'.repeat(50));
+      console.log('STEP 5: Test Markdown Mode');
+      console.log('─'.repeat(50));
+
+      const markdownResult = await testMarkdownMode(page1);
+      results.markdownToolbarAppears = markdownResult.toolbarAppears;
+      results.boldButtonVisible = markdownResult.boldVisible;
+      results.italicButtonVisible = markdownResult.italicVisible;
+      await takeScreenshot(page1, '05_markdown_toolbar');
+
+      // ========== STEP 6: Send Markdown Message ==========
+      console.log('\n' + '─'.repeat(50));
+      console.log('STEP 6: Send Markdown Message');
+      console.log('─'.repeat(50));
+
+      const sendResult = await sendMarkdownMessage(page1, USER1, `mk${timestamp}`);
+      results.markdownMessageSent = sendResult.sent;
+      results.markdownBubbleRendered = sendResult.rendered;
+      await takeScreenshot(page1, '06_markdown_message');
+
+      // ========== STEP 7: Message Context Menu (removed) ==========
+      // There is nothing to click here. TextBubble/MarkdownBubble render the
+      // "..." dropdown only when `onEdit || onDelete || onReply` is supplied,
+      // P2PMessageList only supplies those when P2PChat receives
+      // onEditMessage/onDeleteMessage/onReplyMessage, and the only two mounts
+      // of P2PChat in the app (components/workspace/WorkspaceView.tsx and
+      // pages/Messages.tsx) pass neither. Reply/Edit/Delete are therefore
+      // unreachable in the shipped UI, so the old assertions could only ever
+      // print CHECK.
+
+      // ========== STEP 8: Test Chat Settings Panel ==========
+      console.log('\n' + '─'.repeat(50));
+      console.log('STEP 8: Test Chat Settings Panel');
+      console.log('─'.repeat(50));
+
+      const settingsResult = await testChatSettingsPanel(page1);
+      results.chatSettingsOpens = settingsResult.opens;
+      results.chatSettingsHasTabs = settingsResult.hasTabs;
+      await takeScreenshot(page1, '08_chat_settings');
+    } else {
+      console.log('  Conversation could not be opened - skipping chat feature steps');
+      uxTracker.log('critical', 'functional', 'Could not open P2P conversation');
     }
-
-    // Send a warmup message to establish channel
-    await sendMessage(page1, USER1, 'Warmup message');
-    await sleep(3000);
-
-    // ========== STEP 4: Verify TypeSelectorBar ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 4: Verify TypeSelectorBar');
-    console.log('\u2500'.repeat(50));
-
-    const selectorResult = await verifyTypeSelectorBar(page1);
-    results.typeSelectorVisible = selectorResult.visible;
-    results.textButtonVisible = selectorResult.textBtn;
-    results.markdownButtonVisible = selectorResult.markdownBtn;
-    results.liveDocButtonVisible = selectorResult.liveDocBtn;
-    await takeScreenshot(page1, '04_type_selector');
-
-    // ========== STEP 5: Test Markdown Mode ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 5: Test Markdown Mode');
-    console.log('\u2500'.repeat(50));
-
-    const markdownResult = await testMarkdownMode(page1);
-    results.markdownToolbarAppears = markdownResult.toolbarAppears;
-    results.boldButtonVisible = markdownResult.boldVisible;
-    results.italicButtonVisible = markdownResult.italicVisible;
-    await takeScreenshot(page1, '05_markdown_toolbar');
-
-    // ========== STEP 6: Send Markdown Message ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 6: Send Markdown Message');
-    console.log('\u2500'.repeat(50));
-
-    const sendResult = await sendMarkdownMessage(page1, USER1);
-    results.markdownMessageSent = sendResult.sent;
-    results.markdownBubbleRendered = sendResult.rendered;
-    await takeScreenshot(page1, '06_markdown_message');
-
-    // ========== STEP 7: Test Context Menu ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 7: Test Message Context Menu');
-    console.log('\u2500'.repeat(50));
-
-    const contextResult = await testMessageContextMenu(page1);
-    results.contextMenuTriggerVisible = contextResult.triggerVisible;
-    results.contextMenuOpens = contextResult.menuOpens;
-    await takeScreenshot(page1, '07_context_menu');
-
-    // ========== STEP 8: Test Chat Settings Panel ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 8: Test Chat Settings Panel');
-    console.log('\u2500'.repeat(50));
-
-    const settingsResult = await testChatSettingsPanel(page1);
-    results.chatSettingsOpens = settingsResult.opens;
-    results.chatSettingsHasTabs = settingsResult.hasTabs;
-    await takeScreenshot(page1, '08_chat_settings');
 
     // ========== RESULTS ==========
     console.log('\n' + '='.repeat(60));
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreation.user1 && results.accountCreation.user2 && results.conversationOpened;
+    // Everything below the conversation is deterministic client-side rendering,
+    // so all of it is gated. p2pRegistration/p2pAccept are deliberately NOT
+    // gated: they are real two-party handshakes whose helpers report false on
+    // timing alone, and openConversation already fails if registration did not
+    // actually take effect.
+    const corePassed =
+      results.accountCreation.user1 &&
+      results.accountCreation.user2 &&
+      results.conversationOpened &&
+      results.typeSelectorVisible &&
+      results.textButtonVisible &&
+      results.markdownButtonVisible &&
+      results.liveDocButtonVisible &&
+      results.markdownToolbarAppears &&
+      results.boldButtonVisible &&
+      results.italicButtonVisible &&
+      results.markdownMessageSent &&
+      results.markdownBubbleRendered &&
+      results.chatSettingsOpens &&
+      results.chatSettingsHasTabs;
 
     console.log('\nAccounts:');
     console.log(`  User1 Created:             ${results.accountCreation.user1 ? 'PASS' : 'FAIL'}`);
     console.log(`  User2 Created:             ${results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
-    console.log(`  P2P Registered:            ${results.p2pRegistration ? 'PASS' : 'CHECK'}`);
-    console.log(`  P2P Accepted:              ${results.p2pAccept ? 'PASS' : 'CHECK'}`);
+    console.log(`  P2P Registered:            ${results.p2pRegistration ? 'PASS' : 'CHECK'}  (not gated: P2P handshake timing)`);
+    console.log(`  P2P Accepted:              ${results.p2pAccept ? 'PASS' : 'CHECK'}  (not gated: P2P handshake timing)`);
+    console.log(`  Conversation Opened:       ${results.conversationOpened ? 'PASS' : 'FAIL'}`);
 
     console.log('\nTypeSelectorBar:');
-    console.log(`  Visible:                   ${results.typeSelectorVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Text Button:               ${results.textButtonVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Markdown Button:           ${results.markdownButtonVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Live Doc Button:           ${results.liveDocButtonVisible ? 'PASS' : 'CHECK'}`);
+    console.log(`  Visible:                   ${results.typeSelectorVisible ? 'PASS' : 'FAIL'}`);
+    console.log(`  Text Button:               ${results.textButtonVisible ? 'PASS' : 'FAIL'}`);
+    console.log(`  Markdown Button:           ${results.markdownButtonVisible ? 'PASS' : 'FAIL'}`);
+    console.log(`  Live Doc Button:           ${results.liveDocButtonVisible ? 'PASS' : 'FAIL'}`);
 
     console.log('\nMarkdown Mode:');
-    console.log(`  Toolbar Appears:           ${results.markdownToolbarAppears ? 'PASS' : 'CHECK'}`);
-    console.log(`  Bold Button:               ${results.boldButtonVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Italic Button:             ${results.italicButtonVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Message Sent:              ${results.markdownMessageSent ? 'PASS' : 'CHECK'}`);
-    console.log(`  Bubble Rendered:           ${results.markdownBubbleRendered ? 'PASS' : 'CHECK'}`);
+    console.log(`  Toolbar Appears:           ${results.markdownToolbarAppears ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bold Button:               ${results.boldButtonVisible ? 'PASS' : 'FAIL'}`);
+    console.log(`  Italic Button:             ${results.italicButtonVisible ? 'PASS' : 'FAIL'}`);
+    console.log(`  Message Sent:              ${results.markdownMessageSent ? 'PASS' : 'FAIL'}`);
+    console.log(`  Bubble Rendered:           ${results.markdownBubbleRendered ? 'PASS' : 'FAIL'}`);
 
     console.log('\nContext Menu:');
-    console.log(`  Trigger Visible:           ${results.contextMenuTriggerVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Menu Opens:                ${results.contextMenuOpens ? 'PASS' : 'CHECK'}`);
+    console.log('  Reply/Edit/Delete:         SKIP (no P2PChat call site passes the handlers, so the trigger never renders)');
 
     console.log('\nChat Settings Panel:');
-    console.log(`  Opens:                     ${results.chatSettingsOpens ? 'PASS' : 'CHECK'}`);
-    console.log(`  Has Tabs:                  ${results.chatSettingsHasTabs ? 'PASS' : 'CHECK'}`);
+    console.log(`  Opens:                     ${results.chatSettingsOpens ? 'PASS' : 'FAIL'}`);
+    console.log(`  Has Tabs:                  ${results.chatSettingsHasTabs ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
     return corePassed;

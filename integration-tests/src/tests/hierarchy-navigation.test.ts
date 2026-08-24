@@ -31,6 +31,7 @@ import {
   updateTreeSchema,
   createNodeType,
   nodeExistsInUI,
+  nodeGoneFromUI,
   navigateToNodeViaUI,
   type DiagnosticsHandle,
   type TreeSchema,
@@ -190,8 +191,10 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(page);
-    results.workspaceLoaded = true;
+    // waitForWorkspaceLoaded reports whether the workspace actually finished
+    // loading. Assigning `true` unconditionally recorded a PASS even when it
+    // timed out, and every later failure then looked unexplained.
+    results.workspaceLoaded = await waitForWorkspaceLoaded(page);
     await takeScreenshot(page, `${ADMIN_USER}_ready`);
 
     const workspaceRootId = await getWorkspaceRootId(page);
@@ -369,7 +372,10 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 6: Create Sibling Nodes');
     console.log('-'.repeat(50));
 
-    let totalSiblings = 0;
+    // Track attempts as well as successes: "created >= 4" passed while half
+    // the sibling creations were failing, because 8 are attempted.
+    let attemptedSiblings = 0;
+    const siblingNames: string[] = [];
     for (let i = 0; i < LEVEL_NAMES.length - 1; i++) {
       const levelName = LEVEL_NAMES[i];
       const childType = LEVEL_NAMES[i + 1];
@@ -379,6 +385,7 @@ async function runTest(): Promise<boolean> {
       // Create 2 siblings at each level
       for (let s = 1; s <= 2; s++) {
         const siblingName = `${childType}_sibling${s}_${timestamp}`;
+        attemptedSiblings++;
         const result = await createNodeViaProtocol(
           page,
           parentNodeId,
@@ -388,14 +395,17 @@ async function runTest(): Promise<boolean> {
         );
         if (result.success && result.nodeId) {
           createdNodeIds.push(result.nodeId);
-          totalSiblings++;
+          siblingNames.push(siblingName);
+        } else {
+          console.log(`  Sibling ${siblingName} FAILED: ${result.error}`);
         }
         await sleep(100);
       }
     }
 
-    results.siblingNodesCreated = totalSiblings >= 4;
-    console.log(`  Created ${totalSiblings} sibling nodes`);
+    results.siblingNodesCreated =
+      attemptedSiblings > 0 && siblingNames.length === attemptedSiblings;
+    console.log(`  Created ${siblingNames.length}/${attemptedSiblings} sibling nodes`);
 
     // ========================================================================
     // STEP 7: Sidebar Navigation
@@ -442,9 +452,19 @@ async function runTest(): Promise<boolean> {
       }
     }
 
-    // Check sibling visibility
-    const siblingName = `${LEVEL_NAMES[1]}_sibling1_${timestamp}`;
-    results.siblingNodesVisible = await nodeExistsInUI(page, siblingName);
+    // Check sibling visibility. Every sibling that was created should be in the
+    // sidebar — TreeNodesSection auto-expands any node that has children — so
+    // check them all rather than spot-checking one and calling it a pass.
+    let allSiblingsVisible = siblingNames.length > 0;
+    for (const name of siblingNames) {
+      // 5s rather than the 10s default: the tree has already been reloaded and
+      // waited on above, and a miss here costs the full timeout eight times over.
+      if (!(await nodeExistsInUI(page, name, 5000))) {
+        console.log(`  Sibling ${name} NOT visible in sidebar`);
+        allSiblingsVisible = false;
+      }
+    }
+    results.siblingNodesVisible = allSiblingsVisible;
     console.log(`  Siblings visible: ${results.siblingNodesVisible}`);
 
     await takeScreenshot(page, `${ADMIN_USER}_full_hierarchy`);
@@ -462,24 +482,26 @@ async function runTest(): Promise<boolean> {
       const toggleBtn = page.locator(toggleSelector).first();
 
       if (await isVisibleWithin(toggleBtn, 3000)) {
+        const betaName = `${LEVEL_NAMES[1]}_${timestamp}`;
+
         // Click to collapse
         await toggleBtn.click();
-        await sleep(500);
 
-        // Check if Beta node is hidden
-        const betaName = `${LEVEL_NAMES[1]}_${timestamp}`;
-        const betaHidden = !(await nodeExistsInUI(page, betaName));
-        results.collapseAlphaHidesChildren = betaHidden;
-        console.log(`  Collapse hides children: ${betaHidden}`);
+        // Wait for the opposite state instead of `!(await nodeExistsInUI(...))`:
+        // the "exists" helper waits for the node to appear, so asserting absence
+        // through it burns its full timeout on every run and, worse, reports
+        // "hidden" for a node that simply had not re-rendered yet.
+        results.collapseAlphaHidesChildren = await nodeGoneFromUI(page, betaName, 5000);
+        console.log(`  Collapse hides children: ${results.collapseAlphaHidesChildren}`);
 
         await takeScreenshot(page, `${ADMIN_USER}_collapsed`);
 
-        // Click to expand
+        // Click to expand. The old code checked for Beta in the same tick as
+        // the click, with no wait at all, so it raced the re-render.
         await toggleBtn.click();
 
-        const betaVisible = await nodeExistsInUI(page, betaName);
-        results.expandAlphaShowsChildren = betaVisible;
-        console.log(`  Expand shows children: ${betaVisible}`);
+        results.expandAlphaShowsChildren = await nodeExistsInUI(page, betaName, 5000);
+        console.log(`  Expand shows children: ${results.expandAlphaShowsChildren}`);
 
         await takeScreenshot(page, `${ADMIN_USER}_expanded`);
       } else {
@@ -559,9 +581,19 @@ async function runTest(): Promise<boolean> {
     console.log(`  Siblings Visible:             ${results.siblingNodesVisible ? 'PASS' : 'FAIL'}`);
 
     // Determine overall pass/fail
+    // Every result printed above is gated. The previous list stopped at the
+    // protocol-level results, so the whole sidebar half of this test — node
+    // types, navigation, expand/collapse, siblings — was printed as FAIL and
+    // then thrown away, which is exactly the surface the test exists to cover.
+    // All of it is single-user and driven off deterministic protocol responses.
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
+      results.alphaTypeCreated,
+      results.betaTypeCreated,
+      results.charlieTypeCreated,
+      results.deltaTypeCreated,
+      results.epsilonTypeCreated,
       results.schemaUpdated,
       results.alphaNodeCreated,
       results.betaNodeCreated,
@@ -574,6 +606,16 @@ async function runTest(): Promise<boolean> {
       results.deltaDepthCorrect,
       results.epsilonDepthCorrect,
       results.treeStructureValid,
+      results.allNodesVisibleInSidebar,
+      results.alphaNavigation,
+      results.betaNavigation,
+      results.charlieNavigation,
+      results.deltaNavigation,
+      results.epsilonNavigation,
+      results.collapseAlphaHidesChildren,
+      results.expandAlphaShowsChildren,
+      results.siblingNodesCreated,
+      results.siblingNodesVisible,
     ];
 
     const allCriticalPassed = criticalTests.every(Boolean);

@@ -3,10 +3,17 @@
  *
  * Tests file manager edge cases and additional UI elements:
  * 1. Sort controls
- * 2. Grid/List view toggle
- * 3. VFSPropertiesDialog (file properties)
- * 4. FilePreviewDialog
- * 5. StorageLimitModal / RevfsDisabledModal (component existence)
+ * 2. VFSPropertiesDialog ("Info" in the item context menu)
+ * 3. StorageLimitModal / RevfsDisabledModal (component rendering)
+ *
+ * Two things this file used to claim to test are gone, because the app has
+ * no such UI (both verified against citadel-workspaces/src):
+ *   - a grid/list view toggle. FileManagerContent renders VFSTreeView plus
+ *     VFSContentGrid unconditionally; VFSToolbar has breadcrumbs, filter,
+ *     sort, new-folder, upload and sync, and nothing else.
+ *   - FileUploadProgress / fileUploadService. Neither the component nor
+ *     src/lib/file-upload-service.ts exists, so the dynamic import the test
+ *     performed could only ever throw.
  */
 
 import { Page } from 'playwright';
@@ -26,7 +33,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { isVisibleWithin } from '../lib/index.js';
+import { isVisibleWithin, isHiddenWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -41,20 +48,12 @@ interface TestResults {
   sortControlVisible: boolean;
   sortChangeWorks: boolean;
 
-  // View toggle
-  viewToggleVisible: boolean;
-  viewChangeWorks: boolean;
-
   // Properties dialog
   propertiesDialogOpens: boolean;
-
-  // File preview
-  filePreviewOpens: boolean;
 
   // Error state modals (P8 extended)
   storageLimitModalRenders: boolean;
   revfsDisabledModalRenders: boolean;
-  fileUploadProgressRenders: boolean;
 }
 
 // ============================================================================
@@ -66,6 +65,11 @@ const USER1 = `files_ext_a_${timestamp}`;
 const USER2 = `files_ext_b_${timestamp}`;
 const PASSWORD = config.DEFAULT_PASSWORD;
 
+// The content grid's scroll container. Its "Sent Files" entry also exists in
+// the tree sidebar to its left, and the two behave differently (VFSTreeView
+// passes a no-op onInfo), so item lookups have to be scoped to the grid.
+const CONTENT_GRID = 'div[role="button"].flex-1.overflow-y-auto.p-4';
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -73,20 +77,36 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 async function navigateToFileManager(page: Page): Promise<boolean> {
   console.log('\n=== Navigating to File Manager ===');
 
-  // Try the Files link in sidebar
-  const filesLink = page.locator('a[href*="files"], button:has-text("Files"), [data-sidebar-item*="files"]').first();
-  if (await isVisibleWithin(filesLink, 5000)) {
-    await filesLink.click();
-    await sleep(2000);
+  // FilesSection ships data-testid="file-manager-button". The old selector
+  // union matched the FILES group label and any button containing "files",
+  // and its URL fallback went to BASE_URL + '/?section=files' — that is the
+  // Landing route, which never renders the file manager (Office is /workspace).
+  const filesBtn = page.locator('[data-testid="file-manager-button"]');
+  if (await isVisibleWithin(filesBtn, 10000)) {
+    await filesBtn.click();
   } else {
-    // Direct URL navigation
-    await page.goto(`${config.BASE_URL}/?section=files`, { waitUntil: 'commit', timeout: 30000 });
+    const baseUrl = page.url().split('?')[0];
+    await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
     await waitForAppReady(page, 30000);
   }
 
-  // Verify file manager loaded
-  const fileManagerContent = page.getByText(/File Manager|Files|Sent Files|Received Files/).first();
-  const loaded = await fileManagerContent.isVisible({ timeout: 10000 }).catch(() => false);
+  // The file manager opens in P2P storage mode and shows NoPeersScreen when no
+  // peer tree is available. Server storage needs only the C2S session, so take
+  // that door whenever it is offered: it keeps the rest of this spec off the
+  // P2P handshake's critical path.
+  const useServerBtn = page.getByRole('button', { name: 'Use Server Storage' });
+  if (await isVisibleWithin(useServerBtn, 5000)) {
+    console.log('  No peers connected - switching to Server Storage');
+    await useServerBtn.click();
+  }
+
+  // Every freshly seeded RE-VFS tree contains the protected "Sent Files" and
+  // "Received Files" directories, so this is proof the VFS browser itself
+  // rendered. The old check — getByText(/File Manager|Files|Sent Files|.../) —
+  // also matched the sidebar's own "File Manager" button and the "FILES" group
+  // label, so it reported loaded even when the pane showed an error screen.
+  const sentFiles = page.getByText('Sent Files', { exact: true }).first();
+  const loaded = await isVisibleWithin(sentFiles, 30000);
   console.log(`  File manager loaded: ${loaded}`);
   return loaded;
 }
@@ -99,60 +119,35 @@ async function testSortControls(page: Page): Promise<{
 
   const results = { visible: false, changeWorks: false };
 
-  // Look for sort dropdown/button
-  const sortBtn = page.locator('button:has-text("Sort"), button:has(svg.lucide-arrow-up-down), [aria-label*="Sort"]').first();
-  results.visible = await sortBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  // VFSToolbar's sort control is a Radix dropdown trigger whose label is the
+  // current sort field ("Name" by default). There is no "Sort" text, no
+  // aria-label and no <select>, which is why every branch of the old lookup
+  // failed. aria-haspopup="menu" is what Radix puts on the trigger.
+  //
+  // The label is matched with an anchored regex, not a bare string: hasText
+  // with a string is a case-insensitive *substring* match, so 'Name' would also
+  // match any other menu trigger whose text contains "username".
+  const sortTrigger = (label: RegExp) =>
+    page.locator('button[aria-haspopup="menu"]').filter({ hasText: label }).first();
 
-  if (!results.visible) {
-    // Try select element
-    const sortSelect = page.locator('select[name*="sort"], [role="combobox"]:has-text("Name")').first();
-    results.visible = await sortSelect.isVisible({ timeout: 3000 }).catch(() => false);
-  }
-
+  results.visible = await isVisibleWithin(sortTrigger(/^Name$/), 10000);
   console.log(`  Sort control visible: ${results.visible}`);
+  if (!results.visible) return results;
 
-  if (results.visible) {
-    await sortBtn.click();
-    await sleep(500);
-    // If dropdown opened, that counts as working
-    const dropdownItem = page.locator('[role="menuitem"], [role="option"]').first();
-    results.changeWorks = await dropdownItem.isVisible({ timeout: 2000 }).catch(() => false);
-    if (results.changeWorks) {
-      await page.keyboard.press('Escape');
-      await sleep(300);
-    }
-    console.log(`  Sort change works: ${results.changeWorks}`);
+  await sortTrigger(/^Name$/).click();
+
+  const dateItem = page.getByRole('menuitem', { name: 'Date Modified' });
+  if (!(await isVisibleWithin(dateItem, 5000))) {
+    console.log('  Sort menu did not open');
+    return results;
   }
+  await dateItem.click();
 
-  return results;
-}
-
-async function testViewToggle(page: Page): Promise<{
-  visible: boolean;
-  changeWorks: boolean;
-}> {
-  console.log('\n=== Testing View Toggle ===');
-
-  const results = { visible: false, changeWorks: false };
-
-  // Look for grid/list toggle buttons
-  const gridBtn = page.locator('button:has(svg.lucide-grid), button:has(svg.lucide-layout-grid), [aria-label*="Grid"]').first();
-  const listBtn = page.locator('button:has(svg.lucide-list), button:has(svg.lucide-layout-list), [aria-label*="List"]').first();
-
-  const hasGrid = await gridBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  const hasList = await listBtn.isVisible({ timeout: 3000 }).catch(() => false);
-
-  results.visible = hasGrid || hasList;
-  console.log(`  View toggle visible: ${results.visible} (Grid: ${hasGrid}, List: ${hasList})`);
-
-  if (results.visible) {
-    // Click the non-active toggle to switch views
-    const toggleTarget = hasGrid ? gridBtn : listBtn;
-    await toggleTarget.click();
-    await sleep(500);
-    results.changeWorks = true;
-    console.log('  View toggled');
-  }
+  // The old assertion stopped at "a menu item appeared", which says nothing
+  // about sorting. Choosing a field re-labels the trigger, so waiting for the
+  // new label is the app confirming the sort state actually changed.
+  results.changeWorks = await isVisibleWithin(sortTrigger(/^Date Modified$/), 5000);
+  console.log(`  Sort change works: ${results.changeWorks}`);
 
   return results;
 }
@@ -160,63 +155,41 @@ async function testViewToggle(page: Page): Promise<{
 async function testPropertiesDialog(page: Page): Promise<boolean> {
   console.log('\n=== Testing Properties Dialog ===');
 
-  // Right-click on a file/folder to get context menu
-  const treeItem = page.locator('[role="treeitem"], [class*="file-item"], [class*="folder"]').first();
-  if (!(await treeItem.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log('  No file/folder items found');
+  // No [role="treeitem"] exists anywhere in the file manager — GridItem and the
+  // tree rows are divs with role="button" — so the old locator was matching on
+  // the `[class*="folder"]` fallback at best.
+  const grid = page.locator(CONTENT_GRID).first();
+  const sentFiles = grid.getByRole('button', { name: 'Sent Files' }).first();
+  if (!(await isVisibleWithin(sentFiles, 10000))) {
+    console.log('  "Sent Files" not present in the content grid');
     return false;
   }
 
-  await treeItem.click({ button: 'right' });
-  await sleep(500);
+  await sentFiles.click({ button: 'right' });
 
-  // Look for "Properties" or "Info" in context menu
-  const propertiesItem = page.locator('[role="menuitem"]:has-text("Properties"), [role="menuitem"]:has-text("Info")').first();
-  if (await isVisibleWithin(propertiesItem, 3000)) {
-    await propertiesItem.click();
-    await sleep(500);
-
-    const dialog = page.locator('[role="dialog"]').first();
-    const opens = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`  Properties dialog opens: ${opens}`);
-
-    if (opens) {
-      await page.keyboard.press('Escape');
-      await sleep(300);
-    }
-    return opens;
-  }
-
-  // Close context menu
-  await page.keyboard.press('Escape');
-  console.log('  Properties option not found in context menu');
-  return false;
-}
-
-async function testFilePreview(page: Page): Promise<boolean> {
-  console.log('\n=== Testing File Preview ===');
-
-  // Click on a file to preview it
-  const fileItem = page.locator('[class*="file-item"], [role="treeitem"]:not(:has-text("Folder"))').first();
-  if (!(await fileItem.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log('  No file items found for preview');
+  // The app labels this entry "Info" (VFSContextMenu), never "Properties".
+  const infoItem = page.getByRole('menuitem', { name: 'Info' });
+  if (!(await isVisibleWithin(infoItem, 5000))) {
+    console.log('  "Info" not found in the item context menu');
+    await page.keyboard.press('Escape');
     return false;
   }
+  await infoItem.click();
 
-  await fileItem.click();
-  await sleep(1000);
-
-  // Check if preview panel/dialog appeared
-  const preview = page.locator('[class*="preview"], [role="dialog"]:has-text("Preview")').first();
-  const opens = await preview.isVisible({ timeout: 3000 }).catch(() => false);
-  console.log(`  File preview opens: ${opens}`);
+  // VFSPropertiesDialog titles itself with the node name and lists a Location
+  // row. Asserting on both beats "some [role=dialog] is on screen", which any
+  // other modal would have satisfied.
+  const dialog = page.getByRole('dialog').filter({ hasText: 'Sent Files' });
+  const opens = await isVisibleWithin(dialog, 5000);
+  const hasDetails = opens && (await isVisibleWithin(dialog.getByText('Location:'), 3000));
+  console.log(`  Properties dialog opens: ${opens} (details rendered: ${hasDetails})`);
 
   if (opens) {
     await page.keyboard.press('Escape');
-    await sleep(300);
+    await isHiddenWithin(dialog, 3000);
   }
 
-  return opens;
+  return opens && hasDetails;
 }
 
 // ============================================================================
@@ -241,13 +214,9 @@ async function runTest(): Promise<boolean> {
     fileManagerLoaded: false,
     sortControlVisible: false,
     sortChangeWorks: false,
-    viewToggleVisible: false,
-    viewChangeWorks: false,
     propertiesDialogOpens: false,
-    filePreviewOpens: false,
     storageLimitModalRenders: false,
     revfsDisabledModalRenders: false,
-    fileUploadProgressRenders: false,
   };
 
   try {
@@ -257,9 +226,9 @@ async function runTest(): Promise<boolean> {
     setupConsoleCapture(page2, 'User2', ['error', 'Error']);
 
     // ========== STEP 1: Create Accounts & P2P ==========
-    console.log('\n' + '\u2500'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
     console.log('STEP 1: Create Accounts & P2P Register');
-    console.log('\u2500'.repeat(50));
+    console.log('─'.repeat(50));
 
     results.accountCreation.user1 = await createAccount(page1, USER1, {
       isFirstUser: true,
@@ -274,7 +243,9 @@ async function runTest(): Promise<boolean> {
 
     if (!results.accountCreation.user1) throw new Error('User1 creation failed');
 
-    // P2P register for file manager to show peer trees
+    // P2P registration lets the file manager open in peer-storage mode. It is
+    // best-effort: navigateToFileManager falls back to server storage, so the
+    // rest of the spec does not depend on the handshake landing.
     results.p2pRegistered = await p2pRegister(page1, USER1, USER2);
     await sleep(3000);
     await acceptP2PRequest(page2, USER2);
@@ -284,17 +255,17 @@ async function runTest(): Promise<boolean> {
     await waitForWorkspaceLoaded(page1, 30000);
 
     // ========== STEP 2: Navigate to File Manager ==========
-    console.log('\n' + '\u2500'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
     console.log('STEP 2: Navigate to File Manager');
-    console.log('\u2500'.repeat(50));
+    console.log('─'.repeat(50));
 
     results.fileManagerLoaded = await navigateToFileManager(page1);
     await takeScreenshot(page1, '02_file_manager');
 
     // ========== STEP 3: Test Sort Controls ==========
-    console.log('\n' + '\u2500'.repeat(50));
+    console.log('\n' + '─'.repeat(50));
     console.log('STEP 3: Test Sort Controls');
-    console.log('\u2500'.repeat(50));
+    console.log('─'.repeat(50));
 
     if (results.fileManagerLoaded) {
       const sortResult = await testSortControls(page1);
@@ -303,98 +274,37 @@ async function runTest(): Promise<boolean> {
       await takeScreenshot(page1, '03_sort_controls');
     }
 
-    // ========== STEP 4: Test View Toggle ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 4: Test View Toggle');
-    console.log('\u2500'.repeat(50));
-
-    if (results.fileManagerLoaded) {
-      const viewResult = await testViewToggle(page1);
-      results.viewToggleVisible = viewResult.visible;
-      results.viewChangeWorks = viewResult.changeWorks;
-      await takeScreenshot(page1, '04_view_toggle');
-    }
-
-    // ========== STEP 5: Test Properties Dialog ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 5: Test Properties Dialog');
-    console.log('\u2500'.repeat(50));
+    // ========== STEP 4: Test Properties Dialog ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 4: Test Properties Dialog');
+    console.log('─'.repeat(50));
 
     if (results.fileManagerLoaded) {
       results.propertiesDialogOpens = await testPropertiesDialog(page1);
-      await takeScreenshot(page1, '05_properties');
+      await takeScreenshot(page1, '04_properties');
     }
 
-    // ========== STEP 6: Test File Preview ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 6: Test File Preview');
-    console.log('\u2500'.repeat(50));
+    // ========== STEP 5: File Preview (skipped) ==========
+    // FilePreviewDialog is the sidebar FILES section's dialog and it only opens
+    // for a *completed incoming* file transfer (FilesSection filters
+    // fileTransferService transfers on state === 'complete' && isIncoming).
+    // This spec never performs a transfer, so the precondition does not exist —
+    // the old version clicked a VFS grid item instead, which downloads a remote
+    // file and opens no dialog at all. Covering this belongs in a spec that
+    // actually sends a file (see file-transfer.test.ts).
 
-    if (results.fileManagerLoaded) {
-      results.filePreviewOpens = await testFilePreview(page1);
-      await takeScreenshot(page1, '06_preview');
-    }
-
-    // ========== STEP 7: Test FileUploadProgress ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 7: Test FileUploadProgress');
-    console.log('\u2500'.repeat(50));
-
-    // FileUploadProgress listens to fileUploadService events.
-    // Use Vite dynamic import to get the same singleton and emit an event.
-    results.fileUploadProgressRenders = await page1.evaluate(async () => {
-      try {
-        // Dynamic path prevents TS module resolution (resolved at runtime by Vite)
-        const p = '/src/lib/' + 'file-upload-service.ts';
-        const mod: any = await import(/* webpackIgnore: true */ p);
-        const svc = mod.fileUploadService;
-        if (!svc || typeof svc.emit !== 'function') return false;
-        // Emit a simulated upload progress event
-        svc.emit('upload-progress', {
-          fileId: 'test-upload-001',
-          progress: 50,
-          status: 'uploading',
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    });
-    if (results.fileUploadProgressRenders) {
-      await sleep(500);
-      // Verify the progress UI rendered (fixed bottom-right indicator)
-      const progressUI = page1.locator('text="Uploading..."').first();
-      const progressVisible = await progressUI.isVisible({ timeout: 3000 }).catch(() => false);
-      results.fileUploadProgressRenders = progressVisible;
-      console.log(`  FileUploadProgress renders: ${progressVisible}`);
-
-      // Clean up: emit completion to remove the progress indicator
-      await page1.evaluate(async () => {
-        try {
-          const p = '/src/lib/' + 'file-upload-service.ts';
-          const mod: any = await import(/* webpackIgnore: true */ p);
-          mod.fileUploadService.emit('upload-progress', {
-            fileId: 'test-upload-001',
-            progress: 100,
-            status: 'completed',
-          });
-        } catch { /* ignore */ }
-      });
-      await sleep(3500); // Wait for auto-removal (3s delay after completed)
-    } else {
-      console.log('  FileUploadProgress: could not emit event via dynamic import');
-    }
-    await takeScreenshot(page1, '07_file_upload_progress');
-
-    // ========== STEP 8: Test StorageLimitModal ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 8: Test StorageLimitModal');
-    console.log('\u2500'.repeat(50));
+    // ========== STEP 6: Test StorageLimitModal ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 6: Test StorageLimitModal');
+    console.log('─'.repeat(50));
 
     // Render StorageLimitModal directly via ReactDOM.
     // Bare specifiers like import('react') don't work in page.evaluate()
     // because the code doesn't go through Vite's transform pipeline.
     // Discover the Vite-resolved URLs from performance entries instead.
+    // NOTE: this depends on the app being served by the Vite dev server (the
+    // /src/... path is a dev-server module URL); it will not work against a
+    // production build.
     results.storageLimitModalRenders = await page1.evaluate(async () => {
       try {
         const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
@@ -436,27 +346,26 @@ async function runTest(): Promise<boolean> {
       }
     });
     if (results.storageLimitModalRenders) {
-      await sleep(500);
-      const modalTitle = page1.locator('text="Storage Limit Reached"').first();
-      const titleVisible = await modalTitle.isVisible({ timeout: 3000 }).catch(() => false);
-      results.storageLimitModalRenders = titleVisible;
-      console.log(`  StorageLimitModal renders: ${titleVisible}`);
+      const modal = page1.getByRole('dialog').filter({ hasText: 'Storage Limit Reached' });
+      results.storageLimitModalRenders = await isVisibleWithin(modal, 5000);
+      console.log(`  StorageLimitModal renders: ${results.storageLimitModalRenders}`);
 
-      // Close it
-      const cancelBtn = page1.locator('button:has-text("Cancel")').first();
-      if (await isVisibleWithin(cancelBtn, 1000)) {
+      // Close it via its own Cancel button, scoped to the modal so a Cancel
+      // elsewhere on the page cannot be clicked instead.
+      const cancelBtn = modal.getByRole('button', { name: 'Cancel' });
+      if (await isVisibleWithin(cancelBtn, 2000)) {
         await cancelBtn.click();
-        await sleep(300);
+        await isHiddenWithin(modal, 3000);
       }
     } else {
       console.log('  StorageLimitModal: could not render via dynamic import');
     }
-    await takeScreenshot(page1, '08_storage_limit_modal');
+    await takeScreenshot(page1, '06_storage_limit_modal');
 
-    // ========== STEP 9: Test RevfsDisabledModal ==========
-    console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 9: Test RevfsDisabledModal');
-    console.log('\u2500'.repeat(50));
+    // ========== STEP 7: Test RevfsDisabledModal ==========
+    console.log('\n' + '─'.repeat(50));
+    console.log('STEP 7: Test RevfsDisabledModal');
+    console.log('─'.repeat(50));
 
     results.revfsDisabledModalRenders = await page1.evaluate(async () => {
       try {
@@ -497,41 +406,51 @@ async function runTest(): Promise<boolean> {
       }
     });
     if (results.revfsDisabledModalRenders) {
-      await sleep(500);
-      const modalTitle = page1.locator('text="Remote Storage Unavailable"').first();
-      const titleVisible = await modalTitle.isVisible({ timeout: 3000 }).catch(() => false);
-      results.revfsDisabledModalRenders = titleVisible;
-      console.log(`  RevfsDisabledModal renders: ${titleVisible}`);
+      const modal = page1.getByRole('dialog').filter({ hasText: 'Remote Storage Unavailable' });
+      results.revfsDisabledModalRenders = await isVisibleWithin(modal, 5000);
+      console.log(`  RevfsDisabledModal renders: ${results.revfsDisabledModalRenders}`);
 
-      // Close it
-      const okBtn = page1.locator('button:has-text("OK")').first();
-      if (await isVisibleWithin(okBtn, 1000)) {
+      // reason: 'peer_disabled' is the branch that labels the dismiss button
+      // "OK" (it is "Close" for every other reason).
+      const okBtn = modal.getByRole('button', { name: 'OK' });
+      if (await isVisibleWithin(okBtn, 2000)) {
         await okBtn.click();
-        await sleep(300);
+        await isHiddenWithin(modal, 3000);
       }
     } else {
       console.log('  RevfsDisabledModal: could not render via dynamic import');
     }
-    await takeScreenshot(page1, '09_revfs_disabled_modal');
+    await takeScreenshot(page1, '07_revfs_disabled_modal');
 
     // ========== RESULTS ==========
     console.log('\n' + '='.repeat(60));
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreation.user1;
+    // Everything gated here is single-user and deterministic: account creation,
+    // in-app navigation, and client-side rendering. p2pRegistered is the one
+    // exception — it is a two-party handshake, and the file manager falls back
+    // to server storage without it, so it is reported but not gated.
+    const corePassed =
+      results.accountCreation.user1 &&
+      results.accountCreation.user2 &&
+      results.fileManagerLoaded &&
+      results.sortControlVisible &&
+      results.sortChangeWorks &&
+      results.propertiesDialogOpens &&
+      results.storageLimitModalRenders &&
+      results.revfsDisabledModalRenders;
 
     console.log(`\n  User1 Created:             ${results.accountCreation.user1 ? 'PASS' : 'FAIL'}`);
-    console.log(`  File Manager Loaded:       ${results.fileManagerLoaded ? 'PASS' : 'CHECK'}`);
-    console.log(`  Sort Control:              ${results.sortControlVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Sort Change:               ${results.sortChangeWorks ? 'PASS' : 'CHECK'}`);
-    console.log(`  View Toggle:               ${results.viewToggleVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  View Change:               ${results.viewChangeWorks ? 'PASS' : 'CHECK'}`);
-    console.log(`  Properties Dialog:         ${results.propertiesDialogOpens ? 'PASS' : 'CHECK'}`);
-    console.log(`  File Preview:              ${results.filePreviewOpens ? 'PASS' : 'CHECK'}`);
-    console.log(`  FileUploadProgress:        ${results.fileUploadProgressRenders ? 'PASS' : 'CHECK'}`);
-    console.log(`  StorageLimitModal:         ${results.storageLimitModalRenders ? 'PASS' : 'CHECK'}`);
-    console.log(`  RevfsDisabledModal:        ${results.revfsDisabledModalRenders ? 'PASS' : 'CHECK'}`);
+    console.log(`  User2 Created:             ${results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
+    console.log(`  P2P Registered:            ${results.p2pRegistered ? 'PASS' : 'CHECK'}  (not gated: P2P handshake timing)`);
+    console.log(`  File Manager Loaded:       ${results.fileManagerLoaded ? 'PASS' : 'FAIL'}`);
+    console.log(`  Sort Control:              ${results.sortControlVisible ? 'PASS' : 'FAIL'}`);
+    console.log(`  Sort Change:               ${results.sortChangeWorks ? 'PASS' : 'FAIL'}`);
+    console.log(`  Properties Dialog:         ${results.propertiesDialogOpens ? 'PASS' : 'FAIL'}`);
+    console.log('  File Preview:              SKIP (needs a completed incoming transfer; this spec sends no files)');
+    console.log(`  StorageLimitModal:         ${results.storageLimitModalRenders ? 'PASS' : 'FAIL'}`);
+    console.log(`  RevfsDisabledModal:        ${results.revfsDisabledModalRenders ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
     return corePassed;

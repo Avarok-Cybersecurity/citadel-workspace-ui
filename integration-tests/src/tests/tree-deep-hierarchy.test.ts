@@ -24,6 +24,7 @@ import {
   createDeepHierarchy,
   createSiblingNodes,
   verifyNodeDepth,
+  getNodeViaProtocol,
   countTreeNodes,
   listNodesViaProtocol,
   deleteNodeViaProtocol,
@@ -58,8 +59,13 @@ interface TestResults {
   deepHierarchyTreeStructure: boolean;
 
   // Max Depth Constraint Tests
-  maxDepthSchemaSet: boolean;
-  maxDepthConstraintEnforced: boolean;
+  // `undefined` means "not exercised" — see the SKIP handling below. The old
+  // code set these to `true` when the schema could not be read, which printed
+  // PASS for a test that never ran.
+  maxDepthSchemaSet?: boolean;
+  maxDepthPathBuilt?: boolean;
+  maxDepthConstraintEnforced?: boolean;
+  maxDepthErrorNamesDepth?: boolean;
 
   // Wide Hierarchy Tests
   wideHierarchyCreated: boolean;
@@ -69,6 +75,13 @@ interface TestResults {
   // Performance Tests
   treeStructureTruncation: boolean;
   treeStructureFullRetrieval: boolean;
+  fullTreeDepthsValid: boolean;
+}
+
+/** Render an optional result: absent means the case was never reached. */
+function report(value: boolean | undefined): string {
+  if (value === undefined) return 'SKIP';
+  return value ? 'PASS' : 'FAIL';
 }
 
 // ============================================================================
@@ -163,13 +176,12 @@ async function runTest(): Promise<boolean> {
     deepHierarchyCreated: false,
     deepHierarchyDepthsCorrect: false,
     deepHierarchyTreeStructure: false,
-    maxDepthSchemaSet: false,
-    maxDepthConstraintEnforced: false,
     wideHierarchyCreated: false,
     wideHierarchyListCorrect: false,
     wideHierarchyCascadeDelete: false,
     treeStructureTruncation: false,
     treeStructureFullRetrieval: false,
+    fullTreeDepthsValid: false,
   };
 
   let browser: Browser | null = null;
@@ -204,8 +216,11 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(page);
-    results.workspaceLoaded = true;
+    // waitForWorkspaceLoaded returns whether the sidebar ever appeared; it does
+    // not throw on timeout. Discarding it and assigning `true` made this a
+    // result that could only ever print PASS, including on the run where the
+    // workspace never loaded and everything after it failed for that reason.
+    results.workspaceLoaded = await waitForWorkspaceLoaded(page);
     await takeScreenshot(page, `${ADMIN_USER}_admin_ready`);
 
     // Get workspace root ID
@@ -342,38 +357,40 @@ async function runTest(): Promise<boolean> {
       console.log(`  Schema update: ${results.maxDepthSchemaSet ? 'SUCCESS' : 'FAILED'}`);
 
       if (results.maxDepthSchemaSet) {
-        // Create a node at depth 5 (should succeed)
-        console.log('\n  Creating node at depth 5 (should succeed)...');
+        // Build an explicit chain down to depth 4.
+        //
+        // This used to try `listNodesViaProtocol(page, { depth: 4 })` first and
+        // take element [0] as "a node at depth 4". ListNodes' `depth` is a
+        // BFS *traversal* limit measured from the start nodes, not an absolute
+        // depth filter (async_node_ops.rs list_nodes computes `base_depth` from
+        // the start set), so with no parent_id it returns every root-level node
+        // plus four levels below — and [0] is a depth-1 office. The subsequent
+        // "create at depth 6" then actually created at depth 3, sailed past
+        // max_depth:5, and the test blamed the server for not enforcing a limit
+        // it had never been asked to enforce.
+        const pathToDepth4 = await createDeepHierarchy(page, 4, workspaceRootId, 'MaxDepthPath');
+        createdNodeIds.push(...pathToDepth4);
+        const depth4ParentId = pathToDepth4.length === 4 ? pathToDepth4[3] : null;
 
-        // Find or create a node at depth 4 to use as parent
-        const depth4Nodes = await listNodesViaProtocol(page, { depth: 4 });
-        let depth4ParentId: string | null = null;
+        const depth4Node = depth4ParentId
+          ? await getNodeViaProtocol(page, depth4ParentId)
+          : null;
+        results.maxDepthPathBuilt = depth4Node !== null && depth4Node.depth === 4;
+        console.log(`  Parent chain reaches depth 4: ${report(results.maxDepthPathBuilt)} (actual depth ${depth4Node?.depth})`);
 
-        if (depth4Nodes.length > 0) {
-          depth4ParentId = depth4Nodes[0].id;
-        } else {
-          // Create path to depth 4
-          const pathToDepth4 = await createDeepHierarchy(page, 4, workspaceRootId, 'MaxDepthPath');
-          createdNodeIds.push(...pathToDepth4);
-          if (pathToDepth4.length === 4) {
-            depth4ParentId = pathToDepth4[3];
-          }
-        }
-
-        if (depth4ParentId) {
-          // Try to create node at depth 6 (should fail with max_depth: 5)
-          console.log('\n  Attempting to create node at depth 6 (should be rejected)...');
+        if (depth4ParentId && results.maxDepthPathBuilt) {
+          console.log('\n  Creating node at depth 5 (should succeed)...');
           const depth5Result = await createNodeViaProtocol(
             page,
             depth4ParentId,
             { Child: 'Office' },
             `MaxDepthTest_${timestamp}`,
-            'Should fail due to max_depth'
+            'At the max_depth limit — should be accepted'
           );
 
           if (depth5Result.success && depth5Result.nodeId) {
             createdNodeIds.push(depth5Result.nodeId);
-            // Node at depth 5 created, now try depth 6
+            console.log('\n  Attempting to create node at depth 6 (should be rejected)...');
             const depth6Result = await createNodeViaProtocol(
               page,
               depth5Result.nodeId,
@@ -382,21 +399,27 @@ async function runTest(): Promise<boolean> {
               'Should be rejected'
             );
 
+            results.maxDepthConstraintEnforced = !depth6Result.success;
             if (depth6Result.success) {
               console.log('  WARNING: Node created at depth 6 despite max_depth:5');
               if (depth6Result.nodeId) {
                 createdNodeIds.push(depth6Result.nodeId);
               }
-              results.maxDepthConstraintEnforced = false;
             } else {
               console.log(`  Depth 6 creation rejected: ${depth6Result.error}`);
-              // Check if error mentions depth limit
-              const errorMentionsDepth = depth6Result.error?.toLowerCase().includes('depth') ||
-                depth6Result.error?.toLowerCase().includes('max') ||
-                depth6Result.error?.toLowerCase().includes('limit');
-              results.maxDepthConstraintEnforced = true;
-              console.log(`  Error mentions depth limit: ${errorMentionsDepth}`);
+              // Insist the rejection is the depth rejection. Any other failure
+              // (permissions, a dropped socket) would otherwise read as the
+              // constraint working. The server's message is
+              // "Node 'x' at depth N exceeds schema max_depth M".
+              results.maxDepthErrorNamesDepth =
+                depth6Result.error?.toLowerCase().includes('depth') ?? false;
+              console.log(`  Error names the depth limit: ${report(results.maxDepthErrorNamesDepth)}`);
             }
+          } else {
+            // A create AT the limit must be accepted; if it is not, the limit
+            // is off by one and the depth-6 case cannot be reached at all.
+            console.log(`  Depth 5 creation unexpectedly rejected: ${depth5Result.error}`);
+            results.maxDepthConstraintEnforced = false;
           }
         }
 
@@ -405,9 +428,10 @@ async function runTest(): Promise<boolean> {
         await updateTreeSchema(page, originalSchema);
       }
     } else {
-      console.log('  WARNING: Could not get tree schema');
-      results.maxDepthSchemaSet = true; // Skip this test
-      results.maxDepthConstraintEnforced = true;
+      // Genuinely not exercised. Leaving these `undefined` reports SKIP; the
+      // old code set them to `true`, which printed PASS for a test that had
+      // not run and hid a broken GetTreeSchema completely.
+      console.log('  WARNING: Could not get tree schema — max_depth cases SKIPPED');
     }
 
     await takeScreenshot(page, `${ADMIN_USER}_max_depth`);
@@ -452,8 +476,11 @@ async function runTest(): Promise<boolean> {
         parentId: wideOfficeResult.nodeId,
         entityTypes: [{ Child: 'Room' }],
       });
-      results.wideHierarchyListCorrect = listedRooms.length >= WIDE_HIERARCHY_COUNT;
-      console.log(`  ListNodes returned ${listedRooms.length} rooms`);
+      // Exactly, not at-least: the office was created moments ago and holds
+      // nothing but these rooms, so a count that drifts either way means the
+      // parent/type filter is not doing what the request asked for.
+      results.wideHierarchyListCorrect = listedRooms.length === WIDE_HIERARCHY_COUNT;
+      console.log(`  ListNodes returned ${listedRooms.length} rooms (expected ${WIDE_HIERARCHY_COUNT})`);
 
       // Test cascade delete handles many children
       console.log('\n  Testing cascade delete with many children...');
@@ -533,9 +560,11 @@ async function runTest(): Promise<boolean> {
     const truncatedTree = await getTreeStructure(page, workspaceRootId, 2);
     const truncatedTime = Date.now() - truncatedTreeStart;
 
+    let maxDepthInTruncated = -1;
+    let truncatedCount = -1;
     if (truncatedTree) {
-      const maxDepthInTruncated = getMaxTreeDepth(truncatedTree);
-      const truncatedCount = countTreeNodes(truncatedTree);
+      maxDepthInTruncated = getMaxTreeDepth(truncatedTree);
+      truncatedCount = countTreeNodes(truncatedTree);
       console.log(`  Truncated tree: ${truncatedCount} nodes, max depth: ${maxDepthInTruncated}`);
       console.log(`  Retrieval time: ${truncatedTime}ms`);
       results.treeStructureTruncation = maxDepthInTruncated <= 2;
@@ -552,11 +581,22 @@ async function runTest(): Promise<boolean> {
       const fullMaxDepth = getMaxTreeDepth(fullTreeResult);
       console.log(`  Full tree: ${fullCount} nodes, max depth: ${fullMaxDepth}`);
       console.log(`  Retrieval time: ${fullTime}ms`);
-      results.treeStructureFullRetrieval = fullCount >= totalCreated;
+      // `fullCount >= totalCreated` alone was near-vacuous: fullCount counts
+      // every node the whole test file created, totalCreated only the ~50 from
+      // this step, so it held even if truncation had silently applied. The
+      // point of "full retrieval" is that it reaches past the truncated view,
+      // so compare against that view directly.
+      results.treeStructureFullRetrieval =
+        fullCount >= totalCreated &&
+        fullCount >= truncatedCount &&
+        fullMaxDepth > maxDepthInTruncated;
+      console.log(`  Full retrieval reaches past truncation (${fullMaxDepth} > ${maxDepthInTruncated}, ${fullCount} >= ${truncatedCount} nodes): ${results.treeStructureFullRetrieval ? 'PASS' : 'FAIL'}`);
 
-      // Verify depths are correct in full tree
-      const depthsValid = verifyTreeDepths(fullTreeResult);
-      console.log(`  All depths valid: ${depthsValid}`);
+      // A tree whose reported depths disagree with its own nesting is corrupt,
+      // and every depth assertion elsewhere in this file is reading the same
+      // field. This was computed and printed but never gated.
+      results.fullTreeDepthsValid = verifyTreeDepths(fullTreeResult);
+      console.log(`  All depths valid: ${results.fullTreeDepthsValid ? 'PASS' : 'FAIL'}`);
     }
 
     await takeScreenshot(page, `${ADMIN_USER}_performance_test`);
@@ -603,7 +643,9 @@ async function runTest(): Promise<boolean> {
     console.log(`  Workspace Root Depth 0:       ${results.workspaceRootDepthZero ? 'PASS' : 'FAIL'}`);
     console.log(`  Office Depth 1:               ${results.officeDepthOne ? 'PASS' : 'FAIL'}`);
     console.log(`  Room Depth 2:                 ${results.roomDepthTwo ? 'PASS' : 'FAIL'}`);
-    console.log(`  Custom Node Depth 3:          ${results.customNodeDepthThree === undefined ? 'SKIP' : results.customNodeDepthThree ? 'PASS' : 'FAIL'}`);
+    // Custom node types are not in the default schema, so this case is
+    // genuinely optional — SKIP when the create was refused.
+    console.log(`  Custom Node Depth 3:          ${report(results.customNodeDepthThree)}`);
 
     console.log('\nDeep Hierarchy Tests:');
     console.log(`  Deep Hierarchy Created:       ${results.deepHierarchyCreated ? 'PASS' : 'FAIL'}`);
@@ -611,8 +653,10 @@ async function runTest(): Promise<boolean> {
     console.log(`  Tree Structure Complete:      ${results.deepHierarchyTreeStructure ? 'PASS' : 'FAIL'}`);
 
     console.log('\nMax Depth Constraint Tests:');
-    console.log(`  Schema Update:                ${results.maxDepthSchemaSet ? 'PASS' : 'SKIP'}`);
-    console.log(`  Constraint Enforced:          ${results.maxDepthConstraintEnforced ? 'PASS' : 'SKIP'}`);
+    console.log(`  Schema Update:                ${report(results.maxDepthSchemaSet)}`);
+    console.log(`  Depth-4 Path Built:           ${report(results.maxDepthPathBuilt)}`);
+    console.log(`  Constraint Enforced:          ${report(results.maxDepthConstraintEnforced)}`);
+    console.log(`  Error Names Depth:            ${report(results.maxDepthErrorNamesDepth)}`);
 
     console.log('\nWide Hierarchy Tests:');
     console.log(`  Wide Hierarchy Created:       ${results.wideHierarchyCreated ? 'PASS' : 'FAIL'}`);
@@ -622,8 +666,17 @@ async function runTest(): Promise<boolean> {
     console.log('\nPerformance Tests:');
     console.log(`  Tree Truncation (max_depth):  ${results.treeStructureTruncation ? 'PASS' : 'FAIL'}`);
     console.log(`  Full Retrieval:               ${results.treeStructureFullRetrieval ? 'PASS' : 'FAIL'}`);
+    console.log(`  Full Tree Depths Valid:       ${results.fullTreeDepthsValid ? 'PASS' : 'FAIL'}`);
 
-    // Determine overall pass/fail
+    // Every result printed above is gated. The previous list read 7 of 16, so
+    // an unenforced max_depth, a ListNodes filter returning the wrong set, a
+    // cascade delete that failed on 20 children, and a truncation parameter
+    // being ignored all printed FAIL while the run exited 0.
+    //
+    // `undefined` (never exercised) counts as not-a-failure: those cases print
+    // SKIP and their reasons are stated where they are set.
+    const notFailed = (v: boolean | undefined) => v !== false;
+
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
@@ -632,9 +685,24 @@ async function runTest(): Promise<boolean> {
       results.roomDepthTwo,
       results.deepHierarchyCreated,
       results.deepHierarchyDepthsCorrect,
+      results.deepHierarchyTreeStructure,
+      results.wideHierarchyCreated,
+      results.wideHierarchyListCorrect,
+      results.wideHierarchyCascadeDelete,
+      results.treeStructureTruncation,
+      results.treeStructureFullRetrieval,
+      results.fullTreeDepthsValid,
     ];
 
-    const allCriticalPassed = criticalTests.every(Boolean);
+    const optionalTests = [
+      results.customNodeDepthThree,
+      results.maxDepthSchemaSet,
+      results.maxDepthPathBuilt,
+      results.maxDepthConstraintEnforced,
+      results.maxDepthErrorNamesDepth,
+    ];
+
+    const allCriticalPassed = criticalTests.every(Boolean) && optionalTests.every(notFailed);
     const overallPass = allCriticalPassed;
 
     if (browser) {
