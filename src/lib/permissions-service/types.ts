@@ -24,6 +24,8 @@ export enum Permission {
   UpdateWorkspace = 'UpdateWorkspace',
   DeleteWorkspace = 'DeleteWorkspace',
   EditWorkspaceConfig = 'EditWorkspaceConfig',
+  /** Edit the workspace theme every member sees. */
+  Themes = 'Themes',
   // Content permissions
   ViewContent = 'ViewContent',
   EditContent = 'EditContent',
@@ -74,6 +76,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.UpdateWorkspace]: 'Update Workspace',
   [Permission.DeleteWorkspace]: 'Delete Workspace',
   [Permission.EditWorkspaceConfig]: 'Edit Workspace Config',
+  [Permission.Themes]: 'Edit Workspace Theme',
   [Permission.ViewContent]: 'View Content',
   [Permission.EditContent]: 'Edit Content',
   [Permission.EditMdx]: 'Edit MDX Content',
@@ -123,6 +126,7 @@ export const PERMISSION_CATEGORIES = {
       Permission.UpdateWorkspace,
       Permission.DeleteWorkspace,
       Permission.EditWorkspaceConfig,
+      Permission.Themes,
     ],
   },
   users: {
