@@ -10,6 +10,8 @@ interface CallStageProps {
   selfUsername: string;
   localStream: MediaStream | null;
   remoteStreams: Map<bigint, MediaStream>;
+  /** Remote audio per peer; each tile owns playing its participant's sound. */
+  remoteAudioStreams?: Map<bigint, MediaStream>;
   qualities?: Map<bigint, ConnectionQuality>;
   duration: string;
   onToggleMic: () => void;
@@ -31,6 +33,7 @@ export function CallStage({
   selfUsername,
   localStream,
   remoteStreams,
+  remoteAudioStreams,
   qualities,
   duration,
   onToggleMic,
@@ -76,6 +79,7 @@ export function CallStage({
               key={participant.cid.toString()}
               participant={participant}
               stream={remoteStreams.get(participant.cid) ?? null}
+              audioStream={remoteAudioStreams?.get(participant.cid) ?? null}
               isSelf={false}
               quality={qualities?.get(participant.cid) ?? 'good'}
             />

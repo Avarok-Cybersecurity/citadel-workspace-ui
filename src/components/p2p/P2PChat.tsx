@@ -62,10 +62,15 @@ export function P2PChat({
   // Hooks first, before any early return in this component. Placing them lower
   // put them after one, which breaks React's hook ordering and fails
   // intermittently at runtime rather than reliably.
-  const { call, localStream, remoteStreams, capability, startCall, leave, toggleMic, toggleCamera } = useCall();
+  const { call, localStream, remoteStreams, remoteAudioStreams, capability, startCall, leave, toggleMic, toggleCamera } = useCall();
   // Scoped to THIS conversation: a call with someone else must not render its
   // stage over an unrelated chat.
-  const isCallWithThisPeer = call !== null && call.participants.has(peerCid);
+  // 'ended' is excluded but 'failed' is NOT. A call the user deliberately left
+  // has nothing left to say, and leaving its surface on screen makes Leave look
+  // like it did not work. A call that FAILED still owes them the reason, which
+  // the stage renders — hiding both would swallow the one explanation they get.
+  const isCallWithThisPeer =
+    call !== null && call.participants.has(peerCid) && call.status !== 'ended';
   const callDuration = useCallDuration(isCallWithThisPeer && call?.status === 'active');
 
   const isGroupMode = mode === 'group';
@@ -231,6 +236,7 @@ export function P2PChat({
           selfUsername="You"
           localStream={localStream}
           remoteStreams={remoteStreams}
+          remoteAudioStreams={remoteAudioStreams}
           duration={callDuration}
           onToggleMic={() => void toggleMic()}
           onToggleCamera={() => void toggleCamera()}

@@ -147,25 +147,27 @@ test.describe.serial('Audio and video calling', () => {
   test('the call buttons are offered once a peer is connected', async () => {
     test.setTimeout(180_000);
 
-    // The buttons are ALWAYS rendered; what changes is whether they are usable.
-    // So waiting only for the enabled pair turns "calling is unavailable, and
-    // here is why" into a bare 30s timeout with nothing to act on. Waiting for
-    // either state and then reporting which one appeared is the difference
-    // between a mystery and a diagnosis.
+    // Wait for the ENABLED state specifically, retrying, rather than for
+    // "either state". The header legitimately flips between the two while the
+    // peer connection settles, so a single sample of "either" can catch the
+    // disabled render and then find neither by the time the next assertion
+    // runs — which is a race in the test, not a fact about the product.
     const available = sessionA.page.getByTestId('call-start-audio');
     const unavailable = sessionA.page.getByTestId('call-unavailable');
-    await expect(available.or(unavailable).first()).toBeVisible({ timeout: 60_000 });
 
-    const reason = (await unavailable.count())
-      ? await unavailable.getByRole('button').first().getAttribute('title')
-      : null;
+    await expect(async () => {
+      await expect(available).toBeVisible({ timeout: 5_000 });
+    })
+      .toPass({ timeout: 120_000 })
+      .catch(async () => {
+        // Never became available: report WHY, from the disabled control's own
+        // tooltip, instead of a bare timeout.
+        const reason = (await unavailable.count())
+          ? await unavailable.getByRole('button').first().getAttribute('title')
+          : 'neither the enabled nor the disabled call buttons ever rendered';
+        throw new Error(`calling never became available to A: ${reason}`);
+      });
 
-    expect(
-      await available.count(),
-      reason
-        ? `calling is unavailable to A even though the peer is connected: ${reason}`
-        : 'the call buttons should be offered once a peer is connected',
-    ).toBeGreaterThan(0);
     await expect(sessionA.page.getByTestId('call-start-video')).toBeVisible();
   });
 

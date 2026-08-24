@@ -4,10 +4,11 @@ import { CallManager } from '@/lib/call/call-manager';
 import { CallSession } from '@/lib/call/call-session';
 import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
 import { probeMediaCapabilities, localCapabilities } from '@/lib/call/codec-support';
+import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
 import type { CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
 import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
-import { CALL_KIND_VIDEO } from '@/types/p2p-commands';
+import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
@@ -36,6 +37,8 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   });
 
   const managerRef = useRef<CallManager | null>(null);
+  /** In-flight construction, so two callers cannot each build a manager. */
+  const managerPromiseRef = useRef<Promise<CallManager> | null>(null);
   const sessionRef = useRef<CallSession | null>(null);
 
   useEffect(() => {
@@ -53,28 +56,53 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     sessionRef.current?.close();
     sessionRef.current = null;
     managerRef.current = null;
+    managerPromiseRef.current = null;
     setStreamsVersion((v) => v + 1);
   }, []);
 
   const ensureManager = useCallback(async (): Promise<CallManager | null> => {
     if (!selfCid) return null;
     if (managerRef.current) return managerRef.current;
+    // Memoized while under construction: the async gap below used to let a
+    // second caller build a SECOND manager, and whichever finished last won —
+    // losing the invite the first one had already handled.
+    if (managerPromiseRef.current) return managerPromiseRef.current;
 
-    const manager = new CallManager({
-      transport: new WebSocketCallTransport({ selfCid, senderConfig }),
-      selfCid,
-      capabilities: await localCapabilities(),
-      now: () => Date.now(),
-      onStateChanged: (next) => {
-        setCall(next);
-        // Releasing the camera the moment a call reaches a terminal state, not
-        // when the surface happens to unmount — the light staying on after a
-        // call ends is what users notice and remember.
-        if (next && (next.status === 'ended' || next.status === 'failed')) teardown();
-      },
-    });
-    managerRef.current = manager;
-    return manager;
+    const build = (async () => {
+      const capabilities = await localCapabilities();
+      const manager = new CallManager({
+        transport: new WebSocketCallTransport({ selfCid, senderConfig }),
+        selfCid,
+        capabilities,
+        now: () => Date.now(),
+        schedule: (fn, delayMs) => {
+          const id = window.setTimeout(fn, delayMs);
+          return () => window.clearTimeout(id);
+        },
+        onStateChanged: (next) => {
+          setCall(next);
+          if (next) {
+            // A departed participant's decoders and tracks are released the
+            // moment they leave: browsers cap concurrent decoders, so leaks
+            // here make later joiners fail for no visible reason.
+            for (const p of next.participants.values()) {
+              if (p.status === 'left' || p.status === 'declined') {
+                sessionRef.current?.removePeer(p.cid);
+              }
+            }
+          }
+          // Releasing the camera the moment a call reaches a terminal state,
+          // not when the surface happens to unmount — the light staying on
+          // after a call ends is what users notice and remember.
+          if (next && (next.status === 'ended' || next.status === 'failed')) teardown();
+        },
+        onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),
+      });
+      managerRef.current = manager;
+      return manager;
+    })();
+    managerPromiseRef.current = build;
+    return build;
   }, [selfCid, senderConfig, teardown]);
 
   const ensureSession = useCallback((): CallSession => {
@@ -83,6 +111,8 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       onFrame: (frame) => managerRef.current?.sendFrame(frame),
       onStreamsChanged: () => setStreamsVersion((v) => v + 1),
       onCaptureFailed: setCaptureFailure,
+      // Our decoder for this peer is stuck; ask their encoder for a keyframe.
+      onNeedKeyframe: (peerCid, track) => void managerRef.current?.requestKeyframe(peerCid, track),
     });
     sessionRef.current = session;
     return session;
@@ -93,50 +123,34 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     const onSignal = ({ peerCid, payload }: { peerCid: bigint; payload: CallSignalPayload }) => {
       void (async () => {
         const manager = await ensureManager();
+        if (!manager) return;
         // The username is resolved by the surface that renders the call; the
         // CID is what the protocol carries and what everything here keys on.
-        await manager?.handleSignal(peerCid, peerCid.toString(), payload);
+        await manager.handleSignal(peerCid, peerCid.toString(), payload);
+        // Signals carry the codec facts; each one is followed by a sync so
+        // decoders and our send codec track what peers actually advertised.
+        await syncNegotiatedCodecs(manager, sessionRef.current);
       })();
     };
     eventEmitter.on('call:signal', onSignal);
     return () => eventEmitter.off('call:signal', onSignal);
   }, [ensureManager]);
 
-  // Inbound media.
-  useEffect(() => {
-    const onMessage = (message: Record<string, unknown>) => {
-      const frame = message.MediaFrameNotification as
-        | { cid: bigint; peer_cid: bigint; track: number; kind: number; timestamp: number; flags: number; payload: number[] }
-        | undefined;
-      if (frame) {
-        sessionRef.current?.acceptFrame(BigInt(frame.peer_cid), {
-          track: frame.track,
-          kind: frame.kind,
-          timestamp: frame.timestamp,
-          flags: frame.flags,
-          payload: new Uint8Array(frame.payload),
-        });
-        return;
-      }
+  useInboundMedia(sessionRef);
 
-      const gap = message.MediaGapNotification as
-        | { peer_cid: bigint; track: number }
-        | undefined;
-      if (gap) {
-        sessionRef.current?.acceptGap(BigInt(gap.peer_cid), gap.track, gap.track !== 0);
-        // A decoder past a gap emits garbage until a keyframe, so ask for one
-        // rather than rendering corruption.
-        for (const peer of sessionRef.current?.drainKeyframeRequests() ?? []) {
-          void managerRef.current?.requestKeyframe(peer, CALL_KIND_VIDEO);
-        }
+  // The camera must not survive the provider unmounting — and the peer must be
+  // told, or they sit in a call that is over until their ring timeout fires.
+  useEffect(
+    () => () => {
+      const manager = managerRef.current;
+      const state = manager?.getState();
+      if (manager && state && state.status !== 'ended' && state.status !== 'failed') {
+        void manager.end('hangup');
       }
-    };
-    eventEmitter.on('websocket-message', onMessage);
-    return () => eventEmitter.off('websocket-message', onMessage);
-  }, []);
-
-  // The camera must not survive the provider unmounting.
-  useEffect(() => () => teardown(), [teardown]);
+      teardown();
+    },
+    [teardown],
+  );
 
   const startCall = useCallback(
     async (peers: Array<{ cid: bigint; username: string }>, video: boolean, roomId?: string) => {
@@ -154,7 +168,9 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       }
 
       const callId = crypto.randomUUID();
-      await manager.start(callId, peers, got, roomId ?? null);
+      // The invite announces our provisional codec; the accept's decode list
+      // may change it, in which case the signal path announces the new one.
+      await manager.start(callId, peers, got, roomId ?? null, session.getCodec());
     },
     [ensureManager, ensureSession, teardown],
   );
@@ -172,7 +188,10 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
         teardown();
         return;
       }
-      await manager.accept(got);
+      // Negotiated BEFORE the accept goes out, so the accept carries the codec
+      // we will actually send — see codec-sync for why no announcement here.
+      adoptPeerCodecs(manager, session);
+      await manager.accept(got, session.getCodec());
     },
     [ensureSession, teardown],
   );
@@ -213,6 +232,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       call,
       localStream: sessionRef.current?.getLocalStream() ?? null,
       remoteStreams: sessionRef.current?.getRemoteStreams() ?? new Map(),
+      remoteAudioStreams: sessionRef.current?.getRemoteAudioStreams() ?? new Map(),
       captureFailure,
       capability,
       startCall,

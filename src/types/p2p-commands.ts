@@ -165,13 +165,20 @@ export type CallSignalPayload =
       /** Present for a group call: everyone the caller is inviting, so each
        * participant can build the same mesh without a central authority. */
       group?: { room_id: string; members: string[] };
+      /** The codec this sender will ENCODE with, so the receiver can configure
+       * its decoder for what actually arrives instead of guessing from its own
+       * encoder preference — which breaks the moment the two machines differ.
+       * Optional for wire compatibility with peers that predate it. */
+      video_send_codec?: string | null;
     }
-  | { kind: 'CallAccept'; call_id: string; codecs: CallCodecCapabilities; media: CallMediaKinds }
+  | { kind: 'CallAccept'; call_id: string; codecs: CallCodecCapabilities; media: CallMediaKinds; video_send_codec?: string | null }
   | { kind: 'CallDecline'; call_id: string; reason: CallDeclineReason }
   | { kind: 'CallEnd'; call_id: string; reason: CallEndReason }
   /** Mic/camera/screen toggled, so the far side can show the right tile state
-   * instead of inferring it from a stream that simply stopped arriving. */
-  | { kind: 'CallMediaState'; call_id: string; media: CallMediaKinds }
+   * instead of inferring it from a stream that simply stopped arriving.
+   * Also carries a renegotiated send codec: the caller only learns the callee's
+   * decode list from the accept, so its invite-time codec choice may change. */
+  | { kind: 'CallMediaState'; call_id: string; media: CallMediaKinds; video_send_codec?: string | null }
   /** Sent after a gap: the decoder cannot recover until a keyframe arrives. */
   | { kind: 'CallKeyframeRequest'; call_id: string; track: number };
 

@@ -31,6 +31,10 @@ interface Harness {
   };
   states: Array<CallState | null>;
   signalsTo: (cid: bigint) => CallSignalPayload[];
+  keyframeRequests: number[];
+  /** Fires every timer the manager scheduled; returns how many fired. */
+  fireTimers: () => number;
+  cancelledTimers: () => number;
 }
 
 function harness(): Harness {
@@ -41,12 +45,22 @@ function harness(): Harness {
     sendSignal: vi.fn().mockResolvedValue(undefined),
   };
   const states: Array<CallState | null> = [];
+  const keyframeRequests: number[] = [];
+  const timers: Array<{ fn: () => void; cancelled: boolean }> = [];
   const manager = new CallManager({
     transport: transport as unknown as CallTransport,
     selfCid: 1n,
     capabilities: CAPS,
     now: () => 0,
+    schedule: (fn) => {
+      const timer = { fn, cancelled: false };
+      timers.push(timer);
+      return () => {
+        timer.cancelled = true;
+      };
+    },
     onStateChanged: (s) => states.push(s),
+    onKeyframeRequested: (track) => keyframeRequests.push(track),
   });
 
   return {
@@ -55,6 +69,13 @@ function harness(): Harness {
     states,
     signalsTo: (cid) =>
       transport.sendSignal.mock.calls.filter((c) => c[0] === cid).map((c) => c[1]),
+    keyframeRequests,
+    fireTimers: () => {
+      const live = timers.filter((t) => !t.cancelled);
+      for (const t of live) t.fn();
+      return live.length;
+    },
+    cancelledTimers: () => timers.filter((t) => t.cancelled).length,
   };
 }
 
@@ -76,7 +97,7 @@ describe('placing a call', () => {
   it('rings every invitee without opening a media session yet', async () => {
     // Opening on dial would hold a UDP channel for a call that may never be
     // answered — and in a group, one per invitee.
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
 
     expect(h.transport.sendSignal).toHaveBeenCalledTimes(2);
     expect(h.transport.openSession).not.toHaveBeenCalled();
@@ -84,11 +105,14 @@ describe('placing a call', () => {
   });
 
   it('opens the media session only once the peer accepts', async () => {
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
 
     expect(h.transport.openSession).toHaveBeenCalledWith(BOB);
-    expect(h.manager.getState()?.status).toBe('connecting');
+    // The transport resolves only on service confirmation, so a successful
+    // open IS the peer being reachable — the call goes active and the clock
+    // starts, instead of sitting at 00:00 forever.
+    expect(h.manager.getState()?.status).toBe('active');
   });
 
   it('carries on with the rest of a group when one invite cannot be sent', async () => {
@@ -96,7 +120,7 @@ describe('placing a call', () => {
       cid === CAROL ? Promise.reject(new Error('offline')) : Promise.resolve(undefined),
     );
 
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
 
     // Carol simply never rings; the call to Bob is unaffected.
     expect(h.manager.getState()?.participants.get(CAROL)?.status).toBe('declined');
@@ -104,7 +128,7 @@ describe('placing a call', () => {
   });
 
   it('includes group membership so every peer builds the same mesh', async () => {
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
 
     const sent = h.signalsTo(BOB)[0];
     expect(sent.kind).toBe('CallInvite');
@@ -115,7 +139,7 @@ describe('placing a call', () => {
   });
 
   it('omits group membership for a 1:1 call', async () => {
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
 
     const sent = h.signalsTo(BOB)[0];
     if (sent.kind === 'CallInvite') expect(sent.group).toBeUndefined();
@@ -130,13 +154,13 @@ describe('receiving a call', () => {
     await h.manager.handleSignal(BOB, 'bob', invite());
     expect(h.manager.getState()?.status).toBe('ringing-in');
 
-    await h.manager.accept(VIDEO);
+    await h.manager.accept(VIDEO, null);
 
     // The accept has to be on the wire first, so the peer is expecting frames
     // by the time the session exists.
     const order = h.transport.sendSignal.mock.invocationCallOrder[0];
     expect(order).toBeLessThan(h.transport.openSession.mock.invocationCallOrder[0]);
-    expect(h.manager.getState()?.status).toBe('connecting');
+    expect(h.manager.getState()?.status).toBe('active');
   });
 
   it('declines an incompatible wire version instead of decoding garbage', async () => {
@@ -151,7 +175,7 @@ describe('receiving a call', () => {
 
   it('declines a second call as busy while already in one', async () => {
     await h.manager.handleSignal(BOB, 'bob', invite('first'));
-    await h.manager.accept(AUDIO);
+    await h.manager.accept(AUDIO, null);
     h.transport.sendSignal.mockClear();
 
     await h.manager.handleSignal(CAROL, 'carol', invite('second'));
@@ -163,7 +187,7 @@ describe('receiving a call', () => {
 
   it('answering audio-only on a video invite is respected', async () => {
     await h.manager.handleSignal(BOB, 'bob', invite());
-    await h.manager.accept(AUDIO);
+    await h.manager.accept(AUDIO, null);
 
     expect(h.manager.getState()?.selfMedia).toEqual(AUDIO);
   });
@@ -174,12 +198,12 @@ describe('glare', () => {
     // Both peers compute the same winner locally. Without this, either both
     // cancel or both wait.
     const ours = harness();
-    await ours.manager.start('aaa', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await ours.manager.start('aaa', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     ours.transport.sendSignal.mockClear();
     await ours.manager.handleSignal(BOB, 'bob', invite('bbb'));
 
     const theirs = harness();
-    await theirs.manager.start('bbb', [{ cid: 1n, username: 'alice' }], VIDEO, null);
+    await theirs.manager.start('bbb', [{ cid: 1n, username: 'alice' }], VIDEO, null, null);
     theirs.transport.sendSignal.mockClear();
     await theirs.manager.handleSignal(1n, 'alice', invite('aaa'));
 
@@ -194,7 +218,7 @@ describe('ending a call', () => {
   beforeEach(() => { h = harness(); });
 
   async function activeCall() {
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
     h.manager.markConnected(BOB);
   }
@@ -225,7 +249,7 @@ describe('ending a call', () => {
   });
 
   it('keeps a group call alive when one participant leaves', async () => {
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
     await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
     h.manager.markConnected(BOB);
@@ -248,7 +272,7 @@ describe('sending frames', () => {
   it('fans one encoded frame out to every connected participant', async () => {
     // Encode once, send many: an encoder per peer is what makes mesh calls melt
     // laptops.
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
     await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
 
@@ -258,7 +282,7 @@ describe('sending frames', () => {
   });
 
   it('does not send to a peer whose session is not open', async () => {
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     h.manager.sendFrame(frame);
 
     // Still ringing: no session, so nothing to send into.
@@ -266,7 +290,7 @@ describe('sending frames', () => {
   });
 
   it('stops sending to a peer who left', async () => {
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
     await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
     await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallEnd', call_id: 'c1', reason: 'hangup' });
@@ -289,7 +313,7 @@ describe('media session failures', () => {
     const h = harness();
     h.transport.openSession.mockRejectedValue(new Error('peer connected without UDP'));
 
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
 
     expect(h.manager.getState()?.status).toBe('failed');
@@ -302,7 +326,7 @@ describe('media session failures', () => {
       cid === CAROL ? Promise.reject(new Error('no UDP')) : Promise.resolve(undefined),
     );
 
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
     await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
 
@@ -316,7 +340,7 @@ describe('in-call signalling', () => {
     // Explicit, not inferred from frames stopping: otherwise a muted peer and a
     // crashed one look identical.
     const h = harness();
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     h.transport.sendSignal.mockClear();
 
     await h.manager.setSelfMedia({ audio: false, video: true, screen: false });
@@ -325,14 +349,63 @@ describe('in-call signalling', () => {
     expect(sent.kind).toBe('CallMediaState');
   });
 
-  it('collects keyframe requests for the encoder owner to drain', async () => {
+  it('hands keyframe requests straight to the encoder owner', async () => {
+    // Buffered, these were a dead end (nothing drained the buffer) and grew
+    // without bound at the far side's request rate.
     const h = harness();
-    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallKeyframeRequest', call_id: 'c1', track: 1 });
 
-    expect(h.manager.drainKeyframeRequests()).toEqual([{ cid: BOB, track: 1 }]);
-    // Drained once, not repeatedly — a stuck request would force keyframes
-    // forever and destroy the bitrate.
-    expect(h.manager.drainKeyframeRequests()).toEqual([]);
+    expect(h.keyframeRequests).toEqual([1]);
+  });
+});
+
+describe('signal hygiene', () => {
+  it('ignores a retransmitted invite for the call we are already in', async () => {
+    // The reliable layer delivers duplicates. Falling through to the busy
+    // branch would decline OUR OWN call — killing it on both sides. Observed
+    // live: the second copy arrived 55ms after the first.
+    const h = harness();
+    await h.manager.handleSignal(BOB, 'bob', invite('c1'));
+    h.transport.sendSignal.mockClear();
+
+    await h.manager.handleSignal(BOB, 'bob', invite('c1'));
+
+    expect(h.transport.sendSignal).not.toHaveBeenCalled();
+    expect(h.manager.getState()?.status).toBe('ringing-in');
+  });
+
+  it('ignores signals for a call other than the current one', async () => {
+    // After glare, the loser declines the ABANDONED call; that decline must
+    // not land on the surviving call and end it.
+    const h = harness();
+    await h.manager.start('bbb', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
+
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallDecline', call_id: 'aaa', reason: 'busy' });
+
+    expect(h.manager.getState()?.status).toBe('ringing-out');
+  });
+});
+
+describe('ring timeout', () => {
+  it('ends an unanswered call instead of ringing forever with the mic open', async () => {
+    const h = harness();
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
+
+    expect(h.fireTimers()).toBe(1);
+    // The timer fires end('unanswered'), which signals peers before applying
+    // the state change; let those (already-resolved) sends settle.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.manager.getState()?.status).toBe('ended');
+    expect(h.manager.getState()?.reason).toBe('unanswered');
+  });
+
+  it('is retired the moment anyone answers', async () => {
+    const h = harness();
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+
+    expect(h.cancelledTimers()).toBe(1);
   });
 });

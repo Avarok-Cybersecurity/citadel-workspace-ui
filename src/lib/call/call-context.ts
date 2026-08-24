@@ -8,6 +8,8 @@ export interface CallContextValue {
   call: CallState | null;
   localStream: MediaStream | null;
   remoteStreams: Map<bigint, MediaStream>;
+  /** Remote audio per peer. Must be attached to an element or nobody hears. */
+  remoteAudioStreams: Map<bigint, MediaStream>;
   /** Why capture failed, so the surface can explain rather than just fail. */
   captureFailure: CaptureFailure | null;
   /** Whether this browser can do calls at all, with the reason if not. */
@@ -31,6 +33,7 @@ export const CallContext = createContext<CallContextValue>({
   call: null,
   localStream: null,
   remoteStreams: new Map(),
+  remoteAudioStreams: new Map(),
   captureFailure: null,
   capability: { supported: false, reason: 'Calling is not available here.' },
   startCall: async () => {},

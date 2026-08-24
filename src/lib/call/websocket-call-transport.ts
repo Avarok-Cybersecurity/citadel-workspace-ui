@@ -12,7 +12,17 @@ import { P2PCommandType, type CallSignalPayload } from '@/types/p2p-commands';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import type { CallTransport } from './call-transport';
 import type { WireFrame } from './frame-codec';
+import { requestResponse } from '@/lib/websocket/request-response';
 import { debugLog } from '@/lib/debug-config';
+
+/**
+ * How long to wait for the service to confirm a media session.
+ *
+ * The service itself waits up to 5s for the peer's UDP channel before
+ * answering; this must exceed that or a slow-but-successful open would be
+ * reported as a failure while the session actually came up.
+ */
+const MEDIA_OPEN_TIMEOUT_MS = 10_000;
 
 export interface WebSocketCallTransportOptions {
   selfCid: bigint;
@@ -34,15 +44,41 @@ export class WebSocketCallTransport implements CallTransport {
     const client = await websocketService.getWasmClient();
     if (!client) throw new Error('Not connected');
 
-    await client.sendDirectToInternalService({
-      MediaOpen: {
-        request_id: crypto.randomUUID(),
-        cid: this.options.selfCid,
-        peer_cid: peerCid,
-      },
-    } as never);
+    const requestId = crypto.randomUUID();
+    debugLog('Call', 'requesting media session', { peerCid: peerCid.toString() });
 
-    debugLog('Call', 'requested media session', { peerCid: peerCid.toString() });
+    // Awaiting the service's verdict is the point: MediaOpen can fail there —
+    // no UDP channel, peer gone — and a resolve-on-queue would report success
+    // while the manager fans frames into a session that never existed. That
+    // failure path is the one that tells the user WHY the call cannot start.
+    await requestResponse<true>({
+      request: {
+        MediaOpen: {
+          request_id: requestId,
+          cid: this.options.selfCid,
+          peer_cid: peerCid,
+        },
+      },
+      requestId,
+      sendRequest: (request) => client.sendDirectToInternalService(request as never),
+      timeoutMs: MEDIA_OPEN_TIMEOUT_MS,
+      operationName: 'MediaOpen',
+      matcher: {
+        matchSuccess: (message) => {
+          const opened = message.MediaSessionOpened as { request_id?: string } | undefined;
+          return opened?.request_id === requestId ? true : undefined;
+        },
+        matchFailure: (message) => {
+          const failed = message.MediaSessionFailed as
+            | { request_id?: string; message?: string }
+            | undefined;
+          if (failed?.request_id !== requestId) return undefined;
+          return failed.message ?? 'the media session could not be opened';
+        },
+      },
+    });
+
+    debugLog('Call', 'media session opened', { peerCid: peerCid.toString() });
   }
 
   async closeSession(peerCid: bigint): Promise<void> {

@@ -1,12 +1,13 @@
 /**
- * A live call's moving parts: local capture, encoders, and one receiver per
- * peer. Framework-free on purpose — React owns when this exists, not how it
- * works, so the lifecycle can be reasoned about (and closed) in one place.
+ * A live call's moving parts: local capture, encoders, and (via ReceiverPool)
+ * one receiver per peer. Framework-free on purpose — React owns when this
+ * exists, not how it works, so the lifecycle can be reasoned about (and
+ * closed) in one place.
  */
 
 import { captureLocalMedia, stopStream, type CaptureFailure } from './media-capture';
 import { createAudioEncoder, createVideoEncoder, type AudioEncoderHandle, type VideoEncoderHandle } from './media-pipeline';
-import { PeerReceiver } from './peer-receiver';
+import { ReceiverPool } from './receiver-pool';
 import { INITIAL_CONGESTION, applyReport, shouldDropFrame, type CongestionState, type QualityReport } from './congestion';
 import { supportedVideoEncoders, negotiateGroupVideoCodec, type VideoCodec } from './codec-support';
 import type { WireFrame } from './frame-codec';
@@ -21,31 +22,44 @@ export interface CallSessionCallbacks {
   onStreamsChanged: () => void;
   /** Called when capture fails, with a reason the user can act on. */
   onCaptureFailed: (failure: CaptureFailure) => void;
+  /** Called when a peer's stream can only recover via a keyframe from them. */
+  onNeedKeyframe: (peerCid: bigint, track: number) => void;
 }
+
+/** Decode fallback when a peer never announced its send codec (older client). */
+const LEGACY_DECODE_CODEC = 'vp09.00.31.08';
 
 export class CallSession {
   private localStream: MediaStream | null = null;
   private videoEncoder: VideoEncoderHandle | null = null;
   private audioEncoder: AudioEncoderHandle | null = null;
-  private readonly receivers = new Map<bigint, PeerReceiver>();
+  private readonly receivers: ReceiverPool;
   private congestion: CongestionState = INITIAL_CONGESTION;
   private codec: VideoCodec | null = null;
+  /** Our encode capabilities, probed once at start and reused to renegotiate. */
+  private encoders: Array<{ codec: VideoCodec; hardware: boolean }> = [];
   private pump: CapturePump | null = null;
   private closed = false;
 
-  constructor(private readonly callbacks: CallSessionCallbacks) {}
+  constructor(private readonly callbacks: CallSessionCallbacks) {
+    this.receivers = new ReceiverPool({
+      onStreamsChanged: callbacks.onStreamsChanged,
+      onNeedKeyframe: callbacks.onNeedKeyframe,
+      fallbackCodec: () => this.codec ?? LEGACY_DECODE_CODEC,
+    });
+  }
 
   getLocalStream(): MediaStream | null {
     return this.localStream;
   }
 
   getRemoteStreams(): Map<bigint, MediaStream> {
-    const streams = new Map<bigint, MediaStream>();
-    for (const [cid, receiver] of this.receivers) {
-      const stream = receiver.getVideoStream();
-      if (stream) streams.set(cid, stream);
-    }
-    return streams;
+    return this.receivers.videoStreams();
+  }
+
+  /** Remote audio, which the UI must attach to an element or nobody hears it. */
+  getRemoteAudioStreams(): Map<bigint, MediaStream> {
+    return this.receivers.audioStreams();
   }
 
   /**
@@ -57,6 +71,13 @@ export class CallSession {
    */
   async start(requested: CallMediaKinds): Promise<CallMediaKinds | null> {
     const result = await captureLocalMedia({ audio: requested.audio, video: requested.video });
+    // The permission prompt can outlive the call: if close() ran while the user
+    // stared at it, adopting the stream now would leave the camera light on
+    // with nothing attached to it until the page reloads.
+    if (this.closed) {
+      if (result.ok) stopStream(result.stream);
+      return null;
+    }
     if (!result.ok) {
       this.callbacks.onCaptureFailed(result.failure);
       return null;
@@ -67,10 +88,15 @@ export class CallSession {
     const hasAudio = result.stream.getAudioTracks().length > 0;
 
     if (hasVideo) {
-      const encoders = await supportedVideoEncoders();
+      this.encoders = await supportedVideoEncoders();
+      if (this.closed) {
+        stopStream(result.stream);
+        this.localStream = null;
+        return null;
+      }
       // No peer capabilities yet at this point, so this is our own best codec;
-      // a group re-negotiates once everyone has answered.
-      this.codec = negotiateGroupVideoCodec(encoders, []);
+      // renegotiateSendCodec revisits once peers have answered with theirs.
+      this.codec = negotiateGroupVideoCodec(this.encoders, []);
     }
 
     // Started only after the codec is known, since encodeVideo drops frames
@@ -90,6 +116,33 @@ export class CallSession {
     return this.codec;
   }
 
+  /**
+   * Re-pick the send codec now that peers have advertised what they decode.
+   *
+   * Returns true when the codec changed, in which case the caller must announce
+   * the new codec to peers — their decoders are configured from what we say we
+   * send, and a silent switch is a permanently black tile on their side.
+   */
+  renegotiateSendCodec(
+    peerDecoderLists: Array<Array<{ codec: string; hardware: boolean; maxHeight: number }>>,
+  ): boolean {
+    if (this.closed || this.encoders.length === 0 || peerDecoderLists.length === 0) return false;
+    const next = negotiateGroupVideoCodec(this.encoders, peerDecoderLists);
+    if (next === this.codec) return false;
+    // The encoder is rebuilt lazily by the next frame; closing it here is what
+    // makes that frame create one with the new codec — and it starts with a
+    // keyframe, so the far side can decode from the first frame.
+    this.videoEncoder?.close();
+    this.videoEncoder = null;
+    this.codec = next;
+    return true;
+  }
+
+  /** Record what a peer will send us, rebuilding its decoder on a change. */
+  setPeerReceiveCodec(peerCid: bigint, codec: string): void {
+    this.receivers.setReceiveCodec(peerCid, codec);
+  }
+
   /** Feed one captured video frame into the encoder. */
   encodeVideo(frame: VideoFrame, isKeyframe: boolean): void {
     if (this.closed || !this.codec) {
@@ -97,9 +150,14 @@ export class CallSession {
       return;
     }
     if (!this.videoEncoder) {
+      const chosen = this.codec;
+      // The probe's verdict for THIS codec decides the acceleration mode; see
+      // createVideoEncoder for why assuming hardware kills the whole call.
+      const hardware = this.encoders.find((e) => e.codec === chosen)?.hardware ?? false;
       this.videoEncoder = createVideoEncoder(
-        this.codec,
+        chosen,
         false,
+        hardware,
         this.callbacks.onFrame,
         (error) => debugLog('Call', 'video encode error', error),
       );
@@ -146,49 +204,17 @@ export class CallSession {
   /** Route one received frame to the peer it came from. */
   acceptFrame(peerCid: bigint, frame: WireFrame): void {
     if (this.closed) return;
-    const receiver = this.receiverFor(peerCid);
-    const hadStream = receiver.getVideoStream() !== null;
-    receiver.accept(frame);
-    // Only re-render when a stream actually appears; a notify per frame would
-    // re-render the whole call surface sixty times a second.
-    if (!hadStream && receiver.getVideoStream() !== null) {
-      this.callbacks.onStreamsChanged();
-    }
+    this.receivers.accept(peerCid, frame);
   }
 
   acceptGap(peerCid: bigint, track: number, isVideo: boolean): void {
     if (this.closed) return;
-    this.receivers.get(peerCid)?.handleGap(track, isVideo);
+    this.receivers.gap(peerCid, track, isVideo);
   }
 
   /** Release one peer's decoders when they leave a group call. */
   removePeer(peerCid: bigint): void {
-    const receiver = this.receivers.get(peerCid);
-    if (!receiver) return;
-    receiver.close();
-    this.receivers.delete(peerCid);
-    this.callbacks.onStreamsChanged();
-  }
-
-  private receiverFor(peerCid: bigint): PeerReceiver {
-    const existing = this.receivers.get(peerCid);
-    if (existing) return existing;
-
-    const receiver = new PeerReceiver({
-      videoCodec: this.codec ?? 'vp09.00.31.08',
-      onNeedKeyframe: () => this.keyframeRequests.add(peerCid),
-    });
-    this.receivers.set(peerCid, receiver);
-    return receiver;
-  }
-
-  /** Peers whose decoders are stalled waiting for a keyframe. */
-  private readonly keyframeRequests = new Set<bigint>();
-
-  drainKeyframeRequests(): bigint[] {
-    const peers = [...this.keyframeRequests];
-    this.keyframeRequests.clear();
-    return peers;
+    this.receivers.remove(peerCid);
   }
 
   /** Stop the camera light, release every codec, drop every track. */
@@ -202,8 +228,7 @@ export class CallSession {
     this.pump = null;
     this.videoEncoder?.close();
     this.audioEncoder?.close();
-    for (const receiver of this.receivers.values()) receiver.close();
-    this.receivers.clear();
+    this.receivers.closeAll();
     // Last, so a failure above still turns the camera off — the one part of
     // teardown a user can physically see.
     stopStream(this.localStream);

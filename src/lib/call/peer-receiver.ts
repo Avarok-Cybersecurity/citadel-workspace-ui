@@ -67,7 +67,15 @@ export class PeerReceiver {
       this.video = createVideoDecoder(
         this.options.videoCodec,
         (decoded) => this.videoSink?.write(decoded),
-        (error) => debugLog('Call', 'video decode error', error),
+        (error) => {
+          debugLog('Call', 'video decode error', error);
+          // A fatal WebCodecs error leaves the decoder closed; every later
+          // decode() would throw. Dropping the handle makes the next frame
+          // build a fresh decoder, which then waits for a keyframe. The sink
+          // is kept: the <video> element holds its stream, so recovery is a
+          // brief freeze rather than a tile that goes away and comes back.
+          this.video = null;
+        },
         () => this.options.onNeedKeyframe(frame.track),
       );
     }
@@ -79,7 +87,12 @@ export class PeerReceiver {
     if (!this.audio) {
       this.audio = createAudioDecoder(
         (data) => this.audioSink?.write(data),
-        (error) => debugLog('Call', 'audio decode error', error),
+        (error) => {
+          debugLog('Call', 'audio decode error', error);
+          // Same recovery as video; Opus frames decode independently, so the
+          // rebuilt decoder resumes on the very next frame.
+          this.audio = null;
+        },
       );
     }
     this.audio.decode(frame);

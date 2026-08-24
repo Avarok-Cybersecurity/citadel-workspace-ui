@@ -51,14 +51,21 @@ export interface VideoEncoderHandle {
  * `latencyMode: 'realtime'` is the load-bearing option: without it the encoder
  * buffers frames to improve compression, which is the right trade for a file
  * and precisely the wrong one for a conversation.
+ *
+ * `hardware` must be the answer the capability probe gave for THIS codec.
+ * Hardcoding 'prefer-hardware' here killed every call on machines without a
+ * hardware encoder (headless included): configure() errored, the codec closed,
+ * and the capture pump died on the next encode — zero frames ever sent.
  */
 export function createVideoEncoder(
   codec: VideoCodec,
   thumbnail: boolean,
+  hardware: boolean,
   sink: FrameSink,
   onError: (error: Error) => void,
 ): VideoEncoderHandle {
   const profile: VideoProfile = thumbnail ? VIDEO_PROFILE_THUMBNAIL : VIDEO_PROFILE_MAIN;
+  const hardwareAcceleration: HardwareAcceleration = hardware ? 'prefer-hardware' : 'no-preference';
   let lastKeyframeAt = -Infinity;
   let forceKeyframe = true;
 
@@ -77,7 +84,7 @@ export function createVideoEncoder(
     bitrate: profile.bitrate,
     framerate: profile.framerate,
     latencyMode: 'realtime',
-    hardwareAcceleration: 'prefer-hardware',
+    hardwareAcceleration,
   });
 
   let appliedRung = -1;
@@ -96,7 +103,7 @@ export function createVideoEncoder(
             bitrate: Math.round(profile.bitrate * level.bitrateScale),
             framerate: level.framerate,
             latencyMode: 'realtime',
-            hardwareAcceleration: 'prefer-hardware',
+            hardwareAcceleration,
           });
           appliedRung = congestion.rung;
           // A reconfigure invalidates the reference chain, so the next frame has
@@ -188,6 +195,10 @@ export function createVideoDecoder(
 
   return {
     decode(frame) {
+      // A fatal error closes the codec asynchronously; a frame can race that
+      // callback, and decode() on a closed codec throws out of the caller's
+      // event handler. The owner rebuilds the decoder — this just stays quiet.
+      if (decoder.state === 'closed') return;
       if (!primed) {
         if (!canStartDecoding(frame)) {
           onNeedKeyframe();
@@ -227,6 +238,8 @@ export function createAudioDecoder(
 
   return {
     decode(frame) {
+      // Same closed-codec race as the video decoder; see above.
+      if (decoder.state === 'closed') return;
       decoder.decode(new EncodedAudioChunk(frameToDecoderChunk(frame)));
     },
     close() {

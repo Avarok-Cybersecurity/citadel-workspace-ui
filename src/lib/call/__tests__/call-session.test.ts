@@ -36,7 +36,7 @@ function fakeStream(withVideo: boolean) {
 }
 
 function callbacks() {
-  return { onFrame: vi.fn(), onStreamsChanged: vi.fn(), onCaptureFailed: vi.fn() };
+  return { onFrame: vi.fn(), onStreamsChanged: vi.fn(), onCaptureFailed: vi.fn(), onNeedKeyframe: vi.fn() };
 }
 
 beforeEach(() => {
@@ -181,11 +181,84 @@ describe('peers', () => {
     expect(opened).toBeGreaterThan(0);
   });
 
-  it('drains keyframe requests exactly once', async () => {
-    // A stuck request would force keyframes forever and destroy the bitrate.
+  it('asks the peer for a keyframe when its stream cannot start on a delta', async () => {
+    // A decoder handed delta frames first emits garbage; the request must reach
+    // the peer's encoder, not sit in a buffer nothing drains.
+    const cbs = callbacks();
+    const session = new CallSession(cbs);
+    await session.start({ audio: true, video: true, screen: false });
+
+    // flags: 2 is discardable-not-keyframe — undecodable as a first frame.
+    session.acceptFrame(2n, { track: 1, kind: 1, timestamp: 0, flags: 2, payload: new Uint8Array([1]) });
+
+    expect(cbs.onNeedKeyframe).toHaveBeenCalledWith(2n, 1);
+  });
+
+  it('rebuilds a peer’s decoder when they announce a different send codec', async () => {
+    const cbs = callbacks();
+    const session = new CallSession(cbs);
+    await session.start({ audio: true, video: true, screen: false });
+    session.acceptFrame(2n, { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) });
+    cbs.onStreamsChanged.mockClear();
+
+    session.setPeerReceiveCodec(2n, 'avc1.42E01F');
+
+    // The old decoder was configured for the wrong bitstream; keeping it would
+    // decode garbage forever.
+    expect(cbs.onStreamsChanged).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('codec negotiation', () => {
+  it('re-picks the send codec from what peers can actually decode', async () => {
+    const session = new CallSession(callbacks());
+    await session.start({ audio: true, video: true, screen: false });
+    // The stub supports every encoder, so the provisional pick is our best
+    // (AV1); a peer that only decodes VP9 must pull us down to VP9.
+    expect(session.getCodec()).toBe('av01.0.05M.08');
+
+    const changed = session.renegotiateSendCodec([
+      [{ codec: 'vp09.00.31.08', hardware: false, maxHeight: 720 }],
+    ]);
+
+    expect(changed).toBe(true);
+    expect(session.getCodec()).toBe('vp09.00.31.08');
+  });
+
+  it('reports no change when peers already decode our choice', async () => {
     const session = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
 
-    expect(session.drainKeyframeRequests()).toEqual([]);
+    const changed = session.renegotiateSendCodec([
+      [{ codec: 'av01.0.05M.08', hardware: false, maxHeight: 720 }],
+    ]);
+
+    expect(changed).toBe(false);
+  });
+});
+
+describe('closing during capture', () => {
+  it('stops the camera when close() ran while getUserMedia was pending', async () => {
+    // The permission prompt can outlive the call. Adopting the stream after
+    // close() leaves the camera light on until the page reloads.
+    let release: (stream: MediaStream) => void = () => {};
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: vi.fn().mockReturnValue(new Promise((resolve) => { release = resolve; })),
+      },
+      configurable: true,
+    });
+    const session = new CallSession(callbacks());
+    const lateStream = fakeStream(true);
+
+    const pending = session.start({ audio: true, video: true, screen: false });
+    session.close();
+    release(lateStream);
+
+    expect(await pending).toBeNull();
+    for (const track of lateStream.getTracks() as unknown as Array<{ stop: ReturnType<typeof vi.fn> }>) {
+      expect(track.stop).toHaveBeenCalled();
+    }
+    expect(session.getLocalStream()).toBeNull();
   });
 });

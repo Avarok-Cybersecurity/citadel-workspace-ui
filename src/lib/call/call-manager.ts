@@ -6,6 +6,9 @@
  * tested directly. The ordering is the whole difficulty — a media session opened
  * before the peer accepted wastes a UDP channel on a call that may never happen,
  * and one opened after frames start arriving drops the beginning of the call.
+ *
+ * Inbound signal handling and session open/close live in their own modules
+ * (call-signal-handling, media-session-lifecycle) behind CallManagerInternals.
  */
 
 import type {
@@ -15,21 +18,16 @@ import type {
   CallMediaKinds,
   CallSignalPayload,
 } from '@/types/p2p-commands';
-import {
-  canAddParticipant,
-  glareWinner,
-  reduce,
-  type CallEvent,
-  type CallState,
-} from './call-state';
+import { canAddParticipant, reduce, type CallEvent, type CallState } from './call-state';
 import type { CallTransport } from './call-transport';
 import type { WireFrame } from './frame-codec';
+import { PeerCodecBook } from './peer-codec-book';
+import { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
+import type { CallManagerInternals } from './call-manager-internals';
+import { handleInboundSignal } from './call-signal-handling';
+import { closeAllSessions, openSessionFor } from './media-session-lifecycle';
 
-/** Bumped when the frame wire format changes. */
-export const MEDIA_WIRE_VERSION = 1;
-
-/** How long an unanswered call rings before giving up. */
-export const RING_TIMEOUT_MS = 45_000;
+export { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
 
 export interface CallManagerOptions {
   transport: CallTransport;
@@ -37,13 +35,20 @@ export interface CallManagerOptions {
   capabilities: CallCodecCapabilities;
   /** Injected so tests are not at the mercy of a real clock. */
   now: () => number;
+  /** Injected timer (returns a cancel), same reasoning as `now`. */
+  schedule: (fn: () => void, delayMs: number) => () => void;
   onStateChanged: (state: CallState | null) => void;
+  /** A peer's decoder is stuck and needs our encoder to produce a keyframe. */
+  onKeyframeRequested: (track: number) => void;
 }
 
 export class CallManager {
   private state: CallState | null = null;
   /** Peers we have an open media session with, so close is exact. */
   private readonly openSessions = new Set<bigint>();
+  /** Codec facts peers told us; consumed by the provider's codec sync. */
+  readonly codecs = new PeerCodecBook();
+  private cancelRingTimeout: (() => void) | null = null;
 
   constructor(private readonly options: CallManagerOptions) {}
 
@@ -55,7 +60,26 @@ export class CallManager {
     const next = reduce(this.state, event);
     if (next === this.state) return;
     this.state = next;
+    // The ring timer only guards the un-answered outgoing state; any progress
+    // or terminal transition retires it.
+    if (next && next.status !== 'ringing-out' && this.cancelRingTimeout) {
+      this.cancelRingTimeout();
+      this.cancelRingTimeout = null;
+    }
     this.options.onStateChanged(next);
+  }
+
+  /** The face the extracted signal/session modules operate on. */
+  private internals(): CallManagerInternals {
+    return {
+      transport: this.options.transport,
+      capabilities: this.options.capabilities,
+      codecs: this.codecs,
+      openSessions: this.openSessions,
+      getState: () => this.state,
+      apply: (event) => this.apply(event),
+      keyframeRequested: (track) => this.options.onKeyframeRequested(track),
+    };
   }
 
   /** Place a call. Signals every invitee, but opens no media session yet. */
@@ -64,8 +88,15 @@ export class CallManager {
     invitees: Array<{ cid: bigint; username: string }>,
     media: CallMediaKinds,
     roomId: string | null,
+    videoSendCodec: string | null,
   ): Promise<void> {
+    this.codecs.clear();
     this.apply({ type: 'invite-sent', callId, roomId, media, invitees });
+    // Armed here, cleared by apply() on any progress: without it an unanswered
+    // call rings forever with the microphone captured.
+    this.cancelRingTimeout = this.options.schedule(() => {
+      if (this.state?.status === 'ringing-out') void this.end('unanswered');
+    }, RING_TIMEOUT_MS);
 
     const invite: CallSignalPayload = {
       kind: 'CallInvite',
@@ -73,6 +104,7 @@ export class CallManager {
       media,
       codecs: this.options.capabilities,
       media_wire_version: MEDIA_WIRE_VERSION,
+      video_send_codec: videoSendCodec,
       ...(roomId
         ? { group: { room_id: roomId, members: invitees.map((i) => i.cid.toString()) } }
         : {}),
@@ -93,102 +125,11 @@ export class CallManager {
 
   /** Handle inbound call control from a peer. */
   async handleSignal(from: bigint, username: string, signal: CallSignalPayload): Promise<void> {
-    switch (signal.kind) {
-      case 'CallInvite':
-        return this.handleInvite(from, username, signal);
-
-      case 'CallAccept': {
-        this.apply({ type: 'peer-accepted', cid: from, media: signal.media });
-        // Opened on accept, not on invite: a session opened when we dialled
-        // would hold a UDP channel for a call that may never be answered.
-        await this.openSessionFor(from);
-        return;
-      }
-
-      case 'CallDecline':
-        this.apply({ type: 'peer-declined', cid: from, reason: signal.reason });
-        await this.closeIfFinished();
-        return;
-
-      case 'CallEnd':
-        this.apply({ type: 'peer-left', cid: from });
-        await this.closeSessionFor(from);
-        await this.closeIfFinished();
-        return;
-
-      case 'CallMediaState':
-        this.apply({ type: 'peer-media-changed', cid: from, media: signal.media });
-        return;
-
-      case 'CallKeyframeRequest':
-        // Surfaced through state so the encoder owner can act; the manager does
-        // not hold encoders itself.
-        this.keyframeRequests.push({ cid: from, track: signal.track });
-        return;
-
-      default:
-        return;
-    }
-  }
-
-  /** Keyframe requests received since the last drain. */
-  private keyframeRequests: Array<{ cid: bigint; track: number }> = [];
-
-  drainKeyframeRequests(): Array<{ cid: bigint; track: number }> {
-    const requests = this.keyframeRequests;
-    this.keyframeRequests = [];
-    return requests;
-  }
-
-  private async handleInvite(
-    from: bigint,
-    username: string,
-    signal: Extract<CallSignalPayload, { kind: 'CallInvite' }>,
-  ): Promise<void> {
-    if (signal.media_wire_version !== MEDIA_WIRE_VERSION) {
-      // Declining is the honest answer. Accepting would mean decoding a frame
-      // format we do not know, which looks like a broken camera to both sides.
-      await this.options.transport.sendSignal(from, {
-        kind: 'CallDecline',
-        call_id: signal.call_id,
-        reason: 'unsupported',
-      });
-      return;
-    }
-
-    // Glare: both sides dialled at once. Both compute the same winner locally,
-    // so exactly one call survives without another round trip.
-    if (this.state && this.state.status === 'ringing-out') {
-      if (glareWinner(this.state.callId, signal.call_id) === 'ours') {
-        await this.options.transport.sendSignal(from, {
-          kind: 'CallDecline',
-          call_id: signal.call_id,
-          reason: 'busy',
-        });
-        return;
-      }
-      // They win: abandon ours and take theirs.
-      this.apply({ type: 'ended', reason: 'hangup' });
-    } else if (this.state && this.state.status !== 'ended' && this.state.status !== 'failed') {
-      await this.options.transport.sendSignal(from, {
-        kind: 'CallDecline',
-        call_id: signal.call_id,
-        reason: 'busy',
-      });
-      return;
-    }
-
-    this.apply({
-      type: 'invite-received',
-      callId: signal.call_id,
-      roomId: signal.group?.room_id ?? null,
-      from: { cid: from, username },
-      media: signal.media,
-    });
+    return handleInboundSignal(this.internals(), from, username, signal);
   }
 
   /** Answer the ringing call. */
-  async accept(media: CallMediaKinds): Promise<void> {
+  async accept(media: CallMediaKinds, videoSendCodec: string | null): Promise<void> {
     const state = this.state;
     if (!state || state.status !== 'ringing-in') return;
 
@@ -202,12 +143,13 @@ export class CallManager {
           call_id: state.callId,
           codecs: this.options.capabilities,
           media,
+          video_send_codec: videoSendCodec,
         }),
       ),
     );
     // Opened after the accept is on the wire, so the peer is already expecting
     // frames by the time the session exists.
-    await Promise.all(peers.map((cid) => this.openSessionFor(cid)));
+    await Promise.all(peers.map((cid) => openSessionFor(this.internals(), cid)));
   }
 
   async decline(reason: CallDeclineReason): Promise<void> {
@@ -216,12 +158,9 @@ export class CallManager {
 
     const peers = [...state.participants.keys()];
     this.apply({ type: 'declined-locally', reason });
+    const decline: CallSignalPayload = { kind: 'CallDecline', call_id: state.callId, reason };
     await Promise.all(
-      peers.map((cid) =>
-        this.options.transport
-          .sendSignal(cid, { kind: 'CallDecline', call_id: state.callId, reason })
-          .catch(() => undefined),
-      ),
+      peers.map((cid) => this.options.transport.sendSignal(cid, decline).catch(() => undefined)),
     );
   }
 
@@ -231,14 +170,11 @@ export class CallManager {
     if (!state) return;
 
     const peers = [...state.participants.keys()];
+    const bye: CallSignalPayload = { kind: 'CallEnd', call_id: state.callId, reason };
     await Promise.all(
-      peers.map((cid) =>
-        this.options.transport
-          .sendSignal(cid, { kind: 'CallEnd', call_id: state.callId, reason })
-          .catch(() => undefined),
-      ),
+      peers.map((cid) => this.options.transport.sendSignal(cid, bye).catch(() => undefined)),
     );
-    await this.closeAllSessions();
+    await closeAllSessions(this.internals());
     this.apply({ type: 'ended', reason });
   }
 
@@ -248,12 +184,39 @@ export class CallManager {
     if (!state) return;
 
     this.apply({ type: 'self-media-changed', media });
+    const update: CallSignalPayload = { kind: 'CallMediaState', call_id: state.callId, media };
     await Promise.all(
       [...state.participants.keys()].map((cid) =>
-        this.options.transport
-          .sendSignal(cid, { kind: 'CallMediaState', call_id: state.callId, media })
-          .catch(() => undefined),
+        this.options.transport.sendSignal(cid, update).catch(() => undefined),
       ),
+    );
+  }
+
+  /**
+   * Tell peers our send codec changed after renegotiation.
+   *
+   * The caller only learns the callee's decode list from the accept, so the
+   * codec announced in the invite can turn out to be undecodable there; the
+   * peers' decoders are configured from these announcements, so a silent
+   * switch would be a permanently black tile on their side.
+   */
+  async announceSendCodec(codec: string | null): Promise<void> {
+    const state = this.state;
+    if (!state || state.status === 'ended' || state.status === 'failed') return;
+
+    await Promise.all(
+      [...state.participants.values()]
+        .filter((p) => p.status !== 'left' && p.status !== 'declined')
+        .map((p) =>
+          this.options.transport
+            .sendSignal(p.cid, {
+              kind: 'CallMediaState',
+              call_id: state.callId,
+              media: state.selfMedia,
+              video_send_codec: codec,
+            })
+            .catch(() => undefined),
+        ),
     );
   }
 
@@ -283,49 +246,5 @@ export class CallManager {
 
   canAdd(withVideo: boolean): boolean {
     return this.state ? canAddParticipant(this.state, withVideo) : true;
-  }
-
-  private async openSessionFor(cid: bigint): Promise<void> {
-    if (this.openSessions.has(cid)) return;
-    try {
-      await this.options.transport.openSession(cid);
-      this.openSessions.add(cid);
-    } catch (error) {
-      const reason =
-        error instanceof Error ? error.message : 'could not open the media session';
-
-      // Order matters. Marking the only participant as left first makes the
-      // reducer end the call as an ordinary hangup, and 'failed' is then
-      // correctly refused as a late transition over a terminal state — so the
-      // user is told "call ended" instead of "this peer connected without UDP",
-      // losing the one sentence that explains what to do.
-      if (this.state && this.state.participants.size === 1) {
-        this.apply({ type: 'failed', reason });
-        return;
-      }
-
-      // In a group, one peer's media failing is that peer dropping out, not the
-      // call failing — everyone else carries on.
-      this.apply({ type: 'peer-left', cid });
-    }
-  }
-
-  private async closeSessionFor(cid: bigint): Promise<void> {
-    if (!this.openSessions.delete(cid)) return;
-    await this.options.transport.closeSession(cid).catch(() => undefined);
-  }
-
-  private async closeAllSessions(): Promise<void> {
-    const peers = [...this.openSessions];
-    this.openSessions.clear();
-    await Promise.all(peers.map((cid) => this.options.transport.closeSession(cid).catch(() => undefined)));
-  }
-
-  /** Release everything once the call has reached a terminal state. */
-  private async closeIfFinished(): Promise<void> {
-    if (!this.state) return;
-    if (this.state.status === 'ended' || this.state.status === 'failed') {
-      await this.closeAllSessions();
-    }
   }
 }
