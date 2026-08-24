@@ -9,6 +9,7 @@ import { WorkspaceLoader } from "./components/ui/workspace-loader";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
 import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
+import { OfflineBanner } from "./components/pwa/OfflineBanner";
 
 // Landing is the route almost every session starts on, so it is imported eagerly:
 // code-splitting it would only add a network round trip before first paint.
@@ -66,6 +67,7 @@ const App = () => {
             */}
             <Sonner />
             <PwaUpdatePrompt />
+            <OfflineBanner />
             {/*
               Opt into the v7 behaviours now. Both were logging deprecation
               warnings on every boot; adopting them here means the eventual
