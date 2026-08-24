@@ -180,7 +180,10 @@ export type CallSignalPayload =
    * decode list from the accept, so its invite-time codec choice may change. */
   | { kind: 'CallMediaState'; call_id: string; media: CallMediaKinds; video_send_codec?: string | null }
   /** Sent after a gap: the decoder cannot recover until a keyframe arrives. */
-  | { kind: 'CallKeyframeRequest'; call_id: string; track: number };
+  | { kind: 'CallKeyframeRequest'; call_id: string; track: number }
+  /** Periodic "still here". Absence of media frames cannot stand in for this:
+   *  a muted participant with their camera off sends nothing and is present. */
+  | { kind: 'CallHeartbeat'; call_id: string };
 
 export interface P2PCommand {
   type: P2PCommandType;
