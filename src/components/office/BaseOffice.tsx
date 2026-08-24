@@ -12,6 +12,7 @@ import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
 import { FileText, MessageSquare } from "lucide-react";
+import { saveOfficeContent } from "./save-office-content";
 import WorkspaceService from "@/lib/workspace-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GroupChatView from "@/components/chat/GroupChatView";
@@ -65,40 +66,25 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   );
 
   const handleSave = async () => {
-    // Without a nodeId there is nothing to write to. This used to fall straight
-    // through to the success toast, so the user was told "Changes saved" while
-    // nothing had been persisted and their edit existed only in component state.
-    if (!nodeId) {
-      debugLog('BaseOffice', 'Refusing to save: no nodeId for', title);
-      toast({
-        title: "Cannot save yet",
-        description: "This page is still loading. Try again in a moment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await WorkspaceService.updateNode(nodeId, { mdxContent: content });
-    } catch (error) {
-      debugLog('BaseOffice', 'Failed to save MDX content:', error);
-      toast({
-        title: "Error saving changes",
-        description: "There was a problem saving your changes. Please try again.",
-        variant: "destructive",
-      });
-      // Stay in edit mode. setIsEditing(false) used to run regardless of the
-      // outcome, so a failed save also closed the editor and threw away whatever
-      // the user had typed — losing the work and the chance to retry it.
-      return;
-    }
-
-    toast({
-      title: "Changes saved",
-      description: `The ${entityData?.name || title} page has been updated`,
-      variant: 'success',
+    // The decision lives in saveOfficeContent so it can be tested without
+    // rendering the MDX pipeline; this supplies the I/O and reacts to the answer.
+    const saved = await saveOfficeContent({
+      nodeId,
+      content,
+      displayName: entityData?.name || title,
+      write: (id, mdxContent) => WorkspaceService.updateNode(id, { mdxContent }),
+      notify: ({ kind, title: noticeTitle, description }) =>
+        toast({
+          title: noticeTitle,
+          description,
+          variant: kind === 'success' ? 'success' : 'destructive',
+        }),
+      log: (message, error) => debugLog('BaseOffice', message, error),
     });
-    setIsEditing(false);
+
+    // Only on a confirmed write: anything else and the user's text exists
+    // nowhere but this editor.
+    if (saved) setIsEditing(false);
   };
 
   // Update content when entity data changes
