@@ -132,7 +132,7 @@ jobs:
 
           VIOLATIONS=0
           while IFS= read -r file; do
-            rel="${file#src/}"
+            rel="${file#citadel-workspaces/src/}"
             skip=false
             for s in "${SKIP_FILES[@]}"; do
               if [ "$rel" = "$s" ]; then skip=true; break; fi
@@ -144,15 +144,15 @@ jobs:
               echo "::error file=$file::$file has $lines lines (limit: 250)"
               VIOLATIONS=$((VIOLATIONS + 1))
             fi
-          # `src`, NOT `citadel-workspaces/src`. Inside this repository src is at
-          # the root, so the old path matched nothing and the check passed
-          # without ever looking at a file — a gate that always reports success
-          # is worse than no gate, because it is believed.
+          # The path is relative to the job's `defaults.run.working-directory:
+          # parent`, where this PR's code is checked out at
+          # parent/citadel-workspaces — so `citadel-workspaces/src` is correct
+          # here even though no such directory exists at this repo's own root.
           #
           # Tests are excluded deliberately: the cap exists to stop a MODULE
           # accreting responsibilities, while a test file's length measures how
           # many cases it covers, which is the opposite signal.
-          done < <(find src -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.bak' ! -path '*/__tests__/*')
+          done < <(find citadel-workspaces/src -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.bak' ! -path '*/__tests__/*')
 
           if [ "$VIOLATIONS" -gt 0 ]; then
             echo "FAIL: $VIOLATIONS file(s) exceed the 250-line limit"
