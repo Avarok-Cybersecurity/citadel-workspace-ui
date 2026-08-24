@@ -168,7 +168,7 @@ export class MessagingService {
   }
 
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
-    // Callers of this API (see RetryableMessageSender) already maintain their
+    // Callers of this API already maintain their
     // own "is currently typing" state and only call us to emit a discrete
     // event. Previously this method wired into the *polling* API with a
     // `() => ''` text-getter, which caused the polling loop to never observe

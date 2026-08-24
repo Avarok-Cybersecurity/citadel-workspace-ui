@@ -176,7 +176,7 @@ export class PresenceManager {
    *
    * Public so callers that already manage their own typing state (e.g.
    * MessagingService.sendTypingIndicator, triggered by input focus/blur
-   * effects in RetryableMessageSender) can fire an indicator without
+   * effects in a message composer) can fire an indicator without
    * setting up the full polling machinery.
    */
   public async sendTypingIndicator(recipientCid: bigint): Promise<void> {

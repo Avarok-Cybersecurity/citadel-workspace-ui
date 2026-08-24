@@ -1,8 +1,8 @@
 /**
- * Permission display widgets: RoleBadge, PermissionStatus, PermissionTable, GroupedPermissionTable
+ * Permission display widgets: RoleBadge, PermissionStatus, GroupedPermissionTable
  */
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -11,14 +11,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+
+
 import { usePermissions, PERMISSION_CATEGORIES } from '@/contexts/PermissionsContext';
 import type { UserRole } from '@/lib/permissions-service';
 import { cn } from '@/lib/utils';
@@ -71,53 +65,6 @@ export function PermissionStatus({ allowed }: { allowed: boolean }) {
 
 /**
  * Permission table for a specific domain
- */
-export function PermissionTable({
-  domainId,
-  filterCategory,
-}: {
-  domainId: string;
-  filterCategory?: keyof typeof PERMISSION_CATEGORIES;
-}) {
-  const { hasPermission, getPermissionLabel } = usePermissions();
-
-  const permissionsToShow = useMemo(() => {
-    if (filterCategory) {
-      return PERMISSION_CATEGORIES[filterCategory].permissions;
-    }
-    return Object.values(PERMISSION_CATEGORIES).flatMap(cat => cat.permissions);
-  }, [filterCategory]);
-
-  const uniquePermissions = useMemo(() => {
-    return [...new Set(permissionsToShow)];
-  }, [permissionsToShow]);
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow className="border-gray-700 hover:bg-transparent">
-          <TableHead className="text-muted-foreground w-1/2">Permission</TableHead>
-          <TableHead className="text-muted-foreground">Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {uniquePermissions.map((permission) => (
-          <TableRow key={permission} className="border-gray-700/50 hover:bg-gray-800/50">
-            <TableCell className="text-foreground/80 font-medium">
-              {getPermissionLabel(permission)}
-            </TableCell>
-            <TableCell>
-              <PermissionStatus allowed={hasPermission(domainId, permission)} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
-/**
- * Grouped permission table showing permissions by category
  */
 export function GroupedPermissionTable({ domainId }: { domainId: string }) {
   const { hasPermission, getPermissionLabel } = usePermissions();

@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AlertCircle, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 
 interface DisabledWithTooltipProps {
   /** Whether the element should be disabled */
@@ -122,49 +122,3 @@ export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
     </TooltipProvider>
   );
 };
-
-/**
- * Alternative version with error styling
- */
-export const DisabledWithError: React.FC<DisabledWithTooltipProps> = ({
-  disabled,
-  tooltip,
-  children,
-  className,
-  side = 'top',
-  delayDuration = 300,
-}) => {
-  if (!disabled) {
-    return <>{children}</>;
-  }
-
-  return (
-    <TooltipProvider>
-      <Tooltip delayDuration={delayDuration}>
-        <TooltipTrigger asChild>
-          <div
-            className={cn(
-              'opacity-50 cursor-not-allowed select-none',
-              '[&_*]:pointer-events-none',
-              className
-            )}
-            aria-disabled="true"
-          >
-            {disableChildren(children)}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent
-          side={side}
-          className="max-w-xs bg-red-950 text-red-100 border-red-800 px-3 py-2 text-sm"
-        >
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-400" />
-            <span>{tooltip}</span>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-};
-
-export default DisabledWithTooltip;
