@@ -298,22 +298,24 @@ export async function verifyGroupMessageReceived(
   console.log(`  Looking for: "${expectedMessage.substring(0, 50)}..."`);
 
   try {
-    const messageLocator = page.locator(`text="${expectedMessage}"`).first();
-    const found = await messageLocator.isVisible({ timeout }).catch(() => false);
+    // The exact text, or a prefix of it — waited for together, once.
+    //
+    // This is the assertion that decides whether a group message arrived, and it
+    // used `isVisible({ timeout })`, which ignores the timeout and answers
+    // instantly. So a 15-second budget was really "is it on screen this exact
+    // millisecond", and delivery only ever looked to work because of a sleep
+    // somewhere upstream. Racing both forms in one wait also returns as soon as
+    // either matches, instead of spending the full budget on the exact text
+    // before starting a second 5-second wait on the prefix.
+    //
+    // getByText rather than `text="..."`: the message is interpolated, and a
+    // quotation mark in it would break a hand-built text selector.
+    const exact = page.getByText(expectedMessage, { exact: true }).first();
+    const prefix = page.getByText(expectedMessage.substring(0, 20)).first();
 
-    if (found) {
-      console.log(`  Message found!`);
+    if (await isVisibleWithin(exact.or(prefix), timeout)) {
+      console.log(`  Message found`);
       await takeScreenshot(page, `${username}_received_group_msg`);
-      return true;
-    }
-
-    // Try partial match
-    const partialMessage = expectedMessage.substring(0, 20);
-    const partialLocator = page.locator(`text="${partialMessage}"`).first();
-    const partialFound = await isVisibleWithin(partialLocator, 5000);
-
-    if (partialFound) {
-      console.log(`  Message found (partial match)`);
       return true;
     }
 

@@ -42,6 +42,14 @@ export default tseslint.config(
         // the suite, every one a dead assertion.
         selector: 'Literal[value=/text=\"[^\"]*\",/]',
         message: 'This selector cannot match. A comma list mixing text= with another engine is not a union: `text="A", text="B"` matches the literal string `A", text="B`, and `#id, text="X"` throws. Use page.getByText(/A|B/) for any-of-these, or locatorA.or(locatorB) for a real union.',
+      }, {
+        // The same defect with text= LAST, so there is no comma after it:
+        // `'button:has-text("Admin"), [data-testid*="admin"], text="Admin Settings"'`.
+        // That form throws rather than matching, and the throw is swallowed by
+        // the `.catch(() => false)` these call sites all have. The rule above
+        // only sees text= followed by a comma, so it missed this one.
+        selector: 'Literal[value=/,\\s*text=\\"/]',
+        message: 'This selector cannot match. Mixing text= into a CSS comma list throws a CSS parse error, which .catch(() => false) then hides. Use locatorA.or(locatorB) for a union, or page.getByText() on its own.',
       }],
     },
   }
