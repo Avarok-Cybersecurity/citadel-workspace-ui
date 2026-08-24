@@ -82,12 +82,12 @@ export function P2PChatHeader({
   return (
     <div className="border-b border-surface/50 p-4 bg-background">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar className="h-8 w-8 shrink-0">
             <AvatarFallback>{getInitials(peerName)}</AvatarFallback>
           </Avatar>
           <div>
-            <h3 className="text-base font-semibold text-foreground">{peerName}</h3>
+            <h3 className="truncate text-base font-semibold text-foreground">{peerName}</h3>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <div
                 className={`h-2 w-2 rounded-full ${statusDisplay.color || ''}`}
@@ -100,25 +100,32 @@ export function P2PChatHeader({
             </div>
           </div>
         </div>
-        {call && (
-          <CallEntryButtons
-            targetName={peerName}
-            canCall={call.canCall}
-            inCall={call.inCall}
-            capability={call.capability}
-            onStartCall={call.onStartCall}
-            onLeave={call.onLeave}
-          />
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onSettingsClick}
-          className="text-muted-foreground hover:text-foreground hover:bg-surface"
-          data-testid="chat-settings-button"
-        >
-          <Settings className="h-5 w-5" />
-        </Button>
+        {/* One group, so justify-between has exactly TWO children to separate:
+            identity on the left, actions on the right. With the call buttons as
+            a third sibling they were distributed to the MIDDLE of the header —
+            visibly wrong, and it grew worse as the peer name got shorter.
+            shrink-0 keeps the actions intact when a long name runs out of room. */}
+        <div className="flex shrink-0 items-center gap-1">
+          {call && (
+            <CallEntryButtons
+              targetName={peerName}
+              canCall={call.canCall}
+              inCall={call.inCall}
+              capability={call.capability}
+              onStartCall={call.onStartCall}
+              onLeave={call.onLeave}
+            />
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onSettingsClick}
+            className="text-muted-foreground hover:text-foreground hover:bg-surface"
+            data-testid="chat-settings-button"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
