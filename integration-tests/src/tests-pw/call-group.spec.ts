@@ -108,16 +108,23 @@ test.describe.serial('Group calling', () => {
   test('an empty room refuses a call, and says why', async () => {
     test.setTimeout(120_000);
 
-    // Joining a WORKSPACE does not make you a member of every room in it, so a
-    // room nobody has been added to has no one to call. The control stays
-    // visible and carries the reason rather than vanishing — a button that
-    // disappears teaches the user the feature does not exist, one that explains
-    // itself teaches them what to fix.
+    // Membership here is explicit and admin-driven, which is why this room has
+    // nobody to call. Verified in the server rather than inferred: a user is
+    // only pushed onto workspace.members by the UpdateWorkspace path, which
+    // requires the master password (async_domain_server_ops.rs). REGISTERING an
+    // account adds you to no domain at all, and rooms get members only through
+    // AddMember. Room CHAT works anyway because it is channel-based, but a call
+    // is peer to peer and needs addressable CIDs — so the roster is genuinely
+    // empty, and refusing is correct.
     //
-    // This is the honest limit of what this spec proves. Ringing a room call
-    // end to end needs the three accounts added as members of the room, which
-    // is workspace-admin setup this spec does not perform; the 1:1 media proof
-    // in call-audio-video.spec.ts covers the transport itself, and
+    // The control stays visible and carries the reason rather than vanishing: a
+    // button that disappears teaches the user the feature does not exist, one
+    // that explains itself teaches them what to fix.
+    //
+    // This is therefore the honest limit of what this spec proves. Ringing a
+    // room call end to end needs accounts added as members, which is admin
+    // setup this spec does not perform. The 1:1 media proof in
+    // call-audio-video.spec.ts covers the transport itself, and
     // group-call-entry.test.ts covers the start/join/cap decisions.
     const caller = members[0].page;
     const audio = caller.getByTestId('group-call-start-audio');
