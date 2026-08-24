@@ -117,6 +117,7 @@ export class WorkspaceService implements ProtocolSender {
   public listWorkspaces() { return ws.listWorkspaces(this); }
   public createWorkspace(n: string, d: string, p: string, m?: Uint8Array) { return ws.createWorkspace(this, n, d, p, m); }
   public updateWorkspace(n?: string, d?: string, p?: string, m?: Uint8Array) { return ws.updateWorkspace(this, n, d, p, m); }
+  public updateWorkspaceTheme(theme: Uint8Array, workspaceId?: string) { return ws.updateWorkspaceTheme(this, theme, workspaceId); }
 
   // Member operations
   public addMember(userId: string, role: UserRoleTS, domainId?: string, metadata?: Uint8Array) { return members.addMember(this, userId, role, domainId, metadata); }

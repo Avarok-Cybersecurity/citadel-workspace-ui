@@ -71,8 +71,9 @@ export function WorkspaceAppearanceSection() {
 
   const handleSave = useCallback(async (next: WorkspaceTheme) => {
     // Rides in the workspace's metadata bytes, so every member receives it with
-    // the workspace they already load.
-    await WorkspaceService.updateWorkspace(undefined, undefined, undefined, serializeTheme(next));
+    // the workspace they already load. Uses the theme-specific request rather
+    // than UpdateWorkspace, which requires the master password.
+    await WorkspaceService.updateWorkspaceTheme(serializeTheme(next));
   }, []);
 
   return (

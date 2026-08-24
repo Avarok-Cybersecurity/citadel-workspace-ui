@@ -142,6 +142,11 @@ export interface WorkspaceProtocolRequestTS {
   GetNode?: {
     node_id: string;
   };
+  UpdateWorkspaceTheme?: {
+    workspace_id?: string;
+    /** Serialized theme bytes, stored verbatim in workspace metadata. */
+    theme: number[];
+  };
   UpdateNode?: {
     node_id: string;
     name?: string;

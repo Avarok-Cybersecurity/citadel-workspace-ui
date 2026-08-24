@@ -68,6 +68,29 @@ export async function createWorkspace(
 /**
  * Update an existing workspace
  */
+/**
+ * Set the workspace theme.
+ *
+ * Deliberately NOT UpdateWorkspace: that requires the workspace master password,
+ * which is the right gate for renaming or deleting a workspace and the wrong one
+ * for changing a colour. This is gated on Permission::Themes, so an authorised
+ * member can restyle the workspace without holding the credential that lets them
+ * destroy it.
+ */
+export async function updateWorkspaceTheme(
+  sender: ProtocolSender,
+  theme: Uint8Array,
+  workspaceId?: string,
+): Promise<void> {
+  const requestPart = {
+    UpdateWorkspaceTheme: {
+      workspace_id: workspaceId,
+      theme: Array.from(theme),
+    },
+  } as WorkspaceProtocolRequestTS;
+  return sender.sendProtocolRequest(requestPart);
+}
+
 export async function updateWorkspace(
   sender: ProtocolSender,
   name?: string,

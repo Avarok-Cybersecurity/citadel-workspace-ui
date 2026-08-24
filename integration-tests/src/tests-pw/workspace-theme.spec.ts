@@ -157,13 +157,31 @@ test.describe.serial('Workspace theming', () => {
   });
 
   test('saving persists the theme across a reload', async () => {
+    // A full reload plus reconnect costs more than the inherited 120s budget on
+    // its own: waitForAppReady and waitForWorkspaceLoaded are 60s each, so the
+    // test could exhaust its time before asserting anything.
+    test.setTimeout(300_000);
+
     await page.getByTestId('appearance-save').click();
 
     // Saved into the workspace's metadata, so it has to survive a full reload
     // and come back with the workspace — this is the assertion a unit test
     // cannot make.
+    //
+    // Logging in again is required, not incidental: a reload drops the session,
+    // so the app returns to the landing page and the workspace shell never
+    // renders. Waiting for it without re-authenticating just burns the timeout.
+    const admin = adminCredentials();
     await page.reload({ waitUntil: 'commit', timeout: 60_000 });
     await waitForAppReady(page, 60_000);
+    const loggedInAgain = await loginAfterDisconnect(
+      page,
+      admin.username,
+      admin.password,
+      null,
+      config.WORKSPACE_SERVER,
+    );
+    expect(loggedInAgain, 'could not log back in after reload').toBe(true);
     await waitForWorkspaceLoaded(page, 60_000);
     await closeAnyModals(page);
 
