@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { listKnownServers, StoredServer } from "@/lib/server-utils";
+import { listKnownServers, getRecentServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
@@ -33,11 +33,32 @@ export const Connect = () => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       debugLog('Connect', 'Error fetching known servers:', error);
       debugLog('Connect', 'Error details:', errorMessage);
-      toast({
-        title: "Error",
-        description: "Failed to load saved workspaces",
-        variant: "destructive",
-      });
+
+      // Fall back to the servers we already have on disk.
+      //
+      // saveRecentServer writes this list on every successful connect,
+      // documented as being "for offline/fallback access" so this page always
+      // has data — but nothing ever read it. The one moment it exists for is
+      // this one, and until now a user whose protocol call failed was told
+      // "Failed to load saved workspaces" while their servers sat in
+      // localStorage untouched.
+      const cached = getRecentServers();
+      if (cached.length > 0) {
+        setServers(cached);
+        setSelectedServer(cached[0].serverAddress);
+        toast({
+          // Said plainly: this list is from a previous session, so an address
+          // that has since changed will not be reflected here.
+          title: "Showing saved workspaces",
+          description: "Could not reach the service, so these are from your last session.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load saved workspaces",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
