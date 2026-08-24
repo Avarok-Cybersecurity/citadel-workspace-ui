@@ -23,6 +23,7 @@ import { createAccount } from './lib/account.js';
 import { waitForAppReady, clearBrowserStorage } from './lib/browser.js';
 import { waitForWorkspaceLoaded, closeAnyModals } from './lib/modals.js';
 import { config, isCI } from './lib/config.js';
+import { restartBackendServices } from './lib/service-helpers.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +38,19 @@ export interface AdminCredentials {
 }
 
 export default async function globalSetup(): Promise<void> {
+  // Start from a known backend.
+  //
+  // The legacy specs each restart the services; the Playwright ones never did,
+  // so a long run degraded itself — sessions, accounts and tree nodes piled up
+  // across it, the landing page grew an Active Sessions navbar that changed the
+  // tab order, and workspace loads started timing out. The failures that
+  // produces look like product bugs and get investigated as such: office-room-crud
+  // failed at the end of a 6-minute run and passed in 37s against a fresh stack.
+  //
+  // The services are in-memory by design (see CLAUDE.md), so this costs a
+  // restart and buys a suite whose results mean the same thing every time.
+  await restartBackendServices();
+
   const username = `pw_admin_${Date.now()}`;
   const password = config.DEFAULT_PASSWORD;
 

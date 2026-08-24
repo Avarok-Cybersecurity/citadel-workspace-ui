@@ -60,7 +60,18 @@ export default defineConfig({
     retries: isCI ? 2 : 0,
 
     /* Sequential in CI to avoid resource contention; parallel locally */
-    workers: isCI ? 1 : 2,
+    // One worker everywhere, not just in CI.
+    //
+    // Every spec runs against the same dev server, internal service and
+    // workspace server, registering real accounts and mutating shared workspace
+    // state. Two workers therefore interfere with each other, and the failures
+    // that produces look exactly like product bugs — a dialog that "will not
+    // close", a node that "is not in the sidebar" — so they get investigated as
+    // such. Observed directly: the keyboard spec failed as a file and passed
+    // when its one test was run alone.
+    //
+    // Local runs are slower for it. That is the cheaper cost.
+    workers: 1,
     fullyParallel: false,
 
     /* Reporters */
