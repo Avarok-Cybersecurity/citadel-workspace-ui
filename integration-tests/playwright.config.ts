@@ -90,6 +90,15 @@ export default defineConfig({
         launchOptions: {
             slowMo: isCI ? 0 : 50,
             args: [
+                // Synthetic camera and microphone. Without these a call test
+                // needs real hardware, which no CI runner has — and the
+                // permission prompt would block the run before any assertion.
+                // The fake camera emits a moving pattern, so a tile that
+                // decodes it has genuinely carried video rather than merely
+                // being present.
+                '--use-fake-device-for-media-stream',
+                '--use-fake-ui-for-media-stream',
+                '--autoplay-policy=no-user-gesture-required',
                 '--disable-background-timer-throttling',
                 '--disable-backgrounding-occluded-windows',
                 '--disable-renderer-backgrounding',
