@@ -52,13 +52,24 @@ export class PermissionsService extends EventListenerManager {
       permissions: string[];
       domainId: string;
     }>('user:permissions:loaded', (payload) => {
-      // Async resolution, for the same reason fetchPermissions uses it: the
-      // synchronous accessor is null for a user who logged IN, so this equality
-      // check failed for every response and the cache was never written — even
-      // though the server had answered with the right role.
+      // Synchronous fast path FIRST. Resolving asynchronously in every case
+      // filled the cache a tick later than it used to, and consumers that read
+      // straight after this event — the permissions settings tab among them —
+      // began rendering against an empty cache.
+      //
+      // The async fallback exists because the synchronous accessor is null for a
+      // user who logged IN rather than registering, which made this equality
+      // check fail for every response and left the cache permanently empty.
+      if (payload.userId === this.getCurrentUserId()) {
+        updateCacheEntry(this.cache, payload.domainId, payload.role, payload.permissions);
+        return;
+      }
+
       void this.isCurrentUser(payload.userId).then((mine) => {
         if (mine) {
           updateCacheEntry(this.cache, payload.domainId, payload.role, payload.permissions);
+          // Only emitted on the async path: the synchronous one has already
+          // updated the cache before any listener could observe it missing.
           this.emit('permissions:updated', { domainId: payload.domainId });
         }
       });
