@@ -212,3 +212,4 @@ export { adminCredentials, hasWorkspaceAdmin, type AdminCredentials } from './ad
 export { activateTab, type TabActivation } from './tabs.js';
 export { navigateInApp, navigateToDirectory } from './navigation.js';
 export { adminDialog, openNodeContextMenu, openAdminPanel, activateAdminTab } from './admin-panel.js';
+export { WORKSPACE_ROOT_SENTINEL } from './tree-helpers.js';

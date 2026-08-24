@@ -199,8 +199,14 @@ async function runTest(): Promise<boolean> {
 
     // Get workspace root ID
     workspaceRootId = await getWorkspaceRootId(page);
-    results.workspaceRootFound = workspaceRootId !== null;
-    logStep('Workspace root found', results.workspaceRootFound, workspaceRootId || 'unknown');
+    // `workspaceRootId !== null` was not an assertion: getWorkspaceRootId falls
+    // back to the WORKSPACE_ROOT_SENTINEL and cannot return null, so this always
+    // held — and it counted toward this spec's pass total. Resolving the id to a
+    // real Workspace node at depth 0 is the check that was intended.
+    const rootNode = await getNodeViaProtocol(page, workspaceRootId);
+    results.workspaceRootFound =
+      rootNode !== null && rootNode.entity_type === 'Workspace' && rootNode.depth === 0;
+    logStep('Workspace root resolves', results.workspaceRootFound, workspaceRootId);
 
     if (!workspaceRootId) {
       throw new Error('Could not find workspace root ID');

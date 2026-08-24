@@ -378,70 +378,43 @@ export async function getTreeStructure(
  * Get the workspace root ID from the current context.
  * Supports multiple workspaces per server by detecting the workspace ID from URL or context.
  */
-export async function getWorkspaceRootId(page: Page): Promise<string | null> {
-  console.log('  [Tree] Searching for workspace root ID...');
+/**
+ * The id single-workspace servers use for the tree root.
+ *
+ * The server synthesises a `Workspace` node for this id in GetNode, but
+ * `get_all_nodes` never contains it — which is why deleting or moving it reports
+ * "not found" rather than "cannot delete root".
+ */
+export const WORKSPACE_ROOT_SENTINEL = 'workspace-root';
 
-  // Try to get from workspace context or localStorage
-  const result = await page.evaluate(() => {
-    // Try workspace context
-    const ctx = (window as unknown as Record<string, unknown>).__workspaceContext as {
-      workspace?: { id: string };
-    } | undefined;
-
-    if (ctx?.workspace?.id) {
-      return { id: ctx.workspace.id, source: 'context' };
-    }
-
-    // Try localStorage/sessionStorage
-    const stored = localStorage.getItem('currentWorkspace') ||
-      sessionStorage.getItem('currentWorkspace');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed.id) return { id: parsed.id, source: 'localStorage' };
-        if (parsed.workspaceId) return { id: parsed.workspaceId, source: 'localStorage' };
-      } catch {
-        if (stored.match(/^[a-f0-9-]{36}$/i)) {
-          return { id: stored, source: 'localStorage-raw' };
-        }
-      }
-    }
-
-    // Try to find workspace ID from DOM
-    const wsElement = document.querySelector('[data-workspace-id]');
-    if (wsElement) {
-      const id = wsElement.getAttribute('data-workspace-id');
-      if (id) return { id, source: 'dom-attribute' };
-    }
-
-    // Try to find any UUID in data attributes that looks like a workspace ID
-    const allElements = Array.from(document.querySelectorAll('[data-id]'));
-    for (const el of allElements) {
-      const id = el.getAttribute('data-id');
-      if (id && id.match(/^[a-f0-9-]{36}$/i)) {
-        return { id, source: 'dom-data-id' };
-      }
-    }
-
-    return { id: null, source: 'not-found' };
-  });
-
-  if (result?.id) {
-    console.log(`  [Tree] Found workspace root ID: ${result.id} (via ${result.source})`);
-    return result.id;
-  }
-
-  // Fallback: Get from URL (supports multiple workspaces)
-  const url = page.url();
-  const match = url.match(/workspace[/=]([a-f0-9-]{36})/i);
+/**
+ * The workspace root id to use as a parent when creating top-level nodes.
+ *
+ * Returns a string, never null. The previous signature was `string | null`
+ * while the body could not actually produce null — it fell through to the
+ * sentinel — and four specs wrote `workspaceRootId !== null` believing that was
+ * an assertion. It always held, and in two of them it sat in the pass gate.
+ *
+ * The detection it used to attempt has been removed rather than left in place:
+ * it probed `window.__workspaceContext`, a `currentWorkspace` storage key,
+ * `[data-workspace-id]` and any 36-char `[data-id]`. The app exposes only
+ * `__websocketService` and `__workspaceService` (see src/vite-env.d.ts) and
+ * renders none of those attributes, so every branch was dead code that made the
+ * function look like it was discovering something.
+ *
+ * The URL check is kept because it can genuinely match on a multi-workspace
+ * server. If you need to know whether the root was identified or assumed,
+ * compare the result against WORKSPACE_ROOT_SENTINEL.
+ */
+export async function getWorkspaceRootId(page: Page): Promise<string> {
+  const match = page.url().match(/workspace[/=]([a-f0-9-]{36})/i);
   if (match) {
-    console.log(`  [Tree] Extracted workspace ID from URL: ${match[1]}`);
+    console.log(`  [Tree] Workspace root id from URL: ${match[1]}`);
     return match[1];
   }
 
-  // Final fallback: Use the default workspace-root constant for single-workspace servers
-  console.log('  [Tree] Using default workspace-root ID');
-  return 'workspace-root';
+  console.log(`  [Tree] Assuming the ${WORKSPACE_ROOT_SENTINEL} sentinel`);
+  return WORKSPACE_ROOT_SENTINEL;
 }
 
 // ============================================================================
