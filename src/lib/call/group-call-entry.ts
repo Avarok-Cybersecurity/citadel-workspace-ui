@@ -68,7 +68,14 @@ export function groupCallEntryMode(
 }
 
 function startReason(others: number, cap: number, kind: 'audio' | 'video'): string | null {
-  if (others === 0) return 'No one else is in this conversation yet.';
+  // Says what to DO, not just what is wrong. The roster comes from the room's
+  // members, and joining a workspace does not make you a member of every room
+  // in it — so this is the state a brand-new room is always in, and "no one
+  // else is here" alone leaves the user with no idea that membership is the
+  // lever.
+  if (others === 0) {
+    return 'No one else is in this conversation yet — add members to this room to call them.';
+  }
   if (others > cap) {
     return `This group is too large for a ${kind} call — calls carry up to ${cap} other people, and this group has ${others}.`;
   }
