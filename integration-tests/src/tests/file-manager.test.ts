@@ -505,8 +505,15 @@ async function uploadFileViaToolbar(
       }
     }
 
-    // Set up file chooser handler
+    // Set up file chooser handler. It has to be armed BEFORE the click or the
+    // event races us, which means the early `return false` below can abandon it.
+    // An abandoned waitForEvent rejects on its own timeout with no handler
+    // attached, and an unhandled rejection takes the whole node process down —
+    // that is how this spec lost every result it had already collected and
+    // reported NO VERDICT. Attaching a no-op catch marks it handled; awaiting
+    // the original promise further down still works exactly as before.
     const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
+    fileChooserPromise.catch(() => undefined);
 
     // Click Upload button (Upload icon in toolbar)
     const uploadBtn = page.locator('button').filter({ has: page.locator('svg.lucide-upload') }).first();
