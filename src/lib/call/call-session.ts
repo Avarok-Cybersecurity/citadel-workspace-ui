@@ -11,6 +11,7 @@ import { INITIAL_CONGESTION, applyReport, shouldDropFrame, type CongestionState,
 import { supportedVideoEncoders, negotiateGroupVideoCodec, type VideoCodec } from './codec-support';
 import type { WireFrame } from './frame-codec';
 import type { CallMediaKinds } from '@/types/p2p-commands';
+import { CapturePump } from './capture-pump';
 import { debugLog } from '@/lib/debug-config';
 
 export interface CallSessionCallbacks {
@@ -29,6 +30,7 @@ export class CallSession {
   private readonly receivers = new Map<bigint, PeerReceiver>();
   private congestion: CongestionState = INITIAL_CONGESTION;
   private codec: VideoCodec | null = null;
+  private pump: CapturePump | null = null;
   private closed = false;
 
   constructor(private readonly callbacks: CallSessionCallbacks) {}
@@ -70,6 +72,15 @@ export class CallSession {
       // a group re-negotiates once everyone has answered.
       this.codec = negotiateGroupVideoCodec(encoders, []);
     }
+
+    // Started only after the codec is known, since encodeVideo drops frames
+    // until there is one — pumping before then would discard the opening
+    // second of the call.
+    this.pump = new CapturePump({
+      onVideoFrame: (frame, isKeyframe) => this.encodeVideo(frame, isKeyframe),
+      onAudioData: (data) => this.encodeAudio(data),
+    });
+    this.pump.start(result.stream);
 
     return { audio: hasAudio, video: hasVideo && this.codec !== null, screen: false };
   }
@@ -185,6 +196,10 @@ export class CallSession {
     if (this.closed) return;
     this.closed = true;
 
+    // Stopped FIRST: a frame arriving from the pump after the encoders close
+    // would be handed to a closed codec.
+    this.pump?.stop();
+    this.pump = null;
     this.videoEncoder?.close();
     this.audioEncoder?.close();
     for (const receiver of this.receivers.values()) receiver.close();

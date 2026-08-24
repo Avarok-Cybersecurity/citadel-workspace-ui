@@ -57,6 +57,15 @@ beforeEach(() => {
     },
   );
   vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[] = []) {} getTracks() { return this.tracks; } });
+  // The efficient capture path. Without it the session falls back to the canvas
+  // pump, which needs a real <video> element and an animation frame loop.
+  vi.stubGlobal(
+    'MediaStreamTrackProcessor',
+    class {
+      readable = { getReader: () => ({ read: () => new Promise(() => {}), cancel: vi.fn().mockResolvedValue(undefined) }) };
+      constructor(public init: { track: unknown }) {}
+    },
+  );
   Object.defineProperty(navigator, 'mediaDevices', {
     value: { getUserMedia: vi.fn().mockResolvedValue(fakeStream(true)) },
     configurable: true,
