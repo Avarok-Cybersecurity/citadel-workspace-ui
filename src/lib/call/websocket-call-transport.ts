@@ -16,8 +16,15 @@ import { debugLog } from '@/lib/debug-config';
 
 export interface WebSocketCallTransportOptions {
   selfCid: bigint;
-  /** Reuses the app's existing P2P send configuration rather than a second one. */
-  senderConfig: MessageSenderConfig;
+  /**
+   * Only the slice of the P2P sender configuration this actually uses.
+   *
+   * MessageSenderConfig carries eleven members built for chat — conversation
+   * stores, message listeners, delivery status. Requiring all of them to send a
+   * call invite would tie calling to machinery it has nothing to do with, and
+   * make it untestable without standing up a conversation store.
+   */
+  senderConfig: Pick<MessageSenderConfig, 'getCurrentCid'>;
 }
 
 export class WebSocketCallTransport implements CallTransport {
@@ -84,7 +91,10 @@ export class WebSocketCallTransport implements CallTransport {
     // the lossy one. Losing a video frame costs a sixtieth of a second; losing
     // a "call ended" leaves both sides staring at a call that is over.
     await sendP2PCommand(
-      this.options.senderConfig,
+      // The cast is the narrowing above meeting a wider published signature.
+      // sendP2PCommand takes the full config but reads only getCurrentCid, and
+      // even that is skipped when the sender cid is supplied — as it is here.
+      this.options.senderConfig as MessageSenderConfig,
       peerCid,
       { type: P2PCommandType.CallSignal, payload: signal },
       this.options.selfCid,

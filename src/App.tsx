@@ -10,6 +10,7 @@ import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
 import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
 import { OfflineBanner } from "./components/pwa/OfflineBanner";
+import { CallLayer } from "./components/call/CallLayer";
 
 // Landing is the route almost every session starts on, so it is imported eagerly:
 // code-splitting it would only add a network round trip before first paint.
@@ -75,6 +76,11 @@ const App = () => {
               change, and the console stays clean enough that a real warning
               is noticeable.
             */}
+            {/* Wraps the router, not a route: a ringing call has to be
+                answerable from wherever the user happens to be, and a call must
+                survive navigating between rooms rather than dying with the
+                page that started it. */}
+            <CallLayer>
             <BrowserRouter
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
@@ -121,6 +127,7 @@ const App = () => {
                 </Routes>
               </Suspense>
             </BrowserRouter>
+            </CallLayer>
           </WorkspaceApp>
         </TooltipProvider>
       </QueryClientProvider>

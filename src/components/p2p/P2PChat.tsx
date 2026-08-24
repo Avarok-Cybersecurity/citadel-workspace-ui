@@ -20,6 +20,9 @@ import { LiveDocumentModal } from './LiveDocumentModal';
 import { FileTransferModal } from './FileTransferModal';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
+import { CallStage } from '@/components/call/CallStage';
+import { useCall } from '@/lib/call/call-context';
+import { useCallDuration } from '@/components/call/use-call-duration';
 import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
@@ -56,6 +59,15 @@ export function P2PChat({
   onDeleteMessage,
   onReplyMessage,
 }: P2PChatProps) {
+  // Hooks first, before any early return in this component. Placing them lower
+  // put them after one, which breaks React's hook ordering and fails
+  // intermittently at runtime rather than reliably.
+  const { call, localStream, remoteStreams, capability, startCall, leave, toggleMic, toggleCamera } = useCall();
+  // Scoped to THIS conversation: a call with someone else must not render its
+  // stage over an unrelated chat.
+  const isCallWithThisPeer = call !== null && call.participants.has(peerCid);
+  const callDuration = useCallDuration(isCallWithThisPeer && call?.status === 'active');
+
   const isGroupMode = mode === 'group';
   const displaySenderName = showSenderName ?? isGroupMode;
   const displaySenderAvatar = showSenderAvatar ?? isGroupMode;
@@ -192,9 +204,39 @@ export function P2PChat({
 
   const isViewingDocument = activeTab?.type === 'live_document';
 
+
   return (
     <div className="h-full flex flex-col bg-background">
-      <P2PChatHeader peerName={peerName} peerPresence={peerPresence} peerTyping={peerTyping} isConnected={isConnected} isRegistered={isRegistered} onSettingsClick={() => setShowSettingsModal(true)} />
+      <P2PChatHeader
+        peerName={peerName}
+        peerPresence={peerPresence}
+        peerTyping={peerTyping}
+        isConnected={isConnected}
+        isRegistered={isRegistered}
+        onSettingsClick={() => setShowSettingsModal(true)}
+        call={{
+          canCall: isConnected,
+          inCall: isCallWithThisPeer,
+          capability,
+          onStartCall: (video) => void startCall([{ cid: peerCid, username: peerName }], video),
+          onLeave: () => void leave(),
+        }}
+      />
+
+      {/* Docked above the messages, so the conversation stays usable during a
+          call — which is the entire reason to put calling inside a messenger. */}
+      {isCallWithThisPeer && call && (
+        <CallStage
+          call={call}
+          selfUsername="You"
+          localStream={localStream}
+          remoteStreams={remoteStreams}
+          duration={callDuration}
+          onToggleMic={() => void toggleMic()}
+          onToggleCamera={() => void toggleCamera()}
+          onLeave={() => void leave()}
+        />
+      )}
       <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} />
 
       {rules && (
