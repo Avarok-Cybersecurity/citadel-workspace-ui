@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import { CallManager } from '@/lib/call/call-manager';
-import { CallSession } from '@/lib/call/call-session';
 import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
-import { probeMediaCapabilities, localCapabilities } from '@/lib/call/codec-support';
 import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
+import type { CallSession } from '@/lib/call/call-session';
 import type { CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
 import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
@@ -43,7 +42,11 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
 
   useEffect(() => {
     let cancelled = false;
-    void probeMediaCapabilities().then((report) => {
+    // Imported on demand, like the session below: the probe lives in
+    // codec-support, which drags the whole codec table in with it.
+    void import('@/lib/call/codec-support')
+      .then((m) => m.probeMediaCapabilities())
+      .then((report) => {
       if (!cancelled) setCapability({ supported: report.supported, reason: report.reason });
     });
     return () => {
@@ -69,6 +72,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     if (managerPromiseRef.current) return managerPromiseRef.current;
 
     const build = (async () => {
+      const { localCapabilities } = await import('@/lib/call/codec-support');
       const capabilities = await localCapabilities();
       const manager = new CallManager({
         transport: new WebSocketCallTransport({ selfCid, senderConfig }),
@@ -105,7 +109,20 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     return build;
   }, [selfCid, senderConfig, teardown]);
 
-  const ensureSession = useCallback((): CallSession => {
+  /**
+   * Loaded on demand, not at import time.
+   *
+   * CallSession pulls in the capture pump, the WebCodecs pipeline, the codec
+   * table and the receive path — none of which can possibly be needed before
+   * there is a call. Imported statically it landed in the landing-page entry
+   * chunk, so every visitor downloaded a video encoder before the login form
+   * had painted.
+   */
+  const ensureSession = useCallback(async (): Promise<CallSession> => {
+    if (sessionRef.current) return sessionRef.current;
+    const { CallSession } = await import('@/lib/call/call-session');
+    // Re-checked after the await: two callers can race this import, and the
+    // second must not replace a session the first already started capturing on.
     if (sessionRef.current) return sessionRef.current;
     const session = new CallSession({
       onFrame: (frame) => managerRef.current?.sendFrame(frame),
@@ -158,7 +175,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       const manager = await ensureManager();
       if (!manager) return;
 
-      const session = ensureSession();
+      const session = await ensureSession();
       const got = await session.start({ audio: true, video, screen: false });
       // Capture failing means there is nothing to send, so nobody is rung — a
       // ringing phone for a call that cannot carry audio wastes their time.
@@ -181,7 +198,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       const manager = managerRef.current;
       if (!manager) return;
 
-      const session = ensureSession();
+      const session = await ensureSession();
       const got = await session.start(media);
       if (!got) {
         await manager.decline('no-devices');
