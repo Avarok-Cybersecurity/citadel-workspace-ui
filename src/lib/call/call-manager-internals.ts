@@ -21,4 +21,6 @@ export interface CallManagerInternals {
   apply(event: CallEvent): void;
   /** A peer's decoder is stuck and needs our encoder to produce a keyframe. */
   keyframeRequested(track: number): void;
+  /** An inbound signal for the current call arrived from this peer. */
+  peerSeen(cid: bigint): void;
 }

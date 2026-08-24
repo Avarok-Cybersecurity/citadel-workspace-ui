@@ -24,7 +24,8 @@ import type { WireFrame } from './frame-codec';
 import { PeerCodecBook } from './peer-codec-book';
 import { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
 import type { CallManagerInternals } from './call-manager-internals';
-import { handleInboundSignal } from './call-signal-handling';
+import { CallLivenessBinding } from './call-liveness-binding';
+import { announceSendCodec, handleInboundSignal } from './call-signal-handling';
 import { closeAllSessions, openSessionFor } from './media-session-lifecycle';
 
 export { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
@@ -49,8 +50,12 @@ export class CallManager {
   /** Codec facts peers told us; consumed by the provider's codec sync. */
   readonly codecs = new PeerCodecBook();
   private cancelRingTimeout: (() => void) | null = null;
+  /** Watches for peers going silent; see call-liveness-binding. */
+  private readonly liveness: CallLivenessBinding;
 
-  constructor(private readonly options: CallManagerOptions) {}
+  constructor(private readonly options: CallManagerOptions) {
+    this.liveness = new CallLivenessBinding(options, () => this.internals());
+  }
 
   getState(): CallState | null {
     return this.state;
@@ -66,6 +71,7 @@ export class CallManager {
       this.cancelRingTimeout();
       this.cancelRingTimeout = null;
     }
+    this.liveness.observeState(next);
     this.options.onStateChanged(next);
   }
 
@@ -79,6 +85,7 @@ export class CallManager {
       getState: () => this.state,
       apply: (event) => this.apply(event),
       keyframeRequested: (track) => this.options.onKeyframeRequested(track),
+      peerSeen: (cid) => this.liveness.peerSeen(cid),
     };
   }
 
@@ -192,32 +199,10 @@ export class CallManager {
     );
   }
 
-  /**
-   * Tell peers our send codec changed after renegotiation.
-   *
-   * The caller only learns the callee's decode list from the accept, so the
-   * codec announced in the invite can turn out to be undecodable there; the
-   * peers' decoders are configured from these announcements, so a silent
-   * switch would be a permanently black tile on their side.
-   */
+  /** Tell peers our send codec changed; the why lives with the implementation
+   *  in call-signal-handling. */
   async announceSendCodec(codec: string | null): Promise<void> {
-    const state = this.state;
-    if (!state || state.status === 'ended' || state.status === 'failed') return;
-
-    await Promise.all(
-      [...state.participants.values()]
-        .filter((p) => p.status !== 'left' && p.status !== 'declined')
-        .map((p) =>
-          this.options.transport
-            .sendSignal(p.cid, {
-              kind: 'CallMediaState',
-              call_id: state.callId,
-              media: state.selfMedia,
-              video_send_codec: codec,
-            })
-            .catch(() => undefined),
-        ),
-    );
+    return announceSendCodec(this.internals(), codec);
   }
 
   /** Fan one encoded frame out to every participant who is in the call. */

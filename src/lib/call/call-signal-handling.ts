@@ -31,6 +31,12 @@ export async function handleInboundSignal(
   const state = m.getState();
   if (!state || signal.call_id !== state.callId) return;
 
+  // Presence is recorded before the per-kind handling because ANY signal for
+  // the live call proves the sender is there — a peer toggling its camera is
+  // plainly alive, and requiring a heartbeat specifically would evict someone
+  // who is demonstrably participating.
+  m.peerSeen(from);
+
   switch (signal.kind) {
     case 'CallAccept': {
       m.codecs.recordCaps(from, signal.codecs);
@@ -58,6 +64,10 @@ export async function handleInboundSignal(
       m.apply({ type: 'peer-media-changed', cid: from, media: signal.media });
       return;
 
+    case 'CallHeartbeat':
+      // Its entire meaning — "still here" — was consumed by peerSeen above.
+      return;
+
     case 'CallKeyframeRequest':
       // Straight through to the encoder owner. Buffering these was both a
       // dead end (nothing drained the buffer) and unbounded growth at the
@@ -68,6 +78,37 @@ export async function handleInboundSignal(
     default:
       return;
   }
+}
+
+/**
+ * Tell peers our send codec changed after renegotiation.
+ *
+ * The caller only learns the callee's decode list from the accept, so the
+ * codec announced in the invite can turn out to be undecodable there; the
+ * peers' decoders are configured from these announcements, so a silent
+ * switch would be a permanently black tile on their side.
+ */
+export async function announceSendCodec(
+  m: CallManagerInternals,
+  codec: string | null,
+): Promise<void> {
+  const state = m.getState();
+  if (!state || state.status === 'ended' || state.status === 'failed') return;
+
+  await Promise.all(
+    [...state.participants.values()]
+      .filter((p) => p.status !== 'left' && p.status !== 'declined')
+      .map((p) =>
+        m.transport
+          .sendSignal(p.cid, {
+            kind: 'CallMediaState',
+            call_id: state.callId,
+            media: state.selfMedia,
+            video_send_codec: codec,
+          })
+          .catch(() => undefined),
+      ),
+  );
 }
 
 async function handleInvite(

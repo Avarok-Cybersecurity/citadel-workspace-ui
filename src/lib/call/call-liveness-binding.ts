@@ -1,0 +1,98 @@
+/**
+ * Ties CallLiveness to the call lifecycle.
+ *
+ * CallLiveness knows only about timestamps; this module knows when a call is
+ * the kind of thing that needs watching (active), who counts as present, and
+ * what "gone" means to the reducer. Kept out of CallManager so the manager
+ * stays pure orchestration and within its size budget.
+ */
+
+import type { CallSignalPayload } from '@/types/p2p-commands';
+import { CallLiveness } from './call-liveness';
+import type { CallManagerInternals } from './call-manager-internals';
+import type { CallState } from './call-state';
+import type { CallTransport } from './call-transport';
+import { closeIfFinished, closeSessionFor } from './media-session-lifecycle';
+
+/** The slice of CallManagerOptions the liveness wiring needs. */
+export interface CallLivenessBindingOptions {
+  transport: CallTransport;
+  now: () => number;
+  schedule: (fn: () => void, delayMs: number) => () => void;
+}
+
+/** Who is expected to heartbeat us — and whom we heartbeat in return. */
+function presentPeers(state: CallState): bigint[] {
+  return [...state.participants.values()]
+    .filter((p) => p.status === 'active' || p.status === 'connecting')
+    .map((p) => p.cid);
+}
+
+/**
+ * A peer that went silent past the timeout is treated exactly as one that said
+ * goodbye: same reducer event, same session teardown. The reducer then ends a
+ * 1:1 call outright, while a group call carries on for everyone else — the
+ * distinction is its rule, not duplicated here.
+ */
+export async function peerLostBecauseSilent(
+  m: CallManagerInternals,
+  cid: bigint,
+): Promise<void> {
+  m.apply({ type: 'peer-left', cid });
+  await closeSessionFor(m, cid);
+  await closeIfFinished(m);
+}
+
+export class CallLivenessBinding {
+  private readonly liveness: CallLiveness;
+  private running = false;
+
+  constructor(options: CallLivenessBindingOptions, internals: () => CallManagerInternals) {
+    this.liveness = new CallLiveness({
+      now: options.now,
+      schedule: options.schedule,
+      sendHeartbeat: () => {
+        const state = internals().getState();
+        if (!state) return;
+        const beat: CallSignalPayload = { kind: 'CallHeartbeat', call_id: state.callId };
+        for (const cid of presentPeers(state)) {
+          // Best-effort: a heartbeat that fails to send looks to the peer like
+          // one lost in transit, and their timeout already covers that case.
+          void options.transport.sendSignal(cid, beat).catch(() => undefined);
+        }
+      },
+      onPeerLost: (cid) => void peerLostBecauseSilent(internals(), cid),
+    });
+  }
+
+  /** Called on every state transition; starts, prunes, or stops tracking. */
+  observeState(state: CallState | null): void {
+    if (!state || state.status === 'ended' || state.status === 'failed') {
+      if (this.running) {
+        this.liveness.stop();
+        this.running = false;
+      }
+      return;
+    }
+    if (!this.running) {
+      // Armed only once the call is genuinely up. Earlier states have their own
+      // guardians — an unanswered dial is the ring timeout's job, and starting
+      // during ringing would evict invitees who simply have not picked up yet.
+      if (state.status === 'active') {
+        this.liveness.start(presentPeers(state));
+        this.running = true;
+      }
+      return;
+    }
+    // A peer who left or declined for a known reason must not later be
+    // reported lost as well.
+    for (const p of state.participants.values()) {
+      if (p.status === 'left' || p.status === 'declined') this.liveness.forget(p.cid);
+    }
+  }
+
+  /** Any inbound signal for the current call proves the sender is alive. */
+  peerSeen(cid: bigint): void {
+    if (this.running) this.liveness.seen(cid);
+  }
+}
