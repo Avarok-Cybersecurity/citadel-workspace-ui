@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { User } from '../types/workspace-entities';
@@ -72,6 +73,7 @@ export const WorkspaceEventHandler: React.FC<{
   onStateChange?: (state: WorkspaceEventState) => void;
   children?: React.ReactNode;
 }> = ({ onStateChange, children }) => {
+  const navigate = useNavigate();
   const [state, setState] = useState<WorkspaceEventState>({
     workspace: undefined,
     workspaces: [],
@@ -136,6 +138,19 @@ export const WorkspaceEventHandler: React.FC<{
       .catch(error => debugLog('WorkspaceEventHandler', 'Error reloading workspace after initialization:', error));
   };
 
+  /**
+   * Cancelling initialisation means declining to set this workspace up, so it
+   * returns to the index rather than leaving the user inside a workspace that
+   * does not exist yet — which showed an empty, non-functional shell with no
+   * way back and no explanation.
+   */
+  const handleInitCancelled = () => {
+    setShowInitModal(false);
+    setInitModalDismissed(true);
+    sessionStorage.setItem('workspace-init-modal-dismissed', 'true');
+    navigate('/');
+  };
+
   return (
     <>
       <WorkspaceProvider state={state as WorkspaceState} sendMessage={sendMessage}>
@@ -145,7 +160,7 @@ export const WorkspaceEventHandler: React.FC<{
       </WorkspaceProvider>
       <WorkspaceInitializationModal
         isOpen={showInitModal}
-        onClose={() => { setShowInitModal(false); setInitModalDismissed(true); sessionStorage.setItem('workspace-init-modal-dismissed', 'true'); }}
+        onClose={handleInitCancelled}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}
         workspaceId={state.workspace?.id || 'root'}
