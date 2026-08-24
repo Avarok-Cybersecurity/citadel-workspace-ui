@@ -16,6 +16,7 @@ import {
   useMessageEventSetup,
 } from './hooks';
 import { debugLog } from '@/lib/debug-config';
+import { WorkspaceThemeProvider } from './theme/WorkspaceThemeProvider';
 
 export interface WorkspaceEventState {
   workspace?: {
@@ -138,7 +139,9 @@ export const WorkspaceEventHandler: React.FC<{
   return (
     <>
       <WorkspaceProvider state={state as WorkspaceState} sendMessage={sendMessage}>
-        {children}
+        {/* Inside WorkspaceProvider: the theme lives in the workspace's metadata,
+            so it can only be read once the workspace is in context. */}
+        <WorkspaceThemeProvider>{children}</WorkspaceThemeProvider>
       </WorkspaceProvider>
       <WorkspaceInitializationModal
         isOpen={showInitModal}

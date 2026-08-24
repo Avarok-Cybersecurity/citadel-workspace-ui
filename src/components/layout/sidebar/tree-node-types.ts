@@ -39,6 +39,8 @@ export interface DomainPermissions {
   configure_system: boolean;
   edit_tree_structure: boolean;
   manage_node_types: boolean;
+  /** Edit the workspace theme shown to every member. */
+  themes: boolean;
 }
 
 /**
