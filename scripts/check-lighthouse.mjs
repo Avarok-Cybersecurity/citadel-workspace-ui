@@ -133,6 +133,23 @@ async function main() {
       console.log(
         `  ${key.padEnd(16)} ${String(shown).padStart(3)}  (min ${Math.round(baseline * 100)})  ${ok ? 'ok' : 'FAIL'}`,
       );
+
+      // Name the audits that cost the points. A gate that reports "96, FAIL"
+      // and stops sends whoever reads it off to reproduce the run by hand
+      // before they can even start fixing it — and a score is not a defect.
+      if (!ok && category.auditRefs) {
+        for (const ref of category.auditRefs) {
+          const audit = audits[ref.id];
+          if (!audit || audit.score === null || audit.score >= 1) continue;
+          console.log(`      ${audit.id}: ${audit.title}`);
+          for (const item of (audit.details?.items ?? []).slice(0, 3)) {
+            const snippet = item.node?.snippet ?? item.source?.snippet ?? '';
+            if (snippet) console.log(`        ${String(snippet).slice(0, 140)}`);
+            const why = item.node?.explanation;
+            if (why) console.log(`        why: ${String(why).slice(0, 160)}`);
+          }
+        }
+      }
     }
 
     console.log('');
