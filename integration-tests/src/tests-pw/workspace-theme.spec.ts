@@ -14,9 +14,11 @@
 
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
+  adminCredentials,
   clearBrowserStorage,
   closeAnyModals,
-  createAccount,
+  hasWorkspaceAdmin,
+  loginAfterDisconnect,
   waitForAppReady,
   waitForWorkspaceLoaded,
 } from '../lib/index.js';
@@ -56,21 +58,38 @@ test.describe.serial('Workspace theming', () => {
     context = await browser.newContext();
     page = await context.newPage();
 
+    // Log in as the admin global-setup registered rather than registering a
+    // fresh account. Editing the theme needs the `themes` permission, and only
+    // the account that INITIALISES the workspace gets one — a spec that
+    // registers its own user is the second user and correctly gets nothing.
+    // Registering here produced a modal that was read-only for entirely
+    // legitimate reasons, which is easy to mistake for a product defect.
+    const admin = adminCredentials();
+
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
     await clearBrowserStorage(page);
-    await page.reload({ waitUntil: 'commit', timeout: 60_000 });
     await waitForAppReady(page, 60_000);
 
-    const username = `theme_${Date.now()}`;
-    const registered = await createAccount(page, username, {
-      isFirstUser: true,
-      password: config.DEFAULT_PASSWORD,
-      uxTracker: null,
-    });
-    expect(registered, `could not register ${username}`).toBe(true);
+    const loggedIn = await loginAfterDisconnect(
+      page,
+      admin.username,
+      admin.password,
+      null,
+      config.WORKSPACE_SERVER,
+    );
+    expect(loggedIn, `could not log in as the workspace admin (${admin.username})`).toBe(true);
 
     await waitForWorkspaceLoaded(page, 60_000);
     await closeAnyModals(page);
+
+    // If the server already held a workspace from an earlier run, global-setup's
+    // account is a plain member and none of the editing assertions can pass.
+    // Say so rather than reporting it as a theming failure.
+    expect(
+      hasWorkspaceAdmin(),
+      'global-setup did not initialise the workspace, so no account here can edit the theme. ' +
+        'Restart the stack: docker compose restart server internal-service',
+    ).toBe(true);
   });
 
   test.afterAll(async () => {

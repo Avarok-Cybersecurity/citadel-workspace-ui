@@ -50,7 +50,14 @@ export const config: TestConfig = {
   WORKSPACE_SERVER: externalConfig.workspaceServer
     ? `${externalConfig.workspaceServer.host}:${externalConfig.workspaceServer.port}`
     : '127.0.0.1:12349',
-  WORKSPACE_PASSWORD: externalConfig.workspacePassword ?? process.env.WORKSPACE_MASTER_PASSWORD ?? 'dev-local-workspace-password',
+  // ENV FIRST, then the file. The server takes its master password from
+  // WORKSPACE_MASTER_PASSWORD (docker-compose passes it straight through), so the
+  // environment is the authority on what the running server will actually
+  // accept. With the file winning, a committed value silently overrode reality:
+  // initialisation was rejected at the password check, the first user never
+  // became admin, and the symptom surfaced much later as unexplained
+  // "permission denied" on every admin surface.
+  WORKSPACE_PASSWORD: process.env.WORKSPACE_MASTER_PASSWORD ?? externalConfig.workspacePassword ?? 'dev-local-workspace-password',
   DEFAULT_PASSWORD: externalConfig.defaultPassword ?? 'test12345',
   SCREENSHOTS_DIR: path.join(process.cwd(), 'screenshots'),
   LOGS_DIR: path.join(process.cwd(), 'logs'),
