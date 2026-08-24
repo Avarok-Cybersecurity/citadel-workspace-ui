@@ -211,3 +211,4 @@ export type {
 export { adminCredentials, hasWorkspaceAdmin, type AdminCredentials } from './admin.js';
 export { activateTab, type TabActivation } from './tabs.js';
 export { navigateInApp, navigateToDirectory } from './navigation.js';
+export { adminDialog, openNodeContextMenu, openAdminPanel, activateAdminTab } from './admin-panel.js';

@@ -10,6 +10,9 @@
 
 import { Page } from 'playwright';
 import {
+  activateAdminTab,
+  adminDialog,
+  openAdminPanel,
   sleep,
   createBrowser,
   createIsolatedContexts,
@@ -52,40 +55,15 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 async function openMemberManagement(page: Page): Promise<boolean> {
   console.log('\n=== Opening Member Management ===');
 
-  // Try sidebar Admin Settings section
-  const adminSettings = page.locator('button:has-text("Admin"), [data-testid*="admin"], text="Admin Settings"').first();
-  if (await isVisibleWithin(adminSettings, 5000)) {
-    await adminSettings.click();
-    await sleep(1000);
-  }
+  // The panel is reached through a tree node's context menu, not through a
+  // sidebar "Admin" button and a "Member Management" button — neither of which
+  // exists. The old route also used a selector mixing CSS with the text engine,
+  // which throws rather than matching. Shared with admin-modal via lib.
+  if (!(await openAdminPanel(page))) return false;
 
-  // Look for Member Management button/link
-  const memberMgmt = page.locator('button:has-text("Member Management"), button:has-text("Manage Members"), [data-testid*="member-management"]').first();
-  if (await isVisibleWithin(memberMgmt, 5000)) {
-    await memberMgmt.click();
-    await sleep(1000);
-
-    const modal = page.locator('[role="dialog"]').first();
-    return await modal.isVisible({ timeout: 3000 }).catch(() => false);
-  }
-
-  // Alternative: Try the admin-modal button (from existing test patterns)
-  const adminBtn = page.locator('button:has(svg.lucide-shield), button:has-text("Admin Panel")').first();
-  if (await isVisibleWithin(adminBtn, 3000)) {
-    await adminBtn.click();
-    await sleep(1000);
-
-    // Look for members tab within admin panel
-    const membersTab = page.locator('button:has-text("Members"), button[role="tab"]:has-text("Members")').first();
-    if (await isVisibleWithin(membersTab, 3000)) {
-      await membersTab.click();
-      await sleep(500);
-      return true;
-    }
-  }
-
-  console.log('  Member Management not found');
-  return false;
+  const onMembers = await activateAdminTab(page, 'members');
+  console.log(`  Members tab active: ${onMembers}`);
+  return onMembers;
 }
 
 // ============================================================================
@@ -154,17 +132,22 @@ async function runTest(): Promise<boolean> {
     console.log('\u2500'.repeat(50));
 
     if (results.memberManagementOpens) {
-      // Look for member entries (at least the admin user)
-      const memberEntries = page1.locator('[class*="member"], tr, [role="row"]');
-      const count = await memberEntries.count();
-      results.memberListVisible = count > 0;
-      console.log(`  Member entries found: ${count}`);
+      // Member rows by their own testid. `[class*="member"], tr, [role="row"]`
+      // matched anything on the page whose class happened to contain "member",
+      // and "more than zero of those exist" is not evidence the list rendered.
+      // Wait for the tab to finish loading before counting. It renders
+      // members-tab-loading first, and counting during that window finds zero
+      // rows and calls it an empty list.
+      const dialog = adminDialog(page1);
+      await isVisibleWithin(dialog.locator('[data-testid="members-tab-content"]'), 20_000);
 
-      // Check for text containing usernames
-      const bodyText = await page1.locator('[role="dialog"], [role="tabpanel"]').first().textContent().catch(() => '');
-      if (bodyText?.includes(ADMIN_USER) || bodyText?.includes(MEMBER_USER)) {
-        results.memberListVisible = true;
-        console.log('  Found username in member list');
+      const rows = dialog.locator('[data-testid^="member-row-"]');
+      const count = await rows.count();
+      results.memberListVisible = count > 0 && (await isVisibleWithin(rows.first(), 10_000));
+      console.log(`  Member rows found: ${count}`);
+      if (count === 0) {
+        const shown = (await dialog.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200);
+        console.log(`  Members panel showed: ${JSON.stringify(shown)}`);
       }
 
       await takeScreenshot(page1, '03_member_list');
@@ -176,8 +159,8 @@ async function runTest(): Promise<boolean> {
     console.log('\u2500'.repeat(50));
 
     if (results.memberManagementOpens) {
-      const roleSelect = page1.locator('select, [role="combobox"], button:has-text("Role"), button:has-text("Member")').first();
-      results.roleDropdownVisible = await roleSelect.isVisible({ timeout: 3000 }).catch(() => false);
+      const roleSelect = adminDialog(page1).locator('[data-testid^="member-role-select-"]').first();
+      results.roleDropdownVisible = await isVisibleWithin(roleSelect, 10_000);
       console.log(`  Role dropdown visible: ${results.roleDropdownVisible}`);
       await takeScreenshot(page1, '04_role_dropdown');
     }
@@ -188,8 +171,8 @@ async function runTest(): Promise<boolean> {
     console.log('\u2500'.repeat(50));
 
     if (results.memberManagementOpens) {
-      const kickBtn = page1.locator('button:has-text("Kick"), button:has-text("Ban"), button:has-text("Remove"), button:has(svg.lucide-user-x)').first();
-      results.kickButtonVisible = await kickBtn.isVisible({ timeout: 3000 }).catch(() => false);
+      const kickBtn = adminDialog(page1).locator('[data-testid^="member-remove-"]').first();
+      results.kickButtonVisible = await isVisibleWithin(kickBtn, 10_000);
       console.log(`  Kick/Ban button visible: ${results.kickButtonVisible}`);
       await takeScreenshot(page1, '05_kick_ban');
     }
@@ -202,7 +185,15 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreation.admin;
+    // All six. Four were failing silently because the panel never opened.
+    const corePassed = [
+      results.accountCreation.admin,
+      results.accountCreation.member,
+      results.memberManagementOpens,
+      results.memberListVisible,
+      results.roleDropdownVisible,
+      results.kickButtonVisible,
+    ].every(Boolean);
 
     console.log(`\n  Admin Created:             ${results.accountCreation.admin ? 'PASS' : 'FAIL'}`);
     console.log(`  Member Created:            ${results.accountCreation.member ? 'PASS' : 'CHECK'}`);

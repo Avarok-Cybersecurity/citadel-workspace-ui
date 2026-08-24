@@ -7,8 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps, MemberData, UserRole, USER_ROLES } from '../types';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
+import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
 import { PermissionManager } from '@/components/permissions/PermissionManager';
 import { Loader2, Shield } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -16,7 +16,6 @@ import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
-  const { state } = useWorkspace();
   const { toast } = useToast();
   const [members, setMembers] = useState<MemberData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,46 +29,42 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId]);
 
+  // listMembers() dispatches a request and returns void; the result arrives as a
+  // `members:loaded` event. This used to `await` that call and branch on the
+  // return value, with a comment noting the branch was dead — so it always fell
+  // through to a fallback over state.members, which is empty here, and the tab
+  // reported "No members found" no matter who was in the workspace. Subscribing
+  // is what MembersSection in the sidebar already does; this now matches it.
+  useEffect(() => {
+    const handleMembersLoaded = (payload: MembersPayload) => {
+      if (!payload.members) return;
+      setMembers(
+        payload.members.map((m) => ({
+          userId: m.id,
+          username: m.username,
+          name: m.displayName,
+          avatarUrl: m.avatarUrl,
+          role: (m.role ?? 'Member') as UserRole,
+        }))
+      );
+      setLoading(false);
+    };
+    runAsyncSetup(async () => {
+      await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
+    });
+  }, []);
+
   const loadMembers = async () => {
     setLoading(true);
     try {
-      const domainId = entityId;
-
-      // listMembers() is fire-and-forget (Promise<void>); response below is always void.
-      // Members load asynchronously via workspace events. This branch is dead code.
-      const response: unknown = await WorkspaceService.listMembers(domainId);
-
-      if (response && typeof response === 'object' && 'ListMembers' in response) {
-        const resp = response as { ListMembers: { members: Array<{ user_id: string; username?: string; name?: string; avatar_url?: string; role?: string }> } };
-        const memberList: MemberData[] = resp.ListMembers.members.map((m) => ({
-          userId: m.user_id,
-          username: m.username || m.user_id,
-          name: m.name,
-          avatarUrl: m.avatar_url,
-          role: m.role as UserRole,
-        }));
-        setMembers(memberList);
-      } else {
-        // Fallback to workspace members from state
-        if (state.members && Object.keys(state.members).length > 0) {
-          const memberList: MemberData[] = Object.values(state.members).map((m) => ({
-            userId: m.id,
-            username: m.username,
-            name: m.displayName,
-            avatarUrl: m.avatarUrl,
-            role: (m.role ?? 'Member') as UserRole,
-          }));
-          setMembers(memberList);
-        }
-      }
+      await WorkspaceService.listMembers(entityId);
     } catch (error) {
-      debugLog('MembersTab', 'Failed to load members:', error);
+      debugLog('MembersTab', 'Failed to request members:', error);
       toast({
         title: 'Error',
         description: 'Failed to load members',
         variant: 'destructive',
       });
-    } finally {
       setLoading(false);
     }
   };

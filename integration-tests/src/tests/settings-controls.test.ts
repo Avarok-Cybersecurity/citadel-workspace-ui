@@ -10,6 +10,7 @@
 
 import { Page } from 'playwright';
 import {
+  activateTab,
   sleep,
   createBrowser,
   createAccount,
@@ -73,26 +74,32 @@ async function openSettingsModal(page: Page): Promise<boolean> {
 async function testGeneralTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing General Tab Controls ===');
 
-  // Scope tab locator to the dialog to avoid matching tabs elsewhere on the page,
-  // and wait for the dialog open animation to fully settle before clicking.
-  await sleep(500);
-  const generalTab = page.locator('[role="dialog"] button[role="tab"]').first();
-  if (await isVisibleWithin(generalTab, 2000)) {
-    await generalTab.click();
-    await sleep(300);
+  const dialog = page.locator('[role="dialog"]');
 
-    const tabPanel = page.locator('[role="tabpanel"]');
-    const hasContent = await tabPanel.isVisible({ timeout: 2000 }).catch(() => false);
+  // The shared helper waits for THIS tab to report active and resolves its panel
+  // via aria-controls, instead of sleeping and then reading an unscoped
+  // [role="tabpanel"] that also matches the office view behind the modal.
+  const { works } = await activateTab(
+    page,
+    dialog.locator('button[role="tab"]').first(),
+    'General tab',
+    dialog.locator('[role="tabpanel"]').first()
+  );
+  if (!works) return false;
 
-    if (hasContent) {
-      const panelText = await tabPanel.textContent().catch(() => '');
-      const hasControls = (panelText?.length ?? 0) > 10;
-      console.log(`  General tab has controls: ${hasControls}`);
-      return hasControls;
-    }
-  }
-  console.log('  General tab not found or empty');
-  return false;
+  // The controls the tab actually offers, rather than "the panel has more than
+  // ten characters of text" — which any rendered panel satisfies and which
+  // therefore asserted nothing.
+  const heading = await isVisibleWithin(dialog.getByText('User Profile'), 5000);
+  const displayName = await isVisibleWithin(dialog.locator('#displayName'), 5000);
+  const save = await isVisibleWithin(dialog.getByRole('button', { name: /save/i }), 5000);
+
+  const hasControls = heading && displayName && save;
+  console.log(
+    `  General tab has controls: ${hasControls} ` +
+      `(heading: ${heading}, displayName: ${displayName}, save: ${save})`
+  );
+  return hasControls;
 }
 
 async function testConnectionsTab(page: Page): Promise<boolean> {
@@ -331,7 +338,17 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated && results.settingsModalOpens;
+    // All seven. General Tab Controls was failing silently behind an unscoped
+    // panel lookup and a character-count assertion.
+    const corePassed = [
+      results.accountCreated,
+      results.settingsModalOpens,
+      results.generalTabControls,
+      results.connectionsAutoReconnect,
+      results.appearanceThemeToggle,
+      results.privacyControls,
+      results.settingsReopen,
+    ].every(Boolean);
 
     console.log(`\n  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Settings Modal Opens:      ${results.settingsModalOpens ? 'PASS' : 'FAIL'}`);
