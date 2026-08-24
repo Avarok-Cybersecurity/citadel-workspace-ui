@@ -1451,6 +1451,25 @@ async function runTest(): Promise<boolean> {
     // bubble-based accept/decline flow that is missing, which fits the async
     // transfer path that was previously reporting success without transmitting.
     //
+    // Traced further, so the next person does not have to start over. The gap is
+    // TWO disconnected halves, not one loose wire:
+    //
+    //   1. FileTransferService.setupMessageHandlers subscribes only to the
+    //      in-band 'p2p:file-transfer-message' event. Nothing anywhere calls
+    //      io.onTransferRequest, so the protocol notification has no consumer.
+    //   2. createFileTransferRequest (types/messaging-layer.ts) — the builder for
+    //      the in-band message the receiver DOES handle — is never called by any
+    //      sender.
+    //
+    // So the path that carries real traffic has no listener, and the path with a
+    // listener has no sender.
+    //
+    // Wiring (1) alone is not enough, which I confirmed by trying it: it
+    // registers the transfer in the service, but the bubble comes from a
+    // conversation message that only FileTransferMessageHandler creates. It also
+    // newly routes incoming transfers through the auto-accept check, which is a
+    // behaviour change worth deciding on rather than acquiring by accident.
+    //
     // Left ungated and reported as a gap rather than made to pass.
     console.log(`  Receiver Got Bubble:          ${results.fileTransfer.receiverGotBubble ? 'PASS' : 'KNOWN GAP (no bubble renders for the receiver)'}`);
     console.log(`  Accept Button Visible:        ${results.fileTransfer.acceptButtonVisible ? 'PASS' : 'CHECK'}`);
