@@ -11,6 +11,8 @@
  */
 
 import type { MessagingLayer } from '@/types/messaging-layer';
+import { createMessageEdit, createMessageDelete } from '@/types/messaging-layer';
+import { applyEdit, applyDelete } from './message-revision';
 import type { MessageType } from '@/types/message-protocol';
 import { websocketService } from '../websocket-service';
 import { notificationService } from '../notification-service';
@@ -138,6 +140,55 @@ export class P2PMessengerManager extends EventListenerManager {
   public async sendMessage(recipientCid: bigint, content: string, options?: { replyTo?: string; mentions?: string[]; attachments?: P2PAttachment[]; messageType?: MessageType; documentId?: string; documentTitle?: string; }): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
   public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> { return this.messageSender.sendRawMessage(recipientCid, layer); }
+  /**
+   * Revise a message we sent, locally and on the peer.
+   *
+   * Applied locally FIRST so the edit shows immediately and, if the send fails,
+   * the throw reaches the caller with the local state already consistent — the
+   * peer reconciles on their next receive rather than us silently diverging.
+   */
+  public async editMessage(peerCid: bigint, messageId: string, contents: string): Promise<void> {
+    const ownCid = await resolveCurrentCid();
+    if (!ownCid) throw new Error('Not connected to server');
+
+    const conversation = this.conversationManager.getConversation(peerCid);
+    if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
+
+    const editedAt = Date.now();
+    const outcome = applyEdit(conversation, messageId, contents, editedAt, ownCid);
+    if (!outcome.applied) {
+      // 'not-sender' here means the UI offered edit on someone else's message.
+      throw new Error(`Cannot edit message ${messageId}: ${outcome.reason}`);
+    }
+
+    await messagePaginationStore.updateMessageInPages(peerCid, messageId, { content: contents, edited_at: editedAt });
+    this.emit('p2p:message-updated', outcome.message);
+
+    await this.sendRawMessage(peerCid, createMessageEdit(messageId, contents, editedAt));
+  }
+
+  /**
+   * Retract a message we sent, locally and on the peer. Removes it outright,
+   * matching how group chat already treats a deletion.
+   */
+  public async deleteMessage(peerCid: bigint, messageId: string): Promise<void> {
+    const ownCid = await resolveCurrentCid();
+    if (!ownCid) throw new Error('Not connected to server');
+
+    const conversation = this.conversationManager.getConversation(peerCid);
+    if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
+
+    const deletedAt = Date.now();
+    const outcome = applyDelete(conversation, messageId, ownCid);
+    if (!outcome.applied) {
+      throw new Error(`Cannot delete message ${messageId}: ${outcome.reason}`);
+    }
+
+    this.emit('p2p:message-deleted', { peerCid, messageId });
+
+    await this.sendRawMessage(peerCid, createMessageDelete(messageId, deletedAt));
+  }
+
   public async markMessagesAsRead(peerCid: bigint, messageIds?: string[]): Promise<void> { return markMessagesAsRead(this.conversationManager, (msgId, ackType, peer) => this.messageSender.sendMessageAck(msgId, ackType, peer), (e, d) => this.emit(e, d), peerCid, messageIds); }
 
   // ===== Public API: Presence =====

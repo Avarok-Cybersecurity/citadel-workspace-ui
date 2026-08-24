@@ -130,12 +130,12 @@ export class P2PMessagingAdapter extends ChatMessagingAdapter {
 
   // ===== Message Actions =====
 
-  async editMessage(_messageId: string, _newContent: string): Promise<void> {
-    throw new Error('P2P messaging does not support message editing');
+  async editMessage(messageId: string, newContent: string): Promise<void> {
+    await this.manager.editMessage(this.peerCid, messageId, newContent);
   }
 
-  async deleteMessage(_messageId: string): Promise<void> {
-    throw new Error('P2P messaging does not support message deletion');
+  async deleteMessage(messageId: string): Promise<void> {
+    await this.manager.deleteMessage(this.peerCid, messageId);
   }
 
   async replyToMessage(messageId: string, content: string): Promise<void> {

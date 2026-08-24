@@ -60,6 +60,8 @@ export interface P2PMessage {
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
   error?: string;
   replyTo?: string;
+  /** Set when the sender revised this message; the bubble shows an (edited) marker. */
+  edited_at?: number;
   mentions?: string[];
   attachments?: P2PAttachment[];
   // Message type support (text, markdown, live_document, file_transfer)

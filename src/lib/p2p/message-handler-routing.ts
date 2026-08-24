@@ -13,6 +13,7 @@ import {
   TYPING_DISPLAY_DURATION_MS,
 } from '@/types/messaging-layer';
 import { eventEmitter } from '../event-emitter';
+import { applyEdit, applyDelete } from './message-revision';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { revfsService } from '@/lib/revfs';
 import { debugLog } from '@/lib/debug-config';
@@ -39,6 +40,34 @@ export async function handleMessagingLayerCommand(
     case MessagingLayerType.Message:
       await handleIncomingMessage(config, payload, peerCid, recipientCid);
       break;
+
+    case MessagingLayerType.MessageEdit: {
+      const conversation = config.getOrCreateConversation(peerCid);
+      const outcome = applyEdit(conversation, layer.message_id, layer.contents, layer.edited_at, peerCid);
+      if (!outcome.applied) {
+        // Do not swallow this. An edit for a message we do not have, or one the
+        // peer did not send, means our view and theirs have diverged.
+        debugLog('P2PMessageHandler', `Ignored edit of ${layer.message_id}: ${outcome.reason}`);
+        break;
+      }
+      await config.updateMessageInPages(peerCid, layer.message_id, {
+        content: layer.contents,
+        edited_at: layer.edited_at,
+      });
+      eventEmitter.emit('p2p:message-updated', outcome.message);
+      break;
+    }
+
+    case MessagingLayerType.MessageDelete: {
+      const conversation = config.getOrCreateConversation(peerCid);
+      const outcome = applyDelete(conversation, layer.message_id, peerCid);
+      if (!outcome.applied) {
+        debugLog('P2PMessageHandler', `Ignored delete of ${layer.message_id}: ${outcome.reason}`);
+        break;
+      }
+      eventEmitter.emit('p2p:message-deleted', { peerCid, messageId: layer.message_id });
+      break;
+    }
 
     case MessagingLayerType.Typing:
       handleTypingIndicator(config, peerCid);

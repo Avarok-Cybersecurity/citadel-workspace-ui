@@ -35,7 +35,12 @@ export enum MessagingLayerType {
   // P2P file chunk streaming (for browser-compatible transfers)
   FileTransferChunk = 'FileTransferChunk',
   // RE-VFS tree operations (mkdir, rmdir, placeFile, etc.)
-  RevfsOperation = 'RevfsOperation'
+  RevfsOperation = 'RevfsOperation',
+
+  // Message revision. Carried in-band like everything else here, so both
+  // peers agree without any backend involvement.
+  MessageEdit = 'MessageEdit',
+  MessageDelete = 'MessageDelete'
 }
 
 /**
@@ -155,6 +160,8 @@ export type MessagingLayer =
   | { type: MessagingLayerType.CustomState; text: string; indicator_icon_color: string }
   | { type: MessagingLayerType.CheckState }
   | { type: MessagingLayerType.CheckStateResponse; ready: true }
+  | { type: MessagingLayerType.MessageEdit; message_id: string; contents: string; edited_at: number }
+  | { type: MessagingLayerType.MessageDelete; message_id: string; deleted_at: number }
   // File Transfer variants
   | { type: MessagingLayerType.FileTransferRequest } & FileTransferRequestData
   | { type: MessagingLayerType.FileTransferResponse } & FileTransferResponseData
@@ -171,6 +178,24 @@ export type MessagingLayer =
  */
 export function isMessage(layer: MessagingLayer): layer is { type: MessagingLayerType.Message; contents: string; timestamp: number } {
   return layer.type === MessagingLayerType.Message;
+}
+
+/**
+ * Type guard: Check if MessagingLayer is a MessageEdit variant
+ */
+export function isMessageEdit(
+  layer: MessagingLayer,
+): layer is { type: MessagingLayerType.MessageEdit; message_id: string; contents: string; edited_at: number } {
+  return layer.type === MessagingLayerType.MessageEdit;
+}
+
+/**
+ * Type guard: Check if MessagingLayer is a MessageDelete variant
+ */
+export function isMessageDelete(
+  layer: MessagingLayer,
+): layer is { type: MessagingLayerType.MessageDelete; message_id: string; deleted_at: number } {
+  return layer.type === MessagingLayerType.MessageDelete;
 }
 
 /**
@@ -309,6 +334,40 @@ export function createMessage(contents: string, timestamp?: number): MessagingLa
     type: MessagingLayerType.Message,
     contents,
     timestamp: timestamp ?? Date.now()
+  };
+}
+
+/**
+ * Create a MessageEdit variant.
+ *
+ * `message_id` names the message being revised, NOT this instruction — the
+ * recipient looks it up in the conversation and replaces its contents.
+ */
+export function createMessageEdit(
+  message_id: string,
+  contents: string,
+  edited_at?: number,
+): MessagingLayer {
+  return {
+    type: MessagingLayerType.MessageEdit,
+    message_id,
+    contents,
+    edited_at: edited_at ?? Date.now(),
+  };
+}
+
+/**
+ * Create a MessageDelete variant.
+ *
+ * Deletion removes the message from the conversation, matching how group chat
+ * already behaves (`groupMessagingManager.handleMessageDeleted` filters it out)
+ * rather than introducing a second convention with tombstones.
+ */
+export function createMessageDelete(message_id: string, deleted_at?: number): MessagingLayer {
+  return {
+    type: MessagingLayerType.MessageDelete,
+    message_id,
+    deleted_at: deleted_at ?? Date.now(),
   };
 }
 
