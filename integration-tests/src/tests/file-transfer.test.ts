@@ -489,7 +489,10 @@ async function checkFileTransferBubble(
     const ftBubbles = await page.locator('[data-testid="file-transfer-bubble"]').count();
     console.log(`  DEBUG - Found ${allTestIds} data-testid elements, ${ftBubbles} file-transfer-bubbles`);
 
-    if (await fileBubble.isVisible({ timeout: 15000 })) {
+    // isVisibleWithin, not isVisible({ timeout }): the latter answers instantly,
+    // so this missed the bubble every time and fell through to the fallback
+    // below — which is why the accept/decline results were never measured.
+    if (await isVisibleWithin(fileBubble, 15000)) {
       console.log('  File transfer bubble visible (found by data-testid)');
 
       // Get bubble attributes for debugging
@@ -514,35 +517,16 @@ async function checkFileTransferBubble(
       };
     }
 
-    // Fallback to other selectors - with more debugging
-    const fallbackBubble = page.locator('.lucide-file, .lucide-file-text, [class*="FileTransfer"]').first();
-    if (await fallbackBubble.isVisible({ timeout: 5000 })) {
-      console.log('  File transfer bubble visible (found by fallback selector)');
-
-      // DEBUG: Get parent element info to understand what we found
-      const fallbackInfo = await fallbackBubble.evaluate((el) => {
-        // Get the closest ancestor with useful info
-        let parent = el.parentElement;
-        let depth = 0;
-        const parentChain: string[] = [];
-        while (parent && depth < 5) {
-          const classNames = parent.className || '';
-          const testId = parent.getAttribute('data-testid') || '';
-          parentChain.push(`[${depth}] class="${classNames.substring(0, 50)}" data-testid="${testId}"`);
-          parent = parent.parentElement;
-          depth++;
-        }
-        return {
-          tagName: el.tagName,
-          className: (el as HTMLElement).className,
-          innerText: (el as HTMLElement).innerText?.substring(0, 50),
-          parentChain
-        };
-      });
-      console.log('  DEBUG - Fallback element info:', JSON.stringify(fallbackInfo, null, 2));
-
-      return { visible: true, hasAcceptButton: false, hasDeclineButton: false };
-    }
+    // No fallback selector here any more.
+    //
+    // It matched `.lucide-file, .lucide-file-text, [class*="FileTransfer"]` —
+    // a file icon ANYWHERE on the page, including the file manager and the
+    // composer — and then returned `{ visible: true, hasAcceptButton: false }`.
+    // So it reported the receiver as having got the bubble while hard-coding the
+    // two results that matter to false, which then printed as CHECK and looked
+    // identical to "the buttons are missing". The app renders
+    // data-testid="file-transfer-bubble" (FileTransferBubble.tsx:90); if that is
+    // not present, the bubble is not there.
 
     console.log('  File transfer bubble not found');
     return { visible: false, hasAcceptButton: false, hasDeclineButton: false };
@@ -557,7 +541,7 @@ async function acceptFileTransfer(page: Page, username: string): Promise<boolean
   try {
     const acceptButton = page.locator('button').filter({ hasText: /accept/i }).first();
 
-    if (await acceptButton.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(acceptButton, 5000)) {
       await acceptButton.click();
       console.log('  Clicked Accept button');
       await sleep(2000);
@@ -1450,7 +1434,25 @@ async function runTest(): Promise<boolean> {
     console.log('\nFile Transfer:');
     console.log(`  Modal Opened:                 ${results.fileTransfer.modalOpened ? 'PASS' : 'FAIL'}`);
     console.log(`  Transfer Request Sent:        ${results.fileTransfer.transferRequestSent ? 'PASS' : 'CHECK'}`);
-    console.log(`  Receiver Got Bubble:          ${results.fileTransfer.receiverGotBubble ? 'PASS' : 'CHECK'}`);
+    // KNOWN GAP. These four were previously satisfied by a fallback that matched
+    // any file icon on the page and then hard-coded the button results to false,
+    // so "Receiver Got Bubble: PASS" meant nothing and the CHECKs beneath it were
+    // never measurements. With the check waiting on the app's own
+    // data-testid="file-transfer-bubble", the honest answer is that no bubble
+    // renders for the receiver at all.
+    //
+    // Bob's client does receive the request — the log shows
+    // FileTransferRequestNotification arriving and being CID-routed — and the
+    // conversation is open. So the notification lands and produces no UI, which
+    // means an incoming P2P transfer cannot be accepted or declined.
+    //
+    // Files do move: the gated realProtocol.success path passes, and
+    // file-manager's peer file sharing passes. It is specifically this
+    // bubble-based accept/decline flow that is missing, which fits the async
+    // transfer path that was previously reporting success without transmitting.
+    //
+    // Left ungated and reported as a gap rather than made to pass.
+    console.log(`  Receiver Got Bubble:          ${results.fileTransfer.receiverGotBubble ? 'PASS' : 'KNOWN GAP (no bubble renders for the receiver)'}`);
     console.log(`  Accept Button Visible:        ${results.fileTransfer.acceptButtonVisible ? 'PASS' : 'CHECK'}`);
     console.log(`  Decline Button Visible:       ${results.fileTransfer.declineButtonVisible ? 'PASS' : 'CHECK'}`);
     console.log(`  Accept Flow:                  ${results.fileTransfer.acceptFlow ? 'PASS' : 'CHECK'}`);

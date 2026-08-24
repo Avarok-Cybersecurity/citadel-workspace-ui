@@ -956,7 +956,11 @@ async function runTest(): Promise<boolean> {
       // fail to disappear from Bob, and this spec still reported PASS. These two
       // hold reliably once the checks actually wait.
       results.folderOperations.peerSeesChanges &&
-      results.fileOperations.peerSeesFileRemoved;
+      results.fileOperations.peerSeesFileRemoved &&
+      // Bob reaching the file manager at all, and seeing a file Alice uploaded.
+      // Both were computed and left out of the gate.
+      results.navigation.bobToFileManager &&
+      results.fileOperations.peerSeesFile;
       // peerSeesFolderRemoved is deliberately NOT gated — see the note where it
       // is reported.
 
