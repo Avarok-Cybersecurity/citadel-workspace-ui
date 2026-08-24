@@ -3,6 +3,49 @@
  *
  * Orchestrator that composes state management, event handling, and
  * group action callbacks into a single hook interface.
+ *
+ * ============================================================================
+ * KNOWN GAP: ad-hoc group conversations do not work end to end.
+ * ============================================================================
+ *
+ * This is NOT the group chat that works. Office and room chat — the feature the
+ * group-messaging specs cover — is a different mechanism entirely: chat attached
+ * to a workspace node via `chat_enabled` / `chat_channel_id`, reached through the
+ * office/room Chat tab. That path is fine. This hook is a second, parallel
+ * implementation of ad-hoc Citadel message groups, and it is inert.
+ *
+ * Do not read the passing group-messaging specs as coverage of this file.
+ *
+ * Three independent breaks, any one of which is sufficient:
+ *
+ * 1. Nothing feeds the group list. `useGroupState` subscribes to `group:created`,
+ *    `group:member-joined`, `group:member-left` and `group:deleted`; NOTHING in
+ *    the codebase emits any of them, and `GroupCreateSuccess` from the internal
+ *    service is handled nowhere. `createGroup` fires GroupCreate and returns its
+ *    request_id, the response is dropped, and `groups` stays empty forever.
+ *
+ * 2. The group_key format is wrong. GroupInvite, GroupLeave, GroupKick and
+ *    GroupEnd all send `group_key: groupId`, a string. The backend field is
+ *    `MessageGroupKey { cid: u64, mgid: u128 }` (citadel_types proto/mod.rs:334).
+ *    `toInternalServiceRequest` is a bare cast to InternalServiceRequest, so this
+ *    mismatch is invisible to tsc — which is why it survived.
+ *
+ * 3. `invitePeer` has no caller anywhere, and its `roleId` argument leads to an
+ *    empty `if (roleId) {}` block, so a role passed by any future caller would be
+ *    silently discarded.
+ *
+ * What a user sees: the sidebar "Create Group" dialog is wired to `createGroup`
+ * and submits successfully, the dialog closes, and the group never appears —
+ * no error, no toast, no entry. The /groups/:groupId route exists but nothing
+ * ever links to it, because the list it would be reached from is always empty.
+ *
+ * Left in place rather than deleted because it is a product decision, not a
+ * cleanup: office/room chat may already cover the need, in which case this and
+ * its Create Group entry point should go. If ad-hoc groups ARE wanted, fixing it
+ * means handling the GroupCreateSuccess/GroupInvite/GroupMemberJoined responses
+ * and emitting the events, plus sending group_key as {cid, mgid}. Marked inert
+ * rather than left looking finished — a file that reads as working is worse than
+ * one that admits it is not, because people trust it instead of checking.
  */
 
 import { useCallback } from 'react';
@@ -72,7 +115,9 @@ export function useGroupConversations(): UseGroupConversationsResult {
           GroupInvite: {
             cid: BigInt(cid),
             peer_cid: BigInt(peerCid),
-            group_key: groupId, // @human-review Verify group key format matches backend
+            // WRONG FORMAT - see KNOWN GAP at the top of this file. The backend
+            // field is MessageGroupKey { cid: u64, mgid: u128 }, not a string.
+            group_key: groupId,
             request_id: crypto.randomUUID(),
           },
         };
@@ -84,9 +129,10 @@ export function useGroupConversations(): UseGroupConversationsResult {
 
         await client.sendDirectToInternalService(toInternalServiceRequest(request));
 
-        if (roleId) {
-          // @human-review Role assignment storage needs backend API
-        }
+        // roleId is accepted by the signature but there is nowhere to put it:
+        // GroupInvite carries no role, and no group-role store exists. It is
+        // dropped rather than silently pretended - see KNOWN GAP above.
+        void roleId;
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : 'Failed to invite peer';
         setError(errorMsg);
