@@ -3,6 +3,52 @@
  *
  * Tests group chat messaging in an office with parameterized user counts (2, 3).
  * Each test creates N users and verifies bidirectional messaging between all pairs.
+ *
+ * ============================================================================
+ * CURRENTLY FAILING — reproducible, cause not yet found.
+ * ============================================================================
+ *
+ * Sends always succeed; receives do not. In the 2-user run, user1 -> user2 is
+ * received and user2 -> user1 is not. Running the spec alone reproduces the
+ * batch result exactly, so this is deterministic, not shared-backend noise.
+ * The console diagnostics report zero errors and zero warnings: the message is
+ * dropped silently.
+ *
+ * The discriminator is browser topology, not the feature:
+ *
+ *   group-messaging-multiuser  two ISOLATED contexts (two WebSockets)   PASSES
+ *   this spec                  one context, N tabs (one WebSocket)      FAILS
+ *   group-messaging            one user, sends and verifies on the same
+ *                              page, so it never tested delivery at all  PASSES
+ *
+ * That points at the multi-tab leader/follower path, which ARCHITECTURE.md
+ * describes as the intended way to run several users. Note the failing
+ * direction is the one addressed TO the leader tab.
+ *
+ * Two plausible mechanisms were checked and are NOT the cause — recorded so
+ * nobody re-derives them:
+ *
+ * 1. "GroupMessageNotification is missing from CID_ROUTED_NOTIFICATIONS."
+ *    True, but irrelevant here. There are two distinct types with that name:
+ *    the internal-service one (Citadel message groups, a feature that is inert
+ *    — see the KNOWN GAP in use-group-conversations.ts) and the WorkspaceProtocol
+ *    one, { group_id, message }, which is what office chat uses. Office chat
+ *    messages travel INSIDE an InternalServiceRequest::Message, so on the wire
+ *    they arrive as MessageNotification, which IS CID-routed.
+ *
+ * 2. "WorkspaceClient enriches the message with a WorkspaceNotification key, so
+ *    the router mistakes its type." Also no. getMessageType takes Object.keys()[0]
+ *    and the enrichment spreads the original first, so MessageNotification stays
+ *    the first key and CID routing still applies.
+ *
+ * The 3-user scenario fails wholesale, but do not read much into that: each
+ * scenario gets a fresh browser while the workspace persists from the previous
+ * scenario, so its second user1 is created with isFirstUser against a workspace
+ * that already exists. Diagnose the 2-user case first — it is the clean signal.
+ *
+ * Next step is console capture from EVERY tab (startDiagnostics currently
+ * attaches to one page), filtered to the router and message-handler logs, to see
+ * whether the notification reaches the leader at all and where it stops.
  */
 
 import {
