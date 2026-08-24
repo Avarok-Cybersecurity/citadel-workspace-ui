@@ -1,0 +1,338 @@
+/**
+ * Ordering is the whole difficulty of a call. A media session opened too early
+ * holds a UDP channel for a call nobody answers; opened too late, the first
+ * second of the call is lost. Neither shows up as an error.
+ *
+ * The transport is a fake rather than a mock of a real one: everything the
+ * manager does to the outside world goes through that one interface by design,
+ * so this exercises the real orchestration logic with no browser, no peer and no
+ * internal service.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { CallManager, MEDIA_WIRE_VERSION } from '../call-manager';
+import type { CallTransport } from '../call-transport';
+import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
+import type { CallState } from '../call-state';
+
+const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
+const VIDEO: CallMediaKinds = { audio: true, video: true, screen: false };
+const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
+
+const BOB = 2n;
+const CAROL = 3n;
+
+interface Harness {
+  manager: CallManager;
+  transport: {
+    openSession: ReturnType<typeof vi.fn>;
+    closeSession: ReturnType<typeof vi.fn>;
+    sendFrame: ReturnType<typeof vi.fn>;
+    sendSignal: ReturnType<typeof vi.fn>;
+  };
+  states: Array<CallState | null>;
+  signalsTo: (cid: bigint) => CallSignalPayload[];
+}
+
+function harness(): Harness {
+  const transport = {
+    openSession: vi.fn().mockResolvedValue(undefined),
+    closeSession: vi.fn().mockResolvedValue(undefined),
+    sendFrame: vi.fn(),
+    sendSignal: vi.fn().mockResolvedValue(undefined),
+  };
+  const states: Array<CallState | null> = [];
+  const manager = new CallManager({
+    transport: transport as unknown as CallTransport,
+    selfCid: 1n,
+    capabilities: CAPS,
+    now: () => 0,
+    onStateChanged: (s) => states.push(s),
+  });
+
+  return {
+    manager,
+    transport,
+    states,
+    signalsTo: (cid) =>
+      transport.sendSignal.mock.calls.filter((c) => c[0] === cid).map((c) => c[1]),
+  };
+}
+
+function invite(callId = 'their-call', overrides: Partial<Extract<CallSignalPayload, { kind: 'CallInvite' }>> = {}) {
+  return {
+    kind: 'CallInvite' as const,
+    call_id: callId,
+    media: VIDEO,
+    codecs: CAPS,
+    media_wire_version: MEDIA_WIRE_VERSION,
+    ...overrides,
+  };
+}
+
+describe('placing a call', () => {
+  let h: Harness;
+  beforeEach(() => { h = harness(); });
+
+  it('rings every invitee without opening a media session yet', async () => {
+    // Opening on dial would hold a UDP channel for a call that may never be
+    // answered — and in a group, one per invitee.
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+
+    expect(h.transport.sendSignal).toHaveBeenCalledTimes(2);
+    expect(h.transport.openSession).not.toHaveBeenCalled();
+    expect(h.manager.getState()?.status).toBe('ringing-out');
+  });
+
+  it('opens the media session only once the peer accepts', async () => {
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+
+    expect(h.transport.openSession).toHaveBeenCalledWith(BOB);
+    expect(h.manager.getState()?.status).toBe('connecting');
+  });
+
+  it('carries on with the rest of a group when one invite cannot be sent', async () => {
+    h.transport.sendSignal.mockImplementation((cid: bigint) =>
+      cid === CAROL ? Promise.reject(new Error('offline')) : Promise.resolve(undefined),
+    );
+
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+
+    // Carol simply never rings; the call to Bob is unaffected.
+    expect(h.manager.getState()?.participants.get(CAROL)?.status).toBe('declined');
+    expect(h.manager.getState()?.status).toBe('ringing-out');
+  });
+
+  it('includes group membership so every peer builds the same mesh', async () => {
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+
+    const sent = h.signalsTo(BOB)[0];
+    expect(sent.kind).toBe('CallInvite');
+    if (sent.kind === 'CallInvite') {
+      expect(sent.group?.room_id).toBe('room-1');
+      expect(sent.group?.members).toEqual([BOB.toString(), CAROL.toString()]);
+    }
+  });
+
+  it('omits group membership for a 1:1 call', async () => {
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+
+    const sent = h.signalsTo(BOB)[0];
+    if (sent.kind === 'CallInvite') expect(sent.group).toBeUndefined();
+  });
+});
+
+describe('receiving a call', () => {
+  let h: Harness;
+  beforeEach(() => { h = harness(); });
+
+  it('rings in, and accepting signals before opening the session', async () => {
+    await h.manager.handleSignal(BOB, 'bob', invite());
+    expect(h.manager.getState()?.status).toBe('ringing-in');
+
+    await h.manager.accept(VIDEO);
+
+    // The accept has to be on the wire first, so the peer is expecting frames
+    // by the time the session exists.
+    const order = h.transport.sendSignal.mock.invocationCallOrder[0];
+    expect(order).toBeLessThan(h.transport.openSession.mock.invocationCallOrder[0]);
+    expect(h.manager.getState()?.status).toBe('connecting');
+  });
+
+  it('declines an incompatible wire version instead of decoding garbage', async () => {
+    await h.manager.handleSignal(BOB, 'bob', invite('x', { media_wire_version: MEDIA_WIRE_VERSION + 1 }));
+
+    const sent = h.signalsTo(BOB)[0];
+    expect(sent.kind).toBe('CallDecline');
+    if (sent.kind === 'CallDecline') expect(sent.reason).toBe('unsupported');
+    // And no call state was created for it.
+    expect(h.manager.getState()).toBeNull();
+  });
+
+  it('declines a second call as busy while already in one', async () => {
+    await h.manager.handleSignal(BOB, 'bob', invite('first'));
+    await h.manager.accept(AUDIO);
+    h.transport.sendSignal.mockClear();
+
+    await h.manager.handleSignal(CAROL, 'carol', invite('second'));
+
+    const sent = h.signalsTo(CAROL)[0];
+    expect(sent.kind).toBe('CallDecline');
+    if (sent.kind === 'CallDecline') expect(sent.reason).toBe('busy');
+  });
+
+  it('answering audio-only on a video invite is respected', async () => {
+    await h.manager.handleSignal(BOB, 'bob', invite());
+    await h.manager.accept(AUDIO);
+
+    expect(h.manager.getState()?.selfMedia).toEqual(AUDIO);
+  });
+});
+
+describe('glare', () => {
+  it('keeps exactly one call when both sides dial at once', async () => {
+    // Both peers compute the same winner locally. Without this, either both
+    // cancel or both wait.
+    const ours = harness();
+    await ours.manager.start('aaa', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    ours.transport.sendSignal.mockClear();
+    await ours.manager.handleSignal(BOB, 'bob', invite('bbb'));
+
+    const theirs = harness();
+    await theirs.manager.start('bbb', [{ cid: 1n, username: 'alice' }], VIDEO, null);
+    theirs.transport.sendSignal.mockClear();
+    await theirs.manager.handleSignal(1n, 'alice', invite('aaa'));
+
+    // 'bbb' > 'aaa', so the side holding bbb keeps theirs and the other yields.
+    expect(ours.manager.getState()?.status).toBe('ringing-in');
+    expect(theirs.manager.getState()?.status).toBe('ringing-out');
+  });
+});
+
+describe('ending a call', () => {
+  let h: Harness;
+  beforeEach(() => { h = harness(); });
+
+  async function activeCall() {
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    h.manager.markConnected(BOB);
+  }
+
+  it('tells the peer and releases the session', async () => {
+    await activeCall();
+    await h.manager.end('hangup');
+
+    expect(h.signalsTo(BOB).some((s) => s.kind === 'CallEnd')).toBe(true);
+    expect(h.transport.closeSession).toHaveBeenCalledWith(BOB);
+    expect(h.manager.getState()?.status).toBe('ended');
+  });
+
+  it('releases the session when the peer ends first', async () => {
+    await activeCall();
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallEnd', call_id: 'c1', reason: 'hangup' });
+
+    expect(h.transport.closeSession).toHaveBeenCalledWith(BOB);
+    expect(h.manager.getState()?.status).toBe('ended');
+  });
+
+  it('closes each session exactly once', async () => {
+    await activeCall();
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallEnd', call_id: 'c1', reason: 'hangup' });
+    await h.manager.end('hangup');
+
+    expect(h.transport.closeSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a group call alive when one participant leaves', async () => {
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    h.manager.markConnected(BOB);
+    h.manager.markConnected(CAROL);
+
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallEnd', call_id: 'c1', reason: 'hangup' });
+
+    expect(h.manager.getState()?.status).toBe('active');
+    expect(h.transport.closeSession).toHaveBeenCalledWith(CAROL);
+    expect(h.transport.closeSession).not.toHaveBeenCalledWith(BOB);
+  });
+});
+
+describe('sending frames', () => {
+  let h: Harness;
+  beforeEach(() => { h = harness(); });
+
+  const frame = { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) };
+
+  it('fans one encoded frame out to every connected participant', async () => {
+    // Encode once, send many: an encoder per peer is what makes mesh calls melt
+    // laptops.
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+
+    h.manager.sendFrame(frame);
+
+    expect(h.transport.sendFrame).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not send to a peer whose session is not open', async () => {
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    h.manager.sendFrame(frame);
+
+    // Still ringing: no session, so nothing to send into.
+    expect(h.transport.sendFrame).not.toHaveBeenCalled();
+  });
+
+  it('stops sending to a peer who left', async () => {
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallEnd', call_id: 'c1', reason: 'hangup' });
+    h.transport.sendFrame.mockClear();
+
+    h.manager.sendFrame(frame);
+
+    expect(h.transport.sendFrame).toHaveBeenCalledTimes(1);
+    expect(h.transport.sendFrame).toHaveBeenCalledWith(BOB, frame);
+  });
+
+  it('sends nothing when there is no call', () => {
+    h.manager.sendFrame(frame);
+    expect(h.transport.sendFrame).not.toHaveBeenCalled();
+  });
+});
+
+describe('media session failures', () => {
+  it('fails a 1:1 call when the session cannot open, with the reason', async () => {
+    const h = harness();
+    h.transport.openSession.mockRejectedValue(new Error('peer connected without UDP'));
+
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+
+    expect(h.manager.getState()?.status).toBe('failed');
+    expect(h.manager.getState()?.reason).toMatch(/without UDP/);
+  });
+
+  it('drops only the affected peer in a group call', async () => {
+    const h = harness();
+    h.transport.openSession.mockImplementation((cid: bigint) =>
+      cid === CAROL ? Promise.reject(new Error('no UDP')) : Promise.resolve(undefined),
+    );
+
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1');
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+
+    expect(h.manager.getState()?.status).not.toBe('failed');
+    expect(h.manager.getState()?.participants.get(CAROL)?.status).toBe('left');
+  });
+});
+
+describe('in-call signalling', () => {
+  it('tells peers when the microphone is muted', async () => {
+    // Explicit, not inferred from frames stopping: otherwise a muted peer and a
+    // crashed one look identical.
+    const h = harness();
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    h.transport.sendSignal.mockClear();
+
+    await h.manager.setSelfMedia({ audio: false, video: true, screen: false });
+
+    const sent = h.signalsTo(BOB)[0];
+    expect(sent.kind).toBe('CallMediaState');
+  });
+
+  it('collects keyframe requests for the encoder owner to drain', async () => {
+    const h = harness();
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null);
+    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallKeyframeRequest', call_id: 'c1', track: 1 });
+
+    expect(h.manager.drainKeyframeRequests()).toEqual([{ cid: BOB, track: 1 }]);
+    // Drained once, not repeatedly — a stuck request would force keyframes
+    // forever and destroy the bitrate.
+    expect(h.manager.drainKeyframeRequests()).toEqual([]);
+  });
+});
