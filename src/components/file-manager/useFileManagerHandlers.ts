@@ -192,11 +192,25 @@ export function useFileManagerHandlers({
 
   const handleSync = useCallback(async () => {
     try {
-      if (storageMode === TreeScope.Peer && myCid && selectedPeerCid) {
+      if (storageMode === TreeScope.Peer) {
+        // Peer mode only auto-selects a peer when at least one is registered, so
+        // "peer mode with no peer" is reachable and used to fall through to the
+        // success toast below - telling the user their tree had synced with a
+        // peer when no sync was requested of anyone.
+        if (!myCid || !selectedPeerCid) {
+          toast.error('No peer selected', {
+            description: 'Choose a peer to sync with, or switch to server storage.',
+          });
+          return;
+        }
         await revfsService.requestSync(myCid, selectedPeerCid);
+        await refresh();
+        toast.success('Tree synced with peer');
+        return;
       }
+      // Server mode: nothing is exchanged with a peer, so do not claim it was.
       await refresh();
-      toast.success('Tree synced');
+      toast.success('Tree refreshed');
     } catch (err) { toast.error(`Sync failed: ${err}`); }
   }, [storageMode, myCid, selectedPeerCid, refresh]);
 
