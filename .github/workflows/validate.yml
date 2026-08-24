@@ -112,6 +112,45 @@ jobs:
             ln -sf ${{ github.workspace }}/parent/node_modules/playwright ${{ matrix.path }}/node_modules/playwright
             npm run typecheck -w cw-integration-tests
           fi
+      # These gates lived ONLY in the parent repo's workflow, so a PR opened
+      # against this repository — which is where essentially all UI work happens
+      # — could regress the installable PWA, the offline shell, the
+      # accessibility score or the landing critical path with nothing noticing.
+      # Each one fails silently in production: a broken manifest field simply
+      # stops the browser offering to install, and a chunk pulled onto the first
+      # paint is invisible until someone measures.
+      - name: Landing bundle budget
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run build && npm run check:bundle
+        working-directory: parent/citadel-workspaces
+
+      - name: PWA installability
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:pwa
+        working-directory: parent/citadel-workspaces
+
+      - name: Lighthouse baselines
+        # Accessibility and SEO are held at 100 because they are rule checks, not
+        # measurements. Performance has a loose floor: a shared runner is slower
+        # and noisier than a laptop, and a flaky gate is worse than no gate
+        # because people learn to re-run it without reading it.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:lighthouse
+        working-directory: parent/citadel-workspaces
+
+      - name: Install Chromium for the offline check
+        if: matrix.project == 'citadel-workspaces'
+        run: npx playwright install --with-deps chromium
+        working-directory: parent/citadel-workspaces
+
+      - name: PWA offline behaviour
+        # The app tells the user it will load without a connection. Nothing
+        # verified that promise until this: a precache that stopped covering the
+        # shell would leave an installed app opening to a blank page offline.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:pwa-offline
+        working-directory: parent/citadel-workspaces
+
       - name: Enforce 250-line file limit
         if: matrix.project == 'citadel-workspaces'
         run: |
