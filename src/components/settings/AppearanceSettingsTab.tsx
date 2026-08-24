@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { ThemeSelector } from './ThemeSelector';
+import { WorkspaceAppearanceSection } from './WorkspaceAppearanceSection';
 
 const STORAGE_KEY = 'citadel:appearance-settings';
 
@@ -60,6 +61,11 @@ export function AppearanceSettingsTab() {
   return (
     <div className="space-y-5">
       <ThemeSelector />
+
+      {/* The workspace's colours sit beside the personal light/dark choice: this
+          is the one place a user asks "how does this look", and the adjacency
+          makes the split legible. */}
+      <WorkspaceAppearanceSection />
 
       {/* Display Density */}
       <div className="space-y-3">

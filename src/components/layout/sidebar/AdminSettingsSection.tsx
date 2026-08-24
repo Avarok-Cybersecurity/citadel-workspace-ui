@@ -18,6 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 /**
  * Admin Settings Section
@@ -85,7 +86,7 @@ export const AdminSettingsSection = () => {
           isOpen={showPermissionManager}
           onClose={() => setShowPermissionManager(false)}
           userId={state.currentUser.id || state.currentUser.username}
-          domainId="workspace-root"
+          domainId={WORKSPACE_ROOT_ID}
           domainType="workspace"
         />
       )}

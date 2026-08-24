@@ -13,8 +13,15 @@ import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 import { PRESET_THEMES } from '@/lib/theme/presets';
 import { beginEdit, setToken, renameTheme, canRename, resetDarkToDerived } from '@/lib/theme/theme-editing';
 import { PREVIEW_REGIONS } from '@/lib/theme/preview-regions';
+import { toCssColor } from '@/lib/theme/hsl';
 import type { WorkspaceTheme, ThemeTokenKey, ThemeMode, HslColor } from '@/lib/theme/theme-types';
 import { debugLog } from '@/lib/debug-config';
+
+/**
+ * What the colour wheel is pointed at. The workspace icon is not a palette
+ * token, so this is a tagged union rather than a nullable token.
+ */
+type Selection = { kind: 'token'; token: ThemeTokenKey } | { kind: 'icon' } | null;
 
 interface WorkspaceAppearanceModalProps {
   open: boolean;
@@ -49,7 +56,13 @@ export function WorkspaceAppearanceModal({
 
   const [draft, setDraft] = useState<WorkspaceTheme>(savedTheme);
   const [mode, setMode] = useState<ThemeMode>('dark');
-  const [selectedToken, setSelectedToken] = useState<ThemeTokenKey | null>(null);
+  /**
+   * What the colour wheel is editing. The workspace icon is not a palette token,
+   * so a plain token union cannot express it — hence a tagged selection rather
+   * than a second piece of state that could disagree with the first.
+   */
+  const [selection, setSelection] = useState<Selection>(null);
+  const selectedToken = selection?.kind === 'token' ? selection.token : null;
   const [saving, setSaving] = useState(false);
 
   // Reopening starts from whatever is saved, so an abandoned edit does not
@@ -57,7 +70,7 @@ export function WorkspaceAppearanceModal({
   useEffect(() => {
     if (open) {
       setDraft(savedTheme);
-      setSelectedToken(null);
+      setSelection(null);
     }
   }, [open, savedTheme]);
 
@@ -94,10 +107,14 @@ export function WorkspaceAppearanceModal({
 
   const handleColorChange = useCallback(
     (color: HslColor) => {
-      if (!selectedToken) return;
-      editDraft((t) => setToken(t, mode, selectedToken, color));
+      if (!selection) return;
+      if (selection.kind === 'icon') {
+        editDraft((t) => ({ ...t, icon: { ...t.icon, color } }));
+        return;
+      }
+      editDraft((t) => setToken(t, mode, selection.token, color));
     },
-    [editDraft, mode, selectedToken],
+    [editDraft, mode, selection],
   );
 
   const handleSave = async () => {
@@ -167,7 +184,7 @@ export function WorkspaceAppearanceModal({
               radius={draft.radius}
               workspaceName={workspaceName}
               selectedToken={selectedToken}
-              onSelectToken={canEdit ? setSelectedToken : () => undefined}
+              onSelectToken={canEdit ? (token) => setSelection({ kind: 'token', token }) : () => undefined}
             />
 
             <div className="space-y-2">
@@ -191,21 +208,66 @@ export function WorkspaceAppearanceModal({
                 </p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="workspace-icon">Workspace icon</Label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="appearance-icon-color"
+                  aria-label="Change the workspace icon colour"
+                  disabled={!canEdit}
+                  onClick={() => setSelection({ kind: 'icon' })}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold transition-transform duration-150 motion-safe:hover:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  style={{
+                    backgroundColor: toCssColor(draft.icon.color),
+                    color: toCssColor(palette.primaryForeground),
+                  }}
+                >
+                  {draft.icon.emoji ?? workspaceName.slice(0, 1).toUpperCase()}
+                </button>
+                <Input
+                  id="workspace-icon"
+                  data-testid="appearance-icon-emoji"
+                  placeholder="Emoji (optional)"
+                  value={draft.icon.emoji ?? ''}
+                  disabled={!canEdit}
+                  onChange={(e) => {
+                    // One emoji, taken by code point so a multi-byte glyph is not
+                    // sliced in half into an unrenderable fragment.
+                    const first = [...e.target.value.trim()][0];
+                    editDraft((t) => ({
+                      ...t,
+                      icon: { ...t.icon, emoji: first || undefined },
+                    }));
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Shown in the workspace switcher. Without an emoji it uses the workspace initial.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4">
-            {activeRegion && canEdit ? (
+            {canEdit && selection ? (
               <div className="space-y-2" data-testid="appearance-color-editor">
                 <div>
-                  <p className="text-sm font-medium text-foreground">{activeRegion.label}</p>
-                  <p className="text-xs text-muted-foreground">{activeRegion.description}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {selection.kind === 'icon' ? 'Workspace icon' : activeRegion?.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selection.kind === 'icon'
+                      ? 'The colour behind the workspace icon in the switcher and sidebar.'
+                      : activeRegion?.description}
+                  </p>
                 </div>
                 <ColorWheel
-                  label={activeRegion.label}
-                  value={palette[activeRegion.token]}
+                  label={selection.kind === 'icon' ? 'Workspace icon' : activeRegion?.label ?? 'Colour'}
+                  value={selection.kind === 'icon' ? draft.icon.color : palette[selection.token]}
                   onChange={handleColorChange}
                 />
-                <Button variant="ghost" size="sm" className="w-full" onClick={() => setSelectedToken(null)}>
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => setSelection(null)}>
                   Done
                 </Button>
               </div>

@@ -27,6 +27,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { MembersSectionModals } from './MembersSectionModals';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 export const MembersSection = () => {
   const location = useLocation();
@@ -95,7 +96,7 @@ export const MembersSection = () => {
   const handleEditMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowEditModal(true); };
   const handleRemoveMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowRemoveModal(true); };
   const handleManagePermissions = (member: WorkspaceMember) => {
-    let domainId = 'workspace-root';
+    let domainId = WORKSPACE_ROOT_ID;
     let domainType = 'workspace';
     if (currentNodeId) {
       domainId = currentNodeId;

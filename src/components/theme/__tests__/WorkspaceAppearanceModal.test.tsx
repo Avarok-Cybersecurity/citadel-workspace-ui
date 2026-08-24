@@ -3,7 +3,7 @@
  * and invisible when they are: presets staying pristine, the permission gate
  * disabling rather than hiding, and the live preview being handed back on close.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WorkspaceAppearanceModal } from '../WorkspaceAppearanceModal';
@@ -14,13 +14,13 @@ import type { WorkspaceTheme } from '@/lib/theme/theme-types';
 function renderModal(options: {
   canEdit?: boolean;
   saved?: WorkspaceTheme;
-  onSave?: (t: WorkspaceTheme) => Promise<void>;
+  onSave?: Mock<(theme: WorkspaceTheme) => Promise<void>>;
   previewTheme?: (t: WorkspaceTheme | null) => void;
 } = {}) {
   const {
     canEdit = true,
     saved = defaultTheme(),
-    onSave = vi.fn(() => Promise.resolve()),
+    onSave = vi.fn<(theme: WorkspaceTheme) => Promise<void>>(() => Promise.resolve()),
     previewTheme = vi.fn(),
   } = options;
 

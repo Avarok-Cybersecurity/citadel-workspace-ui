@@ -8,7 +8,7 @@ import { postAuthSetup } from '@/lib/post-auth-setup';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
-import { getWorkspaceLogo, getWorkspaceInitials } from "@/lib/workspace-metadata-service";
+import { getWorkspaceLogo } from "@/lib/workspace-metadata-service";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { yieldToEventLoop } from '@/lib/utils/scheduling';

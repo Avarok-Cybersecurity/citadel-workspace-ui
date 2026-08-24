@@ -3,7 +3,6 @@
  * Handles extraction and processing of workspace metadata including logos
  */
 
-import { debugLog } from './debug-config';
 import type { WorkspaceIcon } from '@/lib/theme/theme-types';
 
 // Interface for workspace logo information
