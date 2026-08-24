@@ -174,7 +174,10 @@ export async function disconnectViaTopBar(
     console.log('  Found avatar button, clicking...');
     await avatarButton.click();
 
-    await sleep(1000);
+    // The menu appearing is the signal. The sign-out lookups below already wait,
+    // so this 1s was pure delay — and the screenshot it guarded was just as
+    // likely to catch the menu mid-animation.
+    await isVisibleWithin(page.locator('[role="menu"]'), 5000);
     await takeScreenshot(page, `${username}_dropdown_opened`);
 
     // Click "Sign out" in the dropdown menu
@@ -704,7 +707,9 @@ export async function disconnectViaNavbar(
     // Navigate to landing page where OrphanSessionsNavbar is visible
     const config = await import('../config.js');
     await page.goto(config.config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-    await sleep(3000);
+    // `commit` resolves before React has rendered anything, which is what the 3s
+    // was covering for. Waiting for the app itself returns as soon as it is up.
+    await waitForAppReady(page, 30_000);
 
     await takeScreenshot(page, `${username}_landing_for_disconnect`);
 
