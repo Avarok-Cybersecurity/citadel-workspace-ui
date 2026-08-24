@@ -33,6 +33,12 @@ export const CID_ROUTED_NOTIFICATIONS = new Set<ResponseType>([
   'FileTransferRequestNotification',  // cid = recipient (file transfer initiation prompt)
   'FileTransferStatusNotification',   // cid = recipient (transfer progress/state)
   'FileTransferTickNotification',     // cid = recipient (transfer progress tick)
+  // Media frames carry the SENDER's request_id, exactly like MessageNotification.
+  // Routed by request_id they would be delivered to whichever tab happens to own
+  // that request, so a second session in the same browser would receive another
+  // session's call — audio and video both.
+  'MediaFrameNotification',           // cid = recipient
+  'MediaGapNotification',             // cid = recipient
 ]);
 
 /**

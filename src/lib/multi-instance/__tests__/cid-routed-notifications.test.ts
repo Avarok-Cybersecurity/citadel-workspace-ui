@@ -43,6 +43,11 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     FileTransferRequestNotification: { cid: targetCid, peer_cid: senderCid, metadata: { object_id: '42' }, request_id: 'r4' },
     FileTransferStatusNotification: { cid: targetCid, peer_cid: senderCid, status: 'in-progress', request_id: 'r5' },
     FileTransferTickNotification: { cid: targetCid, peer_cid: senderCid, transmitted_bytes: 1024, request_id: 'r6' },
+    // Media frames carry request_id: null — they are unsolicited, so `cid` is
+    // the ONLY thing that can route them. Routed any other way, a second
+    // session in the same browser would receive another session's call.
+    MediaFrameNotification: { cid: targetCid, peer_cid: senderCid, track: 1, kind: 1, sequence: 7, timestamp: 0, flags: 1, payload: [1, 2], request_id: null },
+    MediaGapNotification: { cid: targetCid, peer_cid: senderCid, track: 1, missing_from: 4, missing_to: 6, request_id: null },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
