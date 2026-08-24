@@ -5,12 +5,16 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps } from '../types';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import WorkspaceService from '@/lib/workspace-service';
+import { saveChatSettings, MAX_CHAT_RULES_LENGTH } from './save-chat-settings';
 import { Loader2, MessageSquare, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { debugLog } from '@/lib/debug-config';
 
 export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
   const { toast } = useToast();
+  const { state } = useWorkspace();
   const [chatEnabled, setChatEnabled] = useState(true);
   const [chatRules, setChatRules] = useState('');
   const [loading, setLoading] = useState(true);
@@ -23,10 +27,11 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     const loadData = () => {
       setLoading(true);
       try {
-        // For now, use default values as chat settings aren't stored yet
-        // In the future, these would be loaded from the entity's settings
-        const enabled = true;
-        const rules = '';
+        // Same store the sidebar and BaseOffice read from, so the tab cannot
+        // disagree with what the rest of the app shows.
+        const node = state.nodes[entityId];
+        const enabled = node ? node.chat_enabled : true;
+        const rules = node?.rules ?? '';
 
         setChatEnabled(enabled);
         setChatRules(rules);
@@ -38,7 +43,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     };
 
     loadData();
-  }, [entityType, entityId]);
+  }, [entityType, entityId, state.nodes]);
 
   useEffect(() => {
     setHasChanges(
@@ -48,27 +53,25 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
 
   const handleSave = async () => {
     setSaving(true);
-    try {
-      // @human-review Chat settings backend API not yet available
-      // For now, just show success and update local state
-      toast({
-        title: 'Chat Settings Updated',
-        description: `Chat ${chatEnabled ? 'enabled' : 'disabled'} for this ${entityType}`,
-        variant: 'success',
-      });
+    const saved = await saveChatSettings({
+      entityType,
+      entityId,
+      chatEnabled,
+      chatRules,
+      write: (nodeId, update) =>
+        WorkspaceService.updateNode(nodeId, { chatEnabled: update.chatEnabled, rules: update.rules }),
+      notify: ({ kind, title, description }) =>
+        toast({ title, description, variant: kind === 'success' ? 'success' : 'destructive' }),
+      log: (message, error) => debugLog('ChatSettingsTab', message, error),
+    });
+    setSaving(false);
 
+    // Only clear the dirty flag once the settings actually reached the server;
+    // otherwise the form would look saved while the edits existed only here.
+    if (saved) {
       setOriginalEnabled(chatEnabled);
       setOriginalRules(chatRules);
       setHasChanges(false);
-    } catch (error) {
-      debugLog('ChatSettingsTab', 'Failed to update chat settings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update chat settings',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -135,11 +138,18 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
           placeholder="Enter chat rules and guidelines for members (optional)&#10;&#10;Example:&#10;- Be respectful to all members&#10;- No spam or self-promotion&#10;- Stay on topic"
           className="bg-card border-surface text-foreground placeholder:text-muted-foreground min-h-[150px]"
           disabled={!chatEnabled}
+          maxLength={MAX_CHAT_RULES_LENGTH}
+          aria-describedby="chat-rules-hint"
           data-testid="chat-rules-textarea"
         />
-        <p className="text-xs text-muted-foreground">
-          These rules will be shown to members before they can send messages
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <p id="chat-rules-hint" className="text-xs text-muted-foreground">
+            These rules will be shown to members before they can send messages
+          </p>
+          <p className="text-xs text-muted-foreground shrink-0 tabular-nums" data-testid="chat-rules-count">
+            {chatRules.length} / {MAX_CHAT_RULES_LENGTH}
+          </p>
+        </div>
       </div>
 
       {/* Additional Settings Preview */}
