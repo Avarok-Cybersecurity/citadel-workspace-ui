@@ -113,6 +113,30 @@ export default defineConfig(({ mode }) => {
             { src: '/icons/icon-192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
             { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
+          // Jump straight to the two places people actually open the app for,
+          // from the installed icon's context menu (right-click on desktop,
+          // long-press on Android). An installed app that can only ever open on
+          // its home screen makes installation worth less than a bookmark.
+          //
+          // Both are real routes in App.tsx, not aspirational ones: a shortcut
+          // to a route that does not exist lands the user on the 404 page from
+          // their own dock, which is worse than having no shortcut.
+          shortcuts: [
+            {
+              name: 'Messages',
+              short_name: 'Messages',
+              description: 'Open your direct conversations',
+              url: '/messages',
+              icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+            },
+            {
+              name: 'Workspace',
+              short_name: 'Workspace',
+              description: 'Open the workspace and its rooms',
+              url: '/workspace',
+              icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+            },
+          ],
         },
         workbox: {
           // Precache the shell. Excluding the WASM binary keeps the install small;

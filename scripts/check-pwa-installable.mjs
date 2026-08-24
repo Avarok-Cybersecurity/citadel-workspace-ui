@@ -59,10 +59,32 @@ for (const icon of icons) {
   check(existsSync(file), `manifest lists ${icon.src} but the file is not in the build.`);
 }
 
+// Shortcuts are the installed icon's context menu. They are easy to get wrong in
+// a way nobody notices from a browser tab: a shortcut pointing at a route that
+// no longer exists drops the user on the 404 page from their own dock, and the
+// only way to see it is to install the app and right-click it.
+const shortcuts = manifest.shortcuts ?? [];
+for (const shortcut of shortcuts) {
+  check(!!shortcut.name, 'a manifest shortcut has no name.');
+  check(
+    typeof shortcut.url === 'string' && shortcut.url.startsWith('/'),
+    `shortcut "${shortcut.name}" has a url that is not app-relative: ${shortcut.url}`,
+  );
+  for (const icon of shortcut.icons ?? []) {
+    check(
+      existsSync(join(dist, icon.src.replace(/^\//, ''))),
+      `shortcut "${shortcut.name}" lists ${icon.src} but the file is not in the build.`,
+    );
+  }
+}
+
 if (failures.length) {
   console.error('The app would not be installable:\n');
   for (const f of failures) console.error(`  - ${f}`);
   process.exit(1);
 }
 
-console.log(`Installable: ${manifest.name} (${icons.length} icons, display: ${manifest.display}), service worker present.`);
+console.log(
+  `Installable: ${manifest.name} (${icons.length} icons, ${shortcuts.length} shortcuts, ` +
+    `display: ${manifest.display}), service worker present.`,
+);
