@@ -35,10 +35,9 @@ export function WorkspaceThemeProvider({ children }: { children: ReactNode }) {
     const metadata = state.workspace?.metadata;
     if (!metadata) return null;
 
-    // Vec<u8> reaches us as number[]; deserializeTheme accepts either and
-    // returns null for anything that is not a theme envelope, because metadata
-    // is a general-purpose field other features may also write to.
-    const parsed = deserializeTheme(metadata as unknown as number[]);
+    // deserializeTheme returns null for anything that is not a theme envelope,
+    // because metadata is a general-purpose field other features also write to.
+    const parsed = deserializeTheme(metadata);
     if (!parsed) {
       debugLog('WorkspaceTheme', 'Workspace metadata carries no usable theme; using the default');
     }

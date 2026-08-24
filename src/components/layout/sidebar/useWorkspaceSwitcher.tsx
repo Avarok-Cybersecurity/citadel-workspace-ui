@@ -12,6 +12,7 @@ import { getWorkspaceLogo, getWorkspaceInitials } from "@/lib/workspace-metadata
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { yieldToEventLoop } from '@/lib/utils/scheduling';
+import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 
 export interface StoredWorkspace {
   id: string;
@@ -50,6 +51,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useWorkspace();
+  const { theme } = useWorkspaceTheme();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -82,15 +84,17 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   }, [state.workspace]);
 
   useEffect(() => {
-    if (state.workspace?.metadata) {
-      const logo = getWorkspaceLogo(state.workspace.name, state.workspace.metadata);
-      setWorkspaceLogo(logo.data);
-      setIsInitials(logo.type !== 'image');
-    } else if (workspaceName) {
-      setWorkspaceLogo(getWorkspaceInitials(workspaceName));
-      setIsInitials(true);
-    }
-  }, [state.workspace, workspaceName]);
+    // The icon comes from the workspace theme, which is where it is edited and
+    // stored. This used to pass the raw metadata bytes and test for a `.logo`
+    // property that a byte array can never have, so it always fell through to
+    // initials.
+    const name = state.workspace?.name ?? workspaceName;
+    if (!name) return;
+
+    const logo = getWorkspaceLogo(name, theme.icon);
+    setWorkspaceLogo(logo.data);
+    setIsInitials(logo.type === 'initials');
+  }, [state.workspace, workspaceName, theme.icon]);
 
   useEffect(() => {
     if (currentWorkspace) {

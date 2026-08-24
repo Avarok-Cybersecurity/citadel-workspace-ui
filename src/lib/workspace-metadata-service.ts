@@ -4,39 +4,34 @@
  */
 
 import { debugLog } from './debug-config';
+import type { WorkspaceIcon } from '@/lib/theme/theme-types';
 
 // Interface for workspace logo information
 export interface WorkspaceLogo {
-  type: 'image' | 'initials';
-  data: string; // Either base64 image data or initials string
+  /** 'emoji' when the theme sets one, otherwise initials derived from the name. */
+  type: 'emoji' | 'initials';
+  data: string;
 }
 
 /**
- * Extract workspace logo from metadata or generate from workspace name
- * @param workspaceName The name of the workspace
- * @param metadata Optional metadata that might contain logo information
- * @returns WorkspaceLogo object with either image data or initials
+ * The workspace's logo: its themed icon, or initials as a fallback.
+ *
+ * This previously took `Record<string, any>` and tested `metadata.logo`. The
+ * metadata is a `Vec<u8>` byte array, so that property was always undefined and
+ * the image branch was unreachable — every workspace silently fell back to
+ * initials, with no type error possible because `any` accepts the lookup.
+ *
+ * The icon now comes from the workspace theme, which is where it is actually
+ * edited and stored, rather than being guessed at from raw bytes.
  */
-export function getWorkspaceLogo(workspaceName: string, metadata?: Record<string, any>): WorkspaceLogo {
-  // Try to extract logo from metadata if it exists
-  if (metadata && metadata.logo && typeof metadata.logo === 'string') {
-    try {
-      // Check if it's a valid base64 image
-      if (metadata.logo.startsWith('data:image')) {
-        return {
-          type: 'image',
-          data: metadata.logo
-        };
-      }
-    } catch (error) {
-      debugLog('WorkspaceMetadataService', 'Error parsing workspace logo from metadata:', error);
-    }
+export function getWorkspaceLogo(workspaceName: string, icon?: WorkspaceIcon): WorkspaceLogo {
+  if (icon?.emoji) {
+    return { type: 'emoji', data: icon.emoji };
   }
-  
-  // If no logo found in metadata or error occurred, generate initials from workspace name
+
   return {
     type: 'initials',
-    data: getWorkspaceInitials(workspaceName)
+    data: getWorkspaceInitials(workspaceName),
   };
 }
 

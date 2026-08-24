@@ -2,6 +2,7 @@ import React, { createContext, useContext } from 'react';
 import { User } from '../types/workspace-entities';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
+import type { WorkspaceMetadataBytes } from '@/types/workspace-metadata';
 
 // Define the shape of our workspace state
 export interface WorkspaceState {
@@ -9,7 +10,8 @@ export interface WorkspaceState {
     id: string;
     name: string;
     description?: string;
-    metadata?: Record<string, any>;
+    /** Raw `Vec<u8>` from the wire. Decode it; do not read properties off it. */
+    metadata?: WorkspaceMetadataBytes;
   };
   workspaces: WorkspaceMetadataTS[];
   currentUser?: {
