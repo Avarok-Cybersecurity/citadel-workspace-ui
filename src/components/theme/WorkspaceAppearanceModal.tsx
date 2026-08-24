@@ -52,7 +52,9 @@ export function WorkspaceAppearanceModal({
   canEdit,
   onSave,
 }: WorkspaceAppearanceModalProps) {
-  const { theme: savedTheme, previewTheme } = useWorkspaceTheme();
+  // savedTheme, NOT theme: `theme` becomes our own preview the moment we set
+  // one, so comparing against it would make `dirty` permanently false.
+  const { savedTheme, previewTheme } = useWorkspaceTheme();
 
   const [draft, setDraft] = useState<WorkspaceTheme>(savedTheme);
   const [mode, setMode] = useState<ThemeMode>('dark');

@@ -60,7 +60,13 @@ export function WorkspaceThemeProvider({ children }: { children: ReactNode }) {
   const previewTheme = useCallback((next: WorkspaceTheme | null) => setPreview(next), []);
 
   const value = useMemo(
-    () => ({ theme, isDefault: saved === null && preview === null, previewTheme }),
+    () => ({
+      theme,
+      // Never the preview: this is the baseline an editor compares against.
+      savedTheme: saved ?? defaultTheme(),
+      isDefault: saved === null && preview === null,
+      previewTheme,
+    }),
     [theme, saved, preview, previewTheme],
   );
 

@@ -3,8 +3,20 @@ import type { WorkspaceTheme } from './theme-types';
 import { defaultTheme } from './presets';
 
 export interface WorkspaceThemeContextValue {
-  /** The theme currently applied to the document. Never null — falls back to the default. */
+  /**
+   * The theme currently applied to the document — the PREVIEW while one is
+   * active, otherwise the saved one. This is what the app should render from.
+   */
   theme: WorkspaceTheme;
+  /**
+   * The theme actually persisted for this workspace, ignoring any preview.
+   *
+   * Distinct from `theme` because an editor previewing its own draft would
+   * otherwise compare the draft against itself: every edit would update the
+   * baseline, "has anything changed" would always be false, and Save would never
+   * enable. Two different facts, two names.
+   */
+  savedTheme: WorkspaceTheme;
   /**
    * True while the workspace has said nothing about its theme, so the default is
    * standing in. Lets the editor show "not yet set" rather than implying the
@@ -20,6 +32,7 @@ export interface WorkspaceThemeContextValue {
 
 export const WorkspaceThemeContext = createContext<WorkspaceThemeContextValue>({
   theme: defaultTheme(),
+  savedTheme: defaultTheme(),
   isDefault: true,
   previewTheme: () => {
     // A no-op default rather than a throw: components that read the theme are

@@ -25,7 +25,7 @@ function renderModal(options: {
   } = options;
 
   render(
-    <WorkspaceThemeContext.Provider value={{ theme: saved, isDefault: false, previewTheme }}>
+    <WorkspaceThemeContext.Provider value={{ theme: saved, savedTheme: saved, isDefault: false, previewTheme }}>
       <WorkspaceAppearanceModal
         open
         onOpenChange={vi.fn()}
