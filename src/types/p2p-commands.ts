@@ -32,7 +32,14 @@ export enum P2PCommandType {
    * integration test never reached a stable sync state. Routing Yjs
    * through `P2PCommand` makes one decode path the single source of
    * truth and drops the wire-format ambiguity entirely. */
-  YjsP2PSync = "YjsP2PSync"
+  YjsP2PSync = "YjsP2PSync",
+  /** Call control: invite, accept, decline, end, and in-call state changes.
+   *
+   * Signalling rides the RELIABLE path deliberately, while the media it sets up
+   * rides the lossy UDP one. The two have opposite requirements: losing a video
+   * frame costs a sixtieth of a second, losing a "call ended" leaves both sides
+   * staring at a call that is over. */
+  CallSignal = "CallSignal"
 }
 
 export interface P2PMessagingLayerPayload {
@@ -111,11 +118,79 @@ export interface P2PAttachment {
   thumbnail?: string;
 }
 
+/** Which media a participant is contributing. */
+export interface CallMediaKinds {
+  audio: boolean;
+  video: boolean;
+  screen: boolean;
+}
+
+/** What a peer can decode, so the SENDER can pick something it can play.
+ *
+ * Decode support is consistently broader than encode support, so negotiating on
+ * the receiver's decode list is what lets each sender use its best available
+ * encoder instead of collapsing everyone to a common denominator.
+ */
+export interface CallCodecCapabilities {
+  audio: string[];
+  video: Array<{ codec: string; hardware: boolean; maxHeight: number }>;
+}
+
+export type CallDeclineReason = 'busy' | 'rejected' | 'unsupported' | 'no-devices';
+export type CallEndReason = 'hangup' | 'error' | 'timeout' | 'unanswered';
+
+/** Track numbering, shared with the Rust transport's TrackId. */
+export const CALL_TRACK_AUDIO = 0;
+export const CALL_TRACK_VIDEO = 1;
+/** Low-resolution video, sent to everyone who is not the active speaker. */
+export const CALL_TRACK_VIDEO_THUMBNAIL = 2;
+
+/** TrackKind on the wire: matches citadel_media's TrackKind discriminants. */
+export const CALL_KIND_AUDIO = 0;
+export const CALL_KIND_VIDEO = 1;
+
+/** FrameFlags bits, matching citadel_media::FrameFlags. */
+export const CALL_FLAG_KEYFRAME = 0b0001;
+export const CALL_FLAG_DISCARDABLE = 0b0010;
+
+export type CallSignalPayload =
+  | {
+      kind: 'CallInvite';
+      call_id: string;
+      media: CallMediaKinds;
+      codecs: CallCodecCapabilities;
+      /** Bumped when the frame wire format changes. A peer that does not
+       * recognise it declines as 'unsupported' instead of decoding garbage. */
+      media_wire_version: number;
+      /** Present for a group call: everyone the caller is inviting, so each
+       * participant can build the same mesh without a central authority. */
+      group?: { room_id: string; members: string[] };
+    }
+  | { kind: 'CallAccept'; call_id: string; codecs: CallCodecCapabilities; media: CallMediaKinds }
+  | { kind: 'CallDecline'; call_id: string; reason: CallDeclineReason }
+  | { kind: 'CallEnd'; call_id: string; reason: CallEndReason }
+  /** Mic/camera/screen toggled, so the far side can show the right tile state
+   * instead of inferring it from a stream that simply stopped arriving. */
+  | { kind: 'CallMediaState'; call_id: string; media: CallMediaKinds }
+  /** Sent after a gap: the decoder cannot recover until a keyframe arrives. */
+  | { kind: 'CallKeyframeRequest'; call_id: string; track: number };
+
 export interface P2PCommand {
   type: P2PCommandType;
   payload: P2PMessagingLayerPayload | P2PMessageAckPayload |
            P2PFileTransferRequestPayload | P2PFileTransferChunkPayload | P2PFileTransferCompletePayload |
-           P2PYjsSyncPayload;
+           P2PYjsSyncPayload | CallSignalPayload;
+}
+
+export function isCallSignalPayload(payload: unknown): payload is CallSignalPayload {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'kind' in payload &&
+    'call_id' in payload &&
+    typeof (payload as { kind: unknown }).kind === 'string' &&
+    (payload as { kind: string }).kind.startsWith('Call')
+  );
 }
 
 // Type guards for payload discrimination
