@@ -154,7 +154,7 @@ async function registerUser(page: Page, username: string, password: string): Pro
  * Waits out several retry cycles rather than checking once: the bug was a
  * reappearance a moment later, which an immediate assertion would miss.
  */
-async function dismissedModalStaysClosed(page: Page): Promise<boolean> {
+async function dismissedModalStaysClosed(page: Page, username: string): Promise<boolean> {
   const modal = page.locator('[role="dialog"]');
   const cancel = page.getByRole('button', { name: 'Cancel' });
 
@@ -170,6 +170,19 @@ async function dismissedModalStaysClosed(page: Page): Promise<boolean> {
     return false;
   }
 
+  // Cancelling means declining to set this workspace up, so it must return to
+  // the index rather than leave the user inside a workspace that does not exist
+  // yet — which showed an empty, non-functional shell with no way back and no
+  // explanation.
+  const backAtIndex = await page
+    .waitForURL((url) => new URL(url).pathname === '/', { timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!backAtIndex) {
+    console.log(`  Cancel did not return to the index (still on ${page.url()})`);
+    return false;
+  }
+
   // If it is coming back, it comes back on the next failed workspace call.
   const reappeared = await modal
     .waitFor({ state: 'visible', timeout: 12_000 })
@@ -179,10 +192,31 @@ async function dismissedModalStaysClosed(page: Page): Promise<boolean> {
   console.log(`  Stayed dismissed: ${!reappeared}`);
 
   // Put the app back how it was found, so the steps after this one still have a
-  // modal to initialise the workspace with. The dismissal is remembered in
-  // sessionStorage, so clearing that key and reloading is what undoes it.
+  // modal to initialise the workspace with.
+  //
+  // Two things have to be undone, not one. The dismissal is remembered in
+  // sessionStorage, and cancelling now also returns to the index — declining
+  // setup should not leave you inside a workspace that does not exist yet. So a
+  // reload alone lands back on the landing page with no modal to submit, which
+  // is what made every step after this one fail.
+  //
+  // The session is still live after that redirect, so it is listed for resuming;
+  // claiming it is both the shortest way back and the path a real user takes.
   await page.evaluate(() => sessionStorage.removeItem('workspace-init-modal-dismissed'));
+  // Reload before resuming, not after. The app reads the dismissal flag into
+  // component state once at load, and claiming a session does not remount it —
+  // so clearing the key alone left the in-memory flag set and the modal stayed
+  // suppressed, which read exactly like initialisation being broken.
   await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+  await waitForAppReady(page, 60_000);
+
+  const resume = page.locator(`[data-testid="session-button-${username}"]`);
+  if (await isVisibleWithin(resume, 30_000)) {
+    await resume.click();
+  } else {
+    console.log('  No session listed to resume after the cancel redirect');
+    return false;
+  }
   await waitForAppReady(page, 60_000);
   // No assertion that the modal came back here — the next step waits for it and
   // asserts it properly. Checking twice on a shorter budget only produced a
@@ -372,7 +406,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     if (results.initModalAppears) {
-      results.dismissalSticks = await dismissedModalStaysClosed(firstPage);
+      results.dismissalSticks = await dismissedModalStaysClosed(firstPage, FIRST_USER);
     }
 
     // ========== STEP 3: Submit Initialization ==========
