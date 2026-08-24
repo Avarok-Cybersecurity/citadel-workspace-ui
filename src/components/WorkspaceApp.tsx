@@ -6,6 +6,7 @@ import { ConnectionRetryModal } from './ConnectionRetryModal';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { websocketService } from '@/lib/websocket-service';
 import { ConnectionService } from '@/lib/connection-service';
+import { startGroupResponseService } from '@/lib/group-conversations/group-response-service';
 import { useConnectionHandler } from './hooks';
 import { debugLog } from '@/lib/debug-config';
 
@@ -54,6 +55,9 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
                 throw error;
               }
             }
+            // Group responses carry no request_id we track, so the listener has to
+            // be in place before init or a GroupCreateSuccess arriving early is lost.
+            startGroupResponseService();
             await websocketService.init();
           }}
         />

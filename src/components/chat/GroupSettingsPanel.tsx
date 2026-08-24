@@ -32,6 +32,8 @@ export function GroupSettingsPanel({
   onSettingsChange,
   onMemberRoleChange,
   onKickMember,
+  invitablePeers,
+  onInviteMember,
   onDeleteGroup,
 }: GroupSettingsPanelProps) {
   const { can } = useGroupPermissions(group);
@@ -130,6 +132,8 @@ export function GroupSettingsPanel({
               group={group}
               onRoleChange={onMemberRoleChange}
               onKickMember={onKickMember}
+              invitablePeers={invitablePeers}
+              onInviteMember={onInviteMember}
             />
           </TabsContent>
 

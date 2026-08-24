@@ -9,10 +9,12 @@
  * of lib/chat-messaging-adapter.ts.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { groupIdToKey } from '@/lib/group-conversations/group-key';
+import { useRegisteredPeers } from '@/hooks/use-registered-peers';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
 import { GroupChatView } from '@/components/chat/GroupChatView';
@@ -37,7 +39,9 @@ export function GroupChatPage() {
     leaveGroup,
     kickMember,
     updateMemberRole,
+    invitePeer,
   } = useGroupConversations();
+  const { registeredPeers } = useRegisteredPeers();
 
   // State
   const [group, setGroup] = useState<GroupConversation | null>(null);
@@ -92,6 +96,31 @@ export function GroupChatPage() {
     [groupId, updateMemberRole]
   );
 
+  // Anyone already in the group would be a no-op invite, so they are filtered
+  // out rather than offered and silently rejected by the backend.
+  const invitablePeers = useMemo(() => {
+    if (!group) return [];
+    const existing = new Set(group.members.map((m) => m.cid.toString()));
+    return registeredPeers.filter((p) => !existing.has(p.cid));
+  }, [group, registeredPeers]);
+
+  const handleInviteMember = useCallback(
+    async (peerCid: string) => {
+      if (!groupId) return;
+      try {
+        await invitePeer(groupId, peerCid);
+        toast({ title: 'Invitation sent' });
+      } catch (error) {
+        toast({
+          title: 'Failed to invite',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      }
+    },
+    [groupId, invitePeer, toast],
+  );
+
   const handleSettingsChange = useCallback((settings: GroupSettings) => {
     setGroup(prev => (prev ? { ...prev, settings } : null));
   }, []);
@@ -109,7 +138,7 @@ export function GroupChatPage() {
       const request = {
         GroupEnd: {
           cid: BigInt(currentUserId),
-          group_key: groupId,
+          group_key: groupIdToKey(groupId),
           request_id: crypto.randomUUID(),
         },
       };
@@ -169,6 +198,8 @@ export function GroupChatPage() {
         onSettingsChange={handleSettingsChange}
         onMemberRoleChange={handleRoleChange}
         onKickMember={handleKickMember}
+        invitablePeers={invitablePeers}
+        onInviteMember={handleInviteMember}
         onDeleteGroup={handleDeleteGroup}
       />
       </div>

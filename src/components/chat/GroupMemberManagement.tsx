@@ -29,6 +29,7 @@ import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { getRoleIcon, getAvatarColor } from './GroupMemberManagementHelpers';
 import type { GroupMemberManagementProps } from './GroupMemberManagementHelpers';
 import { KickConfirmDialog } from './KickConfirmDialog';
+import { PeerPickerPopover } from './PeerPickerPopover';
 
 // ============================================================================
 // Component
@@ -38,6 +39,8 @@ export function GroupMemberManagement({
   group,
   onRoleChange,
   onKickMember,
+  invitablePeers = [],
+  onInviteMember,
 }: GroupMemberManagementProps) {
   const { can, canManageMember, canAssignRole } = useGroupPermissions(group);
   const [memberToKick, setMemberToKick] = useState<GroupMemberWithRole | null>(null);
@@ -100,6 +103,18 @@ export function GroupMemberManagement({
         <h3 className="text-sm font-semibold text-foreground">
           Members ({group.members.length})
         </h3>
+        {/* Only offered to members whose role permits it, and only when the
+            caller supplied a handler — inviting was previously unreachable
+            entirely, invitePeer having had no caller anywhere. */}
+        {onInviteMember && can('inviteMembers') && (
+          <PeerPickerPopover
+            peers={invitablePeers}
+            label="Invite"
+            emptyMessage="Everyone you have registered is already in this group"
+            data-testid="group-invite-picker"
+            onSelect={(peer) => { void onInviteMember(peer.cid); }}
+          />
+        )}
       </div>
 
       {/* Member Table */}

@@ -1,3 +1,4 @@
+import type { AvailablePeer } from './create-group-types';
 /**
  * Types, constants, and helpers for GroupMemberManagement component.
  */
@@ -16,6 +17,10 @@ export interface GroupMemberManagementProps {
   onRoleChange: (memberCid: string, roleId: string) => Promise<void>;
   /** Callback when a member is kicked */
   onKickMember: (memberCid: string) => Promise<void>;
+  /** Peers who can still be invited — callers exclude anyone already a member. */
+  invitablePeers?: AvailablePeer[];
+  /** Callback when a peer is invited. Omit to hide the invite control entirely. */
+  onInviteMember?: (peerCid: string) => Promise<void>;
 }
 
 // ============================================================================

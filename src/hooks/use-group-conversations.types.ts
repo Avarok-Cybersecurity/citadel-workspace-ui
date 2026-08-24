@@ -23,7 +23,12 @@ export interface UseGroupConversationsResult {
     initialMembers: Array<{ cid: string; username: string; roleId?: string }>
   ) => Promise<string>;
   /** Invite a peer to a group */
-  invitePeer: (groupId: string, peerCid: string, roleId?: string) => Promise<void>;
+  /**
+   * Invite a peer. GroupInvite carries no role field, so a caller wanting a
+   * specific role calls updateMemberRole after this resolves — folding it in
+   * here would just hide a second request behind a parameter.
+   */
+  invitePeer: (groupId: string, peerCid: string) => Promise<void>;
   /** Leave a group */
   leaveGroup: (groupId: string) => Promise<void>;
   /** Kick a member from a group */
