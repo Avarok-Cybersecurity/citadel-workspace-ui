@@ -17,8 +17,19 @@ import { sleep, waitForServicesAlive } from './utils.js';
  * has built up workspaces and accounts, and a premature failure here aborts a
  * spec for reasons that have nothing to do with what it was testing.
  */
-const CONTAINER_READY_TIMEOUT_MS = 120_000;
+const CONTAINER_READY_TIMEOUT_MS = 300_000;
 const CONTAINER_POLL_INTERVAL_MS = 2_000;
+
+/**
+ * How many times to nudge a container that has exited.
+ *
+ * More than one, because the server does not always come back on the first
+ * restart: it has been observed exiting, staying exited through one restart,
+ * and then coming up healthy later. Spaced out rather than immediate, so a
+ * container that is simply slow is not restarted out from under itself.
+ */
+const MAX_CONTAINER_RESTARTS = 3;
+const RESTART_BACKOFF_MS = 15_000;
 
 /**
  * Get the workspace root directory dynamically.
@@ -85,7 +96,8 @@ export async function restartBackendServices(): Promise<void> {
 
     const deadline = Date.now() + CONTAINER_READY_TIMEOUT_MS;
     let lastState = '';
-    let restartedOnce = false;
+    let restarts = 0;
+    let nextRestartAllowedAt = 0;
 
     for (;;) {
       const psOutput = execSync(
@@ -114,12 +126,14 @@ export async function restartBackendServices(): Promise<void> {
 
       if (ready(server) && ready(internal)) break;
 
-      // A container that has actually exited will not recover on its own, so
-      // restart it once — but only once, and then keep waiting rather than
-      // restarting on every poll.
-      if (!restartedOnce && (server?.State === 'exited' || internal?.State === 'exited')) {
-        restartedOnce = true;
-        console.log('  A container exited; restarting it once and continuing to wait...');
+      // A container that has exited will not recover on its own. Nudge it, but
+      // leave a gap between attempts so a merely slow container is not
+      // restarted out from under itself.
+      const exited = server?.State === 'exited' || internal?.State === 'exited';
+      if (exited && restarts < MAX_CONTAINER_RESTARTS && Date.now() >= nextRestartAllowedAt) {
+        restarts += 1;
+        nextRestartAllowedAt = Date.now() + RESTART_BACKOFF_MS;
+        console.log(`  A container exited; restart attempt ${restarts}/${MAX_CONTAINER_RESTARTS}...`);
         if (server?.State === 'exited') {
           execSync('docker restart --timeout 15 citadel-workspace-server-1', { stdio: 'inherit', timeout: 60000 });
         }
@@ -129,8 +143,20 @@ export async function restartBackendServices(): Promise<void> {
       }
 
       if (Date.now() > deadline) {
+        // Print what the container itself said. "server=exited" names the
+        // symptom; the log names the cause, and without it the next person is
+        // left re-running the suite to find out.
+        let tail = '';
+        try {
+          tail = execSync('docker compose logs --tail=40 server internal-service', {
+            cwd, timeout: 20000,
+          }).toString();
+        } catch {
+          tail = '(could not read container logs)';
+        }
         throw new Error(
-          `Containers did not become healthy within ${CONTAINER_READY_TIMEOUT_MS / 1000}s. Last seen: ${state}`
+          `Containers did not become healthy within ${CONTAINER_READY_TIMEOUT_MS / 1000}s ` +
+          `after ${restarts} restart attempt(s). Last seen: ${state}\n\n${tail}`
         );
       }
 

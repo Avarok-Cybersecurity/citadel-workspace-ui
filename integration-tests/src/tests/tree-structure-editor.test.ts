@@ -594,8 +594,13 @@ async function runTest(): Promise<boolean> {
     // `section:has-text("OFFICES")` — a section the app does not render — and
     // therefore never verified the filter at all.
     if (testOfficeId) {
+      // No parentId: this step is about whether the entity_types filter works,
+      // and scoping it to the workspace root made it return nothing at all.
+      // The server synthesises a Workspace node for the 'workspace-root'
+      // sentinel in GetNode but never stores one (get_all_nodes has no such
+      // entry), so asking for that id's children matches no rows — the filter
+      // was fine, the parent was a ghost.
       const offices = await listNodesViaProtocol(page, {
-        parentId: workspaceRootId,
         entityTypes: [{ Child: 'Office' }],
       });
       const nonOfficeLeaked = offices.some(
@@ -604,7 +609,7 @@ async function runTest(): Promise<boolean> {
       results.nodesListedWithFilter =
         offices.some(n => n.id === testOfficeId) && !nonOfficeLeaked;
       console.log(`  ListNodes(entity_types=[Office]) returned ${offices.length} nodes`);
-      console.log(`  Contains our office and nothing else: ${results.nodesListedWithFilter ? 'PASS' : 'FAIL'}`);
+      console.log(`  Contains our office, and only Offices: ${results.nodesListedWithFilter ? 'PASS' : 'FAIL'}`);
     }
 
     // ========================================================================
