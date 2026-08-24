@@ -53,6 +53,31 @@ function isIPAddress(address: string): boolean {
  * - [IPv6]
  * - [IPv6]:port
  */
+/**
+ * Parse the port half of an address, strictly.
+ *
+ * parseInt is too forgiving for this: parseInt('12349abc', 10) is 12349, so a
+ * typo used to be accepted silently and the client connected to a port the user
+ * never typed. That does not surface as a parse error — it surfaces as a
+ * connection timing out against an address nobody entered, which is a far worse
+ * thing to debug. Out-of-range values had the same problem.
+ */
+function parsePort(rawPort: string, address: string): number {
+  // Surrounding whitespace is unambiguous, and parseInt used to tolerate it —
+  // rejecting "host: 12349" would be a regression for a typo that has exactly
+  // one sensible reading. Anything else is genuinely ambiguous and refused.
+  const portStr = rawPort.trim();
+
+  if (!/^\d+$/.test(portStr)) {
+    throw new Error(`Invalid port in address: ${address}`);
+  }
+  const port = Number(portStr);
+  if (port < 1 || port > 65535) {
+    throw new Error(`Invalid port in address: ${address} (must be 1-65535)`);
+  }
+  return port;
+}
+
 function parseAddress(address: string): { host: string; port: number | null } {
   // Handle IPv6 with brackets: [::1] or [::1]:port
   if (address.startsWith('[')) {
@@ -66,11 +91,7 @@ function parseAddress(address: string): { host: string; port: number | null } {
     if (afterBracket === '') {
       return { host, port: null };
     } else if (afterBracket.startsWith(':')) {
-      const port = parseInt(afterBracket.slice(1), 10);
-      if (isNaN(port)) {
-        throw new Error(`Invalid port in address: ${address}`);
-      }
-      return { host, port };
+      return { host, port: parsePort(afterBracket.slice(1), address) };
     } else {
       throw new Error(`Invalid IPv6 address format: ${address}`);
     }
@@ -93,14 +114,7 @@ function parseAddress(address: string): { host: string; port: number | null } {
 
   // Single colon = IPv4:port or hostname:port
   const host = address.slice(0, lastColon);
-  const portStr = address.slice(lastColon + 1);
-  const port = parseInt(portStr, 10);
-
-  if (isNaN(port)) {
-    throw new Error(`Invalid port in address: ${address}`);
-  }
-
-  return { host, port };
+  return { host, port: parsePort(address.slice(lastColon + 1), address) };
 }
 
 /**
