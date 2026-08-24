@@ -14,12 +14,25 @@ describe('yieldToEventLoop', () => {
     expect(order).toEqual(['microtask', 'macrotask']);
   });
 
-  it('adds no measurable delay of its own', async () => {
-    const start = Date.now();
-    await yieldToEventLoop();
-    // Was a hardcoded 10ms per file-transfer chunk. Anything in that ballpark
-    // means the arbitrary delay crept back in.
-    expect(Date.now() - start).toBeLessThan(10);
+  it('schedules with no delay of its own', async () => {
+    // Guards against the hardcoded 10ms per file-transfer chunk coming back.
+    //
+    // Asserts the DELAY ARGUMENT rather than elapsed wall-clock. Two earlier
+    // versions of this test timed the call — first one yield against 10ms, then
+    // twenty against 100ms — and both failed intermittently under full-suite
+    // load, because scheduler jitter and a deliberate delay are the same
+    // measurement. Nothing about the threshold could separate them; only the
+    // argument can.
+    const spy = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      await yieldToEventLoop();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      const [, delay] = spy.mock.calls[0];
+      expect(delay).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
