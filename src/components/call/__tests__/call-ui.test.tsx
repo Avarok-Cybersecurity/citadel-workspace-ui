@@ -10,6 +10,7 @@ import { ParticipantTile } from '../ParticipantTile';
 import { CallControls } from '../CallControls';
 import { IncomingCallCard } from '../IncomingCallCard';
 import { CallStage } from '../CallStage';
+import { CallEntryButtons } from '../CallEntryButtons';
 import type { CallParticipant, CallState } from '@/lib/call/call-state';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 
@@ -229,5 +230,60 @@ describe('CallStage', () => {
     render(<CallStage call={call} {...props} />);
 
     expect(screen.getByRole('region', { name: /call in progress with 2 people/i })).toBeInTheDocument();
+  });
+});
+
+describe('CallEntryButtons', () => {
+  const supported = { supported: true };
+
+  it('offers audio and video separately', async () => {
+    const onStartCall = vi.fn();
+    render(
+      <CallEntryButtons targetName="Alice" canCall inCall={false} capability={supported} onStartCall={onStartCall} onLeave={vi.fn()} />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /start audio call with alice/i }));
+    expect(onStartCall).toHaveBeenCalledWith(false);
+
+    await userEvent.click(screen.getByRole('button', { name: /start video call with alice/i }));
+    expect(onStartCall).toHaveBeenCalledWith(true);
+  });
+
+  it('stays visible but disabled when the peer is offline, rather than vanishing', () => {
+    // A control that disappears teaches the user the feature does not exist;
+    // one that explains itself teaches them what to fix.
+    render(
+      <CallEntryButtons targetName="Alice" canCall={false} inCall={false} capability={supported} onStartCall={vi.fn()} onLeave={vi.fn()} />,
+    );
+
+    expect(screen.getByTestId('call-unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^call alice$/i })).toBeDisabled();
+  });
+
+  it('is disabled with the browser’s own reason when calls are unsupported', () => {
+    render(
+      <CallEntryButtons
+        targetName="Alice"
+        canCall
+        inCall={false}
+        capability={{ supported: false, reason: 'This browser does not support WebCodecs, which calls require.' }}
+        onStartCall={vi.fn()}
+        onLeave={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('call-unavailable')).toBeInTheDocument();
+  });
+
+  it('replaces both buttons with a single leave control during a call', async () => {
+    // Offering "call" during a call is how people start a second one by mistake.
+    const onLeave = vi.fn();
+    render(
+      <CallEntryButtons targetName="Alice" canCall inCall capability={supported} onStartCall={vi.fn()} onLeave={onLeave} />,
+    );
+
+    expect(screen.queryByTestId('call-start-audio')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /leave call with alice/i }));
+    expect(onLeave).toHaveBeenCalled();
   });
 });

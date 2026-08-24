@@ -9,6 +9,7 @@ import React from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
+import { CallEntryButtons } from '@/components/call/CallEntryButtons';
 import { getInitials } from '@/components/chat/shared';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
@@ -20,6 +21,14 @@ interface P2PChatHeaderProps {
   isConnected: boolean;
   isRegistered: boolean;
   onSettingsClick: () => void;
+  /** Omitted where calling is not wired up, so the header stays usable. */
+  call?: {
+    canCall: boolean;
+    inCall: boolean;
+    capability: { supported: boolean; reason?: string };
+    onStartCall: (video: boolean) => void;
+    onLeave: () => void;
+  };
 }
 
 interface StatusDisplay {
@@ -66,6 +75,7 @@ export function P2PChatHeader({
   isConnected,
   isRegistered,
   onSettingsClick,
+  call,
 }: P2PChatHeaderProps) {
   const statusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
 
@@ -90,6 +100,16 @@ export function P2PChatHeader({
             </div>
           </div>
         </div>
+        {call && (
+          <CallEntryButtons
+            targetName={peerName}
+            canCall={call.canCall}
+            inCall={call.inCall}
+            capability={call.capability}
+            onStartCall={call.onStartCall}
+            onLeave={call.onLeave}
+          />
+        )}
         <Button
           variant="ghost"
           size="icon"
