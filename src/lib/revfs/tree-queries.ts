@@ -43,10 +43,22 @@ export function now(): number {
   return Date.now();
 }
 
+/**
+ * Deep-copy a tree, preserving types.
+ *
+ * This used to be `JSON.parse(JSON.stringify(node, bigintToString))`, which
+ * silently turned every `uploadedByCid` into a string. The field is typed
+ * `bigint`, so the value and its type disagreed from the first mutation onward —
+ * and every mutation clones (mkdir, rmdir, placeFile, removeFile, rename, move,
+ * copy, merge), so no stored tree escaped it. A `=== someBigintCid` check
+ * against a cloned node can only ever be false, and the corruption persists into
+ * IndexedDB.
+ *
+ * structuredClone handles BigInt natively, which is also what the storage layer
+ * does — the JSON round trip was the only thing in the path that could not.
+ */
 export function cloneTree(node: RevfsNode): RevfsNode {
-  return JSON.parse(JSON.stringify(node, (_k, v) =>
-    typeof v === 'bigint' ? v.toString() : v
-  )) as RevfsNode;
+  return structuredClone(node);
 }
 
 /** Normalize path: ensure leading slash, no trailing slash, no double slashes */
