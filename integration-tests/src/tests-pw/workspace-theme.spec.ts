@@ -1,0 +1,171 @@
+/**
+ * Workspace theming — @playwright/test spec
+ *
+ * The theme is a workspace-wide setting stored in workspace metadata, so the
+ * assertions that matter are the ones a unit test cannot make: that a saved
+ * theme actually reaches the server and comes back after a reload, and that the
+ * CSS variables on the document really change.
+ *
+ * The load-bearing check is the LAST one. A workspace theme and a member's
+ * light/dark preference are separate concerns, and conflating them is the
+ * obvious way to build this wrong — an admin must not be able to force everyone
+ * into dark mode by choosing the workspace palette.
+ */
+
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import {
+  clearBrowserStorage,
+  closeAnyModals,
+  createAccount,
+  waitForAppReady,
+  waitForWorkspaceLoaded,
+} from '../lib/index.js';
+import { config } from '../lib/config.js';
+
+/** Read a design token off the document, which is where applyTheme writes. */
+async function readToken(page: Page, name: string): Promise<string> {
+  return page.evaluate(
+    (token) => getComputedStyle(document.documentElement).getPropertyValue(token).trim(),
+    name,
+  );
+}
+
+async function openAppearanceSettings(page: Page): Promise<void> {
+  await page.getByTestId('user-avatar-button').click();
+  await page.locator('[role="menuitem"]:has-text("Settings")').click();
+  // The tab is labelled "Theme"; its visible text is hidden below `sm`, so the
+  // accessible name comes from the aria-label rather than the span.
+  await page.getByRole('tab', { name: /^theme$/i }).click();
+  await expect(page.getByTestId('workspace-appearance-section')).toBeVisible({ timeout: 15_000 });
+}
+
+async function openThemeEditor(page: Page): Promise<void> {
+  await page.getByTestId('open-workspace-appearance').click();
+  await expect(page.getByTestId('workspace-appearance-modal')).toBeVisible({ timeout: 15_000 });
+}
+
+test.describe.serial('Workspace theming', () => {
+  let context: BrowserContext;
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    // Registering and loading a workspace involves a real server round-trip and
+    // the P2P stack coming up, well over the inherited per-test timeout.
+    test.setTimeout(300_000);
+
+    context = await browser.newContext();
+    page = await context.newPage();
+
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+    await clearBrowserStorage(page);
+    await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+    await waitForAppReady(page, 60_000);
+
+    const username = `theme_${Date.now()}`;
+    const registered = await createAccount(page, username, {
+      isFirstUser: true,
+      password: config.DEFAULT_PASSWORD,
+      uxTracker: null,
+    });
+    expect(registered, `could not register ${username}`).toBe(true);
+
+    await waitForWorkspaceLoaded(page, 60_000);
+    await closeAnyModals(page);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test('starts on the default theme, and says it is not yet chosen', async () => {
+    await openAppearanceSettings(page);
+
+    await expect(page.getByTestId('current-theme-name')).toHaveText('Avarok Purple');
+    // "Nobody has chosen" is a different state from "the workspace chose this",
+    // and the section distinguishes them.
+    await expect(page.getByText(/not set for this workspace yet/i)).toBeVisible();
+  });
+
+  test('the editor opens with the preview and the preset gallery', async () => {
+    await openThemeEditor(page);
+
+    await expect(page.getByTestId('theme-preview')).toBeVisible();
+    await expect(page.getByTestId('preset-avarok-purple')).toBeVisible();
+    await expect(page.getByTestId('preset-nord')).toBeVisible();
+    await expect(page.getByTestId('preset-material-lighter')).toBeVisible();
+    await expect(page.getByTestId('preset-material-darker')).toBeVisible();
+  });
+
+  test('choosing a preset repaints the whole app, not just the mock', async () => {
+    const before = await readToken(page, '--primary');
+
+    await page.getByTestId('preset-dracula').click();
+
+    // The preview lives inside the app it is previewing: selecting a theme
+    // applies it to the document immediately, which is what makes the editor
+    // worth using.
+    await expect
+      .poll(() => readToken(page, '--primary'), { timeout: 10_000 })
+      .not.toBe(before);
+  });
+
+  test('clicking part of the preview opens the colour editor for that part', async () => {
+    await page.getByTestId('preview-region-sidebar').click();
+
+    const editor = page.getByTestId('appearance-color-editor');
+    await expect(editor).toBeVisible();
+    await expect(page.getByTestId('color-wheel')).toBeVisible();
+    await expect(page.getByTestId('color-wheel-hex')).toBeVisible();
+    await expect(page.getByTestId('color-wheel-native')).toBeVisible();
+  });
+
+  test('editing a preset creates a copy rather than changing the preset', async () => {
+    const hex = page.getByTestId('color-wheel-hex');
+    await hex.fill('2E4053');
+    await hex.press('Enter');
+
+    // Presets stay pristine so "put it back" is always available.
+    await expect(page.getByTestId('appearance-theme-name')).toHaveValue('Dracula Copy');
+    await expect(page.getByTestId('appearance-theme-name')).toBeEnabled();
+  });
+
+  test('the edited colour reaches the document', async () => {
+    // 2E4053 is hsl(211 29% 25%) — assert the token moved to roughly there
+    // rather than merely "changed", which a re-render could also satisfy.
+    await expect
+      .poll(() => readToken(page, '--surface'), { timeout: 10_000 })
+      .toMatch(/^21[01]/);
+  });
+
+  test('saving persists the theme across a reload', async () => {
+    await page.getByTestId('appearance-save').click();
+
+    // Saved into the workspace's metadata, so it has to survive a full reload
+    // and come back with the workspace — this is the assertion a unit test
+    // cannot make.
+    await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+    await waitForAppReady(page, 60_000);
+    await waitForWorkspaceLoaded(page, 60_000);
+    await closeAnyModals(page);
+
+    await openAppearanceSettings(page);
+    await expect(page.getByTestId('current-theme-name')).toHaveText('Dracula Copy');
+    await expect(page.getByText(/not set for this workspace yet/i)).toHaveCount(0);
+  });
+
+  test('the member keeps their own light/dark choice', async () => {
+    // The one that matters most. The workspace picks the palette; the member
+    // picks which half of it applies. If choosing a workspace theme also forced
+    // a colour scheme, an admin could put every member into dark mode.
+    const darkBackground = await readToken(page, '--background');
+
+    await page.getByRole('radio', { name: /^light$/i }).click();
+
+    await expect
+      .poll(() => readToken(page, '--background'), { timeout: 10_000 })
+      .not.toBe(darkBackground);
+
+    // Still the workspace's theme, just its light palette.
+    await expect(page.getByTestId('current-theme-name')).toHaveText('Dracula Copy');
+  });
+});

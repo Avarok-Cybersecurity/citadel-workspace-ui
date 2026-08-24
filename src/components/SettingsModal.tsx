@@ -36,13 +36,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
         <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-4 pb-2">
+            {/* Each trigger's text is hidden below `sm`, which left five
+                icon-only tabs with no accessible name on a phone. aria-label
+                gives them one at every width. */}
             <TabsList className="grid w-full grid-cols-5 bg-input h-10 rounded-lg p-1">
-              <TabsTrigger value="general" className={tabTriggerClass}>
+              <TabsTrigger value="general" aria-label="General" className={tabTriggerClass}>
                 <Settings className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">General</span>
               </TabsTrigger>
               <TabsTrigger
                 value="connections"
+                aria-label="Connections"
                 className={tabTriggerClass}
                 disabled={!isConnected}
                 title={!isConnected ? "Connect to a workspace first" : undefined}
@@ -50,16 +54,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <Wifi className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Connect</span>
               </TabsTrigger>
-              <TabsTrigger value="appearance" className={tabTriggerClass}>
+              <TabsTrigger value="appearance" aria-label="Theme" className={tabTriggerClass}>
                 <Palette className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Theme</span>
               </TabsTrigger>
-              <TabsTrigger value="privacy" className={tabTriggerClass}>
+              <TabsTrigger value="privacy" aria-label="Privacy" className={tabTriggerClass}>
                 <Shield className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Privacy</span>
               </TabsTrigger>
               <TabsTrigger
                 value="permissions"
+                aria-label="Permissions"
                 className={tabTriggerClass}
                 disabled={!isConnected}
                 title={!isConnected ? "Connect to a workspace first" : undefined}
