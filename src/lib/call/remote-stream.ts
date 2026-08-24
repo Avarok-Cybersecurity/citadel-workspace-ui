@@ -64,6 +64,19 @@ export function createRemoteVideoSink(): RemoteVideoSink {
   canvas.width = 640;
   canvas.height = 360;
   const context = canvas.getContext('2d');
+
+  // Degrade rather than throw. If neither route to a MediaStream exists, the
+  // call should continue without this peer's video — throwing here would take
+  // down the whole call over one participant's picture.
+  if (typeof canvas.captureStream !== 'function') {
+    debugLog('Call', 'no MediaStream route available; video will not render');
+    return {
+      stream: new MediaStream(),
+      write: (frame) => frame.close(),
+      close: () => {},
+    };
+  }
+
   const stream = canvas.captureStream();
 
   return {

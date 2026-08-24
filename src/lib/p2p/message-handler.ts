@@ -18,6 +18,7 @@ import { p2pRegistrationService } from '../p2p-registration-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { debugLog } from '@/lib/debug-config';
+import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 
 import type { MessageHandlerConfig } from './message-handler-types';
@@ -215,6 +216,22 @@ export class MessageHandler {
           eventEmitter.emit('yjs:p2p-command', { peerCid, payload: command.payload });
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: YjsP2PSync payload failed type check', command.payload);
+        }
+        break;
+
+      case P2PCommandType.CallSignal:
+        // Emitted rather than handled inline, for the same reason as Yjs above:
+        // the call provider is mounted once per tab and owns the call, and the
+        // message handler has no business knowing about media sessions.
+        if (isCallSignalPayload(command.payload)) {
+          const signal = command.payload;
+          debugLog('P2PMessageHandler', 'handleP2PCommand: dispatching CallSignal', {
+            kind: signal.kind,
+            peerCid: peerCid.toString(),
+          });
+          eventEmitter.emit('call:signal', { peerCid, payload: signal });
+        } else {
+          debugLog('P2PMessageHandler', 'handleP2PCommand: CallSignal payload failed type check', command.payload);
         }
         break;
 
