@@ -10,6 +10,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { P2PChatHeader } from '../P2PChatHeader';
+import { MessagingLayerType } from '@/types/messaging-layer';
+import type { PeerPresence } from '@/lib/p2p';
+
+const ONLINE: PeerPresence = { status: MessagingLayerType.Online, lastUpdate: 0 };
 
 const callProps = {
   canCall: true,
@@ -23,7 +27,7 @@ function renderHeader() {
   return render(
     <P2PChatHeader
       peerName="Alice Chen"
-      peerPresence="online"
+      peerPresence={ONLINE}
       peerTyping={false}
       isConnected
       isRegistered

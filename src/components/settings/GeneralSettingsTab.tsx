@@ -149,12 +149,21 @@ export function GeneralSettingsTab() {
         </div>
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Call sounds</Label>
-            <p className="text-xs text-muted-foreground">
+            {/* htmlFor/id, not proximity. A Switch renders a <button> with no
+                inner text, so a Label merely sitting next to it gives a screen
+                reader a control announced as nothing at all — axe rates that
+                critical, and it is the one thing that makes a toggle unusable
+                without sight. */}
+            <Label htmlFor="call-sounds" className="text-sm font-medium">
+              Call sounds
+            </Label>
+            <p id="call-sounds-description" className="text-xs text-muted-foreground">
               Ring for incoming calls and while waiting for someone to answer
             </p>
           </div>
           <Switch
+            id="call-sounds"
+            aria-describedby="call-sounds-description"
             checked={callSoundsEnabled}
             onCheckedChange={handleCallSoundsChange}
             data-testid="call-sounds-toggle"
