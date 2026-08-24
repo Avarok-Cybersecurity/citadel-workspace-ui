@@ -21,6 +21,7 @@ import {
   setupConsoleCapture,
   waitForWorkspaceLoaded,
   closeAnyModals,
+  waitForAppReady,
   isVisibleWithin,
   TestHarness,
   runTestMain,
@@ -62,7 +63,6 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 // workspace. The spec navigates between two of them to force a remount of the
 // office view, which is what makes the persistence check meaningful.
 const HOME_OFFICE = 'General';
-const OTHER_OFFICE = 'Engineering';
 
 // ============================================================================
 // Locators
@@ -216,26 +216,32 @@ async function testSaveAndPersist(page: Page): Promise<{
   // spec logged a warning and skipped the navigation, and then "content persists"
   // was decided by reading the page it had never left. "Engineering" is a real
   // seeded office (docker/workspace-server/workspaces.json).
-  console.log(`  Navigating away (${OTHER_OFFICE}) and back (${HOME_OFFICE})...`);
+  // Persistence is checked by reloading the page, not by clicking to a sibling
+  // office and back.
+  //
+  // A reload is the stronger test: it tears down the whole app — React tree, WASM
+  // client, workspace state — so the content can only reappear if the server
+  // actually stored it. Sibling navigation only unmounts the office view, and it
+  // made this assertion depend on a second seeded office being present and
+  // clickable in the sidebar, which is a fact about the fixture rather than about
+  // whether saving works. That dependency is what failed here: the save itself
+  // succeeded (toast shown, compiled view showing the new text) while the spec
+  // reported a persistence failure because "Engineering" was not found in the
+  // sidebar.
+  console.log('  Reloading the page to force a re-read from the server...');
+  await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+  await waitForAppReady(page, 60_000);
+  await closeAnyModals(page);
 
-  const other = sidebarNode(page, OTHER_OFFICE);
-  if (await isVisibleWithin(other, 5000)) {
-    await other.evaluate((el: HTMLElement) => el.click());
-    await sleep(2000);
-    console.log(`  Navigated to ${OTHER_OFFICE} office`);
-
-    const home = sidebarNode(page, HOME_OFFICE);
-    if (await isVisibleWithin(home, 5000)) {
-      await home.evaluate((el: HTMLElement) => el.click());
-      await sleep(3000); // permissions re-load on office change
-      results.navigated = await isVisibleWithin(renderedContent(page), 15000);
-      console.log(`  Navigated back to ${HOME_OFFICE} office: ${results.navigated}`);
-    } else {
-      console.log(`  FAIL: "${HOME_OFFICE}" office not in sidebar on the way back`);
-    }
-  } else {
-    console.log(`  FAIL: "${OTHER_OFFICE}" office not in sidebar — cannot leave and return`);
+  const home = sidebarNode(page, HOME_OFFICE);
+  if (!(await isVisibleWithin(home, 30_000))) {
+    console.log(`  FAIL: "${HOME_OFFICE}" not in the sidebar after reload`);
+    return results;
   }
+  await home.evaluate((el: HTMLElement) => el.click());
+
+  results.navigated = await isVisibleWithin(renderedContent(page), 30_000);
+  console.log(`  Back on ${HOME_OFFICE} after reload: ${results.navigated}`);
 
   if (!results.navigated) return results;
 

@@ -11,6 +11,16 @@ import { fileURLToPath } from 'url';
 import { sleep, waitForServicesAlive } from './utils.js';
 
 /**
+ * How long to let the stack come back before calling it broken.
+ *
+ * Generous on purpose: the server takes noticeably longer to start once a run
+ * has built up workspaces and accounts, and a premature failure here aborts a
+ * spec for reasons that have nothing to do with what it was testing.
+ */
+const CONTAINER_READY_TIMEOUT_MS = 120_000;
+const CONTAINER_POLL_INTERVAL_MS = 2_000;
+
+/**
  * Get the workspace root directory dynamically.
  * This resolves from integration-tests/src/lib/service-helpers.ts up 3 levels.
  */
@@ -29,13 +39,11 @@ function getWorkspaceRoot(): string {
  *
  * Uses docker compose restart to fully restart containers with clean in-memory state.
  *
- * @param options - Optional configuration
- * @param options.restartTime - Time to wait for restart (default: 10s)
+ * Takes no timing options. It used to accept a `restartTime` to sleep for, which
+ * callers had to guess at; it now waits on the containers' own health status,
+ * so it returns as soon as the stack is genuinely up and does not need tuning.
  */
-export async function restartBackendServices(options: {
-  restartTime?: number;
-} = {}): Promise<void> {
-  const { restartTime = 10000 } = options;
+export async function restartBackendServices(): Promise<void> {
   const cwd = getWorkspaceRoot();
 
   console.log('\n' + '='.repeat(60));
@@ -62,14 +70,24 @@ export async function restartBackendServices(options: {
       timeout: 60000,
     });
 
-    // Wait for services to initialize
-    console.log(`  Waiting ${restartTime / 1000}s for services to restart...`);
-    await sleep(restartTime);
+    // Wait for both containers to report healthy, polling the real state rather
+    // than sleeping a fixed 10s and then checking three times in a row with no
+    // gap between the attempts.
+    //
+    // That older shape is what made this fail: after `docker restart` it
+    // re-read `docker compose ps` immediately, so a container still coming up
+    // read as `exited`, it "recovered" it with another restart, checked again
+    // with no delay, and gave up after three rounds — while the server was in
+    // fact fine moments later. Health is the signal the compose file already
+    // defines; waiting on it returns as soon as the stack is genuinely ready
+    // and tolerates a slow start without hiding a real crash.
+    console.log('  Waiting for containers to report healthy...');
 
-    // Verify containers are actually running (not exited with error)
-    console.log('  Verifying containers are running...');
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const deadline = Date.now() + CONTAINER_READY_TIMEOUT_MS;
+    let lastState = '';
+    let restartedOnce = false;
+
+    for (;;) {
       const psOutput = execSync(
         'docker compose ps -a --format json server internal-service',
         { cwd, timeout: 10000 }
@@ -77,44 +95,46 @@ export async function restartBackendServices(options: {
 
       const containers = psOutput.trim().split('\n')
         .filter(line => line.trim())
-        .map(line => JSON.parse(line) as { Service: string; State: string });
+        .map(line => JSON.parse(line) as { Service: string; State: string; Health?: string });
 
-      const serverContainer = containers.find(c => c.Service === 'server');
-      const isContainer = containers.find(c => c.Service === 'internal-service');
+      const server = containers.find(c => c.Service === 'server');
+      const internal = containers.find(c => c.Service === 'internal-service');
 
-      const serverRunning = serverContainer?.State === 'running';
-      const isRunning = isContainer?.State === 'running';
+      // Health is empty for containers without a healthcheck; treat running as
+      // sufficient there rather than waiting for a status that never arrives.
+      const ready = (c?: { State: string; Health?: string }) =>
+        c?.State === 'running' && (!c.Health || c.Health === 'healthy');
 
-      console.log(`    server: ${serverContainer?.State ?? 'not found'}`);
-      console.log(`    internal-service: ${isContainer?.State ?? 'not found'}`);
-
-      if (serverRunning && isRunning) {
-        break;
+      const state = `server=${server?.State}/${server?.Health || 'no-healthcheck'}, ` +
+        `internal-service=${internal?.State}/${internal?.Health || 'no-healthcheck'}`;
+      if (state !== lastState) {
+        console.log(`    ${state}`);
+        lastState = state;
       }
 
-      if (attempt < maxRetries) {
-        console.log(`  Containers not ready (attempt ${attempt}/${maxRetries}), retrying...`);
-        if (!serverRunning) {
-          console.log('  Server crashed, restarting with longer timeout...');
-          execSync('docker restart --timeout 15 citadel-workspace-server-1', {
-            stdio: 'inherit',
-            timeout: 60000,
-          });
+      if (ready(server) && ready(internal)) break;
+
+      // A container that has actually exited will not recover on its own, so
+      // restart it once — but only once, and then keep waiting rather than
+      // restarting on every poll.
+      if (!restartedOnce && (server?.State === 'exited' || internal?.State === 'exited')) {
+        restartedOnce = true;
+        console.log('  A container exited; restarting it once and continuing to wait...');
+        if (server?.State === 'exited') {
+          execSync('docker restart --timeout 15 citadel-workspace-server-1', { stdio: 'inherit', timeout: 60000 });
         }
-        if (!isRunning) {
-          console.log('  Internal service not running, restarting...');
-          execSync('docker restart --timeout 15 citadel-workspace-internal-service-1', {
-            stdio: 'inherit',
-            timeout: 60000,
-          });
+        if (internal?.State === 'exited') {
+          execSync('docker restart --timeout 15 citadel-workspace-internal-service-1', { stdio: 'inherit', timeout: 60000 });
         }
-        await sleep(10000);
-      } else {
+      }
+
+      if (Date.now() > deadline) {
         throw new Error(
-          `Containers not running after ${maxRetries} attempts. ` +
-          `server=${serverContainer?.State}, internal-service=${isContainer?.State}`
+          `Containers did not become healthy within ${CONTAINER_READY_TIMEOUT_MS / 1000}s. Last seen: ${state}`
         );
       }
+
+      await sleep(CONTAINER_POLL_INTERVAL_MS);
     }
 
     // Now verify services respond via TCP
