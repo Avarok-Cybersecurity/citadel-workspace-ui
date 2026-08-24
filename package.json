@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "debug:ui": "node scripts/debug-ui.js",
     "capture:logs": "node scripts/capture-logs.js",
-    "check:bundle": "node scripts/check-bundle-budget.mjs"
+    "check:bundle": "node scripts/check-bundle-budget.mjs",
+    "check:pwa": "node scripts/check-pwa-installable.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",
