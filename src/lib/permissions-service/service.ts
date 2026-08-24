@@ -52,10 +52,16 @@ export class PermissionsService extends EventListenerManager {
       permissions: string[];
       domainId: string;
     }>('user:permissions:loaded', (payload) => {
-      const currentUser = this.getCurrentUserId();
-      if (payload.userId === currentUser) {
-        updateCacheEntry(this.cache, payload.domainId, payload.role, payload.permissions);
-      }
+      // Async resolution, for the same reason fetchPermissions uses it: the
+      // synchronous accessor is null for a user who logged IN, so this equality
+      // check failed for every response and the cache was never written — even
+      // though the server had answered with the right role.
+      void this.isCurrentUser(payload.userId).then((mine) => {
+        if (mine) {
+          updateCacheEntry(this.cache, payload.domainId, payload.role, payload.permissions);
+          this.emit('permissions:updated', { domainId: payload.domainId });
+        }
+      });
     });
 
     this.listen<{
@@ -64,19 +70,19 @@ export class PermissionsService extends EventListenerManager {
       permissions: string[];
       operation: 'add' | 'remove' | 'set';
     }>('member:permissions-updated', async (payload) => {
-      const currentUser = this.getCurrentUserId();
-      if (payload.userId === currentUser) {
+      if (await this.isCurrentUser(payload.userId)) {
         await this.fetchPermissions(payload.domainId, true);
         this.emit('permissions:updated', { domainId: payload.domainId });
       }
     });
 
     this.listen<{ userId: string; role: UserRole }>('member:role-updated', (payload) => {
-      const currentUser = this.getCurrentUserId();
-      if (payload.userId === currentUser) {
-        this.clearCache();
-        this.emit('permissions:role-changed', { role: payload.role });
-      }
+      void this.isCurrentUser(payload.userId).then((mine) => {
+        if (mine) {
+          this.clearCache();
+          this.emit('permissions:role-changed', { role: payload.role });
+        }
+      });
     });
 
     this.initialized = true;
@@ -85,6 +91,33 @@ export class PermissionsService extends EventListenerManager {
   private getCurrentUserId(): string | null {
     const connectionInfo = connectionManager.getConnectionInfo();
     return connectionInfo?.username || null;
+  }
+
+  /**
+   * The current user, resolved from whichever source actually knows.
+   *
+   * `currentConnectionInfo.username` is empty for a user who logged IN rather
+   * than registering, so the synchronous lookup above returns null and every
+   * fetch below bailed with "No current user, cannot fetch permissions". The
+   * cache then stayed empty, and because a permission check against an unloaded
+   * domain returns false, EVERY gate in the app denied — a workspace's own admin
+   * saw the same UI as a stranger, with nothing logged above debug level.
+   *
+   * The tab-selected session is the authoritative record of who is signed in
+   * here; it is async (IndexedDB-backed), which is why this is separate from the
+   * synchronous accessor the event listeners use for their equality checks.
+   */
+  /** Whether `userId` is the signed-in user, resolved from whichever source knows. */
+  private async isCurrentUser(userId: string): Promise<boolean> {
+    return userId === (await this.resolveCurrentUserId());
+  }
+
+  private async resolveCurrentUserId(): Promise<string | null> {
+    const fromConnection = this.getCurrentUserId();
+    if (fromConnection) return fromConnection;
+
+    const session = await connectionManager.getTabSelectedSession();
+    return session?.username ?? null;
   }
 
   /**
@@ -101,7 +134,7 @@ export class PermissionsService extends EventListenerManager {
     const pending = this.pendingRequests.get(domainId);
     if (pending) return pending;
 
-    const userId = this.getCurrentUserId();
+    const userId = await this.resolveCurrentUserId();
     if (!userId) {
       debugLog('PermissionsService', 'No current user, cannot fetch permissions');
       return null;

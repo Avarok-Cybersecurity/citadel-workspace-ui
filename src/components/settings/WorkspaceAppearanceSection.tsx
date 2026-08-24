@@ -9,6 +9,7 @@ import { serializeTheme } from '@/lib/theme/theme-serialization';
 import WorkspaceService from '@/lib/workspace-service';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { WorkspaceTheme } from '@/lib/theme/theme-types';
+import { debugLog } from '@/lib/debug-config';
 
 /**
  * Lazily loaded: the editor carries a colour wheel and every preset palette, and
@@ -31,7 +32,7 @@ const WorkspaceAppearanceModal = lazy(() =>
  */
 export function WorkspaceAppearanceSection() {
   const { state } = useWorkspace();
-  const { hasPermission, fetchPermissionsForDomain } = usePermissions();
+  const { hasPermission, fetchPermissionsForDomain, getRole } = usePermissions();
   const { theme, isDefault } = useWorkspaceTheme();
   const [open, setOpen] = useState(false);
 
@@ -57,6 +58,16 @@ export function WorkspaceAppearanceSection() {
   const canEdit =
     hasPermission(WORKSPACE_ROOT_ID, Permission.Themes) ||
     (workspaceId !== undefined && hasPermission(workspaceId, Permission.Themes));
+
+  // "Why is this greyed out?" is a real support question, and the answer lives
+  // in state nobody can see. Logging the inputs to the decision makes it
+  // answerable without a debugger.
+  debugLog('WorkspaceAppearance', 'edit gate', {
+    canEdit,
+    workspaceId,
+    rootRole: getRole(WORKSPACE_ROOT_ID),
+    workspaceRole: workspaceId ? getRole(workspaceId) : null,
+  });
 
   const handleSave = useCallback(async (next: WorkspaceTheme) => {
     // Rides in the workspace's metadata bytes, so every member receives it with
