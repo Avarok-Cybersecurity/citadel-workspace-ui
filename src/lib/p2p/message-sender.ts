@@ -115,6 +115,10 @@ export class MessageSender {
 
     await this.config.addMessageToConversation(recipientCid, message);
     this.config.notifyMessageListeners(message);
+    // The conversation list sorts by most recent message and refreshes on this
+    // event. It had a subscriber and no emitter, so sending a message never
+    // moved that conversation up the list - only receiving one did.
+    this.config.emitEvent('p2p:message-sent', { peerCid: recipientCid, message });
 
     debugLog('MessageSender', `[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}...`);
     const sendStartTime = Date.now();

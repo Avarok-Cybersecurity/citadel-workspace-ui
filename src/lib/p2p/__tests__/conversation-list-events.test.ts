@@ -1,0 +1,66 @@
+/**
+ * The conversation list in the sidebar refreshes on p2p:message-received,
+ * p2p:message-sent and p2p:conversation-updated (use-conversation-peers.ts).
+ *
+ * Two of those three had a subscriber and no emitter, so the list only ever
+ * updated on receive. These tests pin the event NAMES, which is where both bugs
+ * were: one event was never emitted at all, the other was emitted without the
+ * 'p2p:' prefix the subscriber listens for.
+ */
+import { describe, it, expect, vi } from 'vitest';
+import { markMessagesAsRead } from '../messenger-compatibility';
+import type { P2PConversation, P2PMessage } from '../p2p-types';
+
+function message(id: string, senderCid: bigint, status: P2PMessage['status']): P2PMessage {
+  return {
+    id, senderCid, recipientCid: 1n, content: 'hi', timestamp: Date.now(), index: 0, status,
+  } as P2PMessage;
+}
+
+describe('markMessagesAsRead', () => {
+  const peerCid = 42n;
+
+  function setup(messages: P2PMessage[]) {
+    const conversation = { peerCid, messages, unreadCount: messages.length } as unknown as P2PConversation;
+    const conversationManager = { getConversation: vi.fn(() => conversation) };
+    const emit = vi.fn();
+    const sendAck = vi.fn(() => Promise.resolve());
+    return { conversation, conversationManager, emit, sendAck };
+  }
+
+  it("emits the prefixed 'p2p:conversation-updated' the sidebar subscribes to", async () => {
+    const s = setup([message('m1', peerCid, 'delivered')]);
+
+    await markMessagesAsRead(
+      s.conversationManager as never, s.sendAck, s.emit, peerCid
+    );
+
+    const names = s.emit.mock.calls.map(c => c[0]);
+    expect(names).toContain('p2p:conversation-updated');
+    // The unprefixed name had no subscriber anywhere - guard against it coming back.
+    expect(names).not.toContain('conversation-updated');
+  });
+
+  it('clears the unread count it reports', async () => {
+    const s = setup([message('m1', peerCid, 'delivered')]);
+
+    await markMessagesAsRead(
+      s.conversationManager as never, s.sendAck, s.emit, peerCid
+    );
+
+    expect(s.conversation.unreadCount).toBe(0);
+    const payload = s.emit.mock.calls.find(c => c[0] === 'p2p:conversation-updated')?.[1];
+    expect(payload).toMatchObject({ peerCid });
+  });
+
+  it('does nothing when there is no conversation', async () => {
+    const conversationManager = { getConversation: vi.fn(() => undefined) };
+    const emit = vi.fn();
+
+    await markMessagesAsRead(
+      conversationManager as never, vi.fn(() => Promise.resolve()), emit, peerCid
+    );
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+});

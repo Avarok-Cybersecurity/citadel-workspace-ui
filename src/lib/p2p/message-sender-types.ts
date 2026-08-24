@@ -15,6 +15,8 @@ export interface MessageSenderConfig {
   addMessageToConversation: (peerCid: bigint, message: P2PMessage) => Promise<boolean>;
   /** Update message in pages */
   updateMessageInPages: (peerCid: bigint, messageId: string, updates: Partial<P2PMessage>) => Promise<boolean>;
+  /** Emit an app-level event (injected so the sender stays free of the emitter). */
+  emitEvent: (event: string, data?: unknown) => void;
   /** Notify message listeners */
   notifyMessageListeners: (message: P2PMessage) => void;
   /** Notify message status listeners */

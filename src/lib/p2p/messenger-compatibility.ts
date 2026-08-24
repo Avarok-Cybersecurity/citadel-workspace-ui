@@ -101,7 +101,10 @@ export async function markMessagesAsRead(
     messagePaginationStore.updateUnreadCount(peerCid, newUnreadCount)
   ]);
 
-  emit('conversation-updated', { peerCid, conversation });
+  // Prefixed 'p2p:' like every other event on this emitter. Without the prefix
+  // this had no subscriber at all, so the sidebar's unread badge kept showing
+  // a count the conversation no longer had.
+  emit('p2p:conversation-updated', { peerCid, conversation });
 }
 
 /**

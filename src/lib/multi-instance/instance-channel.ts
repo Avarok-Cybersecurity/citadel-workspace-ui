@@ -151,11 +151,17 @@ class InstanceChannel {
   // the heal must look there too or route-miss recovery is a no-op.
   broadcastCid(): void {
     if (instanceManager.cid) { this.sendCidUpdate(instanceManager.cid); return; }
+    // `void` alone satisfies no-floating-promises but does NOT handle rejection:
+    // getSelectedUser reads IndexedDB, which throws when storage is unavailable
+    // (private mode, denied permission, quota). Without this catch that surfaced
+    // as an unhandled rejection. The heal is best effort - log and move on.
     void (async () => {
       const { getSelectedUser } = await import('../tab-context');
       const tab = await getSelectedUser();
       if (tab?.selectedCid) { instanceManager.setCid(tab.selectedCid); this.sendCidUpdate(tab.selectedCid); }
-    })();
+    })().catch((error) => {
+      debugLog('InstanceChannel', 'broadcastCid: could not read the selected tab CID', error);
+    });
   }
 
   private sendCidUpdate(cid: bigint): void {
