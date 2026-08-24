@@ -94,9 +94,9 @@ async function testNotFoundPage(page: Page): Promise<boolean> {
   const notFoundMsg = page.getByText(/not found/i).first();
   const homeLink = page.locator('a[href="/"], a:has-text("Home"), a:has-text("Return")').first();
 
-  const has404 = await notFound404.isVisible({ timeout: 3000 }).catch(() => false);
-  const hasMsg = await notFoundMsg.isVisible({ timeout: 2000 }).catch(() => false);
-  const hasHome = await homeLink.isVisible({ timeout: 2000 }).catch(() => false);
+  const has404 = await isVisibleWithin(notFound404, 3000);
+  const hasMsg = await isVisibleWithin(notFoundMsg, 2000);
+  const hasHome = await isVisibleWithin(homeLink, 2000);
 
   const renders = has404 || hasMsg;
   console.log(`  404 page renders: ${renders} (404: ${has404}, Message: ${hasMsg}, Home link: ${hasHome})`);
@@ -121,7 +121,7 @@ async function testSidebarCollapse(page: Page): Promise<{
 
   // Check sidebar is visible
   const sidebar = page.locator('[data-sidebar="sidebar"], aside, nav.sidebar, [class*="Sidebar"]').first();
-  results.visible = await sidebar.isVisible({ timeout: 5000 }).catch(() => false);
+  results.visible = await isVisibleWithin(sidebar, 5000);
   console.log(`  Sidebar visible: ${results.visible}`);
 
   if (!results.visible) return results;
@@ -314,13 +314,13 @@ async function runTest(): Promise<boolean> {
       await sleep(500);
       // ProtocolWarning renders a fixed bottom-left alert with "Protocol Warning" title
       const warningTitle = page.locator('text="Protocol Warning"').first();
-      results.protocolWarningRenders = await warningTitle.isVisible({ timeout: 5000 }).catch(() => false);
+      results.protocolWarningRenders = await isVisibleWithin(warningTitle, 5000);
       console.log(`  ProtocolWarning visible: ${results.protocolWarningRenders}`);
 
       if (results.protocolWarningRenders) {
         // Also verify the message content
         const warningMsg = page.locator('text="Test protocol warning: connection timeout"').first();
-        const msgVisible = await warningMsg.isVisible({ timeout: 2000 }).catch(() => false);
+        const msgVisible = await isVisibleWithin(warningMsg, 2000);
         console.log(`  Warning message visible: ${msgVisible}`);
       }
     }

@@ -208,7 +208,7 @@ async function checkInitModalAppears(page: Page): Promise<{
 
   // Check for modal title "Initialize Workspace"
   const modalTitle = page.locator('text="Initialize Workspace"');
-  results.hasTitle = await modalTitle.isVisible({ timeout: 8000 }).catch(() => false);
+  results.hasTitle = await isVisibleWithin(modalTitle, 8000);
   console.log(`  Modal title visible: ${results.hasTitle}`);
 
   if (results.hasTitle) {
@@ -216,12 +216,12 @@ async function checkInitModalAppears(page: Page): Promise<{
 
     // Check for password field
     const passwordField = page.locator('input#masterPassword');
-    results.hasPasswordField = await passwordField.isVisible({ timeout: 3000 }).catch(() => false);
+    results.hasPasswordField = await isVisibleWithin(passwordField, 3000);
     console.log(`  Password field visible: ${results.hasPasswordField}`);
 
     // Check for "Initialize & Become Admin" button
     const initButton = page.locator('button:has-text("Initialize & Become Admin")');
-    results.hasInitButton = await initButton.isVisible({ timeout: 3000 }).catch(() => false);
+    results.hasInitButton = await isVisibleWithin(initButton, 3000);
     console.log(`  Initialize button visible: ${results.hasInitButton}`);
   }
 
@@ -287,7 +287,7 @@ async function checkNoInitModal(page: Page): Promise<boolean> {
 
   // Check for modal title
   const modalTitle = page.locator('text="Initialize Workspace"');
-  const appears = await modalTitle.isVisible({ timeout: 3000 }).catch(() => false);
+  const appears = await isVisibleWithin(modalTitle, 3000);
   console.log(`  Initialization modal appears: ${appears}`);
 
   return !appears; // Return true if modal does NOT appear

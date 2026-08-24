@@ -94,7 +94,7 @@ async function openNotificationCenter(page: Page): Promise<boolean> {
     // Check if sheet opened
     const sheetTitle = page.locator('text="Notifications"');
 
-    const opened = await sheetTitle.isVisible({ timeout: 3000 }).catch(() => false);
+    const opened = await isVisibleWithin(sheetTitle, 3000);
     console.log(`  Notification center opened: ${opened}`);
     return opened;
   } catch (error) {
@@ -131,7 +131,7 @@ async function verifySheetStructure(page: Page): Promise<{
 
   // Check title
   const title = page.locator('text="Notifications"');
-  results.title = await title.isVisible({ timeout: 3000 }).catch(() => false);
+  results.title = await isVisibleWithin(title, 3000);
   console.log(`  Title visible: ${results.title}`);
 
   // Check tabs (All, Messages, Requests, System)
@@ -145,7 +145,7 @@ async function verifySheetStructure(page: Page): Promise<{
 
   // Check Clear All button
   const clearAllButton = page.locator('button:has-text("Clear All")');
-  results.clearAllButton = await clearAllButton.isVisible({ timeout: 3000 }).catch(() => false);
+  results.clearAllButton = await isVisibleWithin(clearAllButton, 3000);
   console.log(`  Clear All button visible: ${results.clearAllButton}`);
 
   return results;
@@ -240,7 +240,7 @@ async function checkBellIconVisible(page: Page): Promise<boolean> {
   console.log('\n=== Checking Bell Icon ===');
 
   const bellButton = page.locator('button:has(svg.lucide-bell)').first();
-  const visible = await bellButton.isVisible({ timeout: 5000 }).catch(() => false);
+  const visible = await isVisibleWithin(bellButton, 5000);
   console.log(`  Bell icon visible: ${visible}`);
   return visible;
 }
@@ -404,7 +404,7 @@ async function runTest(): Promise<boolean> {
     // Check badge appears on bell icon (should show unread count)
     // Badge component renders as a div (shadcn), not a span
     const badge = page.locator('button:has(svg.lucide-bell) .absolute').first();
-    const badgeVisible = await badge.isVisible({ timeout: 3000 }).catch(() => false);
+    const badgeVisible = await isVisibleWithin(badge, 3000);
     results.notificationBadgeChecked = badgeVisible;
     if (badgeVisible) {
       const badgeText = await badge.textContent().catch(() => '');
@@ -426,7 +426,7 @@ async function runTest(): Promise<boolean> {
 
       // Look for our injected notification text
       const testAlert = page.locator('text="Test Alert 1"').first();
-      const itemVisible = await testAlert.isVisible({ timeout: 3000 }).catch(() => false);
+      const itemVisible = await isVisibleWithin(testAlert, 3000);
       console.log(`  Injected notification item visible: ${itemVisible}`);
 
       if (itemVisible) {

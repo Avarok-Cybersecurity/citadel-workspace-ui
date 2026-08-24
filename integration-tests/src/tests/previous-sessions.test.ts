@@ -314,7 +314,7 @@ async function disconnectViaNavbar(
   // Handle the confirmation modal — scope selector to dialog to avoid matching the overlay button
   const dialogSelector = 'div[role="alertdialog"], div[role="dialog"], [data-testid="confirm-dialog"]';
   const dialog = page.locator(dialogSelector).first();
-  const dialogVisible = await dialog.isVisible({ timeout: 5000 }).catch(() => false);
+  const dialogVisible = await isVisibleWithin(dialog, 5000);
 
   if (action === 'deregister') {
     // Look for Deregister button, scoped to dialog if visible
@@ -437,7 +437,7 @@ async function runTest(): Promise<boolean> {
 
     // Check navbar visibility and structure AFTER sessions have loaded
     const navbar = page.locator('[data-testid="previous-sessions-navbar"]');
-    results.navbarVisible = await navbar.isVisible({ timeout: 5000 }).catch(() => false);
+    results.navbarVisible = await isVisibleWithin(navbar, 5000);
     console.log(`  Navbar visible: ${results.navbarVisible}`);
 
     // The OrphanSessionsNavbar header was relabelled from
@@ -449,11 +449,11 @@ async function runTest(): Promise<boolean> {
       .locator('text="Active Sessions"')
       .or(page.locator('text="Previous Sessions:"'))
       .first();
-    results.previousSessionsLabel = await label.isVisible({ timeout: 3000 }).catch(() => false);
+    results.previousSessionsLabel = await isVisibleWithin(label, 3000);
     console.log(`  Previous Sessions label: ${results.previousSessionsLabel}`);
 
     const scrollContainer = page.locator('[data-testid="sessions-scroll-container"]');
-    results.scrollContainerExists = await scrollContainer.isVisible({ timeout: 3000 }).catch(() => false);
+    results.scrollContainerExists = await isVisibleWithin(scrollContainer, 3000);
     console.log(`  Scroll container exists: ${results.scrollContainerExists}`);
 
     const count = await getSessionCount(page);

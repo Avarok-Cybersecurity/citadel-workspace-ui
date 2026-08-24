@@ -12,6 +12,7 @@
 
 import { Page } from 'playwright';
 import {
+  isVisibleWithin,
   sleep,
   createBrowser,
   createAccount,
@@ -391,8 +392,8 @@ async function runChatSettingsTest(): Promise<boolean> {
 
       // Check transfer mode radio group
       const radioGroup = page1.locator('[data-testid="transfer-mode-radio"]');
-      results.chatSettings.transferModeToggle.browserOptionVisible = await radioGroup.locator('#browser').isVisible({ timeout: 2000 }).catch(() => false);
-      results.chatSettings.transferModeToggle.protocolOptionVisible = await radioGroup.locator('#protocol').isVisible({ timeout: 2000 }).catch(() => false);
+      results.chatSettings.transferModeToggle.browserOptionVisible = await isVisibleWithin(radioGroup.locator('#browser'), 2000);
+      results.chatSettings.transferModeToggle.protocolOptionVisible = await isVisibleWithin(radioGroup.locator('#protocol'), 2000);
 
       console.log(`Browser option visible: ${results.chatSettings.transferModeToggle.browserOptionVisible}`);
       console.log(`Protocol option visible: ${results.chatSettings.transferModeToggle.protocolOptionVisible}`);

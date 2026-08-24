@@ -143,8 +143,8 @@ async function verifyDefaultFolders(page: Page, label: string): Promise<boolean>
   const sentFiles = page.getByText('Sent Files', { exact: true }).first();
   const receivedFiles = page.getByText('Received Files', { exact: true }).first();
 
-  const hasSent = await sentFiles.isVisible({ timeout: 5000 }).catch(() => false);
-  const hasReceived = await receivedFiles.isVisible({ timeout: 5000 }).catch(() => false);
+  const hasSent = await isVisibleWithin(sentFiles, 5000);
+  const hasReceived = await isVisibleWithin(receivedFiles, 5000);
 
   console.log(`  Sent Files visible: ${hasSent}`);
   console.log(`  Received Files visible: ${hasReceived}`);
@@ -169,7 +169,7 @@ async function createFolder(page: Page, label: string, folderName: string): Prom
 
       // Verify folder appeared
       const folder = page.getByText(folderName, { exact: true }).first();
-      const exists = await folder.isVisible({ timeout: 5000 }).catch(() => false);
+      const exists = await isVisibleWithin(folder, 5000);
       console.log(`  Folder "${folderName}" visible: ${exists}`);
       return exists;
     }

@@ -117,7 +117,7 @@ async function checkNoPeersState(page: Page, label: string): Promise<boolean> {
   console.log(`\n=== ${label}: Checking "No Peers Connected" state ===`);
   try {
     const heading = page.locator('h2:has-text("No Peers Connected")');
-    const visible = await heading.isVisible({ timeout: 30000 }).catch(() => false);
+    const visible = await isVisibleWithin(heading, 30000);
     console.log(`  "No Peers Connected" visible: ${visible}`);
     return visible;
   } catch (error) {

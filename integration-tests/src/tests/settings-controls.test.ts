@@ -116,7 +116,7 @@ async function testConnectionsTab(page: Page): Promise<boolean> {
 
   // Look for auto-reconnect switch
   const autoReconnect = page.locator('#auto-reconnect').first();
-  const visible = await autoReconnect.isVisible({ timeout: 3000 }).catch(() => false);
+  const visible = await isVisibleWithin(autoReconnect, 3000);
   console.log(`  Auto-reconnect switch visible: ${visible}`);
 
   if (!visible) return false;

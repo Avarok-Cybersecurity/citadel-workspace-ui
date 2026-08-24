@@ -18,6 +18,7 @@
 
 import { Page } from 'playwright';
 import {
+  isVisibleWithin,
   sleep,
   createBrowser,
   createAccount,
@@ -110,8 +111,8 @@ async function checkNativePickerButton(page: Page, username: string): Promise<bo
     // Also check by text
     const byText = page.locator('button').filter({ hasText: 'Browse Files' });
 
-    const hasNativeButton = await nativeButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasTextButton = await byText.isVisible({ timeout: 2000 }).catch(() => false);
+    const hasNativeButton = await isVisibleWithin(nativeButton, 5000);
+    const hasTextButton = await isVisibleWithin(byText, 2000);
 
     console.log(`  Native button (FolderOpen icon): ${hasNativeButton}`);
     console.log(`  Button with "Browse Files" text: ${hasTextButton}`);

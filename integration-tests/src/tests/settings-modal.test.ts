@@ -89,7 +89,7 @@ async function openUserDropdown(page: Page): Promise<boolean> {
 
       // Check if dropdown opened
       const dropdownContent = page.locator('[role="menu"]');
-      const opened = await dropdownContent.isVisible({ timeout: 3000 }).catch(() => false);
+      const opened = await isVisibleWithin(dropdownContent, 3000);
       console.log(`  Dropdown opened: ${opened}`);
       return opened;
     }
@@ -101,7 +101,7 @@ async function openUserDropdown(page: Page): Promise<boolean> {
       await altButton.click();
       await sleep(500);
       const dropdownContent = page.locator('[role="menu"]');
-      const opened = await dropdownContent.isVisible({ timeout: 3000 }).catch(() => false);
+      const opened = await isVisibleWithin(dropdownContent, 3000);
       console.log(`  Dropdown opened (alt): ${opened}`);
       return opened;
     }
@@ -132,7 +132,7 @@ async function clickSettingsMenuItem(page: Page): Promise<boolean> {
 
     // Check if settings modal opened
     const modalTitle = page.locator('text="Settings"').first();
-    const opened = await modalTitle.isVisible({ timeout: 3000 }).catch(() => false);
+    const opened = await isVisibleWithin(modalTitle, 3000);
     console.log(`  Settings modal opened: ${opened}`);
     return opened;
   } catch (error) {
@@ -167,7 +167,7 @@ async function verifyModalStructure(page: Page): Promise<{
 
   // Check description
   const description = page.locator('text="Configure your workspace preferences"');
-  results.description = await description.isVisible({ timeout: 3000 }).catch(() => false);
+  results.description = await isVisibleWithin(description, 3000);
   console.log(`  Description visible: ${results.description}`);
 
   // Check tabs (General, Connections, Appearance, Privacy, Permissions)
@@ -346,7 +346,7 @@ async function runTest(): Promise<boolean> {
 
     if (results.userDropdownOpens) {
       const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-      results.settingsMenuItemVisible = await settingsItem.isVisible({ timeout: 3000 }).catch(() => false);
+      results.settingsMenuItemVisible = await isVisibleWithin(settingsItem, 3000);
       console.log(`  Settings menu item visible: ${results.settingsMenuItemVisible}`);
       await takeScreenshot(page, '03_settings_menu_item');
     }

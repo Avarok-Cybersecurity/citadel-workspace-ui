@@ -270,7 +270,7 @@ async function runTest(): Promise<boolean> {
 
     // Verify office appears in sidebar
     const nodeMenuButton = page.locator('[data-testid^="tree-node-menu-"]').first();
-    results.officeCreated = await nodeMenuButton.isVisible({ timeout: 10000 }).catch(() => false);
+    results.officeCreated = await isVisibleWithin(nodeMenuButton, 10000);
     console.log(`  Office created: ${results.officeCreated ? 'PASS' : 'FAIL'}`);
     await takeScreenshot(page, 'admin_02_office_created');
 
@@ -292,7 +292,7 @@ async function runTest(): Promise<boolean> {
 
     if (results.contextMenuOpens) {
       const adminMenuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
-      results.adminSettingsVisible = await adminMenuItem.isVisible({ timeout: 3000 }).catch(() => false);
+      results.adminSettingsVisible = await isVisibleWithin(adminMenuItem, 3000);
       console.log(`  Admin Settings visible: ${results.adminSettingsVisible ? 'PASS' : 'FAIL'}`);
     }
 
@@ -308,7 +308,7 @@ async function runTest(): Promise<boolean> {
       await sleep(500);
 
       const dialog = getAdminDialog(page);
-      results.adminModalOpens = await dialog.isVisible({ timeout: 5000 }).catch(() => false);
+      results.adminModalOpens = await isVisibleWithin(dialog, 5000);
       console.log(`  Admin modal opens: ${results.adminModalOpens ? 'PASS' : 'FAIL'}`);
       await takeScreenshot(page, 'admin_04_modal_opened');
 
@@ -437,7 +437,7 @@ async function runTest(): Promise<boolean> {
         await sleep(500);
 
         const dialog = getAdminDialog(page);
-        results.roomAdminModalOpens = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
+        results.roomAdminModalOpens = await isVisibleWithin(dialog, 3000);
         console.log(`  Room admin modal opens: ${results.roomAdminModalOpens ? 'PASS' : 'FAIL'}`);
         await takeScreenshot(page, 'admin_08_room_admin_modal');
 

@@ -501,8 +501,8 @@ async function checkFileTransferBubble(
       const acceptButton = page.locator('button').filter({ hasText: /accept/i });
       const declineButton = page.locator('button').filter({ hasText: /decline/i });
 
-      const hasAccept = await acceptButton.isVisible({ timeout: 2000 }).catch(() => false);
-      const hasDecline = await declineButton.isVisible({ timeout: 2000 }).catch(() => false);
+      const hasAccept = await isVisibleWithin(acceptButton, 2000);
+      const hasDecline = await isVisibleWithin(declineButton, 2000);
 
       console.log(`  Accept button visible: ${hasAccept}`);
       console.log(`  Decline button visible: ${hasDecline}`);
@@ -566,8 +566,8 @@ async function acceptFileTransfer(page: Page, username: string): Promise<boolean
       const progressIndicator = page.locator('[class*="progress"], .animate-spin');
       const completeIndicator = page.getByText(/complete|sent|downloaded/i);
 
-      const hasProgress = await progressIndicator.isVisible({ timeout: 3000 }).catch(() => false);
-      const hasComplete = await completeIndicator.isVisible({ timeout: 3000 }).catch(() => false);
+      const hasProgress = await isVisibleWithin(progressIndicator, 3000);
+      const hasComplete = await isVisibleWithin(completeIndicator, 3000);
 
       if (hasProgress || hasComplete) {
         console.log('  Transfer accepted and processing');

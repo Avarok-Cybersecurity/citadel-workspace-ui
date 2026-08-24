@@ -252,7 +252,7 @@ async function navigateToGroup(
 
   // Verify we're in the group chat
   const groupHeader = page.locator(`h2:has-text("${groupName}"), [role="heading"]:has-text("${groupName}")`).first();
-  const inGroup = await groupHeader.isVisible({ timeout: 5000 }).catch(() => false);
+  const inGroup = await isVisibleWithin(groupHeader, 5000);
 
   if (!inGroup) {
     console.log(`    Failed to navigate to group for ${user.username}`);
@@ -289,7 +289,7 @@ async function sendGroupChatMessage(
 
   // Verify message appears in chat
   const sentMessage = page.locator(`.message:has-text("${message}"), div:has-text("${message}")`).first();
-  const sent = await sentMessage.isVisible({ timeout: 5000 }).catch(() => false);
+  const sent = await isVisibleWithin(sentMessage, 5000);
 
   return sent;
 }

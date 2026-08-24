@@ -328,12 +328,12 @@ async function runTest(): Promise<boolean> {
     // After creating the live doc, a LiveDocumentBubble should appear in the message list
     // Look for the bubble with the document title or a FileText icon
     const liveDocBubble = page1.locator(`button:has-text("${DOC_TITLE}"), [class*="live-doc"], [class*="LiveDoc"], [data-message-type="live_document"]`).first();
-    results.liveDocBubbleVisible = await liveDocBubble.isVisible({ timeout: 5000 }).catch(() => false);
+    results.liveDocBubbleVisible = await isVisibleWithin(liveDocBubble, 5000);
 
     if (!results.liveDocBubbleVisible) {
       // Alternative: look for any bubble with FileText icon in message area
       const fileTextBubble = page1.locator('button:has(svg.lucide-file-text)').first();
-      results.liveDocBubbleVisible = await fileTextBubble.isVisible({ timeout: 3000 }).catch(() => false);
+      results.liveDocBubbleVisible = await isVisibleWithin(fileTextBubble, 3000);
     }
 
     console.log(`  LiveDocumentBubble visible: ${results.liveDocBubbleVisible}`);

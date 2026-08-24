@@ -101,7 +101,7 @@ async function openSettingsFromTopBar(page: Page): Promise<boolean> {
 
         // Verify Settings modal with tabs is open
         const tabsList = page.locator('[role="dialog"] [role="tablist"]').first();
-        const hasTabs = await tabsList.isVisible({ timeout: 3000 }).catch(() => false);
+        const hasTabs = await isVisibleWithin(tabsList, 3000);
         if (hasTabs) {
           console.log('    Settings Modal opened successfully (with tabs)');
           return true;
@@ -157,7 +157,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
 
     // Wait for the permissions panel to become visible
     const permissionsPanel = dialog.locator(`[id*="permissions"][role="tabpanel"]`).first();
-    const isPanelVisible = await permissionsPanel.isVisible({ timeout: 3000 }).catch(() => false);
+    const isPanelVisible = await isVisibleWithin(permissionsPanel, 3000);
 
     if (isPanelVisible) {
       const panelText = await permissionsPanel.textContent().catch(() => '');
@@ -172,7 +172,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
     await sleep(500);
 
     // Check again
-    const isPanelVisibleAfterKeyboard = await permissionsPanel.isVisible({ timeout: 2000 }).catch(() => false);
+    const isPanelVisibleAfterKeyboard = await isVisibleWithin(permissionsPanel, 2000);
     if (isPanelVisibleAfterKeyboard) {
       console.log('    Permissions panel visible after keyboard navigation');
       return true;
@@ -219,7 +219,7 @@ async function permissionsTabHasLockIcon(page: Page): Promise<boolean> {
   if (await permissionsTab.isVisible({ timeout: 1000 }).catch(() => false)) {
     // Check for any SVG (lucide icons render as SVG)
     const svg = permissionsTab.locator('svg').first();
-    const hasSvg = await svg.isVisible({ timeout: 1000 }).catch(() => false);
+    const hasSvg = await isVisibleWithin(svg, 1000);
     if (hasSvg) {
       console.log('    Found SVG icon in Permissions tab');
       return true;
@@ -337,8 +337,8 @@ async function statusIndicatorsCorrect(page: Page): Promise<boolean> {
   const allowedIndicator = dialog.locator('text="Allowed"').first();
   const deniedIndicator = dialog.locator('text="Denied"').first();
 
-  const hasAllowed = await allowedIndicator.isVisible({ timeout: 2000 }).catch(() => false);
-  const hasDenied = await deniedIndicator.isVisible({ timeout: 2000 }).catch(() => false);
+  const hasAllowed = await isVisibleWithin(allowedIndicator, 2000);
+  const hasDenied = await isVisibleWithin(deniedIndicator, 2000);
 
   // At least one status indicator should be visible
   if (hasAllowed || hasDenied) {
@@ -350,8 +350,8 @@ async function statusIndicatorsCorrect(page: Page): Promise<boolean> {
   const checkIcon = dialog.locator('.lucide-check-circle-2, [class*="check-circle"]').first();
   const xIcon = dialog.locator('.lucide-x-circle, [class*="x-circle"]').first();
 
-  const hasCheckIcon = await checkIcon.isVisible({ timeout: 1000 }).catch(() => false);
-  const hasXIcon = await xIcon.isVisible({ timeout: 1000 }).catch(() => false);
+  const hasCheckIcon = await isVisibleWithin(checkIcon, 1000);
+  const hasXIcon = await isVisibleWithin(xIcon, 1000);
 
   console.log(`    Icons found: CheckCircle=${hasCheckIcon}, XCircle=${hasXIcon}`);
   return hasCheckIcon || hasXIcon;

@@ -88,13 +88,13 @@ async function checkLeaderIndicator(page: Page): Promise<boolean> {
   // Admin users get a ring-amber-400 on their avatar in TopBar
   const adminRing = page.locator('[data-testid="user-avatar-button"] [class*="ring-amber"], [data-testid="user-avatar-button"] .ring-2');
 
-  const visible = await adminRing.isVisible({ timeout: 3000 }).catch(() => false);
+  const visible = await isVisibleWithin(adminRing, 3000);
   console.log(`  Admin ring visible: ${visible}`);
 
   if (!visible) {
     // Also check for any crown/star/shield icon near avatar
     const adminIcon = page.locator('[data-testid="user-avatar-button"] svg.lucide-shield, [data-testid="user-avatar-button"] svg.lucide-crown').first();
-    const iconVisible = await adminIcon.isVisible({ timeout: 2000 }).catch(() => false);
+    const iconVisible = await isVisibleWithin(adminIcon, 2000);
     console.log(`  Admin icon visible: ${iconVisible}`);
     return iconVisible || visible;
   }
@@ -115,14 +115,14 @@ async function checkWorkspaceSwitcher(page: Page): Promise<{
 
   // WorkspaceSwitcher shows workspace name/logo in TopBar or sidebar header
   const switcher = page.locator('[data-testid="workspace-name"], [data-testid="workspace-switcher"]').first();
-  results.visible = await switcher.isVisible({ timeout: 3000 }).catch(() => false);
+  results.visible = await isVisibleWithin(switcher, 3000);
   console.log(`  Workspace switcher (data-testid): ${results.visible}`);
 
   // Find the trigger button (has ChevronRight icon)
   let triggerBtn = switcher;
   if (!results.visible) {
     triggerBtn = page.locator('button:has(svg.lucide-chevron-right)').first();
-    results.visible = await triggerBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    results.visible = await isVisibleWithin(triggerBtn, 3000);
     console.log(`  Workspace switcher (chevron): ${results.visible}`);
   }
 
@@ -133,7 +133,7 @@ async function checkWorkspaceSwitcher(page: Page): Promise<{
   await sleep(500);
 
   const joinNewItem = page.locator('[role="menuitem"]:has-text("Join New Workspace")').first();
-  results.dropdownWorks = await joinNewItem.isVisible({ timeout: 3000 }).catch(() => false);
+  results.dropdownWorks = await isVisibleWithin(joinNewItem, 3000);
   console.log(`  Dropdown opens with "Join New Workspace": ${results.dropdownWorks}`);
 
   // Close dropdown
@@ -172,19 +172,19 @@ async function testProfileModal(page: Page): Promise<{
 
   // Check if profile modal opened
   const profileDialog = page.locator('[role="dialog"]').first();
-  results.opens = await profileDialog.isVisible({ timeout: 3000 }).catch(() => false);
+  results.opens = await isVisibleWithin(profileDialog, 3000);
   console.log(`  Profile modal opens: ${results.opens}`);
 
   if (results.opens) {
     // Check for display name field
     const displayNameField = page.locator('input[name="displayName"], input[placeholder*="name"], input[placeholder*="Name"]').first();
-    results.hasDisplayName = await displayNameField.isVisible({ timeout: 3000 }).catch(() => false);
+    results.hasDisplayName = await isVisibleWithin(displayNameField, 3000);
     console.log(`  Has display name field: ${results.hasDisplayName}`);
 
     if (!results.hasDisplayName) {
       // Alternative: check for any text mentioning profile/name
       const profileText = page.getByText(/Display Name|Full Name|Profile/).first();
-      results.hasDisplayName = await profileText.isVisible({ timeout: 2000 }).catch(() => false);
+      results.hasDisplayName = await isVisibleWithin(profileText, 2000);
       console.log(`  Has profile text: ${results.hasDisplayName}`);
     }
 
@@ -229,7 +229,7 @@ async function testExitConfirmModal(page: Page): Promise<{
 
   // Check for confirmation modal
   const confirmModal = page.locator('[role="alertdialog"], [role="dialog"]').first();
-  results.modalAppears = await confirmModal.isVisible({ timeout: 3000 }).catch(() => false);
+  results.modalAppears = await isVisibleWithin(confirmModal, 3000);
   console.log(`  Exit confirm modal appears: ${results.modalAppears}`);
 
   if (!results.modalAppears) return results;

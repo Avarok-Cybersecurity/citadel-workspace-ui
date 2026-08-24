@@ -98,17 +98,17 @@ async function verifyPageStructure(page: Page): Promise<{
 
   // Check page title
   const title = page.locator('h1:has-text("User Directory")');
-  results.title = await title.isVisible({ timeout: 3000 }).catch(() => false);
+  results.title = await isVisibleWithin(title, 3000);
   console.log(`  Page title visible: ${results.title}`);
 
   // Check search card ("Find People")
   const searchCard = page.locator('text="Find People"');
-  results.searchCard = await searchCard.isVisible({ timeout: 3000 }).catch(() => false);
+  results.searchCard = await isVisibleWithin(searchCard, 3000);
   console.log(`  Search card visible: ${results.searchCard}`);
 
   // Check directory card ("Workspace Directory")
   const directoryCard = page.locator('text="Workspace Directory"');
-  results.directoryCard = await directoryCard.isVisible({ timeout: 3000 }).catch(() => false);
+  results.directoryCard = await isVisibleWithin(directoryCard, 3000);
   console.log(`  Directory card visible: ${results.directoryCard}`);
 
   // Check tabs
@@ -171,7 +171,7 @@ async function checkUserInList(page: Page, displayName: string): Promise<boolean
 
   // Look for the user's name in the directory list
   const userEntry = page.locator(`text="${displayName}"`).first();
-  const visible = await userEntry.isVisible({ timeout: 5000 }).catch(() => false);
+  const visible = await isVisibleWithin(userEntry, 5000);
   console.log(`  ${displayName} in list: ${visible}`);
   return visible;
 }
@@ -417,7 +417,7 @@ async function runTest(): Promise<boolean> {
     if (results.navigatedToDirectory) {
       // Check if the member list container exists
       const memberList = alicePage.locator('div.divide-y.divide-gray-700');
-      results.memberListVisible = await memberList.isVisible({ timeout: 5000 }).catch(() => false);
+      results.memberListVisible = await isVisibleWithin(memberList, 5000);
       console.log(`  Member list visible: ${results.memberListVisible}`);
 
       // Check if Bob appears in the list
@@ -459,7 +459,7 @@ async function runTest(): Promise<boolean> {
 
         // Check if profile panel appeared
         const profileCard = alicePage.locator('div.lg\\:col-span-1 h3, div.lg\\:col-span-1 [class*="CardTitle"]').first();
-        results.profilePanelVisible = await profileCard.isVisible({ timeout: 3000 }).catch(() => false);
+        results.profilePanelVisible = await isVisibleWithin(profileCard, 3000);
         results.selectedUserInfo = results.profilePanelVisible;
         console.log(`  Profile panel visible (any user): ${results.profilePanelVisible}`);
 
