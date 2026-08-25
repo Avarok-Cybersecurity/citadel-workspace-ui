@@ -125,6 +125,8 @@ export function TreeNodesSection({
 
   const [nodeToDelete, setNodeToDelete] = useState<DomainNode | null>(null);
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const handleToggleExpand = useCallback((nodeId: string) => {
     setExpandedNodes((prev) => {
       const next = new Set(prev);
@@ -163,12 +165,18 @@ export function TreeNodesSection({
 
   const confirmDelete = useCallback(async () => {
     if (!nodeToDelete || !onNodeDelete) return;
+    setDeleteError(null);
     try {
       await onNodeDelete(nodeToDelete);
+      // Closed only on success. The dialog used to close in a `finally`, so a
+      // failed delete looked exactly like a successful one — the confirmation
+      // disappeared while the node stayed in the tree, and debugLog, a no-op
+      // outside dev, said nothing. That is worse than silence: it reports the
+      // opposite of what happened.
+      setNodeToDelete(null);
     } catch (error) {
       debugLog('TreeNodesSection', 'Error deleting node:', error);
-    } finally {
-      setNodeToDelete(null);
+      setDeleteError('Could not delete this node. It may need permissions you do not have.');
     }
   }, [nodeToDelete, onNodeDelete]);
 
@@ -283,7 +291,10 @@ export function TreeNodesSection({
 
       <ConfirmDeleteDialog
         open={!!nodeToDelete}
-        onOpenChange={() => setNodeToDelete(null)}
+        onOpenChange={() => {
+          setNodeToDelete(null);
+          setDeleteError(null);
+        }}
         title={`Delete ${nodeToDelete ? getEntityTypeString(nodeToDelete.entity_type) : "Node"}`}
         description={
           <>
@@ -293,6 +304,11 @@ export function TreeNodesSection({
               <span className="block mt-2 text-warning">
                 Warning: This will also delete {nodeToDelete.children.length}{" "}
                 child node(s) and all their content.
+              </span>
+            )}
+            {deleteError && (
+              <span role="alert" className="block mt-3 text-destructive">
+                {deleteError}
               </span>
             )}
           </>
