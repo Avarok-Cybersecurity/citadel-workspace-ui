@@ -3,7 +3,6 @@ import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { User } from '../types/workspace-entities';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
-import { saveToStorage, loadFromStorage } from '../lib/storage-utils';
 import WorkspaceService from '../lib/workspace-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
 import { connectionManager } from '../lib/connection';
@@ -81,9 +80,9 @@ export const WorkspaceEventHandler: React.FC<{
     loading: { workspace: false, members: false, nodes: false },
     needsWorkspaceInitialization: false,
     messages: {
-      byPeer: loadFromStorage<Record<string, Array<{
+      byPeer: {} as Record<string, Array<{
         content: string; timestamp: number; id?: string; pending?: boolean;
-      }>>>('workspace-messages', {}),
+      }>>,
       lastMessageTimestamp: Date.now(),
     },
     typing: { peerIds: [], lastUpdated: Date.now() }
@@ -108,10 +107,23 @@ export const WorkspaceEventHandler: React.FC<{
   useEventEmitterSetup({ setState });
   useMessageEventSetup({ setState });
 
-  // Persist messages to local storage
-  useEffect(() => {
-    saveToStorage('workspace-messages', state.messages.byPeer);
-  }, [state.messages.byPeer]);
+  // `state.messages.byPeer` is deliberately NOT persisted.
+  //
+  // Nothing renders it. Across the whole app there are nine references: two type
+  // declarations, an empty initial value, this component's load/save pair, and
+  // three in useMessageEventSetup's append path. Every surface that shows
+  // messages — useP2PMessages, P2PPeerList, GroupChatView — reads
+  // `conversation.messages` from the IndexedDB pagination store instead.
+  //
+  // Persisting it therefore bought nothing and cost three things: it rewrote the
+  // ENTIRE per-peer map to localStorage on every received message, against a
+  // ~5MB cap, after which every write throws QuotaExceededError and the app
+  // carries on looking fine; it JSON.stringified data containing BigInt CIDs
+  // through a replacer, which CLAUDE.md explicitly forbids ("browser storage:
+  // IndexedDB", "NO JSON.stringify for data containing BigInt"); and it was a
+  // second message cache shadowing the one the UI actually reads.
+  //
+  // The in-memory state stays, so the event path is untouched.
 
   useEffect(() => {
     if (onStateChange) onStateChange(state);
