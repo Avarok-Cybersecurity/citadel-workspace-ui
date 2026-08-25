@@ -12,6 +12,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { appearsWithin } from '../lib/visible.js';
 import { chromium, type Page, type Browser, type BrowserContext } from 'playwright';
 import {
     clearBrowserStorage,
@@ -97,8 +98,8 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         // Check if tab2 sees the session or is on workspace
         const url = tab2.url();
         const onWorkspace = url.includes('/workspace') || url.includes('/office');
-        const seesSession = await tab2.locator(`button[title*="${USERNAME}"]`).isVisible({ timeout: 5000 }).catch(() => false);
-        const seesLandingButtons = await tab2.locator('button:has-text("Login Workspace")').isVisible({ timeout: 2000 }).catch(() => false);
+        const seesSession = await appearsWithin(tab2.locator(`button[title*="${USERNAME}"]`), 5000);
+        const seesLandingButtons = await appearsWithin(tab2.locator('button:has-text("Login Workspace")'), 2000);
 
         // At least one of these should be true
         expect(onWorkspace || seesSession || seesLandingButtons).toBe(true);
@@ -140,11 +141,12 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         await waitForAppReady(tab2, 30_000);
 
         // Should see either workspace loaded or landing page buttons
-        const hasContent = await tab2.locator('button:has-text("Join Workspace"), button:has-text("Login Workspace"), [data-sidebar="sidebar"]')
-            .first()
-            .isVisible({ timeout: 10_000 })
-            .catch(() => false);
-
-        expect(hasContent).toBe(true);
+        // A web-first assertion, not isVisible: this is an ASSERTION, and
+        // isVisible returns immediately (its timeout option is declared
+        // deprecated and ignored), so on a loaded runner this failed whenever
+        // the render had not landed yet. toBeVisible retries until the timeout.
+        await expect(
+            tab2.locator('button:has-text("Join Workspace"), button:has-text("Login Workspace"), [data-sidebar="sidebar"]').first()
+        ).toBeVisible({ timeout: 10_000 });
     });
 });

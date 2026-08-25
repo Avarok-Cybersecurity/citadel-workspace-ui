@@ -7,6 +7,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { appearsWithin } from '../lib/visible.js';
 import { chromium, type Page, type Browser, type BrowserContext } from 'playwright';
 import {
     clearBrowserStorage,
@@ -42,7 +43,7 @@ async function loginWithCredentials(
     // Check for existing session to claim
     await sleep(1000);
     const existingSession = page.locator(`button[title*="${username}"]`).first();
-    if (await existingSession.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await appearsWithin(existingSession, 3000)) {
         await existingSession.click();
         await sleep(3000);
         const loaded = await waitForWorkspaceLoaded(page, 30_000);
@@ -51,7 +52,7 @@ async function loginWithCredentials(
 
     // Navigate to landing if needed
     const loginBtn = page.locator('button:has-text("Login Workspace")');
-    if (!(await loginBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
+    if (!(await appearsWithin(loginBtn, 2000))) {
         await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
         await waitForAppReady(page, 30_000);
     }
@@ -71,11 +72,11 @@ async function loginWithCredentials(
 
     // Advanced options: set server address
     const advancedBtn = page.locator('button:has-text("Advanced Options")');
-    if (await advancedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await appearsWithin(advancedBtn, 2000)) {
         await advancedBtn.click();
         await sleep(300);
         const serverInput = page.locator('input#server');
-        if (await serverInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await appearsWithin(serverInput, 2000)) {
             await serverInput.fill(config.WORKSPACE_SERVER);
             await sleep(300);
         }
@@ -87,13 +88,13 @@ async function loginWithCredentials(
 
     // Check for errors
     const errorEl = page.locator('.text-red-400');
-    if (await errorEl.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await appearsWithin(errorEl, 2000)) {
         const errorText = await errorEl.textContent();
         if (errorText?.includes('already exists') || errorText?.includes('Session')) {
             await page.keyboard.press('Escape');
             await sleep(500);
             const sessionIcon = page.locator(`button[title*="${username}"]`).first();
-            if (await sessionIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
+            if (await appearsWithin(sessionIcon, 3000)) {
                 await sessionIcon.click();
                 await sleep(3000);
                 return true;
