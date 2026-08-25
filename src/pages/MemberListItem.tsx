@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { MessageCircle, UserPlus, Star } from 'lucide-react';
 import { formatPresence } from '@/lib/date-utils';
 import { UserRole } from '@/types/workspace-entities';
+import { roleBadgeClass } from '@/lib/role-badge';
 
 export interface MemberDisplay {
   id: string;
@@ -15,19 +16,9 @@ export interface MemberDisplay {
   lastActive?: number;
 }
 
+/** Re-exported for existing importers; the decision lives in lib/role-badge. */
 function getRoleBadgeClass(role?: UserRole): string {
-  switch (role) {
-    case UserRole.Owner:
-      return 'bg-primary hover:bg-primary/90';
-    case UserRole.Admin:
-      return 'bg-primary-accent hover:bg-primary-accent/90';
-    case UserRole.Member:
-      return 'bg-success hover:bg-success/90';
-    case UserRole.Guest:
-      return 'bg-muted hover:bg-muted/80';
-    default:
-      return 'bg-muted hover:bg-muted/80';
-  }
+  return roleBadgeClass(role);
 }
 
 export { getRoleBadgeClass };

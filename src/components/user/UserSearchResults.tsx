@@ -105,7 +105,11 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
                     )}
                   </div>
                   {user.role && (
-                    <Badge className={getRoleBadgeClass(user.role)}>
+                    // shrink-0: without it the badge is what gives way when a
+                    // long username fills the row, and the panel's
+                    // overflow-hidden clips the role mid-word. The name beside
+                    // it already truncates, so it is the one that should yield.
+                    <Badge className={`shrink-0 ${getRoleBadgeClass(user.role)}`}>
                       {user.role}
                     </Badge>
                   )}

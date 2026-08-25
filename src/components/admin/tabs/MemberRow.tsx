@@ -17,12 +17,20 @@ import { getUserInitials } from '@/lib/workspace-metadata-service';
 import type { MemberData, UserRole } from '../types';
 import { USER_ROLES } from '../types';
 
+/**
+ * Dot colours, not badge classes — these tint a small indicator that carries no
+ * text, which is why they stay fills rather than going through roleBadgeClass.
+ *
+ * `bg-black` was a literal that survived the palette migration because black is
+ * not a hue name in the lint guard's list; in a light theme it was the only
+ * pure-black mark on the screen. `foreground` is the theme's own ink.
+ */
 const ROLE_COLORS: Record<UserRole, string> = {
   Admin: 'bg-destructive',
   Owner: 'bg-warning',
-  Member: 'bg-primary-accent',
+  Member: 'bg-primary',
   Guest: 'bg-muted-foreground',
-  Banned: 'bg-black',
+  Banned: 'bg-foreground',
 };
 
 interface MemberRowProps {
