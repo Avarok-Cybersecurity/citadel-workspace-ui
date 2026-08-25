@@ -130,7 +130,12 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     aria-pressed={showPassword}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
+                    // The icon stays 16px; the BUTTON is 24px, the WCAG 2.2
+                    // target-size floor. Centring the icon inside keeps the
+                    // position identical while the thumb gets something to aim
+                    // at. `right-3` becomes right-2 to keep the visual inset
+                    // once the box grew.
+                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                   >
                     {showPassword
                       ? <EyeOff className="h-4 w-4" aria-hidden="true" />

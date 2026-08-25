@@ -233,7 +233,11 @@ export const Landing = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="gap-2 text-muted-foreground hover:text-foreground/80 hover:bg-transparent px-0 h-auto text-xs"
+              // min-h-6 (24px) is the WCAG 2.2 target-size floor. `h-auto`
+              // collapsed this to its 16px text, which is a hard thing to hit
+              // with a thumb — and axe does not measure target size, so nothing
+              // reported it.
+              className="gap-2 text-muted-foreground hover:text-foreground/80 hover:bg-transparent px-0 min-h-6 text-xs"
               onClick={() => setSettingsOpen(true)}
             >
               <Settings className="h-3.5 w-3.5" />
@@ -241,7 +245,7 @@ export const Landing = () => {
             </Button>
             {/* Renders only when the browser has actually offered an install
                 prompt and we are not already running installed — see usePwaInstall. */}
-            <InstallAppButton className="gap-2 text-muted-foreground hover:text-foreground/80 text-xs inline-flex items-center" />
+            <InstallAppButton className="gap-2 text-muted-foreground hover:text-foreground/80 text-xs inline-flex items-center min-h-6" />
           </div>
 
           {/* Security badge */}

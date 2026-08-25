@@ -22,7 +22,8 @@
     "check:lighthouse": "node scripts/check-lighthouse.mjs",
     "check:pwa-offline": "node scripts/check-pwa-offline.mjs",
     "check:pwa-update": "node scripts/check-pwa-update.mjs",
-    "check:reduced-motion": "node scripts/check-reduced-motion.mjs"
+    "check:reduced-motion": "node scripts/check-reduced-motion.mjs",
+    "check:mobile": "node scripts/check-mobile-layout.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",
