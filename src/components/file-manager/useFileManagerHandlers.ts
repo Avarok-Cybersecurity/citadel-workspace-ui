@@ -4,6 +4,7 @@ import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types"
 import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
 import { findNodeByPath } from "./useFileManagerContent";
+import { useConfirm } from "@/components/shared/confirm-dialog";
 
 interface HandlerDeps {
   mkdir: (path: string) => Promise<void>;
@@ -50,6 +51,8 @@ export function useFileManagerHandlers({
   setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
   setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
 }: HandlerDeps) {
+  const confirm = useConfirm();
+
   const handleNewFolder = useCallback((parentPath: string) => {
     const name = prompt('Folder name:');
     if (!name?.trim()) return;
@@ -57,15 +60,19 @@ export function useFileManagerHandlers({
     mkdir(path).catch(err => toast.error(`Failed to create folder: ${err}`));
   }, [mkdir]);
 
-  const handleDelete = useCallback((node: RevfsNode) => {
-    if (node.type === 'directory') {
-      if (!confirm(`Delete folder "${node.name}" and all contents?`)) return;
-      rmdir(node.path).catch(err => toast.error(`Failed to delete: ${err}`));
-    } else {
-      if (!confirm(`Delete file "${node.name}"?`)) return;
-      removeFile(node.path).catch(err => toast.error(`Failed to delete: ${err}`));
-    }
-  }, [rmdir, removeFile]);
+  const handleDelete = useCallback(async (node: RevfsNode) => {
+    const isDirectory = node.type === 'directory';
+    const ok = await confirm({
+      title: isDirectory ? `Delete folder "${node.name}"?` : `Delete file "${node.name}"?`,
+      description: isDirectory
+        ? 'Everything inside it is deleted too. This cannot be undone.'
+        : 'This cannot be undone.',
+    });
+    if (!ok) return;
+
+    const removal = isDirectory ? rmdir(node.path) : removeFile(node.path);
+    removal.catch(err => toast.error(`Failed to delete: ${err}`));
+  }, [rmdir, removeFile, confirm]);
 
   const handleDownload = useCallback((node: RevfsNode) => {
     const isDownloadable = node.fileState === RevfsFileState.Remote
@@ -132,13 +139,17 @@ export function useFileManagerHandlers({
     }
   }, [hasPasteItems, currentTreeKey, clipboard, isCut, move, copy, clearClipboard]);
 
-  const handleDeleteMultiple = useCallback((nodes: RevfsNode[]) => {
+  const handleDeleteMultiple = useCallback(async (nodes: RevfsNode[]) => {
     const count = nodes.length;
-    if (!confirm(`Delete ${count} item${count !== 1 ? 's' : ''}?`)) return;
+    const ok = await confirm({
+      title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
+      description: 'Any folders in the selection are deleted with their contents. This cannot be undone.',
+    });
+    if (!ok) return;
     Promise.all(nodes.map(node => node.type === 'directory' ? rmdir(node.path) : removeFile(node.path)))
       .then(() => { toast.success(`Deleted ${count} item${count !== 1 ? 's' : ''}`); clearSelection(); })
       .catch(err => toast.error(`Failed to delete: ${err}`));
-  }, [rmdir, removeFile, clearSelection]);
+  }, [rmdir, removeFile, clearSelection, confirm]);
 
   const handleCutMultiple = useCallback((nodes: RevfsNode[]) => {
     if (!currentTreeKey) return;

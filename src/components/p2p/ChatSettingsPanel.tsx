@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -33,6 +34,7 @@ export function ChatSettingsPanel({
   peerCid,
   peerName,
 }: ChatSettingsPanelProps) {
+  const confirm = useConfirm();
   const {
     activeOuterTab,
     setActiveOuterTab,
@@ -227,9 +229,14 @@ export function ChatSettingsPanel({
                 <button
                   className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm hover:bg-destructive/20 transition-colors"
                   onClick={() => {
-                    if (confirm(`Clear all chat history with ${peerName}?`)) {
-                      localStorage.removeItem(`chat-history:${peerCid}`);
-                    }
+                    void (async () => {
+                      const ok = await confirm({
+                        title: `Clear all chat history with ${peerName}?`,
+                        description: 'Messages stored on this device are removed. This cannot be undone.',
+                        confirmLabel: 'Clear history',
+                      });
+                      if (ok) localStorage.removeItem(`chat-history:${peerCid}`);
+                    })();
                   }}
                 >
                   Clear Chat History

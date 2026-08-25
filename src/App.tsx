@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
+import { ConfirmDialogProvider } from "@/components/shared/confirm-dialog";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -61,6 +62,11 @@ const App = () => {
       >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+        {/* Inside TooltipProvider so the dialog it renders sits in the same
+            overlay context as everything else, and above WorkspaceApp so any
+            hook beneath can await a styled confirmation instead of reaching
+            for window.confirm. */}
+        <ConfirmDialogProvider>
           <WorkspaceApp>
             {/*
               One toast system. The app used to mount shadcn's <Toaster /> AND
@@ -131,6 +137,7 @@ const App = () => {
             </BrowserRouter>
             </CallLayer>
           </WorkspaceApp>
+        </ConfirmDialogProvider>
         </TooltipProvider>
       </QueryClientProvider>
       </ThemeProvider>

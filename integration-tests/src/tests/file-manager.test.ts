@@ -340,11 +340,9 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
     }
     console.log(`  Found folder element`);
 
-    // Set up dialog handler before triggering the context menu
-    page.once('dialog', async dialog => {
-      console.log(`  Confirm dialog: "${dialog.message()}"`);
-      await dialog.accept();
-    });
+    // Deletion is confirmed by an in-app AlertDialog now, not window.confirm,
+    // so there is no native dialog to accept — the confirm button is clicked
+    // after the menu item below.
 
     // Get the bounding box and right-click in the center for more reliable context menu
     const box = await targetElement.boundingBox();
@@ -373,6 +371,15 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
     if (await isVisibleWithin(deleteOption, 1000)) {
       console.log('  Found delete option, clicking...');
       await deleteOption.click();
+
+      // Confirm in the app's own dialog.
+      const confirmButton = page.locator('[role="alertdialog"] button:has-text("Delete")').last();
+      if (await isVisibleWithin(confirmButton, 5000)) {
+        console.log('  Confirming deletion in the in-app dialog');
+        await confirmButton.click();
+      } else {
+        console.log('  WARNING: in-app confirm dialog did not appear');
+      }
 
       // Wait for deletion to process and UI to update
       // Check specifically in the tree view (not breadcrumb) for the folder
@@ -598,11 +605,7 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
     }
     console.log(`  Found file element`);
 
-    // Set up dialog handler for confirmation
-    page.once('dialog', async dialog => {
-      console.log(`  Confirm dialog: "${dialog.message()}"`);
-      await dialog.accept();
-    });
+    // In-app confirmation; the confirm button is clicked after the menu item.
 
     // Right-click on file
     const box = await targetElement.boundingBox();
@@ -623,6 +626,15 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
     if (await isVisibleWithin(deleteOption, 1000)) {
       console.log('  Found delete option, clicking...');
       await deleteOption.click();
+
+      // Confirm in the app's own dialog.
+      const confirmFileDelete = page.locator('[role="alertdialog"] button:has-text("Delete")').last();
+      if (await isVisibleWithin(confirmFileDelete, 5000)) {
+        console.log('  Confirming deletion in the in-app dialog');
+        await confirmFileDelete.click();
+      } else {
+        console.log('  WARNING: in-app confirm dialog did not appear');
+      }
 
       // Wait and verify deletion
       for (let check = 1; check <= 5; check++) {
