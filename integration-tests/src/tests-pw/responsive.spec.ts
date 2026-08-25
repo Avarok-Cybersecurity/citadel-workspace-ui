@@ -88,6 +88,49 @@ async function expectNoHorizontalOverflow(page: Page, screen: string): Promise<v
 }
 
 /**
+ * Any element sticking out of the flex parent that sizes it.
+ *
+ * `w-full` is 100% of the PARENT, not "the space that is left". On a flex child
+ * with a sibling those are different numbers, and the difference gets painted
+ * over whatever sits alongside. The workspace switcher did exactly this: it
+ * overhung its group by the width of the sidebar toggle beside it and covered
+ * the notification bell with its chevron.
+ *
+ * Every check already in place missed it, because they all ask whether the
+ * DOCUMENT is wider than the viewport. This one stayed comfortably inside
+ * 375px and collided with a sibling instead.
+ */
+async function measureFlexOverhang(
+  page: Page,
+): Promise<Array<{ tag: string; cls: string; by: number }>> {
+  return page.evaluate(() => {
+    const out: Array<{ tag: string; cls: string; by: number }> = [];
+    for (const el of Array.from(document.querySelectorAll('*'))) {
+      const parent = el.parentElement;
+      if (!parent) continue;
+      const ps = getComputedStyle(parent);
+      if (!ps.display.includes('flex')) continue;
+      // A parent that clips or scrolls cannot leak a child over its neighbours.
+      if (ps.overflowX !== 'visible') continue;
+      const es = getComputedStyle(el);
+      if (es.position === 'absolute' || es.position === 'fixed') continue;
+      if (es.display === 'none' || es.visibility === 'hidden') continue;
+      // Pulling an element out deliberately is a legitimate technique; only
+      // unintended overhang is worth reporting.
+      if (parseFloat(es.marginLeft) < 0 || parseFloat(es.marginRight) < 0) continue;
+      const r = el.getBoundingClientRect();
+      const pr = parent.getBoundingClientRect();
+      if (r.width === 0 || pr.width === 0) continue;
+      const by = Math.max(r.right - pr.right, pr.left - r.left);
+      if (by > 1) {
+        out.push({ tag: el.tagName, cls: String(el.className || '').slice(0, 80), by: Math.round(by) });
+      }
+    }
+    return out.sort((a, b) => b.by - a.by);
+  });
+}
+
+/**
  * Interactive elements smaller than the WCAG 2.2 floor of 24x24 CSS px.
  *
  * Separate from overflow because axe reports neither, and this one is easy to
@@ -257,33 +300,16 @@ test.describe.serial('Responsive workspace at 375px', () => {
     await expectNoSmallTapTargets(page, 'workspace');
   });
 
-  test('the header title does not overhang the controls beside it', async () => {
-    // Overflow checks look at the VIEWPORT, so they cannot see this: the
-    // workspace switcher was `w-full` next to a sibling toggle, which resolves
-    // to the full width of the group while the button still starts after that
-    // sibling. It overhung its own container by the toggle's width and painted
-    // its chevron on top of the notification bell — entirely inside 375px, and
-    // so entirely invisible to every check we had.
-    const bounds = await page.evaluate(() => {
-      const header = document.querySelector('.fixed.top-0');
-      const left = header?.children[0];
-      const right = header?.children[1];
-      if (!left || !right) return null;
-      const inner = left.querySelector('button[class*="gap-3"]');
-      return {
-        leftRight: left.getBoundingClientRect().right,
-        rightLeft: right.getBoundingClientRect().left,
-        innerRight: inner ? inner.getBoundingClientRect().right : null,
-      };
-    });
-
-    expect(bounds, 'the header should expose a left and a right group').not.toBeNull();
-    // Sub-pixel rounding is fine; a whole pixel of encroachment is not.
-    expect(bounds!.leftRight).toBeLessThanOrEqual(bounds!.rightLeft + 1);
+  test('nothing overhangs the flex parent that sizes it', async () => {
+    const offenders = await measureFlexOverhang(page);
+    const worst = offenders[0];
     expect(
-      bounds!.innerRight,
-      'the switcher should stay inside the group that sizes it',
-    ).toBeLessThanOrEqual(bounds!.leftRight + 1);
+      offenders,
+      worst
+        ? `${offenders.length} element(s) stick out of their flex parent; widest is ` +
+          `<${worst.tag} class="${worst.cls}"> by ${worst.by}px`
+        : '',
+    ).toEqual([]);
   });
 
   test('sidebar opens as a drawer and closes again', async () => {

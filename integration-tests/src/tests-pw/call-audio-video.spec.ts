@@ -162,10 +162,22 @@ test.describe.serial('Audio and video calling', () => {
       .catch(async () => {
         // Never became available: report WHY, from the disabled control's own
         // tooltip, instead of a bare timeout.
-        const reason = (await unavailable.count())
-          ? await unavailable.getByRole('button').first().getAttribute('title')
-          : 'neither the enabled nor the disabled call buttons ever rendered';
-        throw new Error(`calling never became available to A: ${reason}`);
+        //
+        // The tooltip is a Radix one, mounted only while hovered — it is NOT a
+        // native `title`. Reading the attribute returned null every time, which
+        // turned each of these failures into an unfalsifiable "something went
+        // wrong" and is why they went undiagnosed for so long. Hover, then read
+        // what the user would actually be shown.
+        let reason = 'neither the enabled nor the disabled call buttons ever rendered';
+        if (await unavailable.count()) {
+          await unavailable.getByRole('button').first().hover().catch(() => {});
+          const tip = sessionA.page.getByRole('tooltip').first();
+          reason =
+            (await tip.textContent({ timeout: 5_000 }).catch(() => null)) ??
+            'the disabled call buttons rendered, but their tooltip never opened';
+        }
+        await sessionA.page.screenshot({ path: 'test-results/call-unavailable-A.png' });
+        throw new Error(`calling never became available to A: ${reason.trim()}`);
       });
 
     await expect(sessionA.page.getByTestId('call-start-video')).toBeVisible();
