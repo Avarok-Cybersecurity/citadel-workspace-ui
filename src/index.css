@@ -315,6 +315,42 @@ h1, h2, h3, h4, h5, h6 {
    ======================================== */
 
 /* Main cursor container - positioned inline */
+/* Honour prefers-reduced-motion.
+ *
+ * Ninety of the app's hundred animations opted out of nothing: pulses, pings,
+ * glows, shakes and every dialog transition ran regardless of the setting.
+ * Motion of that kind is not a preference for people with vestibular disorders,
+ * and neither axe nor Lighthouse reports it, so it stayed invisible.
+ *
+ * 0.01ms rather than `animation: none` — the conventional idiom, so that any
+ * code waiting on `animationend` still receives it. Radix specifically does not
+ * need this (its Presence checks for animationName "none" and unmounts at once;
+ * dialogs were verified to close either way), but not every consumer here is
+ * Radix, and a near-zero duration costs nothing.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Spinners keep turning, slower.
+   *
+   * They are the only "still working" signal for the operations that actually
+   * take time here — WASM init, workspace load, the P2P handshake — and a
+   * frozen spinner reads as a hung app, which is a worse outcome than the
+   * motion it avoids. A slow, steady rotation is also far gentler than the
+   * pulsing and zooming this block exists to stop. */
+  .animate-spin {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
 /* The collaborator cursor paints its own surfaces from `user.color` — a colour
    assigned per collaborator, not a theme token (see CollaboratorCursor.tsx,
    which sets backgroundColor from it directly). The white and near-white values

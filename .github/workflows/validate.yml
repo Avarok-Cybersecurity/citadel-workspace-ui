@@ -162,6 +162,15 @@ jobs:
         run: npm run check:pwa-update
         working-directory: parent/citadel-workspaces
 
+      - name: Reduced motion
+        # Neither axe nor Lighthouse reports motion, so ninety of the app's
+        # hundred animations opted out of prefers-reduced-motion unnoticed.
+        # Also checks that suppressing motion did not suppress the dialogs the
+        # motion was attached to — a failure only reduced-motion users would see.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:reduced-motion
+        working-directory: parent/citadel-workspaces
+
       - name: Enforce 250-line file limit
         if: matrix.project == 'citadel-workspaces'
         run: |
