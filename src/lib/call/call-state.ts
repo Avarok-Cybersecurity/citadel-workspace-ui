@@ -39,6 +39,8 @@ export interface CallState {
   roomId: string | null;
   /** True when we placed the call. Decides who wins a glare collision. */
   outgoing: boolean;
+  /** Who dialled — null when we did. Their hangup ends a still-ringing call. */
+  caller: bigint | null;
   selfMedia: CallMediaKinds;
   participants: Map<bigint, CallParticipant>;
   /** Set when status is 'failed' or 'ended', for the UI to explain itself. */
@@ -62,7 +64,7 @@ export type CallEvent =
 
 export const NO_MEDIA: CallMediaKinds = { audio: false, video: false, screen: false };
 
-/** Beyond this, a mesh sender's uplink and encoder count stop being survivable. */
+// Beyond these, a mesh sender's uplink and encoder count stop being survivable.
 export const MAX_VIDEO_PARTICIPANTS = 8;
 export const MAX_AUDIO_PARTICIPANTS = 12;
 
@@ -105,6 +107,7 @@ export function initialState(callId: string): CallState {
     status: 'ringing-out',
     roomId: null,
     outgoing: true,
+    caller: null,
     selfMedia: NO_MEDIA,
     participants: new Map(),
     reason: null,
@@ -118,43 +121,26 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
       for (const invitee of event.invitees) {
         participants.set(invitee.cid, newParticipant(invitee.cid, invitee.username, 'invited', NO_MEDIA));
       }
-      return {
-        callId: event.callId,
-        status: 'ringing-out',
-        roomId: event.roomId,
-        outgoing: true,
-        selfMedia: event.media,
-        participants,
-        reason: null,
-      };
+      return { callId: event.callId, status: 'ringing-out', roomId: event.roomId, outgoing: true, caller: null, selfMedia: event.media, participants, reason: null };
     }
 
     case 'invite-received': {
       // A second invite for a call we are already in is a retransmit, not a new
       // call; adopting it would reset a live call back to ringing.
       if (state && state.callId === event.callId) return state;
-      // The caller is already in the call they dialled — 'connecting', not
-      // 'invited' — which is also what lets accept() open their session while
-      // co-invitees wait for their own accepts. First into the map on purpose:
-      // the ringing card names participants.values()[0] as the caller.
+      // The caller is already in the call they dialled — 'connecting', which is
+      // what lets accept() open their session while co-invitees wait for their
+      // own accepts. First into the map: the ringing card reads values()[0].
       const participants = new Map<bigint, CallParticipant>([
         [event.from.cid, newParticipant(event.from.cid, event.from.username, 'connecting', event.media)],
       ]);
-      // The other invitees of a group call, so every invitee holds the same
-      // roster as the caller and the mesh can form without the caller relaying.
+      // Co-invitees: every invitee holds the caller's roster, so the mesh can
+      // form without the caller relaying anything.
       for (const other of event.others) {
         if (other.cid === event.from.cid) continue;
         participants.set(other.cid, newParticipant(other.cid, other.username, 'invited', NO_MEDIA));
       }
-      return {
-        callId: event.callId,
-        status: 'ringing-in',
-        roomId: event.roomId,
-        outgoing: false,
-        selfMedia: NO_MEDIA,
-        participants,
-        reason: null,
-      };
+      return { callId: event.callId, status: 'ringing-in', roomId: event.roomId, outgoing: false, caller: event.from.cid, selfMedia: NO_MEDIA, participants, reason: null };
     }
 
     default:
@@ -199,6 +185,11 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
 
     case 'peer-left': {
       const next = withParticipant(state, event.cid, (p) => ({ ...p, status: 'left' }));
+      // The caller cancelling ends a still-ringing call outright — the seeded
+      // co-invitees never answered, so "everyone gone" would never come true.
+      if (next.status === 'ringing-in' && event.cid === next.caller) {
+        return { ...next, status: 'ended', reason: 'hangup' };
+      }
       if (anyoneActive(next.participants)) return next;
       return everyoneGone(next.participants)
         ? { ...next, status: 'ended', reason: 'hangup' }

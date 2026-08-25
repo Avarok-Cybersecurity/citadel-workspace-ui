@@ -38,6 +38,9 @@ export interface WebSocketCallTransportOptions {
 }
 
 export class WebSocketCallTransport implements CallTransport {
+  /** Tail of the in-flight signal sends; see sendSignal for why they chain. */
+  private signalChain: Promise<void> = Promise.resolve();
+
   constructor(private readonly options: WebSocketCallTransportOptions) {}
 
   async openSession(peerCid: bigint): Promise<void> {
@@ -126,14 +129,30 @@ export class WebSocketCallTransport implements CallTransport {
     // Call control goes on the RELIABLE path while the media it sets up goes on
     // the lossy one. Losing a video frame costs a sixtieth of a second; losing
     // a "call ended" leaves both sides staring at a call that is over.
-    await sendP2PCommand(
-      // The cast is the narrowing above meeting a wider published signature.
-      // sendP2PCommand takes the full config but reads only getCurrentCid, and
-      // even that is skipped when the sender cid is supplied — as it is here.
-      this.options.senderConfig as MessageSenderConfig,
-      peerCid,
-      { type: P2PCommandType.CallSignal, payload: signal },
-      this.options.selfCid,
+    //
+    // Chained, not raced. A group call fans one signal out to every invitee in
+    // the same tick (Promise.all in the manager), and two sends interleaving
+    // through the messenger's async path reproducibly lose exactly one of
+    // them: the caller logs both sends, one peer never rings. Serialising the
+    // wire I/O here keeps every caller's concurrent shape while the messages
+    // actually leave one at a time — they are a few hundred bytes each.
+    const send = this.signalChain.then(() =>
+      sendP2PCommand(
+        // The cast is the narrowing above meeting a wider published signature.
+        // sendP2PCommand takes the full config but reads only getCurrentCid, and
+        // even that is skipped when the sender cid is supplied — as it is here.
+        this.options.senderConfig as MessageSenderConfig,
+        peerCid,
+        { type: P2PCommandType.CallSignal, payload: signal },
+        this.options.selfCid,
+      ),
     );
+    // The chain absorbs failures so one refused signal cannot poison every
+    // signal after it; the caller still sees its own rejection.
+    this.signalChain = send.then(
+      () => undefined,
+      () => undefined,
+    );
+    return send;
   }
 }

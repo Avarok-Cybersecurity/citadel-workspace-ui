@@ -30,6 +30,7 @@ function callState(overrides: Partial<CallState> = {}): CallState {
     status: 'ringing-out',
     roomId: null,
     outgoing: true,
+    caller: null,
     selfMedia: AUDIO_ONLY,
     participants: new Map([[2n, participant()]]),
     reason: null,

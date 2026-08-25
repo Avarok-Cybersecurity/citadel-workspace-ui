@@ -44,6 +44,7 @@ function callState(status: CallState['status']): CallState {
     status,
     roomId: null,
     outgoing: status === 'ringing-out',
+    caller: null,
     selfMedia: { audio: true, video: false, screen: false },
     participants: new Map(),
     reason: null,

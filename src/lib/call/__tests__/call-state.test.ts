@@ -138,6 +138,23 @@ describe('receiving a group call', () => {
     expect(state.participants.size).toBe(2);
     expect(state.participants.get(ALICE.cid)?.status).toBe('connecting');
   });
+
+  it('stops ringing when the caller cancels, even with co-invitees still invited', () => {
+    // Without this, "everyone gone" can never come true for a ringing invitee
+    // — the seeded co-invitees never answered — and the phone rings forever
+    // for a call that no longer exists.
+    let state = incoming([CAROL], 'room-1');
+    state = reduce(state, { type: 'peer-left', cid: ALICE.cid })!;
+
+    expect(state.status).toBe('ended');
+  });
+
+  it('keeps ringing when a co-invitee bows out before we answer', () => {
+    let state = incoming([CAROL], 'room-1');
+    state = reduce(state, { type: 'peer-left', cid: CAROL.cid })!;
+
+    expect(state.status).toBe('ringing-in');
+  });
 });
 
 describe('group calls', () => {

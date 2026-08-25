@@ -35,6 +35,7 @@ function callState(overrides: Partial<CallState> = {}): CallState {
     status: 'active',
     roomId: null,
     outgoing: true,
+    caller: null,
     selfMedia: VIDEO,
     participants: new Map([[2n, participant()]]),
     reason: null,
