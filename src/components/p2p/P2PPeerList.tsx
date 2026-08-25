@@ -9,6 +9,7 @@ import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { isUsablePeerCid } from '@/lib/peer-cid-input';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
 import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
@@ -24,6 +25,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   const [showAvailablePeers, setShowAvailablePeers] = useState(false);
   const [newPeerCid, setNewPeerCid] = useState('');
   const [isAddingPeer, setIsAddingPeer] = useState(false);
+  const [addPeerError, setAddPeerError] = useState<string | null>(null);
 
   const messenger = P2PMessengerManager.getInstance();
 
@@ -83,15 +85,29 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   };
 
   const handleAddPeer = async () => {
-    if (!newPeerCid.trim()) return;
+    const entered = newPeerCid.trim();
+    if (!entered) return;
+
+    // Validate before BigInt rather than after. `BigInt('alice')` THROWS, and
+    // the catch below used to hand that to debugLog — which compiles to a no-op
+    // outside dev. So anything non-numeric, including a username, produced no
+    // error, no message and no cleared field: the button simply did nothing.
+    if (!isUsablePeerCid(entered)) {
+      setAddPeerError('A peer CID is a number. Copy it from the peer\'s account, or find them in the directory.');
+      return;
+    }
 
     setIsAddingPeer(true);
+    setAddPeerError(null);
     try {
-      await messenger.autoRegisterPeer(BigInt(newPeerCid));
+      await messenger.autoRegisterPeer(BigInt(entered));
       setNewPeerCid('');
       loadPeers();
     } catch (error) {
       debugLog('P2PPeerList', 'Failed to add peer:', error);
+      // Also shown, not only logged. The log is invisible in production, and a
+      // request that failed silently is indistinguishable from one ignored.
+      setAddPeerError('Could not add that peer. Check the CID and try again.');
     } finally {
       setIsAddingPeer(false);
     }
@@ -128,9 +144,14 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           >
             <Input
               value={newPeerCid}
-              onChange={(e) => setNewPeerCid(e.target.value)}
+              onChange={(e) => {
+                setNewPeerCid(e.target.value);
+                if (addPeerError) setAddPeerError(null);
+              }}
               placeholder="Enter peer CID..."
-              className="flex-1 bg-background border-border text-foreground placeholder-gray-600 focus:border-primary-accent focus:ring-1 focus:ring-ring/30 h-9 rounded-lg text-sm"
+              aria-invalid={addPeerError ? true : undefined}
+              aria-describedby={addPeerError ? 'add-peer-error' : undefined}
+              className="flex-1 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 h-9 rounded-lg text-sm"
             />
             <Button
               type="submit"
@@ -141,6 +162,14 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
               <UserPlus className="h-4 w-4" />
             </Button>
           </form>
+          {addPeerError && (
+            // role="alert" so it is announced: the field is at the top of a
+            // panel and a sighted user sees the message appear, while a screen
+            // reader user would otherwise get nothing at all.
+            <p id="add-peer-error" role="alert" className="mt-2 text-xs text-destructive">
+              {addPeerError}
+            </p>
+          )}
         </div>
 
         <ScrollArea className="flex-1">
