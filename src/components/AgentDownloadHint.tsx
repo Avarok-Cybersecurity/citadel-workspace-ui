@@ -104,7 +104,7 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
         href={RELEASES_PAGE}
         target="_blank"
         rel="noreferrer"
-        className="text-primary mt-2 inline-flex items-center gap-1 hover:underline"
+        className="text-foreground mt-2 inline-flex items-center gap-1 underline underline-offset-4 hover:text-muted-foreground"
       >
         All releases and checksums
         <ExternalLink className="h-3 w-3" aria-hidden="true" />
