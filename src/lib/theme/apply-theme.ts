@@ -1,5 +1,6 @@
 import type { WorkspaceTheme, ThemePalette, ThemeMode, ThemeTokenKey } from './theme-types';
 import { toCssValue } from './hsl';
+import { syncThemeColorMeta } from './theme-color-meta';
 
 /**
  * Writing a theme onto the document.
@@ -43,6 +44,10 @@ export function applyTheme(
     target.style.setProperty(name, value);
   }
   target.style.setProperty('--radius', `${theme.radius}rem`);
+
+  // The OS titlebar is part of the theme's surface even though the app does not
+  // paint it.
+  syncThemeColorMeta(target);
 }
 
 /**
@@ -61,6 +66,10 @@ export function clearTheme(
     target.style.removeProperty(name);
   }
   target.style.removeProperty('--radius');
+
+  // Back to whatever the stylesheet says, rather than leaving the departed
+  // workspace's colour on the titlebar.
+  syncThemeColorMeta(target);
 }
 
 /**

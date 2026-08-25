@@ -43,8 +43,13 @@
     <link rel="preload" as="image" href="/backgrounds/landing-hero.webp" fetchpriority="high" />
 
     <!-- PWA. The <link rel="manifest"> is injected by vite-plugin-pwa at build time.
-         theme-color drives the OS titlebar/status bar of the installed window. -->
-    <meta name="theme-color" content="#6E59A5" />
+         theme-color drives the OS titlebar/status bar of the installed window.
+
+         The app's default background, not the brand purple. This value is what
+         paints before any script runs; ThemeColorSync then keeps it in step with
+         the active theme. A brand-coloured value here would flash purple and
+         resolve to the surface colour on every single launch. -->
+    <meta name="theme-color" content="#1B1C27" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />

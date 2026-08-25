@@ -104,8 +104,15 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           display: 'standalone',
           orientation: 'any',
-          background_color: '#1C1D28',
-          theme_color: '#6E59A5',
+          // #1B1C27 is what `--background: 235 18% 13%` actually resolves to.
+          // The old #1C1D28 was the pre-token hex and is a rounding step away;
+          // keeping all three declarations byte-identical means the splash, the
+          // titlebar and the painted page cannot disagree even slightly.
+          background_color: '#1B1C27',
+          // Matches background_color and index.html's meta, so the splash,
+          // the install card and the launched window agree instead of the
+          // titlebar changing colour a moment after the app appears.
+          theme_color: '#1B1C27',
           categories: ['productivity', 'business', 'security'],
           icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

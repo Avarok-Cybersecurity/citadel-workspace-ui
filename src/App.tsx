@@ -9,6 +9,7 @@ import { WorkspaceLoader } from "./components/ui/workspace-loader";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
 import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
+import { ThemeColorSync } from "./components/theme/ThemeColorSync";
 import { OfflineBanner } from "./components/pwa/OfflineBanner";
 import { CallLayer } from "./components/call/CallLayer";
 
@@ -68,6 +69,7 @@ const App = () => {
             */}
             <Sonner />
             <PwaUpdatePrompt />
+            <ThemeColorSync />
             <OfflineBanner />
             {/*
               Opt into the v7 behaviours now. Both were logging deprecation
