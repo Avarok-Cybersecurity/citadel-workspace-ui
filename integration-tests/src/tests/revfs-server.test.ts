@@ -28,6 +28,7 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { isVisibleWithin } from '../lib/index.js';
@@ -43,6 +44,7 @@ interface TestResults {
   defaultTree: boolean;
   folderCreation: boolean;
   folderDeletion: boolean;
+  deletionPersisted: boolean;
   fileUpload: boolean;
   fileVisible: boolean;
   fileDeletion: boolean;
@@ -291,6 +293,7 @@ async function runTest(): Promise<boolean> {
     defaultTree: false,
     folderCreation: false,
     folderDeletion: false,
+    deletionPersisted: false,
     fileUpload: false,
     fileVisible: false,
     fileDeletion: false,
@@ -401,8 +404,20 @@ async function runTest(): Promise<boolean> {
 
       // Refresh to verify deletion persisted
       await refreshTree(page);
-      const stillGone = !await page.getByText(FOLDER_NAME, { exact: true }).first().isVisible({ timeout: 2000 }).catch(() => true);
-      console.log(`  Folder deletion persisted: ${stillGone}`);
+      // isHiddenWithin, not isVisible({ timeout }): the latter is an immediate
+      // snapshot (Playwright declares that option ignored), so a tree that had
+      // simply not re-rendered yet read as "folder gone" and the deletion looked
+      // persisted whether or not it was.
+      //
+      // The result is also RECORDED now. It was previously computed into a local
+      // and logged, and nothing consumed it — the line "Folder deletion
+      // persisted: false" could print while the test passed, which is the same
+      // as not checking that deletion survives a refresh at all.
+      results.deletionPersisted = await isHiddenWithin(
+        page.getByText(FOLDER_NAME, { exact: true }).first(),
+        5000
+      );
+      console.log(`  Folder deletion persisted: ${results.deletionPersisted}`);
     }
 
     // ========== RESULTS ==========
@@ -414,7 +429,8 @@ async function runTest(): Promise<boolean> {
       results.switchToServerMode &&
       results.defaultTree &&
       results.folderCreation &&
-      results.folderDeletion;
+      results.folderDeletion &&
+      results.deletionPersisted;
 
     console.log('\n' + '='.repeat(60));
     console.log('TEST RESULTS');
@@ -426,6 +442,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Default Tree:           ${results.defaultTree ? 'PASS' : 'FAIL'}`);
     console.log(`  Folder Creation:        ${results.folderCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Folder Deletion:        ${results.folderDeletion ? 'PASS' : 'FAIL'}`);
+    console.log(`  Deletion Persisted:     ${results.deletionPersisted ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
 
