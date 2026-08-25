@@ -37,11 +37,28 @@ const DIST = resolve(APP_ROOT, 'dist');
 const PORT = Number(process.env.LIGHTHOUSE_PORT ?? 4173);
 const URL = `http://localhost:${PORT}/`;
 
+const IS_CI = Boolean(process.env.CI);
+
+/**
+ * The performance floor is the only one that depends on the machine, so it is
+ * the only one that differs by environment.
+ *
+ * Measured on the SAME commit: 0.82 on a developer Mac, 0.52 on a GitHub
+ * runner executing sixty-odd other jobs, with Lighthouse's mobile throttling
+ * (4x CPU slowdown) on top of already-shared cores. The 0.70 floor therefore
+ * failed the build for the runner's load rather than for anything in the app —
+ * exactly the flaky red this file's header warns is worse than no gate.
+ *
+ * The CI floor is set to catch a COLLAPSE — a render-blocking script, a bundle
+ * an order of magnitude too big — which would put a 0.52 run well under 0.40.
+ * Drift is caught deterministically by check-bundle-budget.mjs instead, and the
+ * real score is printed either way so a trend stays visible.
+ */
 const BASELINES = {
   accessibility: 1.0,
   seo: 1.0,
   'best-practices': 0.95,
-  performance: 0.7,
+  performance: IS_CI ? 0.4 : 0.7,
 };
 
 /** Metrics worth printing even when everything passes, so trends stay visible. */
@@ -153,6 +170,15 @@ async function main() {
             if (snippet) console.log(`        ${String(snippet).slice(0, 140)}`);
             const why = item.node?.explanation;
             if (why) console.log(`        why: ${String(why).slice(0, 160)}`);
+            // errors-in-console and valid-source-maps carry no `node`: the
+            // message lives in `description`, and `source` is a plain string.
+            // Reading only the snippet shapes above printed the audit title and
+            // nothing else, so CI reported THAT errors existed without ever
+            // saying what they were — across several runs.
+            const text = item.description ?? item.errorMessage ?? '';
+            if (text) console.log(`        ${String(text).slice(0, 200)}`);
+            const where = item.sourceLocation?.url ?? item.scriptUrl ?? '';
+            if (where) console.log(`        at: ${String(where).slice(0, 160)}`);
           }
         }
       }
