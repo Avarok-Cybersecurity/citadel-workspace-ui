@@ -21,6 +21,7 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { activateTab, isVisibleWithin } from '../lib/index.js';
@@ -221,10 +222,7 @@ async function closeNotificationCenter(page: Page): Promise<boolean> {
     // Confirm it is actually OPEN first. Reporting "closed" for a sheet that
     // never opened is the same as not checking at all.
     const sheet = page.getByRole('dialog').first();
-    const wasOpen = await sheet
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
+    const wasOpen = await isVisibleWithin(sheet, 5000);
     if (!wasOpen) {
       console.log('  Notification center was not open before Escape');
       return false;
@@ -238,10 +236,7 @@ async function closeNotificationCenter(page: Page): Promise<boolean> {
     // never waited out the close animation. The bare text selector was also
     // page-wide, so any other "Notifications" label would have reported the
     // sheet as still open. Scoped to the dialog and genuinely awaited.
-    const closed = await sheet
-      .waitFor({ state: 'hidden', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
+    const closed = await isHiddenWithin(sheet, 5000);
     console.log(`  Notification center closed: ${closed}`);
     return closed;
   } catch (error) {

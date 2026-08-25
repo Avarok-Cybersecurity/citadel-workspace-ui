@@ -20,6 +20,7 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { activateTab as sharedActivateTab, isVisibleWithin } from '../lib/index.js';
@@ -248,10 +249,7 @@ async function closeSettingsModal(page: Page): Promise<boolean> {
     // passes just as happily against a modal that was never open, which is the
     // same as not checking.
     const dialog = page.getByRole('dialog').first();
-    const wasOpen = await dialog
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
+    const wasOpen = await isVisibleWithin(dialog, 5000);
     if (!wasOpen) {
       console.log('  Modal was not open before Escape - nothing to close');
       return false;
@@ -272,10 +270,7 @@ async function closeSettingsModal(page: Page): Promise<boolean> {
     // it still reported closed. Separately, isVisible's timeout option is
     // declared `@deprecated This option is ignored`, so even a valid selector
     // would have sampled once, 500ms into a close animation.
-    const closed = await dialog
-      .waitFor({ state: 'hidden', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
+    const closed = await isHiddenWithin(dialog, 5000);
     console.log(`  Modal closed: ${closed}`);
     return closed;
   } catch (error) {

@@ -12,7 +12,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { appearsWithin } from '../lib/visible.js';
+import { isVisibleWithin } from '../lib/utils.js';
 import { chromium, type Page, type Browser, type BrowserContext } from 'playwright';
 import {
     clearBrowserStorage,
@@ -98,8 +98,8 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         // Check if tab2 sees the session or is on workspace
         const url = tab2.url();
         const onWorkspace = url.includes('/workspace') || url.includes('/office');
-        const seesSession = await appearsWithin(tab2.locator(`button[title*="${USERNAME}"]`), 5000);
-        const seesLandingButtons = await appearsWithin(tab2.locator('button:has-text("Login Workspace")'), 2000);
+        const seesSession = await isVisibleWithin(tab2.locator(`button[title*="${USERNAME}"]`), 5000);
+        const seesLandingButtons = await isVisibleWithin(tab2.locator('button:has-text("Login Workspace")'), 2000);
 
         // At least one of these should be true
         expect(onWorkspace || seesSession || seesLandingButtons).toBe(true);
