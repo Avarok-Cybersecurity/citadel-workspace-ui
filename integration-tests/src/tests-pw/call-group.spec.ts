@@ -34,13 +34,9 @@ import {
   createAccount,
   waitForWorkspaceLoaded,
   closeAnyModals,
-  p2pRegister,
-  acceptP2PRequest,
-  waitForP2PChannelReady,
-  openConversation,
-  sendAndVerifyMessage,
 } from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
+import { connectPair } from './call-helpers.js';
 
 interface UserSession {
   browser: Browser;
@@ -118,45 +114,6 @@ async function createSession(label: 'a' | 'b' | 'c', isFirst: boolean): Promise<
   await closeAnyModals(page);
 
   return { browser, context, page, username: user.username };
-}
-
-async function connectPair(initiator: UserSession, acceptor: UserSession): Promise<void> {
-  await p2pRegister(initiator.page, initiator.username, acceptor.username);
-  await acceptP2PRequest(acceptor.page, acceptor.username);
-
-  // Both sides into the conversation, so warmup messages can be typed and seen.
-  expect(await openConversation(initiator.page, initiator.username, acceptor.username)).toBe(true);
-  expect(await openConversation(acceptor.page, acceptor.username, initiator.username)).toBe(true);
-
-  // Channel readiness is proven by message RECEIPT, and a freshly connected
-  // ILM channel is one-way-warm at best — polling for ready without traffic
-  // times out reporting 'connected but not yet ready'. A verified message in
-  // each direction warms the channel AND is the readiness proof, so the
-  // explicit checks afterwards are immediate.
-  const nonce = Date.now();
-  expect(
-    await sendAndVerifyMessage(
-      initiator.page, initiator.username, acceptor.page, acceptor.username,
-      `warmup ${initiator.username} to ${acceptor.username} @ ${nonce}`,
-    ),
-    `warmup ${initiator.username} -> ${acceptor.username} should be delivered`,
-  ).toBe(true);
-  expect(
-    await sendAndVerifyMessage(
-      acceptor.page, acceptor.username, initiator.page, initiator.username,
-      `warmup ${acceptor.username} to ${initiator.username} @ ${nonce}`,
-    ),
-    `warmup ${acceptor.username} -> ${initiator.username} should be delivered`,
-  ).toBe(true);
-
-  expect(
-    await waitForP2PChannelReady(initiator.page, initiator.username, acceptor.username, 30_000),
-    `${initiator.username} -> ${acceptor.username} channel should be ready`,
-  ).toBe(true);
-  expect(
-    await waitForP2PChannelReady(acceptor.page, acceptor.username, initiator.username, 30_000),
-    `${acceptor.username} -> ${initiator.username} channel should be ready`,
-  ).toBe(true);
 }
 
 /**

@@ -8,8 +8,13 @@
  * while proving nothing.
  *
  * Run it deliberately:
- *   npx playwright test src/tools/visual-sweep.spec.ts --config=playwright.config.ts \
- *     --grep "authenticated"
+ *   npx playwright test --config=playwright.tools.config.ts \
+ *     src/tools/visual-sweep.spec.ts --grep "authenticated"
+ *
+ * The tools config exists because the main one's `testDir` excludes this
+ * directory on purpose. Naming a file outside `testDir` matches nothing, and
+ * Playwright says "No tests found" rather than that the path is out of scope —
+ * so the command documented here previously ran zero tests while looking fine.
  *
  * It earns its keep: the defects it found in one night were dialogs rendering
  * edge-to-edge on a phone, Messages laying out two desktop columns in 375px,

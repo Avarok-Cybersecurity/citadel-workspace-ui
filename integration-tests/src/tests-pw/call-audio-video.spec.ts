@@ -25,12 +25,9 @@ import {
   createAccount,
   waitForWorkspaceLoaded,
   closeAnyModals,
-  p2pRegister,
-  acceptP2PRequest,
-  openConversation,
-  waitForP2PChannelReady,
 } from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
+import { connectPair } from './call-helpers.js';
 
 interface UserSession {
   browser: Browser;
@@ -135,13 +132,13 @@ test.describe.serial('Audio and video calling', () => {
 
   test('the two peers connect', async () => {
     test.setTimeout(300_000);
-    await p2pRegister(sessionA.page, sessionA.username, sessionB.username);
-    await acceptP2PRequest(sessionB.page, sessionB.username);
-    await waitForP2PChannelReady(sessionA.page, sessionA.username, sessionB.username);
-    await waitForP2PChannelReady(sessionB.page, sessionB.username, sessionA.username);
-
-    await openConversation(sessionA.page, sessionA.username, sessionB.username);
-    await openConversation(sessionB.page, sessionB.username, sessionA.username);
+    // Shared with the group spec. This used to inline a different order —
+    // wait for readiness, THEN open the conversations — and readiness is proven
+    // by receipt, so B sat polling for a message that nothing would send. It
+    // then passed anyway, because these four calls returned booleans nobody
+    // checked, and the run failed in the NEXT test as "calling never became
+    // available". Both halves of that are fixed in connectPair.
+    await connectPair(sessionA, sessionB);
   });
 
   test('the call buttons are offered once a peer is connected', async () => {
@@ -176,7 +173,12 @@ test.describe.serial('Audio and video calling', () => {
             (await tip.textContent({ timeout: 5_000 }).catch(() => null)) ??
             'the disabled call buttons rendered, but their tooltip never opened';
         }
-        await sessionA.page.screenshot({ path: 'test-results/call-unavailable-A.png' });
+        // Best effort only. This ran unguarded once and threw "Target page has
+        // been closed", replacing the diagnostic it exists to support with an
+        // error about the diagnostic itself.
+        await sessionA.page
+          .screenshot({ path: 'test-results/call-unavailable-A.png' })
+          .catch(() => {});
         throw new Error(`calling never became available to A: ${reason.trim()}`);
       });
 

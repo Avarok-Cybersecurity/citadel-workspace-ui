@@ -144,12 +144,43 @@ export default defineConfig(({ mode }) => {
               icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
             },
           ],
+          // Chrome shows its richer install dialog — imagery and description
+          // rather than a bare confirm — only when the manifest carries
+          // screenshots, and only uses a wide one on desktop when a `wide`
+          // form_factor is declared. Both are here for that reason.
+          //
+          // Regenerate with
+          // integration-tests/src/tools/capture-pwa-screenshots.spec.ts. The
+          // `sizes` below must match the files on disk exactly; Chrome drops a
+          // mismatched screenshot silently, so the install card would quietly
+          // fall back to the plain prompt.
+          screenshots: [
+            {
+              src: '/screenshots/wide.png',
+              sizes: '1280x800',
+              type: 'image/png',
+              form_factor: 'wide',
+              label: 'The Citadel Workspace landing page on a desktop',
+            },
+            {
+              src: '/screenshots/narrow.png',
+              sizes: '412x915',
+              type: 'image/png',
+              form_factor: 'narrow',
+              label: 'The Citadel Workspace landing page on a phone',
+            },
+          ],
         },
         workbox: {
           // Precache the shell. Excluding the WASM binary keeps the install small;
           // 4 MiB still comfortably covers the JS/CSS chunks.
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-          globIgnores: ['**/*.wasm'],
+          // The install-card screenshots are fetched by the BROWSER from the
+          // manifest, before there is an app to serve them, and are never
+          // rendered by it afterwards. Precaching them added ~800 KB to the
+          // install for bytes the app itself never asks for — the same reason
+          // the WASM binary is excluded above.
+          globIgnores: ['**/*.wasm', '**/screenshots/*'],
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           // SPA fallback, minus the endpoints that must always hit the network.
           navigateFallback: '/index.html',
