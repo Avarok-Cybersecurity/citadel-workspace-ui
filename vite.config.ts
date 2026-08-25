@@ -190,13 +190,27 @@ export default defineConfig(({ mode }) => {
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
-              // Large, content-hashed, and immutable once built.
+              // StaleWhileRevalidate, NOT CacheFirst.
+              //
+              // The comment here used to say the WASM was content-hashed. It is
+              // not: the app fetches /wasm/citadel_internal_service_wasm_client
+              // _bg.wasm, a stable name copied into public/. CacheFirst on a
+              // mutable URL meant an updated app kept the OLD binary for up to
+              // thirty days, while the JS bindings that call into it ARE hashed
+              // and did update — old WASM against new bindings, which surfaces
+              // as undefined-function errors rather than anything obvious.
+              //
+              // StaleWhileRevalidate keeps the offline guarantee and the instant
+              // load, and fetches a fresh copy in the background so the next
+              // start is current.
               urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
-              handler: 'CacheFirst',
+              handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'citadel-wasm',
                 expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 30 },
-                cacheableResponse: { statuses: [0, 200] },
+                // 200 only. A 0 here would cache opaque responses, so a
+                // cross-origin error could be stored and served as if valid.
+                cacheableResponse: { statuses: [200] },
               },
             },
           ],

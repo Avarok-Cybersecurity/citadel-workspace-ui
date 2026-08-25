@@ -167,7 +167,11 @@ test.describe.serial('Audio and video calling', () => {
         // what the user would actually be shown.
         let reason = 'neither the enabled nor the disabled call buttons ever rendered';
         if (await unavailable.count()) {
-          await unavailable.getByRole('button').first().hover().catch(() => {});
+          // Hover the WRAPPER, not the button inside it. DisabledWithTooltip
+          // sets `[&_*]:pointer-events-none`, so every descendant swallows the
+          // hover and the tooltip never opens — which is why this reported
+          // "the tooltip never opened" instead of the reason it exists to fetch.
+          await unavailable.locator('[aria-disabled="true"]').first().hover().catch(() => {});
           const tip = sessionA.page.getByRole('tooltip').first();
           reason =
             (await tip.textContent({ timeout: 5_000 }).catch(() => null)) ??
