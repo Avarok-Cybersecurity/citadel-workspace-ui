@@ -93,6 +93,44 @@ for (const icon of icons) {
   }
 }
 
+// --- Install-card screenshots ------------------------------------------------
+//
+// Chrome shows its richer install dialog — imagery and description rather than
+// a bare confirm — only when the manifest carries screenshots, and only uses a
+// wide one on desktop when a `wide` form_factor is declared.
+//
+// The failure mode is silent in exactly the way the icon check above guards
+// against: a `sizes` that does not match the file is DROPPED by the browser
+// without complaint, so the manifest still validates, the images still ship,
+// and the install prompt quietly degrades to the plain one. Nothing else in the
+// build would notice.
+const screenshots = manifest.screenshots ?? [];
+check(screenshots.length > 0, 'No manifest screenshots — the install prompt falls back to its plain form.');
+check(
+  screenshots.some((s) => s.form_factor === 'wide'),
+  'No screenshot declares form_factor "wide" — desktop Chrome will not show the rich install dialog.'
+);
+
+for (const shot of screenshots) {
+  const file = join(dist, (shot.src ?? '').replace(/^\//, ''));
+  if (!shot.src || !existsSync(file)) {
+    check(false, `manifest lists screenshot ${shot.src} but the file is not in the build.`);
+    continue;
+  }
+  if (!shot.src.endsWith('.png')) continue;
+
+  const actual = pngSize(file);
+  if (!actual) {
+    check(false, `${shot.src} is listed as a screenshot but is not a readable PNG.`);
+    continue;
+  }
+  const [w, h] = (shot.sizes ?? '').split('x').map(Number);
+  check(
+    actual.width === w && actual.height === h,
+    `${shot.src} declares ${shot.sizes} but the file is ${actual.width}x${actual.height} — the browser drops it silently.`
+  );
+}
+
 // Safari ignores the manifest for home-screen icons and uses this link instead,
 // so an app can be perfectly installable on Android and still land on an iPhone
 // home screen as a blurry screenshot of the page.
