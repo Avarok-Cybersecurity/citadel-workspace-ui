@@ -24,19 +24,12 @@ import {
 } from '@/components/ui/select';
 import type { GroupRole } from '@/types/group';
 import type { SelectedMember } from './create-group-types';
+import { avatarColor } from '@/lib/avatar-color';
 
-const AVATAR_COLORS = [
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
 
+/** @deprecated Import avatarColor from '@/lib/avatar-color' directly. */
 export function getAvatarColor(index: number): string {
-  return AVATAR_COLORS[index % AVATAR_COLORS.length];
+  return avatarColor(index);
 }
 
 interface MembersTableProps {

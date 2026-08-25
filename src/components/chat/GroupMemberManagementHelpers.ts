@@ -6,6 +6,7 @@ import type { AvailablePeer } from './create-group-types';
 import { Crown, Shield, User } from 'lucide-react';
 import { createElement } from 'react';
 import type { GroupConversation, GroupMemberWithRole, GroupRole } from '@/types/group';
+import { memberAvatarColor } from '@/lib/avatar-color';
 
 // ============================================================================
 // Types
@@ -27,16 +28,6 @@ export interface GroupMemberManagementProps {
 // Constants
 // ============================================================================
 
-export const AVATAR_COLORS = [
-  '#FFD700', // Gold - Owner
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
 
 // ============================================================================
 // Helpers
@@ -54,7 +45,7 @@ export function getRoleIcon(role: GroupRole): React.ReactElement {
 }
 
 /** Get avatar color from role or cycle through palette */
+/** @deprecated Import memberAvatarColor from '@/lib/avatar-color' directly. */
 export function getAvatarColor(member: GroupMemberWithRole, index: number): string {
-  if (member.role?.color) return member.role.color;
-  return AVATAR_COLORS[index % AVATAR_COLORS.length];
+  return memberAvatarColor(member, index);
 }

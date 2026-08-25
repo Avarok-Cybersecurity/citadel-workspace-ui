@@ -3,10 +3,10 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getAvatarColor } from './CreateGroupMembersTable';
+import { avatarColor, AVATAR_COLORS } from '@/lib/avatar-color';
 
 /** Kept beside the picker so both call sites index the same palette. */
-const AVATAR_COLORS_LENGTH = 7;
+
 import type { AvailablePeer } from './create-group-types';
 
 interface PeerPickerPopoverProps {
@@ -69,7 +69,7 @@ export function PeerPickerPopover({
                 >
                   <div
                     className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
-                    style={{ backgroundColor: getAvatarColor(parseInt(peer.cid) % AVATAR_COLORS_LENGTH) }}
+                    style={{ backgroundColor: avatarColor(parseInt(peer.cid) % AVATAR_COLORS.length) }}
                     aria-hidden="true"
                   >
                     {peer.username[0]?.toUpperCase() || '?'}

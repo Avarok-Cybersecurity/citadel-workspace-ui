@@ -7,19 +7,10 @@
 
 import { useMemo } from 'react';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
+import { memberAvatarColor } from '@/lib/avatar-color';
 
 const MAX_VISIBLE_AVATARS = 5;
 
-const AVATAR_COLORS = [
-  '#FFD700', // Gold - Owner
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
 
 export function GroupMemberAvatars({ group }: { group: GroupConversation }) {
   // Get members sorted by role position
@@ -42,10 +33,7 @@ export function GroupMemberAvatars({ group }: { group: GroupConversation }) {
   const overflowCount = Math.max(0, sortedMembers.length - MAX_VISIBLE_AVATARS);
 
   // Get avatar color
-  const getAvatarColor = (member: GroupMemberWithRole, index: number): string => {
-    if (member.role?.color) return member.role.color;
-    return AVATAR_COLORS[index % AVATAR_COLORS.length];
-  };
+  const getAvatarColor = memberAvatarColor;
 
   return (
     <div className="flex items-center">
