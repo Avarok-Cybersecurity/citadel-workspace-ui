@@ -157,6 +157,19 @@ async function handleIncomingMessage(
 
   const wasAdded = await config.addMessageToConversation(peerCid, message);
 
+  // Diagnostic for the reconnect message loss, which reproduces only under CI
+  // load. Every layer above this is eliminated: ILM delivers, the notification
+  // reaches the right instance, and the handler decodes it — yet two of three
+  // messages never appear in the conversation. This logs the CONTENT, which the
+  // existing lines do not, so the next failing run says which message was
+  // dropped and whether the store accepted it.
+  debugLog(
+    'P2PMessageHandler',
+    `[LOSS-DIAG] id=${message.id} added=${wasAdded} index=${message.index} text=${JSON.stringify(
+      String(message.content ?? '').slice(0, 60),
+    )}`,
+  );
+
   if (wasAdded) {
     try {
       await config.sendMessageAck(message.id, 'delivered', peerCid, recipientCid);

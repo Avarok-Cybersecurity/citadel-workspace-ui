@@ -350,7 +350,7 @@ async function runTest(): Promise<boolean> {
     // which triggers beforeunload → ReleaseSession, destroying the orphan session.
     // Instead, click the session button directly on tempCheckPage.
     const reconnectPage = tempCheckPage;
-    setupConsoleCapture(reconnectPage, 'Bob-Reconnect', ['P2P', 'error', 'Error', 'ILM']);
+    setupConsoleCapture(reconnectPage, 'Bob-Reconnect', ['P2P', 'error', 'Error', 'ILM', 'LOSS-DIAG']);
 
     // Click the orphan session button directly (already visible from STEP 7)
     const sessionButton = reconnectPage.locator(`[data-testid="session-button-${USER2}"]`);

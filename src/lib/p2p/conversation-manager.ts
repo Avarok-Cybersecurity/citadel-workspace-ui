@@ -87,6 +87,16 @@ export class ConversationManager {
       return false;
     }
 
+    // Paired with [LOSS-DIAG] in message-handler-routing: records what the
+    // conversation held before and after, so a message that is added here but
+    // absent from the rendered list can be told apart from one that never
+    // arrived. See the reconnect entry in WORKSPACE_IMPLEMENTATION_GAPS.
+    debugLog(
+      'ConversationManager',
+      `[LOSS-DIAG] adding id=${message.id} to peer=${peerCid.toString().slice(0, 8)} ` +
+        `had=${conversation.messages.length}`,
+    );
+
     conversation.messages.push(message);
     conversation.lastMessageIndex = Math.max(conversation.lastMessageIndex, message.index);
     conversation.messages.sort((a, b) => a.timestamp - b.timestamp);
