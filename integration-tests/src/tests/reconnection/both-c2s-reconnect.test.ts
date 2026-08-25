@@ -33,6 +33,7 @@ import {
   config,
   TestHarness,
   runTestMain,
+  isVisibleWithin,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -250,10 +251,8 @@ async function runTest(): Promise<boolean> {
     await sleep(5000);
 
     // Verify peer appears in sidebar for both users
-    const user1SeesUser2 = await page1.locator(`text="${USER2_NAME}"`).first()
-      .isVisible({ timeout: 10000 }).catch(() => false);
-    const user2SeesUser1 = await page2.locator(`text="${USER1_NAME}"`).first()
-      .isVisible({ timeout: 10000 }).catch(() => false);
+    const user1SeesUser2 = await isVisibleWithin(page1.locator(`text="${USER2_NAME}"`).first(), 10000);
+    const user2SeesUser1 = await isVisibleWithin(page2.locator(`text="${USER1_NAME}"`).first(), 10000);
 
     results.push({
       step: 'Phase 6: P2P Auto-Connected',

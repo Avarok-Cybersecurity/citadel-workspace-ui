@@ -36,6 +36,7 @@ import {
   config,
   TestHarness,
   runTestMain,
+  isVisibleWithin,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -275,8 +276,7 @@ async function runTest(): Promise<boolean> {
       let user2InSidebar = false;
       if (page1) {
         try {
-          user2InSidebar = await page1.locator(`text="${USER2_NAME}"`).first()
-            .isVisible({ timeout: 10000 });
+          user2InSidebar = await isVisibleWithin(page1.locator(`text="${USER2_NAME}"`).first(), 10000);
         } catch {
           user2InSidebar = false;
         }

@@ -308,7 +308,7 @@ async function verifyGroupChatMessageReceived(
   // Wait for message to appear
   const messageLocator = page.locator(`text="${message}"`).first();
 
-  const received = await messageLocator.isVisible({ timeout: timeoutMs }).catch(() => false);
+  const received = await isVisibleWithin(messageLocator, timeoutMs);
 
   if (!received) {
     console.log(`    Message not received by ${receiver.username}: "${message.substring(0, 30)}..."`);

@@ -40,6 +40,7 @@ import {
   config,
   TestHarness,
   runTestMain,
+  isVisibleWithin,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -328,8 +329,7 @@ async function runTest(): Promise<boolean> {
       let user2SeesUser1 = false;
       if (page2) {
         try {
-          user2SeesUser1 = await page2.locator(`text="${USER1_NAME}"`).first()
-            .isVisible({ timeout: 10000 }).catch(() => false);
+          user2SeesUser1 = await isVisibleWithin(page2.locator(`text="${USER1_NAME}"`).first(), 10000);
         } catch {
           user2SeesUser1 = false;
         }
