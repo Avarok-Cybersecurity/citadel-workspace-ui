@@ -23,6 +23,7 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { isVisibleWithin } from '../lib/index.js';
@@ -254,10 +255,19 @@ async function deleteFolder(page: Page, label: string, folderName: string): Prom
       }
       await sleep(2000);
 
-      // Verify folder gone
-      const stillVisible = await page.getByText(folderName, { exact: true }).first().isVisible({ timeout: 2000 }).catch(() => false);
-      console.log(`  Folder still visible: ${stillVisible}`);
-      return !stillVisible;
+      // Verify folder gone.
+      //
+      // isHiddenWithin, not isVisible({ timeout }). That option is declared
+      // ignored, so this sampled once: a tree that had not re-rendered yet
+      // reported the folder absent and deleteFolder returned success whether or
+      // not anything was deleted. This value gates results.folderDeletion, so
+      // the false positive propagated straight into the run's verdict.
+      const gone = await isHiddenWithin(
+        page.getByText(folderName, { exact: true }).first(),
+        5000
+      );
+      console.log(`  Folder still visible: ${!gone}`);
+      return gone;
     }
 
     console.log('  Delete menu item not found');
