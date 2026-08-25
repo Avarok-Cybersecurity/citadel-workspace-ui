@@ -53,6 +53,18 @@ async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(400);
 }
 
+/**
+ * A trap in these captures, found the hard way.
+ *
+ * The settings screenshots show a violet ring around the whole tab panel, in
+ * BOTH schemes, and it looks like an unintended selection state. It is not a
+ * product defect: this sweep drives the UI with `click({ force: true })` and
+ * Escape, so the panel — which Radix makes focusable — ends up matching
+ * `:focus-visible`. Measured in a real mouse-driven flow, the same element is
+ * the active element with `:focus-visible` false and no outline at all.
+ *
+ * Before "fixing" anything a capture shows, reproduce it with ordinary clicks.
+ */
 async function shot(page: Page, name: string): Promise<void> {
   await settle(page);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: false });
