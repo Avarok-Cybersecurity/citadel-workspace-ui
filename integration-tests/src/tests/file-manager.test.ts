@@ -164,10 +164,8 @@ async function waitForTreeLoaded(page: Page, label: string, timeoutMs = 30000): 
  */
 async function verifyDefaultFolders(page: Page, label: string): Promise<boolean> {
   console.log(`\n=== ${label}: Verifying default folders ===`);
-  const hasSent = await page.getByText('Sent Files', { exact: true }).first()
-    .isVisible({ timeout: 5000 }).catch(() => false);
-  const hasReceived = await page.getByText('Received Files', { exact: true }).first()
-    .isVisible({ timeout: 5000 }).catch(() => false);
+  const hasSent = await isVisibleWithin(page.getByText('Sent Files', { exact: true }).first(), 5000);
+  const hasReceived = await isVisibleWithin(page.getByText('Received Files', { exact: true }).first(), 5000);
   console.log(`  Sent Files: ${hasSent}, Received Files: ${hasReceived}`);
   return hasSent && hasReceived;
 }
@@ -198,8 +196,7 @@ async function createFolderViaToolbar(page: Page, label: string, folderName: str
     await page.locator('[role="dialog"] button:has-text("Create folder")').click();
     await sleep(2000);
 
-    const visible = await page.getByText(folderName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(page.getByText(folderName, { exact: true }).first(), 5000);
     console.log(`  Folder "${folderName}" visible: ${visible}`);
     return visible;
   } catch (error) {
@@ -219,7 +216,7 @@ async function navigateIntoFolder(page: Page, label: string, folderName: string)
       await folderItem.click();
       await sleep(1000);
       // Check breadcrumb shows folder
-      const breadcrumbVisible = await page.locator(`button:has-text("${folderName}")`).isVisible({ timeout: 3000 }).catch(() => false);
+      const breadcrumbVisible = await isVisibleWithin(page.locator(`button:has-text("${folderName}")`), 3000);
       console.log(`  Breadcrumb shows folder: ${breadcrumbVisible}`);
       return breadcrumbVisible;
     }
@@ -240,8 +237,7 @@ async function navigateViaBreadcrumb(page: Page, label: string): Promise<boolean
     if (await rootBtn.isVisible().catch(() => false)) {
       await rootBtn.click();
       await sleep(1000);
-      const sentFiles = await page.getByText('Sent Files', { exact: true }).first()
-        .isVisible({ timeout: 3000 }).catch(() => false);
+      const sentFiles = await isVisibleWithin(page.getByText('Sent Files', { exact: true }).first(), 3000);
       console.log(`  Back at root: ${sentFiles}`);
       return sentFiles;
     }
@@ -443,8 +439,7 @@ async function verifyPeerSeesChanges(page: Page, label: string, folderName: stri
     if (result) return true;
   }
 
-  const finalVisible = await page.getByText(folderName, { exact: true }).first()
-    .isVisible({ timeout: 2000 }).catch(() => false);
+  const finalVisible = await isVisibleWithin(page.getByText(folderName, { exact: true }).first(), 2000);
   const finalResult = shouldExist ? finalVisible : !finalVisible;
   console.log(`  Final result: Folder visible: ${finalVisible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${finalResult ? 'PASS' : 'FAIL'}`);
 
@@ -498,8 +493,7 @@ async function uploadFileViaToolbar(
         await sleep(2000);
         console.log('  Navigated to root via breadcrumb');
         // Verify we're at root by checking that default folders are visible at top level
-        const atRoot = await page.getByText('Sent Files', { exact: true }).first()
-          .isVisible({ timeout: 3000 }).catch(() => false);
+        const atRoot = await isVisibleWithin(page.getByText('Sent Files', { exact: true }).first(), 3000);
         console.log(`  Confirmed at root: ${atRoot}`);
       }
     } else {
@@ -549,8 +543,7 @@ async function uploadFileViaToolbar(
     await sleep(3000);
 
     // Check if file appears in the UI
-    const fileVisible = await page.getByText(fileName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    const fileVisible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 5000);
     console.log(`  File "${fileName}" visible: ${fileVisible}`);
 
     // Navigate back to root if we navigated away
@@ -576,8 +569,7 @@ async function verifyFileVisible(page: Page, label: string, fileName: string): P
   console.log(`\n=== ${label}: Verifying file "${fileName}" is visible ===`);
   try {
     // Look for file in tree or content grid
-    const visible = await page.getByText(fileName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 5000);
     console.log(`  File visible: ${visible}`);
     return visible;
   } catch (error) {
@@ -673,8 +665,7 @@ async function verifyPeerSeesFile(
     await clickSyncButton(page, label);
     await sleep(3000 + attempt * 1000);
 
-    const visible = await page.getByText(fileName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 5000);
     const result = shouldExist ? visible : !visible;
 
     console.log(`  Attempt ${attempt}: File visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
@@ -688,8 +679,7 @@ async function verifyPeerSeesFile(
     }
   }
 
-  const finalVisible = await page.getByText(fileName, { exact: true }).first()
-    .isVisible({ timeout: 2000 }).catch(() => false);
+  const finalVisible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 2000);
   const finalResult = shouldExist ? finalVisible : !finalVisible;
   console.log(`  Final result: File visible: ${finalVisible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${finalResult ? 'PASS' : 'FAIL'}`);
   return finalResult;
