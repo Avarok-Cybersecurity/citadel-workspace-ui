@@ -100,7 +100,26 @@ export class MessagePaginationStore {
     return saveMessagePage(peerCid, pageNumber, page);
   }
 
+  /**
+   * One append at a time per peer. `appendUnserialised` is a read-modify-write
+   * across four awaits: two concurrent calls read the same page, each push
+   * their own message, and the second save overwrites the first — losing a
+   * message every layer above reported as delivered. Found via a reconnect,
+   * which flushes a queue and delivers several at once. */
+  private readonly appendChains = new Map<string, Promise<void>>();
   public async appendMessageToPage(
+    peerCid: bigint, message: P2PMessage,
+    getCurrentCid: () => Promise<bigint | null>, getPeerUsername: () => string | undefined
+  ): Promise<void> {
+    const key = peerCid.toString();
+    // `.catch` so a rejected predecessor does not cancel those behind it.
+    const run = (this.appendChains.get(key) ?? Promise.resolve()).catch(() => undefined)
+      .then(() => this.appendUnserialised(peerCid, message, getCurrentCid, getPeerUsername));
+    this.appendChains.set(key, run.catch(() => undefined));
+    return run;
+  }
+
+  private async appendUnserialised(
     peerCid: bigint,
     message: P2PMessage,
     getCurrentCid: () => Promise<bigint | null>,
