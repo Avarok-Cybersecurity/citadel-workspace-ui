@@ -12,7 +12,6 @@
  */
 
 import type {
-  CallCodecCapabilities,
   CallDeclineReason,
   CallEndReason,
   CallMediaKinds,
@@ -20,29 +19,19 @@ import type {
 } from '@/types/p2p-commands';
 import { canAddParticipant, type CallEvent, type CallState } from './call-state';
 import { reduce } from './call-reducer';
-import type { CallTransport } from './call-transport';
 import type { WireFrame } from './frame-codec';
 import { PeerCodecBook } from './peer-codec-book';
 import { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
-import type { CallManagerInternals } from './call-manager-internals';
+import type { CallManagerInternals, CallManagerOptions } from './call-manager-internals';
+
+// The manager's two contracts live together in call-manager-internals: what a
+// caller must supply, and what the extracted collaborators are allowed to see.
+export type { CallManagerOptions } from './call-manager-internals';
 import { CallLivenessBinding } from './call-liveness-binding';
 import { announceSendCodec, handleInboundSignal } from './call-signal-handling';
 import { closeAllSessions, openSessionFor } from './media-session-lifecycle';
 
 export { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
-
-export interface CallManagerOptions {
-  transport: CallTransport;
-  selfCid: bigint;
-  capabilities: CallCodecCapabilities;
-  /** Injected so tests are not at the mercy of a real clock. */
-  now: () => number;
-  /** Injected timer (returns a cancel), same reasoning as `now`. */
-  schedule: (fn: () => void, delayMs: number) => () => void;
-  onStateChanged: (state: CallState | null) => void;
-  /** A peer's decoder is stuck and needs our encoder to produce a keyframe. */
-  onKeyframeRequested: (track: number) => void;
-}
 
 export class CallManager {
   private state: CallState | null = null;
@@ -88,6 +77,7 @@ export class CallManager {
       apply: (event) => this.apply(event),
       keyframeRequested: (track) => this.options.onKeyframeRequested(track),
       peerSeen: (cid) => this.liveness.peerSeen(cid),
+      resolvePeerName: (cid) => this.options.resolvePeerName(cid),
     };
   }
 

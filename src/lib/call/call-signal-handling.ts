@@ -172,13 +172,14 @@ async function handleInvite(
   // carried from day one and consumed by nobody: each invitee knew only the
   // caller, accepted only to the caller, and two invitees in the same group
   // call never exchanged a signal, a session or a frame with each other.
-  // Usernames are not on the wire — the CID string stands in, exactly as the
-  // provider does for the caller itself.
+  // Usernames are not on the wire, so each co-invitee is named from the local
+  // registration roster. A peer we have never registered with resolves to a
+  // short handle rather than a twenty-digit CID.
   const others: Array<{ cid: bigint; username: string }> = [];
   for (const raw of signal.group?.members ?? []) {
     try {
       const cid = BigInt(raw);
-      if (cid !== m.selfCid && cid !== from) others.push({ cid, username: cid.toString() });
+      if (cid !== m.selfCid && cid !== from) others.push({ cid, username: m.resolvePeerName(cid) });
     } catch {
       // An unparseable cid names nobody we could signal; skip it rather than
       // poison the whole invite.

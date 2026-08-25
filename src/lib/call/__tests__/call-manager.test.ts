@@ -60,6 +60,9 @@ function harness(): Harness {
       };
     },
     onStateChanged: (s) => states.push(s),
+    // Named peers, so an assertion about a tile label is about the label and
+    // not about whatever the roster happened to hold.
+    resolvePeerName: (cid: bigint) => `peer-${cid}`,
     onKeyframeRequested: (track) => keyframeRequests.push(track),
   });
 
@@ -208,6 +211,17 @@ describe('receiving a group call', () => {
 
     const participants = h.manager.getState()?.participants;
     expect([...(participants?.keys() ?? [])]).toEqual([BOB, CAROL]);
+  });
+
+  it('names a co-invitee from the roster, never by raw cid', async () => {
+    // A cid is an identifier, not a name. This layer has no roster of its own,
+    // so it must ask; the tile that renders the participant shows whatever
+    // lands here, and for a long time that was a twenty-digit number.
+    await h.manager.handleSignal(BOB, 'bob', groupInvite());
+
+    const carol = h.manager.getState()?.participants.get(CAROL);
+    expect(carol?.username).toBe(`peer-${CAROL}`);
+    expect(carol?.username).not.toBe(CAROL.toString());
   });
 
   it('accepting announces to every co-invitee, not only the caller', async () => {

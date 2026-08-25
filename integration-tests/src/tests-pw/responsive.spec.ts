@@ -257,6 +257,35 @@ test.describe.serial('Responsive workspace at 375px', () => {
     await expectNoSmallTapTargets(page, 'workspace');
   });
 
+  test('the header title does not overhang the controls beside it', async () => {
+    // Overflow checks look at the VIEWPORT, so they cannot see this: the
+    // workspace switcher was `w-full` next to a sibling toggle, which resolves
+    // to the full width of the group while the button still starts after that
+    // sibling. It overhung its own container by the toggle's width and painted
+    // its chevron on top of the notification bell — entirely inside 375px, and
+    // so entirely invisible to every check we had.
+    const bounds = await page.evaluate(() => {
+      const header = document.querySelector('.fixed.top-0');
+      const left = header?.children[0];
+      const right = header?.children[1];
+      if (!left || !right) return null;
+      const inner = left.querySelector('button[class*="gap-3"]');
+      return {
+        leftRight: left.getBoundingClientRect().right,
+        rightLeft: right.getBoundingClientRect().left,
+        innerRight: inner ? inner.getBoundingClientRect().right : null,
+      };
+    });
+
+    expect(bounds, 'the header should expose a left and a right group').not.toBeNull();
+    // Sub-pixel rounding is fine; a whole pixel of encroachment is not.
+    expect(bounds!.leftRight).toBeLessThanOrEqual(bounds!.rightLeft + 1);
+    expect(
+      bounds!.innerRight,
+      'the switcher should stay inside the group that sizes it',
+    ).toBeLessThanOrEqual(bounds!.leftRight + 1);
+  });
+
   test('sidebar opens as a drawer and closes again', async () => {
     // At this width the sidebar has to be dismissable, or it covers the content
     // with no way back. The toggle is exposed at all widths — it used to be

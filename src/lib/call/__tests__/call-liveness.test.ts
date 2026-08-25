@@ -45,6 +45,9 @@ function harness() {
       };
     },
     onStateChanged: () => undefined,
+    // Named peers, so an assertion about a tile label is about the label and
+    // not about whatever the roster happened to hold.
+    resolvePeerName: (cid: bigint) => `peer-${cid}`,
     onKeyframeRequested: () => undefined,
   });
   return {

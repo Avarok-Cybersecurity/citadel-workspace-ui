@@ -10,6 +10,7 @@ import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
+import { callPeerName } from '@/lib/call/peer-name';
 
 interface CallProviderProps {
   selfCid: bigint | null;
@@ -75,9 +76,11 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       void (async () => {
         const manager = await ensureManager();
         if (!manager) return;
-        // The username is resolved by the surface that renders the call; the
-        // CID is what the protocol carries and what everything here keys on.
-        await manager.handleSignal(peerCid, peerCid.toString(), payload);
+        // The protocol carries only a CID, and the CID is what everything here
+        // keys on — but it is not a name. Resolve against the registration
+        // roster so the incoming-call card and the participant tile show who is
+        // calling rather than a twenty-digit number.
+        await manager.handleSignal(peerCid, callPeerName(peerCid), payload);
         // Signals carry the codec facts; each one is followed by a sync so
         // decoders and our send codec track what peers actually advertised.
         await syncNegotiatedCodecs(manager, sessionRef.current);

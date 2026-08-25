@@ -45,18 +45,24 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center gap-3 py-2 hover:bg-primary-accent/10 transition-colors rounded-md w-full group bg-transparent pl-3"
+            // flex-1 min-w-0, not w-full. This button has a sibling — the sidebar
+            // toggle — so `w-full` resolved to 100% of the WHOLE header group
+            // while the button still started after that toggle, overhanging its
+            // container by exactly the toggle's width. At 375px that pushed the
+            // chevron 56px into the controls on the right, painting it over
+            // them. flex-1 asks for the space that is actually left.
+            className="flex items-center gap-3 py-2 hover:bg-primary-accent/10 transition-colors rounded-md flex-1 min-w-0 group bg-transparent pl-3"
             disabled={isSwitching}
           >
             {isInitials ? (
-              <div className="w-8 h-8 rounded flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
+              <div className="w-8 h-8 shrink-0 rounded flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
                 {workspaceLogo || getWorkspaceInitials(workspaceName || currentWorkspace?.username || "W")}
               </div>
             ) : (
               <img
                 src={workspaceLogo || ""}
                 alt={workspaceName || currentWorkspace?.username || "Workspace"}
-                className="w-8 h-8 rounded"
+                className="w-8 h-8 shrink-0 rounded"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
@@ -71,11 +77,14 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
               )}
             </div>
             {isSwitching ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              <div className="w-5 h-5 shrink-0 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
             ) : (
               <ChevronRight
                 className={cn(
-                  "w-5 h-5 text-muted-foreground group-hover:text-foreground transition-transform duration-300 mr-2",
+                  // shrink-0 so a long workspace name squeezes the name, which
+                  // truncates, rather than this arrow, which cannot. (It is not
+                  // what fixed the 375px spill — see the button's own comment.)
+                  "w-5 h-5 shrink-0 text-muted-foreground group-hover:text-foreground transition-transform duration-300 mr-2",
                   isOpen && "rotate-90"
                 )}
               />

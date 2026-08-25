@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
+import { callPeerName } from '@/lib/call/peer-name';
 import { CallManager } from '@/lib/call/call-manager';
 import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
 import type { CallSession } from '@/lib/call/call-session';
@@ -83,7 +84,8 @@ export function useCallRuntime({
           // after a call ends is what users notice and remember.
           if (next && (next.status === 'ended' || next.status === 'failed')) teardown();
         },
-        onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),
+        resolvePeerName: callPeerName,
+      onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),
       });
       managerRef.current = manager;
       return manager;
