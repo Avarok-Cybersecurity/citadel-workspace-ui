@@ -29,6 +29,13 @@ import { FileTransferMessageHandler } from './file-transfer-message-handler';
 
 export type { MessageHandlerConfig } from './message-handler-types';
 
+/** FNV-1a/64, byte-identical to `messenger/mod.rs::deliver` (BigInt: >53 bits). */
+function fnv1a64(bytes: Uint8Array): string {
+  const M = 0xffffffffffffffffn;
+  let fp = 0xcbf29ce484222325n;
+  for (const b of bytes) fp = ((fp ^ BigInt(b)) * 0x100000001b3n) & M;
+  return fp.toString(16).padStart(16, '0');
+}
 export class MessageHandler {
   private readonly config: MessageHandlerConfig;
   private readonly ackHandler: MessageAckHandler;
@@ -127,7 +134,8 @@ export class MessageHandler {
         return;
       }
 
-      debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes');
+      // fp joins this to ILM's `[ILM-DELIVER] ... fp=`.
+      debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes fp=' + fnv1a64(contentBytes));
 
       const rawMessageData = { peerCid: peerCidBigint, message: contentBytes };
       eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
