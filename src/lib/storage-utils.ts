@@ -6,7 +6,7 @@
  */
 
 import { openDB, IDBPDatabase, DBSchema } from 'idb';
-import { debugLog, errorLog, warnLog } from './debug-config';
+import { errorLog, warnLog } from './debug-config';
 import { DB_NAME, DB_VERSION, runMigrations, missingStores } from './storage-migrations';
 
 // ============================================================================
@@ -178,7 +178,17 @@ export function saveToStorage<T>(key: string, data: T): void {
     const serializedData = JSON.stringify(data, bigIntToString);
     localStorage.setItem(key, serializedData);
   } catch (error) {
-    debugLog('StorageUtils', `Error saving to storage with key '${key}':`, error);
+    // errorLog, not debugLog. debugLog is `isDev ? console.log : noop`, so this
+    // — the one path where the user's data fails to persist — was the only
+    // failure in this file invisible in production, while four others above it
+    // already use warnLog/errorLog.
+    //
+    // The realistic cause is QuotaExceededError: localStorage caps around 5MB
+    // and `workspace-messages` writes the whole per-peer message map on every
+    // change. Past the cap every write throws, nothing is persisted, and the
+    // app carries on looking fine until a reload shows the history stopped at
+    // whenever the quota filled.
+    errorLog('StorageUtils', `Failed to persist '${key}' (quota exceeded?):`, error);
   }
 }
 
@@ -195,7 +205,9 @@ export function loadFromStorage<T>(key: string, defaultValue: T): T {
     }
     return JSON.parse(serializedData, stringToBigInt) as T;
   } catch (error) {
-    debugLog('StorageUtils', `Error loading from storage with key '${key}':`, error);
+    // warnLog: recoverable — the caller falls back to its default — but the user
+    // silently loses restored state, so it should not be invisible in production.
+    warnLog('StorageUtils', `Failed to load '${key}', using default:`, error);
     return defaultValue;
   }
 }
