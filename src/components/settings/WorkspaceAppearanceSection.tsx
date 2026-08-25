@@ -73,8 +73,18 @@ export function WorkspaceAppearanceSection() {
     // Rides in the workspace's metadata bytes, so every member receives it with
     // the workspace they already load. Uses the theme-specific request rather
     // than UpdateWorkspace, which requires the master password.
-    await WorkspaceService.updateWorkspaceTheme(serializeTheme(next));
-  }, []);
+    //
+    // The id is passed explicitly. Omitting it made the server fall back to
+    // WORKSPACE_ROOT_ID, while the permission check above runs against THIS
+    // workspace — so the owner of a secondary workspace saw an editable editor
+    // and a save that was checked against root and denied. The two must name
+    // the same domain or the UI is telling the user something the server will
+    // not honour.
+    if (!workspaceId) {
+      throw new Error('Cannot save a workspace theme before the workspace has loaded');
+    }
+    await WorkspaceService.updateWorkspaceTheme(serializeTheme(next), workspaceId);
+  }, [workspaceId]);
 
   return (
     <div className="space-y-3" data-testid="workspace-appearance-section">
