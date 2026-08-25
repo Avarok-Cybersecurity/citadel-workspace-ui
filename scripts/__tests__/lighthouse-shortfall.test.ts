@@ -19,6 +19,12 @@ const audit = (id: string, score: number, messages: string[] = []) => [
   { id, score, details: { items: messages.map((description) => ({ description })) } },
 ];
 
+/** valid-source-maps reports script URLs, not messages. */
+const maps = (urls: string[]) => [
+  'valid-source-maps',
+  { id: 'valid-source-maps', score: 0, details: { items: urls.map((scriptUrl) => ({ scriptUrl })) } },
+];
+
 /** inspector-issues reports a table of issueType, not messages. */
 const issues = (types: string[]) => [
   'inspector-issues',
@@ -70,6 +76,40 @@ describe('shortfallIsExpected', () => {
         category(['errors-in-console', 'inspector-issues']),
         Object.fromEntries([
           audit('errors-in-console', 0, [ABSENT_AGENT]),
+          issues(['Content security policy']),
+        ]),
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts a source-map miss on our own assets', () => {
+    // Lighthouse FETCHES each map, so under load it reports missing against a
+    // build whose maps are correct. check-source-maps.mjs is the deterministic
+    // guard; this only stops the flaky version reddening the build.
+    expect(
+      shortfallIsExpected(
+        category(['valid-source-maps']),
+        Object.fromEntries([maps(['http://localhost:4173/assets/app-services-x.js'])]),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects a source-map miss on a third-party script', () => {
+    expect(
+      shortfallIsExpected(
+        category(['valid-source-maps']),
+        Object.fromEntries([maps(['https://cdn.example.com/thing.js'])]),
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts all three known audits together, as CI reports them', () => {
+    expect(
+      shortfallIsExpected(
+        category(['errors-in-console', 'valid-source-maps', 'inspector-issues']),
+        Object.fromEntries([
+          audit('errors-in-console', 0, [ABSENT_AGENT]),
+          maps(['http://localhost:4173/wasm/client_bg.wasm']),
           issues(['Content security policy']),
         ]),
       ),

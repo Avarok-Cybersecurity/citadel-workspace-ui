@@ -21,6 +21,7 @@
     "check:pwa": "node scripts/check-pwa-installable.mjs",
     "check:lighthouse": "node scripts/check-lighthouse.mjs",
     "check:pwa-offline": "node scripts/check-pwa-offline.mjs",
+    "check:sourcemaps": "node scripts/check-source-maps.mjs",
     "check:pwa-update": "node scripts/check-pwa-update.mjs",
     "check:reduced-motion": "node scripts/check-reduced-motion.mjs",
     "check:mobile": "node scripts/check-mobile-layout.mjs"

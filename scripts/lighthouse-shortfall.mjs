@@ -10,6 +10,12 @@
  *                      state: the deployed UI never proxies the agent, so this
  *                      is what someone sees before starting their own, and the
  *                      app handles it with a Connection Failed dialog.
+ *   valid-source-maps  Lighthouse FETCHES each map, so on a loaded runner it
+ *                      reports "missing" against a build whose maps are
+ *                      correct — it appears in some CI runs and not others.
+ *                      check-source-maps.mjs asks the same question of the
+ *                      files on disk, where the answer cannot flicker, and
+ *                      that is the gate that actually guards this.
  *   inspector-issues   cbor-x probes for `new Function` inside a try/catch and
  *                      falls back to its interpreted path when the policy
  *                      refuses. Chrome logs the refusal anyway. Allowing
@@ -34,9 +40,8 @@ export function shortfallIsExpected(category, audits) {
     .map((ref) => audits[ref.id])
     .filter((a) => a && a.score !== null && a.score < 1);
   if (failing.length === 0) return false;
-  if (!failing.every((a) => a.id === 'errors-in-console' || a.id === 'inspector-issues')) {
-    return false;
-  }
+  const KNOWN = new Set(['errors-in-console', 'inspector-issues', 'valid-source-maps']);
+  if (!failing.every((a) => KNOWN.has(a.id))) return false;
 
   for (const audit of failing) {
     const items = audit.details?.items ?? [];
@@ -44,7 +49,14 @@ export function shortfallIsExpected(category, audits) {
     // is not excused.
     if (items.length === 0) return false;
 
-    if (audit.id === 'errors-in-console') {
+    if (audit.id === 'valid-source-maps') {
+      // Only ever excused for our own assets. A third-party script without a
+      // map is a different conversation, and check-source-maps.mjs is what
+      // proves ours are really there.
+      if (!items.every((i) => /^\/|localhost/.test(String(i.scriptUrl ?? i.url ?? '')))) {
+        return false;
+      }
+    } else if (audit.id === 'errors-in-console') {
       const messages = items.map((i) => String(i.description ?? i.errorMessage ?? ''));
       if (!messages.every((m) => EXPECTED_CONSOLE_ERROR.test(m))) return false;
     } else {
