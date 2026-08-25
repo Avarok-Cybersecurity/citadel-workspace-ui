@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { AgentDownloadHint } from '../AgentDownloadHint';
 import { AGENT_ASSETS } from '@/lib/agent-download';
 
@@ -44,5 +45,26 @@ describe('AgentDownloadHint', () => {
     render(<AgentDownloadHint navigatorRef={nav('', '')} />);
     expect(screen.getByRole('link', { name: /All releases/i }))
       .toHaveAttribute('href', expect.stringContaining('/releases/latest'));
+  });
+});
+
+describe('copy control', () => {
+  it('copies exactly once per keyboard activation', async () => {
+    // Worth pinning because it looks like it should double-fire and does not.
+    // A native <button> activates on Enter by itself, and interactive() — which
+    // exists for non-button elements — adds its own onKeyDown on top. The
+    // reason one press yields one copy is that activateOnKey preventDefault()s
+    // Enter and Space, which suppresses the native activation. Remove that
+    // preventDefault and this test catches the duplicate.
+    const writes: string[] = [];
+    Object.assign(navigator, {
+      clipboard: { writeText: (t: string) => { writes.push(t); return Promise.resolve(); } },
+    });
+    const { getByRole } = render(<AgentDownloadHint navigatorRef={MAC} />);
+    const btn = getByRole('button', { name: /copy the run command/i });
+    btn.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain('--bind 127.0.0.1:12345 --backend filesystem');
   });
 });
