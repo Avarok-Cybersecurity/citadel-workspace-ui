@@ -31,13 +31,29 @@ import { config } from '../lib/config.js';
 /** WCAG 2.1 A and AA. The level a product is normally held to. */
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
+type ColourScheme = 'light' | 'dark';
+
 const BLOCKING = new Set(['serious', 'critical']);
 
-async function freshPage(page: Page): Promise<void> {
+async function freshPage(page: Page, scheme: ColourScheme = 'dark'): Promise<void> {
   await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
   await clearBrowserStorage(page);
+  // next-themes reads this key while booting, so it has to be written AFTER the
+  // storage clear and BEFORE the reload — the reloaded app is the one that
+  // comes up in the chosen scheme.
+  await page.evaluate((value) => localStorage.setItem('citadel:theme', value), scheme);
   await page.reload({ waitUntil: 'commit', timeout: 60_000 });
   await waitForAppReady(page, 60_000);
+
+  // Assert the scheme actually took. Without this, a light-mode scan that
+  // quietly came up dark would pass while testing the mode that was already
+  // covered — a green result proving nothing, which is worse than no test.
+  await expect
+    .poll(
+      () => page.evaluate(() => document.documentElement.classList.contains('dark')),
+      { timeout: 15_000, message: `the app should render in ${scheme} mode` },
+    )
+    .toBe(scheme === 'dark');
 }
 
 /**
@@ -112,19 +128,32 @@ async function click(page: Page, name: RegExp | string): Promise<void> {
   await button.click({ force: true });
 }
 
-test.describe('Accessibility (first-run surfaces)', () => {
+/**
+ * Both schemes, because every scan here used to run in the default one.
+ *
+ * That is not a hypothetical gap. A fill paired with `text-foreground` rather
+ * than its own `-foreground` can only be right in one mode, since the page text
+ * colour flips and the fill does not. The app defaults to dark, where the two
+ * happened to coincide — so 56 such pairings shipped, and in light mode the
+ * primary button on Login, Join and Connect measured 2.19:1. Ten green a11y
+ * tests said nothing about it.
+ */
+const SCHEMES: readonly ColourScheme[] = ['dark', 'light'];
+
+for (const scheme of SCHEMES) {
+test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   test.beforeEach(async ({ page }) => {
-    await freshPage(page);
+    await freshPage(page, scheme);
   });
 
   test('landing page', async ({ page }) => {
-    await expectNoBlockingViolations(page, 'landing');
+    await expectNoBlockingViolations(page, `landing/${scheme}`);
   });
 
   test('join workspace — address step', async ({ page }) => {
     await click(page, 'Join Workspace');
     await expect(page.getByRole('textbox', { name: 'Workspace Address' })).toBeVisible({ timeout: 30_000 });
-    await expectNoBlockingViolations(page, 'join/address');
+    await expectNoBlockingViolations(page, `join/address/${scheme}`);
   });
 
   test('join workspace — security step', async ({ page }) => {
@@ -135,7 +164,7 @@ test.describe('Accessibility (first-run surfaces)', () => {
     await click(page, 'NEXT');
 
     await expect(page.getByRole('heading', { name: 'Security Settings' })).toBeVisible({ timeout: 30_000 });
-    await expectNoBlockingViolations(page, 'join/security');
+    await expectNoBlockingViolations(page, `join/security/${scheme}`);
   });
 
   test('login form, including advanced options', async ({ page }) => {
@@ -150,15 +179,16 @@ test.describe('Accessibility (first-run surfaces)', () => {
       await advanced.click({ force: true });
     }
 
-    await expectNoBlockingViolations(page, 'login');
+    await expectNoBlockingViolations(page, `login/${scheme}`);
   });
 
   test('manage accounts dialog', async ({ page }) => {
     await click(page, 'Manage Accounts');
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
-    await expectNoBlockingViolations(page, 'manage-accounts');
+    await expectNoBlockingViolations(page, `manage-accounts/${scheme}`);
   });
 });
+}
 
 /**
  * The screens a user spends their time on, once they are in.
