@@ -3,6 +3,7 @@
  */
 
 import { UserRole } from '@/types/workspace-entities';
+import { roleBadgeClass } from '@/lib/role-badge';
 
 export interface UserData {
   id: string;
@@ -24,17 +25,8 @@ export interface UserSearchProps {
 }
 
 /** Get role badge CSS class */
+/** @deprecated Use roleBadgeClass. Kept as a thin alias for existing imports. */
 export function getRoleBadgeClass(role?: UserRole): string {
-  switch (role) {
-    case UserRole.Owner:
-      return 'bg-primary hover:bg-primary/90';
-    case UserRole.Admin:
-      return 'bg-primary-accent hover:bg-primary-accent/90';
-    case UserRole.Member:
-      return 'bg-success hover:bg-success/90';
-    case UserRole.Guest:
-      return 'bg-muted hover:bg-muted/80';
-    default:
-      return 'bg-muted hover:bg-muted/80';
-  }
+  return roleBadgeClass(role);
 }
+
