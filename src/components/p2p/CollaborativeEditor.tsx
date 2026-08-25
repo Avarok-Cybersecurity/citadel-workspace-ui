@@ -10,6 +10,7 @@ import { useCollaborativeEditor } from './useCollaborativeEditor';
 import { EditorToolbar } from './EditorToolbar';
 import { eventEmitter } from '@/lib/event-emitter';
 import { activateOnKey } from '@/lib/a11y';
+import { usePrompt } from '@/components/shared/prompt-dialog';
 
 interface CollaborativeEditorProps {
   documentId: string;
@@ -30,6 +31,7 @@ export function CollaborativeEditor({
   creatorCid,
   onSave,
 }: CollaborativeEditorProps) {
+  const prompt = usePrompt();
   const {
     doc,
     provider,
@@ -101,21 +103,33 @@ export function CollaborativeEditor({
   const handleFlashCommentFromContextMenu = useCallback(() => {
     if (!contextMenu || !editor) return;
 
-    const raw = window.prompt('Flash comment:');
-    setContextMenu(null);
-
+    // Anchor captured BEFORE asking, which the native prompt made free and an
+    // in-app dialog does not: the dialog takes focus, and the position the
+    // comment belongs to is the one under the cursor when the menu was opened,
+    // not wherever the selection sits once the dialog closes.
     const cursorPos = editor.view.state.selection.from;
     const coords = editor.view.coordsAtPos(cursorPos);
-    const comment = buildContextMenuFlashComment(raw, coords, {
-      userId: currentUserCid,
-      userName: currentUserName,
-      userColor: userColor,
-    });
-    if (!comment) return;
+    setContextMenu(null);
 
-    // Subscriber: useCollaborativeEditor.ts:161 (handleSendFlashComment).
-    eventEmitter.emit('flash-comment:send', comment);
-  }, [contextMenu, editor, currentUserCid, currentUserName, userColor, setContextMenu]);
+    void (async () => {
+      const raw = await prompt({
+        title: 'Flash comment',
+        description: 'Shown to everyone in the document for a few seconds.',
+        label: 'Comment',
+        placeholder: 'Looks good to me',
+        confirmLabel: 'Send',
+      });
+      const comment = buildContextMenuFlashComment(raw, coords, {
+        userId: currentUserCid,
+        userName: currentUserName,
+        userColor: userColor,
+      });
+      if (!comment) return;
+
+      // Subscriber: useCollaborativeEditor.ts:161 (handleSendFlashComment).
+      eventEmitter.emit('flash-comment:send', comment);
+    })();
+  }, [contextMenu, editor, currentUserCid, currentUserName, userColor, setContextMenu, prompt]);
 
   // Show loading state while provider initializes
   if (!provider) {
