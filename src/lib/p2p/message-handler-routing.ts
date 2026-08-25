@@ -124,6 +124,13 @@ export async function handleMessagingLayerCommand(
       await fileTransferHandler.handleFileTransferMessage(payload, peerCid);
       break;
     }
+    default:
+      // Unhandled types left the switch with no trace, reading identically to
+      // "never arrived" - the blind spot that made the reconnect loss
+      // unplaceable, since ILM proved delivery and the client proved nothing.
+      debugLog('P2PMessageHandler', '[LOSS-DIAG] dropped: no handler for layer type',
+        (layer as { type?: unknown }).type, 'message_id=', payload.message_id);
+      break;
   }
 }
 
@@ -137,7 +144,14 @@ async function handleIncomingMessage(
   recipientCid?: bigint
 ): Promise<void> {
   const layer = payload.layer;
-  if (!isMessage(layer)) return;
+  if (!isMessage(layer)) {
+    // Silent before this: a payload routed as a message but failing the shape
+    // check vanished with no line anywhere - indistinguishable from one the
+    // network never delivered, though ILM's logs prove delivery.
+    debugLog('P2PMessageHandler', '[LOSS-DIAG] dropped: failed isMessage',
+      'message_id=', payload.message_id, 'type=', (layer as { type?: unknown }).type);
+    return;
+  }
 
   const message: P2PMessage = {
     id: payload.message_id,
