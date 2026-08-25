@@ -386,24 +386,20 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
         console.log('  WARNING: in-app confirm dialog did not appear');
       }
 
-      // Wait for deletion to process and UI to update
-      // Check specifically in the tree view (not breadcrumb) for the folder
-      // The tree items are inside the scrollable tree container
-      for (let check = 1; check <= 5; check++) {
-        await sleep(1000);
-        // Check if folder exists in tree view specifically (truncate class is used for tree item names)
-        const inTree = await page.locator(`.truncate:has-text("${folderName}")`).first()
-          .isVisible({ timeout: 1000 }).catch(() => false);
-        // Also check generic location but prefer tree check
-        const anywhereVisible = await page.getByText(folderName, { exact: true }).first()
-          .isVisible({ timeout: 500 }).catch(() => false);
-        console.log(`  Check ${check}: In tree: ${inTree}, Anywhere: ${anywhereVisible}`);
-        if (!inTree) {
-          console.log(`  Folder deleted from tree: true`);
-          return true;
-        }
+      // Wait for the folder to LEAVE the tree, rather than sleeping and sampling.
+      //
+      // Same reasoning as verifyPeerSeesChanges below, which was already fixed
+      // this way: isVisible does not wait, so this loop was five fixed 1s sleeps
+      // with a point sample after each. Worse, a sample taken while the tree had
+      // not re-rendered finds nothing and reports the folder deleted whether or
+      // not it was. isHiddenWithin asks the right question and returns the moment
+      // it holds, so the common case costs a fraction of the old 5 seconds.
+      const treeItem = page.locator(`.truncate:has-text("${folderName}")`).first();
+      if (await isHiddenWithin(treeItem, 6000)) {
+        console.log(`  Folder deleted from tree: true`);
+        return true;
       }
-      console.log(`  Folder deleted: false (still visible in tree after retries)`);
+      console.log(`  Folder deleted: false (still visible in tree after 6s)`);
       return false;
     }
     console.log('  Delete option not found in context menu');
@@ -641,18 +637,15 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
         console.log('  WARNING: in-app confirm dialog did not appear');
       }
 
-      // Wait and verify deletion
-      for (let check = 1; check <= 5; check++) {
-        await sleep(1000);
-        const stillVisible = await page.locator(`.truncate:has-text("${fileName}")`).first()
-          .isVisible({ timeout: 500 }).catch(() => false);
-        console.log(`  Check ${check}: File visible: ${stillVisible}`);
-        if (!stillVisible) {
-          console.log(`  File deleted: true`);
-          return true;
-        }
+      // Wait for the file to GO. Was five 1s sleeps each followed by a point
+      // sample; see the folder-deletion loop above for why that both wastes time
+      // and can report a deletion that did not happen.
+      const fileItem = page.locator(`.truncate:has-text("${fileName}")`).first();
+      if (await isHiddenWithin(fileItem, 6000)) {
+        console.log(`  File deleted: true`);
+        return true;
       }
-      console.log(`  File deleted: false (still visible after retries)`);
+      console.log(`  File deleted: false (still visible after 6s)`);
       return false;
     }
 
