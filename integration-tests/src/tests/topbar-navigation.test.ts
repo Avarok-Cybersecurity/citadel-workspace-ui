@@ -19,6 +19,7 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { isVisibleWithin } from '../lib/index.js';
@@ -190,8 +191,12 @@ async function testProfileModal(page: Page): Promise<{
 
     // Close
     await page.keyboard.press('Escape');
-    await sleep(500);
-    results.closes = !(await isVisibleWithin(profileDialog, 1000));
+    // isHiddenWithin, not !isVisibleWithin: this asks whether the dialog GOES
+    // AWAY, and the presence helper answers a different question. Negating it
+    // spends the entire timeout waiting for something that is supposed to never
+    // appear, and reports "closed" for a dialog that was merely slow to render.
+    // The 500ms sleep was covering for that and is no longer needed.
+    results.closes = await isHiddenWithin(profileDialog, 5000);
     console.log(`  Profile modal closes: ${results.closes}`);
   }
 
