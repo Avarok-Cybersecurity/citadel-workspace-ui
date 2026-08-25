@@ -5,6 +5,7 @@ import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
 import type { CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
 import { useCallRuntime } from './use-call-runtime';
+import { useIsLeaderTab } from './use-leader-tab';
 import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
@@ -43,10 +44,30 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   const [streamsVersion, setStreamsVersion] = useState(0);
   const [qualities, setQualities] = useState<Map<bigint, ConnectionQuality>>(new Map());
   const [captureFailure, setCaptureFailure] = useState<CaptureFailure | null>(null);
-  const [capability, setCapability] = useState<{ supported: boolean; reason?: string }>({
+  const [browserCapability, setBrowserCapability] = useState<{
+    supported: boolean;
+    reason?: string;
+  }>({
     supported: false,
     reason: 'Checking whether this browser supports calls…',
   });
+  const isLeaderTab = useIsLeaderTab();
+
+  // A follower tab has no WebSocket client, so MediaOpen threw, MediaClose did
+  // nothing and every frame was dropped on the floor — a call that looked
+  // placed and carried no audio. Reported as a capability so the existing
+  // disabled-with-a-reason treatment covers it: the buttons stay visible and
+  // explain themselves rather than vanishing or lying.
+  const capability = useMemo(() => {
+    if (!browserCapability.supported) return browserCapability;
+    if (!isLeaderTab) {
+      return {
+        supported: false,
+        reason: 'Calls run in whichever Citadel tab you opened first. Switch to it to call.',
+      };
+    }
+    return browserCapability;
+  }, [browserCapability, isLeaderTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +76,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     void import('@/lib/call/codec-support')
       .then((m) => m.probeMediaCapabilities())
       .then((report) => {
-      if (!cancelled) setCapability({ supported: report.supported, reason: report.reason });
+      if (!cancelled) setBrowserCapability({ supported: report.supported, reason: report.reason });
     });
     return () => {
       cancelled = true;

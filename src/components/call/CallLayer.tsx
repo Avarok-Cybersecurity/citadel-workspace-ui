@@ -3,6 +3,7 @@ import { CallProvider } from './CallProvider';
 import { CallSoundEffects } from './CallSoundEffects';
 import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
+import { useIsLeaderTab } from './use-leader-tab';
 import { connectionManager } from '@/lib/connection';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 
@@ -46,7 +47,13 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
  */
 function RingingCall() {
   const { call, accept, decline } = useCall();
+  // Exactly one tab rings, and it is the one that can actually answer. A
+  // follower has no WebSocket client, so accepting there opened no media
+  // session and the caller heard nothing -- while the leader tab, which could
+  // have taken the call, rang alongside it.
+  const isLeaderTab = useIsLeaderTab();
 
+  if (!isLeaderTab) return null;
   if (!call || call.status !== 'ringing-in') return null;
 
   const caller = [...call.participants.values()][0];
