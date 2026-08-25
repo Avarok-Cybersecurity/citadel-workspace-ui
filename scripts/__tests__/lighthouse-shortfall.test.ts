@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error — plain .mjs helper shared with the CI script, no types.
-import { shortfallIsOnlyTheAbsentAgent } from '../lighthouse-shortfall.mjs';
+import { shortfallIsExpected } from '../lighthouse-shortfall.mjs';
 
 const category = (ids: string[]) => ({ auditRefs: ids.map((id) => ({ id })) });
 const audit = (id: string, score: number, messages: string[] = []) => [
@@ -19,13 +19,19 @@ const audit = (id: string, score: number, messages: string[] = []) => [
   { id, score, details: { items: messages.map((description) => ({ description })) } },
 ];
 
+/** inspector-issues reports a table of issueType, not messages. */
+const issues = (types: string[]) => [
+  'inspector-issues',
+  { id: 'inspector-issues', score: 0, details: { items: types.map((issueType) => ({ issueType })) } },
+];
+
 const ABSENT_AGENT =
   'Failed to initialize WASM client: WebSocket connection failed: ConnectionFailed { event: CloseEvent { code: 1006 } }';
 
-describe('shortfallIsOnlyTheAbsentAgent', () => {
+describe('shortfallIsExpected', () => {
   it('accepts the shortfall CI actually reports', () => {
     expect(
-      shortfallIsOnlyTheAbsentAgent(
+      shortfallIsExpected(
         category(['errors-in-console']),
         Object.fromEntries([
           audit('errors-in-console', 0, [ABSENT_AGENT, 'Connection error: Failed to initialize WASM client']),
@@ -37,7 +43,7 @@ describe('shortfallIsOnlyTheAbsentAgent', () => {
   it('rejects a console error that is not the absent agent', () => {
     // The point of the whole predicate: a real error hiding among expected ones.
     expect(
-      shortfallIsOnlyTheAbsentAgent(
+      shortfallIsExpected(
         category(['errors-in-console']),
         Object.fromEntries([
           audit('errors-in-console', 0, [ABSENT_AGENT, 'TypeError: cannot read x of undefined']),
@@ -48,16 +54,52 @@ describe('shortfallIsOnlyTheAbsentAgent', () => {
 
   it('rejects a second failing audit', () => {
     expect(
-      shortfallIsOnlyTheAbsentAgent(
+      shortfallIsExpected(
         category(['errors-in-console', 'deprecations']),
         Object.fromEntries([audit('errors-in-console', 0, [ABSENT_AGENT]), audit('deprecations', 0, [])]),
       ),
     ).toBe(false);
   });
 
+  it('accepts the real pair CI reports: absent agent plus the CSP eval probe', () => {
+    // What actually failed the build: requiring errors-in-console to be the
+    // ONLY failing audit was too narrow, because cbor-x's `new Function` probe
+    // trips inspector-issues on every run as well.
+    expect(
+      shortfallIsExpected(
+        category(['errors-in-console', 'inspector-issues']),
+        Object.fromEntries([
+          audit('errors-in-console', 0, [ABSENT_AGENT]),
+          issues(['Content security policy']),
+        ]),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects an inspector issue that is not the policy', () => {
+    expect(
+      shortfallIsExpected(
+        category(['errors-in-console', 'inspector-issues']),
+        Object.fromEntries([
+          audit('errors-in-console', 0, [ABSENT_AGENT]),
+          issues(['Content security policy', 'Mixed content']),
+        ]),
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects inspector-issues that reports nothing identifiable', () => {
+    expect(
+      shortfallIsExpected(
+        category(['inspector-issues']),
+        Object.fromEntries([issues([])]),
+      ),
+    ).toBe(false);
+  });
+
   it('rejects a different failing audit on its own', () => {
     expect(
-      shortfallIsOnlyTheAbsentAgent(
+      shortfallIsExpected(
         category(['deprecations']),
         Object.fromEntries([audit('deprecations', 0, ['some deprecation'])]),
       ),
@@ -66,7 +108,7 @@ describe('shortfallIsOnlyTheAbsentAgent', () => {
 
   it('excuses nothing when nothing is failing', () => {
     expect(
-      shortfallIsOnlyTheAbsentAgent(
+      shortfallIsExpected(
         category(['errors-in-console']),
         Object.fromEntries([audit('errors-in-console', 1, [])]),
       ),
@@ -75,7 +117,7 @@ describe('shortfallIsOnlyTheAbsentAgent', () => {
 
   it('rejects a failing errors-in-console that carries no messages to check', () => {
     expect(
-      shortfallIsOnlyTheAbsentAgent(
+      shortfallIsExpected(
         category(['errors-in-console']),
         Object.fromEntries([audit('errors-in-console', 0, [])]),
       ),

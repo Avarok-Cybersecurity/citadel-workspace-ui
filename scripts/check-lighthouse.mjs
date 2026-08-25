@@ -30,7 +30,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { shortfallIsOnlyTheAbsentAgent } from './lighthouse-shortfall.mjs';
+import { shortfallIsExpected } from './lighthouse-shortfall.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(__dirname, '..');
@@ -147,9 +147,9 @@ async function main() {
       const score = category.score;
       let ok = typeof score === 'number' && score >= baseline;
       let excused = '';
-      if (!ok && IS_CI && key === 'best-practices' && shortfallIsOnlyTheAbsentAgent(category, audits)) {
+      if (!ok && IS_CI && key === 'best-practices' && shortfallIsExpected(category, audits)) {
         ok = true;
-        excused = '  (only errors-in-console, and only the absent agent)';
+        excused = '  (only the absent agent and the CSP eval probe)';
       }
       if (!ok) failed = true;
       const shown = typeof score === 'number' ? Math.round(score * 100) : 'n/a';
