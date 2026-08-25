@@ -244,13 +244,38 @@ async function closeSettingsModal(page: Page): Promise<boolean> {
   console.log('\n=== Closing Settings Modal ===');
 
   try {
-    // Try pressing Escape
-    await page.keyboard.press('Escape');
-    await sleep(500);
+    // Confirm the modal is actually OPEN first. Without this the check below
+    // passes just as happily against a modal that was never open, which is the
+    // same as not checking.
+    const dialog = page.getByRole('dialog').first();
+    const wasOpen = await dialog
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!wasOpen) {
+      console.log('  Modal was not open before Escape - nothing to close');
+      return false;
+    }
 
-    // Check if modal closed
-    const modalTitle = page.locator('[role="dialog"] text="Settings"').first();
-    const closed = !(await modalTitle.isVisible({ timeout: 1000 }).catch(() => false));
+    await page.keyboard.press('Escape');
+
+    // Wait for it to GO, rather than sampling once and hoping.
+    //
+    // This previously read:
+    //   page.locator('[role="dialog"] text="Settings"')
+    //     .isVisible({ timeout: 1000 }).catch(() => false)
+    // and reported PASS unconditionally. Two faults compounded. The selector
+    // mixes CSS with the text engine, which does not parse - Playwright throws
+    // `Unexpected token "=" while parsing css selector`. The `.catch(() => false)`
+    // then swallowed that throw, and the surrounding `!` turned it into
+    // "closed: true". Verified against a page holding a plainly visible dialog:
+    // it still reported closed. Separately, isVisible's timeout option is
+    // declared `@deprecated This option is ignored`, so even a valid selector
+    // would have sampled once, 500ms into a close animation.
+    const closed = await dialog
+      .waitFor({ state: 'hidden', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
     console.log(`  Modal closed: ${closed}`);
     return closed;
   } catch (error) {
