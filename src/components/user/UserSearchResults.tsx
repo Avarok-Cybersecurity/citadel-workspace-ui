@@ -63,7 +63,15 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
         {loading ? 'Searching...' : searchTerm ? `Found ${results.length} users` : "People you've interacted with"}
       </CardDescription>
     </CardHeader>
-    <ScrollArea className="max-h-64">
+    {/* The `[&_[data-radix-scroll-area-viewport]>div]:!block` is load-bearing.
+        Radix renders its viewport child as `display: table; min-width: 100%`,
+        which shrink-wraps to MAX-CONTENT — so a long username made the row
+        331px wide inside a 291px viewport, and the overflow was clipped rather
+        than truncated: the name's own `text-ellipsis` never engaged, because
+        inside a table there was always more width to take. Forcing block gives
+        the row the viewport's width, so truncation happens where it should.
+        This list scrolls vertically only, so nothing is lost by it. */}
+    <ScrollArea className="max-h-64 [&_[data-radix-scroll-area-viewport]>div]:!block">
       <CardContent className="p-0">
         {loading ? (
           <div className="py-8 flex justify-center items-center">
