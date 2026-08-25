@@ -86,11 +86,26 @@ const NotificationCenter = () => {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        {/* aria-label, because the only content is an icon and a count.
+            The badge's number is not a name — it says how many, not what the
+            control does — and axe reports the button as having no discernible
+            text. Folding the count into the label means a screen reader
+            announces "Notifications, 3 unread" rather than "3, button". */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={
+            unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+          }
+        >
+          <Bell className="h-5 w-5" aria-hidden="true" />
           {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
+              // aria-hidden: the count is already in the button's label, and
+              // announcing it twice is noise.
+              aria-hidden="true"
               className="absolute -top-2 -right-2 px-1.5 min-w-5 h-5 flex items-center justify-center"
             >
               {unreadCount}

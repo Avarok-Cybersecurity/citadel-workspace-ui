@@ -240,6 +240,47 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     await expectNoBlockingViolations(page, 'workspace');
   });
 
+  /**
+   * The same shell in LIGHT.
+   *
+   * The scans above run in the default scheme, and that gap let light mode ship
+   * substantially unusable: `prose-invert` applied unconditionally, `text-white`
+   * on .prose in the stylesheet, and `text-primary-foreground` used as a
+   * standalone colour on three sidebar rows. Every one rendered text
+   * light-on-light, every one was invisible in dark, and axe reports exactly
+   * this as a contrast violation — nobody had ever pointed it at light.
+   *
+   * The scheme is asserted before scanning: a light scan that quietly ran in
+   * dark would pass while re-testing the mode already covered, which is worse
+   * than not running at all.
+   */
+  test('workspace shell in light mode', async () => {
+    test.setTimeout(180_000);
+    await page.evaluate(() => localStorage.setItem('citadel:theme', 'light'));
+    // Reload, not a history navigation: next-themes reads the key while
+    // booting and does not remount on pushState.
+    await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+    await waitForAppReady(page, 60_000);
+    await waitForWorkspaceLoaded(page, 90_000);
+    await closeAnyModals(page);
+
+    await expect
+      .poll(
+        () => page.evaluate(() => document.documentElement.classList.contains('dark')),
+        { timeout: 15_000, message: 'the shell should be rendering in light mode' },
+      )
+      .toBe(false);
+
+    await expectNoBlockingViolations(page, 'workspace/light');
+
+    // Back to the default, so the scans after this one are unaffected.
+    await page.evaluate(() => localStorage.setItem('citadel:theme', 'dark'));
+    await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+    await waitForAppReady(page, 60_000);
+    await waitForWorkspaceLoaded(page, 90_000);
+    await closeAnyModals(page);
+  });
+
   test('settings modal', async () => {
     await page.getByTestId('user-avatar-button').click({ force: true });
     await page.getByRole('menuitem', { name: 'Settings' }).click({ force: true });

@@ -41,11 +41,12 @@ export function OfficeChatTabs({
       <Tabs defaultValue="content" className="w-full flex-1 min-h-0 flex flex-col">
         <div className="px-4 pt-4 border-b border-border flex-shrink-0 flex items-center justify-between gap-2">
           <TabsList className="bg-background">
-            <TabsTrigger value="content" className="data-[state=active]:bg-primary">
+            {/* data-[state=active]:text-primary-foreground pairs with the fill above it. Without it the active tab kept the page's text colour, which is ink in light mode: 2.18:1 on the purple fill. Dark mode hid it, because there the page text is already near-white. */}
+            <TabsTrigger value="content" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <FileText className="h-4 w-4 mr-2" />
               Content
             </TabsTrigger>
-            <TabsTrigger value="chat" className="data-[state=active]:bg-primary">
+            <TabsTrigger value="chat" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <MessageSquare className="h-4 w-4 mr-2" />
               Chat
             </TabsTrigger>

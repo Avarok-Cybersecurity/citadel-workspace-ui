@@ -101,7 +101,7 @@ export function GroupSettingsPanel({
           <TabsList className="mx-4 mt-4 bg-surface border border-border">
             <TabsTrigger
               value="members"
-              className="flex-1 data-[state=active]:bg-primary"
+              className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <Users className="h-4 w-4 mr-1" />
               Members
@@ -109,7 +109,7 @@ export function GroupSettingsPanel({
             {canManageRoles && (
               <TabsTrigger
                 value="roles"
-                className="flex-1 data-[state=active]:bg-primary"
+                className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Shield className="h-4 w-4 mr-1" />
                 Roles
@@ -118,7 +118,7 @@ export function GroupSettingsPanel({
             {canEditSettings && (
               <TabsTrigger
                 value="settings"
-                className="flex-1 data-[state=active]:bg-primary"
+                className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Settings className="h-4 w-4 mr-1" />
                 Settings
