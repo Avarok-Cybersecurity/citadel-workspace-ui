@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { AgentDownloadHint } from './AgentDownloadHint';
 import type { ConnectionRetryModalProps } from './connection-retry-types';
 import { getRetryDelay } from './connection-retry-types';
 
@@ -155,6 +156,8 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
             {userFriendlyError}
           </DialogDescription>
         </DialogHeader>
+
+        <AgentDownloadHint />
 
         <div className="space-y-4 py-4">
           <div className="text-sm text-muted-foreground">
