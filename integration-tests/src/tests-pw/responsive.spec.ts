@@ -100,6 +100,24 @@ async function expectNoHorizontalOverflow(page: Page, screen: string): Promise<v
 const MIN_TARGET_PX = 24;
 
 async function expectNoSmallTapTargets(page: Page, screen: string): Promise<void> {
+  // Settle first, or the reading is fiction. Radix animates dialogs in with
+  // `zoom-in-95`, so a 24px control measures 22.8 mid-flight and every button in
+  // an opening modal reports as undersized. The first run of this check "found"
+  // two such controls, both of which round-tripped to exactly 24 — the tell that
+  // the transform, not the CSS, was being measured.
+  await page
+    .evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          // Indefinite animations (spinners, pulses) never finish; waiting on
+          // one would hang instead of settling.
+          .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+          .map((a) => a.finished.catch(() => undefined)),
+      ).then(() => undefined),
+    )
+    .catch(() => undefined);
+
   const small = await page.evaluate((min) => {
     const selector =
       'button,a[href],[role="button"],[role="switch"],[role="tab"],input[type="checkbox"],input[type="radio"]';
@@ -269,6 +287,9 @@ test.describe.serial('Responsive workspace at 375px', () => {
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
 
     await expectNoHorizontalOverflow(page, 'settings');
+    // Settings is dense with switches and icon buttons, which is where a
+    // sub-24px control is most likely to hide.
+    await expectNoSmallTapTargets(page, 'settings');
 
     await page.keyboard.press('Escape');
   });
@@ -281,6 +302,9 @@ test.describe.serial('Responsive workspace at 375px', () => {
     await expect(page.getByRole('heading', { name: 'User Directory' })).toBeVisible({ timeout: 30_000 });
 
     await expectNoHorizontalOverflow(page, 'directory');
+    // Rows of per-user actions — the shape that produced the 16px controls
+    // found on the pre-auth screens.
+    await expectNoSmallTapTargets(page, 'directory');
   });
 });
 
