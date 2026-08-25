@@ -1,8 +1,10 @@
 /**
  * Message Pagination Store
  *
- * Handles persisting P2P messages to IndexedDB using a paginated format.
- * Messages are stored in pages to support lazy loading and efficient storage.
+ * Paginated P2P message persistence into the INTERNAL SERVICE's LocalDB, NOT
+ * browser IndexedDB (via message-page-operations -> sendLocalDB* ->
+ * LocalDBGetKV). "IndexedDB" would imply history survives on the browser alone;
+ * it needs the local agent. Fine with no internet, empty with no agent.
  *
  * Format:
  *   - Metadata: msgs_with_peer_{CID}_metadata
