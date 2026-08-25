@@ -131,6 +131,56 @@ async function measureFlexOverhang(
 }
 
 /**
+ * Anything cut off by an ancestor that clips horizontally with no way to scroll.
+ *
+ * The sibling-overhang check above only inspects FLEX parents, and that is not
+ * where this family of bug always lives. The user-search row sat inside a Radix
+ * ScrollArea whose viewport child is `display: table; min-width: 100%` — a table
+ * shrink-wraps to MAX-CONTENT, so the row grew to 331px inside a 291px viewport
+ * and 40px of it, the end of the name and part of the role badge, was simply
+ * clipped. The name had `text-ellipsis` and it never engaged, because inside a
+ * table there was always more width to take.
+ *
+ * `overflowX: hidden` is the signal: content wider than that box is gone, with
+ * no scrollbar to reach it. Boxes that scroll horizontally are excluded — being
+ * wider than the viewport is the whole point of those.
+ */
+async function measureClippedContent(
+  page: Page,
+): Promise<Array<{ tag: string; cls: string; by: number; clipper: string }>> {
+  return page.evaluate(() => {
+    const out: Array<{ tag: string; cls: string; by: number; clipper: string }> = [];
+    const label = (el: Element) => `${el.tagName}.${String(el.className || '').slice(0, 50)}`;
+
+    for (const el of Array.from(document.querySelectorAll('*'))) {
+      const style = getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      if (style.position === 'fixed') continue;
+
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+
+      // Nearest ancestor that clips horizontally without offering a scrollbar.
+      let clipper: Element | null = el.parentElement;
+      while (clipper) {
+        const cs = getComputedStyle(clipper);
+        if (cs.overflowX === 'hidden' || cs.overflowX === 'clip') break;
+        if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') { clipper = null; break; }
+        clipper = clipper.parentElement;
+      }
+      if (!clipper) continue;
+
+      const cRect = clipper.getBoundingClientRect();
+      const by = Math.round(Math.max(rect.right - cRect.right, cRect.left - rect.left));
+      if (by > 1) {
+        out.push({ tag: el.tagName, cls: String(el.className || '').slice(0, 60), by, clipper: label(clipper) });
+      }
+    }
+    return out.sort((a, b) => b.by - a.by);
+  });
+}
+
+/**
  * Interactive elements smaller than the WCAG 2.2 floor of 24x24 CSS px.
  *
  * Separate from overflow because axe reports neither, and this one is easy to
@@ -312,6 +362,18 @@ test.describe.serial('Responsive workspace at 375px', () => {
     ).toEqual([]);
   });
 
+  test('nothing is silently clipped by an ancestor that cannot scroll', async () => {
+    const offenders = await measureClippedContent(page);
+    const worst = offenders[0];
+    expect(
+      offenders,
+      worst
+        ? `${offenders.length} element(s) are cut off; widest is <${worst.tag} class="${worst.cls}"> ` +
+          `by ${worst.by}px inside ${worst.clipper}`
+        : '',
+    ).toEqual([]);
+  });
+
   test('sidebar opens as a drawer and closes again', async () => {
     // At this width the sidebar has to be dismissable, or it covers the content
     // with no way back. The toggle is exposed at all widths — it used to be
@@ -360,6 +422,21 @@ test.describe.serial('Responsive workspace at 375px', () => {
     // Rows of per-user actions — the shape that produced the 16px controls
     // found on the pre-auth screens.
     await expectNoSmallTapTargets(page, 'directory');
+
+    // Also here, not only on the shell: this is the surface that carried the
+    // bug the check was written for. The search results sit in a ScrollArea
+    // whose viewport child is `display: table`, which sizes to max-content —
+    // so a long username grew the row past the viewport and the overflow was
+    // clipped instead of truncated.
+    const clipped = await measureClippedContent(page);
+    const worst = clipped[0];
+    expect(
+      clipped,
+      worst
+        ? `${clipped.length} element(s) cut off in the directory; widest is ` +
+          `<${worst.tag} class="${worst.cls}"> by ${worst.by}px inside ${worst.clipper}`
+        : '',
+    ).toEqual([]);
   });
 });
 
