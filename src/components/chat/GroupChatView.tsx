@@ -69,9 +69,9 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             {Object.entries(chat.messagesByDate).map(([date, dateMessages]) => (
               <div key={date}>
                 <div className="flex items-center justify-center my-4">
-                  <div className="h-px bg-gray-700 flex-1" />
+                  <div className="h-px bg-border flex-1" />
                   <span className="px-3 text-xs text-muted-foreground">{date}</span>
-                  <div className="h-px bg-gray-700 flex-1" />
+                  <div className="h-px bg-border flex-1" />
                 </div>
                 {dateMessages.map((message) => (
                   <GroupMessageItem

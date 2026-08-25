@@ -40,8 +40,28 @@ export function getRoleIcon(role: string) {
     : <UserIcon className="h-4 w-4" />;
 }
 
+/**
+ * Rank shown as visual WEIGHT rather than hue: solid, outlined-brand, outlined-
+ * neutral, plain. Every pair here is a token pair that has been contrast-checked.
+ *
+ * The previous map put `text-foreground` on a fixed fill, so the text colour
+ * flipped with light/dark while the fill did not — admin came out at 2.86:1 in
+ * dark and failed light too. `primary-accent` is an accent token for text and
+ * icons, not a fill that carries text (docs/THEMING.md); as a border and a text
+ * colour it clears AA in both modes, which is how it is used now.
+ *
+ * Colour is never the only signal: the badge states the role in words and the
+ * owner/admin rows also carry a Shield icon.
+ */
 export function getRoleColor(role: string) {
-  return ({ owner: "bg-primary", admin: "bg-primary-accent", member: "bg-success", guest: "bg-gray-600" }[role] || "bg-gray-500");
+  return (
+    {
+      owner: "bg-primary text-primary-foreground border border-transparent",
+      admin: "bg-transparent text-primary-accent border border-primary-accent/60",
+      member: "bg-transparent text-muted-foreground border border-border",
+      guest: "bg-transparent text-muted-foreground border border-transparent",
+    }[role] || "bg-transparent text-muted-foreground border border-border"
+  );
 }
 
 export function capitalizeRole(role: string) {
@@ -120,7 +140,7 @@ export function MembersSectionModals({
                       <p className="text-foreground font-medium">{member.displayName || member.username}</p>
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
                     </div>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-foreground text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
                   {currentUsername !== member.username && (
                     <DropdownMenu>

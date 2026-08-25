@@ -24,10 +24,10 @@ export function UserProfileCard({
 }: UserProfileCardProps) {
   if (!selectedUser) {
     return (
-      <Card className="bg-card border-gray-700 text-foreground h-full shadow-sm flex flex-col justify-center items-center p-6">
+      <Card className="bg-card border-border text-foreground h-full shadow-sm flex flex-col justify-center items-center p-6">
         <div className="text-center">
           <Avatar className="h-20 w-20 mb-4 mx-auto">
-            <AvatarFallback className="bg-gray-700 text-muted-foreground">
+            <AvatarFallback className="bg-muted text-muted-foreground">
               <User className="h-10 w-10" />
             </AvatarFallback>
           </Avatar>
@@ -37,7 +37,7 @@ export function UserProfileCard({
           </CardDescription>
           <Button
             variant="outline"
-            className="border-gray-700 text-foreground/80 hover:bg-gray-700 hover:text-foreground"
+            className="border-border text-foreground/80 hover:bg-accent hover:text-foreground"
             onClick={() => document.querySelector('input')?.focus()}
           >
             <Search className="h-4 w-4 mr-2" />
@@ -49,12 +49,12 @@ export function UserProfileCard({
   }
 
   return (
-    <Card className="bg-card border-gray-700 text-foreground h-full shadow-sm">
+    <Card className="bg-card border-border text-foreground h-full shadow-sm">
       <CardHeader className="text-center pb-2 relative">
         <Button
           variant="ghost"
           size="sm"
-          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground hover:bg-gray-700"
+          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground hover:bg-accent"
           onClick={onClose}
         >
           <UserX className="h-4 w-4" />
@@ -122,7 +122,7 @@ export function UserProfileCard({
         </div>
       </CardContent>
 
-      <CardFooter className="flex justify-between border-t border-gray-700 pt-4">
+      <CardFooter className="flex justify-between border-t border-border pt-4">
         {!isConnected ? (
           <Button
             className="flex-1 bg-primary hover:bg-primary/90 text-foreground"
@@ -135,7 +135,7 @@ export function UserProfileCard({
           <>
             <Button
               variant="outline"
-              className="flex-1 mr-2 border-gray-700 text-foreground/80 hover:bg-gray-700 hover:text-foreground"
+              className="flex-1 mr-2 border-border text-foreground/80 hover:bg-accent hover:text-foreground"
             >
               <UserX className="h-4 w-4 mr-2" />
               Remove Connection

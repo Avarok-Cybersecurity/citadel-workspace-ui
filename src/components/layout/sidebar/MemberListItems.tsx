@@ -60,7 +60,7 @@ export function MemberListItems({
                   <div className="flex items-center gap-2 flex-1">
                     {getRoleIcon(member.role || 'member')}
                     <span className="flex-1 truncate">{member.displayName || member.username}</span>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-foreground text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
                 </SidebarMenuButton>
               </TooltipTrigger>

@@ -36,7 +36,7 @@ export function DeleteConfirmDialog({ open, onOpenChange, username, onConfirm }:
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-transparent border-gray-600 text-foreground/80 hover:bg-gray-700">
+          <AlertDialogCancel className="bg-transparent border-border text-foreground/80 hover:bg-accent">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={onConfirm}>
@@ -66,7 +66,7 @@ export function ClearAllConfirmDialog({ open, onOpenChange, onConfirm }: ClearAl
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-transparent border-gray-600 text-foreground/80 hover:bg-gray-700">
+          <AlertDialogCancel className="bg-transparent border-border text-foreground/80 hover:bg-accent">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={onConfirm}>

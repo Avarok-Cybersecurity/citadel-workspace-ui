@@ -161,7 +161,7 @@ export function EntityManagementModal<TMode extends string>({
               variant="outline"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="bg-transparent border-gray-600 text-foreground hover:bg-card"
+              className="bg-transparent border-border text-foreground hover:bg-card"
             >
               Cancel
             </Button>
@@ -201,7 +201,7 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-card border-gray-600 text-foreground placeholder:text-muted-foreground"
+            className="bg-card border-border text-foreground placeholder:text-muted-foreground"
             required={field.required}
             disabled={disabled}
           />
@@ -216,7 +216,7 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-card border-gray-600 text-foreground placeholder:text-muted-foreground min-h-[100px]"
+            className="bg-card border-border text-foreground placeholder:text-muted-foreground min-h-[100px]"
             disabled={disabled}
           />
         </div>
@@ -226,7 +226,7 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
         <div className="grid gap-2">
           <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger className="bg-card border-gray-600 text-foreground">
+            <SelectTrigger className="bg-card border-border text-foreground">
               <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">

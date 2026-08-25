@@ -53,9 +53,9 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
 }) => (
   <Card
     ref={resultsRef}
-    className="absolute z-50 w-full mt-1 bg-card border-gray-700 text-foreground shadow-lg overflow-hidden"
+    className="absolute z-50 w-full mt-1 bg-card border-border text-foreground shadow-lg overflow-hidden"
   >
-    <CardHeader className="p-3 border-b border-gray-700">
+    <CardHeader className="p-3 border-b border-border">
       <CardTitle className="text-sm">
         {searchTerm ? 'Search Results' : 'Recent Users'}
       </CardTitle>
@@ -70,7 +70,7 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary-accent"></div>
           </div>
         ) : (
-          <ul id={RESULTS_LIST_ID} role="listbox" aria-label="User search results" className="divide-y divide-gray-700">
+          <ul id={RESULTS_LIST_ID} role="listbox" aria-label="User search results" className="divide-y divide-border">
             {(results.length > 0 ? results : searchTerm ? [] : recentUsers).map((user) => (
               // The list item stays a list item; the control goes INSIDE it.
               // Giving the <li> role="button" would have removed it from the
@@ -131,7 +131,7 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
       </CardContent>
     </ScrollArea>
     {enableInvite && (results.length > 0 || !searchTerm) && (
-      <CardFooter className="p-3 border-t border-gray-700">
+      <CardFooter className="p-3 border-t border-border">
         <Button className="w-full bg-primary hover:bg-primary/90" size="sm">
           <UserPlus className="h-4 w-4 mr-2" />
           Invite New User

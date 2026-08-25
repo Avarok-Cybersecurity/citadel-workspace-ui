@@ -164,7 +164,7 @@ export function CollaborativeEditor({
             w-2 h-2 rounded-full
             ${syncState === 'synced' ? 'bg-success' :
               syncState === 'syncing' ? 'bg-warning animate-pulse' :
-                'bg-gray-500'}
+                'bg-muted-foreground'}
           `} />
           <span className="text-xs text-muted-foreground">
             {syncState === 'synced' ? 'Synced' :

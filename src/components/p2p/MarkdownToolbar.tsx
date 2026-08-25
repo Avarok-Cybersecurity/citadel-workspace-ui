@@ -52,7 +52,7 @@ function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonPr
 }
 
 function Separator() {
-  return <div className="w-px h-5 bg-gray-600/50 mx-1" />;
+  return <div className="w-px h-5 bg-border mx-1" />;
 }
 
 export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePreview }: MarkdownToolbarProps) {

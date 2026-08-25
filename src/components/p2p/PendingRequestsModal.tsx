@@ -103,7 +103,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-card text-foreground border-gray-700 max-w-lg">
+      <DialogContent className="bg-card text-foreground border-border max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <UserPlus className="h-5 w-5 mr-2" />

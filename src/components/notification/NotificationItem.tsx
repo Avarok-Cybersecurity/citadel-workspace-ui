@@ -59,9 +59,9 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
       case 'normal':
         return 'border-primary-accent';
       case 'low':
-        return 'border-gray-500';
+        return 'border-border';
       default:
-        return 'border-gray-500';
+        return 'border-border';
     }
   };
   

@@ -29,7 +29,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-card text-foreground border-gray-700 max-w-2xl">
+      <DialogContent className="bg-card text-foreground border-border max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span className="flex items-center">

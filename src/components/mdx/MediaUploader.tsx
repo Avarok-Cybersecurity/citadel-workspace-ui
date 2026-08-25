@@ -109,7 +109,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-card text-foreground border-gray-800">
+      <DialogContent className="sm:max-w-md bg-card text-foreground border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">Insert Media</DialogTitle>
           <DialogDescription className="text-foreground/80">
@@ -123,7 +123,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               className={`border-2 border-dashed rounded-lg p-6 ${
                 dragActive 
                   ? 'border-primary-accent bg-primary/10' 
-                  : 'border-gray-600 hover:border-primary-accent hover:bg-primary/10'
+                  : 'border-border hover:border-primary-accent hover:bg-primary/10'
               }`}
               onDragEnter={handleDrag}
               onDragOver={handleDrag}
@@ -160,7 +160,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                   className="rounded-md max-h-80 mx-auto object-contain" 
                 />
                 <button 
-                  className="absolute top-2 right-2 rounded-full bg-gray-800/80 p-1 hover:bg-gray-700"
+                  className="absolute top-2 right-2 rounded-full bg-background/80 p-1 hover:bg-accent"
                   onClick={() => setUploadedImage(null)}
                 >
                   <X className="h-4 w-4 text-foreground" />
@@ -177,7 +177,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                   value={altText}
                   onChange={(e) => setAltText(e.target.value)}
                   placeholder="Describe this image for screen readers"
-                  className="w-full px-3 py-2 bg-card border border-gray-700 rounded-md text-foreground"
+                  className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground"
                 />
               </div>
             </div>
@@ -187,7 +187,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             <Button 
               variant="ghost" 
               onClick={handleCancel}
-              className="text-foreground hover:bg-gray-800"
+              className="text-foreground hover:bg-accent"
             >
               Cancel
             </Button>

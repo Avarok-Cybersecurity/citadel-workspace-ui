@@ -82,7 +82,7 @@ function Row({ label, value, valueClassName = 'text-foreground', copyable, fullV
 export function MessageStatusDetails({ message }: MessageStatusDetailsProps) {
   return (
     <div className="space-y-1 text-xs min-w-[200px]">
-      <div className="font-semibold text-foreground border-b border-gray-600 pb-1 mb-2">
+      <div className="font-semibold text-foreground border-b border-border pb-1 mb-2">
         Message Details
       </div>
       <Row

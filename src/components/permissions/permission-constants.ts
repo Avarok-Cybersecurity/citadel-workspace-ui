@@ -41,7 +41,7 @@ export const ROLE_HIERARCHY = [
   { value: 'Admin', label: 'Administrator', color: 'bg-destructive' },
   { value: 'Owner', label: 'Owner', color: 'bg-warning' },
   { value: 'Member', label: 'Member', color: 'bg-primary-accent' },
-  { value: 'Guest', label: 'Guest', color: 'bg-gray-500' },
+  { value: 'Guest', label: 'Guest', color: 'bg-muted-foreground' },
 ];
 
 /** Returns the default permission IDs granted to a given role. */

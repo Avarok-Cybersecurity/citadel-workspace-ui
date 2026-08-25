@@ -33,8 +33,8 @@ export function getRoleBadgeClass(role?: UserRole): string {
     case UserRole.Member:
       return 'bg-success hover:bg-success/90';
     case UserRole.Guest:
-      return 'bg-gray-500 hover:bg-gray-600';
+      return 'bg-muted hover:bg-muted/80';
     default:
-      return 'bg-gray-500 hover:bg-gray-600';
+      return 'bg-muted hover:bg-muted/80';
   }
 }

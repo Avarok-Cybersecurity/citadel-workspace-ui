@@ -31,7 +31,7 @@ export const ExitConfirmModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background border-gray-800 text-foreground max-w-md">
+      <DialogContent className="bg-background border-border text-foreground max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary">
@@ -50,7 +50,7 @@ export const ExitConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-input rounded-lg border border-gray-800">
+        <div className="my-4 p-4 bg-input rounded-lg border border-border">
           <p className="text-sm text-foreground/80">
             💡 <strong>Tip:</strong> Your session will remain active. Click the
             workspace icon on the landing page to return instantly without
@@ -62,7 +62,7 @@ export const ExitConfirmModal = ({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="bg-transparent border-gray-700 text-foreground/80 hover:bg-gray-800 hover:text-foreground"
+            className="bg-transparent border-border text-foreground/80 hover:bg-accent hover:text-foreground"
           >
             Cancel
           </Button>

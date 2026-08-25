@@ -118,7 +118,7 @@ const TemplateSelector = ({
                       className={`relative rounded-md overflow-hidden border-2 transition-all cursor-pointer
                         ${selectedTemplate?.id === template.id
                           ? 'border-primary-accent shadow-lg shadow-primary/30'
-                          : 'border-gray-700 hover:border-gray-500'
+                          : 'border-border hover:border-border'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
                       role="button"
@@ -197,7 +197,7 @@ const TemplateSelector = ({
           <Button
             variant="outline"
             onClick={() => setOpen(false)}
-            className="border-gray-700 text-foreground/80 hover:bg-gray-700"
+            className="border-border text-foreground/80 hover:bg-accent"
           >
             Cancel
           </Button>

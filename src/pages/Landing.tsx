@@ -229,7 +229,7 @@ export const Landing = () => {
           {/* Secondary actions */}
           <div className="mt-6 flex items-center gap-4">
             <ManageAccountsButton />
-            <div className="w-[1px] h-4 bg-gray-700" />
+            <div className="w-[1px] h-4 bg-border" />
             <Button
               variant="ghost"
               size="sm"

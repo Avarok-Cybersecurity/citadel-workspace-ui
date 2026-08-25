@@ -24,9 +24,9 @@ function getRoleBadgeClass(role?: UserRole): string {
     case UserRole.Member:
       return 'bg-success hover:bg-success/90';
     case UserRole.Guest:
-      return 'bg-gray-500 hover:bg-gray-600';
+      return 'bg-muted hover:bg-muted/80';
     default:
-      return 'bg-gray-500 hover:bg-gray-600';
+      return 'bg-muted hover:bg-muted/80';
   }
 }
 
@@ -90,7 +90,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
           <Button
             variant="ghost"
             size="sm"
-            className="text-primary-accent hover:text-foreground hover:bg-gray-700"
+            className="text-primary-accent hover:text-foreground hover:bg-accent"
             aria-label={`Unfavourite ${member.displayName}`}
           >
             <Star className="h-4 w-4 fill-current" aria-hidden="true" />
@@ -100,7 +100,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground hover:text-foreground hover:bg-gray-700"
+            className="text-muted-foreground hover:text-foreground hover:bg-accent"
             onClick={() => onInvite(member.id)}
             aria-label={`Send a connection request to ${member.displayName}`}
           >
@@ -110,7 +110,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-foreground hover:bg-gray-700"
+          className="text-muted-foreground hover:text-foreground hover:bg-accent"
           onClick={() => onSendMessage(member.id)}
           aria-label={`Message ${member.displayName}`}
         >

@@ -67,7 +67,7 @@ export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor>
         title="Strikethrough"
       />
 
-      <div className="w-px h-5 bg-gray-600/50 mx-1" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       <ToolbarButton
         icon={<Heading1 className="h-4 w-4" />}
@@ -82,7 +82,7 @@ export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor>
         title="Heading 2"
       />
 
-      <div className="w-px h-5 bg-gray-600/50 mx-1" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       <ToolbarButton
         icon={<List className="h-4 w-4" />}
@@ -97,7 +97,7 @@ export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor>
         title="Numbered List"
       />
 
-      <div className="w-px h-5 bg-gray-600/50 mx-1" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       <ToolbarButton
         icon={<Quote className="h-4 w-4" />}

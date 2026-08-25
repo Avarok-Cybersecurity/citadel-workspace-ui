@@ -160,7 +160,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
           variant="outline"
           onClick={handleCancel}
           disabled={!hasChanges || saving}
-          className="border-gray-600 text-foreground hover:bg-card"
+          className="border-border text-foreground hover:bg-card"
           data-testid="general-cancel-button"
         >
           Reset

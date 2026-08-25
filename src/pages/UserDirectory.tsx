@@ -148,7 +148,7 @@ export const UserDirectory = () => {
 
               {['all', 'online'].map(tabValue => (
                 <TabsContent key={tabValue} value={tabValue} className="m-0">
-                  <div className="divide-y divide-gray-700">
+                  <div className="divide-y divide-border">
                     {filteredMembers.map((member) => (
                       <MemberListItem
                         key={member.id}

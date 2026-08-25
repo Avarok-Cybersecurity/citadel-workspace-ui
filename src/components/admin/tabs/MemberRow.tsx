@@ -21,7 +21,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   Admin: 'bg-destructive',
   Owner: 'bg-warning',
   Member: 'bg-primary-accent',
-  Guest: 'bg-gray-500',
+  Guest: 'bg-muted-foreground',
   Banned: 'bg-black',
 };
 
@@ -85,7 +85,7 @@ export function MemberRow({
             disabled={isUpdatingRole}
           >
             <SelectTrigger
-              className="w-32 bg-card border-gray-600 text-foreground"
+              className="w-32 bg-card border-border text-foreground"
               data-testid={`member-role-select-${member.userId}`}
             >
               {isUpdatingRole ? (
@@ -94,7 +94,7 @@ export function MemberRow({
                 <SelectValue />
               )}
             </SelectTrigger>
-            <SelectContent className="bg-card border-gray-600">
+            <SelectContent className="bg-card border-border">
               {USER_ROLES.map((role) => (
                 <SelectItem key={role} value={role}>
                   <div className="flex items-center gap-2">

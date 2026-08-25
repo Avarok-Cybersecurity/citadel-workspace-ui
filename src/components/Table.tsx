@@ -35,7 +35,7 @@ const TableComponent = ({ data, children, className }: TableProps) => {
     <div className="my-6 w-full overflow-y-auto">
       <UITable>
         <TableHeader>
-          <TableRow className="border-b border-gray-800">
+          <TableRow className="border-b border-border">
             <TableHead className="text-foreground font-medium p-4 bg-card">Time</TableHead>
             <TableHead className="text-foreground font-medium p-4 bg-card">Monday</TableHead>
             <TableHead className="text-foreground font-medium p-4 bg-card">Tuesday</TableHead>

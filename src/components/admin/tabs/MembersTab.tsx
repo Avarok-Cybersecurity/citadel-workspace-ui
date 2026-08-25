@@ -150,7 +150,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
             variant="outline"
             size="sm"
             onClick={() => setSelectedMember(null)}
-            className="border-gray-600 text-foreground hover:bg-card"
+            className="border-border text-foreground hover:bg-card"
           >
             Back to Members
           </Button>
@@ -207,12 +207,12 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       </ScrollArea>
 
       {/* Role Legend */}
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-600">
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
         {USER_ROLES.map((role) => (
           <Badge
             key={role}
             variant="outline"
-            className="border-gray-600 text-muted-foreground"
+            className="border-border text-muted-foreground"
           >
             <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]} mr-1`} />
             {role}

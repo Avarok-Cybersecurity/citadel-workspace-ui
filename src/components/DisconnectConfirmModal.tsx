@@ -47,7 +47,7 @@ export const DisconnectConfirmModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background border-gray-800 text-foreground max-w-md">
+      <DialogContent className="bg-background border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-foreground">
             Remove Workspace Session?
@@ -60,7 +60,7 @@ export const DisconnectConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 p-4 bg-input rounded-lg border border-gray-800">
+        <div className="my-4 p-4 bg-input rounded-lg border border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-primary-foreground font-semibold">
               {session.full_name?.charAt(0).toUpperCase() ||
@@ -119,7 +119,7 @@ export const DisconnectConfirmModal = ({
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="w-full text-muted-foreground hover:bg-gray-800 hover:text-foreground"
+            className="w-full text-muted-foreground hover:bg-accent hover:text-foreground"
             disabled={isProcessing}
           >
             Cancel

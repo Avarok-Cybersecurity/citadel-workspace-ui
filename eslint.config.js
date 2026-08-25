@@ -85,10 +85,10 @@ export default tseslint.config(
         // Checked on every string, not just className: several colour maps live
         // in plain .ts objects (role badges, file-state icons) and those were
         // exactly where hardcoded hues kept accumulating.
-        selector: "Literal[value=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky)-[0-9]/]",
+        selector: "Literal[value=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky|gray|slate|zinc|neutral|stone)-[0-9]/]",
         message: "Hardcoded Tailwind palette class. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border — see src/index.css.",
       }, {
-        selector: "TemplateElement[value.raw=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky)-[0-9]/]",
+        selector: "TemplateElement[value.raw=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky|gray|slate|zinc|neutral|stone)-[0-9]/]",
         message: "Hardcoded Tailwind palette class. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border — see src/index.css.",
       }],
       "no-case-declarations": "off",

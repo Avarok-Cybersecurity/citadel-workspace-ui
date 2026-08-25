@@ -113,7 +113,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
           relative w-32 h-32 rounded-full overflow-hidden cursor-pointer
           border-2 border-dashed transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-          ${isDragActive ? 'border-primary-accent bg-primary-accent/10' : 'border-gray-600 hover:border-gray-500'}
+          ${isDragActive ? 'border-primary-accent bg-primary-accent/10' : 'border-border hover:border-border'}
           ${isProcessing ? 'animate-pulse' : ''}
         `}
       >
@@ -134,7 +134,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
             )}
           </>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-muted">
             {isProcessing ? (
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-accent" />
             ) : (

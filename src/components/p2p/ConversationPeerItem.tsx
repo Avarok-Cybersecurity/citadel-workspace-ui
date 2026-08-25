@@ -32,7 +32,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
           </Avatar>
           <Circle
             className={`absolute bottom-0 right-0 h-3 w-3 ${
-              peer.isConnected ? 'fill-success text-success' : 'fill-gray-400 text-muted-foreground'
+              peer.isConnected ? 'fill-success text-success' : 'fill-muted-foreground text-muted-foreground'
             }`}
           />
         </div>

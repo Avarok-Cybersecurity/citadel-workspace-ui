@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
  */
 export function RoleBadge({ role }: { role: UserRole | null }) {
   if (!role) {
-    return <Badge variant="outline" className="text-muted-foreground border-gray-600">Unknown</Badge>;
+    return <Badge variant="outline" className="text-muted-foreground border-border">Unknown</Badge>;
   }
 
   const roleString = typeof role === 'string' ? role : 'Custom';
@@ -31,7 +31,7 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
     Admin: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
     Owner: 'bg-warning/20 text-warning border-warning/50',
     Member: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
-    Guest: 'bg-gray-600/20 text-muted-foreground border-gray-500/50',
+    Guest: 'bg-muted text-muted-foreground border-border',
     Banned: 'bg-destructive/20 text-destructive border-destructive/50',
     Custom: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
   };
@@ -82,7 +82,7 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }) {
         const totalCount = category.permissions.length;
 
         return (
-          <AccordionItem key={key} value={key} className="border-gray-700/50">
+          <AccordionItem key={key} value={key} className="border-border/50">
             <AccordionTrigger className="text-foreground/80 hover:text-foreground hover:no-underline py-2">
               <div className="flex items-center gap-3">
                 <span>{category.label}</span>

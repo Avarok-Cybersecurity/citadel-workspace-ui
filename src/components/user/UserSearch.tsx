@@ -162,7 +162,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-center bg-card rounded-md border border-gray-700">
+      <div className="flex items-center bg-card rounded-md border border-border">
         <Search className="h-4 w-4 text-muted-foreground ml-3" />
         <Input
           ref={inputRef}
@@ -181,7 +181,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 mr-1 text-muted-foreground hover:text-foreground hover:bg-gray-700"
+            className="h-8 w-8 p-0 mr-1 text-muted-foreground hover:text-foreground hover:bg-accent"
             onClick={handleClearSearch}
             aria-label="Clear search"
           >

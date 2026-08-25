@@ -147,7 +147,7 @@ export function GroupRoleEditor({
               ))}
               <button
                 onClick={() => setColor('')}
-                className={`w-7 h-7 rounded-full border-2 border-dashed border-gray-500 text-xs text-muted-foreground ${
+                className={`w-7 h-7 rounded-full border-2 border-dashed border-border text-xs text-muted-foreground ${
                   !color ? 'ring-2 ring-offset-2 ring-offset-background ring-white' : ''
                 }`}
                 title="No color"

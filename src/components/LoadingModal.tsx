@@ -123,7 +123,7 @@ export const LoadingModal = ({
 
       {/* Modal Content */}
       <div
-        className={`relative z-10 bg-background border border-gray-700 rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
+        className={`relative z-10 bg-background border border-border rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
           }`}
       >
         {/* Icon */}

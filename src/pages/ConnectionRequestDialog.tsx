@@ -31,7 +31,7 @@ export function ConnectionRequestDialog({
 }: ConnectionRequestDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card text-foreground border-gray-700">
+      <DialogContent className="bg-card text-foreground border-border">
         <DialogHeader>
           <DialogTitle>Send Connection Request</DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -56,7 +56,7 @@ export function ConnectionRequestDialog({
               value={requestMessage}
               onChange={(e) => onRequestMessageChange(e.target.value)}
               placeholder="Tell them why you'd like to connect..."
-              className="w-full h-24 px-3 py-2 bg-card border border-gray-700 rounded-md text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full h-24 px-3 py-2 bg-card border border-border rounded-md text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
@@ -66,7 +66,7 @@ export function ConnectionRequestDialog({
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={sendingRequest}
-            className="text-foreground/80 hover:text-foreground hover:bg-gray-700"
+            className="text-foreground/80 hover:text-foreground hover:bg-accent"
           >
             Cancel
           </Button>

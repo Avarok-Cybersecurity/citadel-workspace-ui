@@ -40,7 +40,7 @@ interface ToolbarButton {
 }
 
 function ToolbarDivider() {
-  return <div className="w-px h-6 bg-gray-700 mx-1" />;
+  return <div className="w-px h-6 bg-border mx-1" />;
 }
 
 export function MDXToolbar({
@@ -101,7 +101,7 @@ export function MDXToolbar({
 
   return (
     <TooltipProvider>
-      <div className="bg-card p-2 mb-2 rounded-t-md border-b border-gray-700 flex flex-wrap gap-1">
+      <div className="bg-card p-2 mb-2 rounded-t-md border-b border-border flex flex-wrap gap-1">
         {renderGroup(formatGroup)}
         <ToolbarDivider />
         {renderGroup(headingGroup)}

@@ -35,7 +35,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
 
   return (
     <div className={cn(
-      'group flex gap-3 px-4 py-2 hover:bg-gray-800/50 transition-colors',
+      'group flex gap-3 px-4 py-2 hover:bg-accent/50 transition-colors',
       isOwnMessage && 'flex-row-reverse'
     )}>
       <Avatar className="h-8 w-8 flex-shrink-0">
@@ -58,10 +58,10 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
           'rounded-lg px-3 py-2 text-sm',
           isOwnMessage
             ? 'bg-primary text-foreground'
-            : 'bg-gray-700 text-foreground'
+            : 'bg-muted text-foreground'
         )}>
           {message.reply_to && (
-            <div className="text-xs text-muted-foreground mb-1 border-l-2 border-gray-500 pl-2">
+            <div className="text-xs text-muted-foreground mb-1 border-l-2 border-border pl-2">
               Replying to a message
             </div>
           )}

@@ -136,7 +136,7 @@ export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessag
             </TooltipTrigger>
             <TooltipContent
               side="top"
-              className="bg-background border-gray-700 p-3"
+              className="bg-background border-border p-3"
             >
               <ReadByTooltipContent
                 readBy={readBy}

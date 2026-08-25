@@ -183,7 +183,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
           variant="outline"
           onClick={handleReset}
           disabled={!hasChanges || saving}
-          className="border-gray-600 text-foreground hover:bg-card"
+          className="border-border text-foreground hover:bg-card"
           data-testid="chat-reset-button"
         >
           Reset

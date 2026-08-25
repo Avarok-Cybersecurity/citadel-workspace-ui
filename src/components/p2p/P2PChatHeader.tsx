@@ -55,7 +55,7 @@ function getStatusDisplay(
     case MessagingLayerType.Away:
       return { text: 'Away', color: 'bg-warning', textColor: 'text-warning' };
     case MessagingLayerType.Offline:
-      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-muted-foreground' };
+      return { text: 'Offline', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
     case MessagingLayerType.CustomState:
       return {
         text: presence.customText || 'Custom',
@@ -64,7 +64,7 @@ function getStatusDisplay(
         customColor: presence.customColor
       };
     default:
-      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-muted-foreground' };
+      return { text: 'Offline', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
   }
 }
 

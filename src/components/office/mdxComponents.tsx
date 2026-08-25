@@ -36,7 +36,7 @@ export const components: MDXComponents = {
   ),
   table: ({ children, ...props }: React.DetailedHTMLProps<React.TableHTMLAttributes<HTMLTableElement>, HTMLTableElement>) => (
     <div className="my-6 w-full overflow-y-auto">
-      <Table {...props} className="w-full border border-gray-800">
+      <Table {...props} className="w-full border border-border">
         {children}
       </Table>
     </div>
@@ -49,17 +49,17 @@ export const components: MDXComponents = {
     </TableRow>
   ),
   th: ({ children, ...props }: React.DetailedHTMLProps<React.ThHTMLAttributes<HTMLTableHeaderCellElement>, HTMLTableHeaderCellElement>) => (
-    <TableHead {...props} className="border-b border-gray-800 bg-gray-900/50 text-foreground font-medium p-4">
+    <TableHead {...props} className="border-b border-border bg-muted/50 text-foreground font-medium p-4">
       {children}
     </TableHead>
   ),
   td: ({ children, ...props }: React.DetailedHTMLProps<React.TdHTMLAttributes<HTMLTableDataCellElement>, HTMLTableDataCellElement>) => (
-    <TableCell {...props} className="border-b border-gray-800 text-foreground/80 p-4">
+    <TableCell {...props} className="border-b border-border text-foreground/80 p-4">
       {children}
     </TableCell>
   ),
   Card: ({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) => (
-    <Card className="bg-card border-gray-700 mb-6">
+    <Card className="bg-card border-border mb-6">
       <CardHeader>
         <CardTitle className="text-foreground">{title}</CardTitle>
         {description && <CardDescription className="text-foreground/80">{description}</CardDescription>}

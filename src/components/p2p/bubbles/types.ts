@@ -34,7 +34,7 @@ export function getBubbleStyles(isOwn: boolean, isFailed: boolean): string {
       ? 'bg-surface text-white border border-destructive/30'
       : 'bg-primary text-white';
   }
-  return 'bg-surface text-gray-100';
+  return 'bg-surface text-foreground';
 }
 
 export function getBubbleContainerStyles(isOwn: boolean): string {

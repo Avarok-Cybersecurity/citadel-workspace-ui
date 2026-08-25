@@ -50,7 +50,7 @@ export function getRoleIcon(role: GroupRole): React.ReactElement {
   if (role.position >= 50) {
     return createElement(Shield, { className: 'h-4 w-4 text-primary-accent' });
   }
-  return createElement(User, { className: 'h-4 w-4 text-gray-400' });
+  return createElement(User, { className: 'h-4 w-4 text-muted-foreground' });
 }
 
 /** Get avatar color from role or cycle through palette */

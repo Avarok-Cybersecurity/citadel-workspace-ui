@@ -108,7 +108,7 @@ export function PermissionsSettingsTab() {
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing || loading}
-          className="text-muted-foreground border-gray-600 hover:bg-gray-700"
+          className="text-muted-foreground border-border hover:bg-accent"
         >
           {isRefreshing || loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -121,7 +121,7 @@ export function PermissionsSettingsTab() {
 
       {/* Nested Permission Tree */}
       <Accordion type="multiple" defaultValue={[`workspace-${workspaceId}`]} className="w-full">
-        <AccordionItem value={`workspace-${workspaceId}`} className="border-gray-700">
+        <AccordionItem value={`workspace-${workspaceId}`} className="border-border">
           <AccordionTrigger className="text-foreground hover:text-foreground hover:no-underline">
             <div className="flex items-center gap-3">
               <Building2 className="h-5 w-5 text-primary-accent" />
@@ -162,7 +162,7 @@ export function PermissionsSettingsTab() {
       </Accordion>
 
       {/* Legend */}
-      <div className="border-t border-gray-700 pt-4">
+      <div className="border-t border-border pt-4">
         <p className="text-xs text-muted-foreground mb-2">Legend</p>
         <div className="flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-1.5">
