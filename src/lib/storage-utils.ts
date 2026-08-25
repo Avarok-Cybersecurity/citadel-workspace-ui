@@ -178,16 +178,13 @@ export function saveToStorage<T>(key: string, data: T): void {
     const serializedData = JSON.stringify(data, bigIntToString);
     localStorage.setItem(key, serializedData);
   } catch (error) {
-    // errorLog, not debugLog. debugLog is `isDev ? console.log : noop`, so this
-    // — the one path where the user's data fails to persist — was the only
-    // failure in this file invisible in production, while four others above it
-    // already use warnLog/errorLog.
-    //
-    // The realistic cause is QuotaExceededError: localStorage caps around 5MB
-    // and `workspace-messages` writes the whole per-peer message map on every
-    // change. Past the cap every write throws, nothing is persisted, and the
-    // app carries on looking fine until a reload shows the history stopped at
-    // whenever the quota filled.
+    // errorLog, not debugLog: debugLog is `isDev ? console.log : noop`, so the
+    // one path where the user's data fails to persist was the only failure in
+    // this file invisible in production, while four above it already use
+    // warnLog/errorLog. Realistic cause is QuotaExceededError — localStorage
+    // caps near 5MB and `workspace-messages` rewrites the whole per-peer map on
+    // every change, after which nothing persists and the app looks fine until a
+    // reload shows history stopping where the quota filled.
     errorLog('StorageUtils', `Failed to persist '${key}' (quota exceeded?):`, error);
   }
 }
