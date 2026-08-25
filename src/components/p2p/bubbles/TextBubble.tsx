@@ -32,7 +32,13 @@ export function TextBubble({
   const shouldShowAvatar = showSenderAvatar && !isOwn;
 
   return (
-    <div className={`group flex gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+    // min-w-0 here and on the column below, or max-w-[80%] does not hold. A flex
+    // item defaults to min-width:auto, and per spec min-width beats max-width —
+    // so one unbreakable child (a <pre> of code, which does not wrap) widens the
+    // whole row past the message list. Measured before the fix: a single long
+    // code line produced a 762px bubble inside a 600px list, with the pre's
+    // overflow-x-auto inert because nothing constrained its width.
+    <div className={`group flex min-w-0 gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">
@@ -42,7 +48,7 @@ export function TextBubble({
         </Avatar>
       )}
 
-      <div className={`flex flex-col ${isOwn ? 'items-end' : ''}`}>
+      <div className={`flex min-w-0 flex-col ${isOwn ? 'items-end' : ''}`}>
         {/* Sender name (group mode) */}
         {showSenderName && !isOwn && (
           <span className="text-xs text-muted-foreground mb-1 px-1">
@@ -50,7 +56,7 @@ export function TextBubble({
           </span>
         )}
 
-        <div className={`rounded-lg px-3 py-2 ${bubbleStyles}`}>
+        <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           {/* Inline failure indicator */}
           {isOwn && isFailed && (
