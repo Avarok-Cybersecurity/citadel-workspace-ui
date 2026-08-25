@@ -12,7 +12,8 @@ import { YjsMerkleTree, computeDocumentHash } from '@/lib/yjs-merkle-strategy';
 import { debugLog } from '@/lib/debug-config';
 
 import type { YjsOrigin, YjsP2PMessage, YjsSyncMessage, SyncState, PendingAck } from './types';
-import { YJS_SYNC_COOLDOWN_MS, YJS_SYNC_RESET_DELAY_MS, YJS_HEALTH_CHECK_INTERVAL_MS, YJS_UPDATE_COALESCE_MS } from './constants';
+import { YJS_SYNC_COOLDOWN_MS, YJS_SYNC_RESET_DELAY_MS, YJS_HEALTH_CHECK_INTERVAL_MS } from './constants';
+import { UpdateCoalescer } from './update-coalescer';
 import { sendSyncMessage, sendUpdate, broadcastAwareness } from './sending';
 import type { SendingContext } from './sending';
 import { handleSyncStep1, handleSyncStep2, handleUpdate, handleFullState, handleRequestFullState, handleHashCheck } from './sync-handlers';
@@ -20,9 +21,8 @@ import { handleAwarenessMessage, handleAckMessage, handleDivergenceMessage } fro
 import { checkPendingAcks, handleHashMismatch } from './ack-checker';
 
 export class YjsP2PProvider {
-  /** Edits waiting for the coalescing window to close. */
-  private pendingUpdates: Uint8Array[] = [];
-  private flushTimer: number | null = null;
+  /** Buffers rapid edits into one merged update; see UpdateCoalescer. */
+  private coalescer: UpdateCoalescer;
   doc: Y.Doc;
   awareness: Awareness;
   documentId: string;
@@ -54,6 +54,11 @@ export class YjsP2PProvider {
     this.creatorCid = creatorCid || ownCid;
     this.awareness = new Awareness(doc);
     this.merkleTree = YjsMerkleTree.fromDocument(doc, documentId, this.creatorCid);
+    this.coalescer = new UpdateCoalescer((merged) => {
+      if (this.destroyed) return;
+      sendUpdate(this.ctx, merged);
+      this.updateMerkleTree();
+    });
     this.setupUpdateHandler();
     this.setupAwarenessHandler();
     this.setupMessageListener();
@@ -96,34 +101,11 @@ export class YjsP2PProvider {
     this.updateHandler = (update: Uint8Array, origin: YjsOrigin) => {
       if (this.destroyed) return;
       if (origin === 'remote' || origin === 'merkle-reconstruct' || origin === 'creator-resync') return;
-      // Buffered, not sent. See YJS_UPDATE_COALESCE_MS: one message per
-      // keystroke overruns a stop-and-wait transport and the later edits time
-      // out waiting for a turn.
-      this.pendingUpdates.push(update);
-      if (this.flushTimer === null) {
-        this.flushTimer = window.setTimeout(() => this.flushUpdates(), YJS_UPDATE_COALESCE_MS);
-      }
+      // Buffered, not sent: one message per keystroke overruns a stop-and-wait
+      // transport and the later edits time out waiting for a turn.
+      this.coalescer.add(update);
     };
     this.doc.on('update', this.updateHandler);
-  }
-
-  /**
-   * Merge the buffered edits into one update and send it.
-   *
-   * `Y.mergeUpdates` is lossless -- the merged payload applies to exactly the
-   * same state as the sequence would have -- so this changes how many messages
-   * carry the edits, never which edits arrive.
-   */
-  private flushUpdates() {
-    this.flushTimer = null;
-    if (this.destroyed || this.pendingUpdates.length === 0) return;
-
-    const batch = this.pendingUpdates;
-    this.pendingUpdates = [];
-    // Merging one update is wasted work and an extra chance to be wrong.
-    const merged = batch.length === 1 ? batch[0] : Y.mergeUpdates(batch);
-    sendUpdate(this.ctx, merged);
-    this.updateMerkleTree();
   }
 
   private setupAwarenessHandler() {
@@ -235,11 +217,7 @@ export class YjsP2PProvider {
     // Flushed BEFORE the destroyed flag, or edits made in the last 120ms are
     // silently dropped -- closing a document right after typing is the normal
     // way to use one.
-    if (this.flushTimer !== null) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    this.flushUpdates();
+    this.coalescer.flush();
     this.destroyed = true;
     this.connected = false;
     if (this.ackCheckInterval) { clearInterval(this.ackCheckInterval); this.ackCheckInterval = null; }

@@ -10,7 +10,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
-import { describeForwarded } from '@/lib/p2p/message-fingerprint';
+import { logEmit } from './router-diagnostics';
 import { instanceChannel } from './instance-channel';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
@@ -206,16 +206,11 @@ class InstanceInboundRouter {
       const knownInstances = instanceManager.getAllInstances();
       debugLog('InstanceInboundRouter', `[ILM-Router] No instance owns CID ${targetCid}, message may be lost`);
       debugLog('InstanceInboundRouter', `[ILM-Router] Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
-      // Self-heal: BUFFER the orphaned message for up to the buffer
-      // timeout, then either replay to the correct tab when a
-      // cid-report lands OR fall back to processing locally on
-      // timeout. Prior to the buffer, the current message was always
-      // processed on the leader tab immediately — visible misdelivery
-      // for user-facing notifications (chat messages, file-transfer
-      // prompts) on every first message after a stale CID map. The
-      // buffer holds for the BroadcastChannel round-trip; if no
-      // follower owns the CID, the fallback timer makes the leader
-      // process locally so we never strand a real message.
+      // Self-heal: buffer the orphan, then replay to the right tab when a
+      // cid-report lands, or fall back to processing locally on timeout.
+      // Processing on the leader immediately (the old behaviour) misdelivered
+      // user-facing notifications on every first message after a stale CID map;
+      // the fallback timer still guarantees nothing is stranded.
       this.orphanBuffer.push(targetCid, message, messageType);
       instanceChannel.requestCidReport();
     }
@@ -229,21 +224,8 @@ class InstanceInboundRouter {
   }
 
   private processLocalMessage(message: unknown): void {
-    // The listener count is the diagnostic that matters here. A message emitted
-    // with no subscriber vanishes silently -- no error, no trace -- and that is
-    // indistinguishable from never having arrived. The router's own receiver
-    // attaches at module load, but the P2P messenger subscribes to
-    // 'websocket-message' only when it is constructed later in app init, so a
-    // message forwarded into a still-booting tab lands in exactly that window.
-    // Joined to the sending tab's `[ILM-Router] forward ->` line by fingerprint.
-    const listeners = eventEmitter.listenerCount('websocket-message');
-    if (listeners === 0) {
-      debugLog('InstanceInboundRouter',
-        `[ILM-Router] emit with NO listeners ${describeForwarded(message)} — message is lost here`);
-    } else {
-      debugLog('InstanceInboundRouter',
-        `[ILM-Router] emit listeners=${listeners} ${describeForwarded(message)}`);
-    }
+    // See logEmit: a message emitted to zero listeners disappears without trace.
+    logEmit(eventEmitter.listenerCount('websocket-message'), message);
     eventEmitter.emit('websocket-message', message);
   }
 
