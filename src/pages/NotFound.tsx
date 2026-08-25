@@ -13,7 +13,12 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-background">
+    // <main>, not <div>: axe reports "Document should have one main landmark"
+    // and "All page content should be contained by landmarks" here. A screen
+    // reader user navigates by landmark, and on a page whose entire job is to
+    // say "this is not the page you wanted", having nothing to jump to is
+    // exactly the wrong place to make someone hunt.
+    <main className="min-h-dvh flex items-center justify-center bg-background">
       <div className="text-center">
         <h1 className="text-6xl font-bold text-primary-accent mb-4">404</h1>
         <p className="text-xl text-foreground/80 mb-6">Oops! Page not found</p>
@@ -25,7 +30,7 @@ const NotFound = () => {
           Return to Home
         </Button>
       </div>
-    </div>
+    </main>
   );
 };
 

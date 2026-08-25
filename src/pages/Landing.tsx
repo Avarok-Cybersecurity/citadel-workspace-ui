@@ -180,8 +180,12 @@ export const Landing = () => {
           media query has to express — see .landing-scrim in index.css. */}
       <div className="absolute inset-0 z-[2] fixed pointer-events-none landing-scrim" />
 
-      {/* Content */}
-      <div className={cn(
+      {/* Content. <main>, not <div>: axe flags the heading and CTA block as
+          "content not contained by landmarks". Only this region becomes the
+          landmark — the orphan-sessions navbar above and the decorative
+          background layers are deliberately outside it, since a landmark that
+          swallows the navigation is no more useful than none. */}
+      <main className={cn(
         "container mx-auto px-6 sm:px-8 lg:px-12 py-10 md:py-0 relative z-10",
         hasOrphanSessions && "pt-24"
       )}>
@@ -256,7 +260,7 @@ export const Landing = () => {
             </p>
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Registration Flow Overlays */}
       {currentStep === 'server' && (
