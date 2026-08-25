@@ -167,17 +167,20 @@ async function verifyDefaultFolders(page: Page): Promise<boolean> {
 async function createFolder(page: Page, folderName: string): Promise<boolean> {
   console.log(`\n=== Creating folder "${folderName}" ===`);
   try {
-    // Handle the prompt() dialog that will be triggered
-    page.once('dialog', async dialog => {
-      console.log(`  Dialog appeared: "${dialog.message()}"`);
-      await dialog.accept(folderName);
-    });
-
-    // Click the New Folder button in toolbar (FolderPlus icon)
+    // The name is asked for by an in-app dialog now, not window.prompt, so
+    // there is no native dialog to accept — type into the field and submit.
     const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') });
     if (await isVisibleWithin(newFolderBtn, 5000)) {
       await newFolderBtn.click();
       console.log('  Clicked New Folder button');
+
+      const nameInput = page.locator('#prompt-dialog-input');
+      if (!await isVisibleWithin(nameInput, 5000)) {
+        console.log('  ERROR: the new-folder dialog did not appear');
+        return false;
+      }
+      await nameInput.fill(folderName);
+      await page.locator('[role="dialog"] button:has-text("Create folder")').click();
       await sleep(2000);
 
       // Verify folder appeared
@@ -198,11 +201,8 @@ async function createFolder(page: Page, folderName: string): Promise<boolean> {
 async function deleteFolder(page: Page, folderName: string): Promise<boolean> {
   console.log(`\n=== Deleting folder "${folderName}" ===`);
   try {
-    // Handle the confirm() dialog
-    page.once('dialog', async dialog => {
-      console.log(`  Confirm dialog: "${dialog.message()}"`);
-      await dialog.accept();
-    });
+    // Deletion is confirmed by an in-app AlertDialog now, not window.confirm;
+    // the confirm button is clicked after the menu item below.
 
     // Right-click on the folder
     const folder = page.getByText(folderName, { exact: true }).first();
@@ -220,6 +220,15 @@ async function deleteFolder(page: Page, folderName: string): Promise<boolean> {
     if (await isVisibleWithin(deleteItem, 3000)) {
       await deleteItem.click();
       console.log('  Clicked Delete menu item');
+
+      // Confirm in the app's own dialog.
+      const confirmDelete = page.locator('[role="alertdialog"] button:has-text("Delete")').last();
+      if (await isVisibleWithin(confirmDelete, 5000)) {
+        await confirmDelete.click();
+        console.log('  Confirmed deletion in the in-app dialog');
+      } else {
+        console.log('  WARNING: in-app confirm dialog did not appear');
+      }
       await sleep(2000);
 
       // Verify folder gone
