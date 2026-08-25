@@ -134,16 +134,35 @@ for (const shot of screenshots) {
 // Safari ignores the manifest for home-screen icons and uses this link instead,
 // so an app can be perfectly installable on Android and still land on an iPhone
 // home screen as a blurry screenshot of the page.
-const appleIcon = join(dist, 'icons/apple-touch-icon.png');
-if (existsSync(appleIcon)) {
-  const actual = pngSize(appleIcon);
-  check(
-    actual !== null && actual.width === 180 && actual.height === 180,
-    `apple-touch-icon.png should be 180x180, the size iOS asks for; it is ` +
-      `${actual ? `${actual.width}x${actual.height}` : 'unreadable'}.`
-  );
+// iOS ignores manifest icons entirely for "Add to Home Screen" and reads this
+// <link> instead, so both halves have to hold: the tag must be DECLARED, and the
+// file it names must be in the build.
+//
+// The path is derived from index.html rather than hardcoded here. Hardcoding it
+// proved only the second half: delete the <link> and the file still sits in
+// dist/, every check passes, and iOS quietly screenshots the login page and uses
+// that as the home-screen icon. It also silently tested the wrong file the moment
+// anyone changed the href, since the two copies of the path could drift apart.
+const indexHtml = join(dist, 'index.html');
+const html = existsSync(indexHtml) ? readFileSync(indexHtml, 'utf8') : '';
+const appleHref = html
+  .match(/<link[^>]+rel=["']apple-touch-icon["'][^>]*>/i)?.[0]
+  ?.match(/href=["']([^"']+)["']/i)?.[1];
+
+if (!appleHref) {
+  check(false, 'index.html declares no apple-touch-icon — iOS falls back to a screenshot of the page.');
 } else {
-  check(false, 'icons/apple-touch-icon.png is missing — iOS falls back to a screenshot of the page.');
+  const appleIcon = join(dist, appleHref.replace(/^\//, ''));
+  if (existsSync(appleIcon)) {
+    const actual = pngSize(appleIcon);
+    check(
+      actual !== null && actual.width === 180 && actual.height === 180,
+      `${appleHref} should be 180x180, the size iOS asks for; it is ` +
+        `${actual ? `${actual.width}x${actual.height}` : 'unreadable'}.`
+    );
+  } else {
+    check(false, `index.html declares apple-touch-icon ${appleHref} but the file is not in the build.`);
+  }
 }
 
 // Shortcuts are the installed icon's context menu. They are easy to get wrong in
