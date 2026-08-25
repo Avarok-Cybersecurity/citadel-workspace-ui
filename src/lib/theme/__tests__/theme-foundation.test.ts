@@ -96,7 +96,32 @@ describe('presets', () => {
     ['secondary', 'secondaryForeground'],
     ['accent', 'accentForeground'],
     ['destructive', 'destructiveForeground'],
+    // success and warning were missing, and both failed: white on the default
+    // dark success is 2.59:1 and on the light warning 3.60:1. Status colours are
+    // the easiest pairs to leave unchecked, because they are read as decoration
+    // until the moment they carry the sentence that matters.
+    ['success', 'successForeground'],
+    ['warning', 'warningForeground'],
   ];
+
+  // primaryAccent is not a fill — it is the accent TEXT and icon colour — so no
+  // fill guarantee ever covered it, and five light presets shipped it between
+  // 3.5:1 and 4.5:1 against their own card. The colour migration routed every
+  // brand-tinted label in the app through this token, which turned a narrow
+  // defect into a wide one.
+  const ACCENT_SURFACES = ['background', 'card', 'surface'] as const;
+
+  it.each(
+    PRESET_THEMES.flatMap((t) =>
+      (['light', 'dark'] as const).flatMap((mode) =>
+        ACCENT_SURFACES.map(
+          (surface) => [`${t.name} ${mode}: primaryAccent on ${surface}`, t[mode], surface] as const,
+        ),
+      ),
+    ),
+  )('%s clears AA', (_label, palette: ThemePalette, surface: (typeof ACCENT_SURFACES)[number]) => {
+    expect(contrastRatio(palette[surface], palette.primaryAccent)).toBeGreaterThanOrEqual(4.5);
+  });
 
   it.each(
     PRESET_THEMES.flatMap((t) =>

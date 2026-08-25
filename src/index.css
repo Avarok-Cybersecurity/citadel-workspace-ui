@@ -53,8 +53,8 @@
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --success: 160 84% 28%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 38%;
+    --success-foreground: 235 18% 13%;
+    --warning: 38 92% 33%;
     --warning-foreground: 0 0% 100%;
 
     /* Lines and controls */

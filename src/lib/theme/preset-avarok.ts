@@ -42,7 +42,8 @@ export const AVAROK_LIGHT: ThemePalette = {
   destructiveForeground: { h: 0, s: 0, l: 100 },
   success: { h: 160, s: 84, l: 28 },
   successForeground: { h: 0, s: 0, l: 100 },
-  warning: { h: 38, s: 92, l: 38 },
+  // 33%, not 38%: white on 38% is 3.60:1. Every warning banner carries this.
+  warning: { h: 38, s: 92, l: 33 },
   warningForeground: { h: 0, s: 0, l: 100 },
 
   border: { h: 240, s: 15, l: 88 },
@@ -78,7 +79,10 @@ export const AVAROK_DARK: ThemePalette = {
   destructive: { h: 0, s: 84, l: 50 },
   destructiveForeground: { h: 0, s: 0, l: 100 },
   success: { h: 160, s: 84, l: 39 },
-  successForeground: { h: 0, s: 0, l: 100 },
+  // Ink, not white: white on this green is 2.59:1, while ink is 6.51:1. Dark
+  // `warning` below already takes ink for the same reason — a vivid status
+  // colour in a dark theme is light enough that dark text is the readable pair.
+  successForeground: { h: 235, s: 18, l: 13 },
   warning: { h: 38, s: 92, l: 50 },
   warningForeground: { h: 235, s: 18, l: 13 },
 

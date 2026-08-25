@@ -83,6 +83,36 @@ function ensureFillContrast(fill: HslColor, label: HslColor, min = 4.5): HslColo
   return candidate;
 }
 
+/**
+ * Nudge a TEXT colour until it clears `min` against every surface it sits on.
+ *
+ * The mirror of ensureFillContrast, and the gap that let `primaryAccent` ship
+ * unreadable: it is not a fill, it is the accent TEXT and icon colour, so no
+ * fill guarantee ever applied to it. Five light presets landed between 3.5:1
+ * and 4.5:1 against their own card — Nord at 3.53:1 — which is every accent
+ * label in the app, in a theme the workspace is free to pick.
+ *
+ * Checked against all surfaces at once rather than one at a time, because
+ * satisfying `card` alone can walk the colour straight into `background`.
+ */
+function ensureTextContrast(text: HslColor, surfaces: readonly HslColor[], min = 4.5): HslColor {
+  const clears = (c: HslColor) => surfaces.every((s) => contrastRatio(s, c) >= min);
+  if (clears(text)) return text;
+
+  // Move away from the surfaces' average lightness, so the accent darkens on a
+  // light theme and lightens on a dark one without needing to know which it is.
+  const meanL = surfaces.reduce((acc, s) => acc + s.l, 0) / surfaces.length;
+  const away = meanL > text.l ? -1 : 1;
+  let candidate = text;
+
+  for (let step = 1; step <= 100; step += 1) {
+    candidate = clamp({ ...text, l: text.l + away * step });
+    if (clears(candidate)) return candidate;
+    if (candidate.l <= 0 || candidate.l >= 100) break;
+  }
+  return candidate;
+}
+
 function clamp(c: HslColor): HslColor {
   return { ...c, l: Math.min(100, Math.max(0, c.l)) };
 }
@@ -117,6 +147,10 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
 
   const mutedForeground = mutedAgainst(card, foreground);
 
+  // primaryAccent is read as text and icons on both the page and its cards, so
+  // it is held to AA against both rather than trusted from the seed.
+  const accentText = ensureTextContrast(primaryAccent, [background, card, surface]);
+
   // Every fill that carries a label is held to AA here, so a preset cannot ship
   // with unreadable button text.
   const primaryFg = readableForeground(primary);
@@ -147,7 +181,7 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
 
     primary: primaryFill,
     primaryForeground: primaryFg,
-    primaryAccent,
+    primaryAccent: accentText,
 
     secondary: card,
     secondaryForeground: foreground,
@@ -165,7 +199,7 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
 
     border,
     input,
-    ring: primaryAccent,
+    ring: accentText,
   };
 }
 
