@@ -2,10 +2,17 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  // playwright.config.ts is excluded from tsconfig.json's include list,
-  // so project-aware parsing can't process it. Ignore it here so we
+  // The playwright configs are excluded from tsconfig.json's include list,
+  // so project-aware parsing can't process them. Ignore them here so we
   // don't have to add a duplicate tsconfig just to satisfy the linter.
-  { ignores: ["dist/**", "node_modules/**", "playwright.config.ts"] },
+  {
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "playwright.config.ts",
+      "playwright.tools.config.ts",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.ts"],
