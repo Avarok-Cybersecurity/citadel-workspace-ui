@@ -9,7 +9,7 @@
  * story lives here.
  */
 
-import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { callPeerName } from '@/lib/call/peer-name';
 import { CallManager } from '@/lib/call/call-manager';
 import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
@@ -35,8 +35,19 @@ export function useCallRuntime({
 }: UseCallRuntimeParams) {
   const managerRef = useRef<CallManager | null>(null);
   /** In-flight construction, so two callers cannot each build a manager. */
-  const managerPromiseRef = useRef<Promise<CallManager> | null>(null);
+  const managerPromiseRef = useRef<Promise<CallManager | null> | null>(null);
   const sessionRef = useRef<CallSession | null>(null);
+  /**
+   * Which CID the current manager — or the one being built — belongs to.
+   *
+   * A CallManager bakes `selfCid` into itself and into its transport, but
+   * CallLayer keeps this provider mounted across login and workspace routes and
+   * merely polls the CID. Without recording what the runtime was built for,
+   * `managerRef.current` is returned to the next caller no matter whose account
+   * is now signed in, and calling stays bound to the previous identity across
+   * logout, reconnect and account switching.
+   */
+  const managerCidRef = useRef<bigint | null>(null);
 
   /** Torn down together: a session without its manager cannot end a call. */
   const teardown = useCallback(() => {
@@ -44,17 +55,38 @@ export function useCallRuntime({
     sessionRef.current = null;
     managerRef.current = null;
     managerPromiseRef.current = null;
+    managerCidRef.current = null;
     setStreamsVersion((v) => v + 1);
   }, [setStreamsVersion]);
 
+  // Identity changed, so the runtime built for the previous CID must not
+  // outlive it. Hanging up first is best-effort — the transport it would go out
+  // on belongs to the old identity — but a peer left ringing on a call nobody
+  // is in waits out their whole timeout, so it is worth attempting.
+  useEffect(() => {
+    const builtFor = managerCidRef.current;
+    if (builtFor === null || builtFor === selfCid) return;
+    const manager = managerRef.current;
+    const state = manager?.getState();
+    if (manager && state && state.status !== 'ended' && state.status !== 'failed') {
+      void manager.end('hangup');
+    }
+    teardown();
+  }, [selfCid, teardown]);
+
   const ensureManager = useCallback(async (): Promise<CallManager | null> => {
     if (!selfCid) return null;
+    // Both caches are keyed on the identity they were built for. Reusing either
+    // across a CID change is what bound calling to the previous account.
+    if (managerCidRef.current !== null && managerCidRef.current !== selfCid) teardown();
     if (managerRef.current) return managerRef.current;
     // Memoized while under construction: the async gap below used to let a
     // second caller build a SECOND manager, and whichever finished last won —
     // losing the invite the first one had already handled.
     if (managerPromiseRef.current) return managerPromiseRef.current;
 
+    const builtFor = selfCid;
+    managerCidRef.current = builtFor;
     const build = (async () => {
       const { localCapabilities } = await import('@/lib/call/codec-support');
       const capabilities = await localCapabilities();
@@ -87,6 +119,11 @@ export function useCallRuntime({
         resolvePeerName: callPeerName,
       onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),
       });
+      // Re-checked after the two awaits above, exactly as ensureSession
+      // re-checks its import: construction started under one identity can
+      // finish under another, and installing it then would hand the new account
+      // a manager wired to the old CID.
+      if (managerCidRef.current !== builtFor) return null;
       managerRef.current = manager;
       return manager;
     })();
