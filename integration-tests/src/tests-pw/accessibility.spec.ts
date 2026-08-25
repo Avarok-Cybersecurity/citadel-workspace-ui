@@ -273,6 +273,23 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
 
     await expectNoBlockingViolations(page, 'workspace/light');
 
+    // The other surfaces, while we are already in light. Scanning only the
+    // shell would have left settings and the directory unexamined in the very
+    // mode that hid three separate defects.
+    await page.getByTestId('user-avatar-button').click({ force: true });
+    await page.getByRole('menuitem', { name: 'Settings' }).click({ force: true });
+    await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
+    await expectNoBlockingViolations(page, 'settings/light');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15_000 });
+
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/directory');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await expect(page.getByRole('heading', { name: 'User Directory' })).toBeVisible({ timeout: 30_000 });
+    await expectNoBlockingViolations(page, 'directory/light');
+
     // Back to the default, so the scans after this one are unaffected.
     await page.evaluate(() => localStorage.setItem('citadel:theme', 'dark'));
     await page.reload({ waitUntil: 'commit', timeout: 60_000 });
