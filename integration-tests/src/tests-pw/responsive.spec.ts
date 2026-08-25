@@ -438,6 +438,69 @@ test.describe.serial('Responsive workspace at 375px', () => {
         : '',
     ).toEqual([]);
   });
+
+  /**
+   * Messages is master-detail below `md`: one pane at a time. Nothing guarded
+   * that, even after it was fixed — a 288px conversation list beside a flex-1
+   * detail left the detail 87px wide at 375px and broke its text mid-word.
+   *
+   * Asserted through the panes themselves rather than through overflow alone,
+   * because the broken layout did NOT overflow: both columns fitted inside 375px
+   * by squeezing the detail into a sliver, so an overflow scan called it fine.
+   */
+  test('messages shows one pane at a time on a phone', async () => {
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/messages');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    const list = page.getByRole('heading', { name: 'Conversations' });
+    await expect(list).toBeVisible({ timeout: 30_000 });
+
+    await expectNoHorizontalOverflow(page, 'messages');
+    await expectNoSmallTapTargets(page, 'messages');
+
+    // With nothing selected the list owns the screen, so the detail pane's
+    // empty state must not be sharing it. This is the assertion that fails if
+    // the master-detail conditional is dropped.
+    await expect(
+      page.getByRole('heading', { name: 'No conversation selected' }),
+    ).toBeHidden();
+
+    // And the list really is full-bleed, not a 288px column with the rest of
+    // the width given to something invisible.
+    const width = await page
+      .locator('h2', { hasText: 'Conversations' })
+      .evaluate((el) => {
+        const pane = el.closest('div')?.parentElement;
+        return pane ? pane.getBoundingClientRect().width : 0;
+      });
+    expect(width, 'the conversation list should span the phone viewport').toBeGreaterThan(300);
+  });
+
+  /**
+   * The other half of the same rule. Hiding a pane at every width would pass
+   * the phone test and quietly ship a desktop app that lost its detail view, so
+   * the breakpoint is pinned from both sides.
+   */
+  test('messages shows both panes once there is room', async () => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    try {
+      await page.evaluate(() => {
+        window.history.pushState({}, '', '/messages');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      });
+      await expect(page.getByRole('heading', { name: 'Conversations' })).toBeVisible({
+        timeout: 30_000,
+      });
+      await expect(
+        page.getByRole('heading', { name: 'No conversation selected' }),
+      ).toBeVisible({ timeout: 30_000 });
+    } finally {
+      // Restored even on failure: this suite is serial and everything after it
+      // assumes a phone.
+      await page.setViewportSize(PHONE);
+    }
+  });
 });
 
 /**
