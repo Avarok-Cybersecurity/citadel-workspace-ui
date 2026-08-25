@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Loader2, RefreshCw, X } from "lucide-react";
+import { AlertCircle, ChevronRight, Loader2, RefreshCw, X } from "lucide-react";
 import { useRetry, useEventListener } from "@/hooks";
 import { websocketService } from "@/lib/websocket-service";
 import { useToast } from "@/hooks/use-toast";
@@ -196,9 +196,31 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
           )}
 
           {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error.message}
-            </div>
+            // Collapsed, and no longer styled as an alarm. The friendly message
+            // above already says what happened and what to do; this is the raw
+            // error, which for a failed WASM start is Rust's Debug formatting
+            // of an internal enum — `ConnectionFailed { event: CloseEvent {
+            // code: 0, reason: "", was_clean: true } }` was shown to users, in
+            // red, directly beneath the plain-language explanation. Worth
+            // keeping for a bug report; not worth leading with.
+            //
+            // min-h-6 on the summary because it is the interactive element here
+            // and a bare line of text falls under the 24px WCAG 2.2 target.
+            <details className="group rounded-md bg-muted/50 p-3 text-sm">
+              {/* The chevron is not decoration. A `summary` laid out as flex
+                  loses its native disclosure marker, which left this looking
+                  like an inert grey box with no sign it opened at all. */}
+              <summary className="flex min-h-6 cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                <ChevronRight
+                  className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-90"
+                  aria-hidden="true"
+                />
+                Technical details
+              </summary>
+              <p className="mt-2 break-words font-mono text-xs text-muted-foreground">
+                {error.message}
+              </p>
+            </details>
           )}
         </div>
 
