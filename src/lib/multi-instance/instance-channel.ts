@@ -3,6 +3,7 @@ import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
+import { describeForwarded } from '@/lib/p2p/message-fingerprint';
 import { TIMEOUT } from '../timeout-constants';
 import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
 import type { LeaderElectionState } from './channel-leader-election';
@@ -200,6 +201,12 @@ class InstanceChannel {
   }
 
   forwardToInstance(targetInstanceId: string, payload: unknown): void {
+    // Fingerprinted so the hop can be joined against the receiving tab's
+    // processLocalMessage. This is a bare BroadcastChannel post: no ack, no
+    // retry, and MessageNotification is NOT in LEADER_MUST_PROCESS_LOCALLY, so
+    // nothing keeps a local copy. If it lands in a tab whose P2P subscriber has
+    // not attached yet, it is gone and nothing anywhere records that.
+    debugLog('InstanceChannel', `[ILM-Router] forward -> ${targetInstanceId} ${describeForwarded(payload)}`);
     this.send({ type: 'inbound-forward', targetInstanceId, payload });
   }
 

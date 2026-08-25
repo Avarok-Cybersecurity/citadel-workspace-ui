@@ -10,6 +10,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
+import { describeForwarded } from '@/lib/p2p/message-fingerprint';
 import { instanceChannel } from './instance-channel';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
@@ -228,6 +229,21 @@ class InstanceInboundRouter {
   }
 
   private processLocalMessage(message: unknown): void {
+    // The listener count is the diagnostic that matters here. A message emitted
+    // with no subscriber vanishes silently -- no error, no trace -- and that is
+    // indistinguishable from never having arrived. The router's own receiver
+    // attaches at module load, but the P2P messenger subscribes to
+    // 'websocket-message' only when it is constructed later in app init, so a
+    // message forwarded into a still-booting tab lands in exactly that window.
+    // Joined to the sending tab's `[ILM-Router] forward ->` line by fingerprint.
+    const listeners = eventEmitter.listenerCount('websocket-message');
+    if (listeners === 0) {
+      debugLog('InstanceInboundRouter',
+        `[ILM-Router] emit with NO listeners ${describeForwarded(message)} — message is lost here`);
+    } else {
+      debugLog('InstanceInboundRouter',
+        `[ILM-Router] emit listeners=${listeners} ${describeForwarded(message)}`);
+    }
     eventEmitter.emit('websocket-message', message);
   }
 

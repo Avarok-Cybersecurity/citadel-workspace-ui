@@ -192,6 +192,42 @@ async function measureClippedContent(
  */
 const MIN_TARGET_PX = 24;
 
+/**
+ * Fixed-position panels that hang outside the viewport.
+ *
+ * `position: fixed` elements are laid out against the viewport, not the
+ * document, so one that is wider than the screen does NOT grow
+ * `document.scrollWidth` — every overflow check here stays green while the
+ * panel sits partly off-screen. The notification sheet did exactly this: an
+ * unprefixed `w-[400px]` on a 375px phone put 25px of the panel, including the
+ * heading's own padding, past the left edge. It read as "this panel has no
+ * margin" rather than as overflow.
+ */
+async function measureOffscreenPanels(
+  page: Page,
+): Promise<Array<{ tag: string; cls: string; left: number; right: number }>> {
+  return page.evaluate(() => {
+    const out: Array<{ tag: string; cls: string; left: number; right: number }> = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+      const style = getComputedStyle(el);
+      if (style.position !== 'fixed') continue;
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      // 1px of slop: sub-pixel layout rounding is not a defect.
+      if (r.left < -1 || r.right > window.innerWidth + 1) {
+        out.push({
+          tag: el.tagName.toLowerCase(),
+          cls: (el.className || '').toString().slice(0, 80),
+          left: Math.round(r.left),
+          right: Math.round(r.right),
+        });
+      }
+    }
+    return out.sort((a, b) => a.left - b.left);
+  });
+}
+
 async function expectNoSmallTapTargets(page: Page, screen: string): Promise<void> {
   // Settle first, or the reading is fiction. Radix animates dialogs in with
   // `zoom-in-95`, so a 24px control measures 22.8 mid-flight and every button in
@@ -514,6 +550,18 @@ test.describe.serial('Responsive workspace at 375px', () => {
 
     await expectNoHorizontalOverflow(page, 'notifications');
     await expectNoSmallTapTargets(page, 'notifications');
+
+    // The panel is position:fixed, so the overflow scan above cannot see it
+    // hanging off the screen. Measured against the viewport instead.
+    const offscreen = await measureOffscreenPanels(page);
+    const worst = offscreen[0];
+    expect(
+      offscreen,
+      worst
+        ? `${offscreen.length} fixed panel(s) sit outside the viewport; ` +
+          `<${worst.tag} class="${worst.cls}"> spans ${worst.left}..${worst.right} in 375px`
+        : '',
+    ).toEqual([]);
 
     await page.keyboard.press('Escape');
     await expect(page.locator('[role="dialog"]').first()).toBeHidden({ timeout: 15_000 });

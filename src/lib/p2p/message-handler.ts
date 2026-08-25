@@ -28,14 +28,8 @@ import { MessageAckHandler } from './message-ack-handler';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
 
 export type { MessageHandlerConfig } from './message-handler-types';
+import { fnv1a64 } from './message-fingerprint';
 
-/** FNV-1a/64, byte-identical to `messenger/mod.rs::deliver` (BigInt: >53 bits). */
-function fnv1a64(bytes: Uint8Array): string {
-  const M = 0xffffffffffffffffn;
-  let fp = 0xcbf29ce484222325n;
-  for (const b of bytes) fp = ((fp ^ BigInt(b)) * 0x100000001b3n) & M;
-  return fp.toString(16).padStart(16, '0');
-}
 export class MessageHandler {
   private readonly config: MessageHandlerConfig;
   private readonly ackHandler: MessageAckHandler;

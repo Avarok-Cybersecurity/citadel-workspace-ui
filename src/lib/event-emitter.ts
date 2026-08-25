@@ -36,6 +36,18 @@ export class EventEmitter {
   // across different event names. Type safety is enforced at on<T>/emit<T> call sites.
   private listeners: Map<string, Set<EventHandler<any>>> = new Map();
 
+  /**
+   * How many handlers are currently subscribed to an event.
+   *
+   * Diagnostic only. A message emitted to zero listeners vanishes with no
+   * error and no trace, which is indistinguishable from never having been
+   * sent — and that is precisely the failure being hunted on
+   * 'websocket-message' during tab boot.
+   */
+  listenerCount(event: string): number {
+    return this.listeners.get(event)?.size ?? 0;
+  }
+
    
   emit<T = unknown>(event: string, payload?: T): void {
     const handlers = this.listeners.get(event);

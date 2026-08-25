@@ -113,7 +113,13 @@ const NotificationCenter = () => {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px] bg-card text-foreground border-border">
+      {/* w-full below sm, not w-[400px]: an unprefixed fixed width is wider than a
+          375px phone, and because the sheet is position:fixed it does not widen the
+          document -- it simply hangs 25px off-screen to the left, taking the
+          heading's padding with it. No overflow check can see that; the panel looks
+          like it has no left margin at all. The Sheet primitive defaults to a
+          responsive w-3/4 sm:max-w-sm, which this override discarded. */}
+      <SheetContent className="w-full sm:w-[540px] bg-card text-foreground border-border">
         <SheetHeader className="border-b border-border pb-4">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-foreground">Notifications</SheetTitle>
