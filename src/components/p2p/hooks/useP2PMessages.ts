@@ -162,6 +162,12 @@ export function useP2PMessages({
       await messenger.resendMessage(peerCid, message.id);
     } catch (error) {
       debugLog('UseP2PMessages', 'Failed to retry message:', error);
+      // Reported like edit and delete below. The bubble does stay marked
+      // failed, so this is not invisible — but "it failed again, and here is
+      // why" is a different message from a retry that appears to do nothing.
+      toast.error('Could not resend message', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
     }
   }, [peerCid, messenger]);
 

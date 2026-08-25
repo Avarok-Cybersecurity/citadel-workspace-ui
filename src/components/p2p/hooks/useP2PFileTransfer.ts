@@ -61,21 +61,35 @@ export function useP2PFileTransfer({
     }
   }, [toast]);
 
+  // Decline and cancel report failures the same way accept above already did.
+  // They used to only debugLog, which is a no-op outside dev — so a decline
+  // that failed left the request sitting there with no explanation, and the
+  // obvious reading is that the button is broken.
   const handleDeclineTransfer = useCallback(async (transferId: string) => {
     try {
       await fileTransferService.declineTransfer(transferId);
     } catch (error) {
       debugLog('UseP2PFileTransfer', 'Failed to decline transfer:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to decline file',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
-  }, []);
+  }, [toast]);
 
   const handleCancelTransfer = useCallback(async (transferId: string) => {
     try {
       await fileTransferService.cancelTransfer(transferId);
     } catch (error) {
       debugLog('UseP2PFileTransfer', 'Failed to cancel transfer:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to cancel transfer',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
-  }, []);
+  }, [toast]);
 
   const handleOpenFile = useCallback((downloadPath: string) => {
     debugLog('UseP2PFileTransfer', 'Opening file:', downloadPath);
