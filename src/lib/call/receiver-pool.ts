@@ -8,6 +8,8 @@
 
 import { PeerReceiver } from './peer-receiver';
 import type { WireFrame } from './frame-codec';
+import { CallQualityTracker } from './call-quality';
+import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
 export interface ReceiverPoolCallbacks {
   /** Called when a peer's streams change, so the UI can re-render tiles. */
@@ -19,6 +21,12 @@ export interface ReceiverPoolCallbacks {
 }
 
 export class ReceiverPool {
+  /**
+   * Connection quality, tracked here because this is where per-peer frames and
+   * gaps converge. Anywhere else would have to be told about both again.
+   */
+  private readonly quality = new CallQualityTracker();
+
   private readonly receivers = new Map<bigint, PeerReceiver>();
   /** What each peer told us it will SEND, so decoders match what arrives. */
   private readonly peerReceiveCodecs = new Map<bigint, string>();
@@ -61,6 +69,7 @@ export class ReceiverPool {
     const hadVideo = receiver.getVideoStream() !== null;
     const hadAudio = receiver.getAudioStream() !== null;
     receiver.accept(frame);
+    this.quality.recordFrame(peerCid, Date.now());
     // Only re-render when a stream actually appears; a notify per frame would
     // re-render the whole call surface sixty times a second. Audio counts too:
     // an audio-only call's first frame is what tells the UI to attach a sink.
@@ -73,11 +82,31 @@ export class ReceiverPool {
 
   gap(peerCid: bigint, track: number, isVideo: boolean): void {
     this.receivers.get(peerCid)?.handleGap(track, isVideo);
+    // Recorded even when no receiver exists for the peer yet: a gap arriving
+    // before the first frame is still evidence about that link.
+    this.quality.recordGap(peerCid, Date.now());
+  }
+
+  /**
+   * How each peer's link is currently doing.
+   *
+   * `now` is passed in rather than read here so the caller controls the clock —
+   * the thresholds are time-based, and a tracker that reads its own clock
+   * cannot be tested without waiting in real time.
+   */
+  connectionQuality(now: number): Map<bigint, ConnectionQuality> {
+    return this.quality.snapshot(now);
   }
 
   /** Release one peer's decoders when they leave a group call. */
   remove(peerCid: bigint): void {
     this.peerReceiveCodecs.delete(peerCid);
+    // Before the early return below: a peer can accumulate gap history without
+    // ever having a receiver — gaps are recorded from the first one, receivers
+    // only appear with the first decodable frame. Forgetting after the return
+    // would leave that history behind for a peer who left, and hand it back to
+    // them stale if they rejoined.
+    this.quality.forget(peerCid);
     const receiver = this.receivers.get(peerCid);
     if (!receiver) return;
     receiver.close();
@@ -88,6 +117,7 @@ export class ReceiverPool {
   closeAll(): void {
     for (const receiver of this.receivers.values()) receiver.close();
     this.receivers.clear();
+    this.quality.clear();
   }
 
   private receiverFor(peerCid: bigint): PeerReceiver {

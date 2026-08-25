@@ -50,6 +50,7 @@ function ctx(overrides: Partial<CallContextValue> = {}): CallContextValue {
     localStream: null,
     remoteStreams: new Map(),
     remoteAudioStreams: new Map(),
+  qualities: new Map(),
     captureFailure: null,
     capability: { supported: true },
     startCall: vi.fn(async () => {}),

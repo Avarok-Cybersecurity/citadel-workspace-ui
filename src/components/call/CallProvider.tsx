@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
+import type { ConnectionQuality } from './ParticipantTile';
 import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
 import type { CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
@@ -24,9 +25,22 @@ interface CallProviderProps {
  * contains no call rules of its own. It wires, and nothing more; anything that
  * looks like a decision here belongs in one of those layers instead.
  */
+/** Same peers, same verdicts — used to avoid a re-render every poll. */
+function sameQualities(
+  a: Map<bigint, ConnectionQuality>,
+  b: Map<bigint, ConnectionQuality>,
+): boolean {
+  if (a.size !== b.size) return false;
+  for (const [cid, quality] of a) {
+    if (b.get(cid) !== quality) return false;
+  }
+  return true;
+}
+
 export function CallProvider({ selfCid, senderConfig, children }: CallProviderProps) {
   const [call, setCall] = useState<CallState | null>(null);
   const [streamsVersion, setStreamsVersion] = useState(0);
+  const [qualities, setQualities] = useState<Map<bigint, ConnectionQuality>>(new Map());
   const [captureFailure, setCaptureFailure] = useState<CaptureFailure | null>(null);
   const [capability, setCapability] = useState<{ supported: boolean; reason?: string }>({
     supported: false,
@@ -163,6 +177,25 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     await setMedia({ ...current, video: !current.video });
   }, [setMedia, managerRef, sessionRef]);
 
+  useEffect(() => {
+    // Polled, not event-driven: 'lost' is defined by SILENCE, so the moment a
+    // link dies is a moment when nothing arrives to notify anyone. Only while a
+    // call is up, and only every two seconds — this drives an icon, and the
+    // thresholds are measured in whole seconds.
+    if (!call) {
+      setQualities((prev) => (prev.size === 0 ? prev : new Map()));
+      return;
+    }
+    const tick = () => {
+      const next = sessionRef.current?.connectionQuality(Date.now()) ?? new Map();
+      // Replace only on a real change, or every tick re-renders the call surface.
+      setQualities((prev) => (sameQualities(prev, next) ? prev : next));
+    };
+    tick();
+    const id = window.setInterval(tick, 2_000);
+    return () => window.clearInterval(id);
+  }, [call, sessionRef]);
+
   const value = useMemo<CallContextValue>(() => {
     debugLog('Call', 'context updated', { status: call?.status, streamsVersion });
     return {
@@ -170,6 +203,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       localStream: sessionRef.current?.getLocalStream() ?? null,
       remoteStreams: sessionRef.current?.getRemoteStreams() ?? new Map(),
       remoteAudioStreams: sessionRef.current?.getRemoteAudioStreams() ?? new Map(),
+      qualities,
       captureFailure,
       capability,
       startCall,
@@ -181,7 +215,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     };
     // streamsVersion is a dependency on purpose: streams live on a ref, so this
     // counter is the only thing that tells React they changed.
-  }, [call, streamsVersion, captureFailure, capability, startCall, accept, decline, leave, toggleMic, toggleCamera, sessionRef]);
+  }, [call, streamsVersion, qualities, captureFailure, capability, startCall, accept, decline, leave, toggleMic, toggleCamera, sessionRef]);
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 }

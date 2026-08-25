@@ -14,6 +14,7 @@ import type { WireFrame } from './frame-codec';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { CapturePump } from './capture-pump';
 import { debugLog } from '@/lib/debug-config';
+import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
 export interface CallSessionCallbacks {
   /** Called for every encoded frame, to be fanned out to participants. */
@@ -210,6 +211,11 @@ export class CallSession {
   acceptGap(peerCid: bigint, track: number, isVideo: boolean): void {
     if (this.closed) return;
     this.receivers.gap(peerCid, track, isVideo);
+  }
+
+  /** How each peer's link is doing, for the tiles to show. */
+  connectionQuality(now: number): Map<bigint, ConnectionQuality> {
+    return this.receivers.connectionQuality(now);
   }
 
   /** Release one peer's decoders when they leave a group call. */

@@ -17,6 +17,7 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
     localStream,
     remoteStreams,
     remoteAudioStreams,
+    qualities,
     toggleMic,
     toggleCamera,
     leave,
@@ -40,6 +41,7 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
       localStream={localStream}
       remoteStreams={remoteStreams}
       remoteAudioStreams={remoteAudioStreams}
+      qualities={qualities}
       duration={duration}
       onToggleMic={() => void toggleMic()}
       onToggleCamera={() => void toggleCamera()}

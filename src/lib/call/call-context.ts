@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type { CallState } from './call-state';
 import type { CaptureFailure } from './media-capture';
 import type { CallMediaKinds } from '@/types/p2p-commands';
+import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
 export interface CallContextValue {
   /** The current call, or null when there is none. */
@@ -10,6 +11,8 @@ export interface CallContextValue {
   remoteStreams: Map<bigint, MediaStream>;
   /** Remote audio per peer. Must be attached to an element or nobody hears. */
   remoteAudioStreams: Map<bigint, MediaStream>;
+  /** Per-peer link health, for the tiles. Absent entries read as 'good'. */
+  qualities: Map<bigint, ConnectionQuality>;
   /** Why capture failed, so the surface can explain rather than just fail. */
   captureFailure: CaptureFailure | null;
   /** Whether this browser can do calls at all, with the reason if not. */
@@ -34,6 +37,7 @@ export const CallContext = createContext<CallContextValue>({
   localStream: null,
   remoteStreams: new Map(),
   remoteAudioStreams: new Map(),
+  qualities: new Map(),
   captureFailure: null,
   capability: { supported: false, reason: 'Calling is not available here.' },
   startCall: async () => {},

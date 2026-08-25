@@ -1,6 +1,7 @@
 import { useCall } from '@/lib/call/call-context';
 import { useCallDuration } from '@/components/call/use-call-duration';
 import type { CallState } from '@/lib/call/call-state';
+import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
 export interface DirectCallBinding {
   /** The call belonging to THIS conversation, or null. */
@@ -10,6 +11,7 @@ export interface DirectCallBinding {
   localStream: MediaStream | null;
   remoteStreams: Map<bigint, MediaStream>;
   remoteAudioStreams: Map<bigint, MediaStream>;
+  qualities: Map<bigint, ConnectionQuality>;
   capability: { supported: boolean; reason?: string };
   startCall: (video: boolean) => void;
   leave: () => void;
@@ -30,6 +32,7 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     localStream,
     remoteStreams,
     remoteAudioStreams,
+    qualities,
     capability,
     startCall,
     leave,
@@ -59,6 +62,7 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     localStream,
     remoteStreams,
     remoteAudioStreams,
+    qualities,
     capability,
     startCall: (video) => void startCall([{ cid: peerCid, username: peerName }], video),
     leave: () => void leave(),

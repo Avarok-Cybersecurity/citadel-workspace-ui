@@ -153,6 +153,7 @@ export function P2PChat({
           localStream={callBinding.localStream}
           remoteStreams={callBinding.remoteStreams}
           remoteAudioStreams={callBinding.remoteAudioStreams}
+          qualities={callBinding.qualities}
           duration={callBinding.duration}
           onToggleMic={callBinding.toggleMic}
           onToggleCamera={callBinding.toggleCamera}
