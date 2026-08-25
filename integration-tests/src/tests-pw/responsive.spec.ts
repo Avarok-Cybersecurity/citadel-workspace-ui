@@ -501,6 +501,54 @@ test.describe.serial('Responsive workspace at 375px', () => {
       await page.setViewportSize(PHONE);
     }
   });
+
+  /**
+   * A panel that opens over the app, sized from its content rather than from
+   * the viewport — the shape that survives a desktop layout and pushes a phone
+   * sideways. Notification rows carry a title, a body and a timestamp on one
+   * line, which is exactly what stops fitting first.
+   */
+  test('notification centre fits the viewport', async () => {
+    await page.locator('button:has(svg.lucide-bell)').first().click({ force: true });
+    await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
+
+    await expectNoHorizontalOverflow(page, 'notifications');
+    await expectNoSmallTapTargets(page, 'notifications');
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[role="dialog"]').first()).toBeHidden({ timeout: 15_000 });
+  });
+
+  /**
+   * The file grid is the one surface built from fixed-width tiles, so it is the
+   * most likely to lay out past a phone. Clipping matters as much as overflow
+   * here: a grid inside a scroll container can cut a filename off entirely
+   * rather than push the page, and nothing about that looks wrong until you
+   * need the name.
+   */
+  test('file manager fits the viewport', async () => {
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/workspace?section=files');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    // Settled on the shell rather than on a file row: an empty workspace has no
+    // files, and asserting on one would make this pass only by timing out into
+    // a scan of whatever was on screen.
+    await expect(page.getByTestId('sidebar-toggle')).toBeVisible({ timeout: 30_000 });
+
+    await expectNoHorizontalOverflow(page, 'files');
+    await expectNoSmallTapTargets(page, 'files');
+
+    const clipped = await measureClippedContent(page);
+    const worst = clipped[0];
+    expect(
+      clipped,
+      worst
+        ? `${clipped.length} element(s) cut off in the file manager; widest is ` +
+          `<${worst.tag} class="${worst.cls}"> by ${worst.by}px inside ${worst.clipper}`
+        : '',
+    ).toEqual([]);
+  });
 });
 
 /**
