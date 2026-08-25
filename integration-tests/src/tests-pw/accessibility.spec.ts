@@ -147,7 +147,37 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   });
 
   test('landing page', async ({ page }) => {
+    // Asserted explicitly rather than left to the axe scan: a missing landmark
+    // is impact 'moderate', which this suite reports but does not gate on, so
+    // the scan alone would go green with no <main> on the page at all.
+    await expect(page.getByRole('main')).toBeVisible();
     await expectNoBlockingViolations(page, `landing/${scheme}`);
+  });
+
+  // Two surfaces this suite never reached, and where scanning found real
+  // violations the moment it did: the 404 page had no <main> landmark at all,
+  // and the connection-failure modal shipped a link at 2.83:1 contrast. Both
+  // are states no other spec drives, which is exactly why they drifted.
+  test('not-found page', async ({ page }) => {
+    await page.goto(`${config.BASE_URL}/this-route-does-not-exist`, {
+      waitUntil: 'commit',
+      timeout: 60_000,
+    });
+    await expect(page.getByRole('heading', { name: '404' })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('main')).toBeVisible();
+    await expectNoBlockingViolations(page, `not-found/${scheme}`);
+  });
+
+  test('connection-failure modal, including the agent download offer', async ({ page }) => {
+    // Refusing the socket, rather than stopping the agent: the integration
+    // stack shares one backend, so taking the agent down breaks every other
+    // spec running against it. Note page.route() does NOT see websockets —
+    // only routeWebSocket does, and a route() glob here fails silently by
+    // simply never matching, which reads as "the modal never opened".
+    await page.routeWebSocket('**/ws', (ws) => ws.close());
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+    await expect(page.getByText(/Don't have the agent running/i)).toBeVisible({ timeout: 120_000 });
+    await expectNoBlockingViolations(page, `connection-failure/${scheme}`);
   });
 
   test('join workspace — address step', async ({ page }) => {
