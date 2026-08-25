@@ -137,40 +137,40 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: hsl(var(--muted));
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.5);
+  background: hsl(var(--primary-accent) / 0.5);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.7);
+  background: hsl(var(--primary-accent) / 0.7);
 }
 
 /* Always visible scrollbar utility class */
 .scrollbar-visible {
   overflow-y: scroll !important;
   scrollbar-width: thin !important; /* For Firefox */
-  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(0, 0, 0, 0.2) !important; /* For Firefox */
+  scrollbar-color: hsl(var(--primary-accent) / 0.5) hsl(var(--muted)) !important; /* For Firefox */
 }
 
 .overflow-y-scroll {
   overflow-y: scroll !important;
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(0, 0, 0, 0.2) !important;
+  scrollbar-color: hsl(var(--primary-accent) / 0.5) hsl(var(--muted)) !important;
 }
 
 /* Override any potential WebKit default colors */
 *::selection {
-  background-color: rgba(139, 92, 246, 0.3);
+  background-color: hsl(var(--primary-accent) / 0.3);
   color: inherit;
 }
 
 *::-moz-selection {
-  background-color: rgba(139, 92, 246, 0.3);
+  background-color: hsl(var(--primary-accent) / 0.3);
   color: inherit;
 }
 
@@ -266,19 +266,19 @@ h1, h2, h3, h4, h5, h6 {
 
 @keyframes pulseGlow {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(155, 135, 245, 0.4);
+    box-shadow: 0 0 0 0 hsl(var(--primary-accent) / 0.4);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(155, 135, 245, 0);
+    box-shadow: 0 0 0 8px hsl(var(--primary-accent) / 0);
   }
 }
 
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 8px rgba(139, 92, 246, 0.8);
+    box-shadow: 0 0 8px hsl(var(--primary-accent) / 0.8);
   }
   50% {
-    box-shadow: 0 0 16px rgba(139, 92, 246, 1);
+    box-shadow: 0 0 16px hsl(var(--primary-accent));
   }
 }
 
@@ -316,6 +316,13 @@ h1, h2, h3, h4, h5, h6 {
    ======================================== */
 
 /* Main cursor container - positioned inline */
+/* The collaborator cursor paints its own surfaces from `user.color` — a colour
+   assigned per collaborator, not a theme token (see CollaboratorCursor.tsx,
+   which sets backgroundColor from it directly). The white and near-white values
+   below are contrast partners for THAT surface, so they are deliberately literal
+   and must not be migrated to tokens: a token here would follow the workspace
+   theme while the surface underneath followed the user, and the pair would come
+   apart. */
 .collaborator-cursor {
   position: relative;
   display: inline;
