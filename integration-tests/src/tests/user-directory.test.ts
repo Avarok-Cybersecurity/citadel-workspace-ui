@@ -416,7 +416,12 @@ async function runTest(): Promise<boolean> {
 
     if (results.navigatedToDirectory) {
       // Check if the member list container exists
-      const memberList = alicePage.locator('div.divide-y.divide-gray-700');
+      // By test id, not by styling class. This looked for
+      // `div.divide-y.divide-gray-700` until the palette migration replaced
+      // that class with `divide-border` — the list was rendering fine and had
+      // been the whole time, but the selector matched nothing, so the spec
+      // failed in CI on a change that had nothing to do with the directory.
+      const memberList = alicePage.locator('[data-testid="directory-member-list"]');
       results.memberListVisible = await isVisibleWithin(memberList, 5000);
       console.log(`  Member list visible: ${results.memberListVisible}`);
 
@@ -528,7 +533,11 @@ async function runTest(): Promise<boolean> {
     console.log(`  Online Tab Works:       ${results.onlineTabWorks ? 'PASS' : 'CHECK'}`);
 
     console.log('\nMember List:');
-    console.log(`  Member List Visible:    ${results.memberListVisible ? 'PASS' : 'CHECK'}`);
+    // FAIL, not CHECK. This one is in corePassed above, so when it is false the
+    // run fails — and printing the word used for ungated, informational results
+    // meant the summary showed fourteen PASSes and a CHECK next to a verdict of
+    // FAILED, with nothing to say which assertion caused it.
+    console.log(`  Member List Visible:    ${results.memberListVisible ? 'PASS' : 'FAIL'}`);
     console.log(`  Bob Appears in List:    ${results.bobAppearsInList ? 'PASS' : 'CHECK'}`);
 
     console.log('\nUser Selection:');
