@@ -463,7 +463,7 @@ async function runTest(): Promise<boolean> {
     }
 
     // Verify modal is closed
-    const modalStillOpen = await page.locator('[role="dialog"]:has-text("Connection Preferences")').isVisible({ timeout: 500 }).catch(() => false);
+    const modalStillOpen = await isVisibleWithin(page.locator('[role="dialog"]:has-text("Connection Preferences")'), 500);
     if (modalStillOpen) {
       console.log('  Modal still open, trying Escape key...');
       await page.keyboard.press('Escape');

@@ -205,9 +205,10 @@ async function verifyWorkspaceLoaded(page: Page, username: string): Promise<bool
   }
 
   // Check for the sidebar or office section
-  const sidebarVisible = await page.locator('[data-testid="sidebar"], .sidebar, [class*="Sidebar"]').first()
-    .isVisible({ timeout: 5000 })
-    .catch(() => false);
+  const sidebarVisible = await isVisibleWithin(
+    page.locator('[data-testid="sidebar"], .sidebar, [class*="Sidebar"]').first(),
+    5000
+  );
 
   if (sidebarVisible) {
     console.log('  Workspace loaded successfully (sidebar visible)');

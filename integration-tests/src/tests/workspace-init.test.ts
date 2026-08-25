@@ -287,12 +287,18 @@ async function submitInitialization(page: Page, password: string): Promise<boole
     }
 
     await initButton.click();
-    await sleep(5000);
 
-    // Check if initialization succeeded (modal should close)
-    const modalStillVisible = await page.locator('text="Initialize Workspace"').isVisible({ timeout: 3000 }).catch(() => false);
+    // Wait for the modal to GO, rather than sleeping a fixed 5s and sampling
+    // once. isVisible ignores its timeout option (Playwright declares it
+    // deprecated), so the old form asked "is it visible at this instant" — and a
+    // selector that matched nothing, for any reason, reported the modal closed
+    // and this function returned SUCCESS for an initialization that may never
+    // have happened. isHiddenWithin asks the right question and returns the
+    // moment it holds, so a fast init no longer pays the 5 seconds.
+    const initModal = page.locator('text="Initialize Workspace"');
+    const modalClosed = await isHiddenWithin(initModal, 15_000);
 
-    if (!modalStillVisible) {
+    if (modalClosed) {
       console.log('  Initialization submitted successfully');
       return true;
     } else {
