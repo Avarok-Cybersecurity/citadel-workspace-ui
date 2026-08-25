@@ -218,13 +218,30 @@ async function closeNotificationCenter(page: Page): Promise<boolean> {
   console.log('\n=== Closing Notification Center ===');
 
   try {
-    // Try pressing Escape
-    await page.keyboard.press('Escape');
-    await sleep(500);
+    // Confirm it is actually OPEN first. Reporting "closed" for a sheet that
+    // never opened is the same as not checking at all.
+    const sheet = page.getByRole('dialog').first();
+    const wasOpen = await sheet
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!wasOpen) {
+      console.log('  Notification center was not open before Escape');
+      return false;
+    }
 
-    // Check if sheet closed
-    const sheetTitle = page.locator('text="Notifications"');
-    const closed = !(await sheetTitle.isVisible({ timeout: 1000 }).catch(() => false));
+    await page.keyboard.press('Escape');
+
+    // Wait for it to GO. This previously sampled `text="Notifications"` once,
+    // 500ms after Escape, via isVisible({ timeout: 1000 }) - whose timeout
+    // option Playwright declares `@deprecated This option is ignored`, so it
+    // never waited out the close animation. The bare text selector was also
+    // page-wide, so any other "Notifications" label would have reported the
+    // sheet as still open. Scoped to the dialog and genuinely awaited.
+    const closed = await sheet
+      .waitFor({ state: 'hidden', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
     console.log(`  Notification center closed: ${closed}`);
     return closed;
   } catch (error) {
