@@ -44,6 +44,19 @@ const externalConfig = loadExternalConfig();
 // CI detection - headless mode when running in CI
 export const isCI = process.env.IN_CI === 'true' || process.env.CI === 'true';
 
+/**
+ * Show the browser. Off by default, including locally.
+ *
+ * These specs used to run headed whenever they were not in CI, which meant a
+ * real Chromium window opening — and stealing focus — for every spec in a run.
+ * On a developer's machine that is not a convenience, it is an interruption:
+ * keystrokes land in the test's browser instead of wherever they were typing,
+ * repeatedly, for as long as the suite runs.
+ *
+ * Watching a spec is still one variable away: HEADED=1 npm run test:whatever
+ */
+export const isHeaded = process.env.HEADED === '1' || process.env.HEADED === 'true';
+
 export const config: TestConfig = {
   BASE_URL: externalConfig.baseUrl ?? 'http://127.0.0.1:5291',
   INTERNAL_SERVICE_URL: externalConfig.internalServiceUrl ?? 'http://127.0.0.1:12345',

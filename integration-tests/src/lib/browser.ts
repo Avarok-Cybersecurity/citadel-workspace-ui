@@ -4,7 +4,7 @@
 
 import { chromium, Page } from 'playwright';
 import type { BrowserOptions, BrowserSetup } from './types.js';
-import { isCI, config } from './config.js';
+import { isCI, isHeaded, config } from './config.js';
 
 /**
  * Create a browser and context for testing
@@ -15,7 +15,7 @@ import { isCI, config } from './config.js';
  */
 export async function createBrowser(options: BrowserOptions = {}): Promise<BrowserSetup> {
   // Default to headless in CI, visible browser locally
-  const { headless = isCI, slowMo = isCI ? 0 : 50 } = options;
+  const { headless = !isHeaded, slowMo = isHeaded ? 50 : 0 } = options;
 
   // CI-specific args to prevent net::ERR_INSUFFICIENT_RESOURCES
   const ciArgs = isCI ? [
@@ -314,7 +314,7 @@ export async function createSeparateBrowsers(
   options: BrowserOptions = {}
 ): Promise<MultiBrowserSetup> {
   // Default to headless in CI, visible browser locally
-  const { headless = isCI, slowMo = isCI ? 0 : 50 } = options;
+  const { headless = !isHeaded, slowMo = isHeaded ? 50 : 0 } = options;
 
   const browsers: import('playwright').Browser[] = [];
   const pages: Page[] = [];
