@@ -4,12 +4,17 @@ import { getUserFriendlyErrorMessage, getErrorTitle } from '../error-messages';
 describe('getUserFriendlyErrorMessage', () => {
   it('handles WebSocket connection failures', () => {
     const msg = getUserFriendlyErrorMessage('WebSocket connection failed');
-    expect(msg).toContain('Unable to connect');
+    expect(msg).toContain('connection service');
+    // Not "check your internet connection". This socket is same-origin /ws to
+    // the local agent, so that advice sends the user somewhere that cannot
+    // help — and real network loss is already handled by OfflineBanner.
+    expect(msg.toLowerCase()).not.toContain('internet');
   });
 
   it('handles WASM client init failure', () => {
     const msg = getUserFriendlyErrorMessage('Failed to initialize WASM client');
-    expect(msg).toContain('Unable to connect');
+    expect(msg).toContain('connection service');
+    expect(msg.toLowerCase()).not.toContain('internet');
   });
 
   it('handles handshake closed', () => {
@@ -54,7 +59,7 @@ describe('getUserFriendlyErrorMessage', () => {
 
   it('handles Error objects', () => {
     const msg = getUserFriendlyErrorMessage(new Error('WebSocket connection failed'));
-    expect(msg).toContain('Unable to connect');
+    expect(msg).toContain('connection service');
   });
 
   it('returns cleaned message for unknown short errors', () => {

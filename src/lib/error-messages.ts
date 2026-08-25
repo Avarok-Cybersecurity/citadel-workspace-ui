@@ -7,7 +7,17 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
   // Connection-related errors
   if (errorMessage.includes('WebSocket connection failed') || 
       errorMessage.includes('Failed to initialize WASM client')) {
-    return 'Unable to connect to the workspace server. Please check your internet connection and try again.';
+    // Not "check your internet connection". This socket is SAME-ORIGIN /ws,
+    // proxied to the internal service — the local agent that owns protocol
+    // connections. When it fails, the usual cause is that the agent is not
+    // running or is restarting, and a user who goes off to check their wifi is
+    // being sent somewhere that cannot help.
+    //
+    // Genuine loss of network is already covered, and better: OfflineBanner
+    // watches navigator.onLine, and WorkspaceApp suppresses the retry modal
+    // while offline so the two never both fire. That left this string handling
+    // only the case its advice did not fit.
+    return 'Unable to reach the connection service. It may not be running yet, or may be restarting — try again in a moment.';
   }
   
   if (errorMessage.includes('Connection closed before receiving a handshake')) {
