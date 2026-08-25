@@ -143,7 +143,7 @@ export const Landing = () => {
 
 
   return (
-    <div className="h-screen flex items-center relative overflow-hidden bg-background">
+    <div className="h-dvh flex items-center relative overflow-hidden bg-background">
       {/* Orphan sessions navbar */}
       <OrphanSessionsNavbar />
 

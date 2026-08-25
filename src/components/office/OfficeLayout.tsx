@@ -36,7 +36,7 @@ export const OfficeLayout = ({
   };
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] overflow-hidden bg-background">
+    <div className="h-[calc(100dvh-3.5rem)] overflow-hidden bg-background">
       <div className="h-full flex flex-col">
         <div className="flex justify-between items-center px-4 py-2 border-b border-border bg-card">
           <div className="flex items-center space-x-4">

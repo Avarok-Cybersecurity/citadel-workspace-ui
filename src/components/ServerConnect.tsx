@@ -73,7 +73,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
           </CardHeader>
 
           <form onSubmit={handleConnect}>
-            <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <CardContent className="space-y-5 max-h-[calc(100dvh-16rem)] overflow-y-auto">
               {/* Workspace Address */}
               <div className="space-y-2">
                 <label htmlFor="serverAddress" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">

@@ -41,7 +41,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
-            <CardContent className="max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <CardContent className="max-h-[calc(100dvh-16rem)] overflow-y-auto">
               <JoinFormFields formData={formData} onChange={handleInputChange} />
             </CardContent>
 

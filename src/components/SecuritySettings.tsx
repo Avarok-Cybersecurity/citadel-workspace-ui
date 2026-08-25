@@ -112,7 +112,7 @@ export const SecuritySettings = ({
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-visible">
+          <CardContent className="space-y-5 max-h-[calc(100dvh-16rem)] overflow-y-auto scrollbar-visible">
             <SecurityLevelSelect
               value={settings.securityLevel}
               onChange={(value) => handleSettingChange('securityLevel', value as SecurityLevel)}

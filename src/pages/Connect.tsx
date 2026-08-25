@@ -124,7 +124,7 @@ export const Connect = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-dvh flex items-center justify-center bg-background">
       <Card className="w-full max-w-xl bg-card border-surface shadow-lg">
         <CardHeader>
           <div className="flex items-center gap-3">

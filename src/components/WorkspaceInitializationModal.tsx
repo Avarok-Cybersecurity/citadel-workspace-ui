@@ -154,7 +154,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 </CardHeader>
 
                 <form onSubmit={handleSubmit}>
-                    <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
+                    <CardContent className="space-y-4 max-h-[calc(100dvh-16rem)] overflow-y-auto">
                         <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
                             <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                             <div className="text-sm text-warning">

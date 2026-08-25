@@ -16,7 +16,7 @@ interface AppLayoutProps {
 export const AppLayout = ({ children }: AppLayoutProps) => {
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-background text-foreground overflow-hidden">
+      <div className="h-dvh flex w-full bg-background text-foreground overflow-hidden">
         <TopBar />
 
         <Sidebar className="pt-14 bg-input border-r border-border transition-transform duration-300 ease-in-out">

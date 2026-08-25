@@ -13,7 +13,7 @@ export function RouteFallback() {
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className="flex min-h-screen items-center justify-center bg-background"
+      className="flex min-h-dvh items-center justify-center bg-background"
     >
       <div className="flex flex-col items-center gap-3 opacity-0 animate-in fade-in duration-300 delay-300 fill-mode-forwards">
         <div

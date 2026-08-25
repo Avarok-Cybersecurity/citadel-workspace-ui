@@ -23,7 +23,7 @@ function FullPageError({ onReload }: { onReload: () => void }) {
     <div
       role="alert"
       aria-live="assertive"
-      className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground"
+      className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground"
     >
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
         <svg

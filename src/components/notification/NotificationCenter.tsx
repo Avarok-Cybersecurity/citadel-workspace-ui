@@ -145,7 +145,7 @@ const NotificationCenter = () => {
           </TabsList>
           
           <TabsContent value={activeTab} className="mt-0">
-            <ScrollArea className="h-[calc(100vh-180px)]">
+            <ScrollArea className="h-[calc(100dvh-180px)]">
               {filteredNotifications.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
                   No notifications to display
