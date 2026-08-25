@@ -190,6 +190,19 @@ export default defineConfig(({ mode }) => {
     },
 
     build: {
+      // Published source maps.
+      //
+      // Lighthouse flags `valid-source-maps` without them, but the real reason
+      // is triage: a stack trace from a production incident is unreadable
+      // against minified output, and this app's hardest failures (WASM init,
+      // the P2P handshake) surface as exactly that.
+      //
+      // No secrecy is traded away — this repository is public, so the maps
+      // expose nothing the source does not. They are separate .map files,
+      // fetched only when devtools are open, and the landing budget counts
+      // only assets referenced from index.html, so the critical path is
+      // unaffected.
+      sourcemap: true,
       // After splitting all vendor dependencies, the main app chunk (~1.25MB) contains:
       // - Application code (React components, services, hooks)
       // - WASM client bindings

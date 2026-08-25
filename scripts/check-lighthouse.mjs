@@ -137,7 +137,13 @@ async function main() {
       // Name the audits that cost the points. A gate that reports "96, FAIL"
       // and stops sends whoever reads it off to reproduce the run by hand
       // before they can even start fixing it — and a score is not a defect.
-      if (!ok && category.auditRefs) {
+      // Printed whenever the category is short of full marks, not only when it
+      // FAILS. A category sitting on its threshold is one audit away from
+      // breaking the build, and the difference between two environments shows
+      // up here: CI reported best-practices 93 while this machine reported 96,
+      // and with output only on failure there was no way to see which audit
+      // differed without pushing another commit to find out.
+      if (shown < 100 && category.auditRefs) {
         for (const ref of category.auditRefs) {
           const audit = audits[ref.id];
           if (!audit || audit.score === null || audit.score >= 1) continue;
