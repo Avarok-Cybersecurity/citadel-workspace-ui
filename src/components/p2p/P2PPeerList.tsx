@@ -88,10 +88,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     const entered = newPeerCid.trim();
     if (!entered) return;
 
-    // Validate before BigInt rather than after. `BigInt('alice')` THROWS, and
-    // the catch below used to hand that to debugLog — which compiles to a no-op
-    // outside dev. So anything non-numeric, including a username, produced no
-    // error, no message and no cleared field: the button simply did nothing.
+    // Before BigInt, which throws on anything else — see peer-cid-input.
     if (!isUsablePeerCid(entered)) {
       setAddPeerError('A peer CID is a number. Copy it from the peer\'s account, or find them in the directory.');
       return;
@@ -105,8 +102,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       loadPeers();
     } catch (error) {
       debugLog('P2PPeerList', 'Failed to add peer:', error);
-      // Also shown, not only logged. The log is invisible in production, and a
-      // request that failed silently is indistinguishable from one ignored.
+      // Shown too: debugLog is a no-op outside dev, so this was silent.
       setAddPeerError('Could not add that peer. Check the CID and try again.');
     } finally {
       setIsAddingPeer(false);
@@ -163,9 +159,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
             </Button>
           </form>
           {addPeerError && (
-            // role="alert" so it is announced: the field is at the top of a
-            // panel and a sighted user sees the message appear, while a screen
-            // reader user would otherwise get nothing at all.
+            // role="alert" so a screen reader announces it, not only shows it.
             <p id="add-peer-error" role="alert" className="mt-2 text-xs text-destructive">
               {addPeerError}
             </p>

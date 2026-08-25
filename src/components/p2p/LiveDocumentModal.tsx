@@ -28,17 +28,22 @@ export function LiveDocumentModal({
 }: LiveDocumentModalProps) {
   const [title, setTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleCreate = async () => {
     if (!title.trim()) return;
 
     setIsCreating(true);
+    setCreateError(null);
     try {
       await onCreateDocument(title.trim(), initialContent);
       setTitle('');
       onClose();
     } catch (error) {
       debugLog('LiveDocumentModal', 'Failed to create document:', error);
+      // debugLog is a no-op outside dev, so this left the modal open with the
+      // title still in it and no indication anything had gone wrong.
+      setCreateError('Could not create the document. Check your connection and try again.');
     } finally {
       setIsCreating(false);
     }
@@ -82,6 +87,12 @@ export function LiveDocumentModal({
             This will send a live document invitation to your peer.
           </p>
         </div>
+
+        {createError && (
+          <p role="alert" className="px-1 text-sm text-destructive">
+            {createError}
+          </p>
+        )}
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button

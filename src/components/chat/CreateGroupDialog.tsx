@@ -50,6 +50,7 @@ export function CreateGroupDialog({
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<SelectedMember[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [showPeerSelector, setShowPeerSelector] = useState(false);
 
   const displayName = groupName.trim() || `${currentUsername}'s Group`;
@@ -89,6 +90,7 @@ export function CreateGroupDialog({
   const handleCreate = useCallback(async () => {
     if (selectedMembers.length === 0) return;
     setIsCreating(true);
+    setCreateError(null);
     try {
       await onCreateGroup(displayName, selectedMembers);
       setGroupName('');
@@ -96,6 +98,11 @@ export function CreateGroupDialog({
       onOpenChange(false);
     } catch (error) {
       debugLog('CreateGroupDialog', 'Failed to create group:', error);
+      // Shown, not only logged. debugLog compiles to a no-op outside dev, so
+      // this failure left the dialog open with the form intact and NOTHING
+      // said — the user cannot tell a failure from a slow request, and clicks
+      // Create again.
+      setCreateError('Could not create the group. Check your connection and try again.');
     } finally {
       setIsCreating(false);
     }
@@ -210,6 +217,12 @@ export function CreateGroupDialog({
             />
           </div>
         </div>
+
+        {createError && (
+          <p role="alert" className="px-1 text-sm text-destructive">
+            {createError}
+          </p>
+        )}
 
         <DialogFooter className="gap-2">
           <Button
