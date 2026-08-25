@@ -87,6 +87,43 @@ async function expectNoHorizontalOverflow(page: Page, screen: string): Promise<v
   ).toBeLessThanOrEqual(clientWidth + SLOP_PX);
 }
 
+/**
+ * Interactive elements smaller than the WCAG 2.2 floor of 24x24 CSS px.
+ *
+ * Separate from overflow because axe reports neither, and this one is easy to
+ * assume is covered: a 16px control has a correct role, a correct accessible
+ * name and passing contrast, so every accessibility gate already in place is
+ * green while it remains genuinely hard to hit with a thumb. Three shipped that
+ * way on the pre-auth screens, one of them the close button shared by every
+ * dialog in the app.
+ */
+const MIN_TARGET_PX = 24;
+
+async function expectNoSmallTapTargets(page: Page, screen: string): Promise<void> {
+  const small = await page.evaluate((min) => {
+    const selector =
+      'button,a[href],[role="button"],[role="switch"],[role="tab"],input[type="checkbox"],input[type="radio"]';
+    return Array.from(document.querySelectorAll<HTMLElement>(selector))
+      .filter((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return false;
+        const style = getComputedStyle(el);
+        if (style.visibility === 'hidden' || style.display === 'none') return false;
+        return rect.width < min || rect.height < min;
+      })
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        const label = (el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 30);
+        return `<${el.tagName.toLowerCase()}> "${label}" ${Math.round(rect.width)}x${Math.round(rect.height)}`;
+      });
+  }, MIN_TARGET_PX);
+
+  expect(
+    small,
+    `${screen} has tap targets under ${MIN_TARGET_PX}px at ${PHONE.width}px:\n  ` + small.join('\n  ')
+  ).toEqual([]);
+}
+
 async function click(page: Page, name: RegExp | string): Promise<void> {
   const button = page.getByRole('button', { name }).first();
   await expect(button).toBeVisible({ timeout: 30_000 });
@@ -196,6 +233,10 @@ test.describe.serial('Responsive workspace at 375px', () => {
 
   test('workspace shell fits the viewport', async () => {
     await expectNoHorizontalOverflow(page, 'workspace');
+  });
+
+  test('workspace shell has no unhittable controls', async () => {
+    await expectNoSmallTapTargets(page, 'workspace');
   });
 
   test('sidebar opens as a drawer and closes again', async () => {

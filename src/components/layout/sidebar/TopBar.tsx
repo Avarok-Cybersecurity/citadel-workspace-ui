@@ -95,7 +95,12 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         <Button
           variant="ghost"
           size="icon"
-          className="text-foreground hover:bg-primary-accent/15 hover:text-foreground mr-4"
+          // shrink-0 for the same reason the right-hand group has it: `size="icon"`
+          // asks for 40x40, but a flex child yields before its siblings do, and
+          // at 375px this one was squeezed to 16px wide — a 40px-tall sliver.
+          // On a phone this is THE control that opens navigation, so it is the
+          // last thing that should give way.
+          className="shrink-0 text-foreground hover:bg-primary-accent/15 hover:text-foreground mr-4"
           onClick={toggleSidebar}
           aria-label={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
           title={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
