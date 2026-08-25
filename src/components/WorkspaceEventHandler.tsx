@@ -113,16 +113,6 @@ export const WorkspaceEventHandler: React.FC<{
     saveToStorage('workspace-messages', state.messages.byPeer);
   }, [state.messages.byPeer]);
 
-  const sendMessage = async (_content: string, _recipientId: string) => {
-    try {
-      throw new Error('sendMessage not implemented - use WorkspaceService.sendWorkspaceRequest instead');
-    } catch (error) {
-      debugLog('WorkspaceEventHandler', 'Error sending message:', error);
-      setState(prev => ({ ...prev, error: `Failed to send message: ${error}` }));
-      return false;
-    }
-  };
-
   useEffect(() => {
     if (onStateChange) onStateChange(state);
   }, [state, onStateChange]);
@@ -157,7 +147,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   return (
     <>
-      <WorkspaceProvider state={state as WorkspaceState} sendMessage={sendMessage}>
+      <WorkspaceProvider state={state as WorkspaceState}>
         {/* Inside WorkspaceProvider: the theme lives in the workspace's metadata,
             so it can only be read once the workspace is in context. */}
         <WorkspaceThemeProvider>{children}</WorkspaceThemeProvider>

@@ -77,7 +77,6 @@ const initialState: WorkspaceState = {
 // Create the context
 export const WorkspaceContext = createContext<{
   state: WorkspaceState;
-  sendMessage?: (content: string, recipientId: string) => Promise<boolean>;
 }>({
   state: initialState
 });
@@ -89,16 +88,14 @@ export const useWorkspace = () => useContext(WorkspaceContext);
 export interface WorkspaceProviderProps {
   children: React.ReactNode;
   state: WorkspaceState;
-  sendMessage?: (content: string, recipientId: string) => Promise<boolean>;
 }
 
 export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({
   children,
-  state,
-  sendMessage
+  state
 }) => {
   return (
-    <WorkspaceContext.Provider value={{ state, sendMessage }}>
+    <WorkspaceContext.Provider value={{ state }}>
       {children}
     </WorkspaceContext.Provider>
   );

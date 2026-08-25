@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { UserSearch } from '../UserSearch';
 import { WorkspaceContext } from '@/contexts/WorkspaceContext';
@@ -25,7 +25,7 @@ const members = {
 function renderSearch() {
   render(
     <WorkspaceContext.Provider
-      value={{ state: { members } as never, sendMessage: vi.fn() as never }}
+      value={{ state: { members } as never }}
     >
       <UserSearch placeholder="Search users" />
     </WorkspaceContext.Provider>
