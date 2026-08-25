@@ -1,3 +1,5 @@
+import type { ViteDevServer } from 'vite';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defineConfig } from 'vite';
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from 'vite-plugin-pwa';
@@ -371,8 +373,11 @@ export default defineConfig(({ mode }) => {
       },
 
       // Configure middleware for WASM files
-      configure: (server) => {
-        server.middlewares.use((req, res, next) => {
+      // Typed rather than left implicit: this file is in tsconfig.node.json,
+      // which now also covers scripts/, so an untyped parameter here makes that
+      // whole project fail to check.
+      configure: (server: ViteDevServer) => {
+        server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
           if (req.url?.endsWith('.wasm') || req.url?.includes('citadel_internal_service_wasm_client')) {
             res.setHeader('Content-Type', 'application/wasm');
             // Prevent caching of WASM files during development
