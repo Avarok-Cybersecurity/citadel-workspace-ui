@@ -208,7 +208,7 @@ export const Landing = () => {
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={startLogin}
-              className="bg-primary text-foreground hover:bg-primary/90 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-primary-accent/20 hover:shadow-primary-accent/30"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-primary-accent/20 hover:shadow-primary-accent/30"
               size="lg"
             >
               <LogIn className="w-4 h-4" />

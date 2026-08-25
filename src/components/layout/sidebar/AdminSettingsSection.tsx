@@ -52,7 +52,7 @@ export const AdminSettingsSection = () => {
           <SidebarGroupLabel className="text-warning font-semibold m-0 px-0">
             ADMIN SETTINGS
           </SidebarGroupLabel>
-          <Badge className="h-5 px-1.5 bg-warning text-foreground text-xs">
+          <Badge className="h-5 px-1.5 bg-warning text-warning-foreground text-xs">
             Admin
           </Badge>
         </div>

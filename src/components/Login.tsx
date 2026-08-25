@@ -215,7 +215,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
             <CardFooter className="pt-2">
               <Button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-foreground h-11 rounded-lg shadow-lg shadow-primary-accent/20 transition-all gap-2"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 rounded-lg shadow-lg shadow-primary-accent/20 transition-all gap-2"
                 disabled={loading}
               >
                 {loading ? (

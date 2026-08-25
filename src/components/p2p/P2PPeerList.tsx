@@ -136,7 +136,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
               type="submit"
               size="icon"
               disabled={isAddingPeer || !newPeerCid.trim()}
-              className="bg-primary hover:bg-primary/90 text-foreground h-9 w-9 rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 w-9 rounded-lg"
             >
               <UserPlus className="h-4 w-4" />
             </Button>

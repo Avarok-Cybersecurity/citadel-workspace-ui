@@ -34,7 +34,7 @@ export function OfflineBanner() {
         // the user caused or can fix by retrying.
         offline
           ? 'bg-muted text-foreground border-b border-surface'
-          : 'bg-primary/15 text-foreground border-b border-primary/30',
+          : 'bg-primary/15 text-primary-foreground border-b border-primary/30',
       ].join(' ')}
     >
       {offline ? (

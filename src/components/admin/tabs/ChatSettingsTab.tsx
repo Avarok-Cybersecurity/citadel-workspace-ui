@@ -191,7 +191,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
         <Button
           onClick={handleSave}
           disabled={!hasChanges || saving}
-          className="bg-primary hover:bg-primary/90 text-foreground"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
           data-testid="chat-save-button"
         >
           {saving ? (

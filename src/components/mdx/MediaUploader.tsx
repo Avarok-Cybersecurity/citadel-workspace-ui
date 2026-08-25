@@ -194,7 +194,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             <Button
               onClick={handleInsert}
               disabled={!uploadedImage || uploading}
-              className="bg-primary hover:bg-primary/90 text-foreground"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {uploading ? 'Uploading...' : 'Insert Image'}
             </Button>

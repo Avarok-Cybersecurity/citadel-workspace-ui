@@ -160,7 +160,7 @@ export const SecuritySettings = ({
             <Button
               type="button"
               onClick={handleNext}
-              className="bg-primary hover:bg-primary/90 text-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
             >
               {isFromLogin ? "Save" : "Next"}
               {!isFromLogin && <ArrowRight className="w-4 h-4" />}

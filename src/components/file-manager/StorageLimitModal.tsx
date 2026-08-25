@@ -126,7 +126,7 @@ export function StorageLimitModal({
                 onManageStorage();
                 onClose();
               }}
-              className="bg-primary text-foreground hover:bg-primary/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Manage Storage
             </Button>

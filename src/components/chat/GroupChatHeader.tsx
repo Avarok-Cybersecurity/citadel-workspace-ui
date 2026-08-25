@@ -164,7 +164,7 @@ export function GroupChatHeader({
             <AlertDialogAction
               onClick={handleLeaveConfirm}
               disabled={isLeaving}
-              className="bg-destructive hover:bg-destructive/90 text-foreground"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {isLeaving ? 'Leaving...' : 'Leave Group'}
             </AlertDialogAction>

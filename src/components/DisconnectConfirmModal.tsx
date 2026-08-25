@@ -103,7 +103,7 @@ export const DisconnectConfirmModal = ({
             </Button>
             <Button
               onClick={() => handleConfirm("deregister")}
-              className="flex-1 bg-destructive hover:bg-destructive/90 text-foreground"
+              className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               disabled={isProcessing}
             >
               {isProcessing && selectedAction === "deregister" ? (

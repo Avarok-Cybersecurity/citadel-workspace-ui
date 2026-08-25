@@ -26,7 +26,7 @@ export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps) {
       </p>
       <button
         onClick={onSwitchToServer}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded hover:bg-primary/90 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
       >
         <Server className="h-4 w-4" />
         Use Server Storage

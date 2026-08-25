@@ -57,7 +57,7 @@ export const OrphanSessionIcon = ({
 
         {/* Unread badge */}
         {unreadCount > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-destructive text-foreground text-[10px] font-bold px-1 leading-none">
+          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1 leading-none">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

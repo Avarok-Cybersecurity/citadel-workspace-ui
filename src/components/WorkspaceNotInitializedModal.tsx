@@ -63,7 +63,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
                 <CardFooter>
                     <Button
                         onClick={handleReturnToLogin}
-                        className="w-full bg-primary hover:bg-primary/90 text-foreground transition-colors"
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
                     >
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Return to Login

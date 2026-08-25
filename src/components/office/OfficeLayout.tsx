@@ -79,7 +79,7 @@ export const OfficeLayout = ({
                 </Button>
                 <Button
                   onClick={onSave}
-                  className="bg-primary text-foreground hover:bg-primary/90"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   Save Changes
                 </Button>

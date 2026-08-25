@@ -144,7 +144,7 @@ export const Connect = () => {
             <p className="text-foreground mb-4">No saved workspaces found</p>
             <Button
               onClick={() => navigate("/")}
-              className="bg-primary hover:bg-primary/90 text-foreground"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               Go Back
             </Button>
@@ -204,7 +204,7 @@ export const Connect = () => {
               </Button>
               <Button
                 onClick={handleConnect}
-                className="bg-primary hover:bg-primary/90 text-foreground transition-colors"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
               >
                 Connect
               </Button>

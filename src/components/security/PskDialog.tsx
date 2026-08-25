@@ -43,7 +43,7 @@ export const PskDialog = ({ open, onOpenChange, psk, onPskChange, onSave }: PskD
           <Button
             type="submit"
             onClick={onSave}
-            className="bg-primary hover:bg-primary/90 text-foreground"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             Save
           </Button>

@@ -73,7 +73,7 @@ export function ConnectionRequestDialog({
           <Button
             onClick={onSend}
             disabled={sendingRequest}
-            className="bg-primary hover:bg-primary/90 text-foreground"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {sendingRequest ? 'Sending...' : 'Send Request'}
           </Button>

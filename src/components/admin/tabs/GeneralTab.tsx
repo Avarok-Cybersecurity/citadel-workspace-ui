@@ -168,7 +168,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
         <Button
           onClick={handleSave}
           disabled={!hasChanges || saving}
-          className="bg-primary hover:bg-primary/90 text-foreground"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
           data-testid="general-save-button"
         >
           {saving ? (

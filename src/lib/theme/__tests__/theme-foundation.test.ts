@@ -4,6 +4,11 @@
  * silently restyles everything.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 import { PRESET_THEMES, defaultTheme, findPreset, DEFAULT_THEME_ID } from '../presets';
 import { AVAROK_LIGHT, AVAROK_DARK } from '../preset-avarok';
 import { paletteToCssVars, cssVarName, applyTheme, clearTheme } from '../apply-theme';
@@ -44,6 +49,60 @@ describe('Avarok Purple, the default', () => {
     // buildPalette, these hand-tuned values drift and the app restyles.
     expect(defaultTheme().light).toEqual(AVAROK_LIGHT);
     expect(defaultTheme().dark).toEqual(AVAROK_DARK);
+  });
+});
+
+describe('index.css and the default preset agree', () => {
+  // The spot-checks above cover four variables. That is how a real mistake got
+  // through: a scripted edit meant for the `.dark` block matched the word
+  // ".dark" in a COMMENT above `:root` and rewrote the light one instead, so
+  // index.css and the preset disagreed about --success-foreground while every
+  // test stayed green — the AA suite reads the preset, and the browser reads
+  // index.css. Only one of those is what users see.
+  //
+  // Comparing every variable the palette emits closes that gap for all tokens
+  // at once, rather than adding a fifth spot-check after each incident.
+  const css = readFileSync(resolve(__dirname, '../../../index.css'), 'utf8');
+
+  /** Pull one selector's custom properties, by brace depth rather than by a
+   *  substring search — which is the bug this test exists to prevent. */
+  function blockVars(selector: string): Record<string, string> {
+    const start = css.indexOf(selector + ' {');
+    if (start === -1) throw new Error(`no ${selector} block in index.css`);
+    let depth = 0;
+    let end = start;
+    for (let i = css.indexOf('{', start); i < css.length; i += 1) {
+      if (css[i] === '{') depth += 1;
+      else if (css[i] === '}') {
+        depth -= 1;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    const vars: Record<string, string> = {};
+    for (const [, name, value] of css.slice(start, end).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+      vars[name] = value.split('/*')[0].trim();
+    }
+    return vars;
+  }
+
+  it.each([
+    ['light', ':root'] as const,
+    ['dark', '.dark'] as const,
+  ])('%s matches the %s block', (mode, selector) => {
+    const emitted = paletteToCssVars(defaultTheme()[mode]);
+    const declared = blockVars(selector);
+    const drift = Object.entries(emitted)
+      .filter(([name, value]) => declared[name] !== undefined && declared[name] !== value)
+      .map(([name, value]) => `${name}: preset ${value} vs css ${declared[name]}`);
+    expect(drift).toEqual([]);
+  });
+
+  it('declares every token the palette emits', () => {
+    const emitted = Object.keys(paletteToCssVars(defaultTheme().light));
+    const declared = blockVars(':root');
+    // A token the palette emits but index.css never declares is one the app
+    // falls back to nothing for until a workspace theme loads.
+    expect(emitted.filter((name) => declared[name] === undefined)).toEqual([]);
   });
 });
 

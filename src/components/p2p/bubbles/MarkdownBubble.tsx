@@ -95,7 +95,7 @@ export function MarkdownBubble({
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="bg-primary text-foreground text-xs">
+          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>

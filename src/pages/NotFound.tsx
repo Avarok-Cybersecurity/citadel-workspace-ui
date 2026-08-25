@@ -19,7 +19,7 @@ const NotFound = () => {
         <p className="text-xl text-foreground/80 mb-6">Oops! Page not found</p>
         <Button
           onClick={() => navigate('/')}
-          className="bg-primary hover:bg-primary/90 text-foreground"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Return to Home

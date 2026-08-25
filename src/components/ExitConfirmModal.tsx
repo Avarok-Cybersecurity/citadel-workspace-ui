@@ -68,7 +68,7 @@ export const ExitConfirmModal = ({
           </Button>
           <Button
             onClick={handleConfirm}
-            className="bg-primary hover:bg-primary/90 text-foreground"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             Exit to Landing
           </Button>

@@ -39,7 +39,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
       isOwnMessage && 'flex-row-reverse'
     )}>
       <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarFallback className="bg-primary text-foreground text-xs">
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
           {initials}
         </AvatarFallback>
       </Avatar>
@@ -57,7 +57,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
         <div className={cn(
           'rounded-lg px-3 py-2 text-sm',
           isOwnMessage
-            ? 'bg-primary text-foreground'
+            ? 'bg-primary text-primary-foreground'
             : 'bg-muted text-foreground'
         )}>
           {message.reply_to && (

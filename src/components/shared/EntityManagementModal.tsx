@@ -170,7 +170,7 @@ export function EntityManagementModal<TMode extends string>({
               disabled={isSubmitting}
               className={
                 modeConfig.submitVariant === 'destructive'
-                  ? "bg-destructive text-foreground hover:bg-destructive/90"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   : "bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25 hover:text-primary-foreground"
               }
             >

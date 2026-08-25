@@ -99,7 +99,7 @@ export function RevfsDisabledModal({
                 onOpenSettings();
                 onClose();
               }}
-              className="bg-primary text-foreground hover:bg-primary/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Settings className="h-4 w-4 mr-2" />
               Open Settings

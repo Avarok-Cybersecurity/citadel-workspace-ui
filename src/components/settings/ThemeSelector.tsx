@@ -53,7 +53,7 @@ export function ThemeSelector() {
                 'flex flex-1 flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-xs font-medium transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                 selected
-                  ? 'border-primary bg-primary/10 text-foreground'
+                  ? 'border-primary bg-primary/10 text-primary-foreground'
                   : 'border-border text-muted-foreground hover:bg-surface hover:text-foreground',
               ].join(' ')}
             >

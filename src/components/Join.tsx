@@ -57,7 +57,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
               </Button>
               <Button
                 type="submit"
-                className="bg-primary hover:bg-primary/90 text-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
                 disabled={isRegistering}
               >
                 {isRegistering ? (

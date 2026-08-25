@@ -125,7 +125,7 @@ export function UserProfileCard({
       <CardFooter className="flex justify-between border-t border-border pt-4">
         {!isConnected ? (
           <Button
-            className="flex-1 bg-primary hover:bg-primary/90 text-foreground"
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={() => onInvite(selectedUser.id)}
           >
             <UserPlus className="h-4 w-4 mr-2" />
@@ -141,7 +141,7 @@ export function UserProfileCard({
               Remove Connection
             </Button>
             <Button
-              className="flex-1 ml-2 bg-primary hover:bg-primary/90 text-foreground"
+              className="flex-1 ml-2 bg-primary hover:bg-primary/90 text-primary-foreground"
               onClick={() => onSendMessage(selectedUser.id)}
             >
               <MessageCircle className="h-4 w-4 mr-2" />

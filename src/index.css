@@ -53,7 +53,7 @@
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --success: 160 84% 28%;
-    --success-foreground: 235 18% 13%;
+    --success-foreground: 0 0% 100%;
     --warning: 38 92% 33%;
     --warning-foreground: 0 0% 100%;
 
@@ -92,7 +92,7 @@
     --destructive: 0 84% 50%;       /* was #EF4444, then 60% — see below */
     --destructive-foreground: 0 0% 100%;
     --success: 160 84% 39%;         /* was #10B981 */
-    --success-foreground: 0 0% 100%;
+    --success-foreground: 235 18% 13%;
     --warning: 38 92% 50%;          /* was #F59E0B */
     --warning-foreground: 235 18% 13%;
 

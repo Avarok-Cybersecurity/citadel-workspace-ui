@@ -26,7 +26,7 @@ export function FileManagerStorageBar({
           onClick={() => setStorageMode(TreeScope.Peer)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors ${
             storageMode === TreeScope.Peer
-              ? 'bg-primary text-foreground'
+              ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -37,7 +37,7 @@ export function FileManagerStorageBar({
           onClick={() => setStorageMode(TreeScope.Server)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors ${
             storageMode === TreeScope.Server
-              ? 'bg-primary text-foreground'
+              ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
