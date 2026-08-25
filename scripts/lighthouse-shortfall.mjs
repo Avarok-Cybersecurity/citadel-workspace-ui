@@ -35,36 +35,52 @@
  */
 const EXPECTED_CONSOLE_ERROR = /WebSocket connection failed|Failed to initialize WASM client|WorkspaceClient/i;
 
-export function shortfallIsExpected(category, audits) {
+export function explainShortfall(category, audits) {
   const failing = (category.auditRefs ?? [])
     .map((ref) => audits[ref.id])
     .filter((a) => a && a.score !== null && a.score < 1);
-  if (failing.length === 0) return false;
+  if (failing.length === 0) return { expected: false, reason: 'nothing is failing' };
   const KNOWN = new Set(['errors-in-console', 'inspector-issues', 'valid-source-maps']);
-  if (!failing.every((a) => KNOWN.has(a.id))) return false;
+  const unknown = failing.filter((a) => !KNOWN.has(a.id)).map((a) => a.id);
+  if (unknown.length) return { expected: false, reason: `unrecognised audit(s): ${unknown.join(', ')}` };
 
   for (const audit of failing) {
     const items = audit.details?.items ?? [];
     // An audit that fails while telling us nothing cannot be recognised, so it
     // is not excused.
-    if (items.length === 0) return false;
+    if (items.length === 0) {
+      return { expected: false, reason: `${audit.id} failed but listed nothing to identify it by` };
+    }
 
     if (audit.id === 'valid-source-maps') {
       // Only ever excused for our own assets. A third-party script without a
       // map is a different conversation, and check-source-maps.mjs is what
       // proves ours are really there.
-      if (!items.every((i) => /^\/|localhost/.test(String(i.scriptUrl ?? i.url ?? '')))) {
-        return false;
+      const foreign = items
+        .map((i) => String(i.scriptUrl ?? i.url ?? ''))
+        .filter((u) => !/^\/|localhost/.test(u));
+      if (foreign.length) {
+        return { expected: false, reason: `source maps missing for non-local script(s): ${foreign.join(', ')}` };
       }
     } else if (audit.id === 'errors-in-console') {
       const messages = items.map((i) => String(i.description ?? i.errorMessage ?? ''));
-      if (!messages.every((m) => EXPECTED_CONSOLE_ERROR.test(m))) return false;
+      const unexpected = messages.filter((m) => !EXPECTED_CONSOLE_ERROR.test(m));
+      if (unexpected.length) {
+        return {
+          expected: false,
+          reason: `${unexpected.length} of ${messages.length} console error(s) are not the absent agent: ` +
+            unexpected.map((m) => m.slice(0, 160)).join(' | '),
+        };
+      }
     } else {
-      if (!items.every((i) => /content security policy/i.test(String(i.issueType ?? '')))) {
-        return false;
+      const other = items
+        .map((i) => String(i.issueType ?? ''))
+        .filter((t) => !/content security policy/i.test(t));
+      if (other.length) {
+        return { expected: false, reason: `inspector issue(s) that are not the policy: ${other.join(', ')}` };
       }
     }
   }
-  return true;
+  return { expected: true, reason: failing.map((a) => a.id).join(' + ') };
 }
 

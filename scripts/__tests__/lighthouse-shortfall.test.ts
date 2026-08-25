@@ -1,31 +1,33 @@
 /**
- * The predicate that decides whether CI's best-practices shortfall is the one
- * known, expected condition — or a real problem.
+ * The predicate that decides whether CI's best-practices shortfall is the set
+ * of known, expected conditions — or a real problem.
  *
- * Worth testing directly because the condition it describes is awkward to
- * reproduce on demand: it depends on the agent being absent AND the failure
- * surfacing inside Lighthouse's collection window. Pointing the proxy at a dead
- * port locally did NOT reproduce it — the audit finished first and scored 96 —
- * so a browser-driven check here would have proved nothing while looking green.
+ * Worth testing directly because the condition is awkward to reproduce on
+ * demand: it needs the agent absent AND the failure to surface inside
+ * Lighthouse's collection window. Pointing the proxy at a dead port locally did
+ * NOT reproduce it — the audit finished first and scored 96 — so a
+ * browser-driven check would have proved nothing while looking green.
  */
 
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error — plain .mjs helper shared with the CI script, no types.
-import { shortfallIsExpected } from '../lighthouse-shortfall.mjs';
+import { explainShortfall } from '../lighthouse-shortfall.mjs';
 
 const category = (ids: string[]) => ({ auditRefs: ids.map((id) => ({ id })) });
+
+/** errors-in-console reports messages. */
 const audit = (id: string, score: number, messages: string[] = []) => [
   id,
   { id, score, details: { items: messages.map((description) => ({ description })) } },
 ];
 
-/** valid-source-maps reports script URLs, not messages. */
+/** valid-source-maps reports script URLs. */
 const maps = (urls: string[]) => [
   'valid-source-maps',
   { id: 'valid-source-maps', score: 0, details: { items: urls.map((scriptUrl) => ({ scriptUrl })) } },
 ];
 
-/** inspector-issues reports a table of issueType, not messages. */
+/** inspector-issues reports a table of issueType. */
 const issues = (types: string[]) => [
   'inspector-issues',
   { id: 'inspector-issues', score: 0, details: { items: types.map((issueType) => ({ issueType })) } },
@@ -34,133 +36,77 @@ const issues = (types: string[]) => [
 const ABSENT_AGENT =
   'Failed to initialize WASM client: WebSocket connection failed: ConnectionFailed { event: CloseEvent { code: 1006 } }';
 
-describe('shortfallIsExpected', () => {
-  it('accepts the shortfall CI actually reports', () => {
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console']),
-        Object.fromEntries([
-          audit('errors-in-console', 0, [ABSENT_AGENT, 'Connection error: Failed to initialize WASM client']),
-        ]),
-      ),
-    ).toBe(true);
+const verdict = (ids: string[], entries: unknown[][]) =>
+  explainShortfall(category(ids), Object.fromEntries(entries as never));
+
+describe('explainShortfall', () => {
+  it('accepts the console shortfall CI reports', () => {
+    const v = verdict(
+      ['errors-in-console'],
+      [audit('errors-in-console', 0, [ABSENT_AGENT, 'Connection error: Failed to initialize WASM client'])],
+    );
+    expect(v.expected).toBe(true);
   });
 
-  it('rejects a console error that is not the absent agent', () => {
+  it('accepts all three known audits together, as CI reports them', () => {
+    const v = verdict(
+      ['errors-in-console', 'valid-source-maps', 'inspector-issues'],
+      [
+        audit('errors-in-console', 0, [ABSENT_AGENT]),
+        maps(['http://localhost:4173/wasm/client_bg.wasm']),
+        issues(['Content security policy']),
+      ],
+    );
+    expect(v.expected).toBe(true);
+  });
+
+  it('rejects a console error that is not the absent agent, and says which', () => {
     // The point of the whole predicate: a real error hiding among expected ones.
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console']),
-        Object.fromEntries([
-          audit('errors-in-console', 0, [ABSENT_AGENT, 'TypeError: cannot read x of undefined']),
-        ]),
-      ),
-    ).toBe(false);
+    const v = verdict(
+      ['errors-in-console'],
+      [audit('errors-in-console', 0, [ABSENT_AGENT, 'TypeError: cannot read x of undefined'])],
+    );
+    expect(v.expected).toBe(false);
+    expect(v.reason).toContain('TypeError');
   });
 
-  it('rejects a second failing audit', () => {
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console', 'deprecations']),
-        Object.fromEntries([audit('errors-in-console', 0, [ABSENT_AGENT]), audit('deprecations', 0, [])]),
-      ),
-    ).toBe(false);
+  it('rejects an unrecognised audit, and names it', () => {
+    const v = verdict(
+      ['errors-in-console', 'deprecations'],
+      [audit('errors-in-console', 0, [ABSENT_AGENT]), audit('deprecations', 0, ['old api'])],
+    );
+    expect(v.expected).toBe(false);
+    expect(v.reason).toContain('deprecations');
   });
 
-  it('accepts the real pair CI reports: absent agent plus the CSP eval probe', () => {
-    // What actually failed the build: requiring errors-in-console to be the
-    // ONLY failing audit was too narrow, because cbor-x's `new Function` probe
-    // trips inspector-issues on every run as well.
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console', 'inspector-issues']),
-        Object.fromEntries([
-          audit('errors-in-console', 0, [ABSENT_AGENT]),
-          issues(['Content security policy']),
-        ]),
-      ),
-    ).toBe(true);
+  it('rejects a source-map miss on a third-party script', () => {
+    const v = verdict(['valid-source-maps'], [maps(['https://cdn.example.com/thing.js'])]);
+    expect(v.expected).toBe(false);
+    expect(v.reason).toContain('cdn.example.com');
   });
 
   it('accepts a source-map miss on our own assets', () => {
     // Lighthouse FETCHES each map, so under load it reports missing against a
     // build whose maps are correct. check-source-maps.mjs is the deterministic
     // guard; this only stops the flaky version reddening the build.
-    expect(
-      shortfallIsExpected(
-        category(['valid-source-maps']),
-        Object.fromEntries([maps(['http://localhost:4173/assets/app-services-x.js'])]),
-      ),
-    ).toBe(true);
-  });
-
-  it('rejects a source-map miss on a third-party script', () => {
-    expect(
-      shortfallIsExpected(
-        category(['valid-source-maps']),
-        Object.fromEntries([maps(['https://cdn.example.com/thing.js'])]),
-      ),
-    ).toBe(false);
-  });
-
-  it('accepts all three known audits together, as CI reports them', () => {
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console', 'valid-source-maps', 'inspector-issues']),
-        Object.fromEntries([
-          audit('errors-in-console', 0, [ABSENT_AGENT]),
-          maps(['http://localhost:4173/wasm/client_bg.wasm']),
-          issues(['Content security policy']),
-        ]),
-      ),
-    ).toBe(true);
+    const v = verdict(['valid-source-maps'], [maps(['http://localhost:4173/assets/app-services-x.js'])]);
+    expect(v.expected).toBe(true);
   });
 
   it('rejects an inspector issue that is not the policy', () => {
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console', 'inspector-issues']),
-        Object.fromEntries([
-          audit('errors-in-console', 0, [ABSENT_AGENT]),
-          issues(['Content security policy', 'Mixed content']),
-        ]),
-      ),
-    ).toBe(false);
-  });
-
-  it('rejects inspector-issues that reports nothing identifiable', () => {
-    expect(
-      shortfallIsExpected(
-        category(['inspector-issues']),
-        Object.fromEntries([issues([])]),
-      ),
-    ).toBe(false);
-  });
-
-  it('rejects a different failing audit on its own', () => {
-    expect(
-      shortfallIsExpected(
-        category(['deprecations']),
-        Object.fromEntries([audit('deprecations', 0, ['some deprecation'])]),
-      ),
-    ).toBe(false);
+    const v = verdict(['inspector-issues'], [issues(['Content security policy', 'Mixed content'])]);
+    expect(v.expected).toBe(false);
+    expect(v.reason).toContain('Mixed content');
   });
 
   it('excuses nothing when nothing is failing', () => {
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console']),
-        Object.fromEntries([audit('errors-in-console', 1, [])]),
-      ),
-    ).toBe(false);
+    const v = verdict(['errors-in-console'], [audit('errors-in-console', 1, [])]);
+    expect(v.expected).toBe(false);
   });
 
-  it('rejects a failing errors-in-console that carries no messages to check', () => {
-    expect(
-      shortfallIsExpected(
-        category(['errors-in-console']),
-        Object.fromEntries([audit('errors-in-console', 0, [])]),
-      ),
-    ).toBe(false);
+  it('rejects a known audit that lists nothing to identify it by', () => {
+    const v = verdict(['errors-in-console'], [audit('errors-in-console', 0, [])]);
+    expect(v.expected).toBe(false);
+    expect(v.reason).toContain('nothing to identify');
   });
 });

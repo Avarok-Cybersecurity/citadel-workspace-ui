@@ -30,7 +30,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { shortfallIsExpected } from './lighthouse-shortfall.mjs';
+import { explainShortfall } from './lighthouse-shortfall.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(__dirname, '..');
@@ -147,9 +147,18 @@ async function main() {
       const score = category.score;
       let ok = typeof score === 'number' && score >= baseline;
       let excused = '';
-      if (!ok && IS_CI && key === 'best-practices' && shortfallIsExpected(category, audits)) {
-        ok = true;
-        excused = '  (only the absent agent and the CSP eval probe)';
+      if (!ok && key === 'best-practices') {
+        const verdict = explainShortfall(category, audits);
+        if (IS_CI && verdict.expected) {
+          ok = true;
+          excused = `  (expected in CI: ${verdict.reason})`;
+        } else {
+          // Say WHY the shortfall was not excused. Without this the build fails
+          // with a score and a list of audits that all look familiar, and the
+          // one detail that actually decided it — a fourth console error, an
+          // unfamiliar issue type — is invisible. That cost three CI cycles.
+          excused = `  (not excused: ${verdict.reason})`;
+        }
       }
       if (!ok) failed = true;
       const shown = typeof score === 'number' ? Math.round(score * 100) : 'n/a';
@@ -171,7 +180,7 @@ async function main() {
           const audit = audits[ref.id];
           if (!audit || audit.score === null || audit.score >= 1) continue;
           console.log(`      ${audit.id}: ${audit.title}`);
-          for (const item of (audit.details?.items ?? []).slice(0, 3)) {
+          for (const item of audit.details?.items ?? []) {
             const snippet = item.node?.snippet ?? item.source?.snippet ?? '';
             if (snippet) console.log(`        ${String(snippet).slice(0, 140)}`);
             const why = item.node?.explanation;
