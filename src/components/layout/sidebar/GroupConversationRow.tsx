@@ -141,8 +141,9 @@ export function GroupConversationRow({
       <SidebarMenuButton
         data-testid={`group-row-${group.id}`}
         onClick={handleClick}
-        className={`text-primary-foreground hover:bg-purple-500/15 hover:text-primary-foreground transition-colors h-9 py-1 ${
-          isActive ? 'bg-purple-500/20 text-purple-200' : ''
+        // See TreeNodeItem: white belongs on a primary fill, not on the page.
+        className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors h-9 py-1 ${
+          isActive ? 'bg-primary-accent/20 text-primary-accent' : ''
         }`}
       >
         <div ref={containerRef} className="flex items-center gap-2 w-full">

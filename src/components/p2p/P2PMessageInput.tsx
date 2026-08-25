@@ -73,7 +73,7 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
         {isMarkdownMode && showMarkdownPreview && inputMessage.trim() && (
           <div className="p-4 border-b border-surface/50 bg-background">
             <p className="text-xs text-muted-foreground mb-2">Preview:</p>
-            <div className="prose prose-sm prose-invert max-w-none bg-surface rounded-lg p-3 max-h-32 overflow-y-auto">
+            <div className="prose prose-sm dark:prose-invert max-w-none bg-surface rounded-lg p-3 max-h-32 overflow-y-auto">
               <ReactMarkdown>{inputMessage}</ReactMarkdown>
             </div>
           </div>

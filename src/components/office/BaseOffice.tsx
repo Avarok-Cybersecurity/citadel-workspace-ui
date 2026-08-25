@@ -180,7 +180,11 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       />
     </div>
   ) : (
-    <div className="px-6 lg:px-10 pt-8 pb-4 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
+    // dark:prose-invert, not prose-invert. The modifier inverts Typography's
+    // colours FOR a dark background, so applying it unconditionally made every
+    // heading and every bold run light-on-light in light mode: a workspace
+    // document showed its body copy and its emoji, and nothing else.
+    <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
         {compiledContent}
       </MDXProvider>

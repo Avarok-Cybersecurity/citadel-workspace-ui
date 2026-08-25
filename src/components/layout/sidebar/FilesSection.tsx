@@ -196,7 +196,8 @@ export const FilesSection = () => {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={isFileManagerActive}
-                  className={`text-primary-foreground hover:bg-primary-accent/15 hover:text-primary-foreground transition-colors ${
+                  // See TreeNodeItem: white belongs on a primary fill, not on the page.
+                  className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors ${
                     isFileManagerActive ? "bg-primary-accent/20 text-primary-accent" : ""
                   }`}
                   onClick={handleFileManagerClick}

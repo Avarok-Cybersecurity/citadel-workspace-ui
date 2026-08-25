@@ -110,7 +110,7 @@ export function MarkdownBubble({
         )}
 
         <div className={`rounded-lg px-3 py-2 ${bubbleStyles}`}>
-          <div className="prose prose-sm prose-invert max-w-none">
+          <div className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown components={markdownComponents}>
               {message.content}
             </ReactMarkdown>

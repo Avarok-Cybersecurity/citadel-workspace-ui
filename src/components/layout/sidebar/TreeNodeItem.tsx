@@ -116,7 +116,10 @@ export function TreeNodeItem({
         )}
 
         <SidebarMenuButton
-          className={`text-primary-foreground hover:bg-primary-accent/15 hover:text-primary-foreground transition-colors w-full pr-8 ${
+          // text-foreground, not text-primary-foreground: the latter is WHITE, the text colour that belongs on a primary FILL.
+          // These rows sit on the page background, so in light mode it was white-on-white — the whole tree was invisible.
+          // Dark mode hid it, because white happened to be right there.
+          className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors w-full pr-8 ${
             isSelected ? "bg-primary-accent/20 text-primary-accent" : ""
           }`}
           // The toggle now sits over this padding rather than inside the flow,

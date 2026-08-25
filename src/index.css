@@ -192,7 +192,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glass-panel {
-  @apply bg-white/80 backdrop-blur-sm border border-purple-100/20 shadow-lg;
+  @apply bg-card/80 backdrop-blur-sm border border-border shadow-lg;
 }
 
 .animate-in {
@@ -213,20 +213,28 @@ h1, h2, h3, h4, h5, h6 {
   100% { opacity: 0; }
 }
 
+/* Document content.
+ *
+ * These were text-white and text-gray-300, which meant every heading and every
+ * bold run in a workspace document rendered white-on-white in light mode — the
+ * page showed its emoji and its body copy and nothing else. The lint guard
+ * could not see them: it reads JS literals, and these are `@apply` directives
+ * in the stylesheet.
+ */
 .prose {
-  @apply text-white;
+  @apply text-foreground;
 }
 
 .prose a {
-  @apply text-purple-400 hover:text-purple-300;
+  @apply text-primary-accent hover:text-primary-accent/80;
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-  @apply text-white;
+  @apply text-foreground;
 }
 
 .prose ul {
-  @apply text-gray-300;
+  @apply text-foreground;
 }
 
 /* Smooth workspace switching animations */
