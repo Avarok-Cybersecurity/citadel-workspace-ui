@@ -5,6 +5,7 @@ import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
 import { findNodeByPath } from "./useFileManagerContent";
 import { useConfirm } from "@/components/shared/confirm-dialog";
+import { usePrompt } from "@/components/shared/prompt-dialog";
 
 interface HandlerDeps {
   mkdir: (path: string) => Promise<void>;
@@ -52,13 +53,21 @@ export function useFileManagerHandlers({
   setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
 }: HandlerDeps) {
   const confirm = useConfirm();
+  const prompt = usePrompt();
 
-  const handleNewFolder = useCallback((parentPath: string) => {
-    const name = prompt('Folder name:');
+  const handleNewFolder = useCallback(async (parentPath: string) => {
+    const name = await prompt({
+      title: 'New folder',
+      label: 'Folder name',
+      placeholder: 'Designs',
+      confirmLabel: 'Create folder',
+    });
+    // usePrompt resolves null on cancel or an empty name, exactly as the native
+    // prompt did, so this guard is unchanged.
     if (!name?.trim()) return;
     const path = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
     mkdir(path).catch(err => toast.error(`Failed to create folder: ${err}`));
-  }, [mkdir]);
+  }, [mkdir, prompt]);
 
   const handleDelete = useCallback(async (node: RevfsNode) => {
     const isDirectory = node.type === 'directory';

@@ -178,11 +178,6 @@ async function verifyDefaultFolders(page: Page, label: string): Promise<boolean>
 async function createFolderViaToolbar(page: Page, label: string, folderName: string): Promise<boolean> {
   console.log(`\n=== ${label}: Creating folder "${folderName}" ===`);
   try {
-    page.once('dialog', async dialog => {
-      console.log(`  Dialog: "${dialog.message()}"`);
-      await dialog.accept(folderName);
-    });
-
     // Click New Folder button (FolderPlus icon)
     const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') }).first();
     if (await newFolderBtn.isVisible().catch(() => false)) {
@@ -191,6 +186,16 @@ async function createFolderViaToolbar(page: Page, label: string, folderName: str
       // Fallback: first button in toolbar
       await page.locator('.flex.items-center.gap-1 button').first().click();
     }
+
+    // The name is asked for by an in-app dialog now, not window.prompt, so
+    // there is no native dialog to accept — type into the field and submit.
+    const nameInput = page.locator('#prompt-dialog-input');
+    if (!await isVisibleWithin(nameInput, 5000)) {
+      console.log('  ERROR: the new-folder dialog did not appear');
+      return false;
+    }
+    await nameInput.fill(folderName);
+    await page.locator('[role="dialog"] button:has-text("Create folder")').click();
     await sleep(2000);
 
     const visible = await page.getByText(folderName, { exact: true }).first()

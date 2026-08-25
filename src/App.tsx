@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
 import { ConfirmDialogProvider } from "@/components/shared/confirm-dialog";
+import { PromptDialogProvider } from "@/components/shared/prompt-dialog";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -67,6 +68,7 @@ const App = () => {
             hook beneath can await a styled confirmation instead of reaching
             for window.confirm. */}
         <ConfirmDialogProvider>
+        <PromptDialogProvider>
           <WorkspaceApp>
             {/*
               One toast system. The app used to mount shadcn's <Toaster /> AND
@@ -137,6 +139,7 @@ const App = () => {
             </BrowserRouter>
             </CallLayer>
           </WorkspaceApp>
+        </PromptDialogProvider>
         </ConfirmDialogProvider>
         </TooltipProvider>
       </QueryClientProvider>
