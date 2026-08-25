@@ -43,7 +43,7 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
   };
 
   return (
-    <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+    <div className="min-w-0 rounded-md border border-border bg-muted/40 p-3 text-sm">
       <p className="text-foreground font-medium">Don&apos;t have the agent running?</p>
       <p className="text-muted-foreground mt-1">
         Citadel needs a small program on this machine to hold your connections.
@@ -70,12 +70,17 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
 
       <p className="text-muted-foreground mt-3">Once unpacked, run it with:</p>
 
-      {/* Its own block, and deliberately not allowed to wrap. Inline, this
+      {/* Its own block, and deliberately not allowed to wrap: inline, this
           command broke mid-token — "--" ending one line and "backend
           filesystem" starting the next — which is how someone copies a command
-          that then fails with a usage error they cannot explain. */}
-      <div className="mt-1 flex items-center gap-2">
-        <code className="bg-background flex-1 overflow-x-auto whitespace-nowrap rounded px-2 py-1 text-xs">
+          that then fails with a usage error they cannot explain.
+          min-w-0 is load-bearing. A flex item defaults to min-width:auto, so a
+          nowrap child cannot shrink below its content width and instead
+          stretches the whole dialog grid: at 375px the header, body and this
+          panel all ran 67px past the dialog's right edge. min-w-0 lets it
+          scroll inside itself instead of pushing everything else out. */}
+      <div className="mt-1 flex min-w-0 items-center gap-2">
+        <code className="bg-background min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded px-2 py-1 text-xs">
           {RUN_COMMAND}
         </code>
         <button
