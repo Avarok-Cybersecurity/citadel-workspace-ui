@@ -19,6 +19,43 @@ export interface QualityReport {
   playoutDelayMs: number;
 }
 
+/**
+ * What one report says about the link, before the ladder decides anything.
+ *
+ * Split from the ladder because there are two honest ways to reach this verdict
+ * and only one ladder. The transport does not expose loss or playout delay
+ * today, so the live path derives the verdict from the receiver's own gap-based
+ * quality judgement — thresholds that were already tuned against this exact
+ * signal for the participant tiles. Inventing a loss rate to feed the numeric
+ * path instead would have been a number nothing measured.
+ */
+export type LinkVerdict = 'struggling' | 'holding' | 'clean';
+
+/** The verdict from measured loss and delay, once a transport reports them. */
+export function verdictFromMetrics(report: QualityReport): LinkVerdict {
+  if (report.lossRate > LOSS_DEGRADE || report.playoutDelayMs > DELAY_DEGRADE_MS) {
+    return 'struggling';
+  }
+  if (report.lossRate <= LOSS_RECOVER && report.playoutDelayMs <= DELAY_RECOVER_MS) {
+    return 'clean';
+  }
+  return 'holding';
+}
+
+/**
+ * The verdict from what the far side's receiver makes of our stream.
+ *
+ * 'lost' is deliberately NOT struggling. It means no frames at all for twelve
+ * seconds, which is as likely to be a peer who muted and closed their camera as
+ * a failing link — degrading our encoder on that evidence would punish the
+ * common case.
+ */
+export function verdictFromLink(link: 'good' | 'fair' | 'poor' | 'lost'): LinkVerdict {
+  if (link === 'poor') return 'struggling';
+  if (link === 'good') return 'clean';
+  return 'holding';
+}
+
 export interface QualityLevel {
   /** Multiplier applied to the profile's target bitrate. */
   bitrateScale: number;
@@ -67,9 +104,9 @@ export interface CongestionState {
 
 export const INITIAL_CONGESTION: CongestionState = { rung: 0, cleanStreak: 0 };
 
-export function applyReport(state: CongestionState, report: QualityReport): CongestionState {
-  const struggling = report.lossRate > LOSS_DEGRADE || report.playoutDelayMs > DELAY_DEGRADE_MS;
-  const clean = report.lossRate <= LOSS_RECOVER && report.playoutDelayMs <= DELAY_RECOVER_MS;
+export function applyReport(state: CongestionState, verdict: LinkVerdict): CongestionState {
+  const struggling = verdict === 'struggling';
+  const clean = verdict === 'clean';
 
   if (struggling) {
     return {

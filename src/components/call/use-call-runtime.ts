@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { callPeerName } from '@/lib/call/peer-name';
 import { CallManager } from '@/lib/call/call-manager';
+import { verdictFromLink } from '@/lib/call/congestion';
 import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
 import type { CallSession } from '@/lib/call/call-session';
 import type { CallState } from '@/lib/call/call-state';
@@ -118,6 +119,14 @@ export function useCallRuntime({
         },
         resolvePeerName: callPeerName,
       onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),
+        // The two ends of quality adaptation. The receiver already judged every
+        // peer's link for the participant tiles; these carry that judgement to
+        // the peer whose encoder can act on it, and apply theirs to ours.
+        // Without them `applyQualityReport` had no caller at all, so congestion
+        // never left rung 0 and the whole ladder was inert.
+        observedLink: (cid) => sessionRef.current?.connectionQuality(Date.now()).get(cid),
+        onLinkReported: (link) =>
+          sessionRef.current?.applyQualityReport(verdictFromLink(link)),
       });
       // Re-checked after the two awaits above, exactly as ensureSession
       // re-checks its import: construction started under one identity can

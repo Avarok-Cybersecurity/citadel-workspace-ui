@@ -74,7 +74,17 @@ export type CallSignalPayload =
   | { kind: 'CallKeyframeRequest'; call_id: string; track: number }
   /** Periodic "still here". Absence of media frames cannot stand in for this:
    *  a muted participant with their camera off sends nothing and is present. */
-  | { kind: 'CallHeartbeat'; call_id: string };
+  | {
+      kind: 'CallHeartbeat';
+      call_id: string;
+      /** How OUR stream is arriving at the sender of this heartbeat.
+       *
+       * Carried here rather than on its own signal because a heartbeat already
+       * goes to every present peer on a timer, which is exactly the cadence
+       * quality feedback wants. Optional for wire compatibility: a peer that
+       * predates it simply sends none, and the sender holds its current rung. */
+      link?: 'good' | 'fair' | 'poor' | 'lost';
+    };
 
 export function isCallSignalPayload(payload: unknown): payload is CallSignalPayload {
   return (

@@ -54,8 +54,17 @@ export class CallLivenessBinding {
       sendHeartbeat: () => {
         const state = internals().getState();
         if (!state) return;
-        const beat: CallSignalPayload = { kind: 'CallHeartbeat', call_id: state.callId };
         for (const cid of presentPeers(state)) {
+          // Built per peer, not once for the whole fan-out: the verdict is
+          // about THIS peer's stream as it reaches us, and sending one peer's
+          // judgement to everyone would have every encoder chase the worst link
+          // in the call.
+          const link = internals().observedLink(cid);
+          // Key omitted rather than set to undefined: this is CBOR-encoded, and
+          // an explicit undefined is a value on the wire, not an absence.
+          const beat: CallSignalPayload = link
+            ? { kind: 'CallHeartbeat', call_id: state.callId, link }
+            : { kind: 'CallHeartbeat', call_id: state.callId };
           // Best-effort: a heartbeat that fails to send looks to the peer like
           // one lost in transit, and their timeout already covers that case.
           void options.transport.sendSignal(cid, beat).catch(() => undefined);

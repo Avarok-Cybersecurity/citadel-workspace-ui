@@ -71,7 +71,11 @@ export async function handleInboundSignal(
       return;
 
     case 'CallHeartbeat':
-      // Its entire meaning — "still here" — was consumed by peerSeen above.
+      // "Still here" was consumed by peerSeen above. It may also carry how our
+      // stream is arriving for them, which is the only feedback the sender-side
+      // quality ladder ever gets — the transport reports neither loss nor
+      // playout delay, so without this the encoder never leaves its top rung.
+      if (signal.link) m.linkReported(signal.link);
       return;
 
     case 'CallKeyframeRequest':

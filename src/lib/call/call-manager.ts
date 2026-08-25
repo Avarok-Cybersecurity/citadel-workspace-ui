@@ -76,6 +76,8 @@ export class CallManager {
       getState: () => this.state,
       apply: (event) => this.apply(event),
       keyframeRequested: (track) => this.options.onKeyframeRequested(track),
+      observedLink: (cid) => this.options.observedLink?.(cid),
+      linkReported: (link) => this.options.onLinkReported?.(link),
       peerSeen: (cid) => this.liveness.peerSeen(cid),
       resolvePeerName: (cid) => this.options.resolvePeerName(cid),
     };

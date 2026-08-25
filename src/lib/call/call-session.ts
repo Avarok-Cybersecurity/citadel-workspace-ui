@@ -8,7 +8,7 @@
 import { captureLocalMedia, stopStream, type CaptureFailure } from './media-capture';
 import { createAudioEncoder, createVideoEncoder, type AudioEncoderHandle, type VideoEncoderHandle } from './media-pipeline';
 import { ReceiverPool } from './receiver-pool';
-import { INITIAL_CONGESTION, applyReport, shouldDropFrame, type CongestionState, type QualityReport } from './congestion';
+import { INITIAL_CONGESTION, applyReport, shouldDropFrame, type CongestionState, type LinkVerdict } from './congestion';
 import { supportedVideoEncoders, negotiateGroupVideoCodec, type VideoCodec } from './codec-support';
 import type { WireFrame } from './frame-codec';
 import type { CallMediaKinds } from '@/types/p2p-commands';
@@ -194,8 +194,15 @@ export class CallSession {
     this.videoEncoder?.requestKeyframe();
   }
 
-  applyQualityReport(report: QualityReport): void {
-    this.congestion = applyReport(this.congestion, report);
+  /**
+   * How the far side says our stream is arriving.
+   *
+   * Until this was called, `congestion` never left rung 0 — so the encoder was
+   * configured once at full quality and never reconfigured, and four of the
+   * five ladder rungs were unreachable. The adaptation existed and never ran.
+   */
+  applyQualityReport(verdict: LinkVerdict): void {
+    this.congestion = applyReport(this.congestion, verdict);
   }
 
   getCongestion(): CongestionState {

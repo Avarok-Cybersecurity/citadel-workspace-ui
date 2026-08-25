@@ -23,6 +23,12 @@ export interface CallManagerOptions {
   onStateChanged: (state: CallState | null) => void;
   /** A peer's decoder is stuck and needs our encoder to produce a keyframe. */
   onKeyframeRequested: (track: number) => void;
+  /** How this peer's stream is arriving HERE, to ride out on the next
+   *  heartbeat so their encoder can adapt. Undefined until enough media has
+   *  arrived to judge — no evidence must not read as a healthy link. */
+  observedLink?: (cid: bigint) => 'good' | 'fair' | 'poor' | 'lost' | undefined;
+  /** A peer told us how OUR stream is arriving for them. */
+  onLinkReported?: (link: 'good' | 'fair' | 'poor' | 'lost') => void;
   /** Names a peer the wire identified only by CID. Injected like `now`: the
    *  roster lives outside this layer, and tests need one they control. */
   resolvePeerName: (cid: bigint) => string;
@@ -41,6 +47,10 @@ export interface CallManagerInternals {
   apply(event: CallEvent): void;
   /** A peer's decoder is stuck and needs our encoder to produce a keyframe. */
   keyframeRequested(track: number): void;
+  /** See CallManagerOptions.observedLink. */
+  observedLink(cid: bigint): 'good' | 'fair' | 'poor' | 'lost' | undefined;
+  /** See CallManagerOptions.onLinkReported. */
+  linkReported(link: 'good' | 'fair' | 'poor' | 'lost'): void;
   /** An inbound signal for the current call arrived from this peer. */
   peerSeen(cid: bigint): void;
   /** Names a peer the wire identified only by CID. See CallManagerOptions. */

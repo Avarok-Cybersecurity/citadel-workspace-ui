@@ -6,6 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyReport,
+  verdictFromMetrics,
+  verdictFromLink,
   levelFor,
   shouldDropFrame,
   INITIAL_CONGESTION,
@@ -14,10 +16,12 @@ import {
   type CongestionState,
 } from '../congestion';
 
-const CLEAN = { lossRate: 0, playoutDelayMs: 40 };
-const LOSSY = { lossRate: 0.12, playoutDelayMs: 60 };
-const DELAYED = { lossRate: 0, playoutDelayMs: 400 };
-const MIDDLING = { lossRate: 0.03, playoutDelayMs: 180 };
+// Still expressed as measurements, then turned into the verdict the ladder
+// consumes — so these keep testing the thresholds, not just the ladder.
+const CLEAN = verdictFromMetrics({ lossRate: 0, playoutDelayMs: 40 });
+const LOSSY = verdictFromMetrics({ lossRate: 0.12, playoutDelayMs: 60 });
+const DELAYED = verdictFromMetrics({ lossRate: 0, playoutDelayMs: 400 });
+const MIDDLING = verdictFromMetrics({ lossRate: 0.03, playoutDelayMs: 180 });
 
 function afterReports(state: CongestionState, report: typeof CLEAN, times: number) {
   let next = state;
@@ -132,5 +136,33 @@ describe('dropping frames at the source', () => {
     expect(shouldDropFrame(mild, false, 7)).toBe(true);
     expect(shouldDropFrame(severe, false, 3)).toBe(true);
     expect(shouldDropFrame(mild, false, 3)).toBe(false);
+  });
+});
+
+describe('the verdict the live path actually uses', () => {
+  // The transport exposes neither loss nor playout delay, so the running system
+  // reaches its verdict from the receiver's gap-based judgement instead. These
+  // pin that mapping, because it is what decides whether calls adapt at all.
+  it('treats a poor link as cause to degrade', () => {
+    expect(verdictFromLink('poor')).toBe('struggling');
+    expect(applyReport(INITIAL_CONGESTION, verdictFromLink('poor')).rung).toBe(1);
+  });
+
+  it('treats a good link as cause to recover', () => {
+    expect(verdictFromLink('good')).toBe('clean');
+  });
+
+  it('holds on a fair link rather than reacting to the middle', () => {
+    expect(verdictFromLink('fair')).toBe('holding');
+    const degraded = applyReport(INITIAL_CONGESTION, verdictFromLink('poor'));
+    expect(applyReport(degraded, verdictFromLink('fair')).rung).toBe(1);
+  });
+
+  it('does not degrade on silence', () => {
+    // 'lost' is twelve seconds without a frame, which is as likely to be a peer
+    // who muted and closed their camera as a failing link. Degrading our
+    // encoder on that evidence would punish the common case.
+    expect(verdictFromLink('lost')).toBe('holding');
+    expect(applyReport(INITIAL_CONGESTION, verdictFromLink('lost')).rung).toBe(0);
   });
 });
