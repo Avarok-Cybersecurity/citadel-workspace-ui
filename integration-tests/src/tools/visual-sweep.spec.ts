@@ -8,7 +8,7 @@
  * while proving nothing.
  *
  * Run it deliberately:
- *   npx playwright test tools/visual-sweep.spec.ts --config=playwright.config.ts \
+ *   npx playwright test src/tools/visual-sweep.spec.ts --config=playwright.config.ts \
  *     --grep "authenticated"
  *
  * It earns its keep: the defects it found in one night were dialogs rendering
