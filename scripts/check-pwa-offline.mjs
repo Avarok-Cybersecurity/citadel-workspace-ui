@@ -129,9 +129,31 @@ async function main() {
         .then(() => true)
         .catch(() => false);
       record('the offline app renders its shell, not an empty page', mounted);
+
+      // A shell that renders but says nothing leaves the user to guess why
+      // half the app is inert. The banner is the only thing that explains it,
+      // and its unit test proves it renders when told it is offline — not that
+      // anything ever tells it.
+      const told = await page
+        .getByText(/You[’']re offline/i)
+        .waitFor({ state: 'visible', timeout: 15_000 })
+        .then(() => true)
+        .catch(() => false);
+      record('the user is told they are offline', told);
     }
 
     await context.setOffline(false);
+
+    // The promise the banner makes is that this state ends when the connection
+    // does. A banner that never clears is its own bug, and a stuck "offline" is
+    // worse than none — it contradicts an app that is visibly working again.
+    const cleared = await page
+      .getByText(/You[’']re offline/i)
+      .waitFor({ state: 'hidden', timeout: 20_000 })
+      .then(() => true)
+      .catch(() => false);
+    record('and the notice clears when the connection returns', cleared);
+
     report();
   } finally {
     await browser?.close();
