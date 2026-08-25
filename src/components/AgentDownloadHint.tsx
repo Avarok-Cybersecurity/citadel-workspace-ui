@@ -1,5 +1,7 @@
-import React from 'react';
-import { Download, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, Copy, Download, ExternalLink } from 'lucide-react';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { interactive } from '@/lib/a11y';
 import { Button } from '@/components/ui/button';
 import {
   AGENT_ASSETS,
@@ -25,8 +27,20 @@ const LABELS: Record<AgentPlatform, string> = {
  * modal, where the question actually arises, rather than as a banner everyone
  * sees forever.
  */
+/** Shown, copied, and asserted in tests from one place. */
+const RUN_COMMAND = '--bind 127.0.0.1:12345 --backend filesystem';
+
 export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navigatorRef }) => {
   const candidates = agentPlatformCandidates(navigatorRef ?? navigator);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    runAsyncSetup(async () => {
+      await navigator.clipboard.writeText(RUN_COMMAND);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
@@ -54,12 +68,30 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
         </p>
       )}
 
-      <p className="text-muted-foreground mt-3">
-        Once unpacked, run it with{' '}
-        <code className="bg-background rounded px-1 py-0.5 text-xs">
-          --bind 127.0.0.1:12345 --backend filesystem
+      <p className="text-muted-foreground mt-3">Once unpacked, run it with:</p>
+
+      {/* Its own block, and deliberately not allowed to wrap. Inline, this
+          command broke mid-token — "--" ending one line and "backend
+          filesystem" starting the next — which is how someone copies a command
+          that then fails with a usage error they cannot explain. */}
+      <div className="mt-1 flex items-center gap-2">
+        <code className="bg-background flex-1 overflow-x-auto whitespace-nowrap rounded px-2 py-1 text-xs">
+          {RUN_COMMAND}
         </code>
-        . Both flags matter: there is no default bind address, and the default
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground shrink-0 rounded p-1"
+          aria-label={copied ? 'Command copied' : 'Copy the run command'}
+          {...interactive(handleCopy)}
+        >
+          {copied
+            ? <Check className="h-4 w-4" aria-hidden="true" />
+            : <Copy className="h-4 w-4" aria-hidden="true" />}
+        </button>
+      </div>
+
+      <p className="text-muted-foreground mt-2">
+        Both flags matter: there is no default bind address, and the default
         account store is in-memory.
       </p>
 
