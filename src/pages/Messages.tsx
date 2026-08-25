@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { P2PPeerList } from "@/components/p2p/P2PPeerList";
 import { P2PChat } from "@/components/p2p/P2PChat";
 import { useLocation, useNavigate } from "react-router-dom";
-import { MessageCircle, Shield } from "lucide-react";
+import { MessageCircle, Shield, ChevronLeft } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { connectionManager } from "@/lib/connection";
 import { useRegisteredPeers } from "@/hooks";
@@ -43,8 +43,15 @@ const Messages = () => {
   return (
     <AppLayout>
       <div className="flex h-full">
-        {/* Conversation List */}
-        <div className="w-72 border-r border-border bg-input flex-shrink-0 flex flex-col">
+        {/* Conversation List.
+            Master-detail below `md`: one pane at a time, because a 288px list
+            beside a flex-1 detail left the detail 87px wide at 375px and broke
+            its text mid-word. Above `md` both show, exactly as before. */}
+        <div
+          className={`w-full md:w-72 border-r border-border bg-input flex-shrink-0 flex-col ${
+            selectedPeerCid ? 'hidden md:flex' : 'flex'
+          }`}
+        >
           <div className="px-4 py-3 border-b border-border">
             <h2 className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
               Conversations
@@ -58,15 +65,38 @@ const Messages = () => {
           </div>
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-background">
+        {/* Chat Area — hidden below `md` until a peer is chosen, so the list
+            gets the whole screen rather than a sliver of it. */}
+        <div
+          className={`flex-1 flex-col bg-background ${
+            selectedPeerCid ? 'flex' : 'hidden md:flex'
+          }`}
+        >
           {selectedPeerCid && currentUserCid ? (
-            <P2PChat
-              peerCid={BigInt(selectedPeerCid)}
-              peerName={selectedPeerName}
-              currentUserCid={currentUserCid}
-              currentUserName={currentUserName}
-            />
+            <>
+              {/* The way back, mobile only.
+                  Lives here and not in P2PChat: that component also renders
+                  office and room chat, where "back to conversations" is not a
+                  place the user came from. Full-screen chat without this would
+                  strand a phone user in a conversation with no exit. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPeerCid(null);
+                  navigate('/messages', { replace: true });
+                }}
+                className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-border text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                Conversations
+              </button>
+              <P2PChat
+                peerCid={BigInt(selectedPeerCid)}
+                peerName={selectedPeerName}
+                currentUserCid={currentUserCid}
+                currentUserName={currentUserName}
+              />
+            </>
           ) : (
             <div className="h-full flex flex-col items-center justify-center">
               <div className="flex flex-col items-center max-w-xs text-center">
