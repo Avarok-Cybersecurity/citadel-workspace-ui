@@ -52,11 +52,60 @@ check(
   'No maskable icon — Android will letterbox the icon inside a white circle instead of filling the shape.'
 );
 
+/**
+ * A PNG's real dimensions, read from the IHDR chunk: the 8-byte signature is
+ * followed by a length and the type "IHDR", then width and height as big-endian
+ * u32s at offsets 16 and 20.
+ */
+function pngSize(file) {
+  const bytes = readFileSync(file);
+  if (bytes.length < 24 || bytes.subarray(1, 4).toString() !== 'PNG') return null;
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
 // Declared icons must actually exist, or the browser silently drops them and the
 // size checks above become meaningless.
+//
+// And the declared size must be the file's REAL size. `sizes` is a claim the
+// manifest makes about an image nobody opened; a 512 entry pointing at a 128px
+// file leaves every check above passing while the browser, which measures the
+// image itself, quietly stops offering to install. That is the same class of
+// silent failure this whole script exists to catch.
 for (const icon of icons) {
   const file = join(dist, icon.src.replace(/^\//, ''));
-  check(existsSync(file), `manifest lists ${icon.src} but the file is not in the build.`);
+  if (!existsSync(file)) {
+    check(false, `manifest lists ${icon.src} but the file is not in the build.`);
+    continue;
+  }
+  if (!icon.src.endsWith('.png')) continue;
+
+  const actual = pngSize(file);
+  if (!actual) {
+    check(false, `${icon.src} is listed as an icon but is not a readable PNG.`);
+    continue;
+  }
+  for (const declared of (icon.sizes ?? '').split(' ').filter(Boolean)) {
+    const [w, h] = declared.split('x').map(Number);
+    check(
+      actual.width === w && actual.height === h,
+      `${icon.src} declares ${declared} but the file is ${actual.width}x${actual.height}.`
+    );
+  }
+}
+
+// Safari ignores the manifest for home-screen icons and uses this link instead,
+// so an app can be perfectly installable on Android and still land on an iPhone
+// home screen as a blurry screenshot of the page.
+const appleIcon = join(dist, 'icons/apple-touch-icon.png');
+if (existsSync(appleIcon)) {
+  const actual = pngSize(appleIcon);
+  check(
+    actual !== null && actual.width === 180 && actual.height === 180,
+    `apple-touch-icon.png should be 180x180, the size iOS asks for; it is ` +
+      `${actual ? `${actual.width}x${actual.height}` : 'unreadable'}.`
+  );
+} else {
+  check(false, 'icons/apple-touch-icon.png is missing — iOS falls back to a screenshot of the page.');
 }
 
 // Shortcuts are the installed icon's context menu. They are easy to get wrong in

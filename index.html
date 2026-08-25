@@ -56,7 +56,21 @@
     <!-- Retained alongside the standard name above: older iOS Safari only honours
          the apple- prefixed form. Chrome logs the apple- one as deprecated. -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- `default`, NOT `black-translucent`.
+
+         black-translucent makes the web view fill the whole screen and sit
+         UNDER the status bar. This shell is built from `h-screen` and two
+         `fixed top-0` bars, so nothing reserves that space: on an installed
+         iPhone the top bar rendered beneath the clock and battery. Living with
+         it immersively would mean an inset-aware layout throughout
+         (viewport-fit=cover plus env(safe-area-inset-*) on every fixed edge),
+         which is a layout change this shell is not built for.
+
+         `default` makes iOS reserve the status bar itself, so 100vh excludes it
+         and the layout is correct with no changes. Modern iOS also tints that
+         bar from theme-color, which now follows the active theme rather than
+         being a fixed purple — so it matches the app in light and dark. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Citadel" />
 
     <!--
