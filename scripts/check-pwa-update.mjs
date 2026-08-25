@@ -31,6 +31,7 @@ const APP_ROOT = resolve(__dirname, '..');
 const DIST = resolve(APP_ROOT, 'dist');
 const PORT = Number(process.env.PWA_UPDATE_PORT ?? 4176);
 const ORIGIN = `http://localhost:${PORT}`;
+const DEPLOY_MARKER = 'PWA-DEPLOYED-BUILD';
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -114,8 +115,32 @@ async function main() {
     if (!controlled) throw new Error('no controlling service worker after reload');
 
     // What a deployment looks like to a browser: different sw.js bytes.
+    //
+    // The shell is ALSO given a marker, and its precache revision bumped so the
+    // new worker refetches it rather than serving the copy it already cached.
+    // Without a content difference there is nothing to observe, and "the new
+    // version is live" cannot be asserted at all - only guessed at from
+    // registration internals, which report the same values while a worker is
+    // installing as they do once it has been promoted.
     const swPath = join(root, 'sw.js');
-    await writeFile(swPath, (await readFile(swPath, 'utf8')) + '\n// deployed\n');
+    const indexPath = join(root, 'index.html');
+    const before = await readFile(indexPath, 'utf8');
+    if (before.includes(DEPLOY_MARKER)) {
+      throw new Error('the shell already carries the deploy marker before deploying');
+    }
+    await writeFile(indexPath, before.replace('<title>', `<title>${DEPLOY_MARKER} `));
+
+    const swSource = await readFile(swPath, 'utf8');
+    const bumped = swSource.replace(
+      /(\{url:"index\.html",revision:")([^"]+)(")/,
+      (_m, head, rev, tail) => `${head}${'d'.repeat(rev.length)}${tail}`,
+    );
+    if (bumped === swSource) {
+      // Fail loudly rather than silently testing a deployment that changed nothing:
+      // workbox's minified manifest shape is what this pattern depends on.
+      throw new Error('could not bump the index.html precache revision in sw.js - the manifest shape changed, so this check is no longer simulating a real deployment');
+    }
+    await writeFile(swPath, bumped + '\n// deployed\n');
 
     const found = await page.evaluate(async () => {
       const reg = await navigator.serviceWorker.getRegistration();
@@ -149,6 +174,32 @@ async function main() {
     const reload = page.getByRole('button', { name: /^reload$/i });
     const actionable = shown && (await reload.count()) > 0;
     record('the offer carries a Reload action', actionable);
+
+    // The step that actually delivers the code, and the only one the user cares
+    // about. Everything above proves they were TOLD. A Reload whose handler
+    // no-ops, or whose updateServiceWorker call throws, leaves the new worker
+    // parked forever while every check above stays green.
+    //
+    // Asserted on the served CONTENT rather than on reg.waiting/installing:
+    // those are null both during install and after promotion, so a predicate
+    // over them passes vacuously - verified, with a no-op Reload handler.
+    let activated = false;
+    if (actionable) {
+      const stale = await page.title();
+      if (stale.includes(DEPLOY_MARKER)) {
+        throw new Error('the page already showed the new version before the update was taken');
+      }
+      await reload.first().click();
+      activated = await page
+        .waitForFunction((m) => document.title.includes(m), DEPLOY_MARKER, { timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false);
+    }
+    record(
+      'taking the offer activates the new version',
+      activated,
+      activated ? '' : 'the new shell never became live - the prompt is cosmetic',
+    );
   } finally {
     await browser.close();
     server.close();
