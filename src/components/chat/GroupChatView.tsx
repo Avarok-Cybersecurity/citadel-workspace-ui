@@ -35,8 +35,8 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
     <div className="flex flex-col h-full bg-background">
       {/* Rules banner */}
       {rules && (
-        <div className="px-4 py-2 bg-purple-900/30 border-b border-purple-800/50">
-          <p className="text-sm text-purple-300">{rules}</p>
+        <div className="px-4 py-2 bg-primary/20 border-b border-primary/40">
+          <p className="text-sm text-primary-accent">{rules}</p>
         </div>
       )}
 
@@ -44,7 +44,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       <ScrollArea className="flex-1" ref={chat.scrollAreaRef}>
         {chat.loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
           </div>
         ) : (
           <div className="py-4">
@@ -141,13 +141,13 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             }
             onKeyDown={chat.handleKeyPress}
             placeholder={chat.editingId ? 'Edit message...' : 'Type a message...'}
-            className="flex-1 resize-none bg-background border-surface/50 focus:border-purple-500"
+            className="flex-1 resize-none bg-background border-surface/50 focus:border-primary-accent"
             rows={1}
           />
           <Button
             onClick={chat.editingId ? chat.handleEditMessage : chat.handleSendMessage}
             disabled={chat.sending || (chat.editingId ? !chat.editContent.trim() : !chat.inputValue.trim())}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-primary hover:bg-primary/90"
           >
             {chat.sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />

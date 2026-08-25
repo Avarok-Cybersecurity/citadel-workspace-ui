@@ -41,7 +41,7 @@ export function getRoleIcon(role: string) {
 }
 
 export function getRoleColor(role: string) {
-  return ({ owner: "bg-purple-600", admin: "bg-blue-600", member: "bg-green-600", guest: "bg-gray-600" }[role] || "bg-gray-500");
+  return ({ owner: "bg-primary", admin: "bg-primary-accent", member: "bg-success", guest: "bg-gray-600" }[role] || "bg-gray-500");
 }
 
 export function capitalizeRole(role: string) {
@@ -108,7 +108,7 @@ export function MembersSectionModals({
 
       {/* All Members Dialog */}
       <Dialog open={showAllMembersDialog} onOpenChange={onSetShowAllMembersDialog}>
-        <DialogContent className="max-w-2xl bg-surface border-purple-800">
+        <DialogContent className="max-w-2xl bg-surface border-border">
           <DialogHeader><DialogTitle className="text-foreground">{locationText}</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-2">
@@ -128,7 +128,7 @@ export function MembersSectionModals({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}>Change Role</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }} className="text-red-600">Remove Member</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }} className="text-destructive">Remove Member</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

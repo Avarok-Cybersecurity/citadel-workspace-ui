@@ -141,8 +141,8 @@ export const UserDirectory = () => {
             <Tabs defaultValue="all" value={tab} onValueChange={setTab} className="w-full">
               <div className="px-6">
                 <TabsList className="bg-card w-full">
-                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground">All</TabsTrigger>
-                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground">Online</TabsTrigger>
+                  <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-foreground text-muted-foreground">All</TabsTrigger>
+                  <TabsTrigger value="online" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-foreground text-muted-foreground">Online</TabsTrigger>
                 </TabsList>
               </div>
 

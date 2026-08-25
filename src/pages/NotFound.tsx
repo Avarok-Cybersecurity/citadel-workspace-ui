@@ -15,11 +15,11 @@ const NotFound = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
-        <h1 className="text-6xl font-bold text-purple-400 mb-4">404</h1>
+        <h1 className="text-6xl font-bold text-primary-accent mb-4">404</h1>
         <p className="text-xl text-foreground/80 mb-6">Oops! Page not found</p>
         <Button
           onClick={() => navigate('/')}
-          className="bg-purple-600 hover:bg-purple-700 text-foreground"
+          className="bg-primary hover:bg-primary/90 text-foreground"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Return to Home

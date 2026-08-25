@@ -33,19 +33,19 @@ export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsag
 
   // Determine bar color based on usage
   const barColor = isCritical
-    ? 'bg-red-500'
+    ? 'bg-destructive'
     : isWarning
-      ? 'bg-yellow-500'
-      : 'bg-purple-500';
+      ? 'bg-warning'
+      : 'bg-primary';
 
   const textColor = isCritical
-    ? 'text-red-400'
+    ? 'text-destructive'
     : isWarning
-      ? 'text-yellow-400'
+      ? 'text-warning'
       : 'text-muted-foreground';
 
   return (
-    <div className="px-2 py-2 border-t border-purple-800 bg-surface">
+    <div className="px-2 py-2 border-t border-border bg-surface">
       {/* Label row */}
       <div className="flex items-center gap-1.5 mb-1.5">
         <HardDrive className={cn('h-3 w-3', textColor)} />

@@ -34,7 +34,7 @@ export const ExitConfirmModal = ({
       <DialogContent className="bg-background border-gray-800 text-foreground max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary">
               <ArrowLeft className="w-6 h-6 text-foreground" />
             </div>
             <DialogTitle className="text-xl font-semibold text-foreground">
@@ -43,9 +43,9 @@ export const ExitConfirmModal = ({
           </div>
           <DialogDescription className="text-muted-foreground mt-4">
             Return to the landing page? You'll stay logged in as{" "}
-            <span className="font-semibold text-purple-400">{userName}</span>{" "}
+            <span className="font-semibold text-primary-accent">{userName}</span>{" "}
             and can access{" "}
-            <span className="font-semibold text-purple-400">{workspaceName}</span>{" "}
+            <span className="font-semibold text-primary-accent">{workspaceName}</span>{" "}
             anytime from the workspace switcher.
           </DialogDescription>
         </DialogHeader>
@@ -68,7 +68,7 @@ export const ExitConfirmModal = ({
           </Button>
           <Button
             onClick={handleConfirm}
-            className="bg-purple-600 hover:bg-purple-700 text-foreground"
+            className="bg-primary hover:bg-primary/90 text-foreground"
           >
             Exit to Landing
           </Button>

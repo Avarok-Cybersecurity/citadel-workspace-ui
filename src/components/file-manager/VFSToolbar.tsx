@@ -57,7 +57,7 @@ export function VFSToolbar({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 border-b border-purple-800 bg-card">
+    <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card">
       {/* Left side: Breadcrumb navigation */}
       <div className="flex items-center gap-1 text-sm text-foreground/80 overflow-x-auto min-w-0 flex-1">
         <button
@@ -85,7 +85,7 @@ export function VFSToolbar({
 
       {/* Center: Selection count */}
       {selectionCount > 0 && (
-        <div className="mx-4 text-xs text-purple-300 shrink-0">
+        <div className="mx-4 text-xs text-primary-accent shrink-0">
           {selectionCount} selected
         </div>
       )}
@@ -101,7 +101,7 @@ export function VFSToolbar({
               placeholder="Filter..."
               value={filterText}
               onChange={(e) => onFilterChange(e.target.value)}
-              className="h-7 w-32 pl-7 pr-6 text-xs bg-surface border-purple-800 text-foreground placeholder:text-muted-foreground"
+              className="h-7 w-32 pl-7 pr-6 text-xs bg-surface border-border text-foreground placeholder:text-muted-foreground"
             />
             {filterText && (
               <button
@@ -123,13 +123,13 @@ export function VFSToolbar({
                 <span className="text-xs">{sortLabels[sortField]}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-card border-purple-800">
+            <DropdownMenuContent className="bg-card border-border">
               {(Object.keys(sortLabels) as SortField[]).map((field) => (
                 <DropdownMenuItem
                   key={field}
                   onClick={() => handleSortClick(field)}
                   className={`text-foreground/80 hover:text-foreground hover:bg-card ${
-                    field === sortField ? 'text-purple-300' : ''
+                    field === sortField ? 'text-primary-accent' : ''
                   }`}
                 >
                   {sortLabels[field]}
@@ -144,7 +144,7 @@ export function VFSToolbar({
           </DropdownMenu>
         )}
 
-        <div className="w-px h-4 bg-purple-800" />
+        <div className="w-px h-4 bg-primary" />
 
         {/* Action buttons */}
         <Button variant="ghost" size="sm" onClick={onNewFolder} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">

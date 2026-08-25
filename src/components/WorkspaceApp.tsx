@@ -25,6 +25,17 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
     setShowConnectionRetry,
   } = useConnectionHandler();
 
+  // The translator from group responses to group:* events, started when the
+  // workspace mounts. It used to be called ONLY inside the retry modal's
+  // onRetry below — so in every session that never hit connection retry, no
+  // group response was ever translated: creates, invites and member changes
+  // all fell on the floor and the sidebar's group list stayed empty. The
+  // retry-path call stays (the service is idempotent) so a listener is still
+  // in place before a re-init.
+  React.useEffect(() => {
+    startGroupResponseService();
+  }, []);
+
   return (
     <PermissionsProvider>
       <WorkspaceEventHandler>

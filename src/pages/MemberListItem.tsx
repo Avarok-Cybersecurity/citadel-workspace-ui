@@ -18,11 +18,11 @@ export interface MemberDisplay {
 function getRoleBadgeClass(role?: UserRole): string {
   switch (role) {
     case UserRole.Owner:
-      return 'bg-purple-500 hover:bg-purple-600';
+      return 'bg-primary hover:bg-primary/90';
     case UserRole.Admin:
-      return 'bg-blue-500 hover:bg-blue-600';
+      return 'bg-primary-accent hover:bg-primary-accent/90';
     case UserRole.Member:
-      return 'bg-green-500 hover:bg-green-600';
+      return 'bg-success hover:bg-success/90';
     case UserRole.Guest:
       return 'bg-gray-500 hover:bg-gray-600';
     default:
@@ -64,9 +64,9 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
         className="flex items-center space-x-3 flex-1 min-w-0 text-left cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
         <Avatar className="h-10 w-10 relative">
           <AvatarImage src={member.avatarUrl} />
-          <AvatarFallback className="bg-purple-900">{member.displayName.charAt(0)}</AvatarFallback>
+          <AvatarFallback className="bg-primary">{member.displayName.charAt(0)}</AvatarFallback>
           {member.isOnline && (
-            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" />
+            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card" />
           )}
         </Avatar>
         <div>
@@ -77,7 +77,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
                 {member.role}
               </Badge>
             )}
-            <span className={`text-xs ${variant === 'online' ? 'text-green-400' : 'text-muted-foreground'}`}>
+            <span className={`text-xs ${variant === 'online' ? 'text-success' : 'text-muted-foreground'}`}>
               {variant === 'online'
                 ? 'Online now'
                 : formatPresence(member.isOnline, member.lastActive)}
@@ -90,7 +90,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
           <Button
             variant="ghost"
             size="sm"
-            className="text-purple-400 hover:text-foreground hover:bg-gray-700"
+            className="text-primary-accent hover:text-foreground hover:bg-gray-700"
             aria-label={`Unfavourite ${member.displayName}`}
           >
             <Star className="h-4 w-4 fill-current" aria-hidden="true" />

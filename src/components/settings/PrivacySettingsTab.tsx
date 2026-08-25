@@ -53,7 +53,7 @@ export function PrivacySettingsTab() {
       {/* Visibility */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-          <Eye className="h-4 w-4 text-purple-400" />
+          <Eye className="h-4 w-4 text-primary-accent" />
           Visibility
         </div>
 
@@ -83,7 +83,7 @@ export function PrivacySettingsTab() {
       {/* Messaging Privacy */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-          <MessageSquare className="h-4 w-4 text-purple-400" />
+          <MessageSquare className="h-4 w-4 text-primary-accent" />
           Messaging
         </div>
 
@@ -113,7 +113,7 @@ export function PrivacySettingsTab() {
       {/* Access Control */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-          <Users className="h-4 w-4 text-purple-400" />
+          <Users className="h-4 w-4 text-primary-accent" />
           Access Control
         </div>
 

@@ -133,7 +133,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8" data-testid="members-tab-loading">
-        <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
       </div>
     );
   }
@@ -170,7 +170,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       {/* Advanced Toggle */}
       <div className="flex items-center justify-between p-3 bg-background rounded-lg">
         <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-purple-400" />
+          <Shield className="h-4 w-4 text-primary-accent" />
           <Label htmlFor="advanced-toggle" className="text-foreground cursor-pointer">
             Show Advanced Permissions
           </Label>

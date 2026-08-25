@@ -93,7 +93,10 @@ export function useGroupState(): GroupState {
         unreadCount: 0,
       };
 
-      setGroups(prev => [...prev, newGroup]);
+      // By id, not unconditionally: accepting an invite can surface a channel
+      // create for a group the invite already added, and a second row for the
+      // same id would let the two drift apart.
+      setGroups(prev => (prev.some(g => g.id === newGroup.id) ? prev : [...prev, newGroup]));
     };
 
     const handleGroupInviteReceived = (data: {

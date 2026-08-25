@@ -67,7 +67,7 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
       <CardContent className="p-0">
         {loading ? (
           <div className="py-8 flex justify-center items-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary-accent"></div>
           </div>
         ) : (
           <ul id={RESULTS_LIST_ID} role="listbox" aria-label="User search results" className="divide-y divide-gray-700">
@@ -93,9 +93,9 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10 relative">
                     <AvatarImage src={user.avatarUrl} />
-                    <AvatarFallback className="bg-purple-900">{user.displayName.charAt(0)}</AvatarFallback>
+                    <AvatarFallback className="bg-primary">{user.displayName.charAt(0)}</AvatarFallback>
                     {user.isOnline && (
-                      <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" />
+                      <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card" />
                     )}
                   </Avatar>
                   <div className="flex-1 min-w-0">
@@ -119,7 +119,7 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
                 <User className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
                 <p>No users found</p>
                 {enableInvite && (
-                  <Button className="mt-3 bg-purple-600 hover:bg-purple-700" size="sm">
+                  <Button className="mt-3 bg-primary hover:bg-primary/90" size="sm">
                     <UserPlus className="h-4 w-4 mr-2" />
                     Invite User
                   </Button>
@@ -132,7 +132,7 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
     </ScrollArea>
     {enableInvite && (results.length > 0 || !searchTerm) && (
       <CardFooter className="p-3 border-t border-gray-700">
-        <Button className="w-full bg-purple-600 hover:bg-purple-700" size="sm">
+        <Button className="w-full bg-primary hover:bg-primary/90" size="sm">
           <UserPlus className="h-4 w-4 mr-2" />
           Invite New User
         </Button>

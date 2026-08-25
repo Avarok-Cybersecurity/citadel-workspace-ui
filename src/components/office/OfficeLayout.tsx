@@ -43,7 +43,7 @@ export const OfficeLayout = ({
             <h1 className="text-xl font-semibold text-foreground hidden md:block">
               <button
                 onClick={handleNavigateUp}
-                className="hover:text-purple-300 transition-colors"
+                className="hover:text-primary-accent transition-colors"
               >
                 {title}
               </button>
@@ -53,7 +53,7 @@ export const OfficeLayout = ({
             <Button
               variant="ghost"
               size="icon"
-              className="text-foreground/80 hover:bg-purple-500/15 hover:text-foreground"
+              className="text-foreground/80 hover:bg-primary-accent/15 hover:text-foreground"
               onClick={() => navigate('/messages')}
               title="Messages"
             >
@@ -62,7 +62,7 @@ export const OfficeLayout = ({
             <Button
               variant="ghost"
               size="icon"
-              className="text-foreground/80 hover:bg-purple-500/15 hover:text-foreground"
+              className="text-foreground/80 hover:bg-primary-accent/15 hover:text-foreground"
               onClick={() => setShowSettingsModal(true)}
               title="Settings"
             >
@@ -72,14 +72,14 @@ export const OfficeLayout = ({
               <>
                 <Button
                   variant="ghost"
-                  className="text-foreground/80 hover:bg-purple-500/15 hover:text-foreground"
+                  className="text-foreground/80 hover:bg-primary-accent/15 hover:text-foreground"
                   onClick={onEditToggle}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={onSave}
-                  className="bg-purple-600 text-foreground hover:bg-purple-700"
+                  className="bg-primary text-foreground hover:bg-primary/90"
                 >
                   Save Changes
                 </Button>
@@ -91,7 +91,7 @@ export const OfficeLayout = ({
               >
                 <Button
                   variant="outline"
-                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-foreground hover:border-purple-400"
+                  className="border-primary-accent/50 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground hover:border-primary-accent"
                   onClick={canEdit ? onEditToggle : undefined}
                 >
                   Edit

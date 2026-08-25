@@ -196,7 +196,7 @@ export const LoadingModal = ({
 
         {/* Timeout warning */}
         {timedOut && isLoading && (
-          <div className="mt-4 text-center text-yellow-400 text-sm">
+          <div className="mt-4 text-center text-warning text-sm">
             This is taking longer than expected.
           </div>
         )}

@@ -24,7 +24,7 @@ export const components: MDXComponents = {
     <li className="mb-2">{children}</li>
   ),
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a href={href} className="text-purple-400 hover:text-purple-300 underline">
+    <a href={href} className="text-primary-accent hover:text-primary-accent underline">
       {children}
     </a>
   ),
@@ -44,7 +44,7 @@ export const components: MDXComponents = {
   thead: TableHeader,
   tbody: TableBody,
   tr: ({ children, ...props }: React.DetailedHTMLProps<React.HTMLAttributes<HTMLTableRowElement>, HTMLTableRowElement>) => (
-    <TableRow {...props} className="hover:bg-purple-500/10 transition-colors">
+    <TableRow {...props} className="hover:bg-primary-accent/10 transition-colors">
       {children}
     </TableRow>
   ),
@@ -68,7 +68,7 @@ export const components: MDXComponents = {
     </Card>
   ),
   Alert: ({ title, children, variant = "default" }: { title: string; children: React.ReactNode; variant?: "default" | "destructive" }) => (
-    <Alert variant={variant} className="mb-6 bg-card border-purple-800">
+    <Alert variant={variant} className="mb-6 bg-card border-border">
       <AlertTitle className="text-foreground">{title}</AlertTitle>
       <AlertDescription className="text-foreground/80">{children}</AlertDescription>
     </Alert>
@@ -76,9 +76,9 @@ export const components: MDXComponents = {
   Badge: ({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "secondary" | "destructive" | "outline" }) => {
     const getColorClass = (text: string) => {
       if (text === 'In Progress' || text === 'Trending Up' || text === 'Growing Team') 
-        return 'text-emerald-800 flex items-center gap-1 inline-flex';
+        return 'text-success flex items-center gap-1 inline-flex';
       if (text === 'High Priority' || text === 'High Impact' || text === 'Active Hiring') 
-        return 'text-red-600 flex items-center gap-1 inline-flex';
+        return 'text-destructive flex items-center gap-1 inline-flex';
       return '';
     };
 

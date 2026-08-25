@@ -7,8 +7,13 @@
  * the group list could never populate: createGroup fired its request, the
  * response was dropped, and the sidebar stayed empty forever.
  *
- * This is the missing half. Kept pure — a response in, an event out — so the
- * mapping can be tested without a socket.
+ * This is the missing half. Kept pure — a response in, events out — so the
+ * mapping can be tested without a socket. The username resolver is injected
+ * because the wire carries only CIDs: GroupInviteNotification names no
+ * inviter, and MemberStateChanged names joiners purely by number. Resolving
+ * here (from the peer roster the caller supplies) is what keeps the invite
+ * path alive at all — `buildGroupFromInvite` rejects a nameless inviter, so
+ * emitting an empty username silently dropped every invite ever received.
  */
 
 import { groupKeyToId, parseGroupKey } from './group-key';
@@ -23,8 +28,8 @@ export interface GroupEvent {
   payload: Record<string, unknown>;
 }
 
-/** Field names the backend uses for the member whose state changed. */
-type MemberState = { Joined?: unknown; Left?: unknown; Kicked?: unknown } | string;
+/** Supplies a display name for a CID; the caller decides the fallback. */
+export type PeerNameResolver = (cid: bigint) => string;
 
 function variant(message: Record<string, unknown>, name: string): Record<string, unknown> | undefined {
   const value = message[name];
@@ -32,21 +37,48 @@ function variant(message: Record<string, unknown>, name: string): Record<string,
 }
 
 /**
- * Map one websocket message to the group event it implies, or null when it is
- * not a group response.
+ * The member CIDs a MemberStateChanged variant carries.
  *
- * `selfCid` is needed because the backend reports member changes without saying
- * whether they concern us, and because a create response names no owner other
- * than the caller.
+ * The wire shape is citadel_types' `MemberState::EnteredGroup { cids }` /
+ * `LeftGroup { cids }` — a LIST of members, and the notification's own `cid`
+ * field is the RECIPIENT's session, not the member who moved. The first cut
+ * of this mapping looked for `Joined`/`Left`/`Kicked` variants and read the
+ * member from that recipient field: shapes that do not exist on the wire read
+ * through a field that means someone else, so no membership change was ever
+ * applied and a creator's roster stayed just themselves forever.
  */
-export function toGroupEvent(
+function memberCids(state: Record<string, unknown>, key: 'EnteredGroup' | 'LeftGroup'): bigint[] {
+  const inner = variant(state, key);
+  if (!inner || !Array.isArray(inner.cids)) return [];
+  const cids: bigint[] = [];
+  for (const raw of inner.cids) {
+    try {
+      cids.push(BigInt(raw as string | number | bigint));
+    } catch {
+      // A cid that does not parse identifies nobody; dropping it beats
+      // fabricating a member out of garbage.
+    }
+  }
+  return cids;
+}
+
+/**
+ * Map one websocket message to the group events it implies — empty when it is
+ * not a group response. A single MemberStateChanged can name several members,
+ * which is why this returns a list.
+ *
+ * `selfCid` is needed because a create response names no owner other than the
+ * caller; `peerName` because the wire identifies peers only by CID.
+ */
+export function toGroupEvents(
   message: Record<string, unknown>,
   selfCid: bigint,
   selfUsername: string,
-): GroupEvent | null {
+  peerName: PeerNameResolver,
+): GroupEvent[] {
   const created = variant(message, 'GroupCreateSuccess') ?? variant(message, 'GroupChannelCreateSuccess');
   if (created) {
-    return {
+    return [{
       name: 'group:created',
       payload: {
         groupId: groupKeyToId(parseGroupKey(created.group_key)),
@@ -56,59 +88,57 @@ export function toGroupEvent(
         ownerId: String(created.cid ?? selfCid),
         ownerUsername: selfUsername,
       },
-    };
+    }];
   }
 
   const invited = variant(message, 'GroupInviteNotification');
   if (invited) {
-    return {
+    const inviterCid = BigInt((invited.peer_cid ?? 0) as string | number | bigint);
+    return [{
       name: 'group:invite-received',
       payload: {
         groupId: groupKeyToId(parseGroupKey(invited.group_key)),
         groupName: '',
-        inviterId: String(invited.peer_cid ?? ''),
-        inviterUsername: '',
+        inviterId: inviterCid.toString(),
+        inviterUsername: peerName(inviterCid),
       },
-    };
+    }];
   }
 
   const memberChange = variant(message, 'GroupMemberStateChangeNotification');
   if (memberChange) {
     const groupId = groupKeyToId(parseGroupKey(memberChange.group_key));
-    const state = memberChange.state as MemberState;
-    const kind = typeof state === 'string' ? state : Object.keys(state ?? {})[0];
-    const memberCid = String(memberChange.cid ?? '');
-
-    if (kind === 'Joined') {
-      return {
-        name: 'group:member-joined',
-        payload: { groupId, memberCid, memberUsername: '' },
-      };
-    }
-    if (kind === 'Left' || kind === 'Kicked') {
-      return { name: 'group:member-left', payload: { groupId, memberCid } };
-    }
-    return null;
+    const state = (memberChange.state ?? {}) as Record<string, unknown>;
+    return [
+      ...memberCids(state, 'EnteredGroup').map((cid) => ({
+        name: 'group:member-joined' as const,
+        payload: { groupId, memberCid: cid.toString(), memberUsername: peerName(cid) },
+      })),
+      ...memberCids(state, 'LeftGroup').map((cid) => ({
+        name: 'group:member-left' as const,
+        payload: { groupId, memberCid: cid.toString() },
+      })),
+    ];
   }
 
   const left = variant(message, 'GroupLeaveNotification');
   if (left) {
-    return {
+    return [{
       name: 'group:member-left',
       payload: {
         groupId: groupKeyToId(parseGroupKey(left.group_key)),
         memberCid: String(left.cid ?? ''),
       },
-    };
+    }];
   }
 
   const ended = variant(message, 'GroupEndNotification');
   if (ended) {
-    return {
+    return [{
       name: 'group:deleted',
       payload: { groupId: groupKeyToId(parseGroupKey(ended.group_key)) },
-    };
+    }];
   }
 
-  return null;
+  return [];
 }

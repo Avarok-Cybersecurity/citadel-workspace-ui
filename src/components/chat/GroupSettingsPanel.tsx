@@ -195,8 +195,8 @@ export function GroupSettingsPanel({
                     <Separator className="bg-border" />
 
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-red-400">Danger Zone</h4>
-                      <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+                      <h4 className="text-sm font-medium text-destructive">Danger Zone</h4>
+                      <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
                         <p className="text-sm text-foreground/80 mb-3">
                           Permanently delete this group. This action cannot be undone.
                           All messages and settings will be lost.
@@ -204,7 +204,7 @@ export function GroupSettingsPanel({
                         <Button
                           variant="destructive"
                           onClick={() => setShowDeleteConfirm(true)}
-                          className="bg-red-600 hover:bg-red-700"
+                          className="bg-destructive hover:bg-destructive/90"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Group

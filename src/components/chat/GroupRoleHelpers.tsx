@@ -69,7 +69,7 @@ export function DeleteRoleDialog({ roleToDelete, onOpenChange, onConfirm }: Dele
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-700 text-foreground"
+            className="bg-destructive hover:bg-destructive/90 text-foreground"
           >
             Delete
           </AlertDialogAction>

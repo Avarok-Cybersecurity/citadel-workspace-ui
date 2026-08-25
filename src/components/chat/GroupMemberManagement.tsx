@@ -158,7 +158,7 @@ export function GroupMemberManagement({
                           </span>
                           {getRoleIcon(member.role)}
                           {isOwnerMember && (
-                            <span className="text-xs text-amber-500">(Owner)</span>
+                            <span className="text-xs text-warning">(Owner)</span>
                           )}
                         </div>
                       </div>
@@ -216,7 +216,7 @@ export function GroupMemberManagement({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => setMemberToKick(member)}
                             title="Kick member"
                           >

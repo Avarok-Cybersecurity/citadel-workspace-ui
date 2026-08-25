@@ -135,7 +135,7 @@ export function EntityManagementModal<TMode extends string>({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] bg-card border-purple-800">
+      <DialogContent className="sm:max-w-[425px] bg-card border-border">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-foreground">{modeConfig.title}</DialogTitle>
@@ -170,8 +170,8 @@ export function EntityManagementModal<TMode extends string>({
               disabled={isSubmitting}
               className={
                 modeConfig.submitVariant === 'destructive'
-                  ? "bg-red-600 text-foreground hover:bg-red-700"
-                  : "bg-purple-500/20 text-purple-200 hover:bg-purple-500/25 hover:text-primary-foreground"
+                  ? "bg-destructive text-foreground hover:bg-destructive/90"
+                  : "bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25 hover:text-primary-foreground"
               }
             >
               {isSubmitting ? modeConfig.submittingLabel : modeConfig.submitLabel}
@@ -229,7 +229,7 @@ function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
             <SelectTrigger className="bg-card border-gray-600 text-foreground">
               <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
             </SelectTrigger>
-            <SelectContent className="bg-card border-purple-800">
+            <SelectContent className="bg-card border-border">
               {field.options?.map(option => (
                 <SelectItem
                   key={option.value}

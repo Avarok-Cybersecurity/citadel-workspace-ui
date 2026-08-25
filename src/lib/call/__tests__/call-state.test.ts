@@ -31,13 +31,14 @@ function outgoing(invitees = [BOB], roomId: string | null = null): CallState {
   })!;
 }
 
-function incoming(): CallState {
+function incoming(others: Array<{ cid: bigint; username: string }> = [], roomId: string | null = null): CallState {
   return reduce(null, {
     type: 'invite-received',
     callId: 'call-2',
-    roomId: null,
+    roomId,
     from: ALICE,
     media: VIDEO,
+    others,
   })!;
 }
 
@@ -92,6 +93,7 @@ describe('receiving a call', () => {
       roomId: null,
       from: ALICE,
       media: VIDEO,
+      others: [],
     })!;
 
     expect(after.status).toBe('active');
@@ -105,6 +107,36 @@ describe('receiving a call', () => {
     // Answering a call the caller already gave up on must not open a session
     // to someone who is no longer there.
     expect(state.status).toBe('ended');
+  });
+});
+
+describe('receiving a group call', () => {
+  it('seeds the caller first and every co-invitee, so all invitees hold the same roster', () => {
+    // Without the co-invitees, two invitees in one group call would never
+    // exchange a signal or a frame — each would know only the caller.
+    const state = incoming([CAROL], 'room-1');
+
+    expect([...state.participants.keys()]).toEqual([ALICE.cid, CAROL.cid]);
+    // The caller is already in the call they dialled; the co-invitee has not
+    // answered yet.
+    expect(state.participants.get(ALICE.cid)?.status).toBe('connecting');
+    expect(state.participants.get(CAROL.cid)?.status).toBe('invited');
+  });
+
+  it('records a co-invitee accepting while we are still ringing', () => {
+    let state = incoming([CAROL], 'room-1');
+    state = reduce(state, { type: 'peer-accepted', cid: CAROL.cid, media: VIDEO })!;
+
+    expect(state.participants.get(CAROL.cid)?.status).toBe('connecting');
+    // Their answer is not ours: we keep ringing until the user decides.
+    expect(state.status).toBe('ringing-in');
+  });
+
+  it('does not duplicate the caller when the roster names them too', () => {
+    const state = incoming([ALICE, CAROL], 'room-1');
+
+    expect(state.participants.size).toBe(2);
+    expect(state.participants.get(ALICE.cid)?.status).toBe('connecting');
   });
 });
 

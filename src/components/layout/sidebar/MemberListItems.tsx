@@ -56,7 +56,7 @@ export function MemberListItems({
           <div className="flex items-center w-full group">
             <Tooltip>
               <TooltipTrigger asChild>
-                <SidebarMenuButton className="text-foreground hover:bg-purple-500/15 hover:text-foreground transition-colors flex-1">
+                <SidebarMenuButton className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors flex-1">
                   <div className="flex items-center gap-2 flex-1">
                     {getRoleIcon(member.role || 'member')}
                     <span className="flex-1 truncate">{member.displayName || member.username}</span>
@@ -85,7 +85,7 @@ export function MemberListItems({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => onManagePermissions(member)}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onEditMember(member)}>Change Role</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onRemoveMember(member)} className="text-red-600">Remove Member</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onRemoveMember(member)} className="text-destructive">Remove Member</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -94,7 +94,7 @@ export function MemberListItems({
       ))}
       {members.length > MEMBERS_TO_SHOW && (
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={onShowAllMembers} className="text-primary-accent hover:bg-purple-500/15 hover:text-foreground transition-colors">
+          <SidebarMenuButton onClick={onShowAllMembers} className="text-primary-accent hover:bg-primary-accent/15 hover:text-foreground transition-colors">
             <Users className="h-4 w-4 mr-2" />View all {members.length} members
           </SidebarMenuButton>
         </SidebarMenuItem>

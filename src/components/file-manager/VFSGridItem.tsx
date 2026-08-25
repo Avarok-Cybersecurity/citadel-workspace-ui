@@ -122,9 +122,9 @@ export function GridItem({
         className={cn(
           "relative flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer",
           "hover:bg-card transition-colors select-none",
-          dragOver && "bg-green-900/30 ring-1 ring-green-500",
+          dragOver && "bg-success/15 ring-1 ring-success",
           isCutItem && "opacity-50",
-          isSelected && "bg-purple-700/40 ring-1 ring-purple-500",
+          isSelected && "bg-primary/40 ring-1 ring-ring",
         )}
         onClick={handleClick}
         role="button"
@@ -137,7 +137,7 @@ export function GridItem({
       >
         <Icon className={cn(
           "h-10 w-10 mb-1.5",
-          isDir ? (isProtected ? "text-muted-foreground" : "text-yellow-400") : "text-foreground/80",
+          isDir ? (isProtected ? "text-muted-foreground" : "text-warning") : "text-foreground/80",
         )} />
 
         {StateIcon && (

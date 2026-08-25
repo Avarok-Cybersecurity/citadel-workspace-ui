@@ -122,8 +122,8 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             <div
               className={`border-2 border-dashed rounded-lg p-6 ${
                 dragActive 
-                  ? 'border-purple-500 bg-purple-900/20' 
-                  : 'border-gray-600 hover:border-purple-400 hover:bg-purple-900/10'
+                  ? 'border-primary-accent bg-primary/10' 
+                  : 'border-gray-600 hover:border-primary-accent hover:bg-primary/10'
               }`}
               onDragEnter={handleDrag}
               onDragOver={handleDrag}
@@ -194,7 +194,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             <Button
               onClick={handleInsert}
               disabled={!uploadedImage || uploading}
-              className="bg-purple-600 hover:bg-purple-700 text-foreground"
+              className="bg-primary hover:bg-primary/90 text-foreground"
             >
               {uploading ? 'Uploading...' : 'Insert Image'}
             </Button>

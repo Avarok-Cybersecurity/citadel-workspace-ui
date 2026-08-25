@@ -24,9 +24,9 @@ function getMessageStatusIcon(message: P2PMessage) {
     case 'delivered':
       return <CheckCheck className="h-3 w-3 text-muted-foreground" data-testid="message-status-delivered" />;
     case 'read':
-      return <CheckCheck className="h-3 w-3 text-sky-400" data-testid="message-status-read" />;
+      return <CheckCheck className="h-3 w-3 text-primary-accent" data-testid="message-status-read" />;
     case 'failed':
-      return <XCircle className="h-3 w-3 text-red-400" data-testid="message-status-failed" />;
+      return <XCircle className="h-3 w-3 text-destructive" data-testid="message-status-failed" />;
     default:
       return null;
   }
@@ -77,13 +77,13 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
             className="ml-1 p-0.5 rounded hover:bg-white/10 transition-colors"
             title="Retry sending"
           >
-            <RefreshCw className="h-3 w-3 text-red-400 hover:text-foreground" />
+            <RefreshCw className="h-3 w-3 text-destructive hover:text-foreground" />
           </button>
         )}
       </div>
       {/* Error message for failed sends */}
       {isOwn && isFailed && message.error && (
-        <p className="text-xs text-red-400 mt-1">{message.error}</p>
+        <p className="text-xs text-destructive mt-1">{message.error}</p>
       )}
     </>
   );

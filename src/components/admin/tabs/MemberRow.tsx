@@ -18,9 +18,9 @@ import type { MemberData, UserRole } from '../types';
 import { USER_ROLES } from '../types';
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  Admin: 'bg-red-500',
-  Owner: 'bg-orange-500',
-  Member: 'bg-blue-500',
+  Admin: 'bg-destructive',
+  Owner: 'bg-warning',
+  Member: 'bg-primary-accent',
   Guest: 'bg-gray-500',
   Banned: 'bg-black',
 };
@@ -72,7 +72,7 @@ export function MemberRow({
             variant="outline"
             size="sm"
             onClick={() => onAdvancedPermissions(member)}
-            className="border-purple-600 text-purple-400 hover:bg-purple-600/20"
+            className="border-primary-accent text-primary-accent hover:bg-primary-accent/20"
             data-testid={`member-permissions-${member.userId}`}
           >
             <Shield className="h-4 w-4 mr-1" />
@@ -111,7 +111,7 @@ export function MemberRow({
           variant="ghost"
           size="icon"
           onClick={() => onRemove(member)}
-          className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+          className="text-destructive hover:text-destructive hover:bg-destructive/15"
           data-testid={`member-remove-${member.userId}`}
         >
           <UserMinus className="h-4 w-4" />

@@ -102,7 +102,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-purple-400" />
+            <MessageCircle className="h-4 w-4 text-primary-accent" />
             Direct Messages
           </h3>
           <Button
@@ -130,13 +130,13 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
               value={newPeerCid}
               onChange={(e) => setNewPeerCid(e.target.value)}
               placeholder="Enter peer CID..."
-              className="flex-1 bg-background border-border text-foreground placeholder-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 h-9 rounded-lg text-sm"
+              className="flex-1 bg-background border-border text-foreground placeholder-gray-600 focus:border-primary-accent focus:ring-1 focus:ring-ring/30 h-9 rounded-lg text-sm"
             />
             <Button
               type="submit"
               size="icon"
               disabled={isAddingPeer || !newPeerCid.trim()}
-              className="bg-purple-600 hover:bg-purple-500 text-foreground h-9 w-9 rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-foreground h-9 w-9 rounded-lg"
             >
               <UserPlus className="h-4 w-4" />
             </Button>
@@ -186,7 +186,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                         </div>
 
                         {peer.isRegistered ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <CheckCircle className="h-4 w-4 text-success" />
                         ) : (
                           <UserPlus className="h-4 w-4 text-muted-foreground" />
                         )}

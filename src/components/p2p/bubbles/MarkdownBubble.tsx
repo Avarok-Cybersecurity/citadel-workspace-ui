@@ -35,7 +35,7 @@ const markdownComponents = {
 
   // Links
   a: ({ href, children }: LinkProps) => (
-    <a href={href} className="text-purple-300 hover:text-purple-200 underline" target="_blank" rel="noopener noreferrer">
+    <a href={href} className="text-primary-accent hover:text-primary-accent underline" target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   ),
@@ -55,7 +55,7 @@ const markdownComponents = {
 
   // Block quotes
   blockquote: ({ children }: ChildrenProps) => (
-    <blockquote className="border-l-2 border-purple-400/50 pl-2 italic text-sm opacity-90 mb-2">
+    <blockquote className="border-l-2 border-primary-accent/50 pl-2 italic text-sm opacity-90 mb-2">
       {children}
     </blockquote>
   ),
@@ -95,7 +95,7 @@ export function MarkdownBubble({
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="bg-purple-600 text-foreground text-xs">
+          <AvatarFallback className="bg-primary text-foreground text-xs">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
@@ -117,7 +117,7 @@ export function MarkdownBubble({
           </div>
           {/* Inline failure indicator */}
           {isOwn && isFailed && (
-            <div className="flex items-center gap-1 mt-1.5 text-xs text-red-300">
+            <div className="flex items-center gap-1 mt-1.5 text-xs text-destructive">
               <AlertCircle className="h-3 w-3" />
               <span>Failed to send</span>
               {onRetry && (
@@ -159,7 +159,7 @@ export function MarkdownBubble({
               {isOwn && onDelete && (
                 <DropdownMenuItem
                   onClick={onDelete}
-                  className="text-red-400 focus:text-red-400"
+                  className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete

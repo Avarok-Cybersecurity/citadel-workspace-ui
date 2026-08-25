@@ -182,7 +182,7 @@ export const FilesSection = () => {
                 files.map((file) => (
                   <SidebarMenuItem key={file.id} data-testid={`file-item-${file.id}`}>
                     <SidebarMenuButton
-                      className="text-foreground hover:bg-purple-500/15 hover:text-foreground transition-colors"
+                      className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
                       onClick={() => handleFileClick(file)}
                     >
                       {getFileIcon(file.name)}
@@ -196,8 +196,8 @@ export const FilesSection = () => {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={isFileManagerActive}
-                  className={`text-primary-foreground hover:bg-purple-500/15 hover:text-primary-foreground transition-colors ${
-                    isFileManagerActive ? "bg-purple-500/20 text-purple-200" : ""
+                  className={`text-primary-foreground hover:bg-primary-accent/15 hover:text-primary-foreground transition-colors ${
+                    isFileManagerActive ? "bg-primary-accent/20 text-primary-accent" : ""
                   }`}
                   onClick={handleFileManagerClick}
                   data-testid="file-manager-button"

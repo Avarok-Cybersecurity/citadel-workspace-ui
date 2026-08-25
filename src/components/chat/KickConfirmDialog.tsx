@@ -50,7 +50,7 @@ export function KickConfirmDialog({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isKicking}
-            className="bg-red-600 hover:bg-red-700 text-foreground"
+            className="bg-destructive hover:bg-destructive/90 text-foreground"
           >
             {isKicking ? 'Kicking...' : 'Kick Member'}
           </AlertDialogAction>

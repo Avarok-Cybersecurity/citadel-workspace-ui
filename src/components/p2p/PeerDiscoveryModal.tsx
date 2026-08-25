@@ -41,7 +41,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               size="sm"
               onClick={discoverPeers}
               disabled={loading}
-              className="text-purple-400 hover:text-purple-300"
+              className="text-primary-accent hover:text-primary-accent"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -59,7 +59,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           <div className="mb-3 p-3 bg-card rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <Signal className="h-4 w-4 text-green-400" />
+                <Signal className="h-4 w-4 text-success" />
                 <span className="text-sm">You are connected as: <strong>{currentUsername}</strong></span>
               </div>
               {currentCid !== undefined && currentCid !== null && (
@@ -75,7 +75,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           <ScrollArea className="h-[400px]">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
               </div>
             ) : peers.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">

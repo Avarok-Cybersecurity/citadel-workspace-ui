@@ -85,7 +85,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                     id="serverAddress"
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
-                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                     placeholder="workspace.example.com"
                   />
                 </div>
@@ -103,17 +103,17 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                     placeholder="••••••••••••"
                   />
                 </div>
               </div>
 
               {/* Security info banner */}
-              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-purple-500/5 border border-purple-500/10">
-                <Shield className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-primary-accent/5 border border-primary-accent/10">
+                <Shield className="w-4 h-4 text-primary-accent flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Citadel uses <span className="text-purple-300">lattice-based cryptography</span>. All connections are
+                  Citadel uses <span className="text-primary-accent">lattice-based cryptography</span>. All connections are
                   end-to-end encrypted and resistant to quantum compute attacks.
                 </p>
               </div>
@@ -130,7 +130,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
               </Button>
               <Button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-500 text-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
+                className="bg-primary hover:bg-primary/90 text-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
               >
                 Next
                 <ArrowRight className="w-4 h-4" />

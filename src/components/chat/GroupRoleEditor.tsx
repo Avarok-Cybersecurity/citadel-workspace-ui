@@ -119,11 +119,11 @@ export function GroupRoleEditor({
               onChange={e => setPosition(parseInt(e.target.value) || 0)}
               disabled={isBuiltIn}
               className={`bg-surface border-border text-foreground ${
-                !isPositionValid ? 'border-red-500' : ''
+                !isPositionValid ? 'border-destructive' : ''
               } ${isBuiltIn ? 'opacity-50' : ''}`}
             />
             {!isPositionValid && (
-              <p className="text-xs text-red-400">
+              <p className="text-xs text-destructive">
                 Position must be unique and between 1-99
               </p>
             )}
@@ -163,7 +163,7 @@ export function GroupRoleEditor({
           <div className="space-y-3">
             <Label className="text-sm text-foreground/80">Permissions</Label>
             {isBuiltIn && (
-              <p className="text-xs text-amber-500">
+              <p className="text-xs text-warning">
                 Built-in role permissions cannot be modified.
               </p>
             )}

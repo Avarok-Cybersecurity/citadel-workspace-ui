@@ -39,10 +39,10 @@ export function ChildNodePermissionSection({
   }, [nodeId, fetchPermissionsForDomain]);
 
   return (
-    <AccordionItem value={`child-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-teal-500/30 ml-4">
+    <AccordionItem value={`child-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-primary-accent/30 ml-4">
       <AccordionTrigger className="text-foreground/80 hover:text-foreground hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
-          <Icon className="h-4 w-4 text-teal-400" />
+          <Icon className="h-4 w-4 text-primary-accent" />
           <span>{nodeName}</span>
           <RoleBadge role={role} />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
@@ -81,10 +81,10 @@ export function ParentNodePermissionSection({
   }, [nodeId, fetchPermissionsForDomain]);
 
   return (
-    <AccordionItem value={`node-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-blue-500/30 ml-2">
+    <AccordionItem value={`node-${nodeId}`} className="border-gray-700/30 border-l-2 border-l-primary-accent/30 ml-2">
       <AccordionTrigger className="text-foreground/80 hover:text-foreground hover:no-underline py-2 pl-3">
         <div className="flex items-center gap-3">
-          <Icon className="h-4 w-4 text-blue-400" />
+          <Icon className="h-4 w-4 text-primary-accent" />
           <span>{nodeName}</span>
           <RoleBadge role={role} />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}

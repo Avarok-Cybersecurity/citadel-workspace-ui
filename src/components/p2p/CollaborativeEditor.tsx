@@ -123,7 +123,7 @@ export function CollaborativeEditor({
       <div className="h-full flex flex-col bg-background">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-surface/50 bg-background relative z-10">
           <span className="text-xs text-muted-foreground">Collaborators:</span>
-          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/30 text-purple-300 ring-2 ring-green-500 ring-offset-1 ring-offset-background">
+          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/30 text-primary-accent ring-2 ring-success ring-offset-1 ring-offset-background">
             {currentUserName}
           </span>
         </div>
@@ -147,10 +147,10 @@ export function CollaborativeEditor({
             <span
               key={i}
               className={`
-                px-2 py-0.5 rounded-full text-xs bg-primary/30 text-purple-300
+                px-2 py-0.5 rounded-full text-xs bg-primary/30 text-primary-accent
                 transition-all duration-200
                 ${user.isActive
-                  ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-background'
+                  ? 'ring-2 ring-success ring-offset-2 ring-offset-background'
                   : 'opacity-60'}
               `}
               title={user.isActive ? `${user.name} is actively viewing` : `${user.name} is connected`}
@@ -162,8 +162,8 @@ export function CollaborativeEditor({
         <div className="ml-auto flex items-center gap-1.5">
           <span className={`
             w-2 h-2 rounded-full
-            ${syncState === 'synced' ? 'bg-green-500' :
-              syncState === 'syncing' ? 'bg-yellow-500 animate-pulse' :
+            ${syncState === 'synced' ? 'bg-success' :
+              syncState === 'syncing' ? 'bg-warning animate-pulse' :
                 'bg-gray-500'}
           `} />
           <span className="text-xs text-muted-foreground">

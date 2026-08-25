@@ -98,7 +98,7 @@ const NotificationCenter = () => {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px] bg-card text-foreground border-purple-800">
+      <SheetContent className="w-[400px] sm:w-[540px] bg-card text-foreground border-border">
         <SheetHeader className="border-b border-gray-700 pb-4">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-foreground">Notifications</SheetTitle>

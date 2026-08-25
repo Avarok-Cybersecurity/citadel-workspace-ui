@@ -33,10 +33,10 @@ export function RevfsDisabledModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-surface border-purple-800 text-foreground sm:max-w-md">
+      <DialogContent className="bg-surface border-border text-foreground sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
-            <AlertTriangle className="h-5 w-5 text-yellow-400" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
             Remote Storage Unavailable
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -51,9 +51,9 @@ export function RevfsDisabledModal({
           <div className="flex justify-center py-4">
             <div className="rounded-full bg-card p-6">
               {isPeerDisabled ? (
-                <UserCircle2 className="h-12 w-12 text-yellow-400" />
+                <UserCircle2 className="h-12 w-12 text-warning" />
               ) : (
-                <Server className="h-12 w-12 text-yellow-400" />
+                <Server className="h-12 w-12 text-warning" />
               )}
             </div>
           </div>
@@ -89,7 +89,7 @@ export function RevfsDisabledModal({
         <DialogFooter className="gap-2">
           <Button
             onClick={onClose}
-            className="bg-card border-purple-700 text-foreground hover:bg-border hover:text-foreground"
+            className="bg-card border-primary-accent text-foreground hover:bg-border hover:text-foreground"
           >
             {isPeerDisabled ? 'OK' : 'Close'}
           </Button>
@@ -99,7 +99,7 @@ export function RevfsDisabledModal({
                 onOpenSettings();
                 onClose();
               }}
-              className="bg-purple-700 text-foreground hover:bg-purple-600"
+              className="bg-primary text-foreground hover:bg-primary/90"
             >
               <Settings className="h-4 w-4 mr-2" />
               Open Settings

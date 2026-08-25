@@ -113,7 +113,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
           relative w-32 h-32 rounded-full overflow-hidden cursor-pointer
           border-2 border-dashed transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-          ${isDragActive ? 'border-purple-500 bg-purple-500/10' : 'border-gray-600 hover:border-gray-500'}
+          ${isDragActive ? 'border-primary-accent bg-primary-accent/10' : 'border-gray-600 hover:border-gray-500'}
           ${isProcessing ? 'animate-pulse' : ''}
         `}
       >
@@ -127,7 +127,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
             {!disabled && (
               <button
                 onClick={handleRemove}
-                className="absolute top-0 right-0 p-1 bg-red-600 rounded-full transform translate-x-1/4 -translate-y-1/4 hover:bg-red-500 transition-colors"
+                className="absolute top-0 right-0 p-1 bg-destructive rounded-full transform translate-x-1/4 -translate-y-1/4 hover:bg-destructive transition-colors"
               >
                 <X className="h-3 w-3 text-foreground" />
               </button>
@@ -136,7 +136,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800">
             {isProcessing ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-accent" />
             ) : (
               <>
                 <User className="h-12 w-12 text-muted-foreground" />
@@ -161,7 +161,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
       </p>
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-destructive">{error}</p>
       )}
     </div>
   );

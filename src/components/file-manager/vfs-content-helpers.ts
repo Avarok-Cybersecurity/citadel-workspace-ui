@@ -41,8 +41,8 @@ export function formatSize(bytes: number): string {
 
 export const stateConfig: Record<RevfsFileState, { icon: typeof Monitor; color: string; title: string }> = {
   [RevfsFileState.Hosted]: { icon: Monitor, color: 'text-gray-400', title: 'Hosted (stored for peer)' },
-  [RevfsFileState.Remote]: { icon: Cloud, color: 'text-blue-400', title: 'Remote (downloadable)' },
-  [RevfsFileState.Sent]: { icon: Upload, color: 'text-green-400', title: 'Sent' },
-  [RevfsFileState.Received]: { icon: Download, color: 'text-purple-400', title: 'Received' },
-  [RevfsFileState.ServerStored]: { icon: Cloud, color: 'text-cyan-400', title: 'Server stored (downloadable)' },
+  [RevfsFileState.Remote]: { icon: Cloud, color: 'text-primary-accent', title: 'Remote (downloadable)' },
+  [RevfsFileState.Sent]: { icon: Upload, color: 'text-success', title: 'Sent' },
+  [RevfsFileState.Received]: { icon: Download, color: 'text-primary-accent', title: 'Received' },
+  [RevfsFileState.ServerStored]: { icon: Cloud, color: 'text-muted-foreground', title: 'Server stored (downloadable)' },
 };

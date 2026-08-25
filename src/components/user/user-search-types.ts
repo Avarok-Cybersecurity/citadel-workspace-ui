@@ -27,11 +27,11 @@ export interface UserSearchProps {
 export function getRoleBadgeClass(role?: UserRole): string {
   switch (role) {
     case UserRole.Owner:
-      return 'bg-purple-500 hover:bg-purple-600';
+      return 'bg-primary hover:bg-primary/90';
     case UserRole.Admin:
-      return 'bg-blue-500 hover:bg-blue-600';
+      return 'bg-primary-accent hover:bg-primary-accent/90';
     case UserRole.Member:
-      return 'bg-green-500 hover:bg-green-600';
+      return 'bg-success hover:bg-success/90';
     case UserRole.Guest:
       return 'bg-gray-500 hover:bg-gray-600';
     default:

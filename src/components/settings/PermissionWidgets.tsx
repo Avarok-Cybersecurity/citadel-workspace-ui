@@ -28,12 +28,12 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
   const roleString = typeof role === 'string' ? role : 'Custom';
 
   const variants: Record<string, string> = {
-    Admin: 'bg-purple-600/20 text-purple-400 border-purple-500/50',
-    Owner: 'bg-amber-600/20 text-amber-400 border-amber-500/50',
-    Member: 'bg-blue-600/20 text-blue-400 border-blue-500/50',
+    Admin: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
+    Owner: 'bg-warning/20 text-warning border-warning/50',
+    Member: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
     Guest: 'bg-gray-600/20 text-muted-foreground border-gray-500/50',
-    Banned: 'bg-red-600/20 text-red-400 border-red-500/50',
-    Custom: 'bg-teal-600/20 text-teal-400 border-teal-500/50',
+    Banned: 'bg-destructive/20 text-destructive border-destructive/50',
+    Custom: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
   };
 
   return (
@@ -49,14 +49,14 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
 export function PermissionStatus({ allowed }: { allowed: boolean }) {
   if (allowed) {
     return (
-      <div className="flex items-center gap-1.5 text-green-400">
+      <div className="flex items-center gap-1.5 text-success">
         <CheckCircle2 className="h-4 w-4" />
         <span className="text-sm">Allowed</span>
       </div>
     );
   }
   return (
-    <div className="flex items-center gap-1.5 text-red-400">
+    <div className="flex items-center gap-1.5 text-destructive">
       <XCircle className="h-4 w-4" />
       <span className="text-sm">Denied</span>
     </div>
@@ -91,10 +91,10 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }) {
                   className={cn(
                     'text-xs',
                     allowedCount === totalCount
-                      ? 'bg-green-600/20 text-green-400 border-green-500/50'
+                      ? 'bg-success/20 text-success border-success/50'
                       : allowedCount === 0
-                        ? 'bg-red-600/20 text-red-400 border-red-500/50'
-                        : 'bg-yellow-600/20 text-yellow-400 border-yellow-500/50'
+                        ? 'bg-destructive/20 text-destructive border-destructive/50'
+                        : 'bg-warning/20 text-warning border-warning/50'
                   )}
                 >
                   {allowedCount}/{totalCount}

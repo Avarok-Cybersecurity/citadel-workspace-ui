@@ -193,7 +193,7 @@ export function TreeNodesSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-primary-accent hover:bg-purple-500/15 hover:text-foreground"
+              className="h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground"
               onClick={handleCreateRoot}
               data-testid="add-root-node-button"
               aria-label="Add node"
@@ -222,7 +222,7 @@ export function TreeNodesSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-primary-accent hover:bg-purple-500/15 hover:text-foreground disabled:opacity-40"
+              className="h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
               onClick={handleCreateRoot}
               disabled={canCreate === false}
               data-testid="add-node-button"
@@ -290,7 +290,7 @@ export function TreeNodesSection({
             Are you sure you want to delete &quot;{nodeToDelete?.name}&quot;? This
             action cannot be undone.
             {nodeToDelete?.children && nodeToDelete.children.length > 0 && (
-              <span className="block mt-2 text-yellow-400">
+              <span className="block mt-2 text-warning">
                 Warning: This will also delete {nodeToDelete.children.length}{" "}
                 child node(s) and all their content.
               </span>

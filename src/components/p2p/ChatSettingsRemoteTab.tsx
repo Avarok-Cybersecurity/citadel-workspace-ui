@@ -30,7 +30,7 @@ export function ChatSettingsRemoteTab({
             </Label>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Shield className="h-4 w-4 text-green-400 cursor-help" />
+                <Shield className="h-4 w-4 text-success cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs bg-background border-surface text-foreground">
                 <p className="text-sm">
@@ -54,7 +54,7 @@ export function ChatSettingsRemoteTab({
       <div className={`space-y-3 p-4 rounded-lg bg-surface/50 ${!settings.allowRevfsStorage ? 'opacity-50' : ''}`}>
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium">Storage quota for {peerName}</Label>
-          <span className="text-sm text-purple-400 font-medium" data-testid="revfs-quota-value">{revfsQuotaMb} MB</span>
+          <span className="text-sm text-primary-accent font-medium" data-testid="revfs-quota-value">{revfsQuotaMb} MB</span>
         </div>
         <Slider
           value={[revfsQuotaMb]} onValueChange={onRevfsQuotaChange}
@@ -64,11 +64,11 @@ export function ChatSettingsRemoteTab({
         <p className="text-xs text-muted-foreground">Server default: {formatBytes(REVFS_DEFAULT_QUOTA_BYTES)}</p>
       </div>
 
-      <div className="p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+      <div className="p-4 rounded-lg bg-gradient-to-r from-success/10 to-success/5 border border-success/20">
         <div className="flex items-start gap-3">
-          <Shield className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+          <Shield className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
           <div>
-            <h4 className="text-sm font-medium text-green-400 mb-1">Zero-Knowledge Storage</h4>
+            <h4 className="text-sm font-medium text-success mb-1">Zero-Knowledge Storage</h4>
             <p className="text-xs text-foreground/80">
               RE-VFS uses post-quantum cryptography to ensure complete privacy.
               As a storage host, you provide blind storage — you cannot view, read,
@@ -78,17 +78,17 @@ export function ChatSettingsRemoteTab({
         </div>
       </div>
 
-      <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-        <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+      <div className="flex items-start gap-2 p-3 rounded-lg bg-primary-accent/10 border border-primary-accent/20">
+        <Info className="h-4 w-4 text-primary-accent mt-0.5 flex-shrink-0" />
         <p className="text-xs text-foreground/80">
           Files persist until manually deleted via File Manager (Right-click → Delete).
         </p>
       </div>
 
       {settings.allowRevfsStorage && settings.transferMode !== 'protocol' && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-          <Zap className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-yellow-200">
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
+          <Zap className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-warning/15">
             <strong>Note:</strong> RE-VFS requires the Citadel Protocol transfer method.
             Switch to Citadel Protocol in the Standard tab to enable full RE-VFS functionality.
           </p>

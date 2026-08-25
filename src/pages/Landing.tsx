@@ -188,14 +188,14 @@ export const Landing = () => {
         <div className="max-w-xl lg:max-w-2xl animate-fade-in">
           {/* Brand tag */}
           <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-[2px] bg-purple-500 rounded-full" />
-            <p className="text-xs font-semibold tracking-[0.25em] text-purple-400 uppercase">Citadel</p>
+            <div className="w-8 h-[2px] bg-primary rounded-full" />
+            <p className="text-xs font-semibold tracking-[0.25em] text-primary-accent uppercase">Citadel</p>
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground mb-6 leading-[1.1] tracking-tight">
             The World's First
             <br />
-            <span className="bg-gradient-to-r from-purple-400 to-purple-300 bg-clip-text text-transparent">Post-Quantum</span>
+            <span className="bg-gradient-to-r from-primary-accent to-primary-accent/70 bg-clip-text text-transparent">Post-Quantum</span>
             <br />
             Virtual Workspace
           </h1>
@@ -208,7 +208,7 @@ export const Landing = () => {
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={startLogin}
-              className="bg-purple-600 text-foreground hover:bg-purple-500 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
+              className="bg-primary text-foreground hover:bg-primary/90 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-primary-accent/20 hover:shadow-primary-accent/30"
               size="lg"
             >
               <LogIn className="w-4 h-4" />
@@ -218,7 +218,7 @@ export const Landing = () => {
             <Button
               onClick={startRegistration}
               variant="outline"
-              className="border-surface text-foreground/80 hover:bg-card hover:text-foreground hover:border-purple-500/50 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg"
+              className="border-surface text-foreground/80 hover:bg-card hover:text-foreground hover:border-primary-accent/50 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg"
               size="lg"
             >
               Join Workspace
@@ -245,10 +245,10 @@ export const Landing = () => {
           </div>
 
           {/* Security badge */}
-          <div className="mt-12 flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-500/5 border border-purple-500/10 max-w-md">
-            <Shield className="w-5 h-5 text-purple-400 flex-shrink-0" />
+          <div className="mt-12 flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-accent/5 border border-primary-accent/10 max-w-md">
+            <Shield className="w-5 h-5 text-primary-accent flex-shrink-0" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Citadel uses <span className="text-purple-300 font-medium">lattice-based cryptography</span>. All connections are end-to-end encrypted and resistant to quantum compute attacks.
+              Citadel uses <span className="text-primary-accent font-medium">lattice-based cryptography</span>. All connections are end-to-end encrypted and resistant to quantum compute attacks.
             </p>
           </div>
         </div>

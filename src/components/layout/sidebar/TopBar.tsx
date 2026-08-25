@@ -95,7 +95,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         <Button
           variant="ghost"
           size="icon"
-          className="text-foreground hover:bg-purple-500/15 hover:text-foreground mr-4"
+          className="text-foreground hover:bg-primary-accent/15 hover:text-foreground mr-4"
           onClick={toggleSidebar}
           aria-label={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
           title={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
@@ -115,10 +115,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-purple-500/15" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
+            <Button variant="ghost" size="icon" className="p-0 hover:bg-primary-accent/15" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
               <Avatar className={cn(
                 "h-8 w-8",
-                isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-background"
+                isAdmin && "ring-2 ring-warning ring-offset-1 ring-offset-background"
               )}>
                 <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-surface text-foreground">{userInitials}</AvatarFallback>
@@ -129,27 +129,27 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             <DropdownMenuLabel className="text-foreground/80 text-xs font-normal">{name}</DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem
-              className="text-foreground cursor-pointer focus:bg-purple-500/15 focus:text-foreground"
+              className="text-foreground cursor-pointer focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowProfileModal(true)}
             >
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-foreground cursor-pointer focus:bg-purple-500/15 focus:text-foreground"
+              className="text-foreground cursor-pointer focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowSettingsModal(true)}
             >
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem
-              className="text-muted-foreground cursor-pointer gap-2 focus:bg-purple-500/15 focus:text-foreground"
+              className="text-muted-foreground cursor-pointer gap-2 focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowExitConfirm(true)}
             >
               <ArrowLeft className="h-4 w-4" />
               Exit to Landing
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-red-400 cursor-pointer gap-2 focus:bg-red-500/10 focus:text-red-300"
+              className="text-destructive cursor-pointer gap-2 focus:bg-destructive/10 focus:text-destructive"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />

@@ -46,7 +46,7 @@ const TableComponent = ({ data, children, className }: TableProps) => {
           {data?.map((item, index) => (
             <TableRow 
               key={index}
-              className="hover:bg-purple-500/10 transition-colors"
+              className="hover:bg-primary-accent/10 transition-colors"
             >
               <TableCell className="text-foreground/80">{item.time}</TableCell>
               <TableCell className="text-foreground/80">{item.monday}</TableCell>

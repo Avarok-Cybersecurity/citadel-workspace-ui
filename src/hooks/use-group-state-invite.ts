@@ -174,6 +174,22 @@ export async function applyGroupInvite(
     setGroups((prev) =>
       prev.some((g) => g.id === data.groupId) ? prev : [...prev, newGroup],
     );
+    // The backend half of auto-accept. Without it the server keeps counting us
+    // merely invited: the EnteredGroup broadcast that puts us on the creator's
+    // member list never fires, their callable roster stays empty, and group
+    // calls remain disabled. The local commit above stays optimistic; the
+    // member-state broadcast this triggers is the reconciliation.
+    try {
+      const { sendGroupRespond } = await import(
+        '@/lib/group-conversations/group-requests'
+      );
+      await sendGroupRespond(data.groupId, data.inviterId, true);
+    } catch (e) {
+      // The group still exists locally and P2P chat routing still works; what
+      // is lost is server-side membership, which the settings panel's invite
+      // path can re-establish. Losing the whole invite over it would be worse.
+      debugLog('UseGroupConversations', 'Backend group acceptance failed:', e);
+    }
     eventEmitter.emit('notification:show', {
       title: 'Group Invitation',
       description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,

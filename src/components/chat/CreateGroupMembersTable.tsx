@@ -125,7 +125,7 @@ export function MembersTable({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-red-400 hover:bg-transparent"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent"
                   onClick={() => onRemoveMember(member.cid)}
                 >
                   <X className="h-4 w-4" />

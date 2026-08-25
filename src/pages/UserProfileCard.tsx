@@ -62,9 +62,9 @@ export function UserProfileCard({
         <div className="flex flex-col items-center">
           <Avatar className="h-20 w-20 mb-4 relative">
             <AvatarImage src={selectedUser.avatarUrl} />
-            <AvatarFallback className="bg-purple-900 text-xl">{selectedUser.displayName.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="bg-primary text-xl">{selectedUser.displayName.charAt(0)}</AvatarFallback>
             {selectedUser.isOnline && (
-              <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-card" />
+              <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-success ring-2 ring-card" />
             )}
           </Avatar>
           <CardTitle className="text-xl mb-1">{selectedUser.displayName}</CardTitle>
@@ -100,7 +100,7 @@ export function UserProfileCard({
             <div className="p-3 rounded-md bg-card flex items-center space-x-3">
               {isConnected ? (
                 <>
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5 text-success" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Connected</p>
                     <p className="text-xs text-muted-foreground">You can message this user</p>
@@ -108,7 +108,7 @@ export function UserProfileCard({
                 </>
               ) : (
                 <>
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
+                  <AlertCircle className="h-5 w-5 text-warning" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Not Connected</p>
                     <p className="text-xs text-muted-foreground">Send a connection request to message this user</p>
@@ -125,7 +125,7 @@ export function UserProfileCard({
       <CardFooter className="flex justify-between border-t border-gray-700 pt-4">
         {!isConnected ? (
           <Button
-            className="flex-1 bg-purple-600 hover:bg-purple-700 text-foreground"
+            className="flex-1 bg-primary hover:bg-primary/90 text-foreground"
             onClick={() => onInvite(selectedUser.id)}
           >
             <UserPlus className="h-4 w-4 mr-2" />
@@ -141,7 +141,7 @@ export function UserProfileCard({
               Remove Connection
             </Button>
             <Button
-              className="flex-1 ml-2 bg-purple-600 hover:bg-purple-700 text-foreground"
+              className="flex-1 ml-2 bg-primary hover:bg-primary/90 text-foreground"
               onClick={() => onSendMessage(selectedUser.id)}
             >
               <MessageCircle className="h-4 w-4 mr-2" />

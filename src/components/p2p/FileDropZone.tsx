@@ -2,10 +2,10 @@ import { Upload, FolderOpen, FileImage, FileText, FileVideo, FileAudio, File, X 
 import { activateOnKey } from '@/lib/a11y';
 
 function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-purple-400" />;
-  if (mimeType.startsWith('video/')) return <FileVideo className="h-8 w-8 text-blue-400" />;
-  if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-green-400" />;
-  if (mimeType.startsWith('text/') || mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-orange-400" />;
+  if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-primary-accent" />;
+  if (mimeType.startsWith('video/')) return <FileVideo className="h-8 w-8 text-primary-accent" />;
+  if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-success" />;
+  if (mimeType.startsWith('text/') || mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-warning" />;
   return <File className="h-8 w-8 text-muted-foreground" />;
 }
 
@@ -86,7 +86,7 @@ export function FileDropZone({
           className="w-full flex items-center gap-3 p-4 rounded-lg border border-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="p-2 rounded-lg bg-primary/20">
-            <FolderOpen className="h-5 w-5 text-purple-400" />
+            <FolderOpen className="h-5 w-5 text-primary-accent" />
           </div>
           <div className="flex-1 text-left">
             <span className="font-medium text-foreground">
@@ -117,13 +117,13 @@ export function FileDropZone({
         onKeyDown={activateOnKey(onBrowseClick)}
         className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
           isDragging
-            ? 'border-purple-500 bg-purple-500/10'
+            ? 'border-primary-accent bg-primary-accent/10'
             : 'border-surface hover:border-primary hover:bg-surface'
         }`}
       >
         <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
         <p className="text-sm text-foreground/80">
-          Drop file here or <span className="text-purple-400">browse</span>
+          Drop file here or <span className="text-primary-accent">browse</span>
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           Maximum file size: {formatBytes(maxFileSizeBytes)}

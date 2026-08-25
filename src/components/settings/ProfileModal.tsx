@@ -15,7 +15,7 @@ interface ProfileModalProps {
 export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card text-foreground border-purple-800 sm:max-w-[500px]">
+      <DialogContent className="bg-card text-foreground border-border sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Profile Settings</DialogTitle>
           <DialogDescription className="text-foreground/80">

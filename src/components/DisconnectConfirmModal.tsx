@@ -54,7 +54,7 @@ export const DisconnectConfirmModal = ({
           </DialogTitle>
           <DialogDescription className="text-muted-foreground mt-2">
             Choose how to remove{" "}
-            <span className="font-semibold text-purple-400">
+            <span className="font-semibold text-primary-accent">
               {workspaceName || session.username}
             </span>
           </DialogDescription>
@@ -76,9 +76,9 @@ export const DisconnectConfirmModal = ({
         </div>
 
         {/* Deregister warning */}
-        <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg flex items-start gap-2">
-          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-red-300">
+        <div className="p-3 bg-destructive/10 border border-destructive/25 rounded-lg flex items-start gap-2">
+          <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-destructive">
             <strong>Deregister</strong> permanently removes this account from the server.
             Use this for cleanup between test runs.
           </div>
@@ -89,7 +89,7 @@ export const DisconnectConfirmModal = ({
             <Button
               onClick={() => handleConfirm("disconnect")}
               variant="outline"
-              className="flex-1 bg-transparent border-yellow-700 text-yellow-300 hover:bg-yellow-900/30 hover:text-yellow-200"
+              className="flex-1 bg-transparent border-warning text-warning hover:bg-warning/15 hover:text-warning/15"
               disabled={isProcessing}
             >
               {isProcessing && selectedAction === "disconnect" ? (
@@ -103,7 +103,7 @@ export const DisconnectConfirmModal = ({
             </Button>
             <Button
               onClick={() => handleConfirm("deregister")}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-foreground"
+              className="flex-1 bg-destructive hover:bg-destructive/90 text-foreground"
               disabled={isProcessing}
             >
               {isProcessing && selectedAction === "deregister" ? (

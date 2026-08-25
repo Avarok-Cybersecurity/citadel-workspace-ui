@@ -41,7 +41,7 @@ export function ConnectionRequestDialog({
 
         <div className="space-y-4 py-2">
           <div className="flex items-start space-x-3 p-3 bg-card rounded-md">
-            <AlertCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-primary-accent mt-0.5 flex-shrink-0" />
             <div className="text-sm text-foreground/80">
               <p>The user will need to accept your P2P registration request before you can message them. P2P connection will be automatically established after registration is accepted.</p>
             </div>
@@ -56,7 +56,7 @@ export function ConnectionRequestDialog({
               value={requestMessage}
               onChange={(e) => onRequestMessageChange(e.target.value)}
               placeholder="Tell them why you'd like to connect..."
-              className="w-full h-24 px-3 py-2 bg-card border border-gray-700 rounded-md text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full h-24 px-3 py-2 bg-card border border-gray-700 rounded-md text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
@@ -73,7 +73,7 @@ export function ConnectionRequestDialog({
           <Button
             onClick={onSend}
             disabled={sendingRequest}
-            className="bg-purple-600 hover:bg-purple-700 text-foreground"
+            className="bg-primary hover:bg-primary/90 text-foreground"
           >
             {sendingRequest ? 'Sending...' : 'Send Request'}
           </Button>

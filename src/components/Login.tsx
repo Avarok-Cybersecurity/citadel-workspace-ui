@@ -78,7 +78,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 variant="ghost"
                 size="icon"
                 aria-label="Back"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-purple-500/15 rounded-lg"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-primary-accent/15 rounded-lg"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
@@ -105,7 +105,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                   />
                 </div>
               </div>
@@ -123,7 +123,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                   />
                   <button
                     type="button"
@@ -151,7 +151,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     placeholder="workspace.example.com:12349"
                     value={server}
                     onChange={(e) => setServer(e.target.value)}
-                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                   />
                 </div>
               </div>
@@ -159,7 +159,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
               {/* Advanced Options */}
               <button
                 type="button"
-                className="flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-purple-300 py-1"
+                className="flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-primary-accent py-1"
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
               >
                 <Settings className="h-3.5 w-3.5" />
@@ -177,7 +177,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-foreground text-xs h-7 px-3 rounded-md"
+                      className="border-primary-accent/50 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground text-xs h-7 px-3 rounded-md"
                       onClick={() => setShowSecuritySettings(true)}
                     >
                       Configure
@@ -205,8 +205,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
               {/* Error */}
               {error && (
-                <div className="flex items-center gap-2 text-red-400 text-sm p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
                   {error}
                 </div>
               )}
@@ -215,7 +215,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
             <CardFooter className="pt-2">
               <Button
                 type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-500 text-foreground h-11 rounded-lg shadow-lg shadow-purple-500/20 transition-all gap-2"
+                className="w-full bg-primary hover:bg-primary/90 text-foreground h-11 rounded-lg shadow-lg shadow-primary-accent/20 transition-all gap-2"
                 disabled={loading}
               >
                 {loading ? (

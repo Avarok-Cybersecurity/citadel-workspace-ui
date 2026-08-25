@@ -17,9 +17,9 @@ const statusLabels: Record<P2PMessage['status'], string> = {
 const statusColors: Record<P2PMessage['status'], string> = {
   pending: 'text-muted-foreground',
   sent: 'text-foreground/80',
-  delivered: 'text-green-400',
-  read: 'text-sky-400',
-  failed: 'text-red-400'
+  delivered: 'text-success',
+  read: 'text-primary-accent',
+  failed: 'text-destructive'
 };
 
 function formatFullDateTime(timestamp: number): string {
@@ -116,7 +116,7 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps) {
         <Row
           label="Error"
           value={message.error}
-          valueClassName="text-red-400"
+          valueClassName="text-destructive"
         />
       )}
     </div>

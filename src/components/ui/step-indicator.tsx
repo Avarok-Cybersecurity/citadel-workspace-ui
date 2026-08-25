@@ -21,8 +21,8 @@ export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicator
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300",
-                  isCompleted && "bg-green-500 text-foreground",
-                  isActive && "bg-purple-500 text-foreground ring-4 ring-purple-500/20",
+                  isCompleted && "bg-success text-foreground",
+                  isActive && "bg-primary text-foreground ring-4 ring-ring/20",
                   !isCompleted && !isActive && "bg-card text-muted-foreground border border-surface"
                 )}
               >
@@ -32,8 +32,8 @@ export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicator
                 <span
                   className={cn(
                     "text-[10px] font-semibold tracking-wider uppercase",
-                    isActive && "text-purple-300",
-                    isCompleted && "text-green-400",
+                    isActive && "text-primary-accent",
+                    isCompleted && "text-success",
                     !isCompleted && !isActive && "text-muted-foreground"
                   )}
                 >
@@ -46,7 +46,7 @@ export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicator
               <div
                 className={cn(
                   "w-12 h-[2px] mx-1 rounded-full transition-colors duration-300",
-                  step < currentStep ? "bg-green-500" : "bg-border"
+                  step < currentStep ? "bg-success" : "bg-border"
                 )}
               />
             )}

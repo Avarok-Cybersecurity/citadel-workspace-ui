@@ -103,7 +103,7 @@ export function TreeNodeItem({
             onKeyDown={handleToggleKeyDown}
             aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
             aria-expanded={isExpanded}
-            className="absolute top-1/2 -translate-y-1/2 z-10 p-0.5 hover:bg-black/10 rounded flex-shrink-0 cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-purple-400"
+            className="absolute top-1/2 -translate-y-1/2 z-10 p-0.5 hover:bg-black/10 rounded flex-shrink-0 cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring"
             style={{ left: `${8 + indentPx}px` }}
             data-testid={`tree-node-toggle-${node.id}`}
           >
@@ -116,8 +116,8 @@ export function TreeNodeItem({
         )}
 
         <SidebarMenuButton
-          className={`text-primary-foreground hover:bg-purple-500/15 hover:text-primary-foreground transition-colors w-full pr-8 ${
-            isSelected ? "bg-purple-500/20 text-purple-200" : ""
+          className={`text-primary-foreground hover:bg-primary-accent/15 hover:text-primary-foreground transition-colors w-full pr-8 ${
+            isSelected ? "bg-primary-accent/20 text-primary-accent" : ""
           }`}
           // The toggle now sits over this padding rather than inside the flow,
           // so the gap is reserved whether or not the node has children — which
@@ -132,7 +132,7 @@ export function TreeNodeItem({
             {node.name}
             {node.is_default && (
               <Star
-                className="h-3 w-3 text-yellow-500 fill-yellow-500 flex-shrink-0"
+                className="h-3 w-3 text-warning fill-warning flex-shrink-0"
                 aria-label={`Default ${typeName.toLowerCase()}`}
               />
             )}
@@ -187,7 +187,7 @@ export function TreeNodeItem({
             {onSetDefault && !node.is_default && (
               <DropdownMenuItem
                 onClick={() => onSetDefault(node)}
-                className="text-yellow-400 hover:text-yellow-300"
+                className="text-warning hover:text-warning"
                 data-testid={`set-default-node-${node.id}`}
               >
                 <Star className="h-4 w-4 mr-2" />
@@ -199,7 +199,7 @@ export function TreeNodeItem({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => onNodeDelete(node)}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/15"
                   data-testid={`delete-node-${node.id}`}
                 >
                   Delete {typeName}

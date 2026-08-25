@@ -83,16 +83,16 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
             <SelectTrigger id="encryption-algorithm" className="w-full bg-surface border-border text-foreground">
               <SelectValue placeholder="Select encryption algorithm" />
             </SelectTrigger>
-            <SelectContent className="bg-card border border-purple-400/30 text-foreground shadow-xl p-2">
-              <SelectItem value={'AES_GCM_256'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">AES 256 GCM</SelectItem>
-              <SelectItem value={'ChaCha20Poly_1305'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ChaCha20Poly1305</SelectItem>
+            <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">
+              <SelectItem value={'AES_GCM_256'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">AES 256 GCM</SelectItem>
+              <SelectItem value={'ChaCha20Poly_1305'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">ChaCha20Poly1305</SelectItem>
             </SelectContent>
           </Select>
           <Tooltip>
             <TooltipTrigger asChild>
               <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
             </TooltipTrigger>
-            <TooltipContent className="bg-card border border-purple-400/30 text-foreground">
+            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
               <p>Choose the encryption algorithm for your workspace</p>
             </TooltipContent>
           </Tooltip>
@@ -113,15 +113,15 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
             <SelectTrigger id="kem-algorithm" className="w-full bg-surface border-border text-foreground">
               <SelectValue placeholder="Select KEM algorithm" />
             </SelectTrigger>
-            <SelectContent className="bg-card border border-purple-400/30 text-foreground shadow-xl p-2">
-              <SelectItem value={'MlKem'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ML-KEM</SelectItem>
+            <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">
+              <SelectItem value={'MlKem'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">ML-KEM</SelectItem>
             </SelectContent>
           </Select>
           <Tooltip>
             <TooltipTrigger asChild>
               <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
             </TooltipTrigger>
-            <TooltipContent className="bg-card border border-purple-400/30 text-foreground">
+            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
               <p>Choose the key encapsulation mechanism (KEM)</p>
             </TooltipContent>
           </Tooltip>
@@ -142,17 +142,17 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
             <SelectTrigger id="signing-algorithm" className="w-full bg-surface border-border text-foreground">
               <SelectValue placeholder="Select signing algorithm" />
             </SelectTrigger>
-            <SelectContent className="bg-card border border-purple-400/30 text-foreground shadow-xl p-2">
-              <SelectItem value={'None'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">None</SelectItem>
-              <SelectItem value={'MlDsa65'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">ML-DSA-65</SelectItem>
-              <SelectItem value={'FnDsa512'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">FN-DSA-512</SelectItem>
+            <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">
+              <SelectItem value={'None'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">None</SelectItem>
+              <SelectItem value={'MlDsa65'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">ML-DSA-65</SelectItem>
+              <SelectItem value={'FnDsa512'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">FN-DSA-512</SelectItem>
             </SelectContent>
           </Select>
           <Tooltip>
             <TooltipTrigger asChild>
               <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
             </TooltipTrigger>
-            <TooltipContent className="bg-card border border-purple-400/30 text-foreground">
+            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
               <p>Choose the digital signature algorithm</p>
             </TooltipContent>
           </Tooltip>
@@ -173,17 +173,17 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
             <SelectTrigger id="header-obfuscator" className="w-full bg-surface border-border text-foreground">
               <SelectValue placeholder="Select header obfuscator mode" />
             </SelectTrigger>
-            <SelectContent className="bg-card border border-purple-400/30 text-foreground shadow-xl p-2">
-              <SelectItem value="off" className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">Off</SelectItem>
-              <SelectItem value="on" className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">On</SelectItem>
-              <SelectItem value="psk" className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm p-2">PSK</SelectItem>
+            <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">
+              <SelectItem value="off" className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">Off</SelectItem>
+              <SelectItem value="on" className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">On</SelectItem>
+              <SelectItem value="psk" className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">PSK</SelectItem>
             </SelectContent>
           </Select>
           <Tooltip>
             <TooltipTrigger asChild>
               <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
             </TooltipTrigger>
-            <TooltipContent className="bg-card border border-purple-400/30 text-foreground">
+            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
               <p>Configure header obfuscation settings</p>
             </TooltipContent>
           </Tooltip>

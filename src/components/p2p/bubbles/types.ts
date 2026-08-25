@@ -31,7 +31,7 @@ export interface FileTransferBubbleProps extends BaseBubbleProps {
 export function getBubbleStyles(isOwn: boolean, isFailed: boolean): string {
   if (isOwn) {
     return isFailed
-      ? 'bg-surface text-white border border-red-500/30'
+      ? 'bg-surface text-white border border-destructive/30'
       : 'bg-primary text-white';
   }
   return 'bg-surface text-gray-100';

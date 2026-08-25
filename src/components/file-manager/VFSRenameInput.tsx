@@ -96,12 +96,12 @@ export function VFSRenameInput({
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         className={`h-6 px-1 py-0 text-xs bg-surface border ${
-          error ? 'border-red-500' : 'border-purple-500'
-        } text-foreground focus:ring-1 focus:ring-purple-500`}
+          error ? 'border-destructive' : 'border-primary-accent'
+        } text-foreground focus:ring-1 focus:ring-ring`}
         onClick={(e) => e.stopPropagation()}
       />
       {error && (
-        <span className="text-xs text-red-400 mt-0.5">{error}</span>
+        <span className="text-xs text-destructive mt-0.5">{error}</span>
       )}
     </div>
   );

@@ -59,7 +59,7 @@ export function FileTransferModal({
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-primary/20">
-              <Paperclip className="h-5 w-5 text-purple-400" />
+              <Paperclip className="h-5 w-5 text-primary-accent" />
             </div>
             <DialogTitle className="text-lg font-semibold">Send File</DialogTitle>
           </div>
@@ -101,19 +101,19 @@ export function FileTransferModal({
               onClick={() => setTransferMode('async')}
               className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-colors ${
                 transferMode === 'async'
-                  ? 'border-purple-500 bg-purple-500/10'
+                  ? 'border-primary-accent bg-primary-accent/10'
                   : 'border-surface hover:border-primary'
               }`}
             >
-              <div className={`p-2 rounded-lg ${transferMode === 'async' ? 'bg-purple-500/20' : 'bg-surface'}`}>
-                <Cloud className={`h-5 w-5 ${transferMode === 'async' ? 'text-purple-400' : 'text-muted-foreground'}`} />
+              <div className={`p-2 rounded-lg ${transferMode === 'async' ? 'bg-primary-accent/20' : 'bg-surface'}`}>
+                <Cloud className={`h-5 w-5 ${transferMode === 'async' ? 'text-primary-accent' : 'text-muted-foreground'}`} />
               </div>
               <div className="flex-1 text-left">
                 <div className="flex items-center gap-2">
                   <span className={`font-medium ${transferMode === 'async' ? 'text-foreground' : 'text-foreground/80'}`}>
                     Send File
                   </span>
-                  <span className="text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">
+                  <span className="text-xs text-success bg-success/10 px-1.5 py-0.5 rounded">
                     Recommended
                   </span>
                 </div>
@@ -127,12 +127,12 @@ export function FileTransferModal({
               onClick={() => setTransferMode('p2p')}
               className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-colors ${
                 transferMode === 'p2p'
-                  ? 'border-yellow-500 bg-yellow-500/10'
+                  ? 'border-warning bg-warning/10'
                   : 'border-surface hover:border-primary'
               }`}
             >
-              <div className={`p-2 rounded-lg ${transferMode === 'p2p' ? 'bg-yellow-500/20' : 'bg-surface'}`}>
-                <Zap className={`h-5 w-5 ${transferMode === 'p2p' ? 'text-yellow-400' : 'text-muted-foreground'}`} />
+              <div className={`p-2 rounded-lg ${transferMode === 'p2p' ? 'bg-warning/20' : 'bg-surface'}`}>
+                <Zap className={`h-5 w-5 ${transferMode === 'p2p' ? 'text-warning' : 'text-muted-foreground'}`} />
               </div>
               <div className="flex-1 text-left">
                 <span className={`font-medium ${transferMode === 'p2p' ? 'text-foreground' : 'text-foreground/80'}`}>
@@ -146,7 +146,7 @@ export function FileTransferModal({
           </div>
 
           {error && (
-            <p className="text-sm text-red-400 bg-red-400/10 p-2 rounded">
+            <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">
               {error}
             </p>
           )}
@@ -166,7 +166,7 @@ export function FileTransferModal({
             disabled={!selectedFile || isSending}
             className={`text-foreground ${
               transferMode === 'p2p'
-                ? 'bg-yellow-600 hover:bg-yellow-700'
+                ? 'bg-warning hover:bg-warning/90'
                 : 'bg-primary hover:bg-primary'
             }`}
           >

@@ -49,17 +49,17 @@ export function StorageLimitModal({
 
   // Determine bar color based on usage
   const barColor = percentage >= 95
-    ? 'bg-red-500'
+    ? 'bg-destructive'
     : percentage >= 80
-      ? 'bg-yellow-500'
-      : 'bg-purple-500';
+      ? 'bg-warning'
+      : 'bg-primary';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-surface border-purple-800 text-foreground sm:max-w-md">
+      <DialogContent className="bg-surface border-border text-foreground sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
-            <AlertCircle className="h-5 w-5 text-red-400" />
+            <AlertCircle className="h-5 w-5 text-destructive" />
             Storage Limit Reached
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -97,11 +97,11 @@ export function StorageLimitModal({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Available space:</span>
-              <span className="text-red-400 font-medium">{formatBytes(availableBytes)}</span>
+              <span className="text-destructive font-medium">{formatBytes(availableBytes)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Space needed:</span>
-              <span className="text-yellow-400 font-medium">
+              <span className="text-warning font-medium">
                 {formatBytes(Math.max(0, attemptedFileSize - availableBytes))} more
               </span>
             </div>
@@ -116,7 +116,7 @@ export function StorageLimitModal({
           <Button
             variant="outline"
             onClick={onClose}
-            className="bg-card border-purple-700 text-foreground hover:bg-border hover:text-foreground"
+            className="bg-card border-primary-accent text-foreground hover:bg-border hover:text-foreground"
           >
             Cancel
           </Button>
@@ -126,7 +126,7 @@ export function StorageLimitModal({
                 onManageStorage();
                 onClose();
               }}
-              className="bg-purple-700 text-foreground hover:bg-purple-600"
+              className="bg-primary text-foreground hover:bg-primary/90"
             >
               Manage Storage
             </Button>

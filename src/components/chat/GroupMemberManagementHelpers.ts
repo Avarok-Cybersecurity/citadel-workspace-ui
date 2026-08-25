@@ -45,10 +45,10 @@ export const AVATAR_COLORS = [
 /** Get role icon based on position in hierarchy */
 export function getRoleIcon(role: GroupRole): React.ReactElement {
   if (role.position >= 100) {
-    return createElement(Crown, { className: 'h-4 w-4 text-amber-500' });
+    return createElement(Crown, { className: 'h-4 w-4 text-warning' });
   }
   if (role.position >= 50) {
-    return createElement(Shield, { className: 'h-4 w-4 text-purple-400' });
+    return createElement(Shield, { className: 'h-4 w-4 text-primary-accent' });
   }
   return createElement(User, { className: 'h-4 w-4 text-gray-400' });
 }

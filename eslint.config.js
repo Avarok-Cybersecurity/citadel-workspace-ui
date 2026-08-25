@@ -79,10 +79,46 @@ export default tseslint.config(
       }, {
         selector: "JSXAttribute[name.name='className'] TemplateElement[value.raw=/\\[#[0-9A-Fa-f]{6}\\]/]",
         message: "Hardcoded hex colour in className. Use a design token — see src/index.css.",
+      }, {
+        // Raw Tailwind palette classes (bg-purple-500, text-green-400, …) sit
+        // outside the token system, so workspace themes can never restyle them.
+        // Checked on every string, not just className: several colour maps live
+        // in plain .ts objects (role badges, file-state icons) and those were
+        // exactly where hardcoded hues kept accumulating.
+        selector: "Literal[value=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky)-[0-9]/]",
+        message: "Hardcoded Tailwind palette class. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border — see src/index.css.",
+      }, {
+        selector: "TemplateElement[value.raw=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky)-[0-9]/]",
+        message: "Hardcoded Tailwind palette class. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border — see src/index.css.",
       }],
       "no-case-declarations": "off",
       "no-useless-escape": "off",
       // Keep rules-of-hooks as error but will fix the violations
+    },
+  },
+  {
+    // Not yet migrated to design tokens: these files were checked out on a
+    // concurrent branch when the palette migration landed, so the palette-class
+    // guard is deferred for them (the hex guard still applies). Remove entries
+    // as each file is migrated; do not add new ones.
+    files: [
+      "src/components/WorkspaceApp.tsx",
+      "src/components/chat/CreateGroupDialog.tsx",
+      "src/components/layout/sidebar/GroupConversationRow.tsx",
+      "src/components/layout/sidebar/MembersSection.tsx",
+      "src/hooks/use-group-state.ts",
+      "src/hooks/use-group-state-invite.ts",
+      "src/lib/call/**",
+      "src/lib/group-conversations/**",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", {
+        selector: "JSXAttribute[name.name='className'] Literal[value=/\\[#[0-9A-Fa-f]{6}\\]/]",
+        message: "Hardcoded hex colour in className. Use a design token (bg-card, text-muted-foreground, border-border, bg-surface, text-primary-accent) — see src/index.css.",
+      }, {
+        selector: "JSXAttribute[name.name='className'] TemplateElement[value.raw=/\\[#[0-9A-Fa-f]{6}\\]/]",
+        message: "Hardcoded hex colour in className. Use a design token — see src/index.css.",
+      }],
     },
   }
 );

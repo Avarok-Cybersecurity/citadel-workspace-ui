@@ -41,11 +41,11 @@ export function OfficeChatTabs({
       <Tabs defaultValue="content" className="w-full flex-1 min-h-0 flex flex-col">
         <div className="px-4 pt-4 border-b border-border flex-shrink-0 flex items-center justify-between gap-2">
           <TabsList className="bg-background">
-            <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="content" className="data-[state=active]:bg-primary">
               <FileText className="h-4 w-4 mr-2" />
               Content
             </TabsTrigger>
-            <TabsTrigger value="chat" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="chat" className="data-[state=active]:bg-primary">
               <MessageSquare className="h-4 w-4 mr-2" />
               Chat
             </TabsTrigger>

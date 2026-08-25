@@ -55,9 +55,9 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
   const getBorderColor = () => {
     switch (notification.priority) {
       case 'high':
-        return 'border-red-500';
+        return 'border-destructive';
       case 'normal':
-        return 'border-blue-500';
+        return 'border-primary-accent';
       case 'low':
         return 'border-gray-500';
       default:
@@ -134,7 +134,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
               <Button 
                 variant="link" 
                 size="sm"
-                className="p-0 h-auto text-xs mt-1 text-purple-300"
+                className="p-0 h-auto text-xs mt-1 text-primary-accent"
                 onClick={() => setIsExpanded(!isExpanded)}
               >
                 {isExpanded ? 'Show less' : 'Show more'}

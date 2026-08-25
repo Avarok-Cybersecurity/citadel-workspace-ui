@@ -130,6 +130,7 @@ export function CreateGroupDialog({
             </Label>
             <Input
               id="groupName"
+              data-testid="create-group-name"
               placeholder={`${currentUsername}'s Group`}
               value={groupName}
               onChange={e => setGroupName(e.target.value)}
@@ -149,6 +150,7 @@ export function CreateGroupDialog({
                   <Button
                     variant="outline"
                     size="sm"
+                    data-testid="create-group-add-member"
                     disabled={unselectedPeers.length === 0}
                     className="h-8 bg-surface border-border text-foreground hover:bg-border"
                   >
@@ -170,6 +172,7 @@ export function CreateGroupDialog({
                         {unselectedPeers.map(peer => (
                           <button
                             key={peer.cid}
+                            data-testid={`create-group-peer-${peer.username}`}
                             onClick={() => handleAddMember(peer)}
                             className="w-full flex items-center gap-2 p-2 rounded hover:bg-surface text-left"
                           >
@@ -219,6 +222,7 @@ export function CreateGroupDialog({
           </Button>
           <Button
             onClick={handleCreate}
+            data-testid="create-group-submit"
             disabled={selectedMembers.length === 0 || isCreating}
             className="bg-primary hover:bg-primary text-primary-foreground"
           >

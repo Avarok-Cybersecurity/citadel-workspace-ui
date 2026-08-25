@@ -33,7 +33,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
           type={inputType}
           value={value}
           onChange={onChange}
-          className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+          className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
           placeholder={placeholder}
         />
         {isPassword && (
@@ -64,10 +64,10 @@ function PasswordStrength({ password }: { password: string }) {
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
 
-    if (score <= 1) return { level: 1, label: 'Weak', color: 'bg-red-500' };
-    if (score === 2) return { level: 2, label: 'Fair', color: 'bg-orange-500' };
-    if (score === 3) return { level: 3, label: 'Good', color: 'bg-yellow-500' };
-    return { level: 4, label: 'Strong', color: 'bg-green-500' };
+    if (score <= 1) return { level: 1, label: 'Weak', color: 'bg-destructive' };
+    if (score === 2) return { level: 2, label: 'Fair', color: 'bg-warning' };
+    if (score === 3) return { level: 3, label: 'Good', color: 'bg-warning' };
+    return { level: 4, label: 'Strong', color: 'bg-success' };
   }, [password]);
 
   if (!password) return null;
@@ -83,10 +83,10 @@ function PasswordStrength({ password }: { password: string }) {
         ))}
       </div>
       <span className={`text-[10px] font-semibold uppercase tracking-wider ${
-        strength.level <= 1 ? 'text-red-400' :
-        strength.level === 2 ? 'text-orange-400' :
-        strength.level === 3 ? 'text-yellow-400' :
-        'text-green-400'
+        strength.level <= 1 ? 'text-destructive' :
+        strength.level === 2 ? 'text-warning' :
+        strength.level === 3 ? 'text-warning' :
+        'text-success'
       }`}>
         {strength.label}
       </span>

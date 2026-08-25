@@ -76,7 +76,7 @@ export function PeerPickerPopover({
                   </div>
                   <span className="text-sm text-foreground flex-1 truncate">{peer.username}</span>
                   {peer.isOnline && (
-                    <span className="w-2 h-2 rounded-full bg-green-500" aria-label="Online" />
+                    <span className="w-2 h-2 rounded-full bg-success" aria-label="Online" />
                   )}
                 </button>
               ))}

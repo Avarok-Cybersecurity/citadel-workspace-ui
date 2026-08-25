@@ -45,7 +45,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center gap-3 py-2 hover:bg-purple-500/10 transition-colors rounded-md w-full group bg-transparent pl-3"
+            className="flex items-center gap-3 py-2 hover:bg-primary-accent/10 transition-colors rounded-md w-full group bg-transparent pl-3"
             disabled={isSwitching}
           >
             {isInitials ? (

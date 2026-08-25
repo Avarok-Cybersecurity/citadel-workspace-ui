@@ -193,6 +193,59 @@ describe('receiving a call', () => {
   });
 });
 
+describe('receiving a group call', () => {
+  let h: Harness;
+  beforeEach(() => { h = harness(); });
+
+  const groupInvite = (callId = 'gc') =>
+    // The harness's own cid (1n) is in the roster on purpose: the invite names
+    // EVERY invitee, and treating ourselves as a peer would mean signalling and
+    // opening a session to our own cid.
+    invite(callId, { group: { room_id: 'room-1', members: ['1', '2', '3'] } });
+
+  it("adopts the caller's roster: the co-invitee is a participant, we are not", async () => {
+    await h.manager.handleSignal(BOB, 'bob', groupInvite());
+
+    const participants = h.manager.getState()?.participants;
+    expect([...(participants?.keys() ?? [])]).toEqual([BOB, CAROL]);
+  });
+
+  it('accepting announces to every co-invitee, not only the caller', async () => {
+    // This is how two invitees find each other without the caller relaying:
+    // each one's accept reaches the whole roster.
+    await h.manager.handleSignal(BOB, 'bob', groupInvite());
+    await h.manager.accept(VIDEO, null);
+
+    expect(h.signalsTo(CAROL).some((s) => s.kind === 'CallAccept')).toBe(true);
+    // But no session yet: Carol has not answered, and a session needs both
+    // sides to have accepted.
+    expect(h.transport.openSession).toHaveBeenCalledTimes(1);
+    expect(h.transport.openSession).toHaveBeenCalledWith(BOB);
+  });
+
+  it("opens the co-invitee's session when their accept arrives after ours", async () => {
+    await h.manager.handleSignal(BOB, 'bob', groupInvite());
+    await h.manager.accept(VIDEO, null);
+
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'gc', codecs: CAPS, media: VIDEO, video_send_codec: null });
+
+    expect(h.transport.openSession).toHaveBeenCalledWith(CAROL);
+  });
+
+  it("opens the co-invitee's session at accept when theirs arrived while we were still ringing", async () => {
+    await h.manager.handleSignal(BOB, 'bob', groupInvite());
+    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'gc', codecs: CAPS, media: VIDEO, video_send_codec: null });
+    // Their answer must not open anything: we have no media yet and may still
+    // decline.
+    expect(h.transport.openSession).not.toHaveBeenCalled();
+
+    await h.manager.accept(VIDEO, null);
+
+    expect(h.transport.openSession).toHaveBeenCalledWith(BOB);
+    expect(h.transport.openSession).toHaveBeenCalledWith(CAROL);
+  });
+});
+
 describe('glare', () => {
   it('keeps exactly one call when both sides dial at once', async () => {
     // Both peers compute the same winner locally. Without this, either both

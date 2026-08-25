@@ -131,7 +131,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                   className="flex items-center justify-between p-4 rounded-lg bg-card hover:bg-surface transition-colors"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-foreground font-semibold">
+                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-foreground font-semibold">
                       {peerInitials({ cid: request.peer_cid, username: request.peer_username })}
                     </div>
                     <div>
@@ -148,7 +148,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-green-600 text-green-400 hover:bg-green-600 hover:text-foreground"
+                      className="border-success text-success hover:bg-success/90 hover:text-foreground"
                       onClick={() => handleAccept(request)}
                       disabled={processingId === request.id}
                     >
@@ -161,7 +161,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-red-600 text-red-400 hover:bg-red-600 hover:text-foreground"
+                      className="border-destructive text-destructive hover:bg-destructive/90 hover:text-foreground"
                       onClick={() => handleDecline(request)}
                       disabled={processingId === request.id}
                     >

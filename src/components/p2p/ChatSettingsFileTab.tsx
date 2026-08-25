@@ -35,11 +35,11 @@ export function ChatSettingsFileTab({
     <Tabs value={activeFileTab} onValueChange={setActiveFileTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2 bg-background h-10 mb-4" data-testid="inner-file-tabs">
         <TabsTrigger value="standard" data-testid="tab-file-standard"
-          className="data-[state=active]:bg-purple-600/30 data-[state=active]:text-purple-300 text-muted-foreground gap-1.5 text-sm">
+          className="data-[state=active]:bg-primary-accent/30 data-[state=active]:text-primary-accent text-muted-foreground gap-1.5 text-sm">
           <Upload className="h-4 w-4" /> Standard
         </TabsTrigger>
         <TabsTrigger value="remote-storage" data-testid="tab-file-remote"
-          className="data-[state=active]:bg-purple-600/30 data-[state=active]:text-purple-300 text-muted-foreground gap-1.5 text-sm">
+          className="data-[state=active]:bg-primary-accent/30 data-[state=active]:text-primary-accent text-muted-foreground gap-1.5 text-sm">
           <HardDrive className="h-4 w-4" /> Remote Storage
         </TabsTrigger>
       </TabsList>
@@ -65,22 +65,22 @@ export function ChatSettingsFileTab({
             onValueChange={(v) => onTransferModeChange(v as TransferModePreference)}
             className="space-y-2" data-testid="transfer-mode-radio">
             <div className="flex items-center space-x-3 p-3 rounded-lg bg-surface/50 hover:bg-surface transition-colors cursor-pointer">
-              <RadioGroupItem value="browser" id="browser" className="border-purple-400 text-purple-400" />
+              <RadioGroupItem value="browser" id="browser" className="border-primary-accent text-primary-accent" />
               <Label htmlFor="browser" className="flex-1 cursor-pointer">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Browser Transfer</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">Default</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success">Default</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">Simple and reliable for most files</p>
               </Label>
             </div>
             <div className="flex items-center space-x-3 p-3 rounded-lg bg-surface/50 hover:bg-surface transition-colors cursor-pointer">
-              <RadioGroupItem value="protocol" id="protocol" className="border-purple-400 text-purple-400" />
+              <RadioGroupItem value="protocol" id="protocol" className="border-primary-accent text-primary-accent" />
               <Label htmlFor="protocol" className="flex-1 cursor-pointer">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Citadel Protocol</span>
-                  <Zap className="h-3.5 w-3.5 text-yellow-400" />
-                  <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400">Experimental</span>
+                  <Zap className="h-3.5 w-3.5 text-warning" />
+                  <span className="text-xs px-2 py-0.5 rounded bg-warning/20 text-warning">Experimental</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">Post-quantum encryption, required for RE-VFS</p>
               </Label>
@@ -102,7 +102,7 @@ export function ChatSettingsFileTab({
         <div className="space-y-3 p-4 rounded-lg bg-surface/50">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Max file size to accept</Label>
-            <span className="text-sm text-purple-400 font-medium" data-testid="max-file-size-value">{maxFileSizeMb} MB</span>
+            <span className="text-sm text-primary-accent font-medium" data-testid="max-file-size-value">{maxFileSizeMb} MB</span>
           </div>
           <Slider value={[maxFileSizeMb]} onValueChange={onMaxFileSizeChange}
             max={defaultMaxMb} min={1} step={1} className="w-full" data-testid="max-file-size-slider" />
@@ -111,8 +111,8 @@ export function ChatSettingsFileTab({
           </p>
         </div>
 
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-primary-accent/10 border border-primary-accent/20">
+          <Info className="h-4 w-4 text-primary-accent mt-0.5 flex-shrink-0" />
           <p className="text-xs text-foreground/80">Downloaded files are auto-deleted from the server after download.</p>
         </div>
       </TabsContent>

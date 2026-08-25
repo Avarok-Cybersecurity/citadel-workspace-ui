@@ -11,7 +11,7 @@ export function ManageAccountsButton() {
       <Button
         variant="outline"
         size="sm"
-        className="gap-2 border-purple-500 text-purple-400 hover:bg-purple-500/20"
+        className="gap-2 border-primary-accent text-primary-accent hover:bg-primary-accent/20"
         onClick={() => setDialogOpen(true)}
       >
         <Users className="h-4 w-4" />

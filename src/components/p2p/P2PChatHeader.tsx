@@ -44,23 +44,23 @@ function getStatusDisplay(
   registered: boolean
 ): StatusDisplay {
   if (connected) {
-    return { text: 'Online', color: 'bg-green-500', textColor: 'text-green-400' };
+    return { text: 'Online', color: 'bg-success', textColor: 'text-success' };
   }
   if (registered) {
-    return { text: 'Registered', color: 'bg-blue-500', textColor: 'text-blue-400' };
+    return { text: 'Registered', color: 'bg-primary-accent', textColor: 'text-primary-accent' };
   }
   switch (presence.status) {
     case MessagingLayerType.Online:
-      return { text: 'Online', color: 'bg-green-500', textColor: 'text-green-400' };
+      return { text: 'Online', color: 'bg-success', textColor: 'text-success' };
     case MessagingLayerType.Away:
-      return { text: 'Away', color: 'bg-yellow-500', textColor: 'text-yellow-400' };
+      return { text: 'Away', color: 'bg-warning', textColor: 'text-warning' };
     case MessagingLayerType.Offline:
       return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-muted-foreground' };
     case MessagingLayerType.CustomState:
       return {
         text: presence.customText || 'Custom',
-        color: presence.customColor ? undefined : 'bg-purple-500',
-        textColor: 'text-purple-400',
+        color: presence.customColor ? undefined : 'bg-primary',
+        textColor: 'text-primary-accent',
         customColor: presence.customColor
       };
     default:
@@ -95,7 +95,7 @@ export function P2PChatHeader({
               />
               <span className={statusDisplay.textColor}>{statusDisplay.text}</span>
               {peerTyping && (
-                <span className="ml-2 text-purple-400 animate-pulse">typing...</span>
+                <span className="ml-2 text-primary-accent animate-pulse">typing...</span>
               )}
             </div>
           </div>

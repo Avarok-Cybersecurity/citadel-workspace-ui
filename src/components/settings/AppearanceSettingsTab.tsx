@@ -70,7 +70,7 @@ export function AppearanceSettingsTab() {
       {/* Display Density */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-          <Layout className="h-4 w-4 text-purple-400" />
+          <Layout className="h-4 w-4 text-primary-accent" />
           Display
         </div>
 
@@ -111,7 +111,7 @@ export function AppearanceSettingsTab() {
       {/* Typography */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-          <Type className="h-4 w-4 text-purple-400" />
+          <Type className="h-4 w-4 text-primary-accent" />
           Typography
         </div>
 
@@ -134,7 +134,7 @@ export function AppearanceSettingsTab() {
       {/* Sidebar */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-          <Monitor className="h-4 w-4 text-purple-400" />
+          <Monitor className="h-4 w-4 text-primary-accent" />
           Layout
         </div>
 

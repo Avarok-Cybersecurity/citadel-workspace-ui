@@ -36,7 +36,7 @@ export function TextBubble({
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="bg-purple-600 text-foreground text-xs">
+          <AvatarFallback className="bg-primary text-foreground text-xs">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
@@ -54,7 +54,7 @@ export function TextBubble({
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           {/* Inline failure indicator */}
           {isOwn && isFailed && (
-            <div className="flex items-center gap-1 mt-1.5 text-xs text-red-300">
+            <div className="flex items-center gap-1 mt-1.5 text-xs text-destructive">
               <AlertCircle className="h-3 w-3" />
               <span>Failed to send</span>
               {onRetry && (
@@ -96,7 +96,7 @@ export function TextBubble({
               {isOwn && onDelete && (
                 <DropdownMenuItem
                   onClick={onDelete}
-                  className="text-red-400 focus:text-red-400"
+                  className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete

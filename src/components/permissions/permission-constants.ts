@@ -38,9 +38,9 @@ export const PERMISSION_CATEGORIES: Record<string, PermissionDefinition[]> = {
 
 /** Visual role hierarchy for the role selector dropdown. */
 export const ROLE_HIERARCHY = [
-  { value: 'Admin', label: 'Administrator', color: 'bg-red-500' },
-  { value: 'Owner', label: 'Owner', color: 'bg-orange-500' },
-  { value: 'Member', label: 'Member', color: 'bg-blue-500' },
+  { value: 'Admin', label: 'Administrator', color: 'bg-destructive' },
+  { value: 'Owner', label: 'Owner', color: 'bg-warning' },
+  { value: 'Member', label: 'Member', color: 'bg-primary-accent' },
   { value: 'Guest', label: 'Guest', color: 'bg-gray-500' },
 ];
 

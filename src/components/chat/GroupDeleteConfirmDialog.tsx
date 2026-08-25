@@ -53,7 +53,7 @@ export function GroupDeleteConfirmDialog({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isDeleting}
-            className="bg-red-600 hover:bg-red-700 text-foreground"
+            className="bg-destructive hover:bg-destructive/90 text-foreground"
           >
             {isDeleting ? 'Deleting...' : 'Delete Group'}
           </AlertDialogAction>

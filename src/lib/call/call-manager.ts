@@ -79,6 +79,7 @@ export class CallManager {
   private internals(): CallManagerInternals {
     return {
       transport: this.options.transport,
+      selfCid: this.options.selfCid,
       capabilities: this.options.capabilities,
       codecs: this.codecs,
       openSessions: this.openSessions,
@@ -142,10 +143,15 @@ export class CallManager {
 
     this.apply({ type: 'accepted-locally', media });
 
-    const peers = [...state.participants.keys()];
+    // Everyone still expected in the call hears the accept — in a group that
+    // includes co-invitees who have not answered yet, which is how two
+    // invitees find each other without the caller relaying anything.
+    const peers = [...state.participants.values()].filter(
+      (p) => p.status !== 'left' && p.status !== 'declined',
+    );
     await Promise.all(
-      peers.map((cid) =>
-        this.options.transport.sendSignal(cid, {
+      peers.map((p) =>
+        this.options.transport.sendSignal(p.cid, {
           kind: 'CallAccept',
           call_id: state.callId,
           codecs: this.options.capabilities,
@@ -155,8 +161,12 @@ export class CallManager {
       ),
     );
     // Opened after the accept is on the wire, so the peer is already expecting
-    // frames by the time the session exists.
-    await Promise.all(peers.map((cid) => openSessionFor(this.internals(), cid)));
+    // frames by the time the session exists — and only where BOTH sides have
+    // answered: the caller (in the call by dialling, seeded 'connecting') and
+    // any co-invitee whose accept already arrived. The rest get their session
+    // when their CallAccept lands.
+    const ready = peers.filter((p) => p.status === 'connecting' || p.status === 'active');
+    await Promise.all(ready.map((p) => openSessionFor(this.internals(), p.cid)));
   }
 
   async decline(reason: CallDeclineReason): Promise<void> {

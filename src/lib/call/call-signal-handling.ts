@@ -43,8 +43,14 @@ export async function handleInboundSignal(
       m.codecs.recordSendCodec(from, signal.video_send_codec);
       m.apply({ type: 'peer-accepted', cid: from, media: signal.media });
       // Opened on accept, not on invite: a session opened when we dialled
-      // would hold a UDP channel for a call that may never be answered.
-      await openSessionFor(m, from);
+      // would hold a UDP channel for a call that may never be answered. And
+      // only once WE have answered too — in a group call a co-invitee's accept
+      // can land while we are still ringing, when we have no media to offer;
+      // accept() opens the session for every already-accepted peer instead.
+      const after = m.getState();
+      if (after && (after.status === 'connecting' || after.status === 'active')) {
+        await openSessionFor(m, from);
+      }
       return;
     }
 
@@ -162,11 +168,29 @@ async function handleInvite(
   m.codecs.recordCaps(from, signal.codecs);
   m.codecs.recordSendCodec(from, signal.video_send_codec);
 
+  // The roster the caller sent so every invitee builds the same mesh. It was
+  // carried from day one and consumed by nobody: each invitee knew only the
+  // caller, accepted only to the caller, and two invitees in the same group
+  // call never exchanged a signal, a session or a frame with each other.
+  // Usernames are not on the wire — the CID string stands in, exactly as the
+  // provider does for the caller itself.
+  const others: Array<{ cid: bigint; username: string }> = [];
+  for (const raw of signal.group?.members ?? []) {
+    try {
+      const cid = BigInt(raw);
+      if (cid !== m.selfCid && cid !== from) others.push({ cid, username: cid.toString() });
+    } catch {
+      // An unparseable cid names nobody we could signal; skip it rather than
+      // poison the whole invite.
+    }
+  }
+
   m.apply({
     type: 'invite-received',
     callId: signal.call_id,
     roomId: signal.group?.room_id ?? null,
     from: { cid: from, username },
     media: signal.media,
+    others,
   });
 }

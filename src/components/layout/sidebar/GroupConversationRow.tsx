@@ -139,6 +139,7 @@ export function GroupConversationRow({
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
+        data-testid={`group-row-${group.id}`}
         onClick={handleClick}
         className={`text-primary-foreground hover:bg-purple-500/15 hover:text-primary-foreground transition-colors h-9 py-1 ${
           isActive ? 'bg-purple-500/20 text-purple-200' : ''

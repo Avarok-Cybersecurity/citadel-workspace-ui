@@ -35,9 +35,9 @@ export const OrphanSessionIcon = ({
         className={cn(
           "flex items-center gap-2 h-8 pl-1 pr-3 rounded-full",
           "bg-card border border-border text-foreground",
-          "hover:bg-purple-500/15 hover:border-purple-500/30 transition-all duration-200",
+          "hover:bg-primary-accent/15 hover:border-primary-accent/30 transition-all duration-200",
           "cursor-pointer",
-          shouldGlow && "border-purple-500/50 bg-purple-500/10"
+          shouldGlow && "border-primary-accent/50 bg-primary-accent/10"
         )}
         title={`${displayName} - ${workspaceName}`}
         data-testid={`session-button-${session.username}`}
@@ -57,7 +57,7 @@ export const OrphanSessionIcon = ({
 
         {/* Unread badge */}
         {unreadCount > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-red-500 text-foreground text-[10px] font-bold px-1 leading-none">
+          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-destructive text-foreground text-[10px] font-bold px-1 leading-none">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -71,7 +71,7 @@ export const OrphanSessionIcon = ({
         }}
         className={cn(
           "absolute -top-1 -right-1 w-4 h-4 rounded-full",
-          "bg-background border border-border text-muted-foreground hover:text-red-400 hover:border-red-500/50",
+          "bg-background border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50",
           "flex items-center justify-center",
           "opacity-0 group-hover:opacity-100 transition-all duration-200",
           "cursor-pointer"

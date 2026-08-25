@@ -113,7 +113,7 @@ export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
         >
           <div className="flex items-start gap-2">
             {showIcon && (
-              <Lock className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-400" />
+              <Lock className="h-4 w-4 flex-shrink-0 mt-0.5 text-warning" />
             )}
             <span>{tooltip}</span>
           </div>

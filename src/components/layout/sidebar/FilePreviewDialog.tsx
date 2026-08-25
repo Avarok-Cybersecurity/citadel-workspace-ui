@@ -128,7 +128,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
             <div className="flex justify-end">
               <Button
                 onClick={() => setShowPreview(false)}
-                className="bg-purple-500/20 text-purple-200 hover:bg-purple-500/25"
+                className="bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25"
               >
                 Back to Details
               </Button>
@@ -197,13 +197,13 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
             <div className="flex justify-end gap-2">
               <Button
                 onClick={handlePreview}
-                className="bg-purple-500/20 text-purple-200 hover:bg-purple-500/25"
+                className="bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25"
               >
                 Preview
               </Button>
               <Button
                 onClick={handleDownload}
-                className="bg-purple-500/20 text-purple-200 hover:bg-purple-500/25"
+                className="bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25"
               >
                 <Download className="mr-2 h-4 w-4" />
                 Download

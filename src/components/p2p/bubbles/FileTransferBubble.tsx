@@ -120,7 +120,7 @@ export function FileTransferBubble({
             <div className="flex items-center gap-2 text-xs opacity-70">
               <span>{formatBytes(fileSize)}</span>
               {transferMode === 'p2p' && (
-                <span className="flex items-center gap-1 text-yellow-400">
+                <span className="flex items-center gap-1 text-warning">
                   <Zap className="h-3 w-3" />
                   P2P
                 </span>
@@ -140,7 +140,7 @@ export function FileTransferBubble({
           <div className="mb-2">
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-sky-400 rounded-full transition-all duration-300"
+                className="h-full bg-primary-accent rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -156,14 +156,14 @@ export function FileTransferBubble({
           <div className="flex gap-2 mt-2">
             <button
               onClick={handleAccept}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-success/20 hover:bg-success/30 text-success rounded text-sm transition-colors"
             >
               <Check className="h-4 w-4" />
               Accept
             </button>
             <button
               onClick={handleDecline}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded text-sm transition-colors"
             >
               <X className="h-4 w-4" />
               Decline

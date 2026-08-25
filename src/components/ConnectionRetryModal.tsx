@@ -183,7 +183,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
               <div className="flex items-center justify-between text-sm">
                 <span>Next retry in:</span>
                 <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary-accent" />
                   <span className="font-mono">
                     {countdown >= 60
                       ? `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`

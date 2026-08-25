@@ -28,17 +28,17 @@ export const ProtocolWarning: React.FC = () => {
   
   return (
     <div className="fixed bottom-4 left-4 z-50 max-w-md">
-      <Alert className="bg-amber-50 border-amber-200 shadow-lg">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <AlertTitle className="text-amber-800">Protocol Warning</AlertTitle>
-        <AlertDescription className="text-amber-700">
+      <Alert className="bg-warning/15 border-warning/30 shadow-lg">
+        <AlertTriangle className="h-4 w-4 text-warning" />
+        <AlertTitle className="text-warning">Protocol Warning</AlertTitle>
+        <AlertDescription className="text-warning">
           <p>{state.protocolWarning.message}</p>
           <p className="text-xs mt-1 font-mono">Request type: {state.protocolWarning.requestType}</p>
         </AlertDescription>
         <Button 
           variant="ghost" 
           size="icon" 
-          className="absolute top-2 right-2 text-amber-600 hover:bg-amber-100 hover:text-amber-800"
+          className="absolute top-2 right-2 text-warning hover:bg-warning/15 hover:text-warning"
           onClick={() => setVisible(false)}
         >
           <X className="h-4 w-4" />

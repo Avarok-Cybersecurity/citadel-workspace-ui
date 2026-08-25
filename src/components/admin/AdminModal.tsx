@@ -94,7 +94,7 @@ export function AdminModal({
           <TabsList className="grid w-full grid-cols-3 bg-background h-12">
             <TabsTrigger
               value="general"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-general"
             >
               <Settings className="h-4 w-4" />
@@ -102,7 +102,7 @@ export function AdminModal({
             </TabsTrigger>
             <TabsTrigger
               value="members"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-members"
             >
               <Users className="h-4 w-4" />
@@ -110,7 +110,7 @@ export function AdminModal({
             </TabsTrigger>
             <TabsTrigger
               value="chat"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-foreground text-muted-foreground gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-chat"
             >
               <MessageSquare className="h-4 w-4" />

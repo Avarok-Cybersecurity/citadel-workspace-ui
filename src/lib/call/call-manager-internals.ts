@@ -13,6 +13,9 @@ import type { PeerCodecBook } from './peer-codec-book';
 
 export interface CallManagerInternals {
   readonly transport: CallTransport;
+  /** Group invites carry the full roster, which includes us; this is how the
+   *  signal handler knows which entry not to treat as a peer. */
+  readonly selfCid: bigint;
   readonly capabilities: CallCodecCapabilities;
   readonly codecs: PeerCodecBook;
   /** Peers with an open media session, so close is exact. */

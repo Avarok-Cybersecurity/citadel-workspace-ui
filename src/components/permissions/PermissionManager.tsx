@@ -106,8 +106,8 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
       {/* Header */}
       <div className="px-6 py-5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-            <Shield className="h-4.5 w-4.5 text-purple-400" />
+          <div className="w-9 h-9 rounded-lg bg-primary-accent/10 flex items-center justify-center">
+            <Shield className="h-4.5 w-4.5 text-primary-accent" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-foreground">Permission Manager</h2>
@@ -151,7 +151,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                     colSpan={ROLE_HIERARCHY.length + 1}
                     className="px-6 pt-4 pb-1.5"
                   >
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-purple-400">
+                    <span className="text-[11px] font-semibold tracking-wider uppercase text-primary-accent">
                       {category}
                     </span>
                   </td>
@@ -161,7 +161,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                 {permissions.map((permission, idx) => (
                   <tr
                     key={permission.id}
-                    className={`group hover:bg-purple-500/[0.03] transition-colors ${
+                    className={`group hover:bg-primary-accent/5 transition-colors ${
                       idx === permissions.length - 1 ? '' : ''
                     }`}
                   >
@@ -176,7 +176,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                             <Checkbox
                               checked={isChecked}
                               onCheckedChange={() => togglePermission(role.value, permission.id)}
-                              className="h-4 w-4 border-surface data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                              className="h-4 w-4 border-surface data-[state=checked]:bg-primary data-[state=checked]:border-primary-accent"
                             />
                           </div>
                         </td>
@@ -206,7 +206,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-purple-600 hover:bg-purple-500 text-foreground h-9 text-sm rounded-lg shadow-lg shadow-purple-500/20 gap-2 px-5"
+            className="bg-primary hover:bg-primary/90 text-foreground h-9 text-sm rounded-lg shadow-lg shadow-primary-accent/20 gap-2 px-5"
           >
             {isSaving ? (
               <>

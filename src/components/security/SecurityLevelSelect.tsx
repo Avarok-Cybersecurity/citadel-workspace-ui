@@ -35,18 +35,18 @@ export const SecurityLevelSelect = ({ value = 'Standard', onChange }: SecurityLe
           <SelectTrigger id="security-level" className="w-full bg-surface border-border text-foreground pr-12">
             <SelectValue placeholder="Select security level" />
           </SelectTrigger>
-          <SelectContent className="bg-card border border-purple-400/30 text-foreground shadow-xl p-1">
-            <SelectItem value={'Standard'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Standard</SelectItem>
-            <SelectItem value={'Reinforced'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Reinforced</SelectItem>
-            <SelectItem value={'High'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">High</SelectItem>
-            <SelectItem value={'Extreme'} className="hover:bg-purple-500/20 focus:bg-purple-500/20 rounded-sm">Extreme</SelectItem>
+          <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-1">
+            <SelectItem value={'Standard'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm">Standard</SelectItem>
+            <SelectItem value={'Reinforced'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm">Reinforced</SelectItem>
+            <SelectItem value={'High'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm">High</SelectItem>
+            <SelectItem value={'Extreme'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm">Extreme</SelectItem>
           </SelectContent>
         </Select>
         <Tooltip>
           <TooltipTrigger asChild>
             <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
           </TooltipTrigger>
-          <TooltipContent className="bg-card border border-purple-400/30 text-foreground">
+          <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
             <p>Select the security level for your workspace</p>
           </TooltipContent>
         </Tooltip>

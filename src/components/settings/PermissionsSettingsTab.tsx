@@ -84,8 +84,8 @@ export function PermissionsSettingsTab() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <XCircle className="h-12 w-12 text-red-400 mb-4" />
-        <p className="text-red-400">Failed to load permissions</p>
+        <XCircle className="h-12 w-12 text-destructive mb-4" />
+        <p className="text-destructive">Failed to load permissions</p>
         <p className="text-sm text-muted-foreground mt-1">{error}</p>
         <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-4">
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -124,7 +124,7 @@ export function PermissionsSettingsTab() {
         <AccordionItem value={`workspace-${workspaceId}`} className="border-gray-700">
           <AccordionTrigger className="text-foreground hover:text-foreground hover:no-underline">
             <div className="flex items-center gap-3">
-              <Building2 className="h-5 w-5 text-purple-400" />
+              <Building2 className="h-5 w-5 text-primary-accent" />
               <span className="font-medium">{workspaceName}</span>
               <RoleBadge role={workspaceRole} />
               {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -166,15 +166,15 @@ export function PermissionsSettingsTab() {
         <p className="text-xs text-muted-foreground mb-2">Legend</p>
         <div className="flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             <span className="text-muted-foreground">Allowed</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <XCircle className="h-3.5 w-3.5 text-red-400" />
+            <XCircle className="h-3.5 w-3.5 text-destructive" />
             <span className="text-muted-foreground">Denied</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5 text-purple-400" />
+            <Building2 className="h-3.5 w-3.5 text-primary-accent" />
             <span className="text-muted-foreground">Workspace</span>
           </div>
         </div>

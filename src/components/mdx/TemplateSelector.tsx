@@ -87,7 +87,7 @@ const TemplateSelector = ({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-3xl bg-card text-foreground border-purple-800">
+      <DialogContent className="w-full max-w-3xl bg-card text-foreground border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CategoryIcon className="h-[18px] w-[18px]" />
@@ -117,7 +117,7 @@ const TemplateSelector = ({
                       key={template.id}
                       className={`relative rounded-md overflow-hidden border-2 transition-all cursor-pointer
                         ${selectedTemplate?.id === template.id
-                          ? 'border-purple-500 shadow-lg shadow-purple-900/30'
+                          ? 'border-primary-accent shadow-lg shadow-primary/30'
                           : 'border-gray-700 hover:border-gray-500'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
@@ -127,7 +127,7 @@ const TemplateSelector = ({
                     >
                       <div className="absolute top-2 right-2 z-10">
                         {selectedTemplate?.id === template.id && (
-                          <div className="rounded-full bg-purple-500 p-1">
+                          <div className="rounded-full bg-primary p-1">
                             <Check size={16} />
                           </div>
                         )}
@@ -165,7 +165,7 @@ const TemplateSelector = ({
                       key={template.id}
                       className={`flex items-start p-3 rounded-md transition-all cursor-pointer
                         ${selectedTemplate?.id === template.id
-                          ? 'bg-purple-900/30 border-l-4 border-purple-500'
+                          ? 'bg-primary/20 border-l-4 border-primary-accent'
                           : 'hover:bg-card'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
@@ -181,7 +181,7 @@ const TemplateSelector = ({
                         <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
                       </div>
                       {selectedTemplate?.id === template.id && (
-                        <div className="rounded-full bg-purple-500 p-1 ml-2">
+                        <div className="rounded-full bg-primary p-1 ml-2">
                           <Check size={16} />
                         </div>
                       )}
@@ -204,7 +204,7 @@ const TemplateSelector = ({
           <Button
             onClick={handleSelectTemplate}
             disabled={!selectedTemplate}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-primary hover:bg-primary/90"
           >
             Use Template
           </Button>

@@ -162,8 +162,8 @@ export function P2PChat({
       <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} />
 
       {rules && (
-        <div className="px-4 py-2 bg-purple-900/30 border-b border-purple-800/50">
-          <p className="text-sm text-purple-300">{rules}</p>
+        <div className="px-4 py-2 bg-primary/20 border-b border-primary/40">
+          <p className="text-sm text-primary-accent">{rules}</p>
         </div>
       )}
 

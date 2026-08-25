@@ -105,7 +105,7 @@ export function VFSContentGrid({
     return (
       <VFSContextMenu {...emptyContextProps}>
         <div
-          className={cn("flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm", rootDragOver && "bg-green-900/10")}
+          className={cn("flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm", rootDragOver && "bg-success/10")}
           onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
         >
           <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
@@ -119,7 +119,7 @@ export function VFSContentGrid({
   return (
     <VFSContextMenu {...emptyContextProps}>
       <div
-        className={cn("flex-1 overflow-y-auto p-4", rootDragOver && "bg-green-900/10")}
+        className={cn("flex-1 overflow-y-auto p-4", rootDragOver && "bg-success/10")}
         onClick={handleBackgroundClick}
         role="button"
         tabIndex={0}

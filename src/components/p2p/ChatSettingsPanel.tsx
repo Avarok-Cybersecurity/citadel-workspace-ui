@@ -56,7 +56,7 @@ export function ChatSettingsPanel({
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-primary/20">
-              <Settings className="h-5 w-5 text-purple-400" />
+              <Settings className="h-5 w-5 text-primary-accent" />
             </div>
             <DialogTitle className="text-lg font-semibold">
               Chat Settings
@@ -109,7 +109,7 @@ export function ChatSettingsPanel({
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
-                    <Bell className="h-5 w-5 text-purple-400" />
+                    <Bell className="h-5 w-5 text-primary-accent" />
                     <div>
                       <Label className="text-sm font-medium">Notifications</Label>
                       <p className="text-xs text-muted-foreground">Receive alerts for new messages</p>
@@ -120,7 +120,7 @@ export function ChatSettingsPanel({
 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
-                    <Eye className="h-5 w-5 text-blue-400" />
+                    <Eye className="h-5 w-5 text-primary-accent" />
                     <div>
                       <Label className="text-sm font-medium">Read Receipts</Label>
                       <p className="text-xs text-muted-foreground">Show when you've read messages</p>
@@ -131,7 +131,7 @@ export function ChatSettingsPanel({
 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
-                    <MessageSquare className="h-5 w-5 text-green-400" />
+                    <MessageSquare className="h-5 w-5 text-success" />
                     <div>
                       <Label className="text-sm font-medium">Typing Indicators</Label>
                       <p className="text-xs text-muted-foreground">Show when you're typing</p>
@@ -166,7 +166,7 @@ export function ChatSettingsPanel({
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
-                    <Sliders className="h-5 w-5 text-orange-400" />
+                    <Sliders className="h-5 w-5 text-warning" />
                     <div>
                       <Label className="text-sm font-medium">Encryption Level</Label>
                       <p className="text-xs text-muted-foreground">Security level for this conversation</p>
@@ -184,7 +184,7 @@ export function ChatSettingsPanel({
 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
-                    <Settings className="h-5 w-5 text-blue-400" />
+                    <Settings className="h-5 w-5 text-primary-accent" />
                     <div>
                       <Label className="text-sm font-medium">Connection Priority</Label>
                       <p className="text-xs text-muted-foreground">Prefer direct P2P or server relay</p>
@@ -203,7 +203,7 @@ export function ChatSettingsPanel({
                 <div className="p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <MessageSquare className="h-5 w-5 text-green-400" />
+                      <MessageSquare className="h-5 w-5 text-success" />
                       <div>
                         <Label className="text-sm font-medium">Message Retention</Label>
                         <p className="text-xs text-muted-foreground">Days to keep message history locally</p>
@@ -216,7 +216,7 @@ export function ChatSettingsPanel({
                     min={7}
                     max={365}
                     defaultValue={90}
-                    className="w-full accent-purple-500"
+                    className="w-full accent-primary-accent"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>7 days</span>
@@ -225,7 +225,7 @@ export function ChatSettingsPanel({
                 </div>
 
                 <button
-                  className="w-full p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm hover:bg-red-500/20 transition-colors"
+                  className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm hover:bg-destructive/20 transition-colors"
                   onClick={() => {
                     if (confirm(`Clear all chat history with ${peerName}?`)) {
                       localStorage.removeItem(`chat-history:${peerCid}`);
@@ -242,7 +242,7 @@ export function ChatSettingsPanel({
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-4 rounded-lg bg-surface/50 text-center">
-                    <BarChart3 className="h-5 w-5 text-purple-400 mx-auto mb-2" />
+                    <BarChart3 className="h-5 w-5 text-primary-accent mx-auto mb-2" />
                     <p className="text-2xl font-bold text-foreground">
                       {(() => {
                         try {
@@ -254,7 +254,7 @@ export function ChatSettingsPanel({
                     <p className="text-xs text-muted-foreground">Messages</p>
                   </div>
                   <div className="p-4 rounded-lg bg-surface/50 text-center">
-                    <FileText className="h-5 w-5 text-blue-400 mx-auto mb-2" />
+                    <FileText className="h-5 w-5 text-primary-accent mx-auto mb-2" />
                     <p className="text-2xl font-bold text-foreground">
                       {(() => {
                         try {

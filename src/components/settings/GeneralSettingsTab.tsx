@@ -131,7 +131,7 @@ export function GeneralSettingsTab() {
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Enter your display name"
                 disabled={isSaving}
-                className="bg-input border-border text-foreground h-11 rounded-lg placeholder:text-muted-foreground focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                className="bg-input border-border text-foreground h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
               />
               <p className="text-[11px] text-muted-foreground">
                 This is how your name appears to other workspace members.
@@ -176,7 +176,7 @@ export function GeneralSettingsTab() {
         <Button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
-          className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg shadow-lg shadow-purple-500/20 gap-2"
+          className="bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg shadow-lg shadow-primary-accent/20 gap-2"
         >
           {isSaving ? (
             <>

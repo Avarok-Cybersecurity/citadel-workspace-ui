@@ -116,7 +116,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8" data-testid="general-tab-loading">
-        <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
       </div>
     );
   }
@@ -125,7 +125,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
     <div className="space-y-6" data-testid="general-tab-content">
       <div className="space-y-2">
         <Label htmlFor="entity-name" className="text-foreground">
-          Name <span className="text-red-400">*</span>
+          Name <span className="text-destructive">*</span>
         </Label>
         <Input
           id="entity-name"
@@ -168,7 +168,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
         <Button
           onClick={handleSave}
           disabled={!hasChanges || saving}
-          className="bg-purple-600 hover:bg-purple-700 text-foreground"
+          className="bg-primary hover:bg-primary/90 text-foreground"
           data-testid="general-save-button"
         >
           {saving ? (

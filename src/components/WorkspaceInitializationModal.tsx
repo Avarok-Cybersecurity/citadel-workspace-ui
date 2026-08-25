@@ -143,7 +143,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             <Card className="bg-card border-surface shadow-lg w-full max-w-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">
-                        <Shield className="h-6 w-6 text-purple-500" />
+                        <Shield className="h-6 w-6 text-primary-accent" />
                         <div>
                             <CardTitle className="text-foreground text-xl">Initialize Workspace</CardTitle>
                             <CardDescription className="text-foreground/80">
@@ -155,9 +155,9 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
-                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
-                            <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                            <div className="text-sm text-amber-300">
+                        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
+                            <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+                            <div className="text-sm text-warning">
                                 <p className="font-semibold">You will become the Workspace Administrator</p>
                                 <p className="mt-1">By entering the workspace password, you will initialize this workspace and receive full administrator privileges including the ability to:</p>
                                 <ul className="mt-2 list-disc list-inside text-xs space-y-1">
@@ -167,13 +167,13 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                                     <li>Configure workspace settings</li>
                                 </ul>
                                 {(workspaceName || workspaceId || serverAddress || username) && (
-                                    <div className="mt-3 pt-2 border-t border-amber-500/30 space-y-1 text-xs">
+                                    <div className="mt-3 pt-2 border-t border-warning/30 space-y-1 text-xs">
                                         {(workspaceId || workspaceName) && (
-                                            <p><span className="text-amber-400">Workspace:</span> {workspaceId || workspaceName}</p>
+                                            <p><span className="text-warning">Workspace:</span> {workspaceId || workspaceName}</p>
                                         )}
-                                        {serverAddress && <p><span className="text-amber-400">Server:</span> {serverAddress}</p>}
+                                        {serverAddress && <p><span className="text-warning">Server:</span> {serverAddress}</p>}
                                         {(fullName || username) && (
-                                            <p><span className="text-amber-400">User:</span> {fullName && username && fullName !== username ? `${fullName} (${username})` : (username || fullName)}</p>
+                                            <p><span className="text-warning">User:</span> {fullName && username && fullName !== username ? `${fullName} (${username})` : (username || fullName)}</p>
                                         )}
                                     </div>
                                 )}
@@ -200,7 +200,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                         </div>
 
                         {error && (
-                            <div className="text-red-400 text-sm p-2 bg-red-400/10 rounded border border-red-400/20 flex items-center gap-2">
+                            <div className="text-destructive text-sm p-2 bg-destructive/10 rounded border border-destructive/20 flex items-center gap-2">
                                 <AlertCircle className="h-4 w-4" />
                                 {error}
                             </div>
@@ -212,14 +212,14 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                             type="button"
                             variant="ghost"
                             onClick={onClose}
-                            className="text-foreground hover:bg-purple-500/20"
+                            className="text-foreground hover:bg-primary-accent/20"
                             disabled={isSubmitting}
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
-                            className="bg-purple-600 hover:bg-purple-700 text-foreground transition-colors"
+                            className="bg-primary hover:bg-primary/90 text-foreground transition-colors"
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? (

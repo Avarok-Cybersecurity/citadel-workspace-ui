@@ -47,7 +47,7 @@ export interface CallState {
 
 export type CallEvent =
   | { type: 'invite-sent'; callId: string; roomId: string | null; media: CallMediaKinds; invitees: Array<{ cid: bigint; username: string }> }
-  | { type: 'invite-received'; callId: string; roomId: string | null; from: { cid: bigint; username: string }; media: CallMediaKinds }
+  | { type: 'invite-received'; callId: string; roomId: string | null; from: { cid: bigint; username: string }; media: CallMediaKinds; others: Array<{ cid: bigint; username: string }> }
   | { type: 'accepted-locally'; media: CallMediaKinds }
   | { type: 'declined-locally'; reason: CallDeclineReason }
   | { type: 'peer-accepted'; cid: bigint; media: CallMediaKinds }
@@ -65,6 +65,10 @@ export const NO_MEDIA: CallMediaKinds = { audio: false, video: false, screen: fa
 /** Beyond this, a mesh sender's uplink and encoder count stop being survivable. */
 export const MAX_VIDEO_PARTICIPANTS = 8;
 export const MAX_AUDIO_PARTICIPANTS = 12;
+
+function newParticipant(cid: bigint, username: string, status: ParticipantStatus, media: CallMediaKinds): CallParticipant {
+  return { cid, username, status, media, speaking: false };
+}
 
 function withParticipant(
   state: CallState,
@@ -112,13 +116,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
     case 'invite-sent': {
       const participants = new Map<bigint, CallParticipant>();
       for (const invitee of event.invitees) {
-        participants.set(invitee.cid, {
-          cid: invitee.cid,
-          username: invitee.username,
-          status: 'invited',
-          media: NO_MEDIA,
-          speaking: false,
-        });
+        participants.set(invitee.cid, newParticipant(invitee.cid, invitee.username, 'invited', NO_MEDIA));
       }
       return {
         callId: event.callId,
@@ -135,24 +133,26 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
       // A second invite for a call we are already in is a retransmit, not a new
       // call; adopting it would reset a live call back to ringing.
       if (state && state.callId === event.callId) return state;
+      // The caller is already in the call they dialled — 'connecting', not
+      // 'invited' — which is also what lets accept() open their session while
+      // co-invitees wait for their own accepts. First into the map on purpose:
+      // the ringing card names participants.values()[0] as the caller.
+      const participants = new Map<bigint, CallParticipant>([
+        [event.from.cid, newParticipant(event.from.cid, event.from.username, 'connecting', event.media)],
+      ]);
+      // The other invitees of a group call, so every invitee holds the same
+      // roster as the caller and the mesh can form without the caller relaying.
+      for (const other of event.others) {
+        if (other.cid === event.from.cid) continue;
+        participants.set(other.cid, newParticipant(other.cid, other.username, 'invited', NO_MEDIA));
+      }
       return {
         callId: event.callId,
         status: 'ringing-in',
         roomId: event.roomId,
         outgoing: false,
         selfMedia: NO_MEDIA,
-        participants: new Map([
-          [
-            event.from.cid,
-            {
-              cid: event.from.cid,
-              username: event.from.username,
-              status: 'invited',
-              media: event.media,
-              speaking: false,
-            },
-          ],
-        ]),
+        participants,
         reason: null,
       };
     }

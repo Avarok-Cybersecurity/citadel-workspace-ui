@@ -70,15 +70,15 @@ const Messages = () => {
           ) : (
             <div className="h-full flex flex-col items-center justify-center">
               <div className="flex flex-col items-center max-w-xs text-center">
-                <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-5">
-                  <MessageCircle className="h-8 w-8 text-purple-400" />
+                <div className="w-16 h-16 rounded-2xl bg-primary-accent/10 flex items-center justify-center mb-5">
+                  <MessageCircle className="h-8 w-8 text-primary-accent" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">No conversation selected</h3>
                 <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
                   Choose a peer from the list to start an encrypted conversation
                 </p>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/5 border border-purple-500/10">
-                  <Shield className="w-3.5 h-3.5 text-purple-400" />
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-accent/5 border border-primary-accent/10">
+                  <Shield className="w-3.5 h-3.5 text-primary-accent" />
                   <span className="text-[11px] text-muted-foreground">End-to-end encrypted</span>
                 </div>
               </div>

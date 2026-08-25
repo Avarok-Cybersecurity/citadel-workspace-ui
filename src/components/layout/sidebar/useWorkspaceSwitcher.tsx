@@ -156,7 +156,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
 
       toastSuccess(toast, "Connected!", (
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
           <span>{workspace.fullName || workspace.username} · {workspace.workspaceName}</span>
         </div>
       ));

@@ -27,7 +27,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
             <Card className="bg-card border-surface shadow-lg w-full max-w-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">
-                        <AlertCircle className="h-6 w-6 text-yellow-500" />
+                        <AlertCircle className="h-6 w-6 text-warning" />
                         <div>
                             <CardTitle className="text-foreground text-xl">Workspace Not Initialized</CardTitle>
                             <CardDescription className="text-foreground/80">
@@ -38,8 +38,8 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                        <p className="text-yellow-300 text-sm">
+                    <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
+                        <p className="text-warning text-sm">
                             This workspace has not been initialized yet. Please contact your workspace administrator to complete the initial setup.
                         </p>
                     </div>
@@ -53,8 +53,8 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
                         </ul>
                     </div>
 
-                    <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
-                        <p className="text-purple-300 text-xs">
+                    <div className="bg-primary-accent/10 border border-primary-accent/30 rounded-lg p-3">
+                        <p className="text-primary-accent text-xs">
                             Once the workspace is initialized, you'll be able to register and join the workspace.
                         </p>
                     </div>
@@ -63,7 +63,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
                 <CardFooter>
                     <Button
                         onClick={handleReturnToLogin}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-foreground transition-colors"
+                        className="w-full bg-primary hover:bg-primary/90 text-foreground transition-colors"
                     >
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Return to Login

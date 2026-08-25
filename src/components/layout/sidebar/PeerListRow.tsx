@@ -29,17 +29,17 @@ export function PeerListRow({
   onClick,
 }: PeerListRowProps) {
   const statusColor = isConnected
-    ? 'bg-green-500'
+    ? 'bg-success'
     : isOnline
-    ? 'bg-yellow-500'
-    : 'bg-red-500';
+    ? 'bg-warning'
+    : 'bg-destructive';
 
   return (
     <SidebarMenuItem key={cid}>
       <SidebarMenuButton
         onClick={onClick}
         data-peer-cid={cid}
-        className="text-foreground hover:bg-purple-500/15 hover:text-foreground transition-colors h-8 py-1"
+        className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors h-8 py-1"
       >
         <div className="flex items-center gap-2 w-full">
           {/* Avatar with status indicator */}

@@ -19,14 +19,14 @@ export function FileManagerStorageBar({
   setSelectedPeerCid,
 }: FileManagerStorageBarProps) {
   return (
-    <div className="flex items-center gap-4 px-4 py-2 border-b border-purple-800 bg-surface">
+    <div className="flex items-center gap-4 px-4 py-2 border-b border-border bg-surface">
       {/* Storage mode tabs */}
       <div className="flex items-center gap-1 bg-card rounded p-1">
         <button
           onClick={() => setStorageMode(TreeScope.Peer)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors ${
             storageMode === TreeScope.Peer
-              ? 'bg-purple-700 text-foreground'
+              ? 'bg-primary text-foreground'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -37,7 +37,7 @@ export function FileManagerStorageBar({
           onClick={() => setStorageMode(TreeScope.Server)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors ${
             storageMode === TreeScope.Server
-              ? 'bg-purple-700 text-foreground'
+              ? 'bg-primary text-foreground'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -49,7 +49,7 @@ export function FileManagerStorageBar({
       {/* Peer selector (only in P2P mode with multiple peers) */}
       {storageMode === TreeScope.Peer && registeredPeers.length > 1 && (
         <>
-          <div className="w-px h-6 bg-purple-800" />
+          <div className="w-px h-6 bg-primary" />
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Peer:</span>
             {registeredPeers.map((peer) => (
@@ -58,7 +58,7 @@ export function FileManagerStorageBar({
                 onClick={() => setSelectedPeerCid(peer.cid)}
                 className={`px-2 py-1 text-xs rounded ${
                   selectedPeerCid === peer.cid
-                    ? 'bg-purple-600 text-primary-foreground'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-card text-foreground/80 hover:bg-border'
                 }`}
               >
@@ -72,7 +72,7 @@ export function FileManagerStorageBar({
       {/* Server storage indicator */}
       {storageMode === TreeScope.Server && (
         <>
-          <div className="w-px h-6 bg-purple-800" />
+          <div className="w-px h-6 bg-primary" />
           <span className="text-xs text-muted-foreground">
             Private encrypted storage on Citadel server
           </span>

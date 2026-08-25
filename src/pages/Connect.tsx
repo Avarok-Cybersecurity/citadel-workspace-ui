@@ -136,7 +136,7 @@ export const Connect = () => {
 
         {loading ? (
           <CardContent className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-accent mx-auto"></div>
             <p className="text-foreground mt-4">Loading saved workspaces...</p>
           </CardContent>
         ) : servers.length === 0 ? (
@@ -144,7 +144,7 @@ export const Connect = () => {
             <p className="text-foreground mb-4">No saved workspaces found</p>
             <Button
               onClick={() => navigate("/")}
-              className="bg-purple-600 hover:bg-purple-700 text-foreground"
+              className="bg-primary hover:bg-primary/90 text-foreground"
             >
               Go Back
             </Button>
@@ -169,15 +169,15 @@ export const Connect = () => {
                   <div
                     key={server.serverAddress}
                     className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${selectedServer === server.serverAddress
-                      ? "bg-purple-700/50 border border-purple-500"
-                      : "bg-card/70 hover:bg-card border border-purple-400/20"
+                      ? "bg-primary/50 border border-primary-accent"
+                      : "bg-card/70 hover:bg-card border border-primary-accent/20"
                       }`}
                     onClick={() => setSelectedServer(server.serverAddress)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={activateOnKey(() => { (() => setSelectedServer(server.serverAddress))(); })}
                   >
-                    <Server className="w-5 h-5 text-purple-300 mr-3" />
+                    <Server className="w-5 h-5 text-primary-accent mr-3" />
                     <div>
                       <p className="text-foreground font-medium">{server.serverAddress}</p>
                       {server.serverName && (
@@ -185,7 +185,7 @@ export const Connect = () => {
                       )}
                     </div>
                     {selectedServer === server.serverAddress && (
-                      <ArrowRight className="w-5 h-5 text-purple-300 ml-auto" />
+                      <ArrowRight className="w-5 h-5 text-primary-accent ml-auto" />
                     )}
                   </div>
                 ))}
@@ -198,13 +198,13 @@ export const Connect = () => {
                 type="button"
                 variant="ghost"
                 onClick={() => navigate("/")}
-                className="text-foreground hover:bg-purple-500/20"
+                className="text-foreground hover:bg-primary-accent/20"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConnect}
-                className="bg-purple-600 hover:bg-purple-700 text-foreground transition-colors"
+                className="bg-primary hover:bg-primary/90 text-foreground transition-colors"
               >
                 Connect
               </Button>

@@ -39,7 +39,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
       isOwnMessage && 'flex-row-reverse'
     )}>
       <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarFallback className="bg-purple-600 text-foreground text-xs">
+        <AvatarFallback className="bg-primary text-foreground text-xs">
           {initials}
         </AvatarFallback>
       </Avatar>
@@ -57,7 +57,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
         <div className={cn(
           'rounded-lg px-3 py-2 text-sm',
           isOwnMessage
-            ? 'bg-purple-600 text-foreground'
+            ? 'bg-primary text-foreground'
             : 'bg-gray-700 text-foreground'
         )}>
           {message.reply_to && (
@@ -75,7 +75,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
         />
 
         {message.reply_count > 0 && (
-          <button className="text-xs text-purple-400 hover:text-purple-300 mt-1">
+          <button className="text-xs text-primary-accent hover:text-primary-accent mt-1">
             {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
           </button>
         )}
@@ -102,7 +102,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => onDelete(message.id)}
-                  className="text-red-400 focus:text-red-400"
+                  className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete

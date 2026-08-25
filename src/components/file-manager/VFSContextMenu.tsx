@@ -59,7 +59,7 @@ export function VFSContextMenu({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-48 bg-card text-foreground border-purple-800">
+      <ContextMenuContent className="w-48 bg-card text-foreground border-border">
         {/* Directory actions */}
         {isDir && (
           <>
@@ -79,7 +79,7 @@ export function VFSContextMenu({
             )}
             {canModify && (
               <>
-                <ContextMenuSeparator className="bg-purple-800" />
+                <ContextMenuSeparator className="bg-border" />
                 {onRename && (
                   <ContextMenuItem onClick={onRename} className="hover:bg-card cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" />
@@ -98,8 +98,8 @@ export function VFSContextMenu({
                     Copy
                   </ContextMenuItem>
                 )}
-                <ContextMenuSeparator className="bg-purple-800" />
-                <ContextMenuItem onClick={onDelete} className="hover:bg-red-900/50 text-red-300 cursor-pointer">
+                <ContextMenuSeparator className="bg-border" />
+                <ContextMenuItem onClick={onDelete} className="hover:bg-destructive/25 text-destructive cursor-pointer">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Folder
                 </ContextMenuItem>
@@ -129,7 +129,7 @@ export function VFSContextMenu({
             </ContextMenuItem>
             {canModify && (
               <>
-                <ContextMenuSeparator className="bg-purple-800" />
+                <ContextMenuSeparator className="bg-border" />
                 {onRename && (
                   <ContextMenuItem onClick={onRename} className="hover:bg-card cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" />
@@ -152,8 +152,8 @@ export function VFSContextMenu({
             )}
             {(fileState === RevfsFileState.Remote || fileState === RevfsFileState.Hosted) && (
               <>
-                <ContextMenuSeparator className="bg-purple-800" />
-                <ContextMenuItem onClick={onDelete} className="hover:bg-red-900/50 text-red-300 cursor-pointer">
+                <ContextMenuSeparator className="bg-border" />
+                <ContextMenuItem onClick={onDelete} className="hover:bg-destructive/25 text-destructive cursor-pointer">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
                 </ContextMenuItem>

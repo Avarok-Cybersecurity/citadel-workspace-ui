@@ -7,7 +7,7 @@
  * forever — the Create Group dialog submitted, closed, and produced nothing.
  *
  * This listens to the same 'websocket-message' stream the peer-registration
- * store uses, maps each group response with the pure `toGroupEvent`, and emits.
+ * store uses, maps each group response with the pure `toGroupEvents`, and emits.
  * All the mapping decisions live there; this is the shell that does the I/O.
  */
 
@@ -15,7 +15,8 @@ import { eventEmitter } from '../event-emitter';
 import { connectionManager } from '../connection';
 import { getSelectedUser } from '../tab-context';
 import { debugLog } from '@/lib/debug-config';
-import { toGroupEvent } from './group-events';
+import { toGroupEvents } from './group-events';
+import { p2pRegistrationService } from '../p2p-registration-service';
 
 let started = false;
 
@@ -43,11 +44,18 @@ export function startGroupResponseService(): void {
       const self = await resolveSelf();
       if (!self) return;
 
-      const event = toGroupEvent(message, self.cid, self.username);
-      if (!event) return;
+      // The wire names peers only by CID; the registration roster is the one
+      // authority for their usernames. The cid string is the explicit fallback
+      // for a peer the roster has not seen — non-empty on purpose, because an
+      // invite whose inviter has no name at all is dropped as malformed.
+      const { registeredPeers } = p2pRegistrationService.getPeers();
+      const peerName = (cid: bigint): string =>
+        registeredPeers.find((p) => p.cid === cid)?.username ?? cid.toString();
 
-      debugLog('GroupResponseService', `${event.name}`, event.payload);
-      eventEmitter.emit(event.name, event.payload);
+      for (const event of toGroupEvents(message, self.cid, self.username, peerName)) {
+        debugLog('GroupResponseService', `${event.name}`, event.payload);
+        eventEmitter.emit(event.name, event.payload);
+      }
     })().catch((error) => {
       // `void` alone marks the promise handled for lint but does NOT catch —
       // a malformed group key throws by design, and unhandled it would surface

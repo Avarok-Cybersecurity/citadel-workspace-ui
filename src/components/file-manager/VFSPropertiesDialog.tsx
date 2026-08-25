@@ -93,10 +93,10 @@ export function VFSPropertiesDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-card text-foreground border-purple-800 max-w-md">
+      <DialogContent className="bg-card text-foreground border-border max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <Icon className={isDir ? "h-8 w-8 text-yellow-400" : "h-8 w-8 text-foreground/80"} />
+            <Icon className={isDir ? "h-8 w-8 text-warning" : "h-8 w-8 text-foreground/80"} />
             <span className="truncate">{node.name}</span>
           </DialogTitle>
         </DialogHeader>

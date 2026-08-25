@@ -83,7 +83,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8" data-testid="chat-tab-loading">
-        <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
       </div>
     );
   }
@@ -92,8 +92,8 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
   if (entityType === 'workspace') {
     return (
       <div className="space-y-4" data-testid="chat-tab-workspace-message">
-        <Alert className="bg-background border-purple-600">
-          <Info className="h-4 w-4 text-purple-400" />
+        <Alert className="bg-background border-primary-accent">
+          <Info className="h-4 w-4 text-primary-accent" />
           <AlertDescription className="text-foreground/80">
             Chat settings are configured individually for each office and room.
             Select an office or room from the sidebar to configure its chat settings.
@@ -108,7 +108,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
       {/* Chat Enable Toggle */}
       <div className="flex items-center justify-between p-4 bg-background rounded-lg">
         <div className="flex items-center gap-3">
-          <MessageSquare className="h-5 w-5 text-purple-400" />
+          <MessageSquare className="h-5 w-5 text-primary-accent" />
           <div>
             <Label htmlFor="chat-enabled" className="text-foreground font-medium cursor-pointer">
               Enable Chat
@@ -158,19 +158,19 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
           <h4 className="text-foreground font-medium text-sm">Chat Features</h4>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <div className="w-2 h-2 rounded-full bg-success" />
               Text messages
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <div className="w-2 h-2 rounded-full bg-success" />
               File sharing
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <div className="w-2 h-2 rounded-full bg-success" />
               Message reactions
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-yellow-500" />
+              <div className="w-2 h-2 rounded-full bg-warning" />
               Threads (planned)
             </div>
           </div>
@@ -191,7 +191,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
         <Button
           onClick={handleSave}
           disabled={!hasChanges || saving}
-          className="bg-purple-600 hover:bg-purple-700 text-foreground"
+          className="bg-primary hover:bg-primary/90 text-foreground"
           data-testid="chat-save-button"
         >
           {saving ? (
