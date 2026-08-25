@@ -273,8 +273,8 @@ async function runTest(): Promise<boolean> {
 
   try {
     // Capture YJS-related logs
-    const logs1 = setupConsoleCapture(page1, 'User1', ['Yjs', 'sync', 'Sync', 'P2P']);
-    const logs2 = setupConsoleCapture(page2, 'User2', ['Yjs', 'sync', 'Sync', 'P2P']);
+    const logs1 = setupConsoleCapture(page1, 'User1', ['Yjs', 'sync', 'Sync', 'P2P', 'ILM']);
+    const logs2 = setupConsoleCapture(page2, 'User2', ['Yjs', 'sync', 'Sync', 'P2P', 'ILM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));

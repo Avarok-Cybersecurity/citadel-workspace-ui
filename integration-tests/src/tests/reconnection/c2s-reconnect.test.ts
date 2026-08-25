@@ -64,7 +64,7 @@ async function runTest(): Promise<boolean> {
     page = await context.newPage();
 
     // Setup console capture to detect session errors
-    setupConsoleCapture(page, USERNAME, ['Session Already Connected', 'Ratchet does not exist', 'ratchet v']);
+    setupConsoleCapture(page, USERNAME, ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM']);
 
     // Also track errors in our array
     page.on('console', (msg) => {

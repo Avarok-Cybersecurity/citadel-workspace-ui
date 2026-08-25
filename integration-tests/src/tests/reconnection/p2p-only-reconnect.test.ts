@@ -72,7 +72,11 @@ async function runTest(): Promise<boolean> {
     page2 = browserSetup.pages[1];
 
     // Setup console capture for ratchet errors
-    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v'];
+    // 'ILM' included deliberately. These specs assert message delivery, and the
+    // delivery layer is ILM -- but its diagnostics were filtered out of the
+    // captured console, so a delivery failure here produced a log with literally
+    // zero ILM lines in it and nothing to diagnose from.
+    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM'];
 
     setupConsoleCapture(page1, USER1_NAME, errorPatterns);
     setupConsoleCapture(page2, USER2_NAME, errorPatterns);
