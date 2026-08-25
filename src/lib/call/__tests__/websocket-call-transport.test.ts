@@ -6,7 +6,7 @@
  * that the chain holds, and that a failed send does not poison the sends
  * queued behind it.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const sendP2PCommand = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/p2p/message-send-operations', () => ({ sendP2PCommand }));
@@ -58,5 +58,36 @@ describe('WebSocketCallTransport.sendSignal', () => {
     // The failure belongs to the first send alone; the chain carries on.
     await expect(second).resolves.toBeUndefined();
     expect(sendP2PCommand).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('WebSocketCallTransport signal queue bound', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('lets the next signal go when one send never settles', async () => {
+    // Serialising is right until a send hangs. Nothing in the path below has a
+    // timeout, so an unbounded queue would hold the hang-up behind a stalled
+    // invite forever — the very outcome the ordering protects against.
+    let releaseFirst: (() => void) | undefined;
+    sendP2PCommand
+      .mockImplementationOnce(() => new Promise<void>((resolve) => { releaseFirst = resolve; }))
+      .mockImplementationOnce(() => Promise.resolve());
+
+    const t = transport();
+    const stalled = t.sendSignal(2n, signal);
+    const behind = t.sendSignal(3n, signal);
+
+    // Before the bound elapses the second send is still queued.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sendP2PCommand).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(sendP2PCommand).toHaveBeenCalledTimes(2);
+
+    // The stalled caller still owns its own promise; it is not resolved for it.
+    releaseFirst?.();
+    await expect(stalled).resolves.toBeUndefined();
+    await expect(behind).resolves.toBeUndefined();
   });
 });

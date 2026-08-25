@@ -69,53 +69,7 @@ const ELEVATION: Record<ThemeMode, { card: number; surface: number; accent: numb
  * Hue and saturation are untouched, so the theme's identity survives; a few
  * points of lightness on a button fill is imperceptible next to unreadable text.
  */
-function ensureFillContrast(fill: HslColor, label: HslColor, min = 4.5): HslColor {
-  if (contrastRatio(fill, label) >= min) return fill;
-
-  const away = label.l > fill.l ? -1 : 1;
-  let candidate = fill;
-
-  for (let step = 1; step <= 60; step += 1) {
-    candidate = clamp({ ...fill, l: fill.l + away * step });
-    if (contrastRatio(candidate, label) >= min) return candidate;
-    if (candidate.l <= 0 || candidate.l >= 100) break;
-  }
-  return candidate;
-}
-
-/**
- * Nudge a TEXT colour until it clears `min` against every surface it sits on.
- *
- * The mirror of ensureFillContrast, and the gap that let `primaryAccent` ship
- * unreadable: it is not a fill, it is the accent TEXT and icon colour, so no
- * fill guarantee ever applied to it. Five light presets landed between 3.5:1
- * and 4.5:1 against their own card — Nord at 3.53:1 — which is every accent
- * label in the app, in a theme the workspace is free to pick.
- *
- * Checked against all surfaces at once rather than one at a time, because
- * satisfying `card` alone can walk the colour straight into `background`.
- */
-function ensureTextContrast(text: HslColor, surfaces: readonly HslColor[], min = 4.5): HslColor {
-  const clears = (c: HslColor) => surfaces.every((s) => contrastRatio(s, c) >= min);
-  if (clears(text)) return text;
-
-  // Move away from the surfaces' average lightness, so the accent darkens on a
-  // light theme and lightens on a dark one without needing to know which it is.
-  const meanL = surfaces.reduce((acc, s) => acc + s.l, 0) / surfaces.length;
-  const away = meanL > text.l ? -1 : 1;
-  let candidate = text;
-
-  for (let step = 1; step <= 100; step += 1) {
-    candidate = clamp({ ...text, l: text.l + away * step });
-    if (clears(candidate)) return candidate;
-    if (candidate.l <= 0 || candidate.l >= 100) break;
-  }
-  return candidate;
-}
-
-function clamp(c: HslColor): HslColor {
-  return { ...c, l: Math.min(100, Math.max(0, c.l)) };
-}
+import { ensureFillContrast, ensureTextContrast } from './palette-contrast';
 
 export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   const { background, primary, primaryAccent } = seed;
@@ -212,6 +166,7 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
  * offset — the same defect Lighthouse flagged on every toast description before
  * --muted-foreground was raised from 54% to 72%.
  */
+
 function mutedAgainst(surface: HslColor, foreground: HslColor): HslColor {
   const towardSurface = foreground.l > surface.l ? -1 : 1;
 
@@ -234,6 +189,7 @@ function mutedAgainst(surface: HslColor, foreground: HslColor): HslColor {
  * then rebuild every derived token from the reflected background so elevation
  * and contrast are recomputed for the new mode rather than mirrored.
  */
+
 export function deriveDarkPalette(light: ThemePalette): ThemePalette {
   const reflect = (c: HslColor): HslColor => ({ ...c, l: 100 - c.l });
 

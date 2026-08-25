@@ -6,12 +6,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  reduce,
   glareWinner,
   canAddParticipant,
   MAX_VIDEO_PARTICIPANTS,
   type CallState,
 } from '../call-state';
+import { reduce } from '../call-reducer';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };

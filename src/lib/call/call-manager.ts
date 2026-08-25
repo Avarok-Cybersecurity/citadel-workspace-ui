@@ -18,7 +18,8 @@ import type {
   CallMediaKinds,
   CallSignalPayload,
 } from '@/types/p2p-commands';
-import { canAddParticipant, reduce, type CallEvent, type CallState } from './call-state';
+import { canAddParticipant, type CallEvent, type CallState } from './call-state';
+import { reduce } from './call-reducer';
 import type { CallTransport } from './call-transport';
 import type { WireFrame } from './frame-codec';
 import { PeerCodecBook } from './peer-codec-book';

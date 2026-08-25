@@ -12,6 +12,7 @@ import { P2PCommandType, type CallSignalPayload } from '@/types/p2p-commands';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import type { CallTransport } from './call-transport';
 import type { WireFrame } from './frame-codec';
+import { SIGNAL_QUEUE_MAX_WAIT_MS } from './call-constants';
 import { requestResponse } from '@/lib/websocket/request-response';
 import { debugLog } from '@/lib/debug-config';
 
@@ -149,10 +150,18 @@ export class WebSocketCallTransport implements CallTransport {
     );
     // The chain absorbs failures so one refused signal cannot poison every
     // signal after it; the caller still sees its own rejection.
-    this.signalChain = send.then(
-      () => undefined,
-      () => undefined,
-    );
+    //
+    // It also stops waiting after SIGNAL_QUEUE_MAX_WAIT_MS. Nothing along the
+    // path below has a timeout, so without this one stalled send would hold the
+    // queue — and the hang-up behind it — indefinitely, which is the exact
+    // outcome the ordering exists to prevent.
+    this.signalChain = Promise.race([
+      send.then(
+        () => undefined,
+        () => undefined,
+      ),
+      new Promise<void>((resolve) => setTimeout(resolve, SIGNAL_QUEUE_MAX_WAIT_MS)),
+    ]);
     return send;
   }
 }

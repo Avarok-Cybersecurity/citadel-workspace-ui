@@ -25,3 +25,19 @@ export const CALL_HEARTBEAT_INTERVAL_MS = 5_000;
  * dead call does not linger.
  */
 export const CALL_HEARTBEAT_TIMEOUT_MS = 20_000;
+
+/**
+ * How long the signal queue waits on one send before letting the next go.
+ *
+ * Signal sends are serialised so a fan-out cannot interleave and lose one. The
+ * send path is unbounded, though — sendP2PCommand reaches the WASM messenger
+ * with no timeout anywhere along it — so a single stalled send would otherwise
+ * hold every later signal behind it indefinitely, including the CallEnd that
+ * ordering was protecting in the first place.
+ *
+ * This bounds only what the NEXT send waits for, never the send itself: the
+ * caller still awaits its own result. Ordering therefore holds in the normal
+ * case and degrades to concurrent exactly when waiting has become worse than
+ * sending out of order.
+ */
+export const SIGNAL_QUEUE_MAX_WAIT_MS = 3_000;
