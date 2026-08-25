@@ -33,7 +33,15 @@
  * them precisely against the real nginx policy, failing on every violation
  * type except the eval probe. That is the authority for CSP, not this.
  */
-const EXPECTED_CONSOLE_ERROR = /WebSocket connection failed|Failed to initialize WASM client|WorkspaceClient/i;
+// Two spellings of the same failure. The app reports "WebSocket connection
+// failed"; the BROWSER reports "WebSocket connection to 'ws://…/ws' failed:
+// Connection closed before receiving a handshake response", which the first
+// pattern does not match — that one extra error is what kept the gate red, and
+// it stayed invisible while the printout truncated each audit to three items.
+// Still specific: it requires a websocket connection that failed, so a
+// TypeError or an application error is not swept up.
+const EXPECTED_CONSOLE_ERROR =
+  /WebSocket connection\b.*\bfailed|Failed to initialize WASM client|WorkspaceClient/i;
 
 export function explainShortfall(category, audits) {
   const failing = (category.auditRefs ?? [])

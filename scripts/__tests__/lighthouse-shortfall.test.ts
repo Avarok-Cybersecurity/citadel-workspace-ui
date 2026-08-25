@@ -48,6 +48,22 @@ describe('explainShortfall', () => {
     expect(v.expected).toBe(true);
   });
 
+  it("accepts the browser's own handshake-failure wording", () => {
+    // Chrome says "WebSocket connection TO '...' failed", not "WebSocket
+    // connection failed". Missing that one variant kept CI red for a full
+    // cycle while every message in the printout looked familiar.
+    const v = verdict(
+      ['errors-in-console'],
+      [
+        audit('errors-in-console', 0, [
+          ABSENT_AGENT,
+          "WebSocket connection to 'ws://localhost:4173/ws' failed: Connection closed before receiving a handshake response",
+        ]),
+      ],
+    );
+    expect(v.expected).toBe(true);
+  });
+
   it('accepts all three known audits together, as CI reports them', () => {
     const v = verdict(
       ['errors-in-console', 'valid-source-maps', 'inspector-issues'],
