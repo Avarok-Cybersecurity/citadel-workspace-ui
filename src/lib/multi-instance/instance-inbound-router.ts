@@ -117,7 +117,7 @@ class InstanceInboundRouter {
 
   routeMessage(message: Record<string, unknown>): void {
     if (!this.isActive) {
-      debugLog('InstanceInboundRouter', 'routeMessage called but not leader');
+      debugLog('InstanceInboundRouter', '[ILM-Router] routeMessage called but not leader');
       return;
     }
 
@@ -203,8 +203,8 @@ class InstanceInboundRouter {
         return;
       }
       const knownInstances = instanceManager.getAllInstances();
-      debugLog('InstanceInboundRouter', `No instance owns CID ${targetCid}, message may be lost`);
-      debugLog('InstanceInboundRouter', `Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
+      debugLog('InstanceInboundRouter', `[ILM-Router] No instance owns CID ${targetCid}, message may be lost`);
+      debugLog('InstanceInboundRouter', `[ILM-Router] Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
       // Self-heal: BUFFER the orphaned message for up to the buffer
       // timeout, then either replay to the correct tab when a
       // cid-report lands OR fall back to processing locally on
