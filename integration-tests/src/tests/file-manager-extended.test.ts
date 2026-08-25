@@ -95,7 +95,18 @@ async function navigateToFileManager(page: Page): Promise<boolean> {
   const useServerBtn = page.getByRole('button', { name: 'Use Server Storage' });
   if (await isVisibleWithin(useServerBtn, 5000)) {
     console.log('  No peers connected - switching to Server Storage');
-    await useServerBtn.click();
+    // Bounded, and tolerant of the button vanishing between the check above and
+    // this click. NoPeersScreen is replaced by the peer tree the instant a peer
+    // connects, taking this button with it — so on a slow runner where the
+    // handshake lands in that gap, `click()` waited its full default 30s for a
+    // button that was deliberately gone, and failed the spec. Observed in CI run
+    // 32857173644; the local run wins the race and never sees it.
+    //
+    // Losing the race is fine: the screen is gone because peers arrived, which
+    // is the state the rest of the spec can use anyway.
+    await useServerBtn.click({ timeout: 5000 }).catch(() => {
+      console.log('  NoPeersScreen was replaced before the click - peers connected');
+    });
   }
 
   // Every freshly seeded RE-VFS tree contains the protected "Sent Files" and
