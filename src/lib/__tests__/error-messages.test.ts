@@ -73,6 +73,23 @@ describe('getUserFriendlyErrorMessage', () => {
     const msg = getUserFriendlyErrorMessage(longMsg);
     expect(msg).toContain('unexpected error');
   });
+
+  it('maps the SDK\'s real duplicate-username message, not just the literal', () => {
+    // Captured verbatim from the live toast. The mapping used to test for
+    // 'User already exists', which this does not contain, so the friendliest
+    // message in the file was unreachable for the case it was written for.
+    expect(getUserFriendlyErrorMessage('Username bob_1787715650505 already exists!')).toMatch(
+      /already exists.*choose a different username/i,
+    );
+    // The older phrasing must keep working.
+    expect(getUserFriendlyErrorMessage('User already exists')).toMatch(
+      /already exists.*choose a different username/i,
+    );
+    // Unrelated "already exists" errors must NOT be reported as a username clash.
+    expect(getUserFriendlyErrorMessage('Workspace already exists')).not.toMatch(
+      /choose a different username/i,
+    );
+  });
 });
 
 describe('getErrorTitle', () => {
@@ -109,5 +126,8 @@ describe('getErrorTitle', () => {
 
   it('handles Error objects', () => {
     expect(getErrorTitle(new Error('Connection refused'))).toBe('Connection Error');
+  });
+  it('titles a duplicate username instead of the bare "Error" fallback', () => {
+    expect(getErrorTitle('Username bob_1787715650505 already exists!')).toBe('Username Taken');
   });
 });

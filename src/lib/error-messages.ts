@@ -43,7 +43,12 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'No account found with that username. Please check your username or create a new account.';
   }
   
-  if (errorMessage.includes('User already exists')) {
+  // The SDK's actual message is `Username <name> already exists!`, captured
+  // from the live toast. The previous literal 'User already exists' never
+  // matched it, so the single most ordinary registration failure — picking a
+  // name someone already has — fell through to the raw
+  // "Something went wrong: Username bob already exists!" fallback.
+  if (/already exists/i.test(errorMessage) && /user/i.test(errorMessage)) {
     return 'An account with that username already exists. Please choose a different username.';
   }
   
@@ -143,6 +148,13 @@ export function getErrorTitle(error: string | Error): string {
   
   if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
     return 'Request Timeout';
+  }
+
+  // Checked before the generic fallback so the commonest registration failure
+  // gets a title that says what happened. Previously it rendered as a bare
+  // "Error" over the raw server string.
+  if (/already exists/i.test(errorMessage) && /user/i.test(errorMessage)) {
+    return 'Username Taken';
   }
 
   if (errorMessage.includes('not found') || errorMessage.includes('not exist') ||
