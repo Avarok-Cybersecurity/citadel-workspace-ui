@@ -93,7 +93,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
 
     return (
       <div className="h-full bg-background">
+        {/* Keyed by peer — see the note in pages/Messages.tsx. */}
         <P2PChat
+          key={parsedPeerCid.toString()}
           peerCid={parsedPeerCid}
           peerName={peerName || undefined}
           currentUserCid={parsedCurrentUserCid}

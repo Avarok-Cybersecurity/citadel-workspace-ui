@@ -201,7 +201,12 @@ export function GroupChatPage() {
           shrinks the messages instead of pushing the composer off-screen. */}
       {currentUserId && groupId && (
         <div className="flex-1 min-h-0">
+          {/* Keyed by group: useGroupChat never resets its composer, so a
+              switch mid-draft carried inputValue, replyToId and editingId into
+              the new group — and handleSendMessage pairs the STALE draft with
+              the CURRENT groupId, delivering the message to the wrong group. */}
           <GroupChatView
+            key={groupId}
             groupId={groupId}
             currentUserId={currentUserId}
             currentUserName={currentUserName}

@@ -95,7 +95,16 @@ const Messages = () => {
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                 Conversations
               </button>
+              {/* Keyed by the conversation, so React resets this subtree on a switch.
+                  Without it the same component instance is reused: useP2PMessages'
+                  only reset path fires on a FALSY peerCid, and mergeMessages
+                  dedups by message id alone — never by peer — so the previous
+                  peer's messages stayed in state and were merged into the new
+                  thread by timestamp. P2PMessageList then labels every
+                  non-own message with the CURRENT peerName, so they rendered
+                  as if that peer had sent them. */}
               <P2PChat
+                key={selectedPeerCid}
                 peerCid={BigInt(selectedPeerCid)}
                 peerName={selectedPeerName}
                 currentUserCid={currentUserCid}
