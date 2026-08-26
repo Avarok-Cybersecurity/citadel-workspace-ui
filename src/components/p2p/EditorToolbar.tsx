@@ -32,7 +32,7 @@ function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButton
         p-1.5 rounded transition-colors
         ${active
           ? 'bg-primary text-primary-foreground'
-          : 'hover:bg-white/10 text-muted-foreground hover:text-foreground'
+          : 'hover:bg-foreground/10 text-muted-foreground hover:text-foreground'
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}

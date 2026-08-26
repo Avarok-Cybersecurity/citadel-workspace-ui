@@ -85,11 +85,33 @@ export default tseslint.config(
         // Checked on every string, not just className: several colour maps live
         // in plain .ts objects (role badges, file-state icons) and those were
         // exactly where hardcoded hues kept accumulating.
-        selector: "Literal[value=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky|gray|slate|zinc|neutral|stone)-[0-9]/]",
-        message: "Hardcoded Tailwind palette class. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border — see src/index.css.",
+        //
+        // white and black have no numeric suffix, so the original `-[0-9]`
+        // anchor walked straight past them — fourteen sites accumulated in
+        // components/p2p alone, including `bg-surface text-white`, which made a
+        // failed message unreadable for every light-mode user.
+        selector: "Literal[value=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(?:purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky|gray|slate|zinc|neutral|stone)-[0-9]/]",
+        message: "Hardcoded Tailwind colour. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border, foreground — see src/index.css. white and black are included because they do not invert: `bg-surface text-white` put white on a 96%-lightness surface in light mode, about 1.08:1, and every `hover:bg-white/10` tint vanished there.",
       }, {
-        selector: "TemplateElement[value.raw=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky|gray|slate|zinc|neutral|stone)-[0-9]/]",
-        message: "Hardcoded Tailwind palette class. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border — see src/index.css.",
+        selector: "TemplateElement[value.raw=/(^|[^\\w-])(bg|text|border(-[lrtbxy])?|ring|from|to|via|shadow|fill|stroke|outline|divide|accent|decoration)-(?:purple|green|red|blue|amber|yellow|orange|pink|indigo|teal|cyan|violet|fuchsia|rose|lime|emerald|sky|gray|slate|zinc|neutral|stone)-[0-9]/]",
+        message: "Hardcoded Tailwind colour. Use a semantic token instead: primary/primary-accent (brand), success, destructive, warning, muted/muted-foreground, surface, border, foreground — see src/index.css. white and black are included because they do not invert: `bg-surface text-white` put white on a 96%-lightness surface in light mode, about 1.08:1, and every `hover:bg-white/10` tint vanished there.",
+      }, {
+        // text-white / text-black / bg-white specifically. These are NOT a
+        // stylistic preference — they do not invert, so they break outright in
+        // whichever theme they were not written for. `bg-surface text-white`
+        // shipped white on a 96%-lightness surface in light mode, about 1.08:1,
+        // which made a failed message unreadable; every `hover:bg-white/10` tint
+        // simply vanished there. Fourteen sites in components/p2p alone.
+        //
+        // bg-black/N is deliberately NOT listed: a modal scrim should be black
+        // in both themes, which is why the broad palette rule was the wrong
+        // place to express this. Nor are border-white / ring-white, which the
+        // colour picker needs against arbitrary user-chosen hues.
+        selector: "Literal[value=/(^|[^\\w-])(text-white|text-black|bg-white)(\\/|\\s|$)/]",
+        message: "text-white, text-black and bg-white do not invert with the theme. Use text-foreground, text-primary-foreground, bg-background/bg-surface, or a foreground-relative tint like bg-foreground/10.",
+      }, {
+        selector: "TemplateElement[value.raw=/(^|[^\\w-])(text-white|text-black|bg-white)(\\/|\\s|$)/]",
+        message: "text-white, text-black and bg-white do not invert with the theme. Use text-foreground, text-primary-foreground, bg-background/bg-surface, or a foreground-relative tint like bg-foreground/10.",
       }],
       "no-case-declarations": "off",
       "no-useless-escape": "off",

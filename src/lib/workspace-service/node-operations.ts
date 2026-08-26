@@ -6,6 +6,7 @@
  */
 
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
+import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import type { ProtocolSender } from './workspace-operations';
 
 /**
@@ -84,6 +85,13 @@ export async function listNodes(
   parentId?: string | null,
   entityTypes?: Array<{ Child: string } | 'Workspace'>,
 ): Promise<void> {
+  // `state.loading.nodes` had no writer at all, so it was permanently false and
+  // TreeNodesSection's guard — `if (!isLoading && !treeData)` — fired on every
+  // workspace open, telling the user "Your workspace is empty. Click the + button
+  // to create your first space." while the tree was still in flight. The
+  // "Loading..." arm inside that branch is unreachable by construction, which is
+  // why it read as correct.
+  workspaceResponseHandler.emitLoadingEvent('nodes:loading');
   const requestPart: WorkspaceProtocolRequestTS = {
     ListNodes: {
       parent_id: parentId,

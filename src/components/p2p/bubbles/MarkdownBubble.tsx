@@ -61,7 +61,7 @@ const markdownComponents = {
   ),
 
   // Horizontal rule
-  hr: () => <hr className="border-t border-white/20 my-2" />,
+  hr: () => <hr className="border-t border-border my-2" />,
 
   // Bold and italic (handled automatically by markdown)
   strong: ({ children }: ChildrenProps) => <strong className="font-bold">{children}</strong>,

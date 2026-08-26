@@ -21,7 +21,7 @@ export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: 
         disabled={!message.document_id}
       >
         <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 rounded bg-white/10">
+          <div className="p-1.5 rounded bg-foreground/10">
             <FileText className="h-4 w-4" />
           </div>
           <div className="flex-1 min-w-0">

@@ -42,7 +42,7 @@ function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonPr
       className={`p-1.5 rounded transition-colors ${
         active
           ? 'bg-primary text-primary-foreground'
-          : 'hover:bg-white/10 text-muted-foreground hover:text-foreground'
+          : 'hover:bg-foreground/10 text-muted-foreground hover:text-foreground'
       }`}
       title={title}
     >

@@ -74,7 +74,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
         {isOwn && isFailed && onRetry && (
           <button
             onClick={onRetry}
-            className="ml-1 p-0.5 rounded hover:bg-white/10 transition-colors"
+            className="ml-1 p-0.5 rounded hover:bg-foreground/10 transition-colors"
             title="Retry sending"
           >
             <RefreshCw className="h-3 w-3 text-destructive hover:text-foreground" />

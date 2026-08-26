@@ -34,7 +34,7 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
         border-b-2 transition-all duration-150
         ${active
           ? 'border-primary text-foreground bg-background'
-          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-foreground/5'
         }
       `}
       onClick={onSelect}
@@ -56,7 +56,7 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
             onClose();
           }}
           className={`
-            ml-1 p-0.5 rounded-full hover:bg-white/10
+            ml-1 p-0.5 rounded-full hover:bg-foreground/10
             ${active ? '' : 'reveal-on-hover'}
           `}
           title="Close tab"

@@ -102,7 +102,7 @@ export function FileTransferBubble({
         {/* File info header */}
         <div className="flex items-start gap-3 mb-2">
           {/* File icon with thumbnail support */}
-          <div className="p-2 rounded bg-white/10 flex-shrink-0">
+          <div className="p-2 rounded bg-foreground/10 flex-shrink-0">
             {message.file_thumbnail ? (
               <img
                 src={message.file_thumbnail}
@@ -138,7 +138,7 @@ export function FileTransferBubble({
         {/* Progress bar */}
         {status.showProgress && (
           <div className="mb-2">
-            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary-accent rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}

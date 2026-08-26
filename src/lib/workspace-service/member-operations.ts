@@ -11,6 +11,7 @@ import type {
   UpdateOperationTS,
   UserRoleTS,
 } from '@/types/workspace-protocol';
+import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import type { ProtocolSender } from './workspace-operations';
 
 /**
@@ -105,6 +106,10 @@ export async function removeMember(
  * List members in a workspace or domain node
  */
 export async function listMembers(sender: ProtocolSender, domainId?: string): Promise<void> {
+  // Same dead-flag problem as ListNodes: nothing ever emitted 'members:loading',
+  // so every member list rendered its empty state as a statement of fact while
+  // the request was still on the wire.
+  workspaceResponseHandler.emitLoadingEvent('members:loading', { domainId });
   const requestPart: WorkspaceProtocolRequestTS = {
     ListMembers: { domain_id: domainId }
   };

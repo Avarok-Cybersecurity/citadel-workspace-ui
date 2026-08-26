@@ -29,10 +29,15 @@ export interface FileTransferBubbleProps extends BaseBubbleProps {
 
 // Shared bubble styles
 export function getBubbleStyles(isOwn: boolean, isFailed: boolean): string {
+  // Tokens, not literal white. Light mode is a shipped, user-selectable theme,
+  // and `--surface` there is 96% lightness — so `bg-surface text-white` put white
+  // on near-white at roughly 1.08:1. A light-mode user whose message failed to
+  // send could not read what they had tried to say. `bg-primary text-white`
+  // happened to look right only because --primary is dark in both themes.
   if (isOwn) {
     return isFailed
-      ? 'bg-surface text-white border border-destructive/30'
-      : 'bg-primary text-white';
+      ? 'bg-surface text-foreground border border-destructive/30'
+      : 'bg-primary text-primary-foreground';
   }
   return 'bg-surface text-foreground';
 }

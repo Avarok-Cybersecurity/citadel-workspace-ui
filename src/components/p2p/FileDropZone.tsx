@@ -67,7 +67,7 @@ export function FileDropZone({
           </div>
           <button
             onClick={onRemoveFile}
-            className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1 rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
             disabled={isSending}
           >
             <X className="h-4 w-4" />

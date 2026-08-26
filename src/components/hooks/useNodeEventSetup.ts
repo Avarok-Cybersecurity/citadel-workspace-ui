@@ -5,6 +5,7 @@ import type { DomainNode, TreeNode, TreeSchema } from '@/components/layout/sideb
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { runAsyncSetup } from './event-setup-utils';
 import { setTreeSchema } from '@/lib/entity-type-registry';
+import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 
 interface UseNodeEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -28,10 +29,17 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
           ...prev,
           loading: { ...prev.loading, nodes: true },
         }));
+        // listNodes resolves when the request is SENT. If the response never
+        // arrives the flag would stay raised and the tree would spin forever, so
+        // fall back to the empty state rather than an unresolvable spinner.
+        armLoadingDeadline('nodes', () =>
+          setState(prev => ({ ...prev, loading: { ...prev.loading, nodes: false } }))
+        );
       });
 
       // Multiple nodes loaded
       await workspaceEvents.onNodeEvent('nodes:loaded', (payload: { nodes: DomainNode[]; connection: ConnectionInfo }) => {
+        cancelLoadingDeadline('nodes');
         setState(prev => {
           const updatedNodes = { ...prev.nodes };
           for (const node of payload.nodes) {

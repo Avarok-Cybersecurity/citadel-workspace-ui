@@ -5,6 +5,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, trackRequest, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
+import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -16,6 +17,9 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       // Member events
       await workspaceEvents.onMemberEvent('members:loading', (payload) => {
         setLoading(setState, 'members', true);
+        // listMembers resolves on SEND, not on response — fall back to the empty
+        // state rather than a spinner that can never resolve.
+        armLoadingDeadline('members', () => setLoading(setState, 'members', false));
 
         if (payload.domainId) {
           debugLog('UseMemberEventSetup', `Loading members for domain: ${payload.domainId}, request ID: ${payload.connection.request_id}`);
@@ -23,6 +27,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       });
 
       await workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
+        cancelLoadingDeadline('members');
         setState(prev => {
           // Try to find the current user in the members list and update their role
           let updatedCurrentUser = prev.currentUser;

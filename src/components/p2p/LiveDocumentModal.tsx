@@ -98,7 +98,7 @@ export function LiveDocumentModal({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground hover:bg-white/5"
+            className="text-muted-foreground hover:text-foreground hover:bg-foreground/5"
           >
             Cancel
           </Button>

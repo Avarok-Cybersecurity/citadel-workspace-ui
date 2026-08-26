@@ -26,7 +26,7 @@ function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps)
         transition-all duration-150 ease-in-out
         ${active
           ? 'bg-primary text-primary-foreground shadow-sm'
-          : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
+          : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-foreground/5'
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}

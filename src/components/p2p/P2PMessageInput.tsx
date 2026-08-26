@@ -87,7 +87,7 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
               variant="ghost"
               onClick={onFileClick}
               disabled={!canSendMessages}
-              className="text-muted-foreground hover:text-foreground hover:bg-white/10"
+              className="text-muted-foreground hover:text-foreground hover:bg-foreground/10"
               title="Send file"
             >
               <Paperclip className="h-4 w-4" />
