@@ -85,8 +85,8 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Message actions">
+              <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'}>

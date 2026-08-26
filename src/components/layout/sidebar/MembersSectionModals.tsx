@@ -128,7 +128,7 @@ export function MembersSectionModals({
                   </div>
                   {currentUsername !== member.username && (
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${member.username}`}><MoreVertical className="h-4 w-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}>Change Role</DropdownMenuItem>

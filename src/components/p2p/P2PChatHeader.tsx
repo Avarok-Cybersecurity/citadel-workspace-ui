@@ -120,10 +120,11 @@ export function P2PChatHeader({
             variant="ghost"
             size="icon"
             onClick={onSettingsClick}
+            aria-label="Chat settings"
             className="text-muted-foreground hover:text-foreground hover:bg-surface"
             data-testid="chat-settings-button"
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="h-5 w-5" aria-hidden="true" />
           </Button>
         </div>
       </div>
