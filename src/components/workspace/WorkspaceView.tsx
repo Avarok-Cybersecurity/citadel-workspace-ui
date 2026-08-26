@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
@@ -45,8 +45,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   const isLeafNode = node && isVariant(node.entity_type as Record<string, unknown>, 'Child')
     && (!node.allowed_child_types || node.allowed_child_types.length === 0);
 
-  // Determine content to display
-  const getInitialContent = () => {
+  // useCallback, not a bare arrow. A new identity every render put this in
+  // BaseOffice's content effect dependencies and re-ran it on every unrelated
+  // store change — which overwrote the editor buffer.
+  const getInitialContent = useCallback(() => {
     if (node && isLeafNode) {
       return getDefaultChildNodeContent(node.name, node.description);
     }
@@ -54,7 +56,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
       return getDefaultNodeContent(node.name);
     }
     return getDefaultMDXShowcase();
-  };
+  }, [node, isLeafNode]);
 
   // Determine entity details
   const entityTitle = node?.name || "Welcome to Your Workspace";
@@ -108,6 +110,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   // Otherwise show the normal workspace content
   return (
     <BaseOffice
+      // Keyed: without it React reuses the instance across nodes, so `isEditing`
+      // stayed true while the buffer was swapped to the other node's body.
+      key={nodeId ?? 'workspace-root'}
       title={entityTitle}
       getInitialContent={getInitialContent}
       nodeId={nodeId || undefined}

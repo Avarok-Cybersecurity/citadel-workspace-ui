@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallMediaToggles } from './use-call-media-toggles';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import type { ConnectionQuality } from './ParticipantTile';
 import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
@@ -182,29 +183,25 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   }, [teardown, managerRef]);
 
   const leave = useCallback(async () => {
-    await managerRef.current?.end('hangup');
+    const manager = managerRef.current;
+    if (manager) {
+      await manager.end('hangup');
+      teardown();
+      return;
+    }
+
+    // No manager means the call already reached a terminal state and
+    // use-call-runtime tore it down — which for 'failed' happens while the
+    // surface is deliberately still up, so the user can read the reason. The
+    // React `call` state was then never cleared by anything, so Leave awaited
+    // `undefined?.end()`, did nothing, and the error panel stayed for the rest
+    // of the page's life with both call buttons replaced by that dead Leave.
+    // No further call to that peer was possible from that conversation.
     teardown();
-  }, [teardown, managerRef]);
+    setCall(null);
+  }, [teardown, managerRef, setCall]);
 
-  const setMedia = useCallback(async (next: CallMediaKinds) => {
-    await managerRef.current?.setSelfMedia(next);
-  }, [managerRef]);
-
-  const toggleMic = useCallback(async () => {
-    const current = managerRef.current?.getState()?.selfMedia;
-    if (!current) return;
-    const stream = sessionRef.current?.getLocalStream();
-    for (const track of stream?.getAudioTracks() ?? []) track.enabled = !current.audio;
-    await setMedia({ ...current, audio: !current.audio });
-  }, [setMedia, managerRef, sessionRef]);
-
-  const toggleCamera = useCallback(async () => {
-    const current = managerRef.current?.getState()?.selfMedia;
-    if (!current) return;
-    const stream = sessionRef.current?.getLocalStream();
-    for (const track of stream?.getVideoTracks() ?? []) track.enabled = !current.video;
-    await setMedia({ ...current, video: !current.video });
-  }, [setMedia, managerRef, sessionRef]);
+  const { toggleMic, toggleCamera } = useCallMediaToggles(managerRef, sessionRef);
 
   useEffect(() => {
     // Polled, not event-driven: 'lost' is defined by SILENCE, so the moment a

@@ -85,8 +85,23 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     if (saved) setIsEditing(false);
   };
 
-  // Update content when entity data changes
+  // Load the document into the buffer — but NEVER while the user is editing it.
+  //
+  // `content` is the controlled value of the textarea, so every run of this
+  // effect replaced whatever was being typed and destroyed the native undo
+  // stack with it. It fired far more often than "when entity data changes":
+  // `getInitialContent` was a new function identity on every render of
+  // WorkspaceView, which subscribes to the whole workspace store — so a
+  // colleague's typing indicator or an incoming message elsewhere in the app
+  // wiped the open editor. On a brand-new node the else branch ran and replaced
+  // the user's work with the default template.
+  //
+  // A remote save is the deterministic case: it mints a new node object, and
+  // the author's paragraph became the other person's. Not overwriting is the
+  // safe half of that; telling the user their view is now stale is recorded in
+  // docs/ROBUSTNESS.md as the other half.
   useEffect(() => {
+    if (isEditing) return;
     if (entityData?.mdx_content) {
       setContent(entityData.mdx_content);
       setIsNewContent(false);
@@ -94,7 +109,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       setContent(getInitialContent());
       setIsNewContent(true);
     }
-  }, [entityData, getInitialContent]);
+  }, [entityData, getInitialContent, isEditing]);
 
   useEffect(() => {
     const compileContent = async () => {
