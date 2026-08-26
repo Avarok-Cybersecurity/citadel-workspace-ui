@@ -112,9 +112,12 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
       });
 
       expect(instanceChannelMock.forwardToInstance).toHaveBeenCalledTimes(1);
+      // The third argument is the ack id: forwards are retained by the leader
+      // until the target confirms, so it must be present and non-empty.
       expect(instanceChannelMock.forwardToInstance).toHaveBeenCalledWith(
         'follower-x',
         cidRoutedMessage,
+        expect.any(String),
       );
       // Local processing was NOT triggered — the buffer + replay path
       // bypasses the fallback when the owner shows up in time.
@@ -177,6 +180,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     expect(instanceChannelMock.forwardToInstance).toHaveBeenCalledWith(
       'follower-instance',
       cidRoutedMessage,
+      expect.any(String),
     );
   });
 

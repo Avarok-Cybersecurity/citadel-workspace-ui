@@ -11,6 +11,7 @@
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { logEmit } from './router-diagnostics';
+import { makeForwardFallback, attachForwardListeners, startPendingRequestCleanup } from './router-forwarding';
 import { instanceChannel } from './instance-channel';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
@@ -32,14 +33,12 @@ class InstanceInboundRouter {
   private pendingRequestMap: Map<string, { instanceId: string; timestamp: number }> = new Map();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   /**
-   * Buffer for messages whose owner couldn't be found at dispatch
-   * time. See `orphan-buffer.ts` for the timer/replay lifecycle.
-   * Drained when `instance:registered` fires with a matching CID; on
-   * timeout, the buffer invokes `processLocalMessage` so we never
-   * silently strand a real message.
+   * Holds messages with no known owner AND forwards awaiting an ack. See
+   * `orphan-buffer.ts` for the timer/replay lifecycle and
+   * `router-forwarding.ts` for what a timeout does.
    */
   private readonly orphanBuffer = new OrphanBuffer(
-    (message) => this.processLocalMessage(message),
+    makeForwardFallback((message) => this.processLocalMessage(message)),
   );
 
   private constructor() {
@@ -68,10 +67,9 @@ class InstanceInboundRouter {
       }
     });
 
-    eventEmitter.on('channel:inbound-message', (data: { payload: unknown; senderInstanceId: string }) => {
-      const messageType = getMessageType(data.payload);
-      debugLog('InstanceInboundRouter', `[ILM-Router] Received forwarded message: type=${messageType}`);
-      this.processLocalMessage(data.payload);
+    attachForwardListeners({
+      processLocally: (message) => this.processLocalMessage(message),
+      retireForward: (requestId) => this.orphanBuffer.ack(requestId),
     });
 
     eventEmitter.on('channel:outbound-request', (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
@@ -99,14 +97,8 @@ class InstanceInboundRouter {
   // ── Cleanup ──────────────────────────────────────────────────────────
 
   private startCleanupInterval(): void {
-    this.cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      for (const [requestId, entry] of this.pendingRequestMap) {
-        if (now - entry.timestamp > REQUEST_TRACKING_TIMEOUT_MS) {
-          this.pendingRequestMap.delete(requestId);
-        }
-      }
-    }, INTERVAL.CLEANUP_MS);
+    this.cleanupInterval = startPendingRequestCleanup(
+      this.pendingRequestMap, REQUEST_TRACKING_TIMEOUT_MS, INTERVAL.CLEANUP_MS);
   }
 
   registerPendingRequest(requestId: string, instanceId: string): void {
@@ -190,7 +182,17 @@ class InstanceInboundRouter {
       if (targetInstance === instanceManager.instanceId) {
         this.processLocalMessage(message);
       } else {
-        instanceChannel.forwardToInstance(targetInstance, message);
+        // Retained until the target acks. No ack within the buffer timeout and
+        // the fallback above fires — the same terminal path an unowned CID
+        // takes — so a dropped BroadcastChannel post can no longer lose the
+        // message. A cid re-registration meanwhile drains and re-routes it,
+        // which is the mid-reload recovery path.
+        const requestId = crypto.randomUUID();
+        this.orphanBuffer.push(targetCid, message, messageType, {
+          requestId,
+          targetInstanceId: targetInstance,
+        });
+        instanceChannel.forwardToInstance(targetInstance, message, requestId);
         if (LEADER_MUST_PROCESS_LOCALLY.has(messageType)) {
           debugLog('InstanceInboundRouter', `[ILM-Router] Also processing ${messageType} locally for central state (ILM visibility)`);
           this.processLocalMessage(message);

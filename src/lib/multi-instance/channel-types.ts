@@ -12,6 +12,7 @@ export type ChannelMessageType =
   | 'outbound-request'
   | 'outbound-ack'
   | 'inbound-forward'
+  | 'inbound-ack'
   | 'leader-election'
   | 'leader-heartbeat'
   | 'instance-announce'

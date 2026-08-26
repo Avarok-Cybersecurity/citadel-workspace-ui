@@ -57,6 +57,22 @@ export function handleInboundForward(message: ChannelMessage): void {
   eventEmitter.emit('channel:inbound-message', {
     payload: message.payload,
     senderInstanceId: message.senderInstanceId,
+    requestId: message.requestId,
+  });
+}
+
+/**
+ * A forwarded message reached an attached handler in the target tab.
+ *
+ * Deliberately NOT routed through `outboundQueue.acknowledge`: that queue's
+ * retry semantics are follower-to-leader, and its unknown-id path would log
+ * noise for every inbound ack.
+ */
+export function handleInboundAck(message: ChannelMessage): void {
+  if (!message.requestId) return;
+  eventEmitter.emit('channel:inbound-ack', {
+    requestId: message.requestId,
+    senderInstanceId: message.senderInstanceId,
   });
 }
 

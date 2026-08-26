@@ -11,6 +11,7 @@
  */
 
 import type { MessagingLayer } from '@/types/messaging-layer';
+import { markP2PMessageHandlerAttached } from './p2p-handler-ready';
 import { editMessage, deleteMessage } from './messenger-revision';
 import type { MessageType } from '@/types/message-protocol';
 import { websocketService } from '../websocket-service';
@@ -116,6 +117,10 @@ export class P2PMessengerManager extends EventListenerManager {
       });
     }
     this.listen<InternalServiceResponse>('websocket-message', (response) => { void this.messageHandler.handleWebSocketMessage(response); });
+    // Marked immediately after the subscription, not before: the inbound router
+    // acks a forwarded message only once this is set, and acking before the
+    // handler is attached would confirm a delivery that never happened.
+    markP2PMessageHandlerAttached();
     this.listen<{ peerCid: bigint }>('p2p-connection-established', ({ peerCid }) => {
       this.conversationManager.setConnection(peerCid, true);
       this.connectionListeners.forEach(l => l(peerCid, true));

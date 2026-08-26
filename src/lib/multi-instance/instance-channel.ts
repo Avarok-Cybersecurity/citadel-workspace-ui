@@ -17,6 +17,7 @@ import {
   handleOutboundRequest,
   handleOutboundAck,
   handleInboundForward,
+  handleInboundAck,
   handleInstanceAnnounce,
   handleInstanceGoodbye,
   handleSessionRelease,
@@ -114,6 +115,7 @@ class InstanceChannel {
       case 'outbound-request': handleOutboundRequest(message); break;
       case 'outbound-ack': handleOutboundAck(message); break;
       case 'inbound-forward': handleInboundForward(message); break;
+      case 'inbound-ack': handleInboundAck(message); break;
       case 'leader-election': handleLeaderElection(this.electionState, message); break;
       case 'leader-heartbeat': handleLeaderHeartbeat(this.electionState, message); break;
       case 'instance-announce': handleInstanceAnnounce(this.electionState, message); break;
@@ -200,14 +202,18 @@ class InstanceChannel {
     this.send({ type: 'outbound-ack', targetInstanceId, requestId, status: result.status, error: result.error, data: result.data });
   }
 
-  forwardToInstance(targetInstanceId: string, payload: unknown): void {
-    // Fingerprinted so the hop can be joined against the receiving tab's
-    // processLocalMessage. This is a bare BroadcastChannel post: no ack, no
-    // retry, and MessageNotification is NOT in LEADER_MUST_PROCESS_LOCALLY, so
-    // nothing keeps a local copy. If it lands in a tab whose P2P subscriber has
-    // not attached yet, it is gone and nothing anywhere records that.
+  forwardToInstance(targetInstanceId: string, payload: unknown, requestId?: string): void {
+    // Fingerprinted so the hop joins to the receiving tab's processLocalMessage.
+    // With `requestId` set the router retains the message until the target tab
+    // acks; no ack within the buffer timeout means the leader falls back to
+    // processing locally, so a bare BroadcastChannel post can no longer lose it.
     debugLog('InstanceChannel', `[ILM-Router] forward -> ${targetInstanceId} ${describeForwarded(payload)}`);
-    this.send({ type: 'inbound-forward', targetInstanceId, payload });
+    this.send({ type: 'inbound-forward', targetInstanceId, payload, requestId });
+  }
+
+  /** Confirms a forwarded message reached an attached handler here. */
+  sendInboundAck(targetInstanceId: string, requestId: string): void {
+    this.send({ type: 'inbound-ack', targetInstanceId, requestId });
   }
 
   broadcast(payload: unknown): void {
