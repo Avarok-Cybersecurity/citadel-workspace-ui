@@ -73,21 +73,33 @@ export async function restartBackendServices(): Promise<void> {
   const startTime = Date.now();
 
   try {
-    // Use `docker restart` directly (NOT docker compose restart/stop/start).
-    // docker compose restart can fail with "Address already in use" (os error 98)
-    // when the old process doesn't release the port fast enough.
-    // docker compose stop/start triggers dependency chains (sync-wasm-client).
-    // `docker restart` with --timeout gives the process time to shut down cleanly.
-    console.log('\n  Restarting server container...');
-    execSync('docker restart --timeout 10 citadel-workspace-server-1', {
+    // RECREATE, not restart.
+    //
+    // `docker restart` resets the process but keeps the container's writable
+    // layer, so anything a spec wrote to disk survives it. The workspace's
+    // default MDX lives at /usr/src/app/documents inside the image, and a spec
+    // that edits an office rewrites it — so "clean state" reset the in-memory
+    // accounts and sessions while silently carrying document edits into every
+    // later run. node-content-propagation overwrote the General office, which
+    // deleted the bullet list the accessibility suite measures for contrast,
+    // and "workspace shell in light mode" then failed several specs later with
+    // nothing to connect it to the cause. It looked exactly like flake.
+    //
+    // --no-deps keeps this from dragging in sync-wasm-client, which is the
+    // dependency chain `docker compose restart` was originally avoided for.
+    // --force-recreate discards the writable layer, which is the point.
+    console.log('\n  Recreating server container...');
+    execSync('docker compose up -d --force-recreate --no-deps server', {
       stdio: 'inherit',
-      timeout: 60000,
+      timeout: 120000,
+      cwd,
     });
 
-    console.log('  Restarting internal-service container...');
-    execSync('docker restart --timeout 10 citadel-workspace-internal-service-1', {
+    console.log('  Recreating internal-service container...');
+    execSync('docker compose up -d --force-recreate --no-deps internal-service', {
       stdio: 'inherit',
-      timeout: 60000,
+      timeout: 120000,
+      cwd,
     });
 
     // Wait for both containers to report healthy, polling the real state rather

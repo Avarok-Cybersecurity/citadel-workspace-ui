@@ -14,16 +14,14 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
 import { MemberListItems } from './MemberListItems';
-import WorkspaceService from "@/lib/workspace-service";
 import { Badge } from "@/components/ui/badge";
-import { workspaceEvents, type MembersPayload } from "@/lib/workspace-events";
 import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
 import { GroupConversationRow } from "./GroupConversationRow";
 import { PeerListRow } from "./PeerListRow";
 import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { useDomainMembers } from '@/hooks/use-domain-members';
 import { debugLog } from '@/lib/debug-config';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { MembersSectionModals } from './MembersSectionModals';
@@ -36,8 +34,6 @@ export const MembersSection = () => {
   const params = new URLSearchParams(location.search);
   const currentNodeId = params.get("nodeId");
 
-  const [members, setMembers] = useState<WorkspaceMember[]>([]);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -75,46 +71,7 @@ export const MembersSection = () => {
   useEventListener('open-pending-requests-modal', () => { setShowPendingRequests(true); });
 
   const activeDomainId = currentNodeId;
-  useEffect(() => {
-    const loadMembers = async () => {
-      if (!activeDomainId) { setMembers([]); setIsLoadingMembers(false); return; }
-      // Clear first: the previous node's members would otherwise stay on screen,
-      // attributed to the node just opened.
-      setMembers([]);
-      setIsLoadingMembers(true);
-      try { await WorkspaceService.listMembers(activeDomainId); }
-      catch (error) {
-        debugLog('MembersSection', 'Error loading members:', error);
-        setIsLoadingMembers(false);
-      }
-      // NOT cleared here. listMembers only sends the request; the members
-      // arrive later on the 'members:loaded' event, so clearing it in a
-      // `finally` ended the load the moment the request went out — with
-      // members still empty. The sidebar then stated "No members yet. Use the
-      // + button to discover peers" about a workspace that was merely still
-      // fetching, which is what KNOWN_ISSUES #6 described.
-    };
-    runAsyncSetup(loadMembers);
-  }, [activeDomainId]);
-
-  useEffect(() => {
-    const handleMembersLoaded = (payload: MembersPayload) => {
-      if (payload.members) setMembers(payload.members);
-      // The response is what ends the load.
-      setIsLoadingMembers(false);
-    };
-    runAsyncSetup(async () => { await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded); });
-  }, []);
-
-  // A response that never comes must not leave the section spinning forever.
-  // Falling back to the empty state after this long is a worse answer than the
-  // real list and a better one than an indefinite "Loading members...".
-  const MEMBER_LOAD_TIMEOUT_MS = 15_000;
-  useEffect(() => {
-    if (!isLoadingMembers) return;
-    const timer = window.setTimeout(() => setIsLoadingMembers(false), MEMBER_LOAD_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [isLoadingMembers]);
+  const { members, isLoadingMembers } = useDomainMembers(activeDomainId);
 
   const handleEditMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowEditModal(true); };
   const handleRemoveMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowRemoveModal(true); };

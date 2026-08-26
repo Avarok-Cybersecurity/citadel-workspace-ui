@@ -42,7 +42,15 @@ adminMemberTest('an edit by the admin reaches a member without a reload', async 
 
     const textarea = mdxTextarea(admin.page);
     await expect(textarea).toBeVisible({ timeout: 30_000 });
-    await textarea.fill(`# ${marker}\n\nEdited by ${admin.username}.`);
+
+    // Append, never replace. These specs share one backend, and the default
+    // office content is a fixture other specs measure — the accessibility suite
+    // reads list-marker contrast from its bullet list. Overwriting it made
+    // "workspace shell in light mode" fail with "should render MDX content with
+    // a list to measure", several specs later and with nothing to connect the
+    // two. A spec that mutates shared state has to leave it usable.
+    const existing = await textarea.inputValue();
+    await textarea.fill(`${existing}\n\n## ${marker}\n\nEdited by ${admin.username}.`);
     await saveButton(admin.page).click({ force: true });
 
     // The editor sees their own change — if this fails the edit never saved,
