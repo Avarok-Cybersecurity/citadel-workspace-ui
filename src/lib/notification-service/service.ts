@@ -48,11 +48,38 @@ export class NotificationService {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
 
     if (Notification.permission === 'granted') {
-      new Notification(notification.title, {
-        body: notification.content,
-        icon: '/favicon.ico',
-        tag: notification.id,
-      });
+      // Guarded, like playNotificationSound beside it. On Chromium for Android
+      // the Notification constructor does not merely no-op — it THROWS
+      // ("Illegal constructor. Use ServiceWorkerRegistration.showNotification()
+      // instead"), and this runs from the last statement of the inbound-message
+      // handler. So every message received while backgrounded produced an
+      // unhandled rejection. The service worker path is tried first, since it
+      // is the supported one there.
+      void (async () => {
+        try {
+          const registration = await navigator.serviceWorker?.ready;
+          if (registration) {
+            await registration.showNotification(notification.title, {
+              body: notification.content,
+              icon: '/favicon.ico',
+              tag: notification.id,
+            });
+            return;
+          }
+        } catch {
+          // Fall through to the constructor below.
+        }
+        try {
+          new Notification(notification.title, {
+            body: notification.content,
+            icon: '/favicon.ico',
+            tag: notification.id,
+          });
+        } catch {
+          // No notification surface on this platform; the message itself has
+          // already been stored and emitted, so there is nothing to recover.
+        }
+      })();
     } else if (Notification.permission !== 'denied') {
       // Fire-and-forget: we don't gate the rest of the notification
       // pipeline on the user's permission decision.

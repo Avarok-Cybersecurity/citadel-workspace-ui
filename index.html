@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- interactive-widget=resizes-content: without it the layout viewport keeps
+         its full height when the on-screen keyboard opens, so `h-dvh` does not
+         shrink and the chat shell — which is overflow-hidden with the composer
+         as its last flex child — leaves that composer underneath the keyboard.
+         dvh accounts for retractable browser chrome, not for the keyboard. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
 
     <title>Citadel Workspace — Post-Quantum Secure Collaboration</title>
     <meta

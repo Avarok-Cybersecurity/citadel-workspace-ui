@@ -61,8 +61,7 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'Failed to initialize the workspace. Please check your workspace password.';
   }
   
-  if (errorMessage.includes('Invalid workspace password') || 
-      errorMessage.includes('workspace master password')) {
+  if (/invalid workspace password|workspace master password/i.test(errorMessage)) {
     return 'Incorrect workspace password. Please try again.';
   }
   
@@ -76,18 +75,21 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'Connection blocked by security settings. Please contact your administrator.';
   }
   
-  // Account/password errors (backend-specific wording)
-  if (errorMessage.includes('invalid password') || 
-      errorMessage.includes('wrong password') ||
-      errorMessage.includes('password mismatch') ||
-      errorMessage.includes('incorrect password')) {
+  // Account/password errors, matched case-insensitively.
+  //
+  // These were all-lowercase `.includes()` needles, and `.includes()` is
+  // case-sensitive — while the SDK emits `#[form = "Invalid password"]` with a
+  // capital I (citadel_io/src/error/code.rs). So the branch handling the
+  // product's single most common error could never fire, and a mistyped
+  // password fell through to "Something went wrong: Invalid password".
+  //
+  // Exactly the bug documented above for 'User already exists', which was
+  // fixed with a case-insensitive regex. Same remedy here.
+  if (/invalid password|wrong password|password mismatch|incorrect password/i.test(errorMessage)) {
     return 'Incorrect password. Please check your password and try again.';
   }
 
-  if (errorMessage.includes('does not exist') || 
-      errorMessage.includes('not registered') ||
-      errorMessage.includes('no user') ||
-      errorMessage.includes('account not found')) {
+  if (/does not exist|not registered|no user|account not found/i.test(errorMessage)) {
     return 'No account found with that username on this server. Please check your username or register a new account.';
   }
 

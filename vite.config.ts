@@ -176,7 +176,10 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Precache the shell. Excluding the WASM binary keeps the install small;
           // 4 MiB still comfortably covers the JS/CSS chunks.
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          // webp included: the landing hero and the app backdrop are both .webp,
+          // so without it every offline launch rendered the whole app with no
+          // imagery at all — the one launch where it most wants to look normal.
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
           // The install-card screenshots are fetched by the BROWSER from the
           // manifest, before there is an app to serve them, and are never
           // rendered by it afterwards. Precaching them added ~800 KB to the

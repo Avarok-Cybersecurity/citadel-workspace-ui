@@ -29,7 +29,13 @@ export function OfflineBanner() {
       aria-live="polite"
       data-testid={offline ? 'offline-banner' : 'reconnected-banner'}
       className={[
-        'fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
+        // Below the header, not over it. At z-100 against the header's z-50, both
+        // anchored to top-0 and neither in flow, this covered the whole 56px bar
+        // — taking the sidebar toggle, the workspace switcher, notifications and
+        // the account menu with it, at the exact moment it was telling the user
+        // something was wrong. At 375px the copy wraps to two lines and matches
+        // the header height almost exactly.
+        'fixed inset-x-0 top-14 z-40 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
         // Not red: being offline is a condition to inform about, not an error
         // the user caused or can fix by retrying.
         offline
@@ -40,7 +46,13 @@ export function OfflineBanner() {
       {offline ? (
         <>
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>You&rsquo;re offline. Messages will send when the connection returns.</span>
+          {/* Says what actually happens. There is no outbox: a send while
+              offline throws, the message is marked failed, and the only
+              recovery is the per-message retry button in its bubble. Promising
+              automatic delivery meant a user could type, send, pocket the
+              phone, and never learn the message did not go. Restore the old
+              copy only together with a drain-on-reconnect. */}
+          <span>You&rsquo;re offline. Messages won&rsquo;t send until you&rsquo;re back &mdash; tap retry on any that fail.</span>
         </>
       ) : (
         <>

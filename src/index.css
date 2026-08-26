@@ -159,6 +159,16 @@
 }
 
 /* Ensure no yellow backgrounds on scroll */
+/* Pull-to-refresh reloads the whole app — dropping the WASM client, the socket,
+   leader election and any in-flight message — and it is reachable by ordinary
+   use: the message list loads older messages when scrolled near the top, so
+   users are actively encouraged to swipe down there. An overshoot chains to the
+   root scroller and Android Chrome refreshes. `contain` keeps the gesture in
+   the scroller it started in. */
+html, body {
+  overscroll-behavior-y: contain;
+}
+
 html, body, #root {
   /* Token, not a hardcoded hex with !important. The old rule pinned every surface
      to the dark background regardless of theme, so a theme toggle could never
