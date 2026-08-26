@@ -51,10 +51,12 @@
     /* Status */
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
-    /* Destructive as TEXT on the page background. On white the surface colour
-       already clears 4.5:1 (5.81), so this matches it. See the dark block for
-       why the two cannot be one token. */
-    --destructive-emphasis: 0 72% 45%;
+    /* Destructive as TEXT. Darker than the surface token because it also has to
+       clear the TINTED backgrounds this colour is read on: bg-destructive/10 in
+       the error boxes (5.76:1) and bg-destructive/20 in the Banned badge
+       (4.86:1). Matching the surface value cleared plain white at 5.81 but left
+       that badge at 4.06. */
+    --destructive-emphasis: 0 72% 40%;
     --success: 160 84% 28%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 33%;
@@ -93,8 +95,10 @@
     --accent-foreground: 0 0% 100%;
 
     /* 50% is chosen for the SURFACE role: white --destructive-foreground on
-       this colour is 4.53:1, and lightening it breaks that. ("then 60%" above
-       referred to a note that no longer exists; this is it.)
+       this colour is 4.53:1, and lightening it breaks that. ("then 60%" refers
+       to the note in lib/theme/preset-avarok.ts, which records that white on
+       the lighter red measured 3.78:1 — the dangling "see below" pointed at
+       another file.)
 
        The same value as TEXT on --background is only 3.72:1, and 3.38:1 on
        --card — below the 4.5:1 floor for body text. The two roles genuinely
@@ -102,8 +106,13 @@
        No single value satisfies both, so text gets its own token. */
     --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
-    /* 5.28:1 on --background, 4.78:1 on --card. */
-    --destructive-emphasis: 0 84% 66%;
+    /* 6.00:1 on --background, 5.44:1 on --card, and it has to clear the TINTED
+       backgrounds too: destructive text sits on bg-destructive/10 in the login
+       and init error boxes (5.19:1) and on bg-destructive/20 in the Banned
+       badge (4.82:1). At 66% those last two were 4.57 and 4.24 — the badge
+       still failed, which is why this is 70 and not the first value that
+       cleared a plain background. */
+    --destructive-emphasis: 0 84% 70%;
     --success: 160 84% 39%;         /* was #10B981 */
     --success-foreground: 235 18% 13%;
     --warning: 38 92% 50%;          /* was #F59E0B */

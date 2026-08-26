@@ -32,7 +32,7 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
     Owner: 'bg-warning/20 text-warning border-warning/50',
     Member: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
     Guest: 'bg-muted text-muted-foreground border-border',
-    Banned: 'bg-destructive/20 text-destructive border-destructive/50',
+    Banned: 'bg-destructive/20 text-destructive-emphasis border-destructive/50',
     Custom: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
   };
 
@@ -56,7 +56,7 @@ export function PermissionStatus({ allowed }: { allowed: boolean }) {
     );
   }
   return (
-    <div className="flex items-center gap-1.5 text-destructive">
+    <div className="flex items-center gap-1.5 text-destructive-emphasis">
       <XCircle className="h-4 w-4" />
       <span className="text-sm">Denied</span>
     </div>
@@ -93,7 +93,7 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }) {
                     allowedCount === totalCount
                       ? 'bg-success/20 text-success border-success/50'
                       : allowedCount === 0
-                        ? 'bg-destructive/20 text-destructive border-destructive/50'
+                        ? 'bg-destructive/20 text-destructive-emphasis border-destructive/50'
                         : 'bg-warning/20 text-warning border-warning/50'
                   )}
                 >

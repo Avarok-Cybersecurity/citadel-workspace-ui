@@ -202,7 +202,7 @@ export function TreeNodeItem({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => onNodeDelete(node)}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/15"
+                  className="text-destructive-emphasis hover:text-destructive-emphasis hover:bg-destructive/15"
                   data-testid={`delete-node-${node.id}`}
                 >
                   Delete {typeName}

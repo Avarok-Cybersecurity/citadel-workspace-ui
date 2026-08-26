@@ -307,7 +307,7 @@ export function TreeNodesSection({
               </span>
             )}
             {deleteError && (
-              <span role="alert" className="block mt-3 text-destructive">
+              <span role="alert" className="block mt-3 text-destructive-emphasis">
                 {deleteError}
               </span>
             )}

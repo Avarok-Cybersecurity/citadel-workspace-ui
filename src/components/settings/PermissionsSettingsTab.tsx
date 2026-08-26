@@ -85,7 +85,7 @@ export function PermissionsSettingsTab() {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <XCircle className="h-12 w-12 text-destructive mb-4" />
-        <p className="text-destructive">Failed to load permissions</p>
+        <p className="text-destructive-emphasis">Failed to load permissions</p>
         <p className="text-sm text-muted-foreground mt-1">{error}</p>
         <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-4">
           <RefreshCw className="h-4 w-4 mr-2" />

@@ -167,7 +167,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
                 <span>Attempting to reconnect... (attempt {attempt} of {maxRetries})</span>
               </div>
             ) : attempt >= maxRetries ? (
-              <div className="text-destructive">
+              <div className="text-destructive-emphasis">
                 Failed to reconnect after {maxRetries} attempts
               </div>
             ) : attempt > 0 ? (

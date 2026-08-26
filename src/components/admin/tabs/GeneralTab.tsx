@@ -125,7 +125,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
     <div className="space-y-6" data-testid="general-tab-content">
       <div className="space-y-2">
         <Label htmlFor="entity-name" className="text-foreground">
-          Name <span className="text-destructive">*</span>
+          Name <span className="text-destructive-emphasis">*</span>
         </Label>
         <Input
           id="entity-name"

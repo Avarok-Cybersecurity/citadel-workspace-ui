@@ -102,7 +102,7 @@ export function TextBubble({
               {isOwn && onDelete && (
                 <DropdownMenuItem
                   onClick={onDelete}
-                  className="text-destructive focus:text-destructive"
+                  className="text-destructive-emphasis focus:text-destructive-emphasis"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete

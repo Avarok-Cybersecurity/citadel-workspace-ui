@@ -132,7 +132,7 @@ export function MembersSectionModals({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}>Change Role</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }} className="text-destructive">Remove Member</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }} className="text-destructive-emphasis">Remove Member</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

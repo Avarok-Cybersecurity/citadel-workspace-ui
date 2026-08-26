@@ -182,6 +182,36 @@ describe('presets', () => {
     expect(contrastRatio(palette[surface], palette.primaryAccent)).toBeGreaterThanOrEqual(4.5);
   });
 
+  // The same defect, one token along. `destructive` had only a FILL guarantee —
+  // white destructiveForeground readable on it — while being the colour of every
+  // inline error in the app. As text the shipped dark fill measured 3.72:1 on
+  // --background and 3.38:1 on --card. The two roles cannot share a value: text
+  // needs L >= ~61% in dark, white-on-fill needs L <= ~50%.
+  it.each(
+    PRESET_THEMES.flatMap((t) =>
+      (['light', 'dark'] as const).flatMap((mode) =>
+        ACCENT_SURFACES.map(
+          (surface) =>
+            [`${t.name} ${mode}: destructiveEmphasis on ${surface}`, t[mode], surface] as const,
+        ),
+      ),
+    ),
+  )('%s clears AA', (_label, palette: ThemePalette, surface: (typeof ACCENT_SURFACES)[number]) => {
+    expect(contrastRatio(palette[surface], palette.destructiveEmphasis)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // And the fill role still has to hold, so a future change cannot "fix" the
+  // text by lightening the surface and silently break every destructive button.
+  it.each(
+    PRESET_THEMES.flatMap((t) =>
+      (['light', 'dark'] as const).map(
+        (mode) => [`${t.name} ${mode}: destructiveForeground on destructive`, t[mode]] as const,
+      ),
+    ),
+  )('%s clears AA', (_label, palette: ThemePalette) => {
+    expect(contrastRatio(palette.destructive, palette.destructiveForeground)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it.each(
     PRESET_THEMES.flatMap((t) =>
       (['light', 'dark'] as const).flatMap((mode) =>

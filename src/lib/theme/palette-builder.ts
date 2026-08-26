@@ -113,6 +113,12 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   const destructiveSeed = seed.destructive ?? status.destructive;
   const destructiveFg = readableForeground(destructiveSeed);
   const destructiveFill = ensureFillContrast(destructiveSeed, destructiveFg);
+  // The fill guarantee above only proves the LABEL is readable on this colour.
+  // Destructive is also the colour of every inline error, where the requirement
+  // is the reverse — readable ON the background — and the same value fails it:
+  // the shipped dark fill measures 3.72:1 as text. This is the primaryAccent
+  // gap on the next token along, so it gets the same treatment.
+  const destructiveText = ensureTextContrast(destructiveFill, [background, card, surface]);
 
   const successSeed = seed.success ?? status.success;
   const successFg = readableForeground(successSeed);
@@ -145,6 +151,7 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
     accentForeground: foreground,
 
     destructive: destructiveFill,
+    destructiveEmphasis: destructiveText,
     destructiveForeground: destructiveFg,
     success: successFill,
     successForeground: successFg,

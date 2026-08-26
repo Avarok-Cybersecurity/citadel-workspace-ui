@@ -62,6 +62,15 @@ export interface ThemePalette {
 
   destructive: HslColor;
   destructiveForeground: HslColor;
+  /**
+   * Destructive as TEXT, which is a different requirement from destructive as a
+   * FILL and cannot be the same colour. The fill has to be dark enough for white
+   * `destructiveForeground` to sit on it; the text has to be light enough to be
+   * read ON the background. In dark mode those pull opposite ways — text needs
+   * L >= ~61%, white-on-fill needs L <= ~50% — so one value cannot serve both.
+   * Exactly the gap `ensureTextContrast` was written for on primaryAccent.
+   */
+  destructiveEmphasis: HslColor;
   success: HslColor;
   successForeground: HslColor;
   warning: HslColor;

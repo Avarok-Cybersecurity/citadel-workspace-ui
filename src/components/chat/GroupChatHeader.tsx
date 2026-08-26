@@ -131,7 +131,7 @@ export function GroupChatHeader({
                 <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem
                   onClick={() => setShowLeaveConfirm(true)}
-                  className="text-destructive hover:bg-destructive/10 cursor-pointer"
+                  className="text-destructive-emphasis hover:bg-destructive/10 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Leave Group

@@ -97,7 +97,7 @@ export function StorageLimitModal({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Available space:</span>
-              <span className="text-destructive font-medium">{formatBytes(availableBytes)}</span>
+              <span className="text-destructive-emphasis font-medium">{formatBytes(availableBytes)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Space needed:</span>

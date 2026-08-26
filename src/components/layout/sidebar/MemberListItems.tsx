@@ -85,7 +85,7 @@ export function MemberListItems({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => onManagePermissions(member)}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onEditMember(member)}>Change Role</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onRemoveMember(member)} className="text-destructive">Remove Member</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onRemoveMember(member)} className="text-destructive-emphasis">Remove Member</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

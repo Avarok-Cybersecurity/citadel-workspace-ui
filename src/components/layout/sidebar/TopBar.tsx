@@ -154,7 +154,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
               Exit to Landing
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-destructive cursor-pointer gap-2 focus:bg-destructive/10 focus:text-destructive"
+              className="text-destructive-emphasis cursor-pointer gap-2 focus:bg-destructive/10 focus:text-destructive-emphasis"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />

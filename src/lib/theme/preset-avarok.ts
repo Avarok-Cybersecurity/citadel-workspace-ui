@@ -40,6 +40,9 @@ export const AVAROK_LIGHT: ThemePalette = {
 
   destructive: { h: 0, s: 72, l: 45 },
   destructiveForeground: { h: 0, s: 0, l: 100 },
+  // Darker than the fill: this is read ON backgrounds, including the tinted
+  // ones (bg-destructive/20 in the Banned badge, where 45% measured 4.06:1).
+  destructiveEmphasis: { h: 0, s: 72, l: 40 },
   success: { h: 160, s: 84, l: 28 },
   successForeground: { h: 0, s: 0, l: 100 },
   // 33%, not 38%: white on 38% is 3.60:1. Every warning banner carries this.
@@ -78,6 +81,10 @@ export const AVAROK_DARK: ThemePalette = {
   // the test below asserts verbatim.
   destructive: { h: 0, s: 84, l: 50 },
   destructiveForeground: { h: 0, s: 0, l: 100 },
+  // Lighter than the fill, for the same reason in the other direction: as TEXT
+  // the 50% fill is 3.72:1 on --background and 3.38:1 on --card. 70% clears AA
+  // on both and on the /10 and /20 tints.
+  destructiveEmphasis: { h: 0, s: 84, l: 70 },
   success: { h: 160, s: 84, l: 39 },
   // Ink, not white: white on this green is 2.59:1, while ink is 6.51:1. Dark
   // `warning` below already takes ink for the same reason — a vivid status
