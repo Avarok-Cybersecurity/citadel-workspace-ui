@@ -668,6 +668,92 @@ becomes `needsWorkspaceInitialization: true`. Given that workspace metadata is
 shared, re-running initialisation against an already-initialised workspace is
 not benign.
 
+## Round nine — the installed mobile PWA, 2026-08-26
+
+Six one-line-ish defects fixed (aa68b7f). Two findings are product decisions.
+
+### 81. Pull-to-refresh reloaded the app · high — FIXED
+### 82. The keyboard covered the composer · high — FIXED
+### 83. The offline banner covered the whole top bar · high — FIXED
+### 84. `new Notification()` threw on Android inside the message path · high — FIXED
+### 85. Neither background image survived offline · medium — FIXED
+### 86. The offline banner promised delivery it could not make · high — copy FIXED, outbox open
+There is no outbox: a send while offline throws, the message is marked failed,
+and the only recovery is a per-message retry button in a bubble the user has
+likely scrolled past. ILM's reliability layer does not cover this — it handles
+"peer offline", and when the DEVICE is offline the throw happens before ILM
+sees the message. The drain loop is the only missing piece: `resendMessage`
+already exists, preserves `message.index`, and guards on `status !== 'failed'`.
+Wire it to `window.online` plus WebSocket re-establish, then restore the
+original copy. **Do not restore the copy without the drain.**
+
+### 87. The installed phone PWA cannot reach an agent in any shipped topology · **product decision**
+The app derives its socket from the page host, and nginx serves `/ws` only when
+the Host is loopback AND `WS_PROXY_ENABLED=1` — which the Dockerfile defaults
+off and the production compose sets to `0`, with the header comment stating
+"THE UI SERVED HERE CANNOT REACH AN AGENT, BY DESIGN." The app already knows:
+`agent-download.ts` returns no downloads for a phone UA, and the failure modal
+says "this device cannot host one."
+
+So install from the home screen, tap Login, and get a dialog explaining the
+device cannot host the thing it needs — with no path forward. Meanwhile the
+manifest ships narrow-form-factor screenshots and phone shortcuts advertising
+that install.
+
+Either build a remote-agent pairing path with real authentication on the agent
+socket, or stop framing the phone as the primary surface. The honest interim is
+to detect a non-loopback host on a touch device on the LANDING page, before the
+user installs and tries. **Not taken unilaterally.**
+
+### 88. No reconnect on resume · high
+Zero `visibilitychange` handlers touch the socket, and there is no `pagehide`,
+`freeze`, `resume` or `pageshow` handler anywhere. iOS closes WebSockets on
+background, so returning to the app after minutes leaves recovery to a 60s
+poller with backoff — whose own timer was throttled while suspended. P2P is
+worse: it recovers only after C2S does. The fix is ~6 lines: on
+`visibilitychange → visible` and on `online`, call the already-public
+`serverAutoConnectService.triggerReconnect()`.
+
+### 89. Nothing notifies a backgrounded phone · high, partly structural
+The JS is suspended when backgrounded, so `document.hidden` notifications can
+only fire in the narrow window before suspension. There is no Web Push: no
+`PushManager`, no `push` listener in the built sw.js, no `setAppBadge`. For a
+messenger this is the defining mobile gap, and it is entangled with 87 — push
+needs something server-side to push from, and the agent is local by design.
+
+### 90. iOS gets no install affordance · high
+`InstallAppButton` returns null unless `beforeinstallprompt` fired, and Safari
+does not implement it — so on iPhone the button renders nothing in both places
+it is mounted. The detection for an existing iOS install is already written
+(`navigator.standalone`); only the "tap Share, then Add to Home Screen" hint is
+missing.
+
+### 91. The WASM binary is not precached, and ships twice · medium
+`globIgnores` excludes `*.wasm`, so the only path into the cache is a
+StaleWhileRevalidate route that populates on first successful fetch — and the
+landing page deliberately does not force init. Install from the landing page,
+go offline, launch, tap Login: the shell loads and the fetch has never
+happened. Also, dist ships two copies of the 2.44MB binary; only one is
+fetched.
+
+### 92. No socket liveness check · medium
+`INTERVAL.HEARTBEAT_MS` is documented as the WebSocket keep-alive and is used
+by three things, none of which is a heartbeat. `isConnected()` returns
+`isInitialized && client !== null` — a flag, not a round trip — so the health
+check reports healthy for ten seconds at a time on the strength of not having
+been told otherwise. Carrier NAT reaps idle TCP at 30-120s; the classic symptom
+is a chat that looks connected and silently stops receiving.
+
+**Recorded as already excellent:** zero `100vh` in the tree against 28 uses of
+`dvh`/`svh`, including dialogs and every auth card; the deliberate choice of
+`apple-mobile-web-app-status-bar-style: default` over `black-translucent` with
+the reason written down, so nothing is clipped on a notched device; dev
+services and the whole P2P graph behind dynamic imports to keep them off the
+entry chunk; Radix long-press context menus with `WebkitTouchCallout: none`;
+`FileDropZone` putting click, keyboard and drop handlers on one element; and
+elapsed time measured from `Date.now()` deltas everywhere rather than counted
+in ticks, so a suspended tab resumes with correct arithmetic.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
