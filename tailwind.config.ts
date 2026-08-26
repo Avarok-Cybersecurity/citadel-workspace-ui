@@ -134,6 +134,24 @@ export default {
                 color: 'hsl(var(--primary))',
               },
             },
+            // List markers were left at Typography's default, gray-300, which
+            // measures 1.47:1 against the light theme's white page — a bullet
+            // nobody can see. The rest of the prose colours were tokenised and
+            // these were missed, so the defect only existed in light mode.
+            //
+            // axe does not evaluate ::marker pseudo-elements, so the
+            // accessibility suite passed over it in both schemes; it took
+            // measuring the computed marker colour to find.
+            //
+            // muted-foreground is the right token rather than foreground: a
+            // marker is structure, not content, and should read as secondary
+            // without disappearing. It is defined per-theme, so one value
+            // serves both — hence the same assignment for the invert variant,
+            // which otherwise falls back to its own gray default.
+            '--tw-prose-bullets': 'hsl(var(--muted-foreground))',
+            '--tw-prose-counters': 'hsl(var(--muted-foreground))',
+            '--tw-prose-invert-bullets': 'hsl(var(--muted-foreground))',
+            '--tw-prose-invert-counters': 'hsl(var(--muted-foreground))',
           },
         },
       },
