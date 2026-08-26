@@ -80,6 +80,23 @@ export class RevfsService {
 
     const io = this.ensureIO();
     const result = await io.execute({ type: 'load-tree', treeKey: key });
+    // Re-checked AFTER the await, before either branch below.
+    //
+    // Loading is async, and a remote op can be applied to this key while it is
+    // in flight — `handleRevfsOperation` writes through `setTree` with no
+    // coordination against a load. Without this check the loaded tree, or the
+    // default when nothing loaded, is written straight over that op: clobbered
+    // in memory, PERSISTED over on disk, and `setTree` fires notifyTreeChanged
+    // so the UI is actively repainted with the stale content.
+    //
+    // The default branch is the destructive one because its callers can be
+    // terminal — the SyncRequest handler calls getTree, replies, and returns
+    // without writing anything back, so nothing restores what it overwrote.
+    // The loaded-tree branch has the same defect with a stale snapshot, which
+    // is why the check sits above both rather than inside one.
+    const appliedDuringLoad = this.state.getTree(key);
+    if (appliedDuringLoad) return appliedDuringLoad;
+
     if (result.type === 'load-tree' && result.tree) {
       this.state.setTree(key, result.tree);
       return result.tree;
@@ -98,6 +115,10 @@ export class RevfsService {
 
     const io = this.ensureIO();
     const result = await io.execute({ type: 'load-tree', treeKey: key });
+    // Same race as getTree above; server-scoped ops write through setTree too.
+    const appliedDuringLoad = this.state.getTree(key);
+    if (appliedDuringLoad) return appliedDuringLoad;
+
     if (result.type === 'load-tree' && result.tree) {
       this.state.setTree(key, result.tree);
       return result.tree;
