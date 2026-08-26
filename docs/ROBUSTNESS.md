@@ -754,6 +754,122 @@ entry chunk; Radix long-press context menus with `WebkitTouchCallout: none`;
 elapsed time measured from `Date.now()` deltas everywhere rather than counted
 in ticks, so a suspended tab resumes with correct arithmetic.
 
+## Round ten — the wire contract, 2026-08-26
+
+### 93. The sender-CID fix was never carried to its sibling handler · high — FIXED (b979c32)
+Second occurrence, so the follow-up is `scripts/check-sender-identity.mjs`
+rather than a third repair.
+
+### 94. `Batched` passed a request_id where the connection uuid belongs · high — FIXED (d8ad091)
+
+### 95. There is exactly one version field in the whole system · high
+`MEDIA_WIRE_VERSION` is written on one message and read at one site, inside
+`handleInvite` only — no other call signal carries it, media frames carry none,
+and the comparison is exact equality, so a rolling upgrade of the call feature
+is a hard cut in both directions. Everything else on every wire —
+InternalServiceRequest/Response, WorkspaceProtocolPayload, P2PCommand,
+RevfsOperation, WireWrapper, ILM Payload — has **no version field at all**.
+
+### 96. No `#[serde(other)]` on any protocol enum, and the skew is already committed · high
+Zero hits for `serde(other)`, `deny_unknown_fields` or `untagged` across all
+four Rust trees. So every unknown variant kills the **whole message**, not the
+field: a new `Permission` variant makes an old client lose the user's entire
+permission list; a new response variant makes the WASM client drop the frame
+with no correlation, so the caller's promise never resolves.
+
+And it is not hypothetical. `diff -rq` shows the generated `bindings/` and the
+hand-copied `client-ts/src/types/generated/` already differ: the client is
+missing `Permission::Themes`, `DomainPermissions.themes` and the whole
+`UpdateWorkspaceTheme` variant. `bindings/` is dated August; the copy is dated
+February. `sync-wasm-clients.sh` has a copy step for
+`citadel-internal-service-types` and **none** for `citadel-workspace-types`.
+
+Compounding it, `toWasmWorkspaceRequest` is `request as unknown as
+WorkspaceProtocolRequest` — one cast that launders every mismatch past tsc.
+`UserRole` has five TS definitions, three of them lowercase and therefore
+undeserialisable; `PermissionTS` invents five variants that exist in no casing
+in Rust.
+
+### 97. A peer-controlled number reaches `new Uint8Array(n)` · high
+The Yjs payload type guard checks that `type` is a string starting `yjs_` and
+nothing else. `data` and `awareness` then go straight to `new Uint8Array(...)`,
+so `{type:"yjs_sync", data: 4294967295}` requests a 4GB allocation, and the
+RangeError is swallowed by the event emitter. The same guard lets malformed
+bytes into three unguarded `Y.applyUpdate`/`applyAwarenessUpdate` calls, which
+leave a half-applied document and a stuck syncState with the Merkle root
+silently diverged.
+
+### 98. ILM `Payload::Poll` is missing the destination check its two siblings have · high
+`Message` checks `destination_id != local_id`; `Ack` checks `to_id != local_id`;
+`Poll` destructures `to_id` away with `..` and checks nothing. A Poll with
+`last_received_from_peer: None` then wipes `last_sent` and `last_acked` for
+whatever `from_id` it names — so any registered peer can reset delivery
+tracking for a **third** peer, causing resends and duplicate delivery.
+
+### 99. A peer-chosen `message_id` becomes a persisted high-water mark · high
+`update_ack` is correctly monotonic but unbounded, and the value is persisted.
+An `Ack` with `u64::MAX` is stored, and the next boot computes `last_acked + 1`
+— panic in debug before ILM initialises, wrap to 0 in release, colliding with
+every dedup key. Reachable through the unchecked Poll path too.
+
+### 100. Duplicate chunks complete a transfer and report success · high
+Reassembly fires on a chunk COUNT, and `addReceivedChunk` is an unconditional
+push. Three copies of chunk 0 with `total_chunks: 3` passes every check, sorts
+by index, and produces a corrupt file marked complete at 100%.
+
+### 101. `transfer_id` is an unnamespaced map key · medium-high
+`setTransfer` overwrites unconditionally, so a peer reusing an id can clobber
+one of my in-flight **outgoing** transfers — and the record is persisted before
+any accept decision, so unaccepted offers grow storage without bound.
+
+### 102. A `__bigint__` reviver poisons a peer's RE-VFS tree permanently · medium
+The serializer only tags real bigints, so a peer-supplied plain object
+`{"__bigint__":"x"}` is written verbatim; on the next load the reviver calls
+`BigInt("x")` inside `JSON.parse`, which throws through an unguarded `loadTree`
+into a floating `void` call. The tree for that peer never loads again.
+
+### 103. Unbounded state a peer can grow, with the TTL sweeper one directory away · medium
+`pending_inbound_messages` (keyed on a peer-chosen destination),
+`handler_map` (one entry per unaccepted file offer, forever),
+`peer_username_cache` (never removed anywhere in the crate), `Connection::groups`
+(insert and get only, not even on GroupLeave), and `receivedChunks`. The right
+pattern — `startPendingRequestCleanup` with a TTL — exists in
+`instance-inbound-router` and none of them got it.
+
+### 104. The WebSocket path has no message-size cap · medium
+The TCP path sets `max_frame_length(64 MiB)` deliberately. A grep for
+`max_message_size`/`WebSocketConfig` across the internal service returns zero
+hits, and the CBOR decode on peer bytes takes no options and checks no length.
+
+### 105. Group messages are ungated and fan out to every connected client · **design decision**
+`SendGroupMessage`, `GetGroupMessages` and `GetThreadMessages` perform no
+membership check, while the adjacent `EditGroupMessage` and
+`DeleteGroupMessage` arms both verify sender-or-admin. And `broadcast` carries
+only `exclude_cid` — no recipient predicate — so a group notification reaches
+every connected client.
+
+Verified before reporting: there is **no server-side group membership model at
+all** — no `get_group`, no group struct with members. Groups are ad-hoc P2P
+conversations, so the server cannot filter what it does not know. This is a
+design gap, not a missing line, and the fix is a decision about whether the
+server should track group membership. **Not taken unilaterally.**
+
+### 106. Broadcast lag is logged and never signalled · medium
+The channel holds 100. A slower client gets `RecvError::Lagged(n)`, which warns
+and continues — silently losing group messages, node content updates and
+deletions with no sequence number and no resync, so the client cannot even
+detect the gap. Needs an unlucky client, not a hostile one.
+
+**Recorded as already excellent:** the per-CID token-bucket limiter with its
+reasoning about why per-connection buckets let one user multiply their limit;
+`GroupMessage` built entirely from server-side truth with the only clamped
+wire-supplied count in the system; the `#[serde(default)] themes` field whose
+nine-line comment names the exact skew failure and argues the safe default
+direction; the media subsystem's generation capture-and-recheck with four tests
+naming the races and per-frame ownership re-checks; and RE-VFS naming OPFS
+directories by tree key alone so peer-controlled paths never reach a
+`getDirectoryHandle` argument.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
