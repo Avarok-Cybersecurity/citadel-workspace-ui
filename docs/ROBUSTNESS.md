@@ -355,6 +355,80 @@ It fires only when the listener count is zero — a few ms at boot. The real
 failure is the P2P handler being absent while ~8 other services are subscribed,
 which keeps the count non-zero. The module's own header says exactly this.
 
+## Round five — visual quality, 2026-08-26
+
+The shape here matches the functional audits exactly: things declared and never
+connected. Four fixed (aa6e4df, d51460c); the rest recorded.
+
+### 39. `bg-popover` and the whole `sidebar-*` family named tokens that did not exist · critical — FIXED
+Tailwind emits nothing for an unknown colour: no warning, no CSS. Twenty Radix
+popper surfaces rendered transparent, and SidebarMenuButton's hover/active/
+selected rules produced nothing. Both had been patched site-by-site — 27 local
+background overrides, six sidebar call sites adding their own hover — which is
+what kept them alive. Guarded by `scripts/check-color-tokens-exist.mjs`.
+
+### 40. index.css overrode `.animate-in`, deleting every Radix enter animation · high — FIXED
+### 41. 421 hover states, two pressed states · high — FIXED
+### 42. Seven CTAs including Send cancelled their own hover · high — FIXED
+
+### 43. Eleven settings controls are wired to nothing · critical
+Six privacy flags (`showOnlineStatus`, `showTypingIndicators`, `sendReadReceipts`,
+`allowDirectMessages`, `showProfileToStrangers`, `notifyOnScreenshot`) and five
+appearance ones appear ONLY in their own tab file. Nothing reads them. Two
+additionally toggle `compact-mode` and `reduce-motion` classes with **zero
+rules** in the 116KB stylesheet, and `fontSize` sets `documentElement.style
+.fontSize`, which rescales every rem — so the "Font Size" slider zooms padding,
+gaps and container widths rather than text.
+
+In a privacy-positioned product, a Read Receipts switch that persists and does
+nothing is a false statement, not a polish gap. **This is a product decision**:
+wire them (read receipts and presence already exist at the protocol level, so
+those two are a small gate) or mark them unavailable. Not taken unilaterally.
+
+### 44. 40 modal surfaces, 6 backgrounds, 7 borders, 12 max-widths · high
+Five widths inside a 90px band, and the auth cards use `bg-background` — a modal
+painted the page colour — while every other modal is `bg-card`. Fix: one
+`<Modal size>` wrapper.
+
+### 45. Nine empty states, five icon treatments, four headline sizes · medium
+Only `pages/Messages.tsx` has the treatment the product deserves. Two are Title
+Case against seven sentence case. Fix: one `<EmptyState>` and nine replacements.
+
+### 46. 35 of 39 truncating elements have no title attribute · medium-high
+File names, tab titles, peer names, workspace names, caller names — all
+user-controlled, all unrecoverable once truncated. Related: `P2PChatHeader`'s
+inner div lacks `min-w-0`, so `truncate` never engages and the header overflows
+instead.
+
+### 47. There is no layout above 768px · high
+`xl:` and `2xl:` appear **zero** times. 29 of 34 files that use `sm:` use no
+other breakpoint. The 640–767px band gets the phone layout while the sidebar has
+already switched to a fixed 16rem rail at 768, leaving ~512px of content at
+phone density.
+
+### 48. Terminology contradicts itself on the first screen · medium-high
+`pages/Connect.tsx` says "Connect to Workspace" / "Select Workspace" and then
+toasts "No Server Selected"; the signup steps are labelled "Server". The Connect
+list also shows the raw `host:port` as the primary line with the human-readable
+name beneath it.
+
+### 49. Developer test instructions ship as user-facing copy · medium
+`PeerDiscoveryModal`'s empty state reads "Open another tab and connect as a
+different user to test P2P" — the first thing a real user sees when looking for
+someone to talk to.
+
+### 50. The signup step indicator is misaligned on all three steps · medium-high
+The connector is centred on a column that includes the label, so it sits ~10px
+below the circles it joins. Labels are always supplied, so it is visible on 100%
+of signups. Fix: `self-start mt-4` on the connector.
+
+**Recorded as already excellent:** `index.html` and the PWA manifest (complete
+OG/Twitter/JSON-LD, `theme_color` exactly matching the computed dark
+`--background`, maskable icons, shortcuts, wide screenshots); spacing discipline
+(two arbitrary values in 242 files, both from stock shadcn); the
+`--destructive` / `--destructive-emphasis` split; `.reveal-on-hover`; the
+`forced-colors` block; and the call surface's state completeness.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
