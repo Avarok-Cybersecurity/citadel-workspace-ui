@@ -178,6 +178,19 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
     throw new Error(`Cannot accept transfer in state: ${transfer.state}`);
   }
 
+  // The setting is labelled "Max file size to accept" and, until now, was read
+  // at exactly one site: the SEND path above. So a user who lowered the slider
+  // to protect themselves carried on receiving files of any size — and with
+  // auto-accept on, without being asked. A receiver had no way to limit what
+  // arrived. The size is already on the transfer we were offered.
+  const settings = deps.state.getSettings(transfer.senderCid);
+  if (transfer.fileSize > settings.maxFileSize) {
+    throw new Error(
+      `File size ${formatBytes(transfer.fileSize)} exceeds your limit of ` +
+        `${formatBytes(settings.maxFileSize)}. Raise it in Chat Settings to accept this file.`
+    );
+  }
+
   await deps.io.executeIntent({
     type: 'send-response',
     transferId,

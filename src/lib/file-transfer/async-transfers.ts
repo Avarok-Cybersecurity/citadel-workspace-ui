@@ -9,6 +9,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { debugLog } from '@/lib/debug-config';
 import {
   MessagingLayerType,
   type FileTransferRequestData,
@@ -94,10 +95,18 @@ export async function handleTransferRequest(
   await deps.saveTransfer(transfer);
 
   if (getAutoAccept(senderCid)) {
-    await acceptTransfer(transfer.id);
-  } else {
-    eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_RECEIVED, transfer);
+    try {
+      await acceptTransfer(transfer.id);
+      return;
+    } catch (error) {
+      // Auto-accept now has a reason to refuse: the receiver's size limit.
+      // Falling through to the prompt rather than letting this throw, because
+      // a throw here would leave the transfer pending with no notification at
+      // all — the user would get neither the file nor the offer of it.
+      debugLog('AsyncTransfers', 'Auto-accept declined, asking instead:', error);
+    }
   }
+  eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_RECEIVED, transfer);
 }
 
 /**
