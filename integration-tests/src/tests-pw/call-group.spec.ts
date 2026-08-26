@@ -156,12 +156,32 @@ test.describe.serial('Group calling with three participants', () => {
     await sessionC?.browser.close();
   });
 
-  test('all three peers connect pairwise', async () => {
-    // Every pair, because a group call is a mesh: B and C exchange signals,
-    // sessions and frames directly, without A in the middle.
-    test.setTimeout(420_000);
+  // Every pair, because a group call is a mesh: B and C exchange signals,
+  // sessions and frames directly, without A in the middle.
+  //
+  // One test per pair rather than all three in one. The combined version
+  // exhausted its full 420s budget on CI twice, failing at a different point
+  // each time — once on a screenshot, once waiting for a workspace to load —
+  // which is the signature of running out of time on a slower machine rather
+  // than of one broken step. Three browsers driving WebRTC on a 2-core runner
+  // is simply slower than the same work locally, where the whole spec finishes
+  // in 4.6 minutes.
+  //
+  // Splitting gives each pair its own budget instead of sharing one, and a
+  // failure now names the pair that did not connect. `describe.serial` keeps
+  // them in order on the shared sessions, so coverage is identical.
+  test('A and B connect', async () => {
+    test.setTimeout(240_000);
     await connectPair(sessionA, sessionB);
+  });
+
+  test('A and C connect', async () => {
+    test.setTimeout(240_000);
     await connectPair(sessionA, sessionC);
+  });
+
+  test('B and C connect, without A in the middle', async () => {
+    test.setTimeout(240_000);
     await connectPair(sessionB, sessionC);
   });
 
