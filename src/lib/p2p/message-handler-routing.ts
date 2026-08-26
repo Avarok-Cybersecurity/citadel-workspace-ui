@@ -17,6 +17,7 @@ import { applyEdit, applyDelete } from './message-revision';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { revfsService } from '@/lib/revfs';
 import { debugLog } from '@/lib/debug-config';
+import { deliverToConversation, shouldAck } from './inbound-message-delivery';
 import type { P2PMessage, PeerPresence } from './p2p-types';
 import type { MessageHandlerConfig } from './message-handler-types';
 import type { FileTransferMessageHandler } from './file-transfer-message-handler';
@@ -169,14 +170,14 @@ async function handleIncomingMessage(
     document_title: payload.document_title,
   };
 
-  const wasAdded = await config.addMessageToConversation(peerCid, message);
+  const outcome = await deliverToConversation(
+    () => config.addMessageToConversation(peerCid, message),
+    message.id
+  );
+  const wasAdded = outcome.present;
 
-  // Diagnostic for the reconnect message loss, which reproduces only under CI
-  // load. Every layer above this is eliminated: ILM delivers, the notification
-  // reaches the right instance, and the handler decodes it — yet two of three
-  // messages never appear in the conversation. This logs the CONTENT, which the
-  // existing lines do not, so the next failing run says which message was
-  // dropped and whether the store accepted it.
+  // Logs the CONTENT, which the other lines do not, so a failing run says which
+  // message was dropped and whether the store accepted it.
   debugLog(
     'P2PMessageHandler',
     `[LOSS-DIAG] id=${message.id} added=${wasAdded} index=${message.index} text=${JSON.stringify(
@@ -185,10 +186,12 @@ async function handleIncomingMessage(
   );
 
   if (wasAdded) {
-    try {
-      await config.sendMessageAck(message.id, 'delivered', peerCid, recipientCid);
-    } catch (error) {
-      debugLog('P2PMessageHandler', 'Delivery ACK send failed (non-blocking):', error);
+    if (shouldAck(outcome)) {
+      try {
+        await config.sendMessageAck(message.id, 'delivered', peerCid, recipientCid);
+      } catch (error) {
+        debugLog('P2PMessageHandler', 'Delivery ACK send failed (non-blocking):', error);
+      }
     }
 
     debugLog('P2PMessageHandler', 'Notifying listeners of new message:', message.id);
