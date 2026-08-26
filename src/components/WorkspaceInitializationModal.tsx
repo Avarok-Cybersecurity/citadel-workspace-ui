@@ -186,6 +186,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                             </Label>
                             <Input
                                 id="masterPassword"
+                                autoComplete="off"
                                 name="masterPassword"
                                 type="password"
                                 value={masterPassword}

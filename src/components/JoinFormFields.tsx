@@ -16,6 +16,14 @@ interface FormFieldProps {
   hint?: string;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   /**
+   * Tells the browser and any password manager what this field IS. Without it
+   * they fall back to heuristics, which routinely mistake a registration form
+   * for a login and cannot tell "confirm password" from "current password" —
+   * so the credential is never offered back on the next visit. WCAG 1.3.5 asks
+   * for the same thing.
+   */
+  autoComplete?: string;
+  /**
    * Set for the visible text fields only. Deliberately NOT set on the password
    * fields: maxLength truncates silently, so pasting a 24-character password
    * from a manager would register a secret the user never saw and cannot
@@ -25,7 +33,7 @@ interface FormFieldProps {
   error?: string | null;
 }
 
-function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint, onBlur, maxLength, error }: FormFieldProps) {
+function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint, onBlur, maxLength, error, autoComplete }: FormFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
   const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
@@ -44,6 +52,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
           value={value}
           onChange={onChange}
           onBlur={onBlur}
+          autoComplete={autoComplete}
           maxLength={maxLength}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
@@ -152,6 +161,7 @@ export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: Join
         value={formData.fullName}
         onChange={onChange}
         onBlur={onBlur}
+        autoComplete="name"
         maxLength={CREDENTIAL_LIMITS.fullName.max}
         error={fieldErrors?.fullName}
         placeholder="John Doe"
@@ -164,6 +174,7 @@ export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: Join
         value={formData.username}
         onChange={onChange}
         onBlur={onBlur}
+        autoComplete="username"
         maxLength={CREDENTIAL_LIMITS.username.max}
         error={fieldErrors?.username}
         placeholder="johndoe"
@@ -179,6 +190,7 @@ export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: Join
           value={formData.password}
           onChange={onChange}
           onBlur={onBlur}
+          autoComplete="new-password"
           error={fieldErrors?.password}
           placeholder="••••••••••••"
         />
@@ -193,6 +205,7 @@ export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: Join
         value={formData.confirmPassword}
         onChange={onChange}
         onBlur={onBlur}
+        autoComplete="new-password"
         error={fieldErrors?.confirmPassword}
         placeholder="••••••••••••"
       />

@@ -151,4 +151,27 @@ test.describe('registration validates before submitting', () => {
         'WCAG AA requires 4.5:1 for body text',
     ).toBeGreaterThanOrEqual(4.5);
   });
+
+  // Password managers key off autocomplete. Without it they fall back to
+  // heuristics that routinely read a registration form as a login, so the
+  // credential is never offered back on the next visit — and the users most
+  // affected are the ones using a manager, which is the same group the SDK's
+  // 17-character password ceiling already inconveniences. WCAG 1.3.5 asks for
+  // the same attributes.
+  test('the profile form tells a password manager what each field is', async ({ page }) => {
+    const expected: ReadonlyArray<readonly [string, string]> = [
+      ['#fullName', 'name'],
+      ['#username', 'username'],
+      // new-password, NOT current-password: this form CREATES a credential, and
+      // the wrong value here makes a manager offer to fill an existing one.
+      ['#password', 'new-password'],
+      ['#confirmPassword', 'new-password'],
+    ];
+    for (const [selector, value] of expected) {
+      await expect(page.locator(selector), `${selector} should declare its purpose`).toHaveAttribute(
+        'autocomplete',
+        value,
+      );
+    }
+  });
 });

@@ -299,6 +299,16 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
     await expectNoBlockingViolations(page, `login/${scheme}`);
   });
 
+  // The mirror of the registration form: this signs in with an EXISTING
+  // credential, so current-password. new-password here would make a manager
+  // offer to save a new one on every sign-in.
+  test('the login form tells a password manager what each field is', async ({ page }) => {
+    await click(page, 'Login Workspace');
+    await expect(page.locator('#username')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('#username')).toHaveAttribute('autocomplete', 'username');
+    await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'current-password');
+  });
+
   test('manage accounts dialog', async ({ page }) => {
     await click(page, 'Manage Accounts');
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
