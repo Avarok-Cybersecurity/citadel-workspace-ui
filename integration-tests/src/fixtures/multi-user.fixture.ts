@@ -99,7 +99,15 @@ async function createUserSession(label: string): Promise<UserSession> {
         throw new Error(`Failed to register user ${label}: ${username}`);
     }
 
-    await waitForWorkspaceLoaded(page, 30_000);
+    // Checked, not fired and forgotten. This returns false rather than throwing,
+    // so discarding it let a workspace that never rendered carry on into the
+    // test, where it surfaces much later as something unrelated — a peer
+    // 'missing' from the sidebar, or a seven-minute group-call timeout whose
+    // log says only that it was waiting.
+    if (!(await waitForWorkspaceLoaded(page, 30_000))) {
+        await browser.close();
+        throw new Error(`Workspace never finished loading for ${label}: ${username}`);
+    }
     await closeAnyModals(page);
 
     console.log(`  [${label.toUpperCase()}] Authenticated as: ${username}`);

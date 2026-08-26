@@ -306,7 +306,13 @@ export async function acceptP2PRequest(
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Checking for P2P requests ===`);
 
-  await waitForWorkspaceLoaded(page, 30000);
+  // Logged rather than thrown: these helpers report failure through their
+  // return value and the caller decides. Silently discarding it is what made
+  // the group-call stall unreadable — the log ended at 'Waiting for workspace
+  // to fully load...' and never said whether it arrived.
+  if (!(await waitForWorkspaceLoaded(page, 30000))) {
+    console.log(`  WARNING: ${username}'s workspace never finished loading; continuing anyway`);
+  }
   // No fixed wait here: the badge poll below already retries for as long as it
   // takes, so a 3s sleep only delayed the first look.
 

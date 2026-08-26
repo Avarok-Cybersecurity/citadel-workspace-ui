@@ -85,7 +85,13 @@ export async function createNUsers(
       throw new Error(`Failed to create user: ${username}`);
     }
 
-    await waitForWorkspaceLoaded(page, 30000);
+    // Logged rather than thrown: these helpers report failure through their
+    // return value and the caller decides. Silently discarding it is what made
+    // the group-call stall unreadable — the log ended at 'Waiting for workspace
+    // to fully load...' and never said whether it arrived.
+    if (!(await waitForWorkspaceLoaded(page, 30000))) {
+      console.log(`    WARNING: ${username}'s workspace never finished loading; continuing anyway`);
+    }
 
     users.push({ page, username, isFirstUser });
   }

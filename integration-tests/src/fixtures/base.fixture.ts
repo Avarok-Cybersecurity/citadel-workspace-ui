@@ -106,8 +106,14 @@ async function setupAuthenticatedPage(browser: Browser): Promise<{
         throw new Error(`Failed to register user: ${username}`);
     }
 
-    // Wait for workspace to fully load
-    await waitForWorkspaceLoaded(page, 30_000);
+    // Checked, not fired and forgotten. This returns false rather than throwing,
+    // so discarding it let a workspace that never rendered carry on into the
+    // test, where it surfaces much later as something unrelated — a peer
+    // 'missing' from the sidebar, or a seven-minute group-call timeout whose
+    // log says only that it was waiting.
+    if (!(await waitForWorkspaceLoaded(page, 30_000))) {
+        throw new Error(`Workspace never finished loading for ${username}`);
+    }
     await closeAnyModals(page);
 
     return { context, page, username, password };
