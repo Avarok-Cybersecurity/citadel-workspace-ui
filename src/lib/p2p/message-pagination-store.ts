@@ -20,6 +20,11 @@ import type {
 } from './p2p-types';
 import { MESSAGES_PER_PAGE, PAGINATED_PREFIX } from './p2p-types';
 import {
+  updateMessageInPages,
+  updatePeerUsernameInMetadata,
+  updateUnreadCount,
+} from './message-metadata-mutations';
+import {
   loadMetadataByKey,
   loadMetadata,
   tryLoadMetadata,
@@ -208,51 +213,16 @@ export class MessagePaginationStore {
   }
 
   public async updateMessageInPages(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
-    return withPeerLock(peerCid, () => this.updateMessageInPagesUnserialised(peerCid, messageId, updates));
-  }
-  private async updateMessageInPagesUnserialised(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
-    const metadata = await tryLoadMetadata(peerCid);
-    if (!metadata) return false;
-
-    for (let pageNum = metadata.latestPage; pageNum >= 0; pageNum--) {
-      const page = await tryLoadMessagePage(peerCid, pageNum);
-      if (!page) continue;
-
-      const msgIndex = page.messages.findIndex(m => m.id === messageId);
-      if (msgIndex !== -1) {
-        page.messages[msgIndex] = { ...page.messages[msgIndex], ...updates };
-        await saveMessagePage(peerCid, pageNum, page);
-        return true;
-      }
-    }
-
-    return false;
+    return withPeerLock(peerCid, () => updateMessageInPages(peerCid, messageId, updates));
   }
 
   public async updatePeerUsernameInMetadata(peerCid: bigint, username: string): Promise<void> {
-    return withPeerLock(peerCid, () => this.updatePeerUsernameInMetadataUnserialised(peerCid, username));
-  }
-  private async updatePeerUsernameInMetadataUnserialised(peerCid: bigint, username: string): Promise<void> {
-    const metadata = await tryLoadMetadata(peerCid);
-    if (metadata) {
-      metadata.peerUsername = username;
-      metadata.lastUpdated = Date.now();
-      await saveMetadata(peerCid, metadata);
-    }
+    return withPeerLock(peerCid, () => updatePeerUsernameInMetadata(peerCid, username));
   }
 
   public async updateUnreadCount(peerCid: bigint, unreadCount: number): Promise<void> {
-    return withPeerLock(peerCid, () => this.updateUnreadCountUnserialised(peerCid, unreadCount));
+    return withPeerLock(peerCid, () => updateUnreadCount(peerCid, unreadCount));
   }
-  private async updateUnreadCountUnserialised(peerCid: bigint, unreadCount: number): Promise<void> {
-    const metadata = await tryLoadMetadata(peerCid);
-    if (metadata) {
-      metadata.unreadCount = unreadCount;
-      metadata.lastUpdated = Date.now();
-      await saveMetadata(peerCid, metadata);
-    }
-  }
-
   public async deleteConversationPages(peerCid: bigint, scope: DeleteScope): Promise<void> {
     return deleteConversationPages(peerCid, scope);
   }

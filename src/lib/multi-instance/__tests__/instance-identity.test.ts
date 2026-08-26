@@ -64,9 +64,35 @@ describe('identity conflict resolution', () => {
 });
 
 describe('minted ids', () => {
-  it('are distinct and BigInt-parseable, so election stays deterministic', () => {
-    const ids = new Set(Array.from({ length: 200 }, () => mintInstanceId()));
-    expect(ids.size).toBe(200);
+  it('are BigInt-parseable and time-ordered, so election stays deterministic', () => {
+    const ids = Array.from({ length: 200 }, () => mintInstanceId());
+
     for (const id of ids) expect(() => BigInt(id)).not.toThrow();
+
+    // Election is highest-id-wins, so a tab opened in a LATER millisecond must
+    // sort above one opened earlier. Only the timestamp component carries that
+    // guarantee — within a single millisecond the random low digits make the
+    // order arbitrary, which is fine (election needs a deterministic total
+    // order, not a temporal one) and is why asserting on the full id fails.
+    const timestamps = ids.map((id) => BigInt(id) / 1_000_000n);
+    for (let i = 1; i < timestamps.length; i++) {
+      expect(timestamps[i]! >= timestamps[i - 1]!).toBe(true);
+    }
+  });
+
+  it('does not rely on uniqueness, because uniqueness is not guaranteed', () => {
+    // An earlier version of this test asserted 200 minted ids were all
+    // distinct. That is a ~2% flake: the id is timestamp_ms * 10^6 + a draw
+    // from 10^6, so 200 mints inside one millisecond collide by the birthday
+    // bound. It passed in isolation and failed under full-suite load, which is
+    // the worst way for a test to be wrong.
+    //
+    // It was also asserting the wrong thing. Uniqueness is NOT a property this
+    // id has or needs — sessionStorage is copied wholesale by Duplicate Tab, so
+    // two documents can share an id no matter how much randomness it carries.
+    // That is precisely why documentNonce and shouldReissueIdentity exist, and
+    // they are tested above.
+    const collidingId = '1700000000000000123';
+    expect(shouldReissueIdentity(collidingId, `${documentNonce}~higher`, collidingId)).toBe(true);
   });
 });
