@@ -63,7 +63,17 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
  * Check for error toasts or messages on the page
  */
 export async function checkForErrors(page: Page, context: string, uxTracker: UxIssueTracker | null = null): Promise<boolean> {
-  const errorToast = page.locator('[role="alert"]:has-text("error"), [role="alert"]:has-text("failed")').first();
+  // Sonner renders each toast as `<li data-sonner-toast data-type="error">`
+  // inside an <ol> — it sets NO role="alert", so the previous selector matched
+  // nothing and this helper silently reported "no errors" for every caller in
+  // the suite. Verified against the live DOM, not assumed. The role-based arm
+  // is kept for any non-Sonner alert that may be rendered elsewhere.
+  const errorToast = page
+    .locator(
+      '[data-sonner-toast][data-type="error"], ' +
+        '[role="alert"]:has-text("error"), [role="alert"]:has-text("failed")',
+    )
+    .first();
   if (await errorToast.isVisible().catch(() => false)) {
     const errorText = await errorToast.textContent();
     if (uxTracker && errorText) {

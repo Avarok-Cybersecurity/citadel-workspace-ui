@@ -5,7 +5,7 @@
 import type { Page } from 'playwright';
 import type { CreateAccountOptions } from './types.js';
 import { config } from './config.js';
-import { closeAnyModals, checkForErrors, waitForWorkspaceLoaded } from './modals.js';
+import { closeAnyModals, waitForWorkspaceLoaded } from './modals.js';
 import { takeScreenshot } from './screenshots.js';
 import { clearBrowserStorage, waitForAppReady } from './browser.js';
 import { isVisibleWithin } from './utils.js';
@@ -65,6 +65,19 @@ export async function createAccount(page: Page, username: string, options: Creat
     await nextBtn.click();
   }
 
+  // Sonner renders a rejection as `<li data-sonner-toast data-type="error">` and
+  // sets NO role="alert" — the selector this file shared with checkForErrors
+  // matched nothing at all, in every spec in the suite.
+  const errorToast = page
+    .locator(
+      '[data-sonner-toast][data-type="error"], ' +
+        '[role="alert"]:has-text("error"), [role="alert"]:has-text("failed")',
+    )
+    .first();
+
+  type Rejection = { kind: 'rejected'; detail: string } | { kind: 'no-error'; detail: string };
+  let rejection: Promise<Rejection> = Promise.resolve({ kind: 'no-error', detail: '' });
+
   // Step 3: User Details form (Create Your Profile)
   const fullNameInput = page.getByRole('textbox', { name: 'Full Name' });
   if (await isVisibleWithin(fullNameInput, 5000)) {
@@ -88,6 +101,18 @@ export async function createAccount(page: Page, username: string, options: Creat
     // Click Join button (not Register/Create Account)
     const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
     if (await submitBtn.isVisible()) {
+      // Armed BEFORE the click. The toast lands ~2.5s after submit and Sonner
+      // auto-dismisses it ~4s later, so any watcher started after the race
+      // below is looking for something that has already gone. The text is
+      // captured the instant it becomes visible for the same reason.
+      rejection = errorToast
+        .waitFor({ state: 'visible', timeout: 30_000 })
+        .then(async () => ({
+          kind: 'rejected' as const,
+          detail: (await errorToast.textContent().catch(() => null))?.trim() ?? 'unknown error',
+        }))
+        .catch(() => ({ kind: 'no-error' as const, detail: '' }));
+
       await submitBtn.click();
       // Registration is a server round trip, so this genuinely has to wait — but
       // for the OUTCOME, not for a fixed 8s. Exactly one of two things follows:
@@ -97,6 +122,9 @@ export async function createAccount(page: Page, username: string, options: Creat
       await Promise.race([
         page.locator('input#masterPassword').waitFor({ state: 'visible', timeout: 30_000 }),
         page.waitForURL(/\/(workspace|office)/, { timeout: 30_000 }),
+        // A refused registration produces NEITHER of the above, so without this
+        // arm the helper sat out the full 30s and then another 45s downstream.
+        rejection.then((r) => (r.kind === 'rejected' ? undefined : new Promise<never>(() => {}))),
       ]).catch(() => {
         // Neither arrived; waitForWorkspaceLoaded below reports the real failure
         // with more context than a timeout here would.
@@ -131,12 +159,38 @@ export async function createAccount(page: Page, username: string, options: Creat
     }
   }
 
-  await closeAnyModals(page);
-  await checkForErrors(page, 'account creation', uxTracker);
+  // The server can reject a registration outright — the SDK enforces a
+  // credential contract (3-37 char username, 7-17 char password, no spaces)
+  // and a duplicate username is refused. This used to return an unconditional
+  // `true`, so every caller's `expect(await createAccount(...)).toBe(true)`
+  // asserted a constant: a run whose registration was refused reported success
+  // and then failed later somewhere unrelated, with the cause long scrolled off.
+  //
+  // The watcher for that rejection is armed before the submit click above, not
+  // here: closeAnyModals presses Escape, which dismisses Sonner toasts, and the
+  // 30s post-submit race outlives the toast entirely.
 
-  // Wait for workspace to load
-  const loaded = await waitForWorkspaceLoaded(page, 45000);
-  if (!loaded) {
+  await closeAnyModals(page);
+
+  // Raced against the success signal so a working registration pays nothing.
+  const outcome = await Promise.race([
+    rejection,
+    waitForWorkspaceLoaded(page, 45000).then((ok) => ({
+      kind: ok ? ('loaded' as const) : ('not-loaded' as const),
+      detail: '',
+    })),
+  ]);
+
+  if (outcome.kind === 'rejected') {
+    if (uxTracker) {
+      uxTracker.log('critical', 'functional', `Registration rejected for ${username}: ${outcome.detail}`);
+    }
+    await takeScreenshot(page, `${username}_registration_rejected`);
+    console.log(`  Account ${username} was REJECTED: ${outcome.detail}`);
+    return false;
+  }
+
+  if (outcome.kind !== 'loaded') {
     console.log('  WARNING: Workspace may not have fully loaded');
   }
 
