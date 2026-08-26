@@ -10,8 +10,8 @@
 
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
-import { logEmit } from './router-diagnostics';
-import { makeForwardFallback, attachForwardListeners, startPendingRequestCleanup } from './router-forwarding';
+import { makeForwardFallback, attachForwardListeners, startPendingRequestCleanup, emitLocal } from './router-forwarding';
+import { setP2PReplay } from '@/lib/p2p/p2p-handler-ready';
 import { instanceChannel } from './instance-channel';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
@@ -42,6 +42,9 @@ class InstanceInboundRouter {
   );
 
   private constructor() {
+    // Replays re-enter the same path, so a held message is delivered exactly
+    // as a fresh one would be.
+    setP2PReplay((message) => this.processLocalMessage(message));
     debugLog('InstanceInboundRouter', '[ILM-Router] Constructor called, setting up event listeners...');
     this.setupEventListeners();
     this.startCleanupInterval();
@@ -226,9 +229,7 @@ class InstanceInboundRouter {
   }
 
   private processLocalMessage(message: unknown): void {
-    // See logEmit: a message emitted to zero listeners disappears without trace.
-    logEmit(eventEmitter.listenerCount('websocket-message'), message);
-    eventEmitter.emit('websocket-message', message);
+    emitLocal(message); // holds P2P traffic until something can receive it
   }
 
   routeToInstance(targetInstanceId: string, message: unknown): void {

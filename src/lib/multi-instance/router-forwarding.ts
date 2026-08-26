@@ -23,6 +23,7 @@ import { instanceChannel } from './instance-channel';
 import { instanceManager } from './instance-manager';
 import { getMessageType } from './routing-rules';
 import { debugLog } from '@/lib/debug-config';
+import { logEmit, mustHoldForP2PHandler } from './router-diagnostics';
 import { isP2PMessageHandlerAttached } from '@/lib/p2p/p2p-handler-ready';
 
 /**
@@ -96,4 +97,19 @@ export function startPendingRequestCleanup(
       if (now - entry.timestamp > timeoutMs) pending.delete(requestId);
     }
   }, intervalMs);
+}
+
+/**
+ * Deliver a message to this tab's subscribers.
+ *
+ * Holds MessageNotification until the P2P handler has attached. Emitting
+ * before then hands it to the services that subscribe at module load and to
+ * nobody who can act on it — which is precisely how msg_id=10 was lost in CI
+ * run 32912073077: emitted twice to eight listeners, with the P2P handler
+ * still absent and attaching moments later.
+ */
+export function emitLocal(message: unknown): void {
+  if (mustHoldForP2PHandler(message)) return;
+  logEmit(eventEmitter.listenerCount('websocket-message'), message);
+  eventEmitter.emit('websocket-message', message);
 }

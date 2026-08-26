@@ -153,6 +153,13 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
       // pre-buffer guarantee that no message is ever silently dropped.
       vi.advanceTimersByTime(ORPHAN_BUFFER_TIMEOUT_MS + 1);
 
+      // A MessageNotification is now held briefly for the P2P handler, which
+      // never attaches in a unit test. The hold is bounded precisely so this
+      // guarantee survives: past the release timeout it is emitted regardless,
+      // to whoever IS listening. Holding forever would trade a rare lost
+      // message for a permanently stranded one.
+      vi.advanceTimersByTime(2001);
+
       expect(local).toHaveBeenCalledTimes(1);
       expect(local).toHaveBeenCalledWith(cidRoutedMessage);
     } finally {

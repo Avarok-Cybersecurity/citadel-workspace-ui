@@ -8,6 +8,7 @@
 
 import { debugLog } from '@/lib/debug-config';
 import { describeForwarded } from '@/lib/p2p/message-fingerprint';
+import { holdUntilP2PHandlerAttached } from '@/lib/p2p/p2p-handler-ready';
 
 /**
  * Record an emit and how many handlers were actually listening.
@@ -33,4 +34,20 @@ export function logEmit(listeners: number, message: unknown): void {
     'InstanceInboundRouter',
     `[ILM-Router] emit listeners=${listeners} ${describeForwarded(message)}`,
   );
+}
+
+/**
+ * Whether this message must wait for the P2P handler before being emitted.
+ *
+ * Only MessageNotification is held. Everything else — LocalDB responses,
+ * session lists, workspace replies — has subscribers that attach at module
+ * load, so holding those would delay traffic that already had a receiver.
+ *
+ * The listener count cannot make this decision: it counts the services that
+ * are always subscribed, so it is nonzero exactly when this is most wrong.
+ */
+export function mustHoldForP2PHandler(message: unknown): boolean {
+  if (!message || typeof message !== 'object') return false;
+  if (!('MessageNotification' in (message as Record<string, unknown>))) return false;
+  return holdUntilP2PHandlerAttached(message);
 }
