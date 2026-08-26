@@ -1,4 +1,5 @@
 import { WifiOff, Wifi } from 'lucide-react';
+import { useLayoutEffect, useRef } from 'react';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 
 /**
@@ -15,13 +16,38 @@ import { useOnlineStatus } from '@/hooks/use-online-status';
  */
 export function OfflineBanner() {
   const { isOnline, justReconnected } = useOnlineStatus();
+  const ref = useRef<HTMLDivElement>(null);
+  const showing = !isOnline || justReconnected;
 
-  if (isOnline && !justReconnected) return null;
+  // Publish the banner's real height so the layout can make room for it. It is
+  // `fixed`, so it took no space and covered the first ~36px of BOTH the sidebar
+  // and the content pane — the header is h-14 and main is pt-14, so the banner's
+  // top-14 lands exactly where content begins. Measured rather than hardcoded
+  // because the copy wraps to two lines at 375px.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const el = ref.current;
+    if (!showing || !el) {
+      root.style.removeProperty('--offline-banner-height');
+      return;
+    }
+    const publish = () => root.style.setProperty('--offline-banner-height', `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--offline-banner-height');
+    };
+  }, [showing]);
+
+  if (!showing) return null;
 
   const offline = !isOnline;
 
   return (
     <div
+      ref={ref}
       // role="status" with a polite live region: announced to screen readers
       // without interrupting whatever they are reading, which is right for a
       // change in ambient condition rather than a response to an action.
@@ -29,13 +55,18 @@ export function OfflineBanner() {
       aria-live="polite"
       data-testid={offline ? 'offline-banner' : 'reconnected-banner'}
       className={[
-        // Below the header, not over it. At z-100 against the header's z-50, both
-        // anchored to top-0 and neither in flow, this covered the whole 56px bar
-        // — taking the sidebar toggle, the workspace switcher, notifications and
-        // the account menu with it, at the exact moment it was telling the user
-        // something was wrong. At 375px the copy wraps to two lines and matches
-        // the header height almost exactly.
-        'fixed inset-x-0 top-14 z-40 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
+        // Below the header, not over it. At z-100 anchored to top-0 this covered
+        // the whole 56px bar — taking the sidebar toggle, workspace switcher,
+        // notifications and account menu with it, at the exact moment it was
+        // telling the user something was wrong.
+        //
+        // But z-40 put it UNDER every full-screen surface that appears while
+        // offline: the opaque z-50 workspace loader, the z-[100] LoadingModal
+        // and the auth modals. The one explanation of why nothing is loading was
+        // painted over by the thing that was not loading. top-14 is what keeps
+        // the header clear, so the z-index is free to go above them — a 36px
+        // strip below the header cannot swallow a control the way top-0 did.
+        'fixed inset-x-0 top-14 z-[110] flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
         // Not red: being offline is a condition to inform about, not an error
         // the user caused or can fix by retrying.
         offline

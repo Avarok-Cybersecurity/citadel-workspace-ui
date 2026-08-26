@@ -49,3 +49,17 @@ if (typeof Element !== 'undefined' && !Element.prototype.setPointerCapture) {
     return false;
   };
 }
+
+// jsdom implements neither ResizeObserver nor layout, so a component that
+// measures itself throws on import rather than failing an assertion — which
+// reads as "the component is broken" rather than "the environment lacks an
+// API". Elements report 0 height here, so anything asserting on the measured
+// value must set offsetHeight explicitly rather than trusting this.
+if (!('ResizeObserver' in globalThis)) {
+  class TestResizeObserver implements ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  globalThis.ResizeObserver = TestResizeObserver;
+}

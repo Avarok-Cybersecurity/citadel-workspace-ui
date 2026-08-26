@@ -36,7 +36,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
         {/* The sidebar IS the app's navigation; naming it lets a screen reader
             skip past it or jump straight to it. */}
-        <Sidebar className="pt-14 bg-input border-r border-border transition-transform duration-300 ease-in-out">
+        <Sidebar className="pt-[calc(3.5rem+var(--offline-banner-height,0px))] bg-input border-r border-border transition-transform duration-300 ease-in-out">
           <SidebarContent>
             <nav aria-label="Workspace navigation">
               <HierarchySidebar />
@@ -52,7 +52,11 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 pt-14 pl-0 overflow-x-hidden overflow-y-auto h-full focus:outline-none"
+          // The offline banner is `fixed`, so it takes no space and would cover
+          // the first ~36px of this pane — it publishes its measured height and
+          // both panes make room. Measured, not hardcoded: the copy wraps to two
+          // lines at 375px.
+          className="flex-1 pt-[calc(3.5rem+var(--offline-banner-height,0px))] pl-0 overflow-x-hidden overflow-y-auto h-full focus:outline-none"
         >
           {children}
         </main>
