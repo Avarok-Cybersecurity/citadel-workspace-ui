@@ -142,15 +142,26 @@ export class CallManager {
     const peers = [...state.participants.values()].filter(
       (p) => p.status !== 'left' && p.status !== 'declined',
     );
+    //
+    // Per-peer catch, like every other fan-out in this file. Without it
+    // Promise.all rejects on the first unreachable co-invitee and execution
+    // never reaches openSessionFor below — so NO session opens with anyone,
+    // including the caller, while `accepted-locally` has already moved us to
+    // `connecting`. Group rosters come from room membership rather than from
+    // connected peers, so an unreachable co-invitee is the normal case there;
+    // in 1:1 this list is just the caller, who by construction reached us.
+    // That asymmetry is why the hang was group-only and looked intermittent.
     await Promise.all(
       peers.map((p) =>
-        this.options.transport.sendSignal(p.cid, {
-          kind: 'CallAccept',
-          call_id: state.callId,
-          codecs: this.options.capabilities,
-          media,
-          video_send_codec: videoSendCodec,
-        }),
+        this.options.transport
+          .sendSignal(p.cid, {
+            kind: 'CallAccept',
+            call_id: state.callId,
+            codecs: this.options.capabilities,
+            media,
+            video_send_codec: videoSendCodec,
+          })
+          .catch(() => undefined),
       ),
     );
     // Opened after the accept is on the wire, so the peer is already expecting
