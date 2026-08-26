@@ -1541,6 +1541,148 @@ off.
   Graph's minimums — and both image URLs are relative where Twitter requires
   absolute.
 
+## Round seventeen — leader recovery, editor data loss, call and notification seams, 2026-08-26
+
+### 160. A leader that could not serve never yielded — FIXED
+
+Promotion is handled by an `async` listener, and `emit` invokes handlers
+SYNCHRONOUSLY — so the rejection from `createWebSocketAsLeader` escaped the
+emitter's own try/catch and nothing observed it. The tab stayed `isLeader`, kept
+winning every subsequent election, and answered every request from every tab in
+the browser with "WebSocket not ready". Permanently: the yield branch only fires
+on a competing heartbeat, which never arrives while this tab broadcasts its own.
+`relinquishLeadership` demotes, broadcasts goodbye, and stamps a cooldown so the
+tab that just failed does not immediately re-claim and fail again.
+
+### 161. A failed request was silently re-executed at every later leader change — FIXED
+
+`sendToLeader`'s ACK timeout resolved an error but never removed the entry — the
+ACK path calls `acknowledge()`, the timeout path did not — and `onLeaderChange`
+replays every queued entry. A Connect, a workspace mutation or a P2P message the
+user had already been told had failed was re-sent to the next leader, and again
+at every leader change after that.
+
+The replay was ALSO a black hole whenever the tab that owned the queue won the
+election: BroadcastChannel never delivers to the posting context, so posting to
+'leader' addressed nobody. The retry subscription's own comment describes a
+recovery that only ever worked when some other tab won.
+
+### 162. The MDX editor lost the user's work to unrelated re-renders — FIXED
+
+`content` is the controlled value of the textarea, and its load effect had no
+`isEditing` guard. It depended on `getInitialContent`, a bare arrow in
+WorkspaceView's render body — a new identity every render — and WorkspaceView
+subscribes to the whole workspace store. **A colleague's typing indicator
+elsewhere in the app replaced what the user was typing**, and destroyed the
+native undo stack with it. On a new node the else branch ran and replaced their
+work with the default template.
+
+Three causes, all fixed: the guard, `useCallback`, and a `key` per node (without
+which React reused the instance and `isEditing` stayed true while the buffer was
+swapped to another node's body).
+
+**The first version of the test passed with the guard fully removed** — the
+harness used `useCallback`, so the effect never re-ran and the guard was never
+exercised. It now uses the unstable arrow the bug actually had.
+
+### 163. The notification panel showed other accounts' message previews — FIXED
+
+`recipientCid` is recorded on every notification and plumbed to
+`getUnreadCountByCid`; the panel that renders them filtered only by TYPE.
+Message notifications carry a 100-character plaintext preview and the sender's
+name, so a tab that switched accounts rendered the previous account's messages
+to the new one and marked them read as the new account. `cleanup()` has no
+callers, so logout clears nothing either.
+
+### 164. The offline banner was invisible exactly when it mattered — FIXED
+
+At z-40 it sat under every full-screen surface that appears BECAUSE you are
+offline. The demotion from z-100 was itself a fix — at top-0 it had covered the
+whole header — but `top-14` is what keeps the header clear, so the z-index was
+free to go above the blocking surfaces all along. It was also `fixed` and
+therefore covered the first ~36px of both panes; it now publishes its measured
+height and the layout reserves it.
+
+### 165. Also fixed: a failed call was a permanent dead end
+
+`use-call-runtime` tears the manager down on a terminal state, and `failed`
+deliberately keeps its surface up so the user can read the reason — but nothing
+cleared the React `call` state, so Leave awaited `undefined?.end()` and did
+nothing. The error panel stayed for the rest of the page's life with both call
+buttons replaced by that dead Leave, and no further call to that peer was
+possible from that conversation.
+
+### 166. Recorded, not fixed — write acknowledgement is the root of several
+
+- **Every tree and document write reports success on SEND, not on write.**
+  `sendProtocolRequest` resolves once the frame reaches the WASM sink, and the
+  server answers rejections as a *response*, which can never reject that
+  promise. So "Office Deleted — deleted successfully" appears in green next to a
+  red "Permission denied" five seconds later, with the node still in the tree.
+  **The correlation this needs already exists** — `service.ts`'s raw request
+  path has timeouts and `expectedResponseTypes` per request — labelled "for
+  testing" with no production caller. `TreeNodesSection`'s careful
+  close-only-on-success dialog is dead code for the same reason: the handler it
+  awaits swallows its own errors and always resolves.
+- **The UI gates MDX editing on `EditMdx`; the server enforces
+  `EditTreeStructure`, at the workspace root rather than the node.** Custom roles
+  are never granted `EditTreeStructure`, and `EditMdx` is directly grantable in
+  the permission matrix — so an admin can grant exactly the persona whose saves
+  are always refused. The tree menu (Edit / Add Child / Delete) renders for every
+  node with no permission check at all.
+- **Tree changes are never broadcast and never re-fetched.** `listNodes` is
+  called once, at authentication. A node another user creates, renames or deletes
+  never reaches an open session — and `nodes:loaded` merges rather than replaces,
+  so even a fresh fetch could not prune a deletion.
+- **Node state and the permissions cache survive a workspace switch.** The
+  permissions cache is keyed by domain id with a `'workspace-root'` sentinel that
+  is the same string on every server, and its TTL is unreachable from the UI — so
+  after switching from a workspace where you are Admin to one where you are a
+  Guest, every gated control stays enabled.
+- **Live documents are never persisted for the invited peer** — the cache entry
+  is created only on the creating side, so both the debounced save and the
+  unmount flush early-return. That peer's contribution exists in RAM only.
+- **`mdx_content` is broadcast to every connected client with no membership
+  filter.** The UI discards unknown nodes, so it is not displayed — but it has
+  already crossed to the client.
+- **"Set as Default" is inert**: the hand-written request mirror has drifted from
+  the generated type, `is_default` is dropped by serde, and the user is told it
+  worked every time. **MoveNode** is implemented on the server and fully wired on
+  the client response side, with no `moveNode` method and no drag affordance —
+  reorganising a workspace is impossible.
+- **The cascade-delete warning under-reports** because the parent's `children`
+  array is never patched when a child is created, while the sidebar derives
+  nesting from `parent_id` — so the tree shows three rooms and the dialog
+  mentions none of them.
+- **Last-writer-wins on document bodies**, with no version, etag or base
+  revision, and no detection.
+
+### 167. Recorded, not fixed — calls and devices
+
+- **A group call can stay `active` with an empty roster and the camera on.**
+  `active` has no deadline by design (the liveness watchdog owns it), but the
+  watchdog only tracks peers who are `active` or `connecting` — an invitee who
+  never answered stays `'invited'` forever and blocks both end conditions.
+- **A follower tab rings audibly with no answerable card.** `RingingCall` refuses
+  to render outside the leader tab; `CallSoundEffects` has no such check and the
+  follower reliably wins the per-callId ring lock, because the leader never saw
+  the signal.
+- **Call invites ride the offline-queued path with no expiry** — a call placed
+  while the callee was offline rings them hours later.
+- **`openSessionFor` never re-checks the call state after its awaited open**, so
+  a hangup during the 10s window resurrects a departed peer and leaks the media
+  session. `CallSession.start` does exactly this re-check for the same hazard.
+- **Calls have no outcome.** `reason` on `ended` has no reader: after 45s of
+  ringing or an instant decline the stage simply vanishes, and there is no
+  missed-call record anywhere.
+- **Devices removed mid-call are undetected** — no `track.onended`, no
+  `devicechange` — and `toggleCamera` disables rather than stops tracks, so the
+  camera indicator stays on after the user turns their camera off. Defensible as
+  the standard mute idiom, but worth an explicit decision in a product that sells
+  privacy.
+- **Hangup is gated on network I/O**, with the caller's own await unbounded, so a
+  stalled send keeps the camera on for as long as the stall lasts.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
