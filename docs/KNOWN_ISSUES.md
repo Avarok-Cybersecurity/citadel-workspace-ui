@@ -28,6 +28,53 @@ rather than carried forward.
 | `Math.random()` mock presence in the user directory | Removed in the auth/session refactor |
 | Simulated demo chat ("Kathy McCooper", Unsplash avatars) | Removed in the auth/session refactor |
 
+## Broken
+
+### The workspace creator cannot edit any document
+
+The first user registers, supplies the master password, initialises the
+workspace and is its administrator. Their **Edit** button is disabled on every
+office and room, permanently — measured at 2s, 10s, 20s, 40s and 60s after the
+workspace finished loading, disabled at every one. It is not slow arrival; it
+never enables.
+
+What the running app receives, captured from the console:
+
+```
+UserPermissions received { user_id: eg_…, role: Member, domain_id: 592ea151-… }
+[PermissionsService] Cache updated for 592ea151-…: 0 permissions
+```
+
+The chain, each step read rather than assumed:
+
+1. `initialization.rs:102` adds the creator to **WORKSPACE_ROOT_ID** as
+   `UserRole::Admin`. That part is correct.
+2. `BaseOffice` asks `usePermission(nodeId, Permission.EditMdx)` — where
+   `nodeId` is the **office's** UUID, not the workspace root.
+3. `GetUserPermissions` (async_process_command.rs:434) answers with
+   `user.get_permissions(domain_id).unwrap_or_default()` — an exact-domain
+   lookup returning **empty** for any domain the user was not explicitly added
+   to — and `role: user.role`, the user's GLOBAL role, not their role in that
+   domain. Hence `Member` with zero permissions.
+
+CLAUDE.md states "Domain permissions inherit: Workspace → Office → Room". This
+lookup does not inherit, so the inheritance the product documents does not
+happen for the one user who is supposed to have everything.
+
+**Why the suite is green.** `office-mdx-content.test.ts` treats the gate as a
+tolerated condition: it logs "Edit button is still permission-gated — not
+clicking, edit mode is unreachable" and skips the editor verification, in two
+places. A spec that skips its subject when the subject is broken cannot fail.
+
+The reproduction is `tests-pw/node-content-propagation.spec.ts`, marked
+`fixme` — it asserts the whole path and should go green when this is fixed.
+
+**Not fixed here deliberately.** The correct behaviour is for permission
+resolution to walk up the domain tree, which is a change to a security boundary
+in the Rust backend: it decides who may edit what, it needs container rebuilds
+to test, and getting it wrong grants access rather than withholding it. That is
+a decision for whoever owns the permission model, not for a sweep.
+
 ## Accepted trade-offs
 
 ### Lighthouse "Best Practices" is 96, not 100
