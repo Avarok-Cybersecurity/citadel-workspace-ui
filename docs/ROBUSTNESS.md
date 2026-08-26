@@ -1181,6 +1181,141 @@ seven of them indexing `sizes[i]` unbounded so a 1TB file reads "1 undefined"
 and 1,048,575 bytes reads "1024 KB". `use-call-duration` never carries to
 hours, so a 3-hour call reads "180:00".
 
+## Round fourteen — Rust server correctness and first-hour UX, 2026-08-26
+
+Two parallel audits: the workspace server kernel, and everything a user meets in
+their first hour. The server findings are the most severe of the campaign so far,
+because they corrupt durable state rather than mis-rendering it.
+
+### 145. `ListMembers` read one copy of the roster and the mutators wrote the other — FIXED
+
+The root workspace is stored twice: as a `Workspace` record, and denormalized
+inside `Domain::Workspace`. `UpdateWorkspaceTheme` documents keeping the two in
+sync as the invariant "every other workspace mutator also writes". Both
+membership mutators — `add_user_to_domain` and `remove_user_from_domain` — wrote
+only the `Workspace` record, and `ListMembers` reads the `Domain` copy **first**.
+
+**No race required.** An added member never appeared in the roster; a removed one
+never left it. Meanwhile `is_member_of_domain` reads the fresh `Workspace`
+record, so enforcement was correct — the displayed roster and the enforced roster
+disagreed permanently and in both directions. An admin removing someone saw them
+stay listed forever, while their access was in fact already gone.
+
+Fixed by adding the `insert_domain` write to both root branches.
+`tests/workspace_membership_visibility_test.rs` reads through `ListMembers`
+rather than the backend, because at the backend layer each copy looks fine on its
+own — the defect only exists in the relationship between them.
+
+### 146. Every workspace except the seeded root was unreadable by everyone — FIXED
+
+`is_member_of_domain` special-cased `domain_id == WORKSPACE_ROOT_ID` and looked
+everything else up as a `DomainNode`. Every workspace `create_workspace` mints
+gets a UUID and is stored as a `Workspace`, never as a node — so the node lookup
+missed, and membership returned `false` to **everyone, including the creator**,
+who had been written into `members` two lines earlier. Global Admin did not help:
+this path calls `is_member_of_domain` directly and has no admin short-circuit.
+
+The record, its `Domain` twin, its password entry and the creator's Admin grant
+were all written and then permanently unreachable. `list_workspaces` filters
+through the same predicate, so it never appeared in any listing either.
+
+Fixed by trying `get_workspace` first for any id — it returns `None` for a node
+id, so one lookup covers every workspace instead of one.
+
+### 147. Two member handlers did an unguarded read-modify-write on the whole node map — FIXED
+
+All `DomainNode`s live behind one key. `lock_nodes()` exists for exactly this and
+its doc names the hazard; `create_node`, `delete_node` and `move_node` each take
+it. The two membership handlers did not — and **a mutex only excludes
+participants**, so the other three locking correctly bought nothing.
+
+A member add overlapping a room creation loads the pre-insert map and saves it
+back. The room is not orphaned, it is **erased** — after `create_node` has
+already returned success and the client has rendered it. Nothing detects it; the
+next read simply does not have it.
+
+Fixed by taking `lock_nodes` across both cycles. Deliberately **not** covered by
+a test: a scheduling interleaving cannot be asserted deterministically here, and
+a probabilistic test that usually passes is worse than none. The structural
+guarantee is that all five mutators of this map now take the same lock.
+
+### 148. Recorded, not fixed — needing a decision or a larger change
+
+- **`update_node`'s read-modify-write spans the lock** (`async_node_ops.rs`).
+  `get_node` reads outside, `update_node` re-inserts the stale struct wholesale
+  inside. A rename racing a move yields `N.parent_id == P1` while `P1.children`
+  lacks N and `P2.children` has it — three mutually contradictory facts. A
+  non-cascade delete of P1 then succeeds (the emptiness check reads `children`)
+  and strands N permanently unreachable. `TreeValidator::validate_tree` exists
+  and is **called from tests only** — the tree's consistency checker was written
+  and never wired to anything.
+- **Pagination drops same-millisecond messages** at every page boundary. The
+  timestamp is the only cursor, the filter is strictly `<`, and `has_more` is
+  computed on the already-filtered set — so the client sees a consistent-looking
+  stream with a hole in it. Also `limit: Some(0)` yields `has_more = true` with an
+  empty page, which loops a paging client forever.
+- **`set_role_permissions` replaces rather than merges**, so any later
+  `AddMember` or `UpdateMemberRole` silently destroys explicitly-granted
+  permissions. Related: `add_user_to_domain` sets the **global** `user.role` from
+  a **per-domain** role argument, so adding an existing Member to one room as
+  Guest demotes them everywhere.
+- **Cascade delete deletes nodes and nothing else** — chat history is left
+  resident and unreachable (`chat_channel_id` is only ever written, never read, so
+  nothing could ever find those blobs again), permissions entries persist, and
+  `delete_workspace` leaves its `DomainNode`s behind still carrying `members`, so
+  the content of a deleted workspace stays readable to anyone holding a node id.
+- **`group_id` is never validated** on `SendGroupMessage` — any authenticated user
+  mints unbounded durable keys. Adjacent to the already-recorded group
+  authorization gap, but the key-minting side is distinct from it.
+- **`default_permissions` is configured, persisted and never read.** An operator
+  who sets per-office defaults in `server.toml` gets a value that is stored and
+  ignored. Likewise `Workspace.offices`, whose only writers have no callers.
+- **`list_nodes` depth filtering is nondeterministic** — `base_depth` is taken
+  from `HashMap::values().first()`, and the filter admits both depth-0 and
+  depth-1 starts, so the same request returns a different subtree run to run.
+- **Master passwords are stored in plaintext and compared with `==`** (not
+  constant-time), and `update_workspace` sets `user.role = Admin`
+  unconditionally on every successful call, not only for the first claimant —
+  contradicting the constructor comment that documents first-claimant semantics.
+
+### 149. First-hour UX — the core loop is gated on a number the product never shows you
+
+Ranked by how many new users hit each in their first hour:
+
+1. **Messaging anyone requires a decimal CID.** The input is unlabelled
+   (`"Enter peer CID..."`), accepts `/^[0-9]+$/` only, and its error points at
+   "the directory" with no link — and the directory searches only *existing
+   members*, so it can never surface the one person a new user needs. There is
+   nowhere in the UI showing your own CID to share.
+2. **Nothing distinguishes "not accepted" from "offline" from "network down",**
+   and `canSendMessages` is hardcoded `true`, so the composer is never disabled.
+   Every failure reads "Check your connection and try again" — a social state
+   reported as a network fault. A newcomer goes and debugs their wifi.
+3. **The login form's Server Address field is inert** (`connect()` takes no
+   address parameter; a comment states the protocol stores it from registration),
+   **`Remember Credentials` has zero consumers repo-wide**, and the security
+   settings chosen at login are discarded. Every returning user meets all three.
+4. **The Privacy tab operates on nothing** — six controls persist to
+   localStorage and nothing reads any of the keys. `Screenshot Alerts` promises
+   something a browser cannot do, in a product that sells privacy.
+5. **Step 2 of 3 of signup is a cryptography configuration screen** — KEM
+   Algorithm (one option), Header Obfuscator Mode, ML-DSA-65 — whose four help
+   tooltips restate their own labels and sit on non-focusable `<svg>`s.
+6. **An empty workspace serves the Markdown tutorial that was explicitly written
+   out of the product.** `node-content.ts` — the best product writing in the repo,
+   explaining offices, rooms and permission inheritance in plain English — renders
+   only when a node exists. With zero nodes the fallback is the old
+   `MDX Editor Showcase`, which also makes two false claims about the page it is
+   on ("Content is automatically saved as you type"). Its Edit button is enabled
+   (no `domainId` means no permission check) and Save permanently returns "This
+   page is still loading" — an infinite retry loop with no correct action.
+
+One concept has six names: **Connect** (button) → **registration request**
+(error) → **Awaiting Response** (status) → **Registered** (presence) →
+**Connected** (badge) → **Pending Connection Requests** (the peer's modal). A
+newcomer cannot build a mental model from that, and the one document that
+explains the model is the unreachable one above.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
