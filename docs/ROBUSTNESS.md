@@ -1857,6 +1857,141 @@ parameter that claims to identify something it does not is worse than none.
   the wire plus a coordinated WASM rebuild; shipping the TS half alone would
   break member loading entirely, so this is recorded rather than half-applied.
 
+## Round twenty — data destruction, dead gates, stuck calls, 2026-08-26
+
+### 179. One user logging in destroyed another user's message history — FIXED
+
+Message pages are keyed by PEER alone and live in LocalDB bucket `0n`, which
+every account on the device shares. Nothing recorded whose conversation a record
+was — and `cleanupStaleConversations` deletes any cached conversation missing
+from the CURRENT account's peer list, which is true of every conversation
+belonging to a different account.
+
+So user B logging in **permanently deleted user A's messages**, on a device this
+product explicitly expects to hold several accounts. The guard already there is
+well reasoned and says the right thing — *"the guard belongs here, at the
+destructive operation"* — it simply had no notion of WHOSE data it was deleting.
+
+`ConversationMetadata.ownerCid` now records it, and a delete refuses anything it
+cannot attribute. Unattributed legacy records are kept by the sweep (unknown
+ownership is exactly when destroying is unsafe) and adopted by the first account
+that writes to them. The explicit "clear this conversation" is a separate scope —
+the user has it open and pressed the button — but still refuses a record
+demonstrably belonging to someone else.
+
+**Two bugs in my own fix, caught by the tests:** `ownerCid` was serialized to a
+string and never parsed back, so every comparison was string-vs-bigint and the
+guard silently became "refuse everything" — which would have looked like the
+feature working.
+
+### 180. An unanswered invitee kept a call alive with the camera on — FIXED
+
+`active` has no status deadline by design (the heartbeat watchdog owns it), but
+that watchdog only tracks peers who are `active` or `connecting`. An invitee who
+never answers is neither, and blocked BOTH end conditions — so call Bob and
+Carol, Bob answers, Carol's tab is closed, Bob hangs up, and the call sat
+`active` with nobody in it: duration ticking, **camera light on**, phantom tile
+rendered.
+
+### 181. The internal-service workspace was linted but never tested — FIXED
+
+It got a dedicated `fmt` + `clippy` job and its tests were never brought with
+it. `rust-tests` is the root workspace only and `-p` cannot reach a separate
+workspace, so **135 tests across eight crates ran nowhere** — including the media
+lane, on the branch where the media lane lives. The submodule's own workflow runs
+them, but only on PRs to that repo, while CLAUDE.md has developers editing inside
+it from this worktree.
+
+`check-crate-coverage.mjs` — a guard written precisely to catch "a gate that
+never runs against a path" — only looped over fmt and clippy, so it could not
+see this. It now covers tests too.
+
+### 182. A flaky test of my own — FIXED
+
+`instance-identity` asserted 200 minted ids were all distinct: a ~2% flake, since
+the id is `timestamp_ms * 10^6 + random(10^6)` and 200 mints in one millisecond
+collide by the birthday bound. Passed five times in isolation, failed under
+full-suite load — the worst shape, because it reads as an unrelated regression.
+
+It was also asserting the wrong property: uniqueness is not something this id has
+or needs, which is exactly why `documentNonce` exists. **The replacement was
+wrong on its first attempt too** — within a millisecond the random low digits
+make the full id unordered, so only the timestamp component carries the
+guarantee.
+
+### 183. Recorded, not fixed — cross-account leakage (auth audit)
+
+- **Every account's data shares one LocalDB bucket, `cid 0n`.** Conversation
+  lists are enumerated from it with no owner filter, so account B **sees** account
+  A's conversations. The destruction is fixed above; closing the visibility leak
+  means either dropping existing local history or attributing it by guesswork —
+  a decision with real data-loss risk either way, and one to take deliberately.
+- **Plaintext passwords for every account live in that same bucket**, typed
+  `password: string; // Note: This should be encrypted in production`, with no
+  encryption, no TTL and no zeroing. Sign Out splices out ONE entry. They are
+  auto-reused by leader election alone.
+- **Every stored password is printed to the console on every session write.**
+  `formatForDebug` redacts a `password` field only when it is a BYTE ARRAY;
+  `StoredSession.password` is a string, so it prints verbatim, and
+  `serverPassword` is not in the redaction list at all. `debugLog` is a no-op in
+  production builds — but `docker-compose.yml` builds `target: dev`.
+- **"Connected" is reported when the request was merely SENT.** A wrong password
+  re-persists the session as if it had authenticated, and the entire
+  exponential-backoff recovery block is dead for real auth failures.
+- **Registration that half-succeeds leaves an orphaned account**: `ConnectFailure`
+  is matched only inside the `Response` wrapper on the Join path where every other
+  consumer reads it at the top level, so the promise hangs for 30s behind an
+  uncancellable backdrop, then blames the network. Retry says "username taken",
+  which is actively wrong advice, and there is no route to Login.
+- **Deregister reports success on enqueue, not deletion** — `NodeRemote::send`
+  only pushes onto a channel — and drops the connection-map entry FIRST, so a
+  server-side failure is unobservable. The client then deletes the stored
+  session, which held the only copy of the password.
+- **Signing out of one account tears down all of them**: `removeSession(cid)`
+  exists, is documented as the right call, and has zero production callers — all
+  three sites use `stop()`, which clears every session.
+- **Two login branches never settle** (`SessionAlreadyActive`, and `ConnectFailure`
+  containing "already connected"): they clear the timeout and then neither
+  resolve nor reject, so the closure holding the plaintext password is retained
+  for the page's lifetime. In the same block, re-login overwrites the stored full
+  name with the username and destroys the stored server PSK.
+
+### 184. Recorded, not fixed — tests that cannot fail (CI audit)
+
+- **The flagship P2P spec's two core tests contain no assertions at all.** All six
+  helpers return `Promise<boolean>` by design and every return value is
+  discarded, so a total handshake failure surfaces as two green tests named
+  "P2P registration and handshake" and "Open conversations on both sides".
+- **Multi-tab coordination: 3 of 5 tests cannot fail**, and one asserts the
+  failure state as success — its disjunction includes `seesLandingButtons`, which
+  IS the not-detected state. Another asserts `document.readyState` is truthy,
+  which it always is. This is the only spec covering leader election.
+- **A unit assertion is swallowed by the production code's own `catch`** — the
+  only substantive `expect` runs inside a callback production invokes inside a
+  `try`, so breaking the feature turns the AssertionError into a caught error and
+  the test still passes.
+- **The CID-routing drift guard cannot detect drift**: fixtures are the test's own
+  literals and `extractTargetCid` is type-agnostic, so all eight parametrized
+  cases exercise one branch with a value the test supplied.
+- **Request-layer permission enforcement is asserted for one of ~40 variants.**
+  Every helper-driven test dispatches as admin, and `check_entity_permission`
+  short-circuits for admins. Delete the permission check from any handler except
+  `UpdateNode` and the entire Rust suite stays green.
+- **`loginWithCredentials` returns true by default**, can skip the credential path
+  entirely via an existing session, and converts a server "already exists" error
+  into success — so "Login with credentials" can pass having never entered any.
+- **`scroll-containment.spec.ts` asserts the CSS the test itself wrote** — it uses
+  `page.setContent` with hand-written rules and never touches the app.
+- **The Windows agent binary is published without ever being run** — the smoke
+  test is `if: runner.os != 'Windows'`, and Windows is the platform whose users
+  get that download by default.
+- **`check-storage-keys.mjs` silently exempts the module it was written for**: it
+  resolves only `const` key declarations, and file-transfer holds its keys as
+  `static readonly` class fields, so all four of its sites resolve to null and are
+  dropped — while the summary line reports "OK".
+- **`check-submodule-pointers-pushed.mjs` is invoked by nothing** — no workflow,
+  no npm script, no git hook. It is the exact thing its own header warns against.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
