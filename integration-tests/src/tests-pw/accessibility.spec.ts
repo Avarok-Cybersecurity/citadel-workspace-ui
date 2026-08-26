@@ -471,6 +471,42 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     await expectNoBlockingViolations(page, 'messages');
   });
 
+  // WCAG 2.4.2. Asserted against the RUNNING app, not the component: the unit
+  // tests prove titleForPath maps routes to distinct names, which says nothing
+  // about whether <DocumentTitle /> is actually mounted. Every route shared one
+  // title before this, so a screen reader announced the same page name wherever
+  // you navigated and every history entry looked identical.
+  //
+  // Each route asserts its OWN expected title rather than "it changed from the
+  // last one". The relative version passed in isolation and failed in sequence:
+  // it polled for "different from previous" and then read the title again, so a
+  // route still mid-settle was recorded as that route's title and the next
+  // comparison ran against a value that was never real.
+  test('each route has its own page title', async () => {
+    const expected: ReadonlyArray<readonly [string, RegExp]> = [
+      ['/workspace', /^Workspace ·/],
+      ['/messages', /^Messages ·/],
+      ['/directory', /^Directory ·/],
+    ];
+
+    const seen: string[] = [];
+    for (const [path, pattern] of expected) {
+      await page.evaluate((p) => {
+        window.history.pushState({}, '', p);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }, path);
+
+      await expect
+        .poll(() => page.title(), { timeout: 15_000, message: `${path} should set its own title` })
+        .toMatch(pattern);
+      seen.push(await page.title());
+    }
+
+    expect(new Set(seen).size, `routes must not share a title, got ${JSON.stringify(seen)}`).toBe(
+      seen.length,
+    );
+  });
+
   test('file manager', async () => {
     await page.evaluate(() => {
       window.history.pushState({}, '', '/workspace?section=files');

@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import WorkspaceApp from "./components/WorkspaceApp";
+import { DocumentTitle } from './components/DocumentTitle';
 import { WorkspaceLoader } from "./components/ui/workspace-loader";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
@@ -94,6 +95,7 @@ const App = () => {
             <BrowserRouter
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
+              <DocumentTitle />
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   {/* Public routes that don't require workspace data */}
