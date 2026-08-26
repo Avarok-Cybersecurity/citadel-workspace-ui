@@ -109,8 +109,22 @@ export function VFSContentGrid({
           onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
         >
           <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
-          <p>This folder is empty</p>
-          <p className="text-xs text-muted-foreground mt-1">Drag files here or right-click to create a folder</p>
+          {/* "Empty" and "nothing matched your filter" are different facts, and
+              stating the first when the second is true tells the user their
+              files are gone. */}
+          {filterText ? (
+            <>
+              <p>Nothing here matches &ldquo;{filterText}&rdquo;</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Clear the filter to see everything in this folder.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>This folder is empty</p>
+              <p className="text-xs text-muted-foreground mt-1">Drag files here or right-click to create a folder</p>
+            </>
+          )}
         </div>
       </VFSContextMenu>
     );

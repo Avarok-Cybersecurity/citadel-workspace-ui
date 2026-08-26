@@ -56,7 +56,14 @@ export function subscribeToConversationEvents({
   });
 
   const unsubscribeStatusChange = messenger.onMessageStatusChange((messageId, status) => {
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, status } : m));
+    setMessages(prev => {
+      // `prev.map` always allocates, so this changed the array identity for a
+      // status transition in ANY conversation — and the chat's scroll effect
+      // keys on `messages`, so every sent/delivered/read anywhere in the
+      // messenger threw a reader who had scrolled up back to the bottom.
+      if (!prev.some(m => m.id === messageId)) return prev;
+      return prev.map(m => (m.id === messageId ? { ...m, status } : m));
+    });
   });
 
   const unsubscribeMessageUpdate = eventEmitter.on('p2p:message-updated', (updatedMessage: P2PMessage) => {

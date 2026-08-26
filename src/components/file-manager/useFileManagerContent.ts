@@ -100,6 +100,23 @@ export function useFileManagerContent() {
     clearSelection();
   }, [currentPath, filterText, storageMode, selectedPeerCid, clearSelection]);
 
+  // And clear the FILTER itself on those same context changes — everything the
+  // comment above says about a stale selection is true of a stale filter, minus
+  // the "N selected" readout that made the selection visible.
+  //
+  // The filter matches only the current directory's immediate children, so it
+  // travelled with the user into folders where it matched nothing — and the
+  // grid then rendered "This folder is empty. Drag files here or right-click to
+  // create a folder" about a folder with files in it. The box is 32px wide in
+  // the top-right corner, so there is nothing on screen to explain it.
+  //
+  // `currentPath` is deliberately absent from the selection effect's siblings
+  // here: the filter belongs to the view, and every one of these changes the
+  // view.
+  useEffect(() => {
+    setFilterText('');
+  }, [currentPath, storageMode, selectedPeerCid]);
+
   const handleSortChange = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc') => {
     setSortField(field);
     setSortDirection(direction);
