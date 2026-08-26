@@ -53,6 +53,11 @@ const Messages = () => {
           }`}
         >
           <div className="px-4 py-3 border-b border-border">
+            {/* The page had no h1 at all: it opened at this h2, so a screen
+                reader listing headings found no page title to start from.
+                sr-only because the visible design has no room for one and does
+                not need it — the pane labels carry the visual hierarchy. */}
+            <h1 className="sr-only">Messages</h1>
             <h2 className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
               Conversations
             </h2>

@@ -40,7 +40,11 @@ export const OfficeLayout = ({
       <div className="h-full flex flex-col">
         <div className="flex justify-between items-center px-4 py-2 border-b border-border bg-card">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-foreground hidden md:block">
+            {/* sr-only rather than `hidden` below md: `display:none` takes it out of
+                the accessibility tree, so on a phone the page had no h1 at all and
+                the document's own heading became the top level instead. Which
+                element was the page heading depended on the viewport. */}
+            <h1 className="text-xl font-semibold text-foreground sr-only md:not-sr-only md:block">
               <button
                 onClick={handleNavigateUp}
                 className="hover:text-primary-accent transition-colors"

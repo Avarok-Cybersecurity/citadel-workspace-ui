@@ -152,10 +152,27 @@ async function measureClippedContent(
     const out: Array<{ tag: string; cls: string; by: number; clipper: string }> = [];
     const label = (el: Element) => `${el.tagName}.${String(el.className || '').slice(0, 50)}`;
 
+    /**
+     * Screen-reader-only content is clipped ON PURPOSE — `clip: rect(0,0,0,0)`
+     * with a 1x1 box is how a heading stays in the accessibility tree while
+     * taking no visual space. Everything inside one is therefore "cut off" by
+     * definition, and reporting it hides real clipping in the noise. Matched on
+     * the clip signature, so an element clipped by ordinary overflow still
+     * counts.
+     */
+    const inSrOnly = (el: Element): boolean => {
+      for (let n: Element | null = el; n; n = n.parentElement) {
+        const cs = getComputedStyle(n);
+        if (cs.clip === 'rect(0px, 0px, 0px, 0px)' || cs.clipPath === 'inset(50%)') return true;
+      }
+      return false;
+    };
+
     for (const el of Array.from(document.querySelectorAll('*'))) {
       const style = getComputedStyle(el);
       if (style.display === 'none' || style.visibility === 'hidden') continue;
       if (style.position === 'fixed') continue;
+      if (inSrOnly(el)) continue;
 
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;

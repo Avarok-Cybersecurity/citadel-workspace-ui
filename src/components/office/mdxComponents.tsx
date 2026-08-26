@@ -8,11 +8,31 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/compon
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 export const components: MDXComponents = {
+  // Document headings render ONE LEVEL DOWN from their markdown level, because
+  // the page already has an h1 — the office or room name in OfficeLayout. A `#`
+  // that rendered as <h1> gave /workspace two of them, and a screen reader two
+  // competing page titles. The whole chain shifts, so `#` then `##` still nests
+  // rather than collapsing into two siblings. Sizes are unchanged: this is a
+  // semantic correction, not a visual one.
   h1: ({ children }: { children?: React.ReactNode }) => (
-    <h1 className="text-4xl font-bold mb-4 text-foreground">{children}</h1>
+    <h2 className="text-4xl font-bold mb-4 text-foreground">{children}</h2>
   ),
   h2: ({ children }: { children?: React.ReactNode }) => (
-    <h2 className="text-2xl font-semibold mb-3 text-foreground">{children}</h2>
+    <h3 className="text-2xl font-semibold mb-3 text-foreground">{children}</h3>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h4 className="text-xl font-semibold mb-2 text-foreground">{children}</h4>
+  ),
+  h4: ({ children }: { children?: React.ReactNode }) => (
+    <h5 className="text-lg font-semibold mb-2 text-foreground">{children}</h5>
+  ),
+  h5: ({ children }: { children?: React.ReactNode }) => (
+    <h6 className="text-base font-semibold mb-2 text-foreground">{children}</h6>
+  ),
+  // h6 has nowhere lower to go; it stays h6 rather than becoming a <p> and
+  // vanishing from the heading outline entirely.
+  h6: ({ children }: { children?: React.ReactNode }) => (
+    <h6 className="text-sm font-semibold mb-2 text-foreground">{children}</h6>
   ),
   p: ({ children }: { children?: React.ReactNode }) => (
     <p className="mb-4 text-foreground/80">{children}</p>

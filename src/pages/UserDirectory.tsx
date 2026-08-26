@@ -115,7 +115,7 @@ export const UserDirectory = () => {
         <div className="lg:col-span-2 space-y-4">
           <Card className="bg-card border-border text-foreground shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle>Find People</CardTitle>
+              <CardTitle as="h2">Find People</CardTitle>
               <CardDescription className="text-muted-foreground">Search for users by name or email</CardDescription>
             </CardHeader>
             <CardContent>
@@ -131,7 +131,7 @@ export const UserDirectory = () => {
           <Card className="bg-card border-border text-foreground shadow-sm">
             <CardHeader className="pb-3">
               <div>
-                <CardTitle>Workspace Directory</CardTitle>
+                <CardTitle as="h2">Workspace Directory</CardTitle>
                 <CardDescription className="text-muted-foreground">
                   {filteredMembers.length} {tab === 'online' ? 'online ' : ''}members
                 </CardDescription>

@@ -31,12 +31,20 @@ CardHeader.displayName = "CardHeader"
 
 const CardTitle = React.forwardRef<
   HTMLParagraphElement,
-  React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-  // Generic wrapper: the heading text is supplied as children by every call
-  // site, so the rule cannot see it from here.
-  // eslint-disable-next-line jsx-a11y/heading-has-content
-  <h3
+  React.HTMLAttributes<HTMLHeadingElement> & {
+    /**
+     * Heading level. h3 by default, which is right for a card nested inside a
+     * section — and wrong for one that IS a top-level section under the page
+     * h1, which is how /directory jumped h1 -> h3 and skipped a level.
+     */
+    as?: 'h2' | 'h3' | 'h4';
+  }
+>(({ className, as: Heading = 'h3', ...props }, ref) => (
+  // The disable that used to sit here is gone with the literal <h3>:
+  // jsx-a11y/heading-has-content does not analyse a dynamic element, so it no
+  // longer fires. It never protected anything here either — the text is
+  // supplied as children by every call site, which the rule cannot see.
+  <Heading
     ref={ref}
     className={cn(
       "text-2xl font-semibold leading-none tracking-tight",

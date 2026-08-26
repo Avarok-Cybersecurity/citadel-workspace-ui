@@ -546,6 +546,63 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
       .toBe(true);
   });
 
+  // Headings are how a screen reader user navigates WITHIN a page, and all
+  // three main routes were broken in a different way: /workspace had two h1s
+  // (the office name and the document's own title), /messages had none at all
+  // and opened at h2, /directory jumped h1 -> h3. axe's heading-order rule is
+  // moderate impact and page-has-heading-one is best-practice only, so neither
+  // reaches the serious/critical threshold this suite fails on.
+  test('every route has exactly one h1 and skips no heading levels', async () => {
+    for (const path of ['/workspace', '/messages', '/directory']) {
+      await page.evaluate((p) => {
+        window.history.pushState({}, '', p);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }, path);
+      await expect(page.getByTestId('sidebar-toggle')).toBeVisible({ timeout: 30_000 });
+
+      const outline = await expect
+        .poll(
+          () =>
+            page.evaluate(() =>
+              Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+                // Hidden headings are not in the outline a reader traverses,
+                // but sr-only ones ARE — hence offsetParent, which sr-only
+                // elements still have.
+                .filter((h) => (h as HTMLElement).offsetParent !== null)
+                .map((h) => ({ level: Number(h.tagName[1]), text: (h.textContent || '').trim().slice(0, 40) })),
+            ),
+          { timeout: 20_000, message: `${path} should render headings` },
+        )
+        .not.toEqual([]);
+      void outline;
+
+      const headings: Array<{ level: number; text: string }> = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+          .filter((h) => (h as HTMLElement).offsetParent !== null)
+          .map((h) => ({ level: Number(h.tagName[1]), text: (h.textContent || '').trim().slice(0, 40) })),
+      );
+
+      const h1s = headings.filter((h) => h.level === 1);
+      expect(
+        h1s.length,
+        `${path} should have exactly one h1, got ${JSON.stringify(h1s.map((h) => h.text))}`,
+      ).toBe(1);
+
+      // A level may go deeper by one at a time; jumping h1 -> h3 leaves a reader
+      // guessing whether a section was missed.
+      const skips: string[] = [];
+      for (let i = 1; i < headings.length; i += 1) {
+        const jump = headings[i].level - headings[i - 1].level;
+        if (jump > 1) {
+          skips.push(
+            `h${headings[i - 1].level} "${headings[i - 1].text}" -> h${headings[i].level} "${headings[i].text}"`,
+          );
+        }
+      }
+      expect(skips, `${path} skips heading levels:\n  ${skips.join('\n  ')}`).toEqual([]);
+    }
+  });
+
   test('file manager', async () => {
     await page.evaluate(() => {
       window.history.pushState({}, '', '/workspace?section=files');
