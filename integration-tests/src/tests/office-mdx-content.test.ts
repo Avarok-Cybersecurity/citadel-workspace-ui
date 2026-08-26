@@ -25,6 +25,7 @@ import {
   isVisibleWithin,
   TestHarness,
   runTestMain,
+  restartBackendServices,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -128,9 +129,16 @@ async function findEditButton(page: Page): Promise<boolean> {
   // listening for (OfficeLayout passes `onClick={canEdit ? onEditToggle : undefined}`),
   // so the old "click through the disabled wrapper" path silently did nothing and
   // the spec then blamed the editor for not loading. Report the gate instead.
+  // Was a tolerated condition: it logged the gate and returned "found", so a
+  // permanently ungrantable Edit button read as a pass. This spec now recreates
+  // the backend before registering, so its account is the workspace's first
+  // member and therefore its administrator — a closed gate here is a real
+  // failure, not an environment it has to put up with.
   if (await editButtonGate(page).isVisible()) {
-    console.log('  Edit button is still permission-gated — not clicking, edit mode is unreachable');
-    return visible;
+    throw new Error(
+      'Edit is permission-gated for the account that created the workspace. ' +
+      'The first member should be promoted to Admin, and EditMdx belongs to Admin.'
+    );
   }
 
   await btn.click();
@@ -254,7 +262,10 @@ async function testSaveAndPersist(page: Page): Promise<{
   const btn = editButton(page);
   if (await isVisibleWithin(btn, 10000)) {
     if (await editButtonGate(page).isVisible()) {
-      console.log('  Edit button still permission-gated after navigation; skipping editor read-back');
+      // Skipping the read-back is skipping the subject. The account that created
+      // this workspace is its administrator, so the gate being closed here is
+      // the defect, not a condition to work around.
+      throw new Error('Edit is still permission-gated after navigation, for the workspace administrator');
     } else {
       await btn.click();
       await sleep(1000);
@@ -305,6 +316,15 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 1: Create Account');
     console.log('─'.repeat(50));
 
+    // Recreate the backend first. Only the workspace's FIRST member is promoted
+    // to Admin, and EditMdx belongs to Admin and Owner by design — so whether
+    // this spec can reach the editor at all depended on whether anything had
+    // registered before it. That is why the editor checks below used to be
+    // written as tolerated conditions. Starting from an empty workspace makes
+    // this account the administrator every time, in CI and locally alike, which
+    // is what lets those checks be assertions.
+    await restartBackendServices();
+
     results.accountCreated = await createAccount(page, USERNAME, {
       isFirstUser: true,
       password: PASSWORD,
@@ -344,8 +364,14 @@ async function runTest(): Promise<boolean> {
         }
       }
       if (!results.editControlReady) {
-        console.log('  WARNING: Edit button still permission-gated after 15s');
+        // A logged warning is not a result. This ran for 15 seconds, recorded
+        // that the product's central capability never became available, and let
+        // the spec continue to a pass.
         uxTracker.log('major', 'functional', `EditMdx permission never arrived for the "${HOME_OFFICE}" office`);
+        throw new Error(
+          `Edit never became available for the "${HOME_OFFICE}" office within 15s, ` +
+          'for the account that created the workspace and should be its Admin'
+        );
       }
     } else {
       console.log(`  WARNING: ${HOME_OFFICE} office not found in sidebar`);
