@@ -1422,6 +1422,125 @@ can catch this**, because locally the real manifest is correct. Guarded by
   a server that binds but cannot reach its backend reports healthy and passes the
   deploy gate.
 
+## Round sixteen — multi-tab identity, loading state, light mode, 2026-08-26
+
+### 154. Duplicating a tab produced two permanent leaders — FIXED
+
+The instance id lives in `sessionStorage`, and its comment claimed it "survives
+page reloads but not new tabs". Chrome and Safari **copy sessionStorage** into
+the new context on Duplicate Tab. The twin booted with a byte-identical id, and
+the channel's self-traffic filter — `senderInstanceId === instanceManager.instanceId`
+— then made the two completely invisible to each other. Neither saw the other's
+heartbeat or election claim, so both took the "no heartbeat ever received" branch
+and both became leader, permanently: two WebSockets from one browser, each
+claiming every session away from the other, every directed message handled twice.
+
+No storage survives a reload but not a duplication, so this could not be fixed by
+changing store. Messages now carry a per-DOCUMENT nonce generated at module load
+and never persisted; a document that sees its own id from another document
+re-rolls, and exactly one of the pair yields because both compute the same
+comparison from the same two values.
+
+### 155. Every workspace open said "your workspace is empty" while loading — FIXED
+
+`emitLoadingEvent` had **one** call site in the codebase. `state.loading.nodes`
+and `.members` were therefore permanently false, and TreeNodesSection's
+`if (!isLoading && !treeData)` fired on every open. The `"Loading..."` arm inside
+that branch is unreachable by construction — which is precisely why it read as
+correct to every reviewer. The office skeleton component was likewise never
+reachable.
+
+The listeners that LOWER the flags were already present and correct. Only the
+raise was missing. Fixing it required adding the deadline at the same time, or
+the fix would have introduced the opposite failure: `listX()` resolves when the
+request is SENT, so a lost response would have spun forever.
+
+### 156. Light mode painted white on white — FIXED
+
+`getBubbleStyles` returned `bg-surface text-white` for a failed message, and
+`--surface` in light mode is 96% lightness: about **1.08:1**. A light-mode user
+whose message failed could not read what they had tried to say. Thirteen further
+literal whites in `components/p2p` made hover feedback vanish, the file-transfer
+progress *groove* invisible, and markdown rules disappear.
+
+The palette lint guard anchors on `-[0-9]`, and white and black carry no numeric
+suffix, so it walked past all fourteen. The new rule covers
+`text-white`/`text-black`/`bg-white` only — `bg-black/N` scrims and the colour
+picker's `border-white` are correct code, and banning the broad class would have
+produced 28 findings of which 22 were fine, which is how a guard gets switched
+off.
+
+### 157. Also fixed this round
+
+- **A sent message's status never survived a reload.** Both send paths mutated
+  `status` in memory only, so every message read back as `pending` — and retry is
+  gated on `failed`, so a message that genuinely failed could never be retried.
+  `resendMessage` did persist, but only after a `catch` that rethrows, so it too
+  recorded 'sent' and never 'failed': the one status worth keeping was the one
+  guaranteed to be lost.
+- **An arrived message was discarded when its write failed.** The rejection
+  unwound past the ACK, the render and the notification. It now renders, and
+  deliberately does NOT ack — claiming delivery for a message that will be gone
+  on reload is a lie that outlives the message.
+- **Deserialization and handling shared one catch**, so a storage timeout was
+  logged as "Failed to deserialize P2P command". A wrong diagnosis is worse than
+  no log: it sends the reader to the wire format when the wire format was fine.
+
+### 158. Recorded, not fixed — multi-tab and session lifecycle
+
+- **A promoted tab whose WebSocket creation fails becomes a permanently dead
+  leader for the whole browser.** The promotion handler is `async` and its
+  rejection cannot be observed by the emitter's `try`, nothing retries, and the
+  tab keeps winning every subsequent election — so every request from every tab
+  is answered "WebSocket not ready", forever. There is no self-demotion path.
+- **The outbound queue is never started and never drained on failure.**
+  `OutboundQueue.start()` has no caller, so the retry/timeout machinery is dead;
+  meanwhile `sendToLeader` resolves an error on timeout **without removing the
+  entry**, and every later leader change replays it. A request the user was told
+  had failed is silently re-executed on a later connection — repeatedly.
+- **Closing a tab can release another tab's live session.** The decision reads
+  `knownInstances`, which is only populated when another tab pushes its CID, and
+  `handleInstanceAnnounce` does not make existing tabs answer — so a
+  second-opened tab never learns the first's CID and releases on close. The
+  leader performs the release with no ownership check.
+- **A fresh tab adopts another tab's CID** from a broadcast `ConnectSuccess`,
+  because the ownership test admits any tab that has not yet picked a session.
+- **P2P auto-connect polling stops on a socket drop and is never restarted** —
+  both restart paths are unreachable after the first page load, so the socket
+  comes back and the P2P layer does not.
+- **A tab that booted as leader never registers the demotion handler**, because
+  that listener is registered only in the follower branch — so the first tab in
+  a browser keeps its socket open after demotion. The comment above it describes
+  fixing exactly this failure for the other case.
+
+### 159. Recorded, not fixed — PWA polish
+
+- **The offline banner is z-40 and every surface shown while offline is above
+  it** (the opaque z-50 workspace loader, the z-100 LoadingModal, four z-50 auth
+  modals). It also overlaps content: it starts at the exact y where the fixed
+  TopBar ends, with no compensating padding. `useOnlineStatus` has two consumers
+  and no action, button or form consults it.
+- **Cached conversation history exists on the device and the app refuses to show
+  it offline**, because `/messages` sits behind a loader gated on
+  `!state.workspace`, which is only ever populated over the network.
+- **The four signup-wizard overlays are not dialogs** — no `role`, no
+  `aria-modal`, no focus trap, no focus restoration — and Escape works on two of
+  the four. One of them is also nested inside a real Radix dialog, so its scrim
+  double-paints and Escape both closes the panel and navigates the user out.
+- **`LoadingModal` blocks clicks invisibly for 300ms** — no `pointer-events-none`
+  on the `opacity-0` state, and under reduced motion the fade is instant while
+  the transparent z-100 sheet still covers the viewport.
+- **The only framer-motion animation ignores reduced motion.** It animates height
+  via inline styles, so the reduced-motion stylesheet has nothing to act on, and
+  the CI gate only probes two CSS classes on the landing page.
+- **Three different scrim opacities**, recovery-screen buttons bypassing the
+  `Button` component (no focus ring on the screens that most need to look
+  competent), and a second error-toast system overlapping Sonner in the same
+  corner.
+- **The social preview image is 220x154** — below both Twitter's and Open
+  Graph's minimums — and both image URLs are relative where Twitter requires
+  absolute.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
