@@ -108,13 +108,16 @@ export function CreateGroupDialog({
     }
   }, [displayName, selectedMembers, onCreateGroup, onOpenChange]);
 
+  // No `if (!isCreating)` guard here. onOpenChange is Radix's SINGLE dismissal
+  // channel, so one busy guard on it disables the X, Escape and outside-click
+  // at once — at the same moment the submit button is disabled too. Every exit
+  // closes together and the only way out is a reload. Dismissal should always
+  // work; only the submit button gets disabled. See shared/confirm-dialog.
   const handleClose = useCallback(() => {
-    if (!isCreating) {
-      setGroupName('');
-      setSelectedMembers([]);
-      onOpenChange(false);
-    }
-  }, [isCreating, onOpenChange]);
+    setGroupName('');
+    setSelectedMembers([]);
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -225,10 +228,11 @@ export function CreateGroupDialog({
         )}
 
         <DialogFooter className="gap-2">
+          {/* Backing out of an in-flight create is always legitimate; greying
+              this alongside the guarded onOpenChange sealed the dialog. */}
           <Button
             variant="outline"
             onClick={handleClose}
-            disabled={isCreating}
             className="bg-transparent border-border text-foreground hover:bg-surface"
           >
             Cancel

@@ -91,10 +91,12 @@ export function EntityManagementModal<TMode extends string>({
 
   const modeConfig = modes[mode];
 
+  // Unguarded on purpose: onOpenChange is Radix's only dismissal channel, so
+  // gating it on isSubmitting takes away the X, Escape and outside-click
+  // together — while Cancel is disabled as well. This is a shared component,
+  // so that dead end reproduced at every call site.
   const handleClose = () => {
-    if (!isSubmitting) {
-      onClose();
-    }
+    onClose();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,11 +158,13 @@ export function EntityManagementModal<TMode extends string>({
             {customContent}
           </div>
           <DialogFooter>
+            {/* Not disabled while submitting: backing out of an in-flight
+                request is always a legitimate thing to want, and greying this
+                is what made the sealed dialog total. */}
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isSubmitting}
               className="bg-transparent border-border text-foreground hover:bg-card"
             >
               Cancel

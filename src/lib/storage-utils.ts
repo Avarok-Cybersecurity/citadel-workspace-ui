@@ -56,9 +56,25 @@ let dbPromise: Promise<IDBPDatabase<CitadelDBSchema>> | null = null;
  * Get or create the IndexedDB database instance.
  * Uses a singleton pattern for efficiency.
  */
+/**
+ * How long to wait after being told we are blocked before giving up.
+ *
+ * Generous: a cooperating tab closes its handle in `blocking` within a tick,
+ * so reaching this means the holder is a build that predates that handler, or
+ * a frozen tab. Either way it will not resolve on its own.
+ */
+const BLOCKED_GIVE_UP_MS = 10_000;
+
 export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
   if (!dbPromise) {
-    dbPromise = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
+    let rejectBlocked: ((reason: Error) => void) | null = null;
+    // Rejects only if `blocked` actually fired, so a slow-but-progressing
+    // upgrade is never killed by a timer.
+    const blockedGuard = new Promise<never>((_, reject) => {
+      rejectBlocked = reject;
+    });
+
+    const opening = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion, newVersion, tx) {
         runMigrations(db, oldVersion, newVersion, tx);
 
@@ -80,11 +96,19 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
        * it is the normal case during an update, not an edge case.
        */
       blocked(currentVersion, blockedVersion) {
-        warnLog(
-          'Storage',
+        const detail =
           `Database upgrade to v${blockedVersion} is blocked by another tab still on v${currentVersion}. ` +
-            'Close other Citadel tabs to finish updating.'
-        );
+          'Close other Citadel tabs to finish updating.';
+        warnLog('Storage', detail);
+        // Warning alone does NOT settle the open, which is what the comment
+        // above always claimed it did. An unsettled open means every awaiting
+        // caller hangs — including the sign-out flow, which puts a
+        // full-viewport blocking modal up BEFORE its first read, leaving the
+        // whole app unusable until a reload. Give up after a grace period so
+        // callers get an error they can show instead of a pending promise.
+        setTimeout(() => {
+          rejectBlocked?.(new Error(detail));
+        }, BLOCKED_GIVE_UP_MS);
       },
 
       /**
@@ -124,6 +148,12 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
           error
         );
       }
+      throw error;
+    });
+
+    // The guard only ever rejects; if the open wins, it wins normally.
+    dbPromise = Promise.race([opening, blockedGuard]).catch((error: unknown) => {
+      dbPromise = null;
       throw error;
     });
   }

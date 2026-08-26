@@ -48,8 +48,26 @@ export function useSessionExit() {
     // local saved-session + tab-context must be cleared and we must navigate
     // to the landing page. Otherwise WorkspaceLoader's auto-claim re-attaches
     // the orphan and the user ends up right back where they started.
-    const currentSession = await connectionManager.getTabSelectedSession();
-    const tabSelection = await getSelectedUser();
+    // Guarded, because the blocking modal is ALREADY on screen at this point.
+    // Both of these reach IndexedDB, and getDB()'s `blocked` handler warns
+    // without settling — so an older tab holding the previous schema version
+    // leaves this await pending forever. Unguarded, the status then reaches
+    // neither "ready" nor "error", and the z-[100] full-viewport overlay has
+    // nothing clickable and no Escape: the only way out of the app is a
+    // reload. Same shape as useOrphanSessions, which already settles to
+    // "error" and self-closes.
+    let currentSession: Awaited<ReturnType<typeof connectionManager.getTabSelectedSession>> = null;
+    let tabSelection: Awaited<ReturnType<typeof getSelectedUser>> = null;
+    try {
+      currentSession = await connectionManager.getTabSelectedSession();
+      tabSelection = await getSelectedUser();
+    } catch (error) {
+      debugLog('TopBar', 'Could not read the stored session for sign-out:', error);
+      setDisconnectError(error instanceof Error ? error.message : 'Could not read the stored session.');
+      setDisconnectStatus("error");
+      setTimeout(() => setShowDisconnectModal(false), 3000);
+      return;
+    }
     const cid = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
 
     // Stop WASM connection manager polling regardless of below outcome
