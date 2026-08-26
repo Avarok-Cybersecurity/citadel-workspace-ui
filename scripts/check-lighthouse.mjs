@@ -119,9 +119,40 @@ async function main() {
   try {
     await waitForServer(URL);
 
-    chrome = await chromeLauncher.launch({
-      chromeFlags: ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
-    });
+    // Retried, because a launch failure is not a performance result.
+    //
+    // chrome-launcher occasionally cannot reach the browser it just spawned on
+    // a CI runner — "connect ECONNREFUSED 127.0.0.1:<devtools port>" — and this
+    // gate then reports red for the one reason that says nothing about the
+    // bundle. A perf gate that fails on infrastructure trains people to ignore
+    // it, which costs more than the check is worth.
+    //
+    // Retried, NOT skipped: if Chrome genuinely cannot start, that is reported
+    // as a launch failure and the build still fails. Turning it into a pass
+    // would make the gate unable to see the thing it exists for.
+    const LAUNCH_ATTEMPTS = 3;
+    let launchError;
+    for (let attempt = 1; attempt <= LAUNCH_ATTEMPTS; attempt++) {
+      try {
+        chrome = await chromeLauncher.launch({
+          chromeFlags: ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
+        });
+        launchError = undefined;
+        break;
+      } catch (error) {
+        launchError = error;
+        console.log(
+          `  Chrome did not come up (attempt ${attempt}/${LAUNCH_ATTEMPTS}): ${error?.message ?? error}`,
+        );
+        if (attempt < LAUNCH_ATTEMPTS) await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+    }
+    if (launchError) {
+      fail(
+        `Could not launch Chrome after ${LAUNCH_ATTEMPTS} attempts: ${launchError?.message ?? launchError}\n` +
+          '  This is a browser launch failure, not a performance shortfall — the bundle was never measured.',
+      );
+    }
 
     const result = await lighthouse(
       URL,
