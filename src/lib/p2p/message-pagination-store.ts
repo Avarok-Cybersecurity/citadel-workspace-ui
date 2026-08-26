@@ -25,8 +25,10 @@ import {
 import {
   loadMetadataByKey,
   loadMetadata,
+  tryLoadMetadata,
   saveMetadata,
   loadMessagePage,
+  tryLoadMessagePage,
   saveMessagePage,
   deleteConversationPages,
 } from './message-page-operations';
@@ -181,17 +183,18 @@ export class MessagePaginationStore {
       metadata.unreadCount++;
     }
 
-    await Promise.all([
-      saveMessagePage(peerCid, metadata.latestPage, currentPage),
-      saveMetadata(peerCid, metadata)
-    ]);
+    // Page first, pointer last. Two round-trips, no transaction, and
+    // `latestPage` is the only pointer: concurrently, a tab closed mid-flight
+    // could land metadata aimed at a page that was never written.
+    await saveMessagePage(peerCid, metadata.latestPage, currentPage);
+    await saveMetadata(peerCid, metadata);
   }
 
   public async loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]> {
-    const metadata = await loadMetadata(peerCid);
+    const metadata = await tryLoadMetadata(peerCid);
     if (!metadata) return [];
 
-    const latestPage = await loadMessagePage(peerCid, metadata.latestPage);
+    const latestPage = await tryLoadMessagePage(peerCid, metadata.latestPage);
     return latestPage?.messages || [];
   }
 
@@ -199,11 +202,11 @@ export class MessagePaginationStore {
     return withPeerLock(peerCid, () => this.updateMessageInPagesUnserialised(peerCid, messageId, updates));
   }
   private async updateMessageInPagesUnserialised(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
-    const metadata = await loadMetadata(peerCid);
+    const metadata = await tryLoadMetadata(peerCid);
     if (!metadata) return false;
 
     for (let pageNum = metadata.latestPage; pageNum >= 0; pageNum--) {
-      const page = await loadMessagePage(peerCid, pageNum);
+      const page = await tryLoadMessagePage(peerCid, pageNum);
       if (!page) continue;
 
       const msgIndex = page.messages.findIndex(m => m.id === messageId);
@@ -221,7 +224,7 @@ export class MessagePaginationStore {
     return withPeerLock(peerCid, () => this.updatePeerUsernameInMetadataUnserialised(peerCid, username));
   }
   private async updatePeerUsernameInMetadataUnserialised(peerCid: bigint, username: string): Promise<void> {
-    const metadata = await loadMetadata(peerCid);
+    const metadata = await tryLoadMetadata(peerCid);
     if (metadata) {
       metadata.peerUsername = username;
       metadata.lastUpdated = Date.now();
@@ -233,7 +236,7 @@ export class MessagePaginationStore {
     return withPeerLock(peerCid, () => this.updateUnreadCountUnserialised(peerCid, unreadCount));
   }
   private async updateUnreadCountUnserialised(peerCid: bigint, unreadCount: number): Promise<void> {
-    const metadata = await loadMetadata(peerCid);
+    const metadata = await tryLoadMetadata(peerCid);
     if (metadata) {
       metadata.unreadCount = unreadCount;
       metadata.lastUpdated = Date.now();
