@@ -38,6 +38,23 @@ if (import.meta.env.DEV) {
 import { instanceInboundRouter } from './lib/multi-instance';
 void instanceInboundRouter.isRouterActive();
 
+// Construct the P2P messenger during boot so its 'websocket-message'
+// subscription — the gate the inbound router acks forwarded messages on —
+// attaches without waiting for someone to open chat.
+//
+// It is a LAZY singleton behind a Proxy, so a tab that never touches chat UI
+// never constructed it, never marked itself ready, and every forward to that
+// tab therefore waited out the full retention timeout before the leader fell
+// back. Correct, but two seconds slower than it needs to be, on every message.
+//
+// Imported dynamically, exactly like the dev services above: a static import
+// would put the whole P2P graph on the entry chunk and onto the landing
+// critical path, which has ~11KB of headroom against its budget. This keeps
+// the eager construction without paying for it before first paint.
+void import('./lib/p2p').then((m) => {
+  void m.p2pMessengerManager.waitForReady();
+});
+
 // Global error handlers
 window.addEventListener('error', (e) => {
   console.error('[MAIN ERROR]', {
