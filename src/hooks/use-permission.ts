@@ -6,6 +6,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import type React from 'react';
+import { eventEmitter } from '@/lib/event-emitter';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 
@@ -36,6 +38,25 @@ interface UsePermissionResult {
  * return <Button onClick={handleEdit}>Edit</Button>;
  * ```
  */
+/**
+ * Clears a hook's "already tried this domain" guard when the user's role changes.
+ *
+ * The guard exists to stop an infinite refetch loop, and it was never cleared.
+ * PermissionsService.clearCache() empties the cache on `member:role-updated`,
+ * so after a promotion every mounted hook saw an empty cache AND a guard saying
+ * it had already asked — and refused to refetch. hasPermission then read the
+ * empty cache and returned false, so every permission-gated control in the open
+ * UI went disabled and stayed that way until a full page reload. The same trap
+ * caught any transient fetch failure: one timeout denied that domain forever.
+ */
+function useResetOnRoleChange(attempted: React.MutableRefObject<Set<string>>): void {
+  useEffect(() => {
+    const onRoleChanged = () => attempted.current.clear();
+    eventEmitter.on('permissions:role-changed', onRoleChanged);
+    return () => { eventEmitter.off('permissions:role-changed', onRoleChanged); };
+  }, [attempted]);
+}
+
 export function usePermission(
   domainId: string | undefined | null,
   permission: Permission
@@ -51,6 +72,7 @@ export function usePermission(
   const [localLoading, setLocalLoading] = useState(false);
   // Track domains we've attempted to fetch to avoid infinite retry loops
   const attemptedFetchRef = useRef<Set<string>>(new Set());
+  useResetOnRoleChange(attemptedFetchRef);
 
   // Check if we need to fetch permissions for this domain
   useEffect(() => {
@@ -117,6 +139,7 @@ export function useAnyPermission(
   const [localLoading, setLocalLoading] = useState(false);
   // Track domains we've attempted to fetch to avoid infinite retry loops
   const attemptedFetchRef = useRef<Set<string>>(new Set());
+  useResetOnRoleChange(attemptedFetchRef);
 
   useEffect(() => {
     if (!domainId) return;
@@ -181,6 +204,7 @@ export function useAllPermissions(
   const [localLoading, setLocalLoading] = useState(false);
   // Track domains we've attempted to fetch to avoid infinite retry loops
   const attemptedFetchRef = useRef<Set<string>>(new Set());
+  useResetOnRoleChange(attemptedFetchRef);
 
   useEffect(() => {
     if (!domainId) return;
