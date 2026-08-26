@@ -2,7 +2,7 @@ import { User, AtSign, Lock, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
-import { CREDENTIAL_LIMITS } from "@/lib/credential-rules";
+import { CREDENTIAL_LIMITS, validatePassword } from "@/lib/credential-rules";
 
 interface FormFieldProps {
   id: string;
@@ -103,6 +103,16 @@ function PasswordStrength({ password }: { password: string }) {
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
 
+    // A password the validator rejects is never "Strong". Length rewards used
+    // to push a 24-character manager password to four green bars and STRONG,
+    // while the field beside it turned red with "17 characters or fewer" — the
+    // meter and the rule contradicting each other on screen at the same moment.
+    // Routing through validatePassword also settles a second disagreement: the
+    // meter counted UTF-16 units and the rule counts UTF-8 bytes.
+    if (validatePassword(password) !== null) {
+      return { level: 1, label: 'Not accepted', color: 'bg-destructive' };
+    }
+
     if (score <= 1) return { level: 1, label: 'Weak', color: 'bg-destructive' };
     if (score === 2) return { level: 2, label: 'Fair', color: 'bg-warning' };
     if (score === 3) return { level: 3, label: 'Good', color: 'bg-warning' };
@@ -193,6 +203,12 @@ export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: Join
           autoComplete="new-password"
           error={fieldErrors?.password}
           placeholder="••••••••••••"
+          // The maximum is SHORTER than what every password manager generates
+          // by default, so the users with the best credential hygiene are the
+          // ones who get rejected. Stating the range up front is the whole fix;
+          // an inline error after the fact still wastes a generated password.
+          // Derived from CREDENTIAL_LIMITS so it cannot drift from the rule.
+          hint={`${CREDENTIAL_LIMITS.password.min}–${CREDENTIAL_LIMITS.password.max} characters, no spaces`}
         />
         <PasswordStrength password={formData.password} />
       </div>

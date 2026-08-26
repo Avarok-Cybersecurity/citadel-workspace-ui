@@ -12,12 +12,14 @@ import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
 import WorkspaceService from '@/lib/workspace-service';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useRegisteredPeers } from '@/hooks';
 
 export const UserDirectory = () => {
   const { state } = useWorkspace();
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [tab, setTab] = useState('all');
   const [sendingRequest, setSendingRequest] = useState(false);
+  const { registeredPeers } = useRegisteredPeers();
   const [requestMessage, setRequestMessage] = useState('');
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const navigate = useNavigate();
@@ -56,7 +58,28 @@ export const UserDirectory = () => {
 
   const handleSendMessage = (userId: string) => {
     if (isUserConnected(userId)) {
-      navigate(`/messages?user=${userId}`);
+      // Two separate defects lived in the one line this replaces.
+      //
+      // It navigated to `?user=`, and Messages reads `?channel=` — so the
+      // parameter was dropped and the user landed on "No conversation selected"
+      // beside a peer list, i.e. Send Message did nothing at all.
+      //
+      // Renaming the parameter is not enough. A member `id` is a USERNAME (the
+      // server derives it via `get_username_by_cid`), while Messages selects a
+      // peer by CID (`registeredPeers.find(p => p.cid === selectedPeerCid)`).
+      // Passing the username under the right parameter name still matches
+      // nothing — it would look fixed and behave identically.
+      const peer = registeredPeers.find((p) => p.username === userId);
+      if (!peer) {
+        toast({
+          title: 'Cannot open that conversation',
+          description:
+            'This person is a workspace member but not a connected peer yet. Send them a connection request first.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      navigate(`/messages?channel=${peer.cid}`);
     } else {
       toast({
         title: 'Connection Required',
