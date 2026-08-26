@@ -988,6 +988,104 @@ these numbers." A repo-wide grep for `credential_mirror` returns exactly one
 line — that comment. The numbers are correct today; the guard is fiction, so
 the next SDK bump drifts silently.
 
+## Round twelve — build, toolchain and limits, 2026-08-26
+
+### 116. The shipped agent was compiled with `localhost-testing` · critical — FIXED (aff9fdf)
+The single most serious finding of the campaign. `tests/common` is a workspace
+MEMBER pulling citadel_sdk with that feature, and the internal-service image
+built workspace-wide, so cargo unified it in. Per the SDK's own source it
+replaces NAT-traversal config encryption with identity functions and skips STUN
+entirely — P2P worked in the dev stack, where every hop is localhost, and could
+not traverse a real NAT in production. The sibling image had the mitigation and
+a comment naming the mechanism; this one never got it. Guarded by
+`scripts/check-no-test-features-shipped.mjs`.
+
+### 117. Nothing gated image publication · critical — FIXED (706ecfa)
+`publish` had no `needs`; `promote-latest` needed only `publish`. A red master
+commit shipped to the tag production pulls by default. `validate.yml` had
+declared `workflow_call:` all along and nothing invoked it.
+
+### 118. "Max file size to accept" gated sending, not accepting · high — FIXED (6b0811d)
+### 119. verify-session-fixes.sh reported failure against correct code · high — FIXED (76727ab)
+
+### 120. `overflow-checks` on in tests, off in every shipped binary · high
+There is no `[profile.*]` in any of the fourteen manifests, so release builds
+wrap silently while `cargo test` panics. In a codebase of u64 CIDs, ticket
+counters, byte offsets and quotas, that is the divergence most likely to make a
+real integer bug pass CI and wrap in production — the suite cannot reproduce
+the field failure. One line closes it.
+
+### 121. The module that owns the WASM boundary is linted by nothing · high
+`citadel-internal-service/typescript-client` has 109 files, no eslint config,
+no lint script and no CI matrix entry. It is also where the type holes
+concentrate: `next_message(): Promise<any>`, `send_p2p_message(cid, message:
+any)`, and `wasmModule as unknown as WasmModule` with no runtime shape check —
+so a stale or partial WASM build asserts complete and fails as "undefined is
+not a function". Its three `eslint-disable` comments suppress a linter that
+never runs.
+
+### 122. Eight UI guards never run on a UI change · high
+All fourteen `scripts/check-*.mjs` are invoked from ONE parent-repo job, and
+eight of them scan `citadel-workspaces/src`. The submodule's own workflow has
+no equivalent job, and the UI is developed there — so every UI guard runs only
+after the pointer bump. The submodule also still has the production-bundle
+gates in the typecheck job, which the parent's own comment documents as never
+having run because the WASM artefact does not exist there.
+
+### 123. The bundle gates measure a different artifact than ships · high
+`production-build` is the only job on Node 22; every other job and
+`docker/ui/Dockerfile` use Node 20. It also measures a runner-local `npm run
+build` against the committed lockfile, while the image resolves ranges live. So
+bundle budget, PWA installability, source maps, Lighthouse, offline, update
+flow, reduced-motion and mobile layout all certify a build the registry never
+receives.
+
+### 124. Playwright has no `forbidOnly`, and two retries mask ordering bugs · medium
+A committed `test.only()` would silently reduce a shard to one test and pass.
+There is none today and nothing prevents one. With `workers: 1` against shared
+mutable backend state, two retries also make a genuine ordering bug
+indistinguishable from infrastructure flake.
+
+### 125. Declared limits enforced nowhere · high
+Five file-transfer constants have exactly one occurrence each — their own
+definition: max resend attempts, expiry check interval, max chunk size, chunk
+timeout, chunk retries. There is no `setInterval` anywhere in
+`lib/file-transfer/`. The 7-day TTL is computed, stored, transmitted and read
+back, and never compared to `Date.now()`. So a stalled transfer's chunks are
+never reclaimed and any chunk size is accepted.
+
+### 126. The advertised storage quota is fiction · high
+`max_file_transfer_size_mb` and `revfs_storage_quota_mb` are serialised to
+clients and appear at five sites across both Rust crates — struct, Default, two
+logs, and the populate. **Zero comparisons.** The transfer-accept path has them
+in scope and reads only a bool. The config comment claims "users can set lower
+limits per-peer, but not exceed this value"; nothing implements that. The UI's
+slider ceiling is a hardcoded constant, not the server's value, so lowering the
+server setting changes neither enforcement nor the UI.
+
+### 127. The RE-VFS quota's denominator is supplied by the peer it constrains · high
+`storageUsed` sums `fileMetadata.fileSize` over nodes the peer sent in a
+`SyncResponse`, which `flipNodeStates` converts to locally-hosted. A peer
+reporting `fileSize: 0` zeroes the check; inflated sizes block the user's own
+uploads. Never cross-checked against bytes actually stored.
+
+### 128. Unbounded recursion on the permission path · medium-high
+`is_member_of_domain` recurses to the parent with no visited set and no depth
+cap, under `#[async_trait]` so each level heap-allocates. It fronts `list_nodes`
+and `get_tree_structure`. A sibling BFS in `tree_validator` omits the visited
+set its two neighbours in the same file have, and `check_no_cycles` exists but
+is not called from the Move branch. Whether a client can construct the cycle
+decides whether this is DoS-reachable or corruption-only — worth confirming
+before ranking further.
+
+**Recorded as already excellent:** the per-CID token bucket keyed on the
+authenticated CID with its "one user multiplying their budget" reasoning;
+`GetGroupMessages`' server-side `.min(100)`, the only clamped wire count in the
+system; `MAX_BYTE_CONTENTS_SIZE_BYTES` checked before `arrayBuffer()` with the
+V8 boxing cost explained; dev/prod CSP parity that is byte-identical rather
+than asserted; the deploy gate refusing to pass vacuously; and the file-upload
+path's 0700 root, RAII byte reservation, TTL sweeper and startup sweep.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
