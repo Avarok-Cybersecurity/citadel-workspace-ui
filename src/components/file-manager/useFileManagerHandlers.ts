@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
 import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
+import { peerPairKey } from "@/lib/revfs/tree-queries";
 import { findNodeByPath } from "./useFileManagerContent";
 import { useConfirm } from "@/components/shared/confirm-dialog";
 import { usePrompt } from "@/components/shared/prompt-dialog";
@@ -224,8 +225,25 @@ export function useFileManagerHandlers({
           return;
         }
         await revfsService.requestSync(myCid, selectedPeerCid);
+
+        // Flush anything the queue is holding for this peer before claiming a
+        // sync. Operations that failed to send, or whose ack timed out, were
+        // recorded in a pending list that nothing ever drained — so the local
+        // tree showed a folder the peer had never heard of, and every Sync
+        // reported success without touching the backlog.
+        const stillPending = await revfsService.retryPendingOps(
+          peerPairKey(myCid, selectedPeerCid),
+          selectedPeerCid,
+        );
+
         await refresh();
-        toast.success('Tree synced with peer');
+        if (stillPending > 0) {
+          toast.error('Some changes could not be sent', {
+            description: `${stillPending} operation(s) are still queued for this peer. They will be retried.`,
+          });
+        } else {
+          toast.success('Tree synced with peer');
+        }
         return;
       }
       // Server mode: nothing is exchanged with a peer, so do not claim it was.
