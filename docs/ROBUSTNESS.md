@@ -1804,6 +1804,59 @@ workspace. A large workspace also opened fully expanded into an unvirtualised
   search box or virtualisation, and "Recent Users" is the first five members in
   map-insertion order with no recency signal of any kind.
 
+## Round nineteen — view-scoped state and honest links, 2026-08-26
+
+### 175. The file-manager filter travelled with the user and then lied — FIXED
+
+`filterText` matches only the current directory's immediate children, and it
+persisted across folder navigation, peer switches and storage-mode switches. It
+followed the user into folders where it matched nothing, and the grid then said
+**"This folder is empty. Drag files here or right-click to create a folder"**
+about a folder with files in it. The box is 32px wide in the top-right corner,
+so nothing on screen explained where the files went.
+
+The sibling selection-clearing effect already listed exactly the right
+dependencies — and its comment explains at length why a stale selection is
+destructive rather than cosmetic. The filter was simply never given the same
+treatment, one line below the effect that would have covered it.
+
+### 176. A delivery receipt in another chat moved your place in this one — FIXED
+
+The chat scroll pinned to the bottom unconditionally on every change of
+`messages`, and the status subscription's `prev.map` ALWAYS allocates — so the
+array identity changed for a sent/delivered/read transition in ANY conversation.
+A reader scrolled up through yesterday's thread was thrown back to the newest
+message by a receipt in a chat they were not looking at. It also fought the
+pagination anchoring in `useP2PMessages`, which goes to real trouble to preserve
+scroll position across a prepend.
+
+Fixing only the scroll would have been wrong: `scrollTop` is 0 on first paint,
+so a pure near-the-bottom test opens every conversation at the TOP of its
+history. Both halves — the identity guard and a first-paint jump — were needed.
+
+### 177. Every workspace link claimed to identify a workspace — FIXED
+
+Every path carried `?id=<activeWorkspaceId>`. Nothing read it, and its value was
+always the literal `'root'` because `setActiveWorkspaceId` had no callers. Both
+ends of the feature were absent; only the URL pollution was real.
+
+That made shared links actively wrong rather than merely noisy:
+`/workspace?id=root&nodeId=…` looks like it addresses a specific workspace, so
+pasting one to a colleague in a **different** workspace opened THEIR workspace
+with your node id. Removed rather than wired up — a genuinely workspace-scoped
+link needs the id in the ROUTE and a loader that honours it, and leaving a
+parameter that claims to identify something it does not is worse than none.
+
+### 178. Recorded, not fixed — needs a coordinated protocol change
+
+- **`state.members` is clobbered by whichever domain asked last.**
+  `WorkspaceProtocolResponse::Members` is `Members(Vec<User>)` — it carries no
+  domain id at all, and every consumer accepts every response. So opening a
+  room's member list repoints the sidebar roster and the global `state.members`
+  under a heading still reading "Workspace Members". The fix needs a field on
+  the wire plus a coordinated WASM rebuild; shipping the TS half alone would
+  break member loading entirely, so this is recorded rather than half-applied.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
