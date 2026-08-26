@@ -1683,6 +1683,127 @@ possible from that conversation.
 - **Hangup is gated on network I/O**, with the caller's own await unbounded, so a
   stalled send keeps the camera on for as long as the stall lasts.
 
+## Round eighteen — write acknowledgement, agent survival, tree state, 2026-08-26
+
+### 168. Every tree and document write reported success on SEND — FIXED
+
+`sendProtocolRequest` resolves once the request reaches the local WASM sink, and
+the server answers a refusal as a RESPONSE, which can never reject that promise.
+So the user saw, five seconds apart and in opposite corners:
+
+> green **"Office Deleted — Engineering has been deleted successfully"**
+> red **"Failed to delete node: Permission denied: EditTreeStructure required"**
+
+with the node still in the tree, the modal closed, and — if they had been viewing
+it — themselves navigated away from a node that still exists.
+
+Every downstream failure path was unreachable as a consequence.
+`TreeNodesSection` closes its delete dialog ONLY on success and renders its own
+`role="alert"`; that whole path was dead because the handler it awaits caught its
+own errors and always resolved. **Two layers of careful failure handling, neither
+of which could ever fire.**
+
+Known limitation, recorded rather than hidden: the protocol carries no request
+id, so responses can only be matched by TYPE. The real fix is a request id on the
+wire.
+
+### 169. Editing a document required the right to restructure the workspace — FIXED
+
+`update_node` required `EditTreeStructure` at `WORKSPACE_ROOT_ID` for every
+update, including a pure content save. `Permission::for_role` never grants
+EditTreeStructure to a Custom role, while `EditMdx` IS directly grantable and is
+what the UI gates its Edit button on — so an admin could grant exactly the
+persona "can edit MDX documents" whose every save was refused. The two ends
+disagreed about which permission the feature needs, and #168 is why nobody saw
+it.
+
+### 170. One failed delivery shut down the entire local agent — FIXED
+
+Returning `Err` from `on_node_event_received` is not "this event failed". The
+SDK's KernelExecutor treats it as fatal and calls `shutdown()`. There is no
+supervisor above it, so the process exits — taking every session for every
+account with it, and with the default in-memory backend, every account too.
+
+The triggers are ordinary: a P2P channel arriving for a session just removed from
+the map (connect.rs removes it and then sleeps 200ms), or a send to a tcp entry
+whose receiver was dropped because a tab closed (ext.rs drops the receiver
+*before* removing the map entry). **Closing a tab could kill the agent.**
+
+### 171. The initiator path broadcast decrypted P2P messages to every localhost client — FIXED
+
+When the target uuid was stale it fell back to sending the MessageNotification to
+EVERY live TCP entry — handing the plaintext body to every other session
+multiplexed through the agent, including other users' sessions.
+
+The acceptor side had already removed exactly this broadcast, for exactly this
+reason, with a comment spelling out the leak. `object_transfer_handle.rs` records
+the same fix a third time. **Three files, one lesson, applied to two of them.**
+
+### 172. The node tree ratcheted permanently open — FIXED
+
+The auto-expand effect expanded every node with children and re-ran on every
+change of `treeData` OR `filteredTreeData` identity — both of which change
+constantly. Every collapse the user made was undone by typing one character into
+the filter and deleting it, or by anyone saving a document anywhere in the
+workspace. A large workspace also opened fully expanded into an unvirtualised
+50vh scroll area at three tab stops per row.
+
+### 173. Recorded, not fixed — internal service
+
+- **Session hijack via the two gate-exempt request variants.** The ownership gate
+  keys on `session_cid()`, which returns `None` for `Connect` and
+  `ConnectionManagement`. `Connect` re-points a live session to the caller by
+  USERNAME ALONE, before the password is ever examined. `ClaimSession`'s only
+  guard is the client-supplied `only_if_orphaned`, and it moves EVERY session
+  sharing the old connection id. `GetAccountInformation` is also exempt and
+  returns every local account's cid and username, so enumeration is one call.
+- **`Connection` has no `Drop`,** yet three separate comments describe guarding
+  against "the RAII Drop impl" firing a redundant disconnect. That machinery
+  guards something that does not exist — so every site removing a map entry
+  without an explicit disconnect leaks the SDK session, and `connect.rs` looks up
+  existing sessions BY THE MAP, so a leaked session is invisible to its own
+  duplicate guard.
+- **LocalDB writes reach any cid not currently in the map.** The gate lets
+  unmapped cids through on the stated grounds that "the handler owns that error"
+  — but `BackendHandler` performs no session check, so Set/Delete/ClearAll
+  naming any registered-but-disconnected account succeed.
+- **`SetConnectionOrphan` is inert** — `orphan_sessions` is written in four
+  places and read in none, and a client that disables orphan mode still gets a
+  success response and still has its sessions preserved.
+- **Unbounded intake**: an unbounded channel, no backpressure, and a spawn per
+  request with no concurrency cap. Requests on one session are also handled
+  concurrently and out of order — only `Connect` serialises, and its guard is
+  unbalanced under panic, so a panic wedges that username permanently.
+
+### 174. Recorded, not fixed — scale and navigation
+
+- **`state.nodes` accumulates across workspace switches** (merge, never replace,
+  with no reset path), while **`state.members` is clobbered by whichever domain
+  asked last** — `MembersPayload` carries no domain id at all, so opening a
+  room's member list repoints the sidebar roster under a heading still reading
+  "Workspace Members".
+- **The file-manager filter survives navigation and then lies**: it persists
+  across folder, peer and storage-mode changes, and when it matches nothing the
+  grid says "This folder is empty. Drag files here" — about a folder with files
+  in it. The selection-clearing effect already lists exactly the right
+  dependencies; the filter is simply not one of the things it clears.
+- **The chat scroll yanks to the bottom on any status change**, including other
+  conversations', because the status subscription's `prev.map` always allocates
+  and the scroll effect has no "am I near the bottom" test. There is also **no
+  message search anywhere** — the only way to reach an old message is scroll-up
+  paging, 50 at a time.
+- **`?id=` is written into every workspace URL and read by nobody**, and its
+  value is always the literal `"root"`. Pasting a workspace link to a colleague
+  in a different workspace opens THEIR workspace with your node id.
+  **`/messages` navigates with `replace: true`**, so on the phone layout the Back
+  gesture leaves `/messages` entirely instead of returning to the conversation
+  list.
+- **A keyboard user cannot enter a folder from the file grid** — navigation is
+  bound to `onDoubleClick` only, and every tile is a tab stop.
+- **`MembersTab` runs an O(n²) admin scan inside its map**, no member list has a
+  search box or virtualisation, and "Recent Users" is the first five members in
+  map-insertion order with no recency signal of any kind.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
