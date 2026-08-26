@@ -55,10 +55,28 @@ export async function handleWebSocketMessage(
   }
 
   // Handle disconnect notifications
+  //
+  // This used to log and invalidate a cache, and change no connection state at
+  // all — so a server-side session loss left a fully rendered workspace whose
+  // every action then hung or timed out, with no banner, no toast and no
+  // redirect. The user could not tell. The teardown below is the same pair
+  // already used by the user-initiated path in lifecycle.ts; only the
+  // server-initiated path never got it.
   const disconnectNotification = (response.DisconnectNotification as Record<string, unknown> | undefined);
   if (disconnectNotification) {
-    debugLog('ConnectionService', 'ConnectionManager: Received DisconnectNotification for CID:', disconnectNotification.cid);
+    const notifiedCid = disconnectNotification.cid as bigint | undefined;
+    const currentCid = state.currentConnectionInfo?.cid;
+    debugLog('ConnectionService', 'ConnectionManager: Received DisconnectNotification for CID:', notifiedCid);
     state.invalidateCache();
+
+    // Only for the session actually showing. The internal service multiplexes
+    // several accounts over one socket, so tearing down on any CID would take
+    // another account's UI with it.
+    if (notifiedCid !== undefined && currentCid !== undefined && notifiedCid === currentCid) {
+      state.setCurrentConnectionInfo(null);
+      io.updateConnectionService({ cid: null, isConnected: false });
+      io.broadcastConnectionStatus({ isConnected: false });
+    }
   }
 
   // Handle connection failures
