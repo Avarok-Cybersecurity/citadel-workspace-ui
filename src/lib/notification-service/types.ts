@@ -47,3 +47,22 @@ export interface NotificationAction {
 }
 
 export type NotificationHandler = (notification: Notification) => void;
+
+/**
+ * Whether a notification belongs to the session identified by `cid`.
+ *
+ * One predicate, used by both the initial load and the live handler — they sat
+ * in different places in NotificationCenter and it would have been easy to
+ * filter one and not the other, which leaks exactly the same way as filtering
+ * neither.
+ *
+ * An undefined `recipientCid` means the notification is not session-scoped
+ * (system messages), so it is always shown.
+ */
+export function notificationBelongsTo(
+  notification: { recipientCid?: string },
+  cid: string | null
+): boolean {
+  if (notification.recipientCid === undefined) return true;
+  return cid !== null && notification.recipientCid === cid;
+}

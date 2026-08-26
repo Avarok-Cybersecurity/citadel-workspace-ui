@@ -8,7 +8,7 @@ import { showBrowserNotification } from './browser-notification';
 import { v4 as uuidv4 } from 'uuid';
 import { debugLog } from '@/lib/debug-config';
 import type { Notification, NotificationHandler, UnreadCountChange } from './types';
-import { NotificationType, NotificationPriority } from './types';
+import { NotificationType, NotificationPriority, notificationBelongsTo } from './types';
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -159,6 +159,23 @@ export class NotificationService {
 
   public getNotificationsByType(type: NotificationType): Notification[] {
     return this.getNotifications().filter(n => n.type === type);
+  }
+
+  /**
+   * The notifications that belong to `cid`, plus those belonging to no session.
+   *
+   * `recipientCid` was recorded on every notification and plumbed through to
+   * `getUnreadCountByCid` — and the panel that actually renders them ignored it
+   * entirely, filtering only by type. Message notifications carry a
+   * 100-character plaintext preview and the sender's name, so a tab that
+   * switched accounts (the workspace-switcher / ClaimSession flow this product
+   * is built around) showed the previous account's messages to the new one.
+   * `cleanup()` has no callers, so nothing clears them on logout either.
+   *
+   * Undefined `recipientCid` means "not session-scoped" and is always shown.
+   */
+  public getNotificationsForCid(cid: string | null): Notification[] {
+    return this.getNotifications().filter((n) => notificationBelongsTo(n, cid));
   }
 
   public getUnreadCountByCid(cid: string): number {

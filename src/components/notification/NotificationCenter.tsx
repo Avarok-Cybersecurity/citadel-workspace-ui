@@ -16,11 +16,14 @@ import NotificationService, {
   NotificationType 
 } from '@/lib/notification-service';
 import NotificationItem from '@/components/notification/NotificationItem';
+import { notificationBelongsTo } from '@/lib/notification-service/types';
+import { connectionManager } from '@/lib/connection';
 
 const NotificationCenter = () => {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | NotificationType>('all');
+  const [sessionCid, setSessionCid] = useState<string | null>(null);
   
   const notificationService = NotificationService.getInstance();
   
@@ -31,9 +34,22 @@ const NotificationCenter = () => {
   const systemCount = notifications.filter(n => n.type === NotificationType.SYSTEM && !n.read).length;
   
   useEffect(() => {
-    // Initial load of notifications
-    const allNotifications = notificationService.getNotifications();
-    setNotifications(allNotifications);
+    // Polled, matching CallLayer: connection identity settles asynchronously
+    // during login, and a notification list scoped to a CID we do not have yet
+    // would be empty rather than wrong.
+    const read = () => setSessionCid(connectionManager.getConnectionInfo()?.cid?.toString() ?? null);
+    read();
+    const timer = window.setInterval(read, 2000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    // Scoped to THIS session. The panel used to render every notification the
+    // singleton store held, and message notifications carry a 100-character
+    // plaintext preview and the sender's name — so a tab that switched accounts
+    // showed the previous account's messages to the new one, and markAllAsRead
+    // marked them read as the new account.
+    setNotifications(notificationService.getNotificationsForCid(sessionCid));
     
     // Register for notification updates
     const unregister = notificationService.registerNotificationHandler((notification) => {
@@ -44,6 +60,10 @@ const NotificationCenter = () => {
         return;
       }
       
+      // The same predicate as the initial load. Filtering one and not the other
+      // leaks in exactly the same way as filtering neither.
+      if (!notificationBelongsTo(notification, sessionCid)) return;
+
       setNotifications(prev => {
         // Check if we already have this notification
         const existingIndex = prev.findIndex(n => n.id === notification.id);
@@ -71,7 +91,7 @@ const NotificationCenter = () => {
       unregister();
       if (readTimeout) clearTimeout(readTimeout);
     };
-  }, [open, notificationService]);
+  }, [open, notificationService, sessionCid]);
   
   // Filter notifications based on the active tab
   const filteredNotifications = activeTab === 'all' 
