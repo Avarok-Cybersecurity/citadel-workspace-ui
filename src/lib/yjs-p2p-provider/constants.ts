@@ -11,20 +11,20 @@ export const YJS_HEALTH_CHECK_INTERVAL_MS = 5000;
 export const YJS_MAX_RETRIES = 3;
 
 /**
- * How long edits are gathered before one merged update goes on the wire.
+ * How long edits are gathered before one merged update is sent.
  *
- * Yjs emits an update per transaction, so ordinary typing produces one P2P
- * message per keystroke. Each of those waits on its own application-level ACK
- * within YJS_ACK_TIMEOUT_MS, and the transport underneath is stop-and-wait per
- * peer -- one message per poll cycle, gated on the previous being
- * acknowledged. Twenty-eight keystrokes therefore become twenty-eight
- * serialised round trips, and the later ones time out before their turn comes
- * up. That is measured, not theoretical: a live-doc run emits exactly 28
- * first-attempt ACK timeouts locally, where the retry happens to land, and the
- * same 28 in CI, where all three retries expire and the edits are abandoned.
+ * This MUST exceed ILM's `OUTBOUND_POLL` (200ms, citadel-internal-service/
+ * intersession-layer-messaging/src/lib.rs). That layer is stop-and-wait per
+ * peer — one message per poll cycle, gated on the previous being acknowledged —
+ * so it drains at most ~5 messages/sec. At the previous 120ms this coalescer
+ * produced ~8/sec during sustained typing, measured at 7.4/sec in CI: the
+ * producer outran the drain, the queue grew for as long as typing continued,
+ * and the tail of it timed out. A window SHORTER than the poll interval it
+ * feeds guarantees a backlog under any sustained edit.
  *
- * Yjs updates merge losslessly, so coalescing costs nothing but latency.
- * 120ms is below the ~200ms at which collaborative typing starts to feel
- * detached, and collapses a burst of typing into a single message.
+ * At 300ms the producer is ~3.3/sec against a ~5/sec drain, leaving headroom
+ * for the slower drain seen under CI contention. The cost is up to 300ms of
+ * added latency before a collaborator sees a keystroke, which is well inside
+ * what collaborative editors normally batch.
  */
-export const YJS_UPDATE_COALESCE_MS = 120;
+export const YJS_UPDATE_COALESCE_MS = 300;
