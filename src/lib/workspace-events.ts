@@ -94,6 +94,7 @@ export interface WorkspaceEventMap {
   'node:loaded': { node: DomainNode; connection: ConnectionInfo };
   'node:deleted': { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo };
   'node:moved': { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo };
+  'node:content-updated': { nodeId: string; mdxContent: string; updatedBy: string; timestamp: number; connection: ConnectionInfo };
   'nodes:loading': ConnectionInfo;
   'nodes:loaded': { nodes: DomainNode[]; connection: ConnectionInfo };
   'tree:structure:loaded': { root: TreeNode; connection: ConnectionInfo };
@@ -112,7 +113,7 @@ export type WorkspaceEventType = keyof WorkspaceEventMap;
 
 // Subset types for each method category
 type WorkspaceEventKeys = 'workspace:loading' | 'workspace:loaded' | 'workspace:created' | 'workspace:not-initialized' | 'workspaces:listed' | 'members:reload';
-type NodeEventKeys = 'node:loaded' | 'node:deleted' | 'node:moved' | 'nodes:loading' | 'nodes:loaded' | 'tree:structure:loaded' | 'tree:schema:loaded' | 'node:types:loaded';
+type NodeEventKeys = 'node:loaded' | 'node:deleted' | 'node:moved' | 'node:content-updated' | 'nodes:loading' | 'nodes:loaded' | 'tree:structure:loaded' | 'tree:schema:loaded' | 'node:types:loaded';
 type MemberEventKeys = 'member:adding' | 'member:added' | 'member:loading' | 'member:updating_role' | 'member:updating_permissions' | 'member:removing' | 'member:removed' | 'member:loaded' | 'members:loading' | 'members:loaded' | 'members:reload' | 'member:role-updated' | 'user:permissions:loaded';
 type MessageEventKeys = 'message:received' | 'typing:started' | 'typing:stopped';
 type OperationEventKeys = 'operation:success' | 'operation:error' | 'operation:deleted';

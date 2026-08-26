@@ -77,6 +77,26 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
         });
       });
 
+      // Someone ELSE saved this node's content. The server broadcasts to every
+      // member except the editor, so without this the rest of the workspace kept
+      // rendering the copy they loaded — a document could be edited and nobody
+      // watching it would see the change until they navigated away and back.
+      await workspaceEvents.onNodeEvent('node:content-updated', (payload: { nodeId: string; mdxContent: string; updatedBy: string; timestamp: number; connection: ConnectionInfo }) => {
+        setState(prev => {
+          const node = prev.nodes[payload.nodeId];
+          // Not a node this client knows about; nothing to refresh.
+          if (!node) return prev;
+          return {
+            ...prev,
+            nodes: {
+              ...prev.nodes,
+              [payload.nodeId]: { ...node, mdx_content: payload.mdxContent },
+            },
+            lastRequestId: payload.connection.request_id,
+          };
+        });
+      });
+
       // Node moved (reparented)
       await workspaceEvents.onNodeEvent('node:moved', (payload: { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo }) => {
         setState(prev => {

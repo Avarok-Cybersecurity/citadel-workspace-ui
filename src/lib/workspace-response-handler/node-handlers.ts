@@ -76,6 +76,27 @@ export function handleNodeVariants(
     return true;
   }
 
+  // Broadcast by the server to every OTHER member when someone saves a node's
+  // content (async_process_command.rs, on UpdateNode with mdx_content). Nothing
+  // in the UI handled it: the editor saw their own change, everyone else kept
+  // the version they loaded until they navigated away and back. The one response
+  // variant of 25 with no handler on this side.
+  if (isVariant(response, 'NodeContentUpdated')) {
+    const { node_id, mdx_content, updated_by, timestamp } = response.NodeContentUpdated;
+    debugLog('WorkspaceResponseHandler', 'NodeContentUpdated response received', {
+      node_id, updated_by, length: mdx_content.length,
+    });
+    eventEmitter.emit('node:content-updated', {
+      nodeId: node_id,
+      mdxContent: mdx_content,
+      updatedBy: updated_by,
+      timestamp,
+      connection: connectionInfo,
+    });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
   if (isVariant(response, 'NodeMoved')) {
     const { node_id, old_parent_id, new_parent_id } = response.NodeMoved;
     debugLog('WorkspaceResponseHandler', 'NodeMoved response received', {
