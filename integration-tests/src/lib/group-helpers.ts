@@ -329,12 +329,21 @@ export function calculateAllPassed(results: Omit<GroupTestResults, 'allPassed'>)
   const navOk = Object.values(results.navigationSuccess).every(v => v);
   if (!navOk) return false;
 
-  // If chat not enabled, consider it passed (feature may be disabled)
-  if (!results.chatEnabled) return true;
+  // Chat MUST be enabled. This used to `return true` when it was not, and
+  // `chatEnabled` is not configuration — it is measured by probing the UI under
+  // test for a Chat tab. So the single most likely group-chat regression, the
+  // Chat tab disappearing, silently skipped steps 4 and 5 and reported a pass.
+  // A precondition that cannot be established has to fail the run, not excuse
+  // the assertions that depend on it.
+  if (!results.chatEnabled) return false;
 
   // All chat tabs switched
   const tabsOk = Object.values(results.chatTabSwitch).every(v => v);
   if (!tabsOk) return false;
+
+  // `[].every()` is true, so an empty result set passed here as well — a run
+  // that sent no messages at all read as full success.
+  if (results.messagingResults.length === 0) return false;
 
   // All messages sent and received
   const msgOk = results.messagingResults.every(m => m.sent && m.received);
