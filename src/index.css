@@ -68,6 +68,23 @@
     --ring: 257 45% 45%;
 
     --radius: 0.75rem;
+
+    /* The sidebar family, aliased onto the palette rather than given its own.
+       shadcn's sidebar primitive references bg-sidebar / bg-sidebar-accent /
+       border-sidebar-border, and none of them were ever defined — so
+       SidebarMenuButton's hover:, active: and data-[active=true]: rules all
+       generated nothing and the app's permanent navigation had no hover, no
+       pressed and no selected highlight at all. The base colour was masked
+       because AppLayout passes bg-input at the call site; the STATES had no
+       fallback. --sidebar-accent is `surface`, whose own comment names it as
+       the token for "hover and selected rows". */
+    --sidebar: var(--input);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-accent: var(--surface);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+
   }
 
   .dark {
@@ -121,6 +138,23 @@
     --border: 222 23% 23%;          /* was #2D3548 */
     --input: 235 25% 10%;           /* was #131420 */
     --ring: 251 85% 75%;
+
+    /* The sidebar family, aliased onto the palette rather than given its own.
+       shadcn's sidebar primitive references bg-sidebar / bg-sidebar-accent /
+       border-sidebar-border, and none of them were ever defined — so
+       SidebarMenuButton's hover:, active: and data-[active=true]: rules all
+       generated nothing and the app's permanent navigation had no hover, no
+       pressed and no selected highlight at all. The base colour was masked
+       because AppLayout passes bg-input at the call site; the STATES had no
+       fallback. --sidebar-accent is `surface`, whose own comment names it as
+       the token for "hover and selected rows". */
+    --sidebar: var(--input);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-accent: var(--surface);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+
   }
 }
 

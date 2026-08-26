@@ -62,6 +62,19 @@ export default {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
         },
+        /* Same omission as popover, in the shadcn sidebar primitive: it
+           references bg-sidebar / bg-sidebar-accent / border-sidebar-border,
+           none of which resolved, so SidebarMenuButton's hover, active and
+           data-[active=true] rules produced no CSS at all. index.css aliases
+           these onto the palette. */
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
         /* Elevated surface: menus, popovers, hover and selected rows. The app
            had ~10 near-identical hexes doing this job; they collapse here. */
         surface: {
