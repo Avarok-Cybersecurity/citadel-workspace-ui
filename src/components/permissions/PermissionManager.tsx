@@ -125,7 +125,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           {/* Role column headers */}
           <thead className="sticky top-0 z-10 bg-background">
             <tr>
-              <th className="sticky left-0 z-20 bg-background text-left text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-6 py-3 w-[200px] border-b border-border">
+              <th className="sticky left-0 z-20 bg-background text-left text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-3 sm:px-6 py-3 w-[132px] sm:w-[200px] border-b border-border">
                 Permission
               </th>
               {ROLE_HIERARCHY.map(role => (
@@ -149,7 +149,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                 <tr>
                   <td
                     colSpan={ROLE_HIERARCHY.length + 1}
-                    className="sticky left-0 bg-background px-6 pt-4 pb-1.5"
+                    className="sticky left-0 bg-background px-3 sm:px-6 pt-4 pb-1.5"
                   >
                     <span className="text-[11px] font-semibold tracking-wider uppercase text-primary-accent">
                       {category}
@@ -165,7 +165,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                       idx === permissions.length - 1 ? '' : ''
                     }`}
                   >
-                    <td className="sticky left-0 z-10 bg-background px-6 py-2">
+                    <td className="sticky left-0 z-10 bg-background px-3 sm:px-6 py-2">
                       <span className="text-sm text-foreground/80">{permission.label}</span>
                     </td>
                     {ROLE_HIERARCHY.map(role => {

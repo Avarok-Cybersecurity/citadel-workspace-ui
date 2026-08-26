@@ -29,6 +29,45 @@ rather than carried forward.
 
 ## Fixed here
 
+### Dialogs and scroll areas overflowed a 375px screen
+
+The permission matrix — the widest thing in the product — rendered wider than a
+375px viewport and horizontally centred, so it was clipped on **both** edges: the
+whole PERMISSION label column off screen left, Guest off screen right. What an
+administrator saw was a grid of checkmarks with nothing to say which permission
+any row belonged to. The same shape pushed the role selector and remove button
+off the member rows.
+
+One symptom, three independent causes, each enough on its own:
+
+1. **`DialogContent` is a grid**, and a grid item's `min-width` defaults to
+   `auto` — it refuses to shrink below its own content. The `w-[calc(100%-2rem)]`
+   beside it was therefore decorative, and because the dialog is centred with
+   `translate-x(-50%)` the overflow split across both edges instead of running
+   off the right. Fixed with `[&>*]:min-w-0` on the shared component, so all 27
+   dialogs get it.
+2. **Radix `ScrollArea` wraps viewport children in `display: table; min-width:
+   100%`.** A table box sizes to its content, so a wide child widens that wrapper
+   rather than being bounded by it — which makes `min-w-0` and `truncate` on the
+   children inert, because there is no bounded width to shrink against. This is
+   why adding `truncate` to MemberRow changed nothing on its own. Fixed in the
+   shared component (18 call sites).
+3. **`MemberRow` had no `min-w-0`/`truncate`** on the name and no `shrink-0` on
+   the controls, so a 22-character generated username pushed them out.
+
+The matrix also gained a sticky label column: containment makes it fit, the
+sticky column makes it usable.
+
+`tests-pw/permission-matrix-phone.spec.ts` asserts geometry rather than taking a
+picture — the dialog's box inside the viewport, and the permission label and both
+row controls in-viewport. That distinction mattered: the bounding-box assertion
+passed twice while the remove button was still off screen, and only the
+in-viewport check on the control itself disagreed.
+
+This is the same `min-width: auto` hazard already documented in `TopBar`, where
+it pushed the avatar off a 375px viewport. Third instance — treat it as standing.
+
+
 ### The member list reported an empty workspace while it was still loading
 
 Was issue #6, "WORKSPACE MEMBERS shows 'No members yet' when members exist",

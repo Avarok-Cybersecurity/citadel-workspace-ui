@@ -66,7 +66,7 @@ export function MemberRow({
     'This is the only administrator. Promote another member to Admin first.';
   return (
     <div
-      className="flex items-center justify-between p-3 bg-card rounded-lg"
+      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 bg-card rounded-lg"
       data-testid={`member-row-${member.userId}`}
     >
       {/* min-w-0 + truncate here, shrink-0 on the controls opposite.
@@ -74,7 +74,12 @@ export function MemberRow({
           generated handles here run past 20 characters — refused to shrink and
           pushed the role selector and the remove button off a 375px screen. The
           controls are the entire point of the row, so they are the last thing
-          that may give way. Same reasoning as the TopBar header group. */}
+          that may give way. Same reasoning as the TopBar header group.
+
+          Stacked below `sm` rather than merely truncated: side by side on a
+          375px screen the controls take ~180px of ~295, leaving so little for
+          the name that it rendered as "a…" — reachable controls acting on an
+          unidentifiable person. A row per line gives the name its own width. */}
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <Avatar className="h-10 w-10 shrink-0">
           <AvatarImage src={member.avatarUrl || ''} />
@@ -83,16 +88,23 @@ export function MemberRow({
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <div className="text-foreground font-medium truncate">
+          {/* break-all below `sm`, truncate above. Stacking alone still left the
+              name 8px short of its box — a generated handle is one unbroken
+              token, so it either wraps or loses characters, and losing them is
+              what makes a member unidentifiable. Wrapping costs a line on a
+              phone; clipping costs the identity. */}
+          <div className="text-foreground font-medium break-all sm:truncate">
             {member.name || member.username}
           </div>
           {member.name && (
-            <div className="text-muted-foreground text-sm truncate">@{member.username}</div>
+            <div className="text-muted-foreground text-sm break-all sm:truncate">
+              @{member.username}
+            </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
         {showAdvanced ? (
           <Button
             variant="outline"

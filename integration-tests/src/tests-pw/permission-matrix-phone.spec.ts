@@ -64,6 +64,29 @@ adminMemberTest('the permission matrix stays inside a 375px viewport', async ({ 
         'the remove control is off screen at 375px',
     ).toBeInViewport();
 
+    // Reachable controls acting on an unidentifiable person is not a fix. With
+    // the row side by side at 375px the controls took ~180px of ~295 and the
+    // name rendered as a single character plus an ellipsis, so the row stacks
+    // below `sm` instead.
+    //
+    // Measured as scrollWidth vs clientWidth, NOT by reading the text. An
+    // earlier version of this asserted innerText contained the username and
+    // passed against the squeezed row: `text-overflow: ellipsis` paints an
+    // ellipsis without touching the DOM, so the full string is still there to
+    // read. The assertion was true of a layout no one could use — which is the
+    // failure it was written to catch.
+    const nameEl = dialog.locator('[data-testid^="member-row-"]').first().locator('.font-medium').first();
+    const nameFit = await nameEl.evaluate((el) => ({
+        scroll: el.scrollWidth,
+        client: el.clientWidth,
+        text: el.textContent ?? '',
+    }));
+    expect(
+        nameFit.scroll,
+        `"${nameFit.text}" is clipped to ${nameFit.client}px of ${nameFit.scroll}px — ` +
+        'the member name is truncated past the point of identifying anyone',
+    ).toBeLessThanOrEqual(nameFit.client + 1);
+
     const advanced = dialog.getByTestId('members-advanced-toggle');
     await expect(advanced, 'the advanced permissions toggle should be present').toBeVisible({
         timeout: 30_000,
