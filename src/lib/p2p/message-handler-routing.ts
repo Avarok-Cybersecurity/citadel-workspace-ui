@@ -156,7 +156,14 @@ async function handleIncomingMessage(
   const message: P2PMessage = {
     id: payload.message_id,
     content: layer.contents,
-    senderCid: BigInt(payload.sender_cid),
+    // The TRANSPORT's peer, not the payload's claim.
+    //
+    // `payload.sender_cid` is attacker-chosen: a peer could set it to the
+    // recipient's own CID, and converters.ts renders `senderCid === currentUserId`
+    // right-aligned and labelled "You" — a forged message from yourself, in your
+    // own transcript. `peerCid` is the authenticated channel identity, and the
+    // edit path a few lines above already uses it for exactly this reason.
+    senderCid: peerCid,
     recipientCid: BigInt(payload.recipient_cid),
     timestamp: layer.timestamp,
     index: payload.index,
