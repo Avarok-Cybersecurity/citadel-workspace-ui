@@ -12,6 +12,7 @@ import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import { callPeerName } from '@/lib/call/peer-name';
+import { toast } from 'sonner';
 
 interface CallProviderProps {
   selfCid: bigint | null;
@@ -44,6 +45,14 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   const [streamsVersion, setStreamsVersion] = useState(0);
   const [qualities, setQualities] = useState<Map<bigint, ConnectionQuality>>(new Map());
   const [captureFailure, setCaptureFailure] = useState<CaptureFailure | null>(null);
+
+  // media-capture documents this field as "Shown to the user"; nothing read it,
+  // so denying camera permission made the Call button do nothing at all. A
+  // toast, not CallStage: startCall tears down before a call state exists.
+  useEffect(() => {
+    if (!captureFailure) return;
+    toast.error(captureFailure.message);
+  }, [captureFailure]);
   const [browserCapability, setBrowserCapability] = useState<{
     supported: boolean;
     reason?: string;
