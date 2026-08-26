@@ -672,3 +672,32 @@ h1, h2, h3, h4, h5, h6 {
     );
   }
 }
+
+/* Windows High Contrast / forced-colors.
+ *
+ * The UA replaces every author colour with a system palette, so a control whose
+ * only affordance is `background-color` becomes indistinguishable from plain
+ * text. That is exactly what happened to the primary button: on the landing
+ * page "Login Workspace" — the main call to action — rendered with no border
+ * while the secondary "Join Workspace" kept one, so the most important control
+ * looked the least like a button.
+ *
+ * A transparent border is not enough on its own; forced-colors keeps
+ * transparent transparent. The border has to be declared in the system palette,
+ * which is what ButtonText is for.
+ */
+@media (forced-colors: active) {
+  button,
+  [role='button'],
+  a[class*='inline-flex'] {
+    border: 1px solid ButtonText;
+  }
+
+  /* Icons are drawn from currentColor and would otherwise all collapse to the
+     same value as their surrounding text; this keeps them following the
+     system's control colour rather than disappearing into it. */
+  button svg,
+  [role='button'] svg {
+    forced-color-adjust: auto;
+  }
+}
