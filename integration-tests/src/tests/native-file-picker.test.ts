@@ -298,8 +298,8 @@ async function runTest(): Promise<boolean> {
     const page1 = await context.newPage();
     const page2 = await context2.newPage();
 
-    setupConsoleCapture(page1, 'Alice', ['PickFile', 'SendFile', 'file', 'transfer', 'error', 'native']);
-    setupConsoleCapture(page2, 'Bob', ['file', 'transfer', 'error']);
+    setupConsoleCapture(page1, 'Alice', ['PickFile', 'SendFile', 'file', 'transfer', 'error', 'native', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['file', 'transfer', 'error', 'ILM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '-'.repeat(50));

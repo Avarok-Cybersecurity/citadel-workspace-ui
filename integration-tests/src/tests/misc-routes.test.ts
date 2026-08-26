@@ -231,7 +231,7 @@ async function runTest(): Promise<boolean> {
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Misc', ['error', 'Error']);
+    setupConsoleCapture(page, 'Misc', ['error', 'Error', 'ILM']);
 
     // ========== STEP 1: Create Account ==========
     console.log('\n' + '\u2500'.repeat(50));

@@ -93,8 +93,8 @@ async function runTest(): Promise<boolean> {
   try {
     const page1 = await context1.newPage();
     const page2 = await context2.newPage();
-    setupConsoleCapture(page1, 'Admin', ['error', 'Error']);
-    setupConsoleCapture(page2, 'Member', ['error', 'Error']);
+    setupConsoleCapture(page1, 'Admin', ['error', 'Error', 'ILM']);
+    setupConsoleCapture(page2, 'Member', ['error', 'Error', 'ILM']);
 
     // ========== STEP 1: Create Accounts ==========
     console.log('\n' + '\u2500'.repeat(50));

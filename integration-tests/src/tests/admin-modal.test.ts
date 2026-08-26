@@ -206,7 +206,7 @@ async function runTest(): Promise<boolean> {
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'AdminModalTest', ['error', 'Error']);
+    setupConsoleCapture(page, 'AdminModalTest', ['error', 'Error', 'ILM']);
 
     // ========================================================================
     // Step 0: Create Account and Login

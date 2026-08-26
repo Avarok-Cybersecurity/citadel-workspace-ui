@@ -738,8 +738,8 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    setupConsoleCapture(page1, 'Alice', ['error', 'Error', 'revfs', 'RE-VFS']);
-    setupConsoleCapture(page2, 'Bob', ['error', 'Error', 'revfs', 'RE-VFS']);
+    setupConsoleCapture(page1, 'Alice', ['error', 'Error', 'revfs', 'RE-VFS', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['error', 'Error', 'revfs', 'RE-VFS', 'ILM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));

@@ -327,7 +327,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     const alicePage = await context.newPage();
-    setupConsoleCapture(alicePage, 'Alice', ['error', 'Error', 'Directory', 'Member']);
+    setupConsoleCapture(alicePage, 'Alice', ['error', 'Error', 'Directory', 'Member', 'ILM']);
 
     results.aliceCreated = await createAccount(alicePage, ALICE, {
       isFirstUser: true,
@@ -349,7 +349,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     const bobPage = await context.newPage();
-    setupConsoleCapture(bobPage, 'Bob', ['error', 'Error', 'Directory', 'Member']);
+    setupConsoleCapture(bobPage, 'Bob', ['error', 'Error', 'Directory', 'Member', 'ILM']);
 
     results.bobCreated = await createAccount(bobPage, BOB, {
       isFirstUser: false,

@@ -328,7 +328,7 @@ async function runTest(): Promise<boolean> {
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Security', ['error', 'Error', 'security', 'Security']);
+    setupConsoleCapture(page, 'Security', ['error', 'Error', 'security', 'Security', 'ILM']);
 
     // ========== STEP 1: Navigate to Security Settings ==========
     console.log('\n' + '\u2500'.repeat(50));

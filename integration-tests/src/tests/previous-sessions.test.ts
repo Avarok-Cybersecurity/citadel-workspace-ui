@@ -382,7 +382,7 @@ async function runTest(): Promise<boolean> {
     const page = await context.newPage();
 
     // Setup console capture
-    setupConsoleCapture(page, 'PrevSessions', ['error', 'Error', 'OrphanSessionsNavbar', 'Disconnect']);
+    setupConsoleCapture(page, 'PrevSessions', ['error', 'Error', 'OrphanSessionsNavbar', 'Disconnect', 'ILM']);
 
     // ========== Create Sessions (N sessions) ==========
     for (let i = 0; i < SESSION_COUNT; i++) {

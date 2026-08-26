@@ -207,8 +207,8 @@ async function runTest(): Promise<boolean> {
   try {
     const page1 = await context1.newPage();
     const page2 = await context2.newPage();
-    setupConsoleCapture(page1, 'User1', ['error', 'Error']);
-    setupConsoleCapture(page2, 'User2', ['error', 'Error']);
+    setupConsoleCapture(page1, 'User1', ['error', 'Error', 'ILM']);
+    setupConsoleCapture(page2, 'User2', ['error', 'Error', 'ILM']);
 
     // ========== STEP 1: Create Accounts & P2P ==========
     console.log('\n' + '─'.repeat(50));

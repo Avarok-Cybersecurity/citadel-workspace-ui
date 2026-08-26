@@ -374,7 +374,7 @@ async function runTest(): Promise<boolean> {
     console.log('='.repeat(50));
 
     const firstPage = await context.newPage();
-    setupConsoleCapture(firstPage, 'FirstUser', ['error', 'Error', 'Initialize', 'Workspace']);
+    setupConsoleCapture(firstPage, 'FirstUser', ['error', 'Error', 'Initialize', 'Workspace', 'ILM']);
 
     // ========== STEP 1: Register First User ==========
     console.log('\n' + '─'.repeat(50));
@@ -440,7 +440,7 @@ async function runTest(): Promise<boolean> {
     console.log('='.repeat(50));
 
     const secondPage = await context.newPage();
-    setupConsoleCapture(secondPage, 'SecondUser', ['error', 'Error', 'Initialize', 'Workspace']);
+    setupConsoleCapture(secondPage, 'SecondUser', ['error', 'Error', 'Initialize', 'Workspace', 'ILM']);
 
     // ========== STEP 5: Register Second User ==========
     console.log('\n' + '─'.repeat(50));

@@ -229,7 +229,7 @@ async function runTest(): Promise<boolean> {
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Settings', ['error', 'Error']);
+    setupConsoleCapture(page, 'Settings', ['error', 'Error', 'ILM']);
 
     // ========== STEP 1: Create Account ==========
     console.log('\n' + '\u2500'.repeat(50));

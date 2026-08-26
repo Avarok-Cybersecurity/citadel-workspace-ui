@@ -289,8 +289,8 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    setupConsoleCapture(page1, 'User1', ['error', 'Error', 'P2P']);
-    setupConsoleCapture(page2, 'User2', ['error', 'Error', 'P2P']);
+    setupConsoleCapture(page1, 'User1', ['error', 'Error', 'P2P', 'ILM']);
+    setupConsoleCapture(page2, 'User2', ['error', 'Error', 'P2P', 'ILM']);
 
     // ========== STEP 1: Create Accounts ==========
     console.log('\n' + '─'.repeat(50));

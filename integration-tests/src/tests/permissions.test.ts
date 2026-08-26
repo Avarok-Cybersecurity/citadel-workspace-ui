@@ -417,7 +417,7 @@ async function runTest(): Promise<boolean> {
     const page = await context.newPage();
 
     // Setup console capture - exclude verbose permission messages
-    setupConsoleCapture(page, 'PermTest', ['error', 'Error']);
+    setupConsoleCapture(page, 'PermTest', ['error', 'Error', 'ILM']);
 
     // ========== STEP 0: Create account and login ==========
     console.log('\n' + '─'.repeat(50));

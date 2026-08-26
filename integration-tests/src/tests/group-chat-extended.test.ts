@@ -184,7 +184,7 @@ async function runTest(): Promise<boolean> {
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'GroupChat', ['error', 'Error', 'chat']);
+    setupConsoleCapture(page, 'GroupChat', ['error', 'Error', 'chat', 'ILM']);
 
     // ========== STEP 1: Create Account ==========
     console.log('\n' + '─'.repeat(50));

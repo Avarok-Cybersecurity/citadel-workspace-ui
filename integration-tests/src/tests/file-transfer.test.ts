@@ -1162,8 +1162,8 @@ async function runTest(): Promise<boolean> {
     const page1 = await context.newPage();
     const page2 = await context2.newPage(); // Use separate context for Bob
 
-    setupConsoleCapture(page1, 'Alice', ['P2P', 'file', 'transfer', 'error', 'FileTransferBubble', 'P2PChat', 'isOwn', 'senderCid']);
-    setupConsoleCapture(page2, 'Bob', ['P2P', 'file', 'transfer', 'error', 'FileTransferBubble', 'P2PChat', 'isOwn', 'senderCid']);
+    setupConsoleCapture(page1, 'Alice', ['P2P', 'file', 'transfer', 'error', 'FileTransferBubble', 'P2PChat', 'isOwn', 'senderCid', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['P2P', 'file', 'transfer', 'error', 'FileTransferBubble', 'P2PChat', 'isOwn', 'senderCid', 'ILM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '-'.repeat(50));

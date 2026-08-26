@@ -137,8 +137,8 @@ async function runTest(): Promise<boolean> {
     const page2 = await context2.newPage();
 
     // Setup console capture
-    setupConsoleCapture(page1, 'Alice', ['group', 'chat', 'message', 'error']);
-    setupConsoleCapture(page2, 'Bob', ['group', 'chat', 'message', 'error']);
+    setupConsoleCapture(page1, 'Alice', ['group', 'chat', 'message', 'error', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['group', 'chat', 'message', 'error', 'ILM']);
 
     // ========== STEP 1: Create Accounts ==========
     console.log('\n' + '─'.repeat(50));

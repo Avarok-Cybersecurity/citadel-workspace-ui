@@ -326,7 +326,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Settings', ['error', 'Error', 'Settings', 'settings']);
+    setupConsoleCapture(page, 'Settings', ['error', 'Error', 'Settings', 'settings', 'ILM']);
 
     results.accountCreated = await createAccount(page, USERNAME, {
       isFirstUser: true,
