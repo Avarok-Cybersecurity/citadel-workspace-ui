@@ -57,7 +57,12 @@ export function TextBubble({
         )}
 
         <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          {/* break-words, like the group bubble beside it. `pre-wrap` only
+              wraps at EXISTING opportunities, and a pasted URL or path has
+              none — so it painted outside the bubble and was cut at the panel
+              edge, unreadable and unselectable. The most common long string a
+              chat user produces. */}
+          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
           {/* Inline failure indicator */}
           {isOwn && isFailed && (
             <div className="flex items-center gap-1 mt-1.5 text-xs text-destructive-emphasis">

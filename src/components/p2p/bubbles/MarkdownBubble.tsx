@@ -90,8 +90,13 @@ export function MarkdownBubble({
   // Show avatar only for non-own messages in group mode
   const shouldShowAvatar = showSenderAvatar && !isOwn;
 
+  // min-w-0 down the chain — the fix TextBubble documents in detail and does
+  // not itself need, because TextBubble renders plain text. THIS is the bubble
+  // that renders <pre>, and an unbreakable code line widened the whole row past
+  // the message list, with the pre's own overflow-x-auto inert because nothing
+  // constrained its width.
   return (
-    <div className={`group flex gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div className={`group flex min-w-0 gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">
@@ -101,7 +106,7 @@ export function MarkdownBubble({
         </Avatar>
       )}
 
-      <div className={`flex flex-col ${isOwn ? 'items-end' : ''}`}>
+      <div className={`flex min-w-0 flex-col ${isOwn ? 'items-end' : ''}`}>
         {/* Sender name (group mode) */}
         {showSenderName && !isOwn && (
           <span className="text-xs text-muted-foreground mb-1 px-1">
@@ -109,7 +114,7 @@ export function MarkdownBubble({
           </span>
         )}
 
-        <div className={`rounded-lg px-3 py-2 ${bubbleStyles}`}>
+        <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown components={markdownComponents}>
               {message.content}

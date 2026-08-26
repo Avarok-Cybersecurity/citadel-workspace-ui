@@ -42,7 +42,13 @@ export function IncomingCallCard({
       role="group"
       aria-label={`${description} from ${callerName}`}
       data-testid="incoming-call-card"
-      className="fixed inset-x-3 top-16 z-[60] rounded-lg border border-border bg-popover p-4 shadow-xl motion-safe:animate-fade-in sm:inset-x-auto sm:right-4 sm:w-80"
+      // pointer-events-auto is load-bearing. Every Radix layer sets
+      // `body { pointer-events: none }` while it is open, and this card lives
+      // outside the portal — so with Settings, Chat Settings, a file dialog or
+      // any dropdown open, the card painted on top (z-60 over z-50) and Accept
+      // and Decline did nothing. A ringing call that looks answerable and is
+      // not is the worst failure a calling feature has.
+      className="pointer-events-auto fixed inset-x-3 top-16 z-[60] rounded-lg border border-border bg-popover p-4 shadow-xl motion-safe:animate-fade-in sm:inset-x-auto sm:right-4 sm:w-80"
     >
       <div className="flex items-center gap-3">
         {/* Halo rings radiating from the caller, not a whole-avatar opacity
