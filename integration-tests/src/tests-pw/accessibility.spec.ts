@@ -507,6 +507,44 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     );
   });
 
+  // The workspace had NO landmarks at all — no main, no nav, nothing — and 43
+  // tabbable controls. Measured before the fix: 37 tab stops between the top of
+  // the page and the first control inside the content area, every time you
+  // navigated. axe stays silent because its `region` rule is moderate impact,
+  // below the serious/critical threshold this suite fails on.
+  test('the workspace can be entered without tabbing through the sidebar', async () => {
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/workspace');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await expect(page.getByTestId('sidebar-toggle')).toBeVisible({ timeout: 30_000 });
+
+    // Structure a screen reader can navigate by.
+    await expect(page.getByRole('main')).toBeAttached();
+    await expect(page.getByRole('navigation', { name: /workspace navigation/i })).toBeAttached();
+
+    // The skip link must be FIRST, or it is not a skip link.
+    await page.keyboard.press('Tab');
+    const skip = page.getByRole('link', { name: /skip to main content/i });
+    await expect(skip).toBeFocused();
+    // Hidden until focused, so it costs the visual design nothing.
+    await expect(skip).toBeVisible();
+
+    await page.keyboard.press('Enter');
+    // Focus must LAND in main, not merely scroll it into view — that is what
+    // tabIndex={-1} on the target is for.
+    await expect
+      .poll(
+        () => page.evaluate(() => {
+          const el = document.activeElement;
+          const main = document.querySelector('main');
+          return Boolean(el && main && (el === main || main.contains(el)));
+        }),
+        { timeout: 5_000, message: 'focus should move into main' },
+      )
+      .toBe(true);
+  });
+
   test('file manager', async () => {
     await page.evaluate(() => {
       window.history.pushState({}, '', '/workspace?section=files');

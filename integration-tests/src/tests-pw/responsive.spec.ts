@@ -256,6 +256,14 @@ async function expectNoSmallTapTargets(page: Page, screen: string): Promise<void
         if (rect.width === 0 || rect.height === 0) return false;
         const style = getComputedStyle(el);
         if (style.visibility === 'hidden' || style.display === 'none') return false;
+        // Screen-reader-only controls are deliberately 1x1 and clipped: they
+        // exist for AT and keyboard, and are never a pointer target, so a 24px
+        // minimum would forbid the technique rather than catch a defect. The
+        // skip link is one. Matched on the clip signature specifically, so a
+        // genuinely 1px VISIBLE button still fails.
+        const clipped =
+          style.clip === 'rect(0px, 0px, 0px, 0px)' || style.clipPath === 'inset(50%)';
+        if (clipped && rect.width <= 1 && rect.height <= 1) return false;
         return rect.width < min || rect.height < min;
       })
       .map((el) => {
