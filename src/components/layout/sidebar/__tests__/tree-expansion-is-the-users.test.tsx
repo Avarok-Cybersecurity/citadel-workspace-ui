@@ -19,7 +19,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { useState } from 'react';
 import { TreeNodesSection } from '../TreeNodesSection';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import type { TreeNode } from '../tree-node-utils';
+import type { TreeNode } from '../tree-node-types';
 
 function node(id: string, name: string, children: TreeNode[] = []): TreeNode {
   return {
