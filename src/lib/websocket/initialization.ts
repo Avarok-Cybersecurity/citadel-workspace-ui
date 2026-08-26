@@ -101,16 +101,13 @@ export class WebSocketInitialization {
     });
   }
 
-  /**
-   * Initialize as follower (no WebSocket).
-   */
+  /** Initialize as follower (no WebSocket). */
   initializeAsFollower(): void {
     debugLog('WebSocketInit', 'Follower tab: Skipping WebSocket creation, will proxy through leader');
 
     // Both directions. Handling only promotion left a demoted leader holding a
     // live socket forever — none of the ten 'leader-changed' subscribers closed
-    // a client. A reload of the older of two tabs reaches it, leaving the
-    // browser with two sockets, one owned by a follower that routes nothing.
+    // one — so a reload of the older of two tabs left the browser with two.
     eventEmitter.on('instance:leader-changed', async ({ isLeader: newIsLeader }: { isLeader: boolean; leaderId: string }) => {
       if (newIsLeader) {
         debugLog('WebSocketInit', 'Became leader! Creating WebSocket connection...');
@@ -124,12 +121,10 @@ export class WebSocketInitialization {
     debugLog('WebSocketInit', 'Follower initialization complete');
   }
 
-  /**
-   * Create WebSocket connection when this tab is the leader.
-   */
+  /** Create WebSocket connection when this tab is the leader. */
   async createWebSocketAsLeader(): Promise<WorkspaceClient> {
-    // Idempotent: a tab demoted then promoted again, or racing its own
-    // election, otherwise opens a second socket while the first is live.
+    // Idempotent: a demoted-then-promoted tab would otherwise open a second
+    // socket while the first is still live.
     if (this.leaderClient) return this.leaderClient;
     if (this.creating) return this.creating;
     this.creating = this.doCreateWebSocketAsLeader().finally(() => {
@@ -235,6 +230,10 @@ export class WebSocketInitialization {
         debugLog('WebSocketInit', 'WASM client close error (ignored):', closeError);
       }
 
+      // Clear the handle: createWebSocketAsLeader returns `leaderClient` when
+      // set, so a CLOSED one left here makes every reconnect hand back the dead
+      // client and report success over a socket that is gone.
+      this.leaderClient = null;
       this.config.onClientReset();
       window[GLOBAL_INIT_KEY] = undefined;
       debugLog('WebSocketInit', 'WebSocket service state reset after disconnection');

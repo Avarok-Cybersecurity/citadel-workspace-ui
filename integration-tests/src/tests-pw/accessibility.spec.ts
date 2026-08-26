@@ -67,7 +67,35 @@ async function freshPage(page: Page, scheme: ColourScheme = 'dark'): Promise<voi
  * Waits on document.getAnimations() rather than a fixed delay, so it returns the
  * moment the page is actually still.
  */
+/**
+ * Finishes every animation instantly, for the duration of the scan.
+ *
+ * Waiting for animations to settle is not enough on a surface whose content
+ * arrives over the network: the member list has no animations yet when the
+ * wait runs, so it passes, and the rows then mount and fade in WHILE axe is
+ * measuring. axe composites opacity into the effective colour, so it read
+ * white text 30ms into a 300ms fade as `#292a35` on `#131420` — a 1.28:1
+ * contrast failure for text that is fine at rest. It reproduced only in the
+ * full suite, where earlier specs leave more accounts in the list, and passed
+ * when the same test ran alone.
+ *
+ * Forcing animations to their end state makes the reading deterministic
+ * without weakening it: contrast at rest is exactly what the check is for.
+ */
+async function freezeAnimations(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: `*, *::before, *::after {
+      animation-duration: 0.001s !important;
+      animation-delay: 0s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001s !important;
+      transition-delay: 0s !important;
+    }`,
+  });
+}
+
 async function settleAnimations(page: Page): Promise<void> {
+  await freezeAnimations(page);
   await page.waitForFunction(
     () => {
       // `every` on an EMPTY list is vacuously true, and that is the case that
