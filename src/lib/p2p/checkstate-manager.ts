@@ -34,19 +34,13 @@ export class CheckStateManager {
   private pendingCheckStates: Map<bigint, { resolve: () => void; reject: (e: Error) => void }> = new Map();
 
   /**
-   * Handshakes already in progress, so concurrent callers share one.
+   * Handshakes in progress, so concurrent callers share one.
    *
    * `pendingCheckStates` is keyed by peer alone, so a second call overwrote the
-   * first caller's `{resolve, reject}` and the timeout below checked "is there
-   * ANY entry for this peer", not "is mine still there". Whichever way it
-   * raced, one promise was left permanently unsettled: on a response the second
-   * caller resolved and deleted, and the first caller's timer then found
-   * nothing to do; with no response the first caller's timer deleted the
-   * second's entry and rejected itself, and the second's timer found nothing.
-   *
-   * An unsettled promise here is not a hang the user can see — message-sender
-   * awaits this before persisting, so the composer had already cleared and the
-   * message simply never appeared, was never stored, and raised no error.
+   * first's `{resolve, reject}` and the timeout checked "is there ANY entry",
+   * not "is mine still there" — leaving one promise permanently unsettled.
+   * message-sender awaits this before persisting, so the composer cleared and
+   * the message never appeared, was never stored, and raised no error.
    */
   private inFlightChecks: Map<bigint, Promise<void>> = new Map();
 

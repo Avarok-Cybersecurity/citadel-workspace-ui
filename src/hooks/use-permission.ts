@@ -39,15 +39,9 @@ interface UsePermissionResult {
  * ```
  */
 /**
- * Clears a hook's "already tried this domain" guard when the user's role changes.
- *
- * The guard exists to stop an infinite refetch loop, and it was never cleared.
- * PermissionsService.clearCache() empties the cache on `member:role-updated`,
- * so after a promotion every mounted hook saw an empty cache AND a guard saying
- * it had already asked — and refused to refetch. hasPermission then read the
- * empty cache and returned false, so every permission-gated control in the open
- * UI went disabled and stayed that way until a full page reload. The same trap
- * caught any transient fetch failure: one timeout denied that domain forever.
+ * Clears a hook's "already tried this domain" guard when the role changes.
+ * Without this, clearCache() on a promotion left every hook with an empty cache
+ * AND a guard saying it had asked — denying every gated control until a reload.
  */
 function useResetOnRoleChange(attempted: React.MutableRefObject<Set<string>>): void {
   useEffect(() => {
