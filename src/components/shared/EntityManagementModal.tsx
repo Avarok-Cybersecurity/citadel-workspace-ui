@@ -92,9 +92,8 @@ export function EntityManagementModal<TMode extends string>({
   const modeConfig = modes[mode];
 
   // Unguarded on purpose: onOpenChange is Radix's only dismissal channel, so
-  // gating it on isSubmitting takes away the X, Escape and outside-click
-  // together — while Cancel is disabled as well. This is a shared component,
-  // so that dead end reproduced at every call site.
+  // gating it on isSubmitting removed the X, Escape and outside-click at once.
+  // Shared component, so that dead end reproduced at every call site.
   const handleClose = () => {
     onClose();
   };

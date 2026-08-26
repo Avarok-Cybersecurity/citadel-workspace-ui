@@ -134,9 +134,7 @@ export async function handleMessagingLayerCommand(
   }
 }
 
-/**
- * Handle an incoming text message from a peer.
- */
+/** Handle an incoming text message from a peer. */
 async function handleIncomingMessage(
   config: MessageHandlerConfig,
   payload: P2PMessagingLayerPayload,
@@ -156,8 +154,8 @@ async function handleIncomingMessage(
   const message: P2PMessage = {
     id: payload.message_id,
     content: layer.contents,
-    // Transport peer, not `payload.sender_cid` — that is attacker-chosen, and
-    // the victim's own CID renders the message as "You" in their transcript.
+    // Transport peer: `sender_cid` is attacker-chosen, and the victim's own
+    // CID would render a forged message as "You" in their own transcript.
     senderCid: peerCid,
     recipientCid: BigInt(payload.recipient_cid),
     timestamp: layer.timestamp,
@@ -222,9 +220,7 @@ async function handleIncomingMessage(
   }
 }
 
-/**
- * Handle a typing indicator from a peer.
- */
+/** Handle a typing indicator from a peer. */
 function handleTypingIndicator(config: MessageHandlerConfig, peerCid: bigint): void {
   const timestamp = Date.now();
   const conversation = config.getOrCreateConversation(peerCid);
@@ -242,9 +238,7 @@ function handleTypingIndicator(config: MessageHandlerConfig, peerCid: bigint): v
   }, TYPING_DISPLAY_DURATION_MS);
 }
 
-/**
- * Handle a presence update from a peer.
- */
+/** Handle a presence update from a peer. */
 function handlePresenceUpdate(config: MessageHandlerConfig, peerCid: bigint, presence: PeerPresence): void {
   const conversation = config.getOrCreateConversation(peerCid);
   conversation.presence = presence;

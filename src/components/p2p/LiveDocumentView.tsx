@@ -28,10 +28,15 @@ export function LiveDocumentView({
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback((content: string) => {
+    // setLastSaved used to run unconditionally, outside this guard — and no
+    // call site passes onSave, so the header stamped "Last saved <time>" over
+    // a save that never happened. The durable write now lives in
+    // useDocumentPersistence, keyed off the Y.Doc itself; this callback is only
+    // for a caller that wants the content, so it must not claim anything when
+    // there is no such caller.
+    if (!onSave) return;
     setIsSaving(true);
-    if (onSave) {
-      onSave(documentId, content);
-    }
+    onSave(documentId, content);
     setLastSaved(new Date());
     setIsSaving(false);
   }, [documentId, onSave]);

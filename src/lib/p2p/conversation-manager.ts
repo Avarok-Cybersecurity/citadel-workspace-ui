@@ -161,6 +161,21 @@ export class ConversationManager {
   }
 
   public async cleanupStaleConversations(validPeerCids: Set<bigint>): Promise<number> {
+    // An empty set never legitimately means "delete everything". A user with
+    // no peers has no conversations either, so refusing costs nothing — while
+    // proceeding deletes the persisted pages of EVERY cached conversation.
+    //
+    // That is reachable in normal use: the caller builds this set from
+    // ListRegisteredPeers, which the hook's own comment records as timing out
+    // intermittently under concurrent P2P activity, and the guard there is
+    // `startupCompleteRef`, which initialises to true — so a plain reload is
+    // not covered. The guard belongs here, at the destructive operation,
+    // rather than at the one caller that happens to exist today.
+    if (validPeerCids.size === 0) {
+      debugLog('ConversationManager', '[P2P] Refusing stale-conversation cleanup: the valid peer set is empty');
+      return 0;
+    }
+
     const staleCids: bigint[] = [];
     const currentCid = await this.config.getCurrentCid();
 

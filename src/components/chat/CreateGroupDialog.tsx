@@ -19,11 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 import { MembersTable, getAvatarColor } from './CreateGroupMembersTable';
@@ -108,11 +104,9 @@ export function CreateGroupDialog({
     }
   }, [displayName, selectedMembers, onCreateGroup, onOpenChange]);
 
-  // No `if (!isCreating)` guard here. onOpenChange is Radix's SINGLE dismissal
-  // channel, so one busy guard on it disables the X, Escape and outside-click
-  // at once — at the same moment the submit button is disabled too. Every exit
-  // closes together and the only way out is a reload. Dismissal should always
-  // work; only the submit button gets disabled. See shared/confirm-dialog.
+  // No `if (!isCreating)` guard: onOpenChange is Radix's SINGLE dismissal
+  // channel, so guarding it disables the X, Escape and outside-click together,
+  // while the submit button is disabled too. See shared/confirm-dialog.
   const handleClose = useCallback(() => {
     setGroupName('');
     setSelectedMembers([]);
@@ -228,8 +222,7 @@ export function CreateGroupDialog({
         )}
 
         <DialogFooter className="gap-2">
-          {/* Backing out of an in-flight create is always legitimate; greying
-              this alongside the guarded onOpenChange sealed the dialog. */}
+          {/* Backing out of an in-flight create is always legitimate. */}
           <Button
             variant="outline"
             onClick={handleClose}

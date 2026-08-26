@@ -18,10 +18,7 @@ import type {
   MessagePage,
   P2PMessage,
 } from './p2p-types';
-import {
-  MESSAGES_PER_PAGE,
-  PAGINATED_PREFIX,
-} from './p2p-types';
+import { MESSAGES_PER_PAGE, PAGINATED_PREFIX } from './p2p-types';
 import {
   loadMetadataByKey,
   loadMetadata,
@@ -183,9 +180,8 @@ export class MessagePaginationStore {
       metadata.unreadCount++;
     }
 
-    // Page first, pointer last. Two round-trips, no transaction, and
-    // `latestPage` is the only pointer: concurrently, a tab closed mid-flight
-    // could land metadata aimed at a page that was never written.
+    // Page first, pointer last: two round-trips, no transaction, and
+    // `latestPage` is the only pointer to the page.
     await saveMessagePage(peerCid, metadata.latestPage, currentPage);
     await saveMetadata(peerCid, metadata);
   }

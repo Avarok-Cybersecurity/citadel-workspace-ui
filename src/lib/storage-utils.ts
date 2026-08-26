@@ -213,7 +213,38 @@ function bigIntToString(_key: string, value: unknown): unknown {
 /**
  * JSON stringify that handles BigInt values for logging/display.
  * Converts BigInt to string representation.
+ *
+ * NOT for persistence: one-way. A bigint read back with JSON.parse is a
+ * string, and `"123" === 123n` is false. Use persistJSON below instead.
  */
 export function safeJSONStringify(data: unknown, space?: number): string {
   return JSON.stringify(data, bigIntToString, space);
+}
+
+/**
+ * JSON for storage, with bigints that survive the round trip. Tagged rather
+ * than stringified so the reader can tell a CID from a string that looks like
+ * one — the convention revfs/opfs-storage already uses.
+ */
+export function persistJSON(data: unknown): string {
+  return JSON.stringify(data, (_key, value) =>
+    typeof value === 'bigint' ? { __bigint__: value.toString() } : value
+  );
+}
+
+/**
+ * Inverse of persistJSON. `legacyBigIntFields` names keys older builds wrote
+ * as bare strings: that data has no tag, so the field name is the only signal.
+ */
+export function parsePersistedJSON<T>(text: string, legacyBigIntFields: readonly string[] = []): T {
+  const legacy = new Set(legacyBigIntFields);
+  return JSON.parse(text, (key, value) => {
+    if (value && typeof value === 'object' && '__bigint__' in value) {
+      return BigInt((value as { __bigint__: string }).__bigint__);
+    }
+    if (legacy.has(key) && typeof value === 'string' && /^\d+$/.test(value)) {
+      return BigInt(value);
+    }
+    return value;
+  }) as T;
 }

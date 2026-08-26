@@ -46,17 +46,13 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   const [qualities, setQualities] = useState<Map<bigint, ConnectionQuality>>(new Map());
   const [captureFailure, setCaptureFailure] = useState<CaptureFailure | null>(null);
 
-  // media-capture documents this field as "Shown to the user"; nothing read it,
-  // so denying camera permission made the Call button do nothing at all. A
-  // toast, not CallStage: startCall tears down before a call state exists.
+  // Documented as "Shown to the user"; nothing read it. A toast rather than
+  // CallStage, which is not mounted when startCall fails before a call exists.
   useEffect(() => {
     if (!captureFailure) return;
     toast.error(captureFailure.message);
   }, [captureFailure]);
-  const [browserCapability, setBrowserCapability] = useState<{
-    supported: boolean;
-    reason?: string;
-  }>({
+  const [browserCapability, setBrowserCapability] = useState<{ supported: boolean; reason?: string }>({
     supported: false,
     reason: 'Checking whether this browser supports calls…',
   });

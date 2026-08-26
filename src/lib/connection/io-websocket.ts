@@ -11,7 +11,7 @@
 // live bindings — reading `wsModule.websocketService` is deferred until call time,
 // by which point the cycle has fully resolved and the singleton is initialized.
 import * as wsModule from '../websocket-service';
-import { safeJSONStringify } from '../storage-utils';
+import { persistJSON, parsePersistedJSON } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
 import type { SessionSecuritySettings } from '../p2p-registration-service';
@@ -107,7 +107,7 @@ export class ConnectionIOWebSocket {
   }
 
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
-    const valueStr = safeJSONStringify(sessions);
+    const valueStr = persistJSON(sessions);
     debugLog('ConnectionIO', 'Storing sessions, serialized:', formatForDebug(valueStr));
     const valueBytes = stringToBytes(valueStr);
     await this.localDBSet(0n, SESSION_STORAGE_KEY, valueBytes);
@@ -118,7 +118,9 @@ export class ConnectionIOWebSocket {
     if (result && result.value) {
       try {
         const jsonStr = bytesToString(result.value);
-        return JSON.parse(jsonStr) as StoredSessions;
+        // StoredSession.cid is a bigint and exists specifically so an orphaned
+        // session can be reclaimed; a bare JSON.parse gave it back as a string.
+        return parsePersistedJSON<StoredSessions>(jsonStr, ['cid']);
       } catch (decodeError) {
         debugLog('ConnectionIO', 'Failed to decode stored sessions:', decodeError);
         return null;

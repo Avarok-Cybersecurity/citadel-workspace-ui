@@ -9,8 +9,7 @@ import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { AgentDownloadHint } from './AgentDownloadHint';
-import type { ConnectionRetryModalProps } from './connection-retry-types';
-import { getRetryDelay } from './connection-retry-types';
+import { getRetryDelay, type ConnectionRetryModalProps } from './connection-retry-types';
 
 export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   isOpen,
@@ -160,10 +159,8 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
         <AgentDownloadHint />
 
         <div className="space-y-4 py-4">
-          {/* Radix announces title+description once on open and nothing after.
-              maxRetries=10 with up to 300s backoff means minutes of progress —
-              including the terminal failure that disables Retry Now — reaching
-              nobody. Mounted unconditionally so the region pre-exists its text. */}
+          {/* Radix announces title+description once and nothing after, so
+              retry progress reached nobody. Mounted so it pre-exists its text. */}
           <div className="text-sm text-muted-foreground" role="status">
             {isLoading ? (
               <div className="flex items-center gap-2">

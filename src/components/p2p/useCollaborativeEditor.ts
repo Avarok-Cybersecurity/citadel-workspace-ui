@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { FlashComment } from './CollaboratorCursor';
+import { useDocumentPersistence } from './useDocumentPersistence';
 
 /** Shape of awareness state entries set via provider.setLocalState() */
 interface AwarenessState {
@@ -43,6 +44,8 @@ export function useCollaborativeEditor({
   const [flashComments, setFlashComments] = useState<FlashComment[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+
+  useDocumentPersistence(documentId, doc);
 
   // Create provider on mount
   useEffect(() => {

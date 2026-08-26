@@ -7,6 +7,13 @@
 
 import { websocketService } from '../websocket-service';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
+import { parsePersistedJSON } from '../storage-utils';
+
+/**
+ * Keys older builds wrote as bare strings via safeJSONStringify. New writes are
+ * tagged, so this list only exists to rescue data already on disk.
+ */
+const PERSISTED_CID_FIELDS = ['fromCid', 'toCid', 'cid', 'peer_cid'] as const;
 import { debugLog } from '@/lib/debug-config';
 import type { PendingPeerRequest, OutgoingPeerRequest, KVPendingEntry } from './types';
 import {
@@ -23,8 +30,8 @@ async function localDBSet(
   label: string
 ): Promise<void> {
   const requestId = crypto.randomUUID();
-  const { safeJSONStringify } = await import('../storage-utils');
-  const valueStr = safeJSONStringify(data);
+  const { persistJSON } = await import('../storage-utils');
+  const valueStr = persistJSON(data);
 
   const request = {
     LocalDBSetKV: {
@@ -158,7 +165,11 @@ export function resolveKVResponse(
   kv.delete(requestId);
   try {
     if (value && value.length > 0) {
-      pending.resolve(JSON.parse(bytesToString(value)));
+      // parsePersistedJSON, not JSON.parse: fromCid/toCid/cid/peer_cid are
+      // typed bigint and every lookup in state.ts compares them with ===, so
+      // strings coming back here made incoming requests invisible to the UI
+      // and the badge, and outgoing ones impossible to dedupe or remove.
+      pending.resolve(parsePersistedJSON(bytesToString(value), PERSISTED_CID_FIELDS));
     } else {
       pending.resolve(null);
     }

@@ -146,13 +146,11 @@ export class CallManager {
     );
     //
     // Per-peer catch, like every other fan-out in this file. Without it
-    // Promise.all rejects on the first unreachable co-invitee and execution
-    // never reaches openSessionFor below — so NO session opens with anyone,
-    // including the caller, while `accepted-locally` has already moved us to
-    // `connecting`. Group rosters come from room membership rather than from
-    // connected peers, so an unreachable co-invitee is the normal case there;
-    // in 1:1 this list is just the caller, who by construction reached us.
-    // That asymmetry is why the hang was group-only and looked intermittent.
+    // Promise.all rejects on the first unreachable co-invitee and never reaches
+    // openSessionFor below, so NO session opens with anyone — including the
+    // caller — while we have already moved to `connecting`. Group rosters come
+    // from room membership rather than connected peers, so that is the normal
+    // case there; in 1:1 this list is just the caller. Hence group-only.
     await Promise.all(
       peers.map((p) =>
         this.options.transport
