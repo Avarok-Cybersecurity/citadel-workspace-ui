@@ -291,6 +291,70 @@ Overlay + Content with none. Radix AlertDialog also does not close on
 outside-click by design. So wherever Cancel is `disabled` — three confirm
 dialogs — Escape is the only exit.
 
+## Round four — multi-tab concurrency, 2026-08-26
+
+The architecture is "one WebSocket per browser, leader tab and followers over
+BroadcastChannel". There are **no tests for leader election at all**.
+
+### 31. Duplicating a tab produces two instances with the same identity · critical
+Both `instanceId` and `tabId` live only in `sessionStorage`, which the HTML spec
+copies into a tab created from an existing one — "Duplicate tab", `window.open`,
+middle-click. `instance-channel` then drops every message whose sender id equals
+its own, so the twins discard each other's heartbeats, each concludes no leader
+exists, and both claim it **permanently**: the split-brain resolution runs only
+on messages that were filtered out one line earlier. `isMessageForUs` also
+matches both, so forwarded messages process twice, and both write the same
+`tab-<id>-selected-user` key — switching account in one silently changes the
+other. One user gesture reaches an unrecoverable state. Fix: mint identity per
+page load and detect collision via an announce from your own id.
+
+### 32. A 5s leader timeout against a 60s throttled heartbeat · high
+`HEARTBEAT_MS 2000` / `LEADER_TIMEOUT_MS 5000` is two missed beats of slack, on
+a plain `setInterval`, with no `visibilitychange` handling in the election at
+all. Chrome throttles hidden tabs to roughly one timer callback per minute after
+~5 minutes. So working in one tab for five minutes while another holds
+leadership guarantees a false takeover — and each one used to strand a socket
+(finding 33). The mitigation exists elsewhere: `checkstate-manager` queues while
+hidden. Fix: `navigator.locks` is the real answer (crash-safe single leader for
+free); at minimum force a heartbeat on becoming visible and resign deliberately
+after a long hide.
+
+### 33. Demoted leaders never closed their socket · critical — FIXED (7f55689)
+### 34. The follower retry mechanism had no subscriber · high — FIXED (7f55689)
+
+### 35. P2P history is stored per-peer under CID 0, and the write lock is per-tab · high
+Keys are `msgs_with_peer_{CID}_…` at namespace `0n`, and `loadAllMetadata` lists
+all of them regardless of who is signed in — no `conversations.clear()` exists
+anywhere. So user2's tab shows user1's history for a shared peer, and a
+logout/login inherits the previous user's conversations. `withPeerLock` is a
+module-level Map, i.e. per tab: in the project's own sanctioned two-tab test
+setup, an append in tab 1 can be overwritten by tab 2 between its load and save.
+The lock's own header quotes the exact failure it was written for; it was never
+extended past the tab boundary.
+
+### 36. Six features call the raw client and are inert on every follower tab · high
+A follower has no client at all. The correct branch-on-leader-then-proxy pattern
+exists twice in the same directory (`workspace-operations`,
+`messenger-operations`). These never got it: group create/invite/leave/kick/list
+all throw; `listKnownServers` returns empty; peer-registration persistence logs
+"no client" and **resolves successfully**, so accepted requests reappear after a
+reload; `resendPeerRegister` throws. Fix: route through
+`websocketService.sendRequest`, which already proxies — and a lint rule banning
+`sendDirectToInternalService` outside `lib/websocket*/` would catch the next one.
+
+### 37. Leaked listeners on the timeout path · medium
+Five request helpers register a `websocket-message` handler and clear it on
+success and failure but not on timeout — and the timeout path is the common one
+on a follower tab, where the response may never arrive. Each leaked handler then
+runs on every subsequent message for the life of the tab. The canonical version
+is `websocket/request-response.ts`: one `cleanup()` closure called from all four
+exits, including a throw from the send itself.
+
+### 38. The "emit with NO listeners" detector cannot see the case it was written for
+It fires only when the listener count is zero — a few ms at boot. The real
+failure is the P2P handler being absent while ~8 other services are subscribed,
+which keeps the count non-zero. The module's own header says exactly this.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
