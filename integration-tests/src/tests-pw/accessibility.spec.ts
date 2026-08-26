@@ -86,6 +86,47 @@ async function settleAnimations(page: Page): Promise<void> {
  * Reports the offending selector and the rule's help URL, because "3 violations"
  * in a CI log is not something anyone can act on.
  */
+
+/**
+ * Contrast of list markers against the page.
+ *
+ * axe does not evaluate ::marker pseudo-elements, so a marker can be
+ * invisible while every scan reports clean. That is not hypothetical: the
+ * prose bullets sat at Tailwind Typography's gray-300 default and measured
+ * 1.47:1 against the light theme's white page — the bullets in every MDX
+ * document were effectively not there, in the one mode nobody had screenshotted.
+ *
+ * Returns null when the surface has no list to measure, so a caller can tell
+ * "no lists here" from "markers are fine".
+ */
+async function measureMarkerContrast(page: Page): Promise<number | null> {
+  return page.evaluate(() => {
+    // An li that actually RENDERS a marker. Plain `querySelector('li')` finds
+    // the sidebar's menu items first — list-style:none, so they have no visible
+    // marker and inherit a near-black colour that passes any threshold. A gate
+    // written that way measures nothing and reports success, which is worse
+    // than not having it.
+    const li = Array.from(document.querySelectorAll('li')).find(
+      (candidate) => getComputedStyle(candidate).listStyleType !== 'none',
+    );
+    if (!li) return null;
+    const parse = (value: string) => (value.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+    const luminance = (rgb: number[]) => {
+      const [r, g, b] = rgb.map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const marker = parse(getComputedStyle(li, '::marker').color);
+    const background = parse(getComputedStyle(document.body).backgroundColor);
+    if (marker.length !== 3 || background.length !== 3) return null;
+    const a = luminance(marker);
+    const b = luminance(background);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+}
+
 async function expectNoBlockingViolations(page: Page, screen: string): Promise<void> {
   await settleAnimations(page);
 
@@ -302,6 +343,19 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
       .toBe(false);
 
     await expectNoBlockingViolations(page, 'workspace/light');
+
+    // Measured, because axe cannot see it. 3:1 is the WCAG threshold for
+    // non-text content that conveys meaning, which a list marker does — it is
+    // the only thing distinguishing a list from stacked paragraphs.
+    const markerContrast = await measureMarkerContrast(page);
+    expect(
+      markerContrast,
+      'the workspace should render MDX content with a list to measure',
+    ).not.toBeNull();
+    expect(
+      markerContrast ?? 0,
+      `list markers measure ${(markerContrast ?? 0).toFixed(2)}:1 in light mode`,
+    ).toBeGreaterThanOrEqual(3);
 
     // The other surfaces, while we are already in light. Scanning only the
     // shell would have left settings and the directory unexamined in the very
