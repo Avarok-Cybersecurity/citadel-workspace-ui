@@ -28,6 +28,7 @@ import {
   tryLoadMessagePage,
   saveMessagePage,
   deleteConversationPages,
+  type DeleteScope,
 } from './message-page-operations';
 import { debugLog } from '@/lib/debug-config';
 import { withPeerLock } from './peer-write-lock';
@@ -118,9 +119,12 @@ export class MessagePaginationStore {
     let metadata = await loadMetadata(peerCid);
     const isNewConversation = !metadata;
 
+    const ownerCid = await getCurrentCid();
+
     if (!metadata) {
       metadata = {
         peerCid,
+        ownerCid: ownerCid ?? undefined,
         peerUsername: getPeerUsername(),
         totalMessageCount: 0,
         oldestMessageTimestamp: message.timestamp,
@@ -131,6 +135,15 @@ export class MessagePaginationStore {
         lastMessageIndex: 0,
         lastUpdated: Date.now()
       };
+    }
+
+    // Adopt an unstamped record the first time the account that is actually
+    // using it writes to it. Attribution by USE is the only signal available —
+    // the key carries no owner — and it is safe in the direction that matters:
+    // it can only ever move a record from "nobody may delete this" to "one
+    // specific account may".
+    if (metadata.ownerCid === undefined && ownerCid !== null) {
+      metadata.ownerCid = ownerCid;
     }
 
     let currentPage = await loadMessagePage(peerCid, metadata.latestPage);
@@ -240,8 +253,8 @@ export class MessagePaginationStore {
     }
   }
 
-  public async deleteConversationPages(peerCid: bigint): Promise<void> {
-    return deleteConversationPages(peerCid);
+  public async deleteConversationPages(peerCid: bigint, scope: DeleteScope): Promise<void> {
+    return deleteConversationPages(peerCid, scope);
   }
 }
 

@@ -179,7 +179,13 @@ export class P2PMessengerManager extends EventListenerManager {
    * reload; clearMessages clears what is on screen now.
    */
   public async clearConversationHistory(peerCid: bigint): Promise<void> {
-    await messagePaginationStore.deleteConversationPages(peerCid);
+    // includeUnattributed: the user has this conversation open and pressed
+    // clear. Refusing on an unstamped legacy record would make their own
+    // button do nothing.
+    await messagePaginationStore.deleteConversationPages(peerCid, {
+      ownerCid: await resolveCurrentCid(),
+      includeUnattributed: true,
+    });
     this.conversationManager.clearMessages(peerCid);
     eventEmitter.emit('p2p:conversation-cleared', { peerCid });
   }

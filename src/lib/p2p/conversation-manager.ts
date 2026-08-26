@@ -191,7 +191,15 @@ export class ConversationManager {
 
     if (staleCids.length > 0) {
       debugLog('ConversationManager', `[P2P] Cleaned up ${staleCids.length} stale conversation(s)`);
-      await Promise.all(staleCids.map(cid => messagePaginationStore.deleteConversationPages(cid)));
+      // currentCid is the proof of ownership: deleteConversationPages refuses
+      // any record it cannot attribute to this account. Without it, one user
+      // logging in deleted every other user's history on the device.
+      await Promise.all(
+        staleCids.map((cid) => messagePaginationStore.deleteConversationPages(cid, {
+          ownerCid: currentCid,
+          includeUnattributed: false,
+        }))
+      );
       eventEmitter.emit('p2p:conversations-cleaned');
     }
 

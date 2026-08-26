@@ -26,6 +26,23 @@ export const PAGINATED_PREFIX = 'msgs_with_peer_';
  */
 export interface ConversationMetadata {
   peerCid: bigint;
+  /**
+   * Which local account this conversation belongs to.
+   *
+   * Message pages are keyed by PEER only — `msgs_with_peer_{peerCid}_…` — and
+   * stored in LocalDB bucket `0n`, which every account on the device shares.
+   * Nothing recorded whose conversation a record was, so
+   * `cleanupStaleConversations` — which deletes any cached conversation not in
+   * the CURRENT account's peer list — classed every other account's history as
+   * stale and deleted it. A second user logging in destroyed the first user's
+   * messages, permanently, on a device this product explicitly expects to hold
+   * several accounts.
+   *
+   * Optional because records written before this existed cannot be attributed
+   * to anyone. They are read normally and NEVER deleted: an unknown owner is
+   * exactly the case where destroying data is unsafe.
+   */
+  ownerCid?: bigint;
   peerUsername?: string;
   totalMessageCount: number;
   oldestMessageTimestamp: number;

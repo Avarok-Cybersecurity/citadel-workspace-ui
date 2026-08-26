@@ -55,6 +55,11 @@ export async function loadMetadataByKey(key: string): Promise<ConversationMetada
       const parsed = JSON.parse(valueStr) as Record<string, unknown>;
       return {
         ...parsed,
+        // Parsed back to bigint, like peerCid. Serialized as a string and left
+        // as one, every ownership comparison is string-vs-bigint and therefore
+        // always false — which silently turns the delete guard into "refuse
+        // everything", including the account's own sweep.
+        ownerCid: typeof parsed.ownerCid === 'string' ? BigInt(parsed.ownerCid) : parsed.ownerCid,
         peerCid: typeof parsed.peerCid === 'string' ? BigInt(parsed.peerCid) : parsed.peerCid
       } as ConversationMetadata;
     }
@@ -80,7 +85,12 @@ export async function loadMetadata(peerCid: bigint): Promise<ConversationMetadat
  */
 export async function saveMetadata(peerCid: bigint, metadata: ConversationMetadata): Promise<void> {
   const key = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
-  const serializableMetadata = { ...metadata, peerCid: metadata.peerCid.toString() };
+  const serializableMetadata = {
+    ...metadata,
+    peerCid: metadata.peerCid.toString(),
+    // Stamped so this record can later be proved ours — see ConversationMetadata.
+    ownerCid: metadata.ownerCid === undefined ? undefined : metadata.ownerCid.toString(),
+  };
   const valueStr = JSON.stringify(serializableMetadata);
   const valueBytes = stringToBytes(valueStr);
   await websocketService.sendLocalDBSet(0n, key, valueBytes);
@@ -148,9 +158,41 @@ export async function saveMessagePage(peerCid: bigint, pageNumber: number, page:
 /**
  * Delete all pages and metadata for a conversation.
  */
-export async function deleteConversationPages(peerCid: bigint): Promise<void> {
+export interface DeleteScope {
+  /** The account performing the delete. */
+  ownerCid: bigint | null;
+  /**
+   * Whether records with no recorded owner may be deleted.
+   *
+   * False for the automatic sweep, true for an explicit "clear this
+   * conversation" — the user has that conversation open and is acting on it
+   * deliberately, so refusing would make their own button silently do nothing.
+   * A sweep has no such mandate.
+   */
+  includeUnattributed: boolean;
+}
+
+export async function deleteConversationPages(peerCid: bigint, scope: DeleteScope): Promise<void> {
   const metadata = await loadMetadata(peerCid);
   if (!metadata) return;
+
+  // Delete only what we can PROVE belongs to the account doing the deleting.
+  //
+  // Pages live in LocalDB bucket `0n`, shared by every account on the device,
+  // and are keyed by peer alone. cleanupStaleConversations deletes any cached
+  // conversation missing from the CURRENT account's peer list — which is true
+  // of every conversation belonging to a DIFFERENT account. A second user
+  // logging in permanently destroyed the first user's message history, on a
+  // device this product explicitly expects to hold several accounts.
+  if (metadata.ownerCid === undefined) {
+    if (!scope.includeUnattributed) {
+      debugLog('MessagePageOperations', `[P2P] Keeping unattributed conversation ${peerCid.toString().slice(0, 8)}: owner unknown`);
+      return;
+    }
+  } else if (scope.ownerCid === null || metadata.ownerCid !== scope.ownerCid) {
+    debugLog('MessagePageOperations', `[P2P] Refusing to delete conversation ${peerCid.toString().slice(0, 8)}: it belongs to another account`);
+    return;
+  }
 
   const deletePromises: Promise<void>[] = [];
   for (let pageNum = 0; pageNum <= metadata.latestPage; pageNum++) {
