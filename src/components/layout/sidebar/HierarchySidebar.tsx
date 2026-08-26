@@ -60,7 +60,17 @@ export function HierarchySidebar() {
       toastSuccess(toast, `${typeName} Deleted`, `${node.name} has been deleted successfully`);
     } catch (error) {
       debugLog('HierarchySidebar', 'Error deleting node:', error);
-      toastError(toast, 'Error', 'Failed to delete node. Please try again.');
+      // Rethrow. TreeNodesSection's dialog closes only on success and renders
+      // its own role="alert" with the reason — and that entire path was dead,
+      // because this handler always resolved. Two layers of failure handling,
+      // neither of which could fire. The toast stays for callers that do not
+      // present their own error.
+      toastError(
+        toast,
+        'Could not delete',
+        error instanceof Error ? error.message : 'Failed to delete node. Please try again.'
+      );
+      throw error;
     }
   }, [selectedNodeId, navigate, toast]);
 

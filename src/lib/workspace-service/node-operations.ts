@@ -7,6 +7,7 @@
 
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
+import { awaitWriteResponse } from './await-write-response';
 import type { ProtocolSender } from './workspace-operations';
 
 /**
@@ -31,7 +32,10 @@ export async function createNode(
       is_default: options?.isDefault,
     },
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER has accepted it, not when the frame leaves.
+  // A refusal arrives as a response, which cannot reject a send-only promise —
+  // so this used to report success for writes the server was about to refuse.
+  return awaitWriteResponse('CreateNode', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -60,7 +64,10 @@ export async function updateNode(
       is_default: updates.isDefault,
     },
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER has accepted it, not when the frame leaves.
+  // A refusal arrives as a response, which cannot reject a send-only promise —
+  // so this used to report success for writes the server was about to refuse.
+  return awaitWriteResponse('UpdateNode', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -74,7 +81,10 @@ export async function deleteNode(
   const requestPart: WorkspaceProtocolRequestTS = {
     DeleteNode: { node_id: nodeId, cascade },
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER has accepted it, not when the frame leaves.
+  // A refusal arrives as a response, which cannot reject a send-only promise —
+  // so this used to report success for writes the server was about to refuse.
+  return awaitWriteResponse('DeleteNode', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
