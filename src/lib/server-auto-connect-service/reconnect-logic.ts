@@ -145,10 +145,23 @@ export function cancelRetry(
   sessionKey: string
 ): void {
   const attempt = reconnectAttempts.get(sessionKey);
-  if (attempt?.timeout) {
+  if (!attempt) return;
+
+  // Clear the timer if there is one, but delete the entry EITHER WAY.
+  //
+  // The delete used to sit inside `if (attempt?.timeout)`, and `timeout` is
+  // null until a retry is actually scheduled — so a session that connected
+  // successfully on its first attempt kept its entry forever. The scheduler
+  // skips any session already in this map (`if (reconnectAttempts.has(...))
+  // continue`), so auto-reconnect never fired again for that account for the
+  // life of the tab: the happy path disabled the recovery path.
+  //
+  // It also kept getPendingReconnectCount() above zero permanently, which is
+  // the readiness signal main.tsx exposes for tests to wait on.
+  if (attempt.timeout) {
     clearTimeout(attempt.timeout);
-    reconnectAttempts.delete(sessionKey);
   }
+  reconnectAttempts.delete(sessionKey);
 }
 
 /**
