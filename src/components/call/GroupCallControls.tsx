@@ -59,7 +59,7 @@ export function GroupCallControls({ roomId, roomName, members }: GroupCallContro
           <Phone className="h-4 w-4" aria-hidden="true" />
           <span>Join call</span>
           <span
-            className="rounded-full bg-primary/15 px-1.5 text-xs font-medium text-primary"
+            className="rounded-full bg-primary/15 px-1.5 text-xs font-medium text-primary-accent"
             aria-hidden="true"
           >
             {mode.participantCount}

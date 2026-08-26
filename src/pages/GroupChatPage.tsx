@@ -173,7 +173,7 @@ export function GroupChatPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
         </div>
       </AppLayout>
     );
