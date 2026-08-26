@@ -407,6 +407,22 @@ test.describe.serial('Responsive workspace at 375px', () => {
     await expectNoHorizontalOverflow(page, 'workspace');
   });
 
+  // The office title used to be `hidden md:block`, so at THIS width it left the
+  // accessibility tree entirely and the page had no h1 — the document's own
+  // heading silently became the top level instead. Which element was the page
+  // heading depended on the viewport, which is why this is asserted at phone
+  // width specifically and not only in the accessibility suite's desktop run.
+  test('the page still has its heading at phone width', async () => {
+    const headings = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('h1'))
+        // sr-only elements still have an offsetParent, so this counts the
+        // heading that is present-but-invisible, which is the point.
+        .filter((h) => (h as HTMLElement).offsetParent !== null)
+        .map((h) => (h.textContent || '').trim().slice(0, 40)),
+    );
+    expect(headings.length, `expected exactly one h1, got ${JSON.stringify(headings)}`).toBe(1);
+  });
+
   test('workspace shell has no unhittable controls', async () => {
     await expectNoSmallTapTargets(page, 'workspace');
   });
