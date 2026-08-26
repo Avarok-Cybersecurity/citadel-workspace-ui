@@ -72,7 +72,70 @@ window.addEventListener('unhandledrejection', (e) => {
     reason: e.reason,
     promise: e.promise
   });
+
+  // A VersionError means the on-disk IndexedDB is NEWER than this build expects
+  // — the normal, expected state during a ROLLBACK, and for anyone running a
+  // stale cached bundle. IndexedDB has no downgrade path.
+  //
+  // storage-utils diagnoses this precisely, but only through `errorLog`, which
+  // is gated behind the diagnostics flag, and then rethrows into an async
+  // effect where React error boundaries cannot reach it. The result was a
+  // permanently spinning loader with no error, no toast and no recovery action
+  // — on the one operation you reach for during an incident. Support sees "the
+  // app just spins".
+  const reason: unknown = e.reason;
+  if (reason instanceof DOMException && reason.name === 'VersionError') {
+    e.preventDefault();
+    showStorageVersionRecovery();
+  }
 });
+
+/**
+ * A recovery screen for the rollback case, built with safe DOM APIs.
+ *
+ * Unregisters the service worker before reloading: the stale bundle is very
+ * often being served FROM the worker's precache, so a plain reload would hand
+ * the user the same old build and the same error.
+ */
+function showStorageVersionRecovery(): void {
+  const rootElement = document.getElementById('root');
+  if (!rootElement || rootElement.dataset.recovery === 'storage-version') return;
+  rootElement.dataset.recovery = 'storage-version';
+  rootElement.replaceChildren();
+
+  const panel = document.createElement('div');
+  panel.setAttribute('role', 'alert');
+  panel.style.cssText =
+    'max-width:34rem;margin:12vh auto;padding:2rem;font-family:system-ui,sans-serif;line-height:1.6';
+
+  const heading = document.createElement('h1');
+  heading.textContent = 'This version is older than your saved data';
+  heading.style.cssText = 'font-size:1.25rem;margin:0 0 0.75rem';
+
+  const body = document.createElement('p');
+  body.textContent =
+    'Your browser is running an older build of Citadel than the data stored on this device. ' +
+    'That usually means a cached copy loaded, or the app was rolled back. Getting the current ' +
+    'version will fix it — your data is untouched.';
+  body.style.cssText = 'margin:0 0 1.25rem';
+
+  const button = document.createElement('button');
+  button.textContent = 'Get the current version';
+  button.style.cssText =
+    'padding:0.6rem 1rem;border-radius:0.5rem;border:1px solid currentColor;background:transparent;' +
+    'color:inherit;font:inherit;cursor:pointer';
+  button.addEventListener('click', () => {
+    button.disabled = true;
+    button.textContent = 'Reloading…';
+    void navigator.serviceWorker?.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
+      .catch(() => undefined)
+      .finally(() => window.location.reload());
+  });
+
+  panel.append(heading, body, button);
+  rootElement.append(panel);
+}
 
 try {
   const rootElement = document.getElementById("root");
