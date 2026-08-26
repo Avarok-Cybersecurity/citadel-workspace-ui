@@ -23,6 +23,17 @@
  * those was reported by axe, the contrast suite, the overflow check or the
  * tap-target check. They had to be looked at.
  *
+ * WHAT IT CANNOT SEE: these captures resize the viewport but keep a desktop
+ * browser, so Chromium still reports `hover: hover` and `pointer: fine`. Every
+ * "phone" screenshot here therefore shows DESKTOP hover behaviour at phone
+ * width. That is exactly how eight controls revealed by `group-hover` alone
+ * survived a full sweep, an axe pass, a tap-target scan and an overflow scan —
+ * on a real phone they were invisible and unreachable, and none of those checks
+ * could tell. Resizing a window does not make a phone. Reachability belongs in
+ * `tests-pw/touch-controls.spec.ts`, which emulates touch properly and asserts
+ * computed opacity; do not read a green sweep as evidence a control works on a
+ * phone.
+ *
  * Two traps it taught, both fixed here:
  *   - Set the theme then RELOAD. next-themes reads its key while booting, so a
  *     pushState navigation leaves the old scheme and the "light" captures come

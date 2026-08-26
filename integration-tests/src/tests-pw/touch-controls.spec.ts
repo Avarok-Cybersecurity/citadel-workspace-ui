@@ -25,6 +25,9 @@ import {
     waitForWorkspaceLoaded,
     closeAnyModals,
     config,
+    navigateToOffice,
+    switchToChatTab,
+    sendGroupMessage,
 } from '../lib/index.js';
 
 test('node actions are reachable on a touch device', async ({ browser }) => {
@@ -78,14 +81,23 @@ test('node actions are reachable on a touch device', async ({ browser }) => {
             timeout: 60_000,
         });
 
-        // Opacity, not visibility: Playwright treats a fully transparent element
-        // as visible, so `toBeVisible()` passed against the broken code. This is
-        // the property that actually decided whether a user could see it.
-        const opacity = await trigger.evaluate((el) => getComputedStyle(el).opacity);
+        // checkVisibility({opacityProperty}), not toBeVisible() and not the
+        // element's own computed opacity.
+        //
+        // Playwright reports a fully transparent element as visible, so
+        // toBeVisible() passed against the broken code. Reading the element's
+        // OWN opacity is wrong too: opacity is not inherited as a computed
+        // value, so a button inside a transparent wrapper still reports 1. That
+        // mistake made the message-actions test below pass against the very CSS
+        // it was written to reject — the class sits on the wrapper there, not
+        // the button. checkVisibility walks the ancestors, which is what
+        // "can a person see this" actually depends on.
+        const seen = await trigger.evaluate((el) =>
+            el.checkVisibility({ opacityProperty: true, visibilityProperty: true }));
         expect(
-            Number(opacity),
-            'the node actions button is transparent on a touch device — it is revealed by hover, which a phone does not have',
-        ).toBeGreaterThan(0);
+            seen,
+            'the node actions button is invisible on a touch device — it is revealed by hover, which a phone does not have',
+        ).toBe(true);
 
         // And it works when tapped, without the force: true that would paper
         // over an element nothing can reach.
@@ -93,6 +105,89 @@ test('node actions are reachable on a touch device', async ({ browser }) => {
         await expect(
             page.locator('[role="menu"]'),
             'tapping the node actions button should open its menu',
+        ).toBeVisible({ timeout: 10_000 });
+    } finally {
+        await context.close();
+    }
+});
+
+/**
+ * Message actions are the most-used of the eight controls that were revealed by
+ * hover alone, and were the least verified: reply, edit and delete sit on EVERY
+ * message and were unreachable on a phone entirely.
+ *
+ * Covered through the office chat rather than a P2P conversation because it
+ * needs one account instead of two peers and a negotiated channel — the control
+ * under test is the same either way. `TextBubble` (P2P) and `GroupMessageItem`
+ * (group/office) both label the trigger "Message actions", so this selector
+ * exercises the shared affordance.
+ */
+test('message actions are reachable on a touch device', async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    const context = await browser.newContext({
+        viewport: { width: 375, height: 667 },
+        hasTouch: true,
+        isMobile: true,
+    });
+    const page = await context.newPage();
+
+    try {
+        await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+        await clearBrowserStorage(page);
+        await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+        await waitForAppReady(page, 60_000);
+
+        const pointer = await page.evaluate(() => ({
+            hover: window.matchMedia('(hover: hover)').matches,
+            fine: window.matchMedia('(pointer: fine)').matches,
+        }));
+        expect(pointer, 'the context is not emulating touch').toEqual({ hover: false, fine: false });
+
+        const user = `tmsg_${Date.now()}`;
+        expect(
+            await createAccount(page, user, { isFirstUser: true, password: config.DEFAULT_PASSWORD }),
+            'account creation should succeed',
+        ).toBe(true);
+        expect(await waitForWorkspaceLoaded(page, 90_000), 'the workspace should load').toBe(true);
+        await closeAnyModals(page);
+
+        // The sidebar is collapsed at this width; opening it is part of the
+        // journey, as it is for the node tree.
+        const sidebarToggle = page.getByTestId('sidebar-toggle');
+        if (await sidebarToggle.isVisible().catch(() => false)) {
+            await sidebarToggle.tap();
+            await page.waitForTimeout(1000);
+        }
+
+        expect(await navigateToOffice(page, user, 'General'), 'should reach the General office').toBe(true);
+        expect(await switchToChatTab(page, user), 'should open the office Chat tab').toBe(true);
+
+        const text = `touch reachability ${Date.now()}`;
+        expect(await sendGroupMessage(page, user, text), 'the message should send').toBe(true);
+        await expect(page.getByText(text).first(), 'the message should render').toBeVisible({
+            timeout: 60_000,
+        });
+
+        const actions = page.getByRole('button', { name: 'Message actions' }).first();
+        await expect(actions, 'every message should carry an actions control').toBeAttached({
+            timeout: 30_000,
+        });
+
+        // checkVisibility, for the reason spelled out in the node test above:
+        // the transparency lives on this control's WRAPPER, so reading the
+        // button's own opacity reports 1 no matter how hidden it is.
+        const seen = await actions.evaluate((el) =>
+            el.checkVisibility({ opacityProperty: true, visibilityProperty: true }));
+        expect(
+            seen,
+            'the message actions control is invisible on a touch device — reply, edit and delete are unreachable on a phone',
+        ).toBe(true);
+
+        await actions.tap();
+        await expect(
+            page.getByRole('menuitem', { name: /Reply/i }),
+            'tapping message actions should open the menu',
         ).toBeVisible({ timeout: 10_000 });
     } finally {
         await context.close();
