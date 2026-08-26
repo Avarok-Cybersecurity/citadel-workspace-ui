@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { User } from '../types/workspace-entities';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
@@ -49,7 +49,6 @@ export interface WorkspaceState {
     peerIds: string[];
     lastUpdated: number;
   };
-  lastRequestId?: string;
 }
 
 // Default initial state
@@ -94,8 +93,14 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({
   children,
   state
 }) => {
+  // Memoised: an object literal here is a new reference on every render of the
+  // provider, and context propagation bypasses React's element-identity
+  // bailout — so all 20 useWorkspace() consumers re-rendered whenever the
+  // provider did, regardless of whether `state` had changed.
+  const value = useMemo(() => ({ state }), [state]);
+
   return (
-    <WorkspaceContext.Provider value={{ state }}>
+    <WorkspaceContext.Provider value={value}>
       {children}
     </WorkspaceContext.Provider>
   );

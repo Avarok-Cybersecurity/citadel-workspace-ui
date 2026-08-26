@@ -15,7 +15,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
     const setupMemberListeners = async () => {
       // Member events
       await workspaceEvents.onMemberEvent('members:loading', (payload) => {
-        setLoading(setState, 'members', true, payload.connection.request_id);
+        setLoading(setState, 'members', true);
 
         if (payload.domainId) {
           debugLog('UseMemberEventSetup', `Loading members for domain: ${payload.domainId}, request ID: ${payload.connection.request_id}`);
@@ -89,7 +89,6 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             currentUser: updatedCurrentUser,
             members: membersRecord,
             loading: { ...prev.loading, members: false },
-            lastRequestId: payload.connection.request_id
           };
         });
       });
@@ -124,7 +123,6 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           return {
             ...prev,
             currentUser: updatedCurrentUser,
-            lastRequestId: payload.connection.request_id
           };
         });
       });
@@ -166,7 +164,6 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           return {
             ...prev,
             currentUser: updatedCurrentUser,
-            lastRequestId: payload.connection?.request_id
           };
         });
       });

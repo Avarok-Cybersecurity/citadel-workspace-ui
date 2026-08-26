@@ -52,7 +52,6 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
               lastMessageTimestamp: Date.now()
             },
             typing: { ...prev.typing, peerIds: updatedTypingPeerIds, lastUpdated: Date.now() },
-            lastRequestId: payload.connection.request_id
           };
         });
       });
@@ -61,7 +60,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
         const peerCidStr = payload.peerCid.toString();
         setState(prev => {
           if (!prev.typing.peerIds.includes(peerCidStr)) {
-            return { ...prev, typing: { peerIds: [...prev.typing.peerIds, peerCidStr], lastUpdated: Date.now() }, lastRequestId: payload.connection.request_id };
+            return { ...prev, typing: { peerIds: [...prev.typing.peerIds, peerCidStr], lastUpdated: Date.now() } };
           }
           return prev;
         });
@@ -72,7 +71,6 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
         setState(prev => ({
           ...prev,
           typing: { peerIds: prev.typing.peerIds.filter(id => id !== peerCidStr), lastUpdated: Date.now() },
-          lastRequestId: payload.connection.request_id
         }));
       });
     };
@@ -84,7 +82,6 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
         setState(prev => ({
           ...prev,
           error: payload.message,
-          lastRequestId: payload.connection.request_id,
           needsWorkspaceInitialization: needsInitialization
         }));
 
@@ -102,8 +99,11 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
       });
 
       await workspaceEvents.onOperationEvent('operation:success', (connectionInfo: ConnectionInfo) => {
+        // Log only. This used to setState the request id into `lastRequestId`,
+        // which nothing ever read — so every successful operation minted a new
+        // root state object and re-rendered all 20 useWorkspace() subtrees for
+        // a value with no consumer.
         debugLog('WorkspaceEventHandler', `Operation successful (CID: ${connectionInfo.cid}, request ID: ${connectionInfo.request_id})`);
-        setState(prev => ({ ...prev, lastRequestId: connectionInfo.request_id }));
       });
     };
 
@@ -113,7 +113,6 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
         setState(prev => ({
           ...prev,
           protocolWarning: { message: payload.message, requestType: payload.requestType, timestamp: Date.now() },
-          lastRequestId: payload.connection.request_id
         }));
         setTimeout(() => { setState(prev => ({ ...prev, protocolWarning: undefined })); }, 10000);
       });

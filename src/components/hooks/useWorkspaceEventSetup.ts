@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { workspaceEvents, type ConnectionInfo, type WorkspacesPayload } from '@/lib/workspace-events';
+import { workspaceEvents, type WorkspacesPayload } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { connectionManager } from '@/lib/connection';
 import UserService from '@/lib/user-service';
@@ -17,8 +17,8 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
   useEffect(() => {
     const setupWorkspaceListeners = async () => {
       // Loading state
-      await workspaceEvents.onWorkspaceEvent('workspace:loading', (connectionInfo: ConnectionInfo) => {
-        setLoading(setState, 'workspace', true, connectionInfo.request_id);
+      await workspaceEvents.onWorkspaceEvent('workspace:loading', () => {
+        setLoading(setState, 'workspace', true);
       });
 
       // Workspace loaded event
@@ -53,7 +53,6 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           },
           loading: { ...prev.loading, workspace: false },
           needsWorkspaceInitialization: !isInitialized,
-          lastRequestId: payload.connection.request_id
         }));
 
         // Broadcast workspace state to other tabs
@@ -63,7 +62,6 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
             workspace: { id: payload.workspace.id, name: payload.workspace.name, metadata: parsedMetadata },
             loading: { workspace: false },
             needsWorkspaceInitialization: !isInitialized,
-            lastRequestId: payload.connection.request_id
           }
         });
 

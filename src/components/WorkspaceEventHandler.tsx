@@ -60,7 +60,6 @@ export interface WorkspaceEventState {
     displayName?: string;
     avatarUrl?: string;
   };
-  lastRequestId?: string;
 }
 
 /**

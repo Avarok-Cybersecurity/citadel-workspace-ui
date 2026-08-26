@@ -47,7 +47,6 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             ...prev,
             nodes: updatedNodes,
             loading: { ...prev.loading, nodes: false },
-            lastRequestId: payload.connection.request_id,
           };
         });
       });
@@ -57,7 +56,6 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
         setState(prev => ({
           ...prev,
           nodes: { ...prev.nodes, [payload.node.id]: payload.node },
-          lastRequestId: payload.connection.request_id,
         }));
       });
 
@@ -72,7 +70,6 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
           return {
             ...prev,
             nodes: updatedNodes,
-            lastRequestId: payload.connection.request_id,
           };
         });
       });
@@ -92,7 +89,6 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
               ...prev.nodes,
               [payload.nodeId]: { ...node, mdx_content: payload.mdxContent },
             },
-            lastRequestId: payload.connection.request_id,
           };
         });
       });
@@ -108,7 +104,6 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
               ...prev.nodes,
               [payload.nodeId]: { ...node, parent_id: payload.newParentId },
             },
-            lastRequestId: payload.connection.request_id,
           };
         });
       });
@@ -125,7 +120,6 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             ...prev,
             nodes: updatedNodes,
             loading: { ...prev.loading, nodes: false },
-            lastRequestId: payload.connection.request_id,
           };
         });
       });
@@ -136,7 +130,6 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
         setState(prev => ({
           ...prev,
           treeSchema: payload.schema,
-          lastRequestId: payload.connection.request_id,
         }));
       });
     };

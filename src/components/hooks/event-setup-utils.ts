@@ -10,32 +10,34 @@ export function setLoading(
   setState: SetState,
   key: keyof WorkspaceEventState['loading'],
   loading: boolean,
-  requestId?: string,
 ): void {
   setState(prev => ({
     ...prev,
     loading: { ...prev.loading, [key]: loading },
-    ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
   }));
 }
 
-/** Track a request ID without changing other state. */
-export function trackRequest(setState: SetState, requestId?: string): void {
-  if (requestId !== undefined) {
-    setState(prev => ({ ...prev, lastRequestId: requestId }));
-  }
+/**
+ * No-op kept as a call site marker.
+ *
+ * This used to write the request id into `lastRequestId`, a field written in
+ * 24 places and read in none — so "track a request ID without changing other
+ * state" was a root re-render of every useWorkspace() consumer in exchange for
+ * nothing. The parameters stay so the call sites still document which events
+ * carry a request id.
+ */
+export function trackRequest(_setState: SetState, _requestId?: string): void {
+  // Intentionally empty.
 }
 
 /** Upsert a DomainNode into the nodes map by its id. */
 export function upsertNode(
   setState: SetState,
   node: DomainNode,
-  requestId?: string,
 ): void {
   setState(prev => ({
     ...prev,
     nodes: { ...prev.nodes, [node.id]: node },
-    ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
   }));
 }
 
@@ -44,7 +46,6 @@ export function removeNode(
   setState: SetState,
   nodeId: string,
   childrenDeleted: string[],
-  requestId?: string,
 ): void {
   setState(prev => {
     const updated = { ...prev.nodes };
@@ -55,7 +56,6 @@ export function removeNode(
     return {
       ...prev,
       nodes: updated,
-      ...(requestId !== undefined ? { lastRequestId: requestId } : {}),
     };
   });
 }

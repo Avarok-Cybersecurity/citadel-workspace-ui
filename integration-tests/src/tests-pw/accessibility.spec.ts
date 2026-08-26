@@ -69,7 +69,20 @@ async function freshPage(page: Page, scheme: ColourScheme = 'dark'): Promise<voi
  */
 async function settleAnimations(page: Page): Promise<void> {
   await page.waitForFunction(
-    () => document.getAnimations().every((a) => a.playState === 'finished' || a.playState === 'idle'),
+    () => {
+      // `every` on an EMPTY list is vacuously true, and that is the case that
+      // bit: a list which loads over the network has no animations yet when
+      // this first runs, so the predicate passed instantly, the rows then
+      // mounted and faded in, and axe measured white text at ~9% opacity as a
+      // 1.26:1 contrast failure. Requiring the still state to hold across two
+      // frames means "nothing animating YET" cannot masquerade as settled.
+      const still = () =>
+        document.getAnimations().every((a) => a.playState === 'finished' || a.playState === 'idle');
+      if (!still()) return false;
+      return new Promise<boolean>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(still())));
+      });
+    },
     undefined,
     { timeout: 15_000 }
   ).catch(() => {

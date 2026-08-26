@@ -140,7 +140,12 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.3s ease-out",
+        // `forwards`: an entrance animation must HOLD its end state. The rule this
+        // replaced had it; without it a finished fade reverts to the underlying
+        // style, so a list that mounts after the page settles can be observed
+        // part-way through — which is how the a11y scan started reading white
+        // text at partial opacity as a #34353f contrast failure.
+        "fade-in": "fade-in 0.3s ease-out forwards",
         "fade-out": "fade-out 0.3s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
         "slide-out": "slide-out 0.3s ease-out",
