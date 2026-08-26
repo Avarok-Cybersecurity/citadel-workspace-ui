@@ -105,10 +105,14 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
             <Button
               type="submit"
               size="icon"
+              // Icon-only, so it needs a name of its own: axe reports
+              // `critical button-name` without it and a screen reader
+              // announces nothing at all.
+              aria-label="Send message"
               disabled={!canSendMessages || (!inputMessage.trim() && !isLiveDocMode)}
               className="bg-primary hover:bg-primary text-primary-foreground"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
         </div>

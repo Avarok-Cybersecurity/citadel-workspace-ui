@@ -456,6 +456,33 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
 
     await expectNoBlockingViolations(page, 'directory');
   });
+
+  // Messages and the file manager are two of the surfaces a user spends the
+  // most time on and neither was ever scanned. Comparing the scanned list
+  // against the routes that actually exist is what turned up the join
+  // wizard's unnamed password toggle, so the same comparison is applied here.
+  test('messages', async () => {
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/messages');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await expect(page.getByRole('heading', { name: 'Conversations' })).toBeVisible({ timeout: 30_000 });
+
+    await expectNoBlockingViolations(page, 'messages');
+  });
+
+  test('file manager', async () => {
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/workspace?section=files');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    // Settled on the shell rather than a file row: a fresh workspace has no
+    // files, and waiting for one would scan whatever happened to be on screen
+    // after a timeout instead of failing honestly.
+    await expect(page.getByTestId('sidebar-toggle')).toBeVisible({ timeout: 30_000 });
+
+    await expectNoBlockingViolations(page, 'files');
+  });
 });
 
 /**

@@ -152,10 +152,11 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
             <Button
               type="submit"
               size="icon"
+              aria-label="Add peer"
               disabled={isAddingPeer || !newPeerCid.trim()}
               className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 w-9 rounded-lg"
             >
-              <UserPlus className="h-4 w-4" />
+              <UserPlus className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
           {addPeerError && (
