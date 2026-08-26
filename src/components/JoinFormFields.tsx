@@ -2,6 +2,7 @@ import { User, AtSign, Lock, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
+import { CREDENTIAL_LIMITS } from "@/lib/credential-rules";
 
 interface FormFieldProps {
   id: string;
@@ -13,9 +14,18 @@ interface FormFieldProps {
   type?: string;
   icon: LucideIcon;
   hint?: string;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  /**
+   * Set for the visible text fields only. Deliberately NOT set on the password
+   * fields: maxLength truncates silently, so pasting a 24-character password
+   * from a manager would register a secret the user never saw and cannot
+   * reproduce from their vault. Those fields get an explicit error instead.
+   */
+  maxLength?: number;
+  error?: string | null;
 }
 
-function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint }: FormFieldProps) {
+function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint, onBlur, maxLength, error }: FormFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
   const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
@@ -33,7 +43,15 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
           type={inputType}
           value={value}
           onChange={onChange}
-          className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
+          onBlur={onBlur}
+          maxLength={maxLength}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={`bg-input text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:ring-1 transition-all ${
+            error
+              ? "border-destructive focus:border-destructive focus:ring-destructive/30"
+              : "border-border focus:border-primary-accent focus:ring-ring/30"
+          }`}
           placeholder={placeholder}
         />
         {isPassword && (
@@ -47,8 +65,12 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
           </button>
         )}
       </div>
-      {hint && (
-        <p className="text-[11px] text-muted-foreground pl-1">{hint}</p>
+      {error ? (
+        <p id={`${id}-error`} role="alert" className="text-[11px] text-destructive pl-1">
+          {error}
+        </p>
+      ) : (
+        hint && <p className="text-[11px] text-muted-foreground pl-1">{hint}</p>
       )}
     </div>
   );
@@ -102,9 +124,16 @@ interface JoinFormFieldsProps {
     confirmPassword: string;
   };
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  fieldErrors?: {
+    fullName: string | null;
+    username: string | null;
+    password: string | null;
+    confirmPassword: string | null;
+  };
 }
 
-export function JoinFormFields({ formData, onChange }: JoinFormFieldsProps) {
+export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: JoinFormFieldsProps) {
   return (
     <div className="space-y-4">
       <FormField
@@ -114,6 +143,9 @@ export function JoinFormFields({ formData, onChange }: JoinFormFieldsProps) {
         icon={User}
         value={formData.fullName}
         onChange={onChange}
+        onBlur={onBlur}
+        maxLength={CREDENTIAL_LIMITS.fullName.max}
+        error={fieldErrors?.fullName}
         placeholder="John Doe"
       />
       <FormField
@@ -123,6 +155,9 @@ export function JoinFormFields({ formData, onChange }: JoinFormFieldsProps) {
         icon={AtSign}
         value={formData.username}
         onChange={onChange}
+        onBlur={onBlur}
+        maxLength={CREDENTIAL_LIMITS.username.max}
+        error={fieldErrors?.username}
         placeholder="johndoe"
         hint={formData.username ? `Suggested: @${formData.username.toLowerCase().replace(/\s+/g, '_')}_citadel` : undefined}
       />
@@ -135,6 +170,8 @@ export function JoinFormFields({ formData, onChange }: JoinFormFieldsProps) {
           icon={Lock}
           value={formData.password}
           onChange={onChange}
+          onBlur={onBlur}
+          error={fieldErrors?.password}
           placeholder="••••••••••••"
         />
         <PasswordStrength password={formData.password} />
@@ -147,6 +184,8 @@ export function JoinFormFields({ formData, onChange }: JoinFormFieldsProps) {
         icon={Lock}
         value={formData.confirmPassword}
         onChange={onChange}
+        onBlur={onBlur}
+        error={fieldErrors?.confirmPassword}
         placeholder="••••••••••••"
       />
     </div>

@@ -23,6 +23,8 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     showConnectModal,
     connectStatus,
     handleInputChange,
+    handleBlur,
+    fieldErrors,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
@@ -42,7 +44,12 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
 
           <form onSubmit={handleSubmit}>
             <CardContent className="max-h-[calc(100dvh-16rem)] overflow-y-auto">
-              <JoinFormFields formData={formData} onChange={handleInputChange} />
+              <JoinFormFields
+                formData={formData}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                fieldErrors={fieldErrors}
+              />
             </CardContent>
 
             <CardFooter className="flex justify-between pt-2">

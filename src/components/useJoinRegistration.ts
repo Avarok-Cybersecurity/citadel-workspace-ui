@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { validateUsername, validatePassword, validateFullName } from "@/lib/credential-rules";
 import { useQueryClient } from "@tanstack/react-query";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { websocketService } from "@/lib/websocket-service";
@@ -35,6 +36,39 @@ export function useJoinRegistration(onBack: () => void, serverAddress: string, s
     password: "",
     confirmPassword: "",
   });
+
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTouched((prev) => ({ ...prev, [e.target.name]: true }));
+  };
+
+  // The SDK enforces these server-side and rejects the whole registration with
+  // a generic toast. Checking here means the user learns that a password has a
+  // 17-character maximum while typing it, not after a round-trip.
+  const rawErrors = {
+    fullName: validateFullName(formData.fullName),
+    username: validateUsername(formData.username),
+    password: validatePassword(formData.password),
+    confirmPassword:
+      formData.confirmPassword && formData.password !== formData.confirmPassword
+        ? "The passwords you entered do not match"
+        : null,
+  };
+
+  // Surface an error only once the field has been left or a submit attempted.
+  // Telling someone their 1-character username is too short while they are
+  // still typing it is noise, not help.
+  const visible = (field: keyof typeof rawErrors) =>
+    touched[field] || submitAttempted ? rawErrors[field] : null;
+
+  const fieldErrors = {
+    fullName: visible("fullName"),
+    username: visible("username"),
+    password: visible("password"),
+    confirmPassword: visible("confirmPassword"),
+  };
 
   const securitySettings = queryClient.getQueryData<SecuritySettingsValues>(['securitySettings']) || {
     securityLevel: 'Standard',
@@ -117,13 +151,20 @@ export function useJoinRegistration(onBack: () => void, serverAddress: string, s
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    setSubmitAttempted(true);
+
     if (!formData.fullName || !formData.username || !formData.password || !formData.confirmPassword) {
       toast({ title: "Missing Fields", description: "Please fill out all fields to continue", variant: "destructive" });
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      toast({ title: "Password Mismatch", description: "The passwords you entered do not match", variant: "destructive" });
+    // Report the first rule the form breaks rather than letting the server
+    // reject it. The inline errors are already rendered by this point; the
+    // toast exists for the case where the offending field is scrolled away.
+    const firstError =
+      rawErrors.fullName ?? rawErrors.username ?? rawErrors.password ?? rawErrors.confirmPassword;
+    if (firstError) {
+      toast({ title: "Check your details", description: firstError, variant: "destructive" });
       return;
     }
 
@@ -196,6 +237,8 @@ export function useJoinRegistration(onBack: () => void, serverAddress: string, s
     showConnectModal,
     connectStatus,
     handleInputChange,
+    handleBlur,
+    fieldErrors,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
