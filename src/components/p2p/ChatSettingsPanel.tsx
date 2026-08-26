@@ -19,6 +19,9 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useChatSettings } from './useChatSettings';
+import { p2pMessengerManager } from '@/lib/p2p';
+import { toastSuccess, toastError } from '@/lib/toast-helpers';
+import { useToast } from '@/hooks/use-toast';
 import { ChatSettingsFileTab } from './ChatSettingsFileTab';
 
 interface ChatSettingsPanelProps {
@@ -51,6 +54,7 @@ export function ChatSettingsPanel({
     handleAllowRevfsChange,
     handleRevfsQuotaChange,
   } = useChatSettings(isOpen, peerCid);
+  const { toast } = useToast();
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -235,7 +239,23 @@ export function ChatSettingsPanel({
                         description: 'Messages stored on this device are removed. This cannot be undone.',
                         confirmLabel: 'Clear history',
                       });
-                      if (ok) localStorage.removeItem(`chat-history:${peerCid}`);
+                      if (!ok) return;
+                      // Was `localStorage.removeItem('chat-history:' + peerCid)`
+                      // — a key nothing in this app has ever written, so the
+                      // button removed nothing while the dialog promised the
+                      // messages were gone. History lives behind
+                      // messagePaginationStore; this clears the stored pages AND
+                      // the in-memory copy the open chat is rendering.
+                      try {
+                        await p2pMessengerManager.clearConversationHistory(BigInt(peerCid));
+                        toastSuccess(toast, 'Chat history cleared', `Messages with ${peerName} were removed from this device.`);
+                      } catch (error) {
+                        toastError(
+                          toast,
+                          'Could not clear chat history',
+                          error instanceof Error ? error.message : 'Unknown error',
+                        );
+                      }
                     })();
                   }}
                 >

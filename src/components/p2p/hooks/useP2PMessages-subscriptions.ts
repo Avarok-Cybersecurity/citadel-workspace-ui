@@ -76,6 +76,16 @@ export function subscribeToConversationEvents({
     },
   );
 
+  // Scoped like the delete above: clearing one conversation must not empty a
+  // different peer's thread that happens to be on screen.
+  const unsubscribeCleared = eventEmitter.on(
+    'p2p:conversation-cleared',
+    ({ peerCid: clearedCid }: { peerCid: bigint }) => {
+      if (clearedCid !== peerCid) return;
+      setMessages([]);
+    },
+  );
+
   const unsubscribeTyping = messenger.onTyping((cid, isTyping) => {
     if (cid === peerCid) setPeerTyping(isTyping);
   });
@@ -115,6 +125,7 @@ export function subscribeToConversationEvents({
   });
 
   return () => {
+    unsubscribeCleared();
     unsubscribeMessage();
     unsubscribeStatusChange();
     unsubscribeMessageUpdate();

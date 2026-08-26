@@ -22,6 +22,7 @@ import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
 import type { P2PAttachment } from '@/types/p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
+import { eventEmitter } from '@/lib/event-emitter';
 import { PresenceManager } from './presence-manager';
 import { CheckStateManager } from './checkstate-manager';
 import { MessageHandler } from './message-handler';
@@ -163,6 +164,25 @@ export class P2PMessengerManager extends EventListenerManager {
   public isConnected(peerCid: bigint): boolean { return this.conversationManager.isConnected(peerCid); }
   public setPeerUsername(peerCid: bigint, username: string): void { this.conversationManager.setPeerUsername(peerCid, username); }
   public async cleanupStaleConversations(validPeerCids: Set<bigint>): Promise<number> { return this.conversationManager.cleanupStaleConversations(validPeerCids); }
+
+  /**
+   * Erase the stored history for one peer, for real.
+   *
+   * Chat Settings offered "Clear Chat History" and ran
+   * `localStorage.removeItem('chat-history:' + peerCid)` — a key nothing in the
+   * app has ever written. The dialog said "Messages stored on this device are
+   * removed. This cannot be undone." and not one message was removed. In a
+   * product sold on privacy that is the worst kind of defect: the user is told
+   * their data is gone and it is not.
+   *
+   * Both halves are needed. deleteConversationPages clears what survives a
+   * reload; clearMessages clears what is on screen now.
+   */
+  public async clearConversationHistory(peerCid: bigint): Promise<void> {
+    await messagePaginationStore.deleteConversationPages(peerCid);
+    this.conversationManager.clearMessages(peerCid);
+    eventEmitter.emit('p2p:conversation-cleared', { peerCid });
+  }
   public async loadMessagePage(peerCid: bigint, pageNumber: number) { return messagePaginationStore.loadMessagePage(peerCid, pageNumber); }
   public async loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]> { return messagePaginationStore.loadLatestMessages(peerCid); }
   public async getConversationMetadata(peerCid: bigint) { return messagePaginationStore.loadMetadata(peerCid); }

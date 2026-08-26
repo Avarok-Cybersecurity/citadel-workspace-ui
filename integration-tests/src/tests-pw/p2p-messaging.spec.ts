@@ -186,4 +186,34 @@ test.describe.serial('P2P Messaging', () => {
             expect(received).toBe(true);
         }
     });
+
+    // "Clear Chat History" ran localStorage.removeItem('chat-history:' + cid) —
+    // a key nothing in the app has ever written — while its dialog said
+    // "Messages stored on this device are removed. This cannot be undone."
+    // Nothing was removed. In a product sold on privacy, being TOLD the data is
+    // gone when it is not is worse than not offering the button.
+    //
+    // Runs last: it destroys the transcript the earlier tests built.
+    test('clearing chat history actually removes the messages', async () => {
+        const page = sessionA.page;
+        const doomed = `Clear me [${Date.now()}]`;
+        await sendMessage(page, sessionA.username, doomed);
+        await expect(page.getByText(doomed, { exact: false }).first()).toBeVisible({ timeout: 30_000 });
+
+        await page.getByTestId('chat-settings-button').click({ force: true });
+        // The control lives in the Advanced tab, which is not the default one.
+        await page.getByTestId('tab-advanced').click({ force: true });
+        await page.getByRole('button', { name: /clear chat history/i }).click({ force: true });
+        await page.getByRole('button', { name: /^clear history$/i }).click({ force: true });
+
+        // Gone from the open conversation — the in-memory copy, which the old
+        // implementation never touched either.
+        await expect(page.getByText(doomed, { exact: false })).toHaveCount(0, { timeout: 30_000 });
+
+        // And gone after a reload, which is the half that proves the PERSISTED
+        // pages were deleted rather than the view merely re-rendered.
+        await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+        await waitForAppReady(page, 60_000);
+        await expect(page.getByText(doomed, { exact: false })).toHaveCount(0, { timeout: 30_000 });
+    });
 });

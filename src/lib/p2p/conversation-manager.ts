@@ -143,6 +143,23 @@ export class ConversationManager {
     }
   }
 
+  /**
+   * Drop every message held for one peer, keeping the conversation itself so
+   * the thread stays in the list and can receive new messages.
+   *
+   * Paired with messagePaginationStore.deleteConversationPages: clearing only
+   * the persisted pages leaves the cache populated, so the open chat keeps
+   * showing everything until a reload — which reads as "the button did
+   * nothing".
+   */
+  public clearMessages(peerCid: bigint): void {
+    const conversation = this.cache.conversations.get(peerCid);
+    if (!conversation) return;
+    conversation.messages = [];
+    conversation.lastMessageIndex = 0;
+    conversation.unreadCount = 0;
+  }
+
   public async cleanupStaleConversations(validPeerCids: Set<bigint>): Promise<number> {
     const staleCids: bigint[] = [];
     const currentCid = await this.config.getCurrentCid();
