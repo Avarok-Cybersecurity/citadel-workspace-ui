@@ -39,6 +39,7 @@ export function ChatSettingsPanel({
 }: ChatSettingsPanelProps) {
   const confirm = useConfirm();
   const {
+    stats,
     activeOuterTab,
     setActiveOuterTab,
     activeFileTab,
@@ -271,24 +272,14 @@ export function ChatSettingsPanel({
                   <div className="p-4 rounded-lg bg-surface/50 text-center">
                     <BarChart3 className="h-5 w-5 text-primary-accent mx-auto mb-2" />
                     <p className="text-2xl font-bold text-foreground">
-                      {(() => {
-                        try {
-                          const stored = localStorage.getItem(`p2p-messages:${peerCid}`);
-                          return stored ? JSON.parse(stored).length : 0;
-                        } catch { return 0; }
-                      })()}
+                      {stats.messages}
                     </p>
                     <p className="text-xs text-muted-foreground">Messages</p>
                   </div>
                   <div className="p-4 rounded-lg bg-surface/50 text-center">
                     <FileText className="h-5 w-5 text-primary-accent mx-auto mb-2" />
                     <p className="text-2xl font-bold text-foreground">
-                      {(() => {
-                        try {
-                          const stored = localStorage.getItem(`file-transfers:${peerCid}`);
-                          return stored ? JSON.parse(stored).length : 0;
-                        } catch { return 0; }
-                      })()}
+                      {stats.files}
                     </p>
                     <p className="text-xs text-muted-foreground">Files Transferred</p>
                   </div>

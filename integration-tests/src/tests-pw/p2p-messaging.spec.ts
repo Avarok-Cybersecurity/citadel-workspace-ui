@@ -187,6 +187,27 @@ test.describe.serial('P2P Messaging', () => {
         }
     });
 
+    // The Stats tab read `p2p-messages:{cid}` and `file-transfers:{cid}` from
+    // localStorage. Neither key is written anywhere in the app — each appeared
+    // exactly once, in the read — so both tiles showed 0 for every conversation
+    // no matter how long. Asserted AFTER the exchanges above, so a zero here
+    // means the panel is not reading real data.
+    //
+    // Runs before the clear test, which empties the transcript on purpose.
+    test('the stats tab counts real messages', async () => {
+        const page = sessionA.page;
+        await page.getByTestId('chat-settings-button').click({ force: true });
+        await page.getByTestId('tab-stats').click({ force: true });
+
+        const count = page.getByText('Messages', { exact: true }).locator('..').locator('p').first();
+        await expect(count).toBeVisible({ timeout: 30_000 });
+        const text = (await count.textContent())?.trim() ?? '';
+        expect(Number(text), `stats showed "${text}" after a conversation`).toBeGreaterThan(0);
+
+        // Close the panel so the following test starts from the chat again.
+        await page.keyboard.press('Escape');
+    });
+
     // "Clear Chat History" ran localStorage.removeItem('chat-history:' + cid) —
     // a key nothing in the app has ever written — while its dialog said
     // "Messages stored on this device are removed. This cannot be undone."
