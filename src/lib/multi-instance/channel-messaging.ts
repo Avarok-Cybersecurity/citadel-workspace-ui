@@ -142,3 +142,33 @@ export function handleCidUpdate(message: ChannelMessage): void {
     `[InstanceChannel] CID update from ${message.senderInstanceId}: ${cidBigInt?.toString() || 'null'}`
   );
 }
+
+/**
+ * Re-send a queued outbound request after a leader change.
+ *
+ * `BroadcastChannel.postMessage` never delivers to the posting context, and the
+ * inbound path filters self-traffic anyway — so when the tab that owns the queue
+ * IS the new leader, posting to 'leader' addressed nobody and the replay was a
+ * black hole. The comment on the retry subscription describes a recovery that
+ * only worked when some OTHER tab won the election.
+ */
+export function replayOutboundRequest(
+  requestId: string,
+  payload: unknown,
+  send: (message: ChannelMessage) => void
+): void {
+  const message: ChannelMessage = {
+    type: 'outbound-request',
+    targetInstanceId: 'leader',
+    senderInstanceId: instanceManager.instanceId,
+    timestamp: Date.now(),
+    requestId,
+    payload,
+  };
+
+  if (instanceManager.isLeader) {
+    handleOutboundRequest(message);
+    return;
+  }
+  send(message);
+}

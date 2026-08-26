@@ -10,8 +10,10 @@ import { TIMEOUT } from '../timeout-constants';
 import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
 import type { LeaderElectionState } from './channel-leader-election';
 import {
+  relinquishLeadership as relinquish,
   startLeaderElection,
 } from './channel-leader-election';
+import { replayOutboundRequest } from './channel-messaging';
 import { setupBeforeUnloadHandler } from './channel-lifecycle';
 
 
@@ -76,7 +78,7 @@ class InstanceChannel {
     // leader-change replay, and nothing subscribed — so a request in flight
     // when the leader died just failed on the 30s ACK timeout.
     eventEmitter.on('outbound-retry', ({ requestId, payload }: { requestId: string; payload: unknown }) => {
-      this.send({ type: 'outbound-request', targetInstanceId: 'leader', requestId, payload });
+      replayOutboundRequest(requestId, payload, (message) => this.send(message));
     });
   }
 
@@ -176,6 +178,18 @@ class InstanceChannel {
 
       const timeout = setTimeout(() => {
         eventEmitter.off('outbound-ack', ackHandler);
+        // Drop it from the queue. The ack path calls acknowledge(); this one did
+        // not, so a timed-out request stayed in the map forever — and
+        // `onLeaderChange` replays every queued entry. The caller had ALREADY
+        // been told the request failed and had surfaced that to the user, and
+        // then the identical payload was silently re-sent to the next leader,
+        // and again at every leader change after that. A Connect, a workspace
+        // mutation or a P2P message could be executed minutes later, repeatedly,
+        // with nothing in the UI to say so.
+        outboundQueue.acknowledge(id, {
+          status: 'error',
+          error: 'Timeout waiting for ACK from leader',
+        });
         resolve({ status: 'error', error: 'Timeout waiting for ACK from leader' });
       }, TIMEOUT.OUTBOUND_ACK_MS);
 
@@ -208,6 +222,11 @@ class InstanceChannel {
   announcePresence(): void {
     debugLog('InstanceChannel', `announcePresence: instanceId=${instanceManager.instanceId}, cid=${instanceManager.cid?.toString()}`);
     this.send({ type: 'instance-announce', targetInstanceId: '*', payload: { cid: instanceManager.cid } });
+  }
+
+  /** Give up leadership this tab cannot serve — see relinquishLeadership. */
+  relinquishLeadership(): void {
+    relinquish(this.electionState);
   }
 
   announceGoodbye(): void {

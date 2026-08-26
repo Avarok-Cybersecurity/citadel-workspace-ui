@@ -11,6 +11,11 @@ import { eventEmitter } from '../event-emitter';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog, errorLog } from '../debug-config';
 import {
+  setupDisconnectionHandler as setupDisconnection,
+  setupSessionReleaseHandler as setupSessionRelease,
+  closeLeaderSocket,
+} from './leader-socket-teardown';
+import {
   instanceManager,
   leaderOutboundHandler,
   instanceInboundRouter
@@ -108,12 +113,26 @@ export class WebSocketInitialization {
     // Both directions. Handling only promotion left a demoted leader holding a
     // live socket forever — none of the ten 'leader-changed' subscribers closed
     // one — so a reload of the older of two tabs left the browser with two.
-    eventEmitter.on('instance:leader-changed', async ({ isLeader: newIsLeader }: { isLeader: boolean; leaderId: string }) => {
+    // NOT async: `emit` invokes handlers synchronously, so an async handler's
+    // rejection escapes the emitter's try/catch and nothing observes it. A
+    // promotion whose socket failed left this tab isLeader with no send
+    // function, answering every request from every tab "WebSocket not ready".
+    eventEmitter.on('instance:leader-changed', ({ isLeader: newIsLeader }: { isLeader: boolean; leaderId: string }) => {
       if (newIsLeader) {
         debugLog('WebSocketInit', 'Became leader! Creating WebSocket connection...');
-        await this.createWebSocketAsLeader();
+        void this.createWebSocketAsLeader().catch((error: unknown) => {
+          debugLog('WebSocketInit', 'Promotion failed; handing leadership back', error);
+          // Lazily imported: instance-channel already reaches back into this
+          // module's world through the election path, and a static import here
+          // closes that cycle.
+          void import('../multi-instance/instance-channel').then(({ instanceChannel }) =>
+            instanceChannel.relinquishLeadership()
+          );
+        });
       } else {
-        await this.closeLeaderClient();
+        void this.closeLeaderClient().catch((error: unknown) => {
+          debugLog('WebSocketInit', 'Demotion teardown failed (ignored)', error);
+        });
       }
     });
 
@@ -138,13 +157,7 @@ export class WebSocketInitialization {
     const client = this.leaderClient;
     if (!client) return;
     this.leaderClient = null;
-    debugLog('WebSocketInit', 'Demoted from leader: closing this tab\'s WebSocket');
-    client.stopMessageProcessing();
-    try {
-      await client.close();
-    } catch (closeError) {
-      debugLog('WebSocketInit', 'WASM client close error on demotion (ignored):', closeError);
-    }
+    await closeLeaderSocket(client);
     this.config.onClientReset();
     window[GLOBAL_INIT_KEY] = undefined;
   }
@@ -220,30 +233,17 @@ export class WebSocketInitialization {
   }
 
   private setupDisconnectionHandler(client: WorkspaceClient): void {
-    eventEmitter.on('websocket-disconnected', async () => {
-      debugLog('WebSocketInit', 'WebSocket disconnected event received, stopping message processing and resetting state');
-      client.stopMessageProcessing();
-      try {
-        await client.close();
-        debugLog('WebSocketInit', 'WASM client closed successfully');
-      } catch (closeError) {
-        debugLog('WebSocketInit', 'WASM client close error (ignored):', closeError);
-      }
-
-      // Clear the handle: createWebSocketAsLeader returns `leaderClient` when
-      // set, so a CLOSED one left here makes every reconnect hand back the dead
-      // client and report success over a socket that is gone.
-      this.leaderClient = null;
-      this.config.onClientReset();
-      window[GLOBAL_INIT_KEY] = undefined;
-      debugLog('WebSocketInit', 'WebSocket service state reset after disconnection');
+    setupDisconnection(client, {
+      clearClient: () => {
+        this.leaderClient = null;
+        window[GLOBAL_INIT_KEY] = undefined;
+      },
+      onClientReset: () => this.config.onClientReset(),
+      releaseSession: (cid: bigint) => this.config.releaseSession(cid),
     });
   }
 
   private setupSessionReleaseHandler(): void {
-    eventEmitter.on('session:release-request', ({ cid }: { cid: bigint }) => {
-      debugLog('WebSocketInit', `Session release requested for CID ${cid.toString()}`);
-      this.config.releaseSession(cid);
-    });
+    setupSessionRelease({ releaseSession: (cid: bigint) => this.config.releaseSession(cid) });
   }
 }

@@ -181,6 +181,44 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
   sendHeartbeat(state);
 }
 
+/**
+ * Give up leadership this tab cannot actually serve.
+ *
+ * Promotion is handled by an `async` listener, and `emit` calls handlers
+ * synchronously — so a rejection from `createWebSocketAsLeader` escapes the
+ * emitter's own try/catch and nothing observes it. The tab stayed `isLeader`,
+ * kept winning every subsequent election (the first branch of `tryBecomeLeader`
+ * short-circuits for an existing leader), and answered every request from every
+ * tab in the browser with "WebSocket not ready" — forever, because there was no
+ * self-demotion path anywhere. A leader that cannot serve never yielded, since
+ * the yield branch only fires on a competing heartbeat that never comes.
+ *
+ * Broadcasting goodbye makes the other tabs re-elect within ~100ms rather than
+ * waiting out LEADER_TIMEOUT_MS.
+ */
+export function relinquishLeadership(state: LeaderElectionState): void {
+  if (!instanceManager.isLeader) return;
+
+  debugLog('InstanceChannel', 'Relinquishing leadership: this tab cannot serve it');
+  instanceManager.setLeader(false, '');
+
+  // Our own cooldown, not a claim about anyone else: `tryBecomeLeader` refuses
+  // to challenge within LEADER_TIMEOUT_MS of this stamp, so the tab that just
+  // failed does not immediately re-claim and fail again. Other tabs keep their
+  // own clocks and are unaffected.
+  state.lastLeaderHeartbeat = Date.now();
+
+  state.send({
+    type: 'instance-goodbye',
+    targetInstanceId: '*',
+    senderInstanceId: instanceManager.instanceId,
+    timestamp: Date.now(),
+  });
+
+  eventEmitter.emit('instance:leader-changed', { isLeader: false, leaderId: '' });
+  eventEmitter.emit('leader-changed', { isLeader: false, leaderId: '' });
+}
+
 export function sendHeartbeat(state: LeaderElectionState): void {
   state.send({
     type: 'leader-heartbeat',
