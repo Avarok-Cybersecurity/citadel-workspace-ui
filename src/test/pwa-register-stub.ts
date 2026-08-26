@@ -20,3 +20,15 @@ export function useRegisterSW(_options?: RegisterSWOptions) {
     updateServiceWorker: async (_reloadPage?: boolean) => {},
   };
 }
+
+/**
+ * Stand-in for the non-React `virtual:pwa-register`, used by main.tsx to
+ * register the service worker outside the React tree.
+ */
+export function registerSW(_options?: {
+  immediate?: boolean;
+  onRegisteredSW?: (url: string, registration?: ServiceWorkerRegistration) => void;
+  onRegisterError?: (error: unknown) => void;
+}) {
+  return async (_reloadPage?: boolean) => {};
+}

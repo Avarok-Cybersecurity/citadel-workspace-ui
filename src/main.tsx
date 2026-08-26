@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client'
+import { registerSW } from 'virtual:pwa-register'
 import App from './App.tsx'
 import './index.css'
 
@@ -79,6 +80,34 @@ try {
   if (!rootElement) {
     throw new Error("Root element not found");
   }
+
+  // Register the service worker OUTSIDE React, before rendering.
+  //
+  // The only registration used to be `useRegisterSW` inside PwaUpdatePrompt,
+  // which mounts inside AppErrorBoundary. A build that threw during render
+  // therefore took the update path down with it: the boundary replaced the
+  // tree, `registration.update()` never ran, and the reload button re-served
+  // the same precached shell. Users were stuck on the broken build with no way
+  // to receive the fix — the one failure a prompt-mode PWA must not have,
+  // because shipping a correction is the whole recovery plan.
+  //
+  // Registration is idempotent per scope, so PwaUpdatePrompt's hook attaches to
+  // this same registration and keeps owning the toast and the reload action.
+  const updateSW = registerSW({
+    immediate: true,
+    onRegisterError: (error: unknown) => console.error('Service worker registration failed:', error),
+  });
+  void updateSW;
+
+  // And keep checking, whatever the app is doing. PwaUpdatePrompt polls hourly
+  // while it is mounted; this interval survives a crashed render, which is
+  // exactly the case where a new build matters most.
+  const UPDATE_CHECK_MS = 60 * 60 * 1000;
+  window.setInterval(() => {
+    navigator.serviceWorker?.getRegistration()
+      .then((registration) => registration?.update())
+      .catch(() => undefined);
+  }, UPDATE_CHECK_MS);
 
   const root = createRoot(rootElement);
   root.render(<App />);

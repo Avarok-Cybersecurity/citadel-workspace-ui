@@ -49,6 +49,7 @@ export default defineConfig({
       // Without this the import fails before any vi.mock can intervene, and the
       // whole upgrade path is untestable.
       'virtual:pwa-register/react': resolve(__dirname, './src/test/pwa-register-stub.ts'),
+      'virtual:pwa-register': resolve(__dirname, './src/test/pwa-register-stub.ts'),
     },
   },
 });

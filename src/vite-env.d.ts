@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 // Window augmentation for dev-only debug exports
 // These are set at module scope in main.tsx, service files for integration testing
