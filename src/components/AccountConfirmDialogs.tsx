@@ -31,8 +31,19 @@ export function DeleteConfirmDialog({ open, onOpenChange, username, onConfirm }:
         <AlertDialogHeader>
           <AlertDialogTitle className="text-foreground">Remove Account</AlertDialogTitle>
           <AlertDialogDescription className="text-foreground/80">
-            Are you sure you want to remove {username} from your saved accounts?
-            This action cannot be undone.
+            {/*
+              Says what it actually does. removeSession() rewrites the saved-session
+              list and nothing else: it does not disconnect an active session and it
+              does not delete a single stored message. "Remove Account. This action
+              cannot be undone." in a product that sells post-quantum security reads
+              as "your data is gone", and a user clearing a shared machine would have
+              believed it.
+            */}
+            Remove {username} from the accounts saved on this device? You will need to
+            sign in again to use it.
+            <span className="mt-2 block">
+              Messages already stored on this device are <strong>not</strong> deleted.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -61,8 +72,11 @@ export function ClearAllConfirmDialog({ open, onOpenChange, onConfirm }: ClearAl
         <AlertDialogHeader>
           <AlertDialogTitle className="text-foreground">Clear All Accounts</AlertDialogTitle>
           <AlertDialogDescription className="text-foreground/80">
-            Are you sure you want to remove all saved accounts? This will sign you out and remove
-            all stored credentials. This action cannot be undone.
+            Remove all saved accounts from this device? This signs you out and clears
+            the stored credentials.
+            <span className="mt-2 block">
+              Messages already stored on this device are <strong>not</strong> deleted.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
