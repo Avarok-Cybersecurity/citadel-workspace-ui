@@ -8,6 +8,7 @@
  */
 
 import type { CallSignalPayload } from '@/types/p2p-commands';
+import { RING_TIMEOUT_MS } from './call-constants';
 import { CallLiveness } from './call-liveness';
 import type { CallManagerInternals } from './call-manager-internals';
 import type { CallState } from './call-state';
@@ -47,7 +48,28 @@ export class CallLivenessBinding {
   private readonly liveness: CallLiveness;
   private running = false;
 
+  /**
+   * When each still-unanswered invitee was first seen with the call up.
+   *
+   * `active` deliberately has no status deadline — the heartbeat watchdog owns
+   * it. But that watchdog only tracks peers who are `active` or `connecting`,
+   * and an invitee who never answers is neither: `invite-sent` seeds them
+   * `'invited'` and nothing ages that out once the call leaves `ringing-out`.
+   *
+   * They then block BOTH end conditions — `anyoneActive` is false (invited is
+   * not active or connecting) and `everyoneGone` is false (invited is not left
+   * or declined). So when the last real participant hung up, the call stayed
+   * `active` with nobody in it: stage docked, duration ticking, camera light
+   * on, and the phantom tile still rendered. Leave still worked, but only if
+   * the user noticed. "Camera on, nobody there, no timer anywhere" is the exact
+   * failure CONNECT_TIMEOUT_MS was introduced to prevent one state earlier.
+   */
+  private readonly invitedSince = new Map<bigint, number>();
+
+  private readonly now: () => number;
+
   constructor(options: CallLivenessBindingOptions, internals: () => CallManagerInternals) {
+    this.now = options.now;
     this.liveness = new CallLiveness({
       now: options.now,
       schedule: options.schedule,
@@ -68,6 +90,15 @@ export class CallLivenessBinding {
           // Best-effort: a heartbeat that fails to send looks to the peer like
           // one lost in transit, and their timeout already covers that case.
           void options.transport.sendSignal(cid, beat).catch(() => undefined);
+        }
+      },
+      onTick: (now) => {
+        for (const [cid, since] of [...this.invitedSince]) {
+          if (now - since < RING_TIMEOUT_MS) continue;
+          // Deleted BEFORE notifying, matching the silence sweep: the callback
+          // ends the call for this peer and can re-enter here.
+          this.invitedSince.delete(cid);
+          void peerLostBecauseSilent(internals(), cid);
         }
       },
       onPeerLost: (cid) => void peerLostBecauseSilent(internals(), cid),
@@ -97,6 +128,16 @@ export class CallLivenessBinding {
     // reported lost as well.
     for (const p of state.participants.values()) {
       if (p.status === 'left' || p.status === 'declined') this.liveness.forget(p.cid);
+
+      // Start an invitee's clock the moment the call is up, and stop it as soon
+      // as they become anything else. Their own ring timeout covers the dial;
+      // this covers the invitee whose tab is closed, who will never send
+      // anything at all and so can never be timed out by silence.
+      if (p.status === 'invited') {
+        if (!this.invitedSince.has(p.cid)) this.invitedSince.set(p.cid, this.now());
+      } else {
+        this.invitedSince.delete(p.cid);
+      }
     }
   }
 

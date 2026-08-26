@@ -22,6 +22,14 @@ export interface CallLivenessOptions {
   sendHeartbeat: () => void;
   /** A participant has gone silent for too long. */
   onPeerLost: (cid: bigint) => void;
+  /**
+   * Every tick, before the silence sweep.
+   *
+   * Exists so a deadline that is NOT about silence can share this timer rather
+   * than start a second one. An invitee who never answers sends nothing to be
+   * silent with, so `lastSeen` can never expire them.
+   */
+  onTick?: (now: number) => void;
 }
 
 export class CallLiveness {
@@ -61,6 +69,7 @@ export class CallLiveness {
       this.options.sendHeartbeat();
 
       const now = this.options.now();
+      this.options.onTick?.(now);
       for (const [cid, seen] of [...this.lastSeen]) {
         if (now - seen >= CALL_HEARTBEAT_TIMEOUT_MS) {
           // Removed BEFORE notifying: the callback ends the call for this peer,
