@@ -1316,6 +1316,112 @@ One concept has six names: **Connect** (button) → **registration request**
 newcomer cannot build a mental model from that, and the one document that
 explains the model is the unreachable one above.
 
+## Round fifteen — delivery integrity and the deployment path, 2026-08-26
+
+### 150. Accepting any incoming file transfer threw before anything was sent — FIXED
+
+A transfer arrives as two independent events that name it differently: the bytes
+over the protocol's `SendFile`, carrying a numeric `object_id`, and the bubble as
+an ordinary P2P message carrying a `crypto.randomUUID()`. Accept goes back over
+the protocol, so it must name the `object_id` — and the accept path passed the
+UUID into `BigInt(params.protocolId)`, which throws `SyntaxError` synchronously
+while the request literal is built, **before `sendRequest` is reached**.
+`RespondFileTransfer` was therefore never issued for any incoming transfer.
+
+`registerTransferMapping` was written to bridge the two id spaces and had no
+callers. `onTransferRequest`, the subscription that learns the `object_id`, had
+no callers either. Both halves of the join existed and neither end was connected.
+
+Fixed with a correlator joining on (sender, file name, exact byte size) — the
+only thing both sides independently describe, since the absence of a shared id is
+the whole problem — handling both arrival orders. **The existing accept test
+mocks `io` wholesale, so the mock stood exactly where the defect was**; the new
+test drives the real router and mocks only the socket.
+
+### 151. The production server image could not be built at all — FIXED
+
+`docker/workspace-server/Dockerfile` substitutes its own root manifest, so the
+real `Cargo.toml` is never seen by that build. A dev-dependency added to
+`citadel-workspace-types` and defined in the real root only left the image
+failing at manifest load — `cargo clippy` never started, and the message named a
+dependency rather than the duplicated file responsible. **No local cargo command
+can catch this**, because locally the real manifest is correct. Guarded by
+`scripts/check-docker-workspace-manifest.mjs`.
+
+### 152. Recorded, not fixed — delivery integrity
+
+- **A persistence failure silently discards an incoming message.**
+  `addMessageToConversation` pushes to memory, then awaits a LocalDB write that
+  can reject on timeout. The rejection unwinds past the ACK, the render
+  notification and the desktop notification — all inside the same `if (wasAdded)`
+  — into a catch that logs *"Failed to deserialize P2P command"*, which it did
+  not. The message sits in memory, unpersisted, with no subscriber ever told.
+- **Outgoing message status is never persisted.** `sendMessage` writes the
+  message while still `pending` and then mutates `status` in memory only; the
+  sibling `resendMessage` does call `updateMessageInPages`, proving the author
+  knew. So after a reload every sent message reads back as `pending` and renders
+  a "sending…" clock, and retry is gated on `failed` — a message that genuinely
+  failed can never be retried. Retry is doubly broken across a reload:
+  `resendMessage` looks the message up in `conversation.messages`, which
+  `loadFromStorage` rebuilds empty.
+- **"Delivered" and "read" are inferred from wall-clock comparison.** One ACK
+  promotes every earlier message with a smaller timestamp — including one that
+  was handed to the transport and never arrived. The double-tick is a guess, and
+  it is wrong precisely in the case that matters. The ACK is also never scoped to
+  the peer who sent it: `peerCid` is in hand and not passed, and the handler then
+  scans all conversations by id.
+- **Ordering is the sender's clock**, and the same comparator writes the page, so
+  a skewed peer's misordering is persisted. The `index` field exists on every
+  message and is unusable for ordering, because `lastMessageIndex` is a max
+  across both directions and the two peers' sequences collide.
+- **Page rollover is two writes with no transaction** — and the code says so in a
+  comment. If the metadata write fails after the page write, the next append
+  rolls over again and overwrites the page just written, losing exactly one
+  message with no error anywhere.
+- **File-transfer records are written to a `localStorage` key nothing reads**,
+  inside a `catch {}` that cannot distinguish a quota error from success. After a
+  reload every handler's `if (!transfer) return;` drops completions and
+  cancellations in silence.
+- **Duplicate chunks would count as progress** — both the completion trigger and
+  the integrity check compare a count, not distinct indices, so a duplicate plus
+  a gap passes validation and produces a corrupt file marked complete. Latent
+  only because the chunk path is currently unreachable; it goes live the moment
+  `sendChunk` is implemented.
+
+### 153. Recorded, not fixed — deployment and upgrade
+
+- **A fresh production install builds from source instead of pulling**, and
+  `docs/INSTALL.md` states the opposite ("both pull prebuilt images"). Two of the
+  three services carry a `build:` block beside `image:`; the compose file itself
+  documents why that is wrong — but only for the third. A ~5.6 GB Rust toolchain
+  build, requiring submodules the docs list as development-only, on first
+  contact. **The correct fix was applied to exactly one of three services.**
+- **Persisted server state has no forward-compatibility discipline.** The entire
+  node tree is one JSON key. The repo already paid for this once and wrote the
+  lesson out verbatim in a comment on the one field that has `serde(default)` —
+  and there are exactly two in twelve persisted structs, no `serde(alias)`
+  anywhere, and no test that deserializes a previously-written record. The next
+  field added without a default takes out every office and room on the first
+  restart after upgrade. `CURRENT_SCHEMA_VERSION` exists with the migration slot
+  as a comment, so bumping it stamps un-migrated data as current.
+- **The schema-version gate runs after the writes it exists to prevent** —
+  admin injection and workspace seeding happen first, so by the time it refuses
+  to start, the older binary has already mutated a forward-migrated store.
+- **`[file_transfer]` limits are advertised and enforced nowhere on the server.**
+  Only `allow_server_file_transfer` is checked; size and quota enforcement lives
+  solely in the browser. `file_ttl_days` is entirely dead — "pending transfer
+  requests expire after this period" is false, nothing expires. And `ServerConfig`
+  has no `deny_unknown_fields`, so a misspelled table name falls through to
+  defaults that enable both flags: **an operator disabling server storage via a
+  typo enables it instead.**
+- **No wire-protocol versioning and no request correlation** on the workspace
+  protocol. This matters more than usual because each user runs their own agent
+  outside the operator's control, and neither INSTALL nor UPGRADING tells them to
+  refresh it. A version skew produces a UI waiting forever rather than an error.
+- **`is_healthy()` has zero callers** — every healthcheck is a bare TCP probe, so
+  a server that binds but cannot reach its backend reports healthy and passes the
+  deploy gate.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
