@@ -21,27 +21,14 @@ import {
 } from './tree-operations';
 import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
+import { retryPendingOps, sendAndAwaitAck } from './revfs-retry';
 import { debugLog } from '@/lib/debug-config';
 import type { DirOpsContext } from './revfs-dir-ops';
 import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
 import * as fileOps from './revfs-file-ops';
 
-const ACK_TIMEOUT_MS = 15_000;
 
-/**
- * How many times a queued operation is re-sent before it is given up on.
- *
- * The queue used to have no drain at all: `addPendingOp` was called on both
- * failure paths, `removePendingOp` had zero callers anywhere in production, and
- * `retryCount` was written as 0 and never incremented. So an operation that
- * failed to send — or whose ack timed out — was recorded and then sat there
- * forever, while the caller was told the operation had succeeded. The local
- * tree showed the change and the peer never learned about it, with no error on
- * either side. The provider next door (yjs-p2p-provider/ack-checker.ts) had the
- * retry loop this needed the whole time.
- */
-const MAX_OP_RETRIES = 5;
 
 export class RevfsService {
   private readonly state = new RevfsState();
@@ -222,65 +209,13 @@ export class RevfsService {
   // ── Private Helpers ───────────────────────────────────────────────────
 
   private async sendAndAwaitAck(peerCid: bigint, op: RevfsOperation, key: TreeKey): Promise<void> {
-    const ackPromise = this.state.registerAck(op.op_id, ACK_TIMEOUT_MS);
-    const sendResult = await this.sendOp(peerCid, op);
-    if (!sendResult) {
-      this.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
-      const io = this.ensureIO();
-      await io.execute({ type: 'persist-pending-ops', treeKey: key, ops: this.state.getPendingOps(key) });
-      return;
-    }
-    try {
-      await ackPromise;
-    } catch {
-      this.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
-      const io = this.ensureIO();
-      await io.execute({ type: 'persist-pending-ops', treeKey: key, ops: this.state.getPendingOps(key) });
-    }
+    return sendAndAwaitAck({ state: this.state, io: this.ensureIO(), sendOp: (p: bigint, o: RevfsOperation) => this.sendOp(p, o) }, peerCid, op, key);
   }
 
-  /**
-   * Re-send everything queued for a peer. Call when a channel becomes usable.
-   *
-   * Returns the number of operations still outstanding, so a caller can tell
-   * "nothing to do" from "tried and still failing" — the distinction the
-   * original silent queue made impossible.
-   */
+
+
   async retryPendingOps(key: TreeKey, peerCid: bigint): Promise<number> {
-    const pending = this.state.getPendingOps(key);
-    if (pending.length === 0) return 0;
-
-    debugLog('RevfsService', `Retrying ${pending.length} queued operation(s) for ${peerCid}`);
-
-    for (const entry of [...pending]) {
-      if (entry.retryCount >= MAX_OP_RETRIES) {
-        // Dropped deliberately and loudly. Silently keeping it forever is how
-        // the local tree and the peer's diverged without anyone noticing.
-        debugLog(
-          'RevfsService',
-          `Giving up on ${entry.operation.op_type} after ${entry.retryCount} attempts`,
-        );
-        this.state.removePendingOp(key, entry.operation.op_id);
-        continue;
-      }
-
-      const ackPromise = this.state.registerAck(entry.operation.op_id, ACK_TIMEOUT_MS);
-      const sent = await this.sendOp(peerCid, entry.operation);
-      if (!sent) {
-        entry.retryCount += 1;
-        continue;
-      }
-      try {
-        await ackPromise;
-        this.state.removePendingOp(key, entry.operation.op_id);
-      } catch {
-        entry.retryCount += 1;
-      }
-    }
-
-    const io = this.ensureIO();
-    await io.execute({ type: 'persist-pending-ops', treeKey: key, ops: this.state.getPendingOps(key) });
-    return this.state.getPendingOps(key).length;
+    return retryPendingOps({ state: this.state, io: this.ensureIO(), sendOp: (p: bigint, op: RevfsOperation) => this.sendOp(p, op) }, key, peerCid);
   }
 
   private async sendOp(peerCid: bigint, operation: RevfsOperation): Promise<boolean> {

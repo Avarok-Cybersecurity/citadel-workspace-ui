@@ -216,8 +216,7 @@ export function useFileManagerHandlers({
       if (storageMode === TreeScope.Peer) {
         // Peer mode only auto-selects a peer when at least one is registered, so
         // "peer mode with no peer" is reachable and used to fall through to the
-        // success toast below - telling the user their tree had synced with a
-        // peer when no sync was requested of anyone.
+        // ...telling the user their tree synced when nothing was requested.
         if (!myCid || !selectedPeerCid) {
           toast.error('No peer selected', {
             description: 'Choose a peer to sync with, or switch to server storage.',
@@ -226,24 +225,14 @@ export function useFileManagerHandlers({
         }
         await revfsService.requestSync(myCid, selectedPeerCid);
 
-        // Flush anything the queue is holding for this peer before claiming a
-        // sync. Operations that failed to send, or whose ack timed out, were
-        // recorded in a pending list that nothing ever drained — so the local
-        // tree showed a folder the peer had never heard of, and every Sync
-        // reported success without touching the backlog.
-        const stillPending = await revfsService.retryPendingOps(
-          peerPairKey(myCid, selectedPeerCid),
-          selectedPeerCid,
-        );
-
+        // Flush the queue before claiming a sync; see lib/revfs/revfs-retry.ts.
+        const stillPending = await revfsService.retryPendingOps(peerPairKey(myCid, selectedPeerCid), selectedPeerCid);
         await refresh();
         if (stillPending > 0) {
           toast.error('Some changes could not be sent', {
-            description: `${stillPending} operation(s) are still queued for this peer. They will be retried.`,
+            description: `${stillPending} operation(s) still queued; they will be retried.`,
           });
-        } else {
-          toast.success('Tree synced with peer');
-        }
+        } else { toast.success('Tree synced with peer'); }
         return;
       }
       // Server mode: nothing is exchanged with a peer, so do not claim it was.

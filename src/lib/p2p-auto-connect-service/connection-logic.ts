@@ -6,6 +6,7 @@
 
 import { websocketService } from '../websocket-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
+import { ownsSession } from './session-ownership';
 import { connectionManager } from '../connection';
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from '../multi-instance';
@@ -20,23 +21,6 @@ import { refreshOnlineStatus } from './polling';
  * Uses deterministic initiator selection: higher CID is the initiator.
  * Only runs on leader tab.
  */
-/**
- * Whether this browser's WebSocket owns the given session.
- *
- * Multi-tab P2P legitimately initiates from the other side, because one
- * WebSocket owns both sessions. Across browsers it does not, and asking the
- * service to act on a session we do not own is now refused outright.
- */
-async function ownsSession(cid: bigint): Promise<boolean> {
-  try {
-    const sessions = await connectionManager.getActiveSessions();
-    return sessions.some((session) => session.cid === cid);
-  } catch {
-    // Unknown ownership: assume not ours and initiate from our own side, which
-    // is always a request we are allowed to make.
-    return false;
-  }
-}
 
 export async function connectToPeer(
   state: AutoConnectState,
@@ -77,30 +61,17 @@ export async function connectToPeer(
   // sends PeerConnect with `cid = peerCid` and `peer_cid = currentCid` —
   // i.e., it initiates *on behalf of* the higher-CID session through the
   // shared WS. The internal service routes the request to the right session
-  // by `cid`. Both same-browser sessions are owned by this WS, so this is
-  // safe and required for two-tab P2P to work.
-  //
-  // For external peers (other browsers) this branch is also harmless: the
-  // leader will issue the call from the local side's CID, which the server
-  // either accepts (if it owns that session) or rejects with a benign error.
+  // by `cid`. Both same-browser sessions are owned by this WS, so reversing is
+  // safe there; across browsers we initiate from our own side.
   let initiatorCid = currentCid;
   let targetCid = peerCid;
   if (shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
   } else if (currentCid < peerCid && (await ownsSession(peerCid))) {
-    // Reverse ONLY when this browser actually owns the peer's session.
-    //
-    // The old condition was `currentCid < peerCid` alone, on the reasoning that
-    // for an external peer the service "either accepts (if it owns that
-    // session) or rejects with a benign error". That made a request naming a
-    // session belonging to someone else's connection a routine occurrence, and
-    // the client depended on the rejection to learn the peer was already
-    // connected — an error reply doing the work of a success.
-    //
-    // The internal service now refuses requests for sessions the caller does
-    // not own, which is correct and closes a real hole. That makes this branch
-    // an unanswered request rather than a benign error, so it has to stop being
-    // sent: 48 of them were logged in a single four-spec run.
+    // Reverse ONLY when this browser owns the peer's session. The old
+    // condition was CID ordering alone, which sent requests naming another
+    // connection's session and relied on being refused to learn the peer was
+    // connected. The service now refuses those outright — see session-ownership.ts.
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Local CID ${currentCid.toString().slice(0, 8)}... < peer ${peerCid.toString().slice(0, 8)}...; both sessions are ours, initiating from peer side (multi-tab P2P)`);
     initiatorCid = peerCid;
     targetCid = currentCid;

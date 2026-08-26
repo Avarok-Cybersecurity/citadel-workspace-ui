@@ -1,12 +1,10 @@
 /**
- * Workspace Response Handler - Workspace / Member Handlers
- *
- * Handles workspace CRUD, member management, permission, success/error,
- * and server-capabilities WorkspaceProtocolResponse variants.
- * Tree node variants are delegated to node-handlers.ts.
+ * Workspace / member response handlers: workspace CRUD, members, permissions,
+ * success/error and server capabilities. Tree nodes go to node-handlers.ts.
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
+import { describeWorkspaceError } from './describe-error';
 import { debugLog } from '@/lib/debug-config';
 import { isVariant } from 'citadel-workspace-client-ts';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
@@ -23,22 +21,6 @@ export interface ConnectionInfo {
   request_id: string;
 }
 
-/**
- * A server `WorkspaceError` as a sentence a user can act on.
- *
- * The variant arrives either as a bare string ("PermissionDenied") or as a
- * single-key object carrying detail ({ PermissionDenied: "EditMdx required" }).
- * Both are rendered rather than stringified into "[object Object]".
- */
-function describeWorkspaceError(wsError: unknown): string {
-  if (typeof wsError === 'string') return wsError;
-  if (wsError && typeof wsError === 'object') {
-    const [variant, detail] = Object.entries(wsError as Record<string, unknown>)[0] ?? [];
-    if (variant && typeof detail === 'string' && detail) return `${variant}: ${detail}`;
-    if (variant) return String(variant);
-  }
-  return 'The server rejected the request.';
-}
 
 export function buildConnectionInfo(): ConnectionInfo {
   return {
@@ -137,20 +119,8 @@ function handleTypeGapVariants(
     if (wsError === 'WorkspaceNotInitialized') {
       eventEmitter.emit('workspace:not-initialized', connectionInfo);
     } else {
-      // Emitted on BOTH channels, deliberately.
-      //
-      // `workspace:error` carries the typed variant for anything that wants to
-      // branch on it — but nothing subscribes to it, and nothing has since it
-      // was written, so every typed domain error (permission denied, not found,
-      // and the "cannot demote the only administrator" refusal added to the
-      // server today) was dropped on the floor. The user saw no error at all,
-      // and in the mutation paths they saw a success toast instead, because
-      // those resolve when the request is SENT rather than answered.
-      //
-      // `operation:error` is the channel that is actually wired through to
-      // ErrorDisplay, so routing here as well makes a server refusal visible
-      // without waiting on the larger fix of correlating mutations with their
-      // responses.
+      // Both channels: `workspace:error` has never had a subscriber, so
+      // permission-denied was dropped; `operation:error` reaches ErrorDisplay.
       eventEmitter.emit('workspace:error', { error: wsError, connection: connectionInfo });
       eventEmitter.emit('operation:error', {
         message: describeWorkspaceError(wsError),
@@ -215,19 +185,14 @@ function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'Error')) {
-    eventEmitter.emit('operation:error', {
-      message: response.Error, connection: connectionInfo,
-    });
+    eventEmitter.emit('operation:error', { message: response.Error, connection: connectionInfo });
     eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 
   if (isVariant(response, 'ServerShutdown')) {
-    // Distinct from `Error` so the UI can render a reconnect banner /
-    // countdown instead of a red error toast on every planned restart.
-    // The `drain_seconds` upper bound lets the UI time a reconnect
-    // attempt; until a dedicated banner exists, an informational toast
-    // ensures the user isn't left wondering why messages stop flowing.
+    // Distinct from `Error` so the UI can show a reconnect notice rather
+    // than a red toast on a planned restart.
     const { message, drain_seconds } = response.ServerShutdown;
     debugLog('WorkspaceResponseHandler', 'ServerShutdown received', {
       message,
