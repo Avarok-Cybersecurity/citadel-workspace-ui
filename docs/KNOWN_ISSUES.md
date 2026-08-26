@@ -95,6 +95,41 @@ instead of a seven-minute test reporting only "pairwise" — and the first run
 after it passed. That is one data point and does NOT establish the hang is gone.
 Treat a recurrence as the same defect, now better labelled.
 
+### Event listeners that nothing in the app ever triggers
+
+Found by the same check that turned up three inert storage keys: compare who
+EMITS an event name against who LISTENS for it. A listener with no emitter is
+inert in exactly the way a read with no writer is.
+
+Three survivors, all verified by grepping the literal across the whole source:
+
+- **`lib/group-conversations/`** — `group-store.ts` subscribes to seven
+  `group:*` events. Every one of them is emitted **only inside its own unit
+  test**. Its consumer, `use-group-state.ts`, is imported by no component, and
+  the group chat that actually works does not go through this store at all — it
+  runs on `group-messaging-manager` and `workspace-response-handler/group-handlers`,
+  which emit differently-named events (`group:message:new`, not
+  `group:message-received`). This is a parallel module nothing mounts, and its
+  tests pass because they supply the events themselves. Dead code with green
+  tests reads as "group events are covered", which is why it is written down
+  here rather than left to be rediscovered.
+- **`connection:status-changed`** — the handler in
+  `lib/p2p-registration-service/service.ts:79`. The string occurs exactly once
+  in the source: at that listener.
+- **`instance:registry-update`** — the handler in
+  `lib/multi-instance/instance-manager.ts:82`. Same, exactly one occurrence.
+
+None of this breaks anything a user can see; the features they belong to either
+work by another path or were never finished. Left in place rather than deleted
+because a handler that cannot fire is harmless, while removing one may discard
+wiring someone intends to complete — that is a call for whoever owns the
+feature, not for a sweep.
+
+**If you automate this check, expect false positives.** Three rounds of
+refinement were needed: `io.emitEvent('x')` wrappers, a bare aliased `emit('x')`
+after destructuring, and library events (`ydoc.on('update')`) that a third party
+emits. A naive emit-vs-listen grep reported 15 orphans; 12 of them were wrong.
+
 ### The shadcn sidebar's own colour classes generate no CSS
 
 `components/ui/sidebar.tsx` styles itself with `bg-sidebar`,
