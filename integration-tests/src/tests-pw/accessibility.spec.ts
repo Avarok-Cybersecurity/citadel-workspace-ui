@@ -238,6 +238,52 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
     await expectNoBlockingViolations(page, `join/security/${scheme}`);
   });
 
+  // The wizard's third step was never scanned, which is how an icon-only
+  // password toggle with no accessible name and tabIndex={-1} survived here
+  // while the identical control on the login form was fully labelled.
+  test('join workspace — profile step', async ({ page }) => {
+    await click(page, 'Join Workspace');
+    const address = page.getByRole('textbox', { name: 'Workspace Address' });
+    await expect(address).toBeVisible({ timeout: 30_000 });
+    await address.fill(config.WORKSPACE_SERVER);
+    await click(page, 'NEXT');
+    await expect(page.getByRole('heading', { name: 'Security Settings' })).toBeVisible({ timeout: 30_000 });
+    await click(page, 'NEXT');
+
+    await expect(page.locator('#username')).toBeVisible({ timeout: 30_000 });
+    await expectNoBlockingViolations(page, `join/profile/${scheme}`);
+  });
+
+  // Both password toggles must be operable by keyboard and announce what they
+  // do. axe cannot see the keyboard trap: tabIndex={-1} removes the control
+  // from the tab order entirely, which is a 2.1.1 failure no automated colour
+  // or name check reports.
+  test('the profile step password toggles are reachable and named', async ({ page }) => {
+    await click(page, 'Join Workspace');
+    const address = page.getByRole('textbox', { name: 'Workspace Address' });
+    await expect(address).toBeVisible({ timeout: 30_000 });
+    await address.fill(config.WORKSPACE_SERVER);
+    await click(page, 'NEXT');
+    await expect(page.getByRole('heading', { name: 'Security Settings' })).toBeVisible({ timeout: 30_000 });
+    await click(page, 'NEXT');
+    await expect(page.locator('#password')).toBeVisible({ timeout: 30_000 });
+
+    const toggles = page.getByRole('button', { name: /show password|hide password/i });
+    await expect(toggles).toHaveCount(2); // profile password + confirm
+
+    const first = toggles.first();
+    await expect(first).toHaveAttribute('aria-pressed', 'false');
+
+    // Reachable by keyboard, not just by mouse.
+    await page.locator('#password').focus();
+    await page.keyboard.press('Tab');
+    await expect(first).toBeFocused();
+
+    await page.keyboard.press('Enter');
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+  });
+
   test('login form, including advanced options', async ({ page }) => {
     await click(page, 'Login Workspace');
     await expect(page.getByRole('heading', { name: 'Login to Workspace' })).toBeVisible({ timeout: 30_000 });

@@ -58,10 +58,18 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors"
-            tabIndex={-1}
+            // Matches the login form's toggle, which had all of this and was
+            // the only one axe ever scanned. This one was icon-only with no
+            // accessible name (a critical button-name violation), carried
+            // tabIndex={-1} so no keyboard user could reach it at all, and was
+            // a 16px target under the WCAG 2.2 24px floor.
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPassword
+              ? <EyeOff className="h-4 w-4" aria-hidden="true" />
+              : <Eye className="h-4 w-4" aria-hidden="true" />}
           </button>
         )}
       </div>
