@@ -57,6 +57,11 @@ export default defineConfig({
     expect: { timeout: 10_000 },
 
     /* Retries for flaky E2E tests */
+    // A committed `test.only()` silently reduces a whole shard to one test and
+    // reports GREEN — the suite passes because it ran almost nothing. There is
+    // none today and nothing prevented one; this is the standard guard.
+    forbidOnly: isCI,
+
     retries: isCI ? 2 : 0,
 
     /* Sequential in CI to avoid resource contention; parallel locally */
