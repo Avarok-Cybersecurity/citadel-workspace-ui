@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest';
 import { createTestService, defaultIntentHandler, getState, ALICE, BOB } from './revfs-service-test-helpers';
 import { peerPairKey, serverTreeKey } from '../tree-queries';
 import type { RevfsNode } from '@/types/revfs-types';
+import type { RevfsState } from '../revfs-state';
 
 const withFolder = (): RevfsNode =>
   ({ name: '', type: 'directory', children: [{ name: 'test-folder', type: 'directory', children: [] }] }) as unknown as RevfsNode;
@@ -26,18 +27,21 @@ const names = (tree: RevfsNode | null | undefined) =>
 describe('getTree racing an applied op', () => {
   it('keeps a folder applied during the load instead of writing the default over it', async () => {
     const key = peerPairKey(ALICE, BOB);
-    let service!: ReturnType<typeof createTestService>;
-
-    service = createTestService(
+    // The handler needs the service's state, but runs only once getTree is
+    // called — well after construction — so a ref filled in afterwards is
+    // enough and avoids a forward reference.
+    const ref: { state?: RevfsState } = {};
+    const service = createTestService(
       defaultIntentHandler({
         // Nothing persisted yet — the destructive default branch. The remote op
         // lands while this load is in flight, exactly as it does in the browser.
         'load-tree': () => {
-          getState(service).setTree(key, withFolder());
+          ref.state?.setTree(key, withFolder());
           return { type: 'load-tree', tree: null } as never;
         },
       }),
     );
+    ref.state = getState(service);
 
     const tree = await service.getTree(ALICE, BOB);
 
@@ -47,16 +51,16 @@ describe('getTree racing an applied op', () => {
 
   it('applies the same protection to server-scoped trees', async () => {
     const key = serverTreeKey(ALICE);
-    let service!: ReturnType<typeof createTestService>;
-
-    service = createTestService(
+    const ref: { state?: RevfsState } = {};
+    const service = createTestService(
       defaultIntentHandler({
         'load-tree': () => {
-          getState(service).setTree(key, withFolder());
+          ref.state?.setTree(key, withFolder());
           return { type: 'load-tree', tree: null } as never;
         },
       }),
     );
+    ref.state = getState(service);
 
     const tree = await service.getServerTree(ALICE);
 
