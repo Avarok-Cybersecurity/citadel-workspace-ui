@@ -21,7 +21,27 @@ report is not evidence.
 
 ## Open — ranked
 
-### 1. The internal service authorizes nothing · critical
+### 1. ~~The internal service authorizes nothing~~ · FIXED, with one exemption
+
+Shipped: a request may only act on a session its connection owns. Four
+iterations to get there, and the record is worth keeping — the first version
+passed 19 specs while refusing 48 requests, because the client retries and
+absorbs refusals. A green suite proved nothing.
+
+**Remaining question, deliberately scoped rather than hidden:** `LocalDBGetKV`
+is exempt. Naming the variant in the refusal log showed every one of those 48
+was that read — ILM's messenger backend reads key/value state under a
+peer-scoped session, and gating it broke messaging outright. Either ILM should
+key those reads by the local session, or the gate needs to learn which
+peer-scoped reads are legitimate. Until then a read is allowed and every
+destructive and impersonating operation is gated.
+
+Residual: three refusals per two-browser P2P run (ListAllPeers,
+ListRegisteredPeers, PeerConnect) — the client acting on sessions GetSessions
+reported but that belong to another browser. Correct to refuse; does not arise
+in the ordinary one-browser topology.
+
+### 1b. Origin allowlist · open, needs a deployment decision
 Every handler reads `cid` from the request and never checks it against the
 connection that sent it; `deregister.rs:32` removes whatever session is named.
 Production binds loopback, but **WebSocket is exempt from CORS**, so any page a
