@@ -588,6 +588,86 @@ conversation-manager's hard caps; `main.tsx` keeping dev-only services behind
 `import.meta.env.DEV` with dynamic imports; and stable domain-id keys across
 nine list surfaces.
 
+## Round eight — error handling and failure propagation, 2026-08-26
+
+The structural finding: **four correct implementations of the mechanisms this
+codebase needs, all with zero production callers.** `use-async-data.ts`
+(loading/error/race-safe fetch) — 0 consumers, replaced by ~40 hand-rolled
+try/catch with no error state. `retry-utils.ts` (capped, jittered, rethrows) —
+0 consumers, replaced by five hand-rolled copies, none with jitter, two without
+caps. `WorkspaceService.sendRequest` (correlation + 15s timeout) — reachable
+only from the Playwright harness, labelled "for testing". And `debugLog` is a
+no-op in production, ending **128 of 271** catch blocks.
+
+### 71. The reconnect toast reported success over a dead socket · critical — FIXED (6ce1685)
+My own regression. Recorded because the shape recurs: an idempotence guard is
+only as safe as the least careful teardown path that feeds it.
+
+### 72. The workspace protocol is fire-and-forget with no timeout · critical
+29 of 31 operations return `Promise<void>`. `setLoading` accepts a `requestId`
+and ignores it; `trackRequest` is now an explicit no-op. So a node, member,
+permission or group operation that never gets a reply produces a permanent
+spinner or a false empty state, and the server drops refused requests with a
+`warn!` the client never sees. The correct implementation — correlation plus a
+15s timeout — exists as `WorkspaceService.sendRequest` and is used only by
+tests, so **the suite structurally cannot observe the failure mode users hit**.
+
+### 73. A wrong password renders as "Something went wrong: Invalid password" · high
+`error-messages.ts` tests `errorMessage.includes('invalid password')` in
+lowercase, with no `toLowerCase()` anywhere in the file. The SDK emits
+`"Invalid password"` with a capital I, and `.includes()` is case-sensitive — so
+the branch never matches. The mapping layer built for the product's
+highest-frequency error never fires for it. `getUserFriendlyErrorMessage` is
+used in four files; every other error surface bypasses it.
+
+### 74. A failed P2P send is persisted as `pending` · high
+`message-sender` correctly sets `status = 'failed'` and rethrows — in memory
+only. After a reload the message reads `pending`, so the retry button and the
+error text (both gated on `'failed'`) are gone, and `resendMessage` refuses to
+act. Permanent silent divergence, with the fix — `updateMessageInPages` — 60
+lines below in the same file.
+
+### 75. P2P message content is broadcast to every localhost client on a stale UUID · high
+`peer/connect.rs` falls back to broadcasting when the target TCP uuid is not
+found. The comment condemning exactly this sits in the sibling file:
+"a previous version broadcast to every live TCP entry as a workaround for
+stale-UUID delivery, but that leaked P2P message content to any other session
+multiplexed through the same internal-service process." Fixed there, still live
+here.
+
+### 76. `resolveReady()` has no reject path · high
+`readyPromise` captures only `resolve`, so failure is structurally
+unrepresentable: `waitForReady()` returns normally after a failed init to three
+callers. On the landing page that becomes `getActiveSessions() → []`, rendered
+as "no sessions to resume" — so the user logs in fresh and orphans their live
+session. The same defect exists independently in `p2p-messenger-manager`. The
+correct ready-gate, with a reject path and a timeout naming the peer, is
+`checkstate-manager`.
+
+### 77. Uncapped retry that reports nothing · high
+`reconnect-logic` increments an attempt counter used only to compute delay —
+there is no maximum. It settles at a 5-minute interval and retries forever,
+including for non-retryable failures like a changed password. `attempt.lastError`
+is written and never read. The same file documents fixing this exact class of
+bug on the SUCCESS path; the failure path was never touched.
+
+### 78. A one-way circuit breaker · medium
+`wasm-connection-manager` latches open after 5 failures — 25 seconds of backend
+unavailability — for the life of the page. `resetCircuitBreaker` has zero
+callers. The send path bypasses the breaker, so messaging survives; the
+background keep-alive does not, degrading idle inbound delivery and ACKs.
+
+### 79. The error boundary's retry button is unreachable · medium
+`error-boundary` returns `this.props.fallback` before the default UI, and the
+"Try Again" button exists only in that default UI. Both mounts pass a fallback.
+Reload is the only recovery from a render error.
+
+### 80. A metadata PARSE failure shows the initialize-workspace modal · medium
+`useWorkspaceEventSetup` maps a parse error to `isInitialized = false`, which
+becomes `needsWorkspaceInitialization: true`. Given that workspace metadata is
+shared, re-running initialisation against an already-initialised workspace is
+not benign.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
