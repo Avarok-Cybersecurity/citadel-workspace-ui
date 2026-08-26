@@ -429,6 +429,93 @@ OG/Twitter/JSON-LD, `theme_color` exactly matching the computed dark
 `--destructive` / `--destructive-emphasis` split; `.reveal-on-hover`; the
 `forced-colors` block; and the call surface's state completeness.
 
+## Round six — deployment lifecycle and test honesty, 2026-08-26
+
+### 51. The backup script could report success having archived nothing · critical — FIXED (8798e31)
+### 52. A deploy could ship the previous commit and print "Deploy complete!" · high — FIXED (ffc360a)
+### 53. The master password was rewritten on every boot · high — FIXED
+
+### 54. `ClaimSession` has no authorization check, and its test asserts a cross-account claim succeeds · **security decision**
+`connection_management.rs` checks that the session exists, that it is orphaned
+if asked, and that the SDK still holds it. It never checks that the claiming
+connection is entitled to it — a grep of the handler for auth/owner/username/
+permission returns nothing. `tests/orphan_sessions.rs` then registers a
+**different account** (`second.user` / `password456`), claims the first
+account's session, and asserts `"Successfully claimed session"`.
+
+This may be intended: the internal service is a localhost agent that
+deliberately multiplexes many users over one connection, and ClaimSession is
+how a reconnecting browser reattaches to its own orphans. But as written, any
+process that can reach `ws://localhost:12345` can enumerate sessions with
+GetSessions and claim any of them, gaining full access to that user's
+end-to-end-encrypted messaging. The test records the permissive behaviour as
+correct, so no future change can tighten it without a failing test.
+
+**Not changed unilaterally** — it is a trust-model decision about what a
+localhost connection is entitled to.
+
+### 55. `assert!(result.is_ok())` is a tautology across the server kernel · critical
+`async_process_command.rs` has **zero** `return Err` and 46
+`Ok(WorkspaceProtocolResponse::Error(...))` — every failure, including every
+permission denial, is wrapped in `Ok`. So `is_ok()` is true for all inputs, and
+14 assertions are exactly that, several of them the only assertion in their
+file. A regression denying every AddMember/RemoveMember/UpdateMemberRole keeps
+them all green. `workspace_crud_test.rs` matches the response variant properly
+— that is the shape to copy.
+
+### 56. No test anywhere asserts a workspace command is REFUSED · critical
+`execute_command` hardcodes `TEST_ADMIN_USER_ID` across ~120 call sites, so
+every test runs as workspace owner. Three tests *named* for denial assert
+success instead. `ensure_not_last_admin` — the admin-lockout fix — is
+referenced nowhere but its own definition. A `check_entity_permission` that
+returned `Ok(true)` unconditionally would pass the entire suite.
+
+### 57. The internal-service tests never run on a parent-repo PR · high
+`validate.yml` runs `cargo test` for the three root crates only. Every test
+covering session claim, orphan mode, P2P registration, P2P messaging and file
+transfer is outside that — and the documented commit order lands changes
+through the parent repo. Fix: `cargo test --workspace` with
+`working-directory: citadel-internal-service`.
+
+### 58. Orphan mode is written and never read · high
+Four write/remove sites, zero read-for-decision sites, and `ext.rs` says so
+outright: "The orphan_sessions map is no longer used for cleanup decisions."
+Its test asserts a string the handler copies from the request field, not from
+stored state — delete the insert and the test still passes. The repo runs
+`check-storage-keys.mjs` in CI for exactly this class in TypeScript; there is
+no Rust equivalent, and here the polarity is reversed.
+
+### 59. CLAUDE.md documents a `Drop for Connection` that does not exist · high
+The "Session Management Fixes Implemented" section claims an RAII cleanup at
+`mod.rs:145-182`. The only `impl Drop` in the crate are in file/upload.rs and
+media/mod.rs. Documented, absent, and nothing would notice.
+
+### 60. The P2P routing test discards the routing fields · high
+`service.rs` destructures `cid` (shadowing the outer binding, never compared)
+and `peer_cid: _cid_b`, asserting only the payload bytes. A bug swapping the
+two would misroute every P2P message in a multi-tab browser — the exact defect
+`instance-inbound-router.ts` exists to handle — and pass.
+`connector/tests/messenger.rs` checks all three fields correctly.
+
+### 61. File-transfer byte verification runs in a spawned task · high
+The real comparison lives inside a kernel handler under `tokio::task::spawn`, so
+a panic there aborts only that task. One of four tests installs a global panic
+hook to work around it; the standard C2S transfer test asserts only that the
+*sender* saw TransferComplete. The `server_success: AtomicBool` that exists for
+this is never stored or loaded. Separately, the REVFS encryption assertion is
+`assert_ne!(plaintext, stored)` — satisfied by an empty file, all zeros, or a
+truncated blob, and never asserts the round trip decrypts.
+
+### 62. Deployment items not yet fixed
+`build:` alongside `image:` on server and internal-service contradicts
+INSTALL.md's "nothing is built" and breaks the documented first install (the
+`ui` service has the fix and a comment explaining it). A transient container
+exit pre-empts `restart: unless-stopped` and takes the one deploy path that
+prints neither the mixed-version warning nor the rollback hint. The rollback
+history file records only the literal string `latest`. No pre-flight disk,
+port or config check. `smoke-ui-ws.sh` starts its own throwaway containers, so
+the documented post-deploy verification never touches the running stack.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
