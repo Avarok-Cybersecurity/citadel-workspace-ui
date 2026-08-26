@@ -131,3 +131,29 @@ describe('getErrorTitle', () => {
     expect(getErrorTitle('Username bob_1787715650505 already exists!')).toBe('Username Taken');
   });
 });
+
+describe('credential errors are matched regardless of case', () => {
+  // The SDK emits `#[form = "Invalid password"]` with a capital I
+  // (citadel_io/src/error/code.rs). These branches were all-lowercase
+  // `.includes()` needles, and `.includes()` is case-sensitive — so the branch
+  // handling the product's most common error could never fire, and a mistyped
+  // password fell through to "Something went wrong: Invalid password".
+  it.each([
+    'Invalid password',
+    'invalid password',
+    'Login failure: Invalid password',
+  ])('maps %j to the friendly message', (raw) => {
+    expect(getUserFriendlyErrorMessage(raw)).toBe(
+      'Incorrect password. Please check your password and try again.',
+    );
+  });
+
+  it('maps the SDK capitalisation of a missing account', () => {
+    expect(getUserFriendlyErrorMessage('Account Does Not Exist')).toContain('No account found');
+  });
+
+  it('still leaves unrelated errors to the fallback', () => {
+    // Guards against a matcher so loose it swallows everything.
+    expect(getUserFriendlyErrorMessage('Disk quota exceeded')).not.toContain('Incorrect password');
+  });
+});
