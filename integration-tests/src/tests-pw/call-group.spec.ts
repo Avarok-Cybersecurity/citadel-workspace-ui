@@ -159,17 +159,25 @@ test.describe.serial('Group calling with three participants', () => {
   // Every pair, because a group call is a mesh: B and C exchange signals,
   // sessions and frames directly, without A in the middle.
   //
-  // One test per pair rather than all three in one. The combined version
-  // exhausted its full 420s budget on CI twice, failing at a different point
-  // each time — once on a screenshot, once waiting for a workspace to load —
-  // which is the signature of running out of time on a slower machine rather
-  // than of one broken step. Three browsers driving WebRTC on a 2-core runner
-  // is simply slower than the same work locally, where the whole spec finishes
-  // in 4.6 minutes.
+  // One test per pair rather than all three in one.
   //
-  // Splitting gives each pair its own budget instead of sharing one, and a
-  // failure now names the pair that did not connect. `describe.serial` keeps
-  // them in order on the shared sessions, so coverage is identical.
+  // The combined version exhausted its full 420s budget on CI twice, failing at
+  // a different point each time — once on `page.screenshot`, once waiting for a
+  // workspace to load after an accept. The first reading was "too slow for a
+  // 2-core runner", and the split was made on that basis. THE NUMBERS SAY
+  // OTHERWISE: split, each pair connects in ~46s on the same CI hardware, so
+  // all three amount to ~140s against a 420s budget. The combined test was not
+  // running out of time. One step was HANGING, and the budget was never the
+  // constraint.
+  //
+  // So this split is isolation, not a cure. If the hang returns it now fails as
+  // a named pair inside 240s instead of as a seven-minute test that says only
+  // "pairwise", and the log points at which connectPair stalled. Both observed
+  // stalls were in the conversation-open step after the peer request was
+  // accepted, which is where to look first.
+  //
+  // `describe.serial` keeps them ordered on the shared sessions, so coverage is
+  // identical.
   test('A and B connect', async () => {
     test.setTimeout(240_000);
     await connectPair(sessionA, sessionB);

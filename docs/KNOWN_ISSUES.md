@@ -67,6 +67,26 @@ Connection's channels are released and should emit that as an event. Once it
 does, replace the delay with `waitForEvent(...)` from `lib/utils/scheduling`, and
 login proceeds the instant teardown completes.
 
+### Group-call pair connection hangs intermittently on CI
+
+`call-group.spec.ts` connects three pairs (A-B, A-C, B-C). Twice on CI the
+combined test burned its whole 420s budget and failed at a different point each
+time — once on `page.screenshot: Timeout 10000ms`, once waiting for a workspace
+to load after a peer request was accepted. It has never failed locally.
+
+The obvious reading is "a 2-core runner driving three browsers is too slow".
+The measurements refute it: split into one test per pair, each pair connects in
+**~46s on the same CI hardware**, so the three together are ~140s against a 420s
+budget. Time was never the constraint — one step was hanging.
+
+Both observed stalls were in the conversation-open step of `connectPair`, after
+the request was accepted, which is where to look first.
+
+The split shipped because it isolates the failure — a named pair inside 240s
+instead of a seven-minute test reporting only "pairwise" — and the first run
+after it passed. That is one data point and does NOT establish the hang is gone.
+Treat a recurrence as the same defect, now better labelled.
+
 ### The shadcn sidebar's own colour classes generate no CSS
 
 `components/ui/sidebar.tsx` styles itself with `bg-sidebar`,
