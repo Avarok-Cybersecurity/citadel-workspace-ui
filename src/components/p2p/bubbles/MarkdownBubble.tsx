@@ -117,7 +117,7 @@ export function MarkdownBubble({
           </div>
           {/* Inline failure indicator */}
           {isOwn && isFailed && (
-            <div className="flex items-center gap-1 mt-1.5 text-xs text-destructive">
+            <div className="flex items-center gap-1 mt-1.5 text-xs text-destructive-emphasis">
               <AlertCircle className="h-3 w-3" />
               <span>Failed to send</span>
               {onRetry && (

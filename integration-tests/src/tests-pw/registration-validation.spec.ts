@@ -112,4 +112,43 @@ test.describe('registration validates before submitting', () => {
     await expect(error).toBeVisible();
     await expect(error).toHaveText(/do not match/);
   });
+
+  // Inline errors are the one place the destructive colour is read as PROSE.
+  // `--destructive` is a SURFACE token (white sits on it at 4.53:1) and as text
+  // on the dark background it was only 3.72:1 — under the 4.5:1 floor for body
+  // text. axe never caught it because error states are not rendered during the
+  // page scans. Measured here on a real rendered error.
+  test('the inline error text meets AA contrast where it is actually rendered', async ({ page }) => {
+    const field = page.locator('#password');
+    await field.fill('short');
+    await field.blur();
+    const error = page.locator('#password-error');
+    await expect(error).toBeVisible();
+
+    const ratio = await error.evaluate((el) => {
+      const parse = (c: string) => (c.match(/[\d.]+/g) || []).map(Number);
+      const lin = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+      const lum = ([r, g, b]: number[]) =>
+        0.2126 * lin(r / 255) + 0.7152 * lin(g / 255) + 0.0722 * lin(b / 255);
+
+      // Walk up for the first ancestor that actually paints a background;
+      // the error <p> itself is transparent.
+      let bg: number[] | null = null;
+      for (let n: HTMLElement | null = el as HTMLElement; n; n = n.parentElement) {
+        const c = parse(getComputedStyle(n).backgroundColor);
+        if (c.length >= 3 && (c.length < 4 || c[3] > 0)) { bg = c; break; }
+      }
+      const fg = parse(getComputedStyle(el as HTMLElement).color);
+      if (!bg) return null;
+      const a = lum(fg), b = lum(bg);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    });
+
+    expect(ratio, 'could not resolve a painted background').not.toBeNull();
+    expect(
+      ratio as number,
+      `inline error text is ${(ratio as number).toFixed(2)}:1 against its background; ` +
+        'WCAG AA requires 4.5:1 for body text',
+    ).toBeGreaterThanOrEqual(4.5);
+  });
 });

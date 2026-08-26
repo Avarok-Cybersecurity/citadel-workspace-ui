@@ -195,7 +195,7 @@ export function GroupSettingsPanel({
                     <Separator className="bg-border" />
 
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-destructive">Danger Zone</h4>
+                      <h4 className="text-sm font-medium text-destructive-emphasis">Danger Zone</h4>
                       <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
                         <p className="text-sm text-foreground/80 mb-3">
                           Permanently delete this group. This action cannot be undone.

@@ -35,6 +35,9 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          // For destructive TEXT on a normal background. `DEFAULT` is a
+          // surface colour and is too dark to read as body text in dark mode.
+          emphasis: "hsl(var(--destructive-emphasis))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",

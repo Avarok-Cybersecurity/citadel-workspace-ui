@@ -227,7 +227,7 @@ export function ChatSettingsPanel({
                 </div>
 
                 <button
-                  className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm hover:bg-destructive/20 transition-colors"
+                  className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-emphasis text-sm hover:bg-destructive/20 transition-colors"
                   onClick={() => {
                     void (async () => {
                       const ok = await confirm({

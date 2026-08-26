@@ -163,7 +163,7 @@ export function FileTransferBubble({
             </button>
             <button
               onClick={handleDecline}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-destructive/20 hover:bg-destructive/30 text-destructive-emphasis rounded text-sm transition-colors"
             >
               <X className="h-4 w-4" />
               Decline

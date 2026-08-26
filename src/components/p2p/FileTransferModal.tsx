@@ -146,7 +146,7 @@ export function FileTransferModal({
           </div>
 
           {error && (
-            <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">
+            <p className="text-sm text-destructive-emphasis bg-destructive/10 p-2 rounded">
               {error}
             </p>
           )}

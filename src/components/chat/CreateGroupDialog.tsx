@@ -219,7 +219,7 @@ export function CreateGroupDialog({
         </div>
 
         {createError && (
-          <p role="alert" className="px-1 text-sm text-destructive">
+          <p role="alert" className="px-1 text-sm text-destructive-emphasis">
             {createError}
           </p>
         )}

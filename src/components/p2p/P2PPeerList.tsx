@@ -160,7 +160,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           </form>
           {addPeerError && (
             // role="alert" so a screen reader announces it, not only shows it.
-            <p id="add-peer-error" role="alert" className="mt-2 text-xs text-destructive">
+            <p id="add-peer-error" role="alert" className="mt-2 text-xs text-destructive-emphasis">
               {addPeerError}
             </p>
           )}

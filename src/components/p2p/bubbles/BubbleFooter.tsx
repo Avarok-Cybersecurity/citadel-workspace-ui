@@ -83,7 +83,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
       </div>
       {/* Error message for failed sends */}
       {isOwn && isFailed && message.error && (
-        <p className="text-xs text-destructive mt-1">{message.error}</p>
+        <p className="text-xs text-destructive-emphasis mt-1">{message.error}</p>
       )}
     </>
   );

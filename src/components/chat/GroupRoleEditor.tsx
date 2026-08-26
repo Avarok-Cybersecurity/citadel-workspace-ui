@@ -123,7 +123,7 @@ export function GroupRoleEditor({
               } ${isBuiltIn ? 'opacity-50' : ''}`}
             />
             {!isPositionValid && (
-              <p className="text-xs text-destructive">
+              <p className="text-xs text-destructive-emphasis">
                 Position must be unique and between 1-99
               </p>
             )}

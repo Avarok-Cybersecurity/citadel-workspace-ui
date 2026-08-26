@@ -101,7 +101,7 @@ export function VFSRenameInput({
         onClick={(e) => e.stopPropagation()}
       />
       {error && (
-        <span className="text-xs text-destructive mt-0.5">{error}</span>
+        <span className="text-xs text-destructive-emphasis mt-0.5">{error}</span>
       )}
     </div>
   );

@@ -51,6 +51,10 @@
     /* Status */
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
+    /* Destructive as TEXT on the page background. On white the surface colour
+       already clears 4.5:1 (5.81), so this matches it. See the dark block for
+       why the two cannot be one token. */
+    --destructive-emphasis: 0 72% 45%;
     --success: 160 84% 28%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 33%;
@@ -88,8 +92,18 @@
     --accent: 230 32% 22%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 50%;       /* was #EF4444, then 60% — see below */
+    /* 50% is chosen for the SURFACE role: white --destructive-foreground on
+       this colour is 4.53:1, and lightening it breaks that. ("then 60%" above
+       referred to a note that no longer exists; this is it.)
+
+       The same value as TEXT on --background is only 3.72:1, and 3.38:1 on
+       --card — below the 4.5:1 floor for body text. The two roles genuinely
+       conflict: text needs L >= ~61% here, white-on-surface needs L <= ~50%.
+       No single value satisfies both, so text gets its own token. */
+    --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
+    /* 5.28:1 on --background, 4.78:1 on --card. */
+    --destructive-emphasis: 0 84% 66%;
     --success: 160 84% 39%;         /* was #10B981 */
     --success-foreground: 235 18% 13%;
     --warning: 38 92% 50%;          /* was #F59E0B */

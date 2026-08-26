@@ -78,7 +78,7 @@ export const DisconnectConfirmModal = ({
         {/* Deregister warning */}
         <div className="p-3 bg-destructive/10 border border-destructive/25 rounded-lg flex items-start gap-2">
           <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-destructive">
+          <div className="text-sm text-destructive-emphasis">
             <strong>Deregister</strong> permanently removes this account from the server.
             Use this for cleanup between test runs.
           </div>

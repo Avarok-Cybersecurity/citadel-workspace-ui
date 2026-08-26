@@ -161,7 +161,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
       </p>
 
       {error && (
-        <p className="text-xs text-destructive">{error}</p>
+        <p className="text-xs text-destructive-emphasis">{error}</p>
       )}
     </div>
   );

@@ -107,7 +107,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
         autoComplete="off"
       />
       {hasError && (
-        <span className="text-xs text-destructive shrink-0">Path not found</span>
+        <span className="text-xs text-destructive-emphasis shrink-0">Path not found</span>
       )}
     </div>
   );

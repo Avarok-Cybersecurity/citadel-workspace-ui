@@ -74,7 +74,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
         )}
       </div>
       {error ? (
-        <p id={`${id}-error`} role="alert" className="text-[11px] text-destructive pl-1">
+        <p id={`${id}-error`} role="alert" className="text-[11px] text-destructive-emphasis pl-1">
           {error}
         </p>
       ) : (
