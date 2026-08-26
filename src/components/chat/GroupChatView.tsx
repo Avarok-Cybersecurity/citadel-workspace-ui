@@ -47,7 +47,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
           </div>
         ) : (
-          <div className="py-4">
+          <div className="py-4" role="log" aria-label="Group conversation">
             {/* Load more button */}
             {chat.hasMore && (
               <div className="flex justify-center mb-4">

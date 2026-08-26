@@ -123,6 +123,21 @@ test.describe.serial('P2P Messaging', () => {
         await openConversation(sessionB.page, sessionB.username, sessionA.username);
     });
 
+    // A chat transcript has to be a live region or an arriving message is
+    // silent: a screen reader user only learns about it by going to look. axe
+    // reports nothing — a live region is not required markup, it is a decision
+    // that had not been made. Asserted where a conversation is actually open,
+    // because that is the only place the transcript exists.
+    test('the transcript is announced as it grows', async () => {
+        const log = sessionA.page.getByRole('log', { name: /conversation/i });
+        await expect(log).toBeAttached();
+
+        // role="log" implies polite announcement of additions; an assertive
+        // region here would interrupt the user mid-sentence on every message.
+        const live = await log.first().getAttribute('aria-live');
+        expect(live === null || live === 'polite', `aria-live was "${live}"`).toBe(true);
+    });
+
     test('Send message A → B', async () => {
         const message = `Hello from A! [${Date.now()}]`;
         await sendMessage(sessionA.page, sessionA.username, message);

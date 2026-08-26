@@ -58,7 +58,16 @@ export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
   ) {
     return (
       <ScrollArea className="flex-1 p-4" ref={ref} onScroll={onScroll}>
-        <div className="space-y-4">
+        {/*
+        role="log" carries an implicit aria-live="polite" and
+        aria-relevant="additions", which is the pattern for a running
+        transcript: a message that arrives while you are elsewhere on the
+        page gets announced instead of sitting there silently. Without it
+        the core feature of the app was invisible to a screen reader until
+        the user went looking, and axe reports nothing — a live region is
+        not required markup, it is a decision nobody had made.
+        */}
+        <div className="space-y-4" role="log" aria-label="Conversation">
           {isLoadingMore && (
             <div className="flex justify-center py-2">
               <div className="text-sm text-muted-foreground">Loading older messages...</div>
