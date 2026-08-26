@@ -72,16 +72,20 @@ class InstanceChannel {
 
   private setupEventListeners(): void {
     eventEmitter.on('instance:cid-changed', (data: { instanceId: string; cid: bigint | null }) => {
-      this.send({
-        type: 'cid-update', targetInstanceId: '*',
-        payload: { cid: data.cid ? data.cid.toString() : null },
-      });
+      this.send({ type: 'cid-update', targetInstanceId: '*', payload: { cid: data.cid?.toString() ?? null } });
     });
 
     // Re-broadcast on leader change so a new leader inherits every
     // follower's CID. Without it, CID-routed notifications drop with
     // `No instance owns CID …` after a handover.
     eventEmitter.on('instance:leader-changed', () => { this.broadcastCid(); this.announcePresence(); });
+
+    // OutboundQueue emits 'outbound-retry' for its timeout retry AND its
+    // leader-change replay, and nothing subscribed — so a request in flight
+    // when the leader died just failed on the 30s ACK timeout.
+    eventEmitter.on('outbound-retry', ({ requestId, payload }: { requestId: string; payload: unknown }) => {
+      this.send({ type: 'outbound-request', targetInstanceId: 'leader', requestId, payload });
+    });
   }
 
   private setupMessageHandler(): void {

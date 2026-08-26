@@ -42,6 +42,9 @@ export interface InitializationConfig {
 
 export class WebSocketInitialization {
   private readonly config: InitializationConfig;
+  /** Owned while leader, so demotion can close it; `creating` blocks doubles. */
+  private leaderClient: WorkspaceClient | null = null;
+  private creating: Promise<WorkspaceClient> | null = null;
 
   constructor(config: InitializationConfig) {
     this.config = config;
@@ -104,10 +107,16 @@ export class WebSocketInitialization {
   initializeAsFollower(): void {
     debugLog('WebSocketInit', 'Follower tab: Skipping WebSocket creation, will proxy through leader');
 
+    // Both directions. Handling only promotion left a demoted leader holding a
+    // live socket forever — none of the ten 'leader-changed' subscribers closed
+    // a client. A reload of the older of two tabs reaches it, leaving the
+    // browser with two sockets, one owned by a follower that routes nothing.
     eventEmitter.on('instance:leader-changed', async ({ isLeader: newIsLeader }: { isLeader: boolean; leaderId: string }) => {
       if (newIsLeader) {
         debugLog('WebSocketInit', 'Became leader! Creating WebSocket connection...');
         await this.createWebSocketAsLeader();
+      } else {
+        await this.closeLeaderClient();
       }
     });
 
@@ -119,6 +128,33 @@ export class WebSocketInitialization {
    * Create WebSocket connection when this tab is the leader.
    */
   async createWebSocketAsLeader(): Promise<WorkspaceClient> {
+    // Idempotent: a tab demoted then promoted again, or racing its own
+    // election, otherwise opens a second socket while the first is live.
+    if (this.leaderClient) return this.leaderClient;
+    if (this.creating) return this.creating;
+    this.creating = this.doCreateWebSocketAsLeader().finally(() => {
+      this.creating = null;
+    });
+    return this.creating;
+  }
+
+  /** Tear down the socket this tab owned while it was leader. */
+  private async closeLeaderClient(): Promise<void> {
+    const client = this.leaderClient;
+    if (!client) return;
+    this.leaderClient = null;
+    debugLog('WebSocketInit', 'Demoted from leader: closing this tab\'s WebSocket');
+    client.stopMessageProcessing();
+    try {
+      await client.close();
+    } catch (closeError) {
+      debugLog('WebSocketInit', 'WASM client close error on demotion (ignored):', closeError);
+    }
+    this.config.onClientReset();
+    window[GLOBAL_INIT_KEY] = undefined;
+  }
+
+  private async doCreateWebSocketAsLeader(): Promise<WorkspaceClient> {
     const clientConfig: WorkspaceClientConfig = {
       websocketUrl: this.config.websocketUrl,
       messageHandler: (rawMessage: InternalServiceResponse) => {
@@ -128,7 +164,10 @@ export class WebSocketInitialization {
         if (instanceManager.isLeader) {
           instanceInboundRouter.routeMessage(message);
         } else {
-          eventEmitter.emit('websocket-message', message);
+          // Drop, do not emit: emitting bypasses the router's CID filtering,
+          // so another session's traffic lands in this tab's bus.
+          // closeLeaderClient makes this a fail-safe, not a delivery path.
+          debugLog('WebSocketInit', 'Dropping message received after demotion');
         }
 
         if (broadcastChannelService.getIsLeader()) {
@@ -155,6 +194,7 @@ export class WebSocketInitialization {
       debugLog('WebSocketInit', 'Creating WorkspaceClient with config', clientConfig);
       const client = new WorkspaceClient(clientConfig);
       await client.init();
+      this.leaderClient = client;
 
       eventEmitter.emit('on-ws-connection-success');
 
