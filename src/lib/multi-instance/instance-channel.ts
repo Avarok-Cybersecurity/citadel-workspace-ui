@@ -1,6 +1,8 @@
 // Instance Channel (Singleton): coordinates leader election + message handling.
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
+import { documentNonce, acceptInbound } from './instance-identity';
+import { dispatchChannelMessage } from './channel-message-dispatch';
 import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
 import { describeForwarded } from '@/lib/p2p/message-fingerprint';
@@ -9,20 +11,10 @@ import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
 import type { LeaderElectionState } from './channel-leader-election';
 import {
   startLeaderElection,
-  handleLeaderElection,
-  handleLeaderHeartbeat,
 } from './channel-leader-election';
 import { setupBeforeUnloadHandler } from './channel-lifecycle';
-import {
-  handleOutboundRequest,
-  handleOutboundAck,
-  handleInboundForward,
-  handleInboundAck,
-  handleInstanceAnnounce,
-  handleInstanceGoodbye,
-  handleSessionRelease,
-  handleCidUpdate,
-} from './channel-messaging';
+
+
 
 // Re-export types for consumers
 export type { ChannelMessage, ChannelMessageType } from './channel-types';
@@ -88,12 +80,19 @@ class InstanceChannel {
     });
   }
 
+  private readonly identityRepair = {
+    reissue: () => instanceManager.reissueInstanceId(),
+    announce: () => this.send({ type: 'instance-announce' as const, targetInstanceId: '*' }),
+  };
+
   private setupMessageHandler(): void {
     if (!this.channel) return;
 
     this.channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
       const message = event.data;
-      if (message.senderInstanceId === instanceManager.instanceId) return;
+
+      // Gated by DOCUMENT, not instance id — see instance-identity.ts.
+      if (!acceptInbound(message, instanceManager.instanceId, this.identityRepair)) return;
       if (!this.isMessageForUs(message)) return;
       this.handleMessage(message);
     };
@@ -111,26 +110,7 @@ class InstanceChannel {
   }
 
   private handleMessage(message: ChannelMessage): void {
-    if (message.type !== 'leader-heartbeat') {
-      debugLog('InstanceChannel', `[InstanceChannel] Received ${message.type} from ${message.senderInstanceId}`);
-    }
-
-    switch (message.type) {
-      case 'outbound-request': handleOutboundRequest(message); break;
-      case 'outbound-ack': handleOutboundAck(message); break;
-      case 'inbound-forward': handleInboundForward(message); break;
-      case 'inbound-ack': handleInboundAck(message); break;
-      case 'leader-election': handleLeaderElection(this.electionState, message); break;
-      case 'leader-heartbeat': handleLeaderHeartbeat(this.electionState, message); break;
-      case 'instance-announce': handleInstanceAnnounce(this.electionState, message); break;
-      case 'instance-goodbye': handleInstanceGoodbye(this.electionState, message); break;
-      case 'session-release': handleSessionRelease(message); break;
-      case 'cid-update': handleCidUpdate(message); break;
-      // Self-heal: leader missed our cid-update. No `instanceManager.cid` guard so
-      // broadcastCid()'s tab-context fallback runs — post claim/reload owners
-      // (CID not yet in instanceManager) still answer; the old guard stranded them.
-      case 'cid-report-request': this.broadcastCid(); break;
-    }
+    dispatchChannelMessage(message, this.electionState, () => this.broadcastCid());
   }
 
   // Some auth paths land the CID in tab-context before instanceManager;
@@ -167,6 +147,7 @@ class InstanceChannel {
     const fullMessage: ChannelMessage = {
       ...message,
       senderInstanceId: message.senderInstanceId || instanceManager.instanceId,
+      senderDocumentNonce: documentNonce,
       timestamp: message.timestamp || Date.now(),
     };
 

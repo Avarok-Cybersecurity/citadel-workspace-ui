@@ -15,6 +15,7 @@
 import { eventEmitter } from '../event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import type { InstanceState, InstanceInfo } from './instance-manager-types';
+import { documentNonce, mintInstanceId } from './instance-identity';
 
 export type { InstanceState, InstanceInfo } from './instance-manager-types';
 
@@ -48,7 +49,9 @@ class InstanceManager {
 
   /**
    * Get or create a unique instance ID for this tab
-   * Persisted in sessionStorage so it survives page reloads but not new tabs
+   * Persisted in sessionStorage so it survives a page reload. NOT unique on its
+   * own: Duplicate Tab copies sessionStorage, so a twin boots with this exact
+   * id — see instance-identity.ts and `reissueInstanceId`.
    *
    * Format: Pure BigInt-compatible string (timestamp_ms * 10^6 + random)
    * This enables deterministic leader election where highest ID wins
@@ -57,16 +60,32 @@ class InstanceManager {
     let instanceId = sessionStorage.getItem(INSTANCE_ID_KEY);
 
     if (!instanceId) {
-      // Generate BigInt-compatible ID: timestamp (ms) * 10^6 + random
-      // This ensures later tabs have higher IDs (timestamp-based)
-      // Random component prevents collisions within same millisecond
-      const timestamp = BigInt(Date.now());
-      const random = BigInt(Math.floor(Math.random() * 1_000_000));
-      instanceId = (timestamp * 1_000_000n + random).toString();
+      instanceId = mintInstanceId();
       sessionStorage.setItem(INSTANCE_ID_KEY, instanceId);
     }
 
     return instanceId;
+  }
+
+  /** This document's non-persisted marker. See instance-identity.ts. */
+  get documentNonce(): string {
+    return documentNonce;
+  }
+
+  /**
+   * Take a new instance id because another document is using ours.
+   *
+   * Duplicate Tab copies sessionStorage, so the twin's id is identical and the
+   * channel's self-filter hides each from the other — both then elect
+   * themselves leader and open a second WebSocket. Re-rolling here is what
+   * makes them distinguishable so exactly one wins.
+   */
+  reissueInstanceId(): string {
+    const replacement = mintInstanceId();
+    sessionStorage.setItem(INSTANCE_ID_KEY, replacement);
+    this._instanceId = replacement;
+    debugLog('InstanceManager', `Instance id re-issued (duplicate detected): ${replacement}`);
+    return replacement;
   }
 
   private setupEventListeners(): void {

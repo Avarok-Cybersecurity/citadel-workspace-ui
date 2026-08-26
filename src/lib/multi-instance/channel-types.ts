@@ -25,6 +25,13 @@ export interface ChannelMessage {
   type: ChannelMessageType;
   targetInstanceId: string; // '*' for broadcast, 'leader' for current leader, or specific instanceId
   senderInstanceId: string;
+  /**
+   * Unique to the SENDING DOCUMENT, never persisted. `senderInstanceId` comes
+   * from sessionStorage, which Duplicate Tab copies — so two documents can
+   * share one instance id and this is the only field that separates them.
+   * Optional so a message from an older build still parses.
+   */
+  senderDocumentNonce?: string;
   timestamp: number;
   requestId?: string;
   payload?: unknown;

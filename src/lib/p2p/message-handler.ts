@@ -18,6 +18,7 @@ import { p2pRegistrationService } from '../p2p-registration-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { debugLog } from '@/lib/debug-config';
+import { dispatchInboundCommand } from './inbound-command-dispatch';
 import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 
@@ -158,23 +159,9 @@ export class MessageHandler {
         debugLog('P2PMessageHandler', `Received message from unregistered peer ${peerCidBigint.toString()} - protocol violation`);
       }
 
-      // Caught SEPARATELY. One catch around both reported every handling
-      // failure — including a storage write that timed out — as "Failed to
-      // deserialize P2P command", which it was not. A wrong diagnosis in the
-      // log is worse than none: it sends the reader to the wire format.
-      let command;
-      try {
-        command = deserializeP2PCommand(contentBytes);
-      } catch (error) {
-        debugLog('P2PMessageHandler', 'Failed to deserialize P2P command:', error);
-        return;
-      }
-
-      try {
-        await this.handleP2PCommand(command, peerCidBigint, notificationCidBigint);
-      } catch (error) {
-        debugLog('P2PMessageHandler', 'Deserialized fine; handling the command failed:', error);
-      }
+      await dispatchInboundCommand(contentBytes, (command) =>
+        this.handleP2PCommand(command, peerCidBigint, notificationCidBigint)
+      );
     } catch (error) {
       debugLog('P2PMessageHandler', 'Could not process inbound P2P message:', error);
     }
