@@ -522,6 +522,72 @@ history file records only the literal string `latest`. No pre-flight disk,
 port or config check. `smoke-ui-ws.sh` starts its own throwaway containers, so
 the documented post-deploy verification never touches the running stack.
 
+## Round seven — performance and perceived speed, 2026-08-26
+
+There is **not one `React.memo` and not one virtualised list** in the app.
+
+### 63. The workspace context re-rendered 20 subtrees on every network reply · critical — FIXED (d5309d1)
+
+### 64. ~2.5 seconds of dead clock before the WebSocket is created · critical
+A cold single-tab boot awaits `waitForLeaderElection`, and leadership is first
+claimable at `HEARTBEAT_INTERVAL_MS + 500` = 2500ms — so the timer expires
+before `new WorkspaceClient()` and `client.init()` (WASM instantiate + connect)
+even begin. Deterministic arithmetic from the constants, not a measurement. A
+tab that has received no heartbeat and no announce reply could claim leadership
+on the first tick. Costs zero bytes. Largest single TTI item.
+
+### 65. Message lists are unbounded and unvirtualised · high
+50 messages page in and **never out** — `prependMessages` has no cap, no
+eviction and no slice, and re-sorts the whole array on every incoming message.
+Scrolling back N pages leaves 50·N mounted for the tab's life. Estimated ~75k
+DOM elements at 5,000 messages, with zero memoised rows. Note the asymmetry:
+the messenger cache IS capped at 100 per conversation; the React array that
+actually renders is not capped at all.
+
+### 66. `groupMessagesByDate` runs outside useMemo · high
+`formatDate` allocates 3 Date objects and 2-3 `toDateString()` calls per
+message, on every render — including every keystroke in the composer. At 5,000
+loaded messages that is ~15,000 Date allocations per character typed. No
+`Intl.DateTimeFormat` instance is cached anywhere in the repo.
+
+### 67. ~96 timer wake-ups per minute at idle, ~85 of them in a hidden tab · high
+Ten pollers; only `wasm-connection-manager` is visibility-aware (5s visible /
+30s hidden, via a real `visibilitychange` listener) — it is the model the other
+nine should copy. ~17 of those are internal-service round trips. The file
+manager adds 30/min while open because `getPeers()` returns a fresh array every
+call and `setRegisteredPeers` therefore never bails out. The health check
+contributes 6/min emitting an event with zero listeners.
+
+### 68. Unbounded retained buffers · high
+`receivedFiles: Map<string, Blob>` is never evicted — deliberately, per its own
+comment ("user may still want to download") — so every file ever received stays
+resident. `progressCallbacks` is omitted from cleanup entirely. The live
+document store loads **every document body** (a full Yjs state as a plain
+`number[]`, JSON-parsed) just to list titles, and pins them forever: ~16MB
+retained to render a list of names. `notification-service` constructs a `new
+AudioContext()` per notification and never closes it — browsers cap these at
+about six, after which construction throws into an empty catch and notification
+sounds silently stop working.
+
+### 69. N+1 round trips on the message store · high
+`updateMessageInPages` scans backwards one awaited IPC round trip **per page**
+until it finds the id — up to 100 sequential round trips to ack or edit an old
+message in a large conversation, and every ack takes this path. Loading the
+conversation list is one round trip per conversation, serialised.
+
+### 70. A side effect during the render phase · high
+`NotificationItem` calls `notificationService.markAsRead` inside render, which
+mutates a service and fires its subscribers — re-rendering the list that
+invoked it. Unsafe under concurrent React, and self-triggering. Correctness bug
+as much as a performance one.
+
+**Recorded as already excellent:** the `prependMessages` referential-equality
+bailout; `CallProvider`'s `sameQualities` guard with its comment "or every tick
+re-renders the call surface"; `PermissionsContext`'s fully memoised value; the
+conversation-manager's hard caps; `main.tsx` keeping dev-only services behind
+`import.meta.env.DEV` with dynamic imports; and stable domain-id keys across
+nine list surfaces.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
