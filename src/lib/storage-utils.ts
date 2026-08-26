@@ -168,47 +168,6 @@ export async function dbDelete(store: StoreName, key: string): Promise<void> {
 // These use localStorage but will be deprecated
 // ============================================================================
 
-/**
- * @deprecated Use dbPut for new code. This is for backward compatibility.
- * Save data to localStorage (synchronous fallback).
- * Note: BigInt values will be converted to strings.
- */
-export function saveToStorage<T>(key: string, data: T): void {
-  try {
-    const serializedData = JSON.stringify(data, bigIntToString);
-    localStorage.setItem(key, serializedData);
-  } catch (error) {
-    // errorLog, not debugLog: debugLog is `isDev ? console.log : noop`, so the
-    // one path where the user's data fails to persist was the only failure in
-    // this file invisible in production, while four above it already use
-    // warnLog/errorLog. Realistic cause is QuotaExceededError — localStorage
-    // caps near 5MB and `workspace-messages` rewrites the whole per-peer map on
-    // every change, after which nothing persists and the app looks fine until a
-    // reload shows history stopping where the quota filled.
-    errorLog('StorageUtils', `Failed to persist '${key}' (quota exceeded?):`, error);
-  }
-}
-
-/**
- * @deprecated Use dbGet for new code. This is for backward compatibility.
- * Load data from localStorage (synchronous fallback).
- * Note: BigInt values stored as strings will be restored.
- */
-export function loadFromStorage<T>(key: string, defaultValue: T): T {
-  try {
-    const serializedData = localStorage.getItem(key);
-    if (serializedData === null) {
-      return defaultValue;
-    }
-    return JSON.parse(serializedData, stringToBigInt) as T;
-  } catch (error) {
-    // warnLog: recoverable — the caller falls back to its default — but the user
-    // silently loses restored state, so it should not be invisible in production.
-    warnLog('StorageUtils', `Failed to load '${key}', using default:`, error);
-    return defaultValue;
-  }
-}
-
 // ============================================================================
 // JSON Helpers for Logging (BigInt → String for display only)
 // ============================================================================
@@ -219,26 +178,6 @@ export function loadFromStorage<T>(key: string, defaultValue: T): T {
  */
 function bigIntToString(_key: string, value: unknown): unknown {
   return typeof value === 'bigint' ? value.toString() : value;
-}
-
-/**
- * JSON reviver that converts known CID fields back to BigInt.
- * @deprecated Only used for legacy localStorage fallback.
- */
-function stringToBigInt(key: string, value: unknown): unknown {
-  const cidKeys = ['cid', 'peer_cid', 'session_cid', 'selectedCid', 'fromCid', 'toCid', 'ownerId', 'senderId', 'peerCid', 'targetCid'];
-  if (
-    cidKeys.includes(key) &&
-    typeof value === 'string' &&
-    /^\d+$/.test(value)
-  ) {
-    try {
-      return BigInt(value);
-    } catch {
-      return value;
-    }
-  }
-  return value;
 }
 
 /**
