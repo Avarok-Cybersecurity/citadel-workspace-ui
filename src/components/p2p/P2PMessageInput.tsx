@@ -110,7 +110,7 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
               // announces nothing at all.
               aria-label="Send message"
               disabled={!canSendMessages || (!inputMessage.trim() && !isLiveDocMode)}
-              className="bg-primary hover:bg-primary text-primary-foreground"
+              className="bg-primary text-primary-foreground"
             >
               <Send className="h-4 w-4" aria-hidden="true" />
             </Button>

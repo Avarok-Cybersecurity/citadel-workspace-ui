@@ -218,13 +218,16 @@ h1, h2, h3, h4, h5, h6 {
   @apply bg-card/80 backdrop-blur-sm border border-border shadow-lg;
 }
 
-.animate-in {
-  animation: fade-in 0.3s ease-out;
-}
-
-.animate-out {
-  animation: fade-out 0.3s ease-out;
-}
+/* No .animate-in / .animate-out here.
+ *
+ * tailwindcss-animate owns those class names and drives them through
+ * `animation-name: enter/exit` plus the --tw-enter-* custom properties that
+ * fade-in-0, zoom-in-95 and slide-in-from-* set. Redefining them with the
+ * `animation` SHORTHAND reset animation-name, so every one of those modifiers
+ * was computed and never read: dialogs, menus, selects, popovers, tooltips
+ * and sheets all collapsed to a directionless 300ms cross-fade — slower and
+ * flatter than the library's own 150ms default.
+ */
 
 @keyframes fade-in {
   0% { opacity: 0; }
@@ -312,11 +315,16 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-.animate-fade-out {
+.animate-slide-fade-out {
   animation: fadeOut 0.3s ease-out forwards;
 }
 
-.animate-fade-in {
+/* .animate-fade-in is generated from tailwind.config's keyframes (opacity
+ * only). It used to be redefined here as `fadeIn`, which also translateX(20px)
+ * — so the landing hero and the incoming-call card slid sideways when the
+ * class name promised a fade. The sliding keyframes live on as
+ * .animate-slide-fade-in for anything that actually wants the movement. */
+.animate-slide-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
 

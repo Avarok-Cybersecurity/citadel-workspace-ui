@@ -232,7 +232,7 @@ export function GroupRoleEditor({
           <Button
             onClick={handleSave}
             disabled={!canSave}
-            className="bg-primary hover:bg-primary text-primary-foreground"
+            className="bg-primary text-primary-foreground"
           >
             {isEditing ? 'Save Changes' : 'Create Role'}
           </Button>

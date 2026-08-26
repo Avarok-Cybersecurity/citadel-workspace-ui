@@ -234,7 +234,7 @@ export function CreateGroupDialog({
             onClick={handleCreate}
             data-testid="create-group-submit"
             disabled={selectedMembers.length === 0 || isCreating}
-            className="bg-primary hover:bg-primary text-primary-foreground"
+            className="bg-primary text-primary-foreground"
           >
             {isCreating ? 'Creating...' : 'Create Group'}
           </Button>

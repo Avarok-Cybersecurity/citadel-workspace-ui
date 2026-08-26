@@ -163,7 +163,7 @@ export function GroupSettingsPanel({
                     <Button
                       onClick={handleNameSave}
                       disabled={isSaving || groupName.trim() === group.name}
-                      className="bg-primary hover:bg-primary text-primary-foreground"
+                      className="bg-primary text-primary-foreground"
                     >
                       {isSaving ? 'Saving...' : 'Save'}
                     </Button>

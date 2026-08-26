@@ -167,7 +167,7 @@ export function FileTransferModal({
             className={`text-foreground ${
               transferMode === 'p2p'
                 ? 'bg-warning hover:bg-warning/90'
-                : 'bg-primary hover:bg-primary'
+                : 'bg-primary'
             }`}
           >
             {isSending ? 'Sending...' : (

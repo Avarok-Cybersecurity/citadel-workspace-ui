@@ -51,6 +51,17 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        /* The Radix popper surface. index.css defines --popover and
+           --popover-foreground, but this key was missing — so `.bg-popover`
+           was never generated and every ui/ primitive asking for it
+           (popover, tooltip, dropdown-menu, select, context-menu) rendered
+           TRANSPARENT. Twenty-odd surfaces were patched one at a time with a
+           local bg-card/bg-surface override; the rest, including the message
+           context menu on every chat bubble, showed the page through them. */
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
         /* Elevated surface: menus, popovers, hover and selected rows. The app
            had ~10 near-identical hexes doing this job; they collapse here. */
         surface: {

@@ -105,7 +105,7 @@ export function LiveDocumentModal({
           <Button
             onClick={handleCreate}
             disabled={!title.trim() || isCreating}
-            className="bg-primary hover:bg-primary text-primary-foreground"
+            className="bg-primary text-primary-foreground"
           >
             {isCreating ? 'Creating...' : 'Create & Send'}
           </Button>
