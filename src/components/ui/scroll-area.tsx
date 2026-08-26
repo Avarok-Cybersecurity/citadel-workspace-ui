@@ -27,7 +27,19 @@ const ScrollArea = React.forwardRef<
       // screen. Forcing the wrapper to a block gives children a real width to
       // shrink within. Content that genuinely needs to scroll sideways should
       // own its own overflow container rather than rely on this wrapper.
-      className="h-full w-full rounded-[inherit] [&>div]:!block"
+      // max-h-[inherit] — without it, a caller who sets only a max-height gets
+      // a Root whose height stays `auto`, so this viewport's `h-full` also
+      // resolves to auto, it grows to its content, nothing overflows, and NO
+      // SCROLLBAR APPEARS. The Root's own `overflow: hidden` then amputates
+      // everything past the cap, silently. Nine call sites did exactly that:
+      // the "View all N members" dialog showed ~7 of 40, and group member
+      // management lost the role selector and kick button for members 9+.
+      //
+      // Inheriting the cap here gives the viewport a bounded height to
+      // overflow against, so it scrolls. Call sites with a definite height
+      // (h-[300px], flex-1) are unaffected: their Root has no max-height, so
+      // this inherits `none`.
+      className="h-full max-h-[inherit] w-full rounded-[inherit] [&>div]:!block"
       onScroll={onScroll}
     >
       {children}
