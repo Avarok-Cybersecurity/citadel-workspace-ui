@@ -101,5 +101,41 @@ export function PwaUpdatePrompt() {
     setNeedRefresh(false);
   }, [needRefresh, setNeedRefresh, updateServiceWorker, toast]);
 
+  // Re-offer the update when the user comes back to the tab.
+  //
+  // The effect above clears `needRefresh` as soon as the toast is raised, and
+  // the service worker's `waiting` event does not fire again for the same
+  // worker. So dismissing the toast once was terminal: the user stayed on that
+  // build indefinitely, through any number of later releases, with nothing to
+  // escalate and no way to ask for the update again.
+  //
+  // `registration.waiting` is the durable fact — it stays non-null for as long
+  // as a new version is sitting there — so returning to the tab is a natural,
+  // bounded moment to raise it again without nagging mid-task.
+  useEffect(() => {
+    const offerIfWaiting = () => {
+      if (document.visibilityState !== 'visible') return;
+      void navigator.serviceWorker?.getRegistration()
+        .then((registration) => {
+          if (!registration?.waiting) return;
+          toast({
+            title: 'Update available',
+            description: 'A new version of Citadel is ready. Reloading will reconnect your session.',
+            duration: Infinity,
+            action: {
+              label: 'Reload',
+              onClick: () => {
+                void updateServiceWorker(true);
+              },
+            },
+          });
+        })
+        .catch(() => undefined);
+    };
+
+    document.addEventListener('visibilitychange', offerIfWaiting);
+    return () => document.removeEventListener('visibilitychange', offerIfWaiting);
+  }, [toast, updateServiceWorker]);
+
   return null;
 }
