@@ -114,10 +114,41 @@ adminMemberTest('the permission matrix stays inside a 375px viewport', async ({ 
     ).toBeLessThanOrEqual(PHONE.width + 1);
 
     // The label column is the part that was lost, so assert it specifically
-    // rather than trusting the box alone.
+    // rather than trusting the dialog's box alone.
+    //
+    // HORIZONTAL bounds, not toBeInViewport(). The defect was the label column
+    // sitting off the left edge of the screen; where a given row falls
+    // vertically is ordinary scrolling and none of this test's business. The
+    // first version asserted full viewport intersection and passed locally by a
+    // few pixels — "Edit MDX Content" was the last row above the fold — then
+    // failed in CI where font metrics put it just below. It was measuring the
+    // layout's vertical luck, not the thing that broke.
     const permissionLabel = page.getByText('Edit MDX Content').first();
-    await expect(
-        permissionLabel,
-        'the permission names should be on screen — they are what the checkmarks refer to',
-    ).toBeInViewport();
+    await expect(permissionLabel, 'the permission label should render').toBeAttached({
+        timeout: 30_000,
+    });
+    await permissionLabel.scrollIntoViewIfNeeded();
+
+    // The invariant, measured on the dialog itself: it must not scroll
+    // horizontally. That is precisely what `[&>*]:min-w-0` establishes — a grid
+    // item may otherwise not shrink below its content, so the table's ~620px
+    // widens the panel and the whole dialog gains a horizontal scrollbar,
+    // taking the label column off the left edge as soon as anything scrolls it.
+    // The inner table container owns the sideways scrolling; the dialog must
+    // not.
+    //
+    // Two earlier versions of this check measured consequences instead, and
+    // both passed with the fix reverted: the label's own box is inside the
+    // screen at scroll position 0 whether or not the dialog can scroll, and
+    // toBeInViewport() additionally depended on which row happened to sit above
+    // the fold.
+    const overflow = await dialog.evaluate((el) => ({
+        scroll: el.scrollWidth,
+        client: el.clientWidth,
+    }));
+    expect(
+        overflow.scroll,
+        `the dialog scrolls horizontally (${overflow.scroll}px of content in ${overflow.client}px) — ` +
+        'its content cannot shrink to the screen, so the permission label column ends up off the left edge',
+    ).toBeLessThanOrEqual(overflow.client + 1);
 });

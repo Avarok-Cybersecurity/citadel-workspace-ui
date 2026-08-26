@@ -142,15 +142,20 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   if (showAdvanced && selectedMember) {
     return (
       <div className="space-y-4" data-testid="members-advanced-permissions">
-        <div className="flex items-center justify-between">
-          <h3 className="text-foreground font-medium">
+        {/* Stacks below `sm`, and the name breaks rather than pushing.
+            A generated handle beside a button that will not shrink made this row
+            370px wide inside a 341px dialog — the panel then scrolled sideways
+            and took the permission matrix's label column off the left edge with
+            it. The matrix itself already fits; this header was the overhang. */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h3 className="text-foreground font-medium min-w-0 break-all sm:truncate">
             Permissions for {selectedMember.name || selectedMember.username}
           </h3>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setSelectedMember(null)}
-            className="border-border text-foreground hover:bg-card"
+            className="border-border text-foreground hover:bg-card shrink-0 self-end sm:self-auto"
           >
             Back to Members
           </Button>
