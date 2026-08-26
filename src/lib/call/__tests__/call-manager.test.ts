@@ -473,6 +473,60 @@ describe('ring timeout', () => {
     await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
 
-    expect(h.cancelledTimers()).toBe(1);
+    // Asserts the consequence, not a timer count. Each status now arms its own
+    // deadline and the liveness heartbeat schedules one once active, so
+    // counting cancellations measures how many transitions happened. What this
+    // pins is that an answered call is never ended as unanswered.
+    h.fireTimers();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.manager.getState()?.reason).not.toBe('unanswered');
+  });
+
+  it('fails a group call left parked in connecting', async () => {
+    const h = harness();
+    // Carol answers and her media session fails; Bob never answers. That
+    // leaves {bob: invited, carol: left} — nobody active, not everyone gone,
+    // so no reducer rule moves it. 'connecting' had no timer of its own: the
+    // ring timer is retired on the transition INTO it, and the heartbeat
+    // watchdog does not arm until 'active'. The call rested there forever
+    // with the camera live.
+    h.transport.openSession.mockRejectedValue(new Error('no UDP'));
+    await h.manager.start(
+      'c1',
+      [
+        { cid: BOB, username: 'bob' },
+        { cid: CAROL, username: 'carol' },
+      ],
+      VIDEO,
+      'room-1',
+      null,
+    );
+    await h.manager.handleSignal(CAROL, 'carol', {
+      kind: 'CallAccept',
+      call_id: 'c1',
+      codecs: CAPS,
+      media: VIDEO,
+    });
+    expect(h.manager.getState()?.status).toBe('connecting');
+
+    expect(h.fireTimers()).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.manager.getState()?.status).toBe('failed');
+  });
+
+  it('stops an incoming call ringing forever when the caller vanishes', async () => {
+    const h = harness();
+    // A killed caller tab sends no CallEnd, and nothing else guarded this
+    // state — the ring tone looped until a human intervened.
+    await h.manager.handleSignal(BOB, 'bob', invite('c1'));
+    expect(h.manager.getState()?.status).toBe('ringing-in');
+
+    expect(h.fireTimers()).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.manager.getState()?.status).toBe('ended');
+    expect(h.manager.getState()?.reason).toBe('unanswered');
   });
 });

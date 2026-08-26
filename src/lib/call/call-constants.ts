@@ -7,6 +7,17 @@ export const MEDIA_WIRE_VERSION = 1;
 export const RING_TIMEOUT_MS = 45_000;
 
 /**
+ * How long `connecting` may last before the call is declared failed.
+ *
+ * Shorter than the ring timeout because the peer has already answered: the
+ * media sessions either open promptly or are not going to. Without any bound
+ * here `connecting` is a reachable resting state — the ring timer is retired
+ * on the transition INTO it, and the heartbeat watchdog does not arm until
+ * `active` — so the call sits with the camera live and no timer anywhere.
+ */
+export const CONNECT_TIMEOUT_MS = 30_000;
+
+/**
  * How often each participant announces it is still there, on the reliable path.
  *
  * A call currently ends on the far side only when a CallEnd arrives. If that

@@ -21,7 +21,8 @@ import { canAddParticipant, type CallEvent, type CallState } from './call-state'
 import { reduce } from './call-reducer';
 import type { WireFrame } from './frame-codec';
 import { PeerCodecBook } from './peer-codec-book';
-import { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
+import { MEDIA_WIRE_VERSION } from './call-constants';
+import { CallDeadline } from './call-deadline';
 import type { CallManagerInternals, CallManagerOptions } from './call-manager-internals';
 
 // The manager's two contracts live together in call-manager-internals: what a
@@ -39,12 +40,22 @@ export class CallManager {
   private readonly openSessions = new Set<bigint>();
   /** Codec facts peers told us; consumed by the provider's codec sync. */
   readonly codecs = new PeerCodecBook();
-  private cancelRingTimeout: (() => void) | null = null;
+  private readonly deadline: CallDeadline;
+
   /** Watches for peers going silent; see call-liveness-binding. */
   private readonly liveness: CallLivenessBinding;
 
   constructor(private readonly options: CallManagerOptions) {
     this.liveness = new CallLivenessBinding(options, () => this.internals());
+    this.deadline = new CallDeadline({
+      schedule: options.schedule,
+      getStatus: () => this.state?.status ?? null,
+      onExpired: (status) => {
+        if (status !== 'connecting') return void this.end('unanswered');
+        this.apply({ type: 'failed', reason: 'The call could not connect.' });
+        void closeAllSessions(this.internals());
+      },
+    });
   }
 
   getState(): CallState | null {
@@ -55,12 +66,7 @@ export class CallManager {
     const next = reduce(this.state, event);
     if (next === this.state) return;
     this.state = next;
-    // The ring timer only guards the un-answered outgoing state; any progress
-    // or terminal transition retires it.
-    if (next && next.status !== 'ringing-out' && this.cancelRingTimeout) {
-      this.cancelRingTimeout();
-      this.cancelRingTimeout = null;
-    }
+    this.deadline.observeState(next);
     this.liveness.observeState(next);
     this.options.onStateChanged(next);
   }
@@ -92,12 +98,8 @@ export class CallManager {
     videoSendCodec: string | null,
   ): Promise<void> {
     this.codecs.clear();
+    // apply() arms the ringing-out deadline; see call-deadline.
     this.apply({ type: 'invite-sent', callId, roomId, media, invitees });
-    // Armed here, cleared by apply() on any progress: without it an unanswered
-    // call rings forever with the microphone captured.
-    this.cancelRingTimeout = this.options.schedule(() => {
-      if (this.state?.status === 'ringing-out') void this.end('unanswered');
-    }, RING_TIMEOUT_MS);
 
     const invite: CallSignalPayload = {
       kind: 'CallInvite',
