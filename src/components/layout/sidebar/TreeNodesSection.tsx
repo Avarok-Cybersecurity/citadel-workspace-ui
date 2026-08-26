@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
@@ -104,24 +104,51 @@ export function TreeNodesSection({
     return initial;
   });
 
-  // Auto-expand parent nodes when tree data changes or search filters
+  // Expand the first level ONCE, when the tree first arrives.
+  //
+  // This used to expand every node with children, on every change of
+  // `treeData` OR `filteredTreeData` identity — and both change constantly.
+  // `filteredTreeData` is a fresh object per keystroke and reverts to
+  // `treeData` when the box is cleared, and `state.nodes` is re-minted on
+  // node:loaded / nodes:loaded / node:deleted / node:content-updated /
+  // node:moved. So every collapse the user made was undone by typing one
+  // character and deleting it, or by anyone saving a document anywhere in the
+  // workspace. A large workspace also opened fully expanded into a 50vh
+  // unvirtualised scroll area, with three tab stops per row.
+  const hasAutoExpanded = useRef(false);
   useEffect(() => {
-    const dataToExpand = filteredTreeData || treeData;
-    if (!dataToExpand) return;
+    if (hasAutoExpanded.current || !treeData) return;
+    hasAutoExpanded.current = true;
     setExpandedNodes((prev) => {
       const next = new Set(prev);
-      let changed = false;
-      function autoExpand(tn: TreeNode) {
-        if (tn.children.length > 0 && !next.has(tn.node.id)) {
-          next.add(tn.node.id);
-          changed = true;
-        }
-        tn.children.forEach(autoExpand);
+      next.add(treeData.node.id);
+      for (const child of treeData.children) {
+        if (child.children.length > 0) next.add(child.node.id);
       }
-      autoExpand(dataToExpand);
-      return changed ? next : prev;
+      return next;
     });
-  }, [treeData, filteredTreeData]);
+  }, [treeData]);
+
+  /**
+   * What is actually rendered as expanded.
+   *
+   * While filtering, every ancestor of a match must be open or the match is
+   * invisible — but that is a property of the QUERY, not a decision the user
+   * made, so it is derived rather than written into `expandedNodes`. Clearing
+   * the box therefore restores exactly the shape the user had.
+   */
+  const effectiveExpanded = useMemo(() => {
+    if (!searchQuery.trim() || !filteredTreeData) return expandedNodes;
+    const withMatches = new Set(expandedNodes);
+    function openAncestors(tn: TreeNode) {
+      if (tn.children.length > 0) {
+        withMatches.add(tn.node.id);
+        tn.children.forEach(openAncestors);
+      }
+    }
+    openAncestors(filteredTreeData);
+    return withMatches;
+  }, [expandedNodes, filteredTreeData, searchQuery]);
 
   const [nodeToDelete, setNodeToDelete] = useState<DomainNode | null>(null);
 
@@ -273,7 +300,7 @@ export function TreeNodesSection({
                     treeNode={displayTreeData}
                     depth={0}
                     selectedNodeId={selectedNodeId}
-                    expandedNodes={expandedNodes}
+                    expandedNodes={effectiveExpanded}
                     onToggleExpand={handleToggleExpand}
                     onNodeSelect={handleNodeSelect}
                     onNodeEdit={onNodeEdit}
