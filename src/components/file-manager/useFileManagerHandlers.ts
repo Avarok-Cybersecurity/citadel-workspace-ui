@@ -23,6 +23,8 @@ interface HandlerDeps {
   clearClipboard: () => void;
   clearSelection: () => void;
   selectItem: (path: string, mode: 'replace' | 'toggle' | 'range') => void;
+  /** The grid's active filter, so Select All cannot select what is hidden. */
+  filterText: string;
   currentTreeKey: TreeKey | null;
   hasPasteItems: boolean;
   clipboard: { sourceTreeKey: TreeKey | null; items: RevfsNode[] };
@@ -49,7 +51,7 @@ export function useFileManagerHandlers({
   cut, copyToClipboard, clearClipboard, clearSelection, selectItem,
   currentTreeKey, hasPasteItems, clipboard, isCut,
   myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
-  tree, currentPath, fileInputRef,
+  tree, currentPath, filterText, fileInputRef,
   setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
   setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
 }: HandlerDeps) {
@@ -177,10 +179,17 @@ export function useFileManagerHandlers({
     if (!tree) return;
     const currentNode = tree.path === currentPath ? tree : findNodeByPath(tree, currentPath);
     if (!currentNode?.children) return;
-    currentNode.children.forEach((n, i) => {
+    // Filtered, matching what the grid shows. This iterated the unfiltered
+    // children, so Select All under a filter silently selected hidden files —
+    // and the Delete shortcut resolves the selection against the whole tree,
+    // so the user then deleted items they had never seen.
+    const visible = filterText
+      ? currentNode.children.filter((n) => n.name.toLowerCase().includes(filterText.toLowerCase()))
+      : currentNode.children;
+    visible.forEach((n, i) => {
       selectItem(n.path, i === 0 ? 'replace' : 'toggle');
     });
-  }, [tree, currentPath, selectItem]);
+  }, [tree, currentPath, filterText, selectItem]);
 
   const handleDrop = useCallback(async (targetPath: string, files: FileList) => {
     if (!myCid) { toast.error('Not connected'); return; }

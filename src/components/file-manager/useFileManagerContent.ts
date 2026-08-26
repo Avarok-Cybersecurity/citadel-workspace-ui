@@ -84,6 +84,22 @@ export function useFileManagerContent() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [filterText, setFilterText] = useState('');
 
+  // Drop the selection whenever the view changes underneath it.
+  //
+  // `selectedPaths` is a Set of absolute paths and nothing reconciled it with
+  // what the grid shows: clearSelection had exactly two callers — after a
+  // successful delete, and a click on the background. So navigating, filtering,
+  // switching peer or switching storage mode all left a selection referring to
+  // items that were no longer on screen, while the toolbar still read
+  // "N selected".
+  //
+  // That is destructive, not cosmetic: the Delete shortcut resolves the
+  // selection against the whole tree, so a user who selected 12 files, filtered
+  // to 1, and pressed Delete deleted all 12 — including 11 they could not see.
+  useEffect(() => {
+    clearSelection();
+  }, [currentPath, filterText, storageMode, selectedPeerCid, clearSelection]);
+
   const handleSortChange = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc') => {
     setSortField(field);
     setSortDirection(direction);
@@ -94,7 +110,7 @@ export function useFileManagerContent() {
     cut, copyToClipboard, clearClipboard, clearSelection, selectItem,
     currentTreeKey, hasPasteItems, clipboard, isCut,
     myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
-    tree, currentPath, fileInputRef,
+    tree, currentPath, filterText, fileInputRef,
     setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
     setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
   });
