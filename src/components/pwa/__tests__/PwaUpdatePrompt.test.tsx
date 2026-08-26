@@ -14,6 +14,9 @@
  * cannot exist under vitest, and it is the seam the whole flow hangs from.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -163,5 +166,52 @@ describe('PwaUpdatePrompt', () => {
 
       expect(update).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('an update accepted elsewhere does not reload this window', () => {
+  // vite-plugin-pwa arms `controlling → window.location.reload()` unless
+  // onNeedReload is supplied, and it arms it in EVERY window that saw the
+  // waiting worker. skipWaiting takes over all clients at once, so one
+  // window's click reloaded all of them — dropping each one's WebSocket, P2P
+  // channels and in-flight document state mid-sentence. That is precisely the
+  // guarantee registerType:'prompt' exists to provide.
+  it('supplies onNeedReload so the library never reloads on its own', () => {
+    // Reading the source, because the behaviour lives in the library's
+    // callback and the option's PRESENCE is the whole fix: without it the
+    // library reloads unconditionally.
+    const source = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'PwaUpdatePrompt.tsx'),
+      'utf8',
+    );
+    // Matches the OPTION, not the word: both files explain onNeedReload in a
+    // comment, so `toContain('onNeedReload')` passes with the option deleted.
+    // My first version of this test did exactly that and survived its own
+    // negative control.
+    expect(source).toMatch(/onNeedReload\s*:/);
+    expect(source).toContain('weInitiatedUpdate.current');
+  });
+
+  it('marks this window as the initiator before skipping waiting', () => {
+    const source = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'PwaUpdatePrompt.tsx'),
+      'utf8',
+    );
+    // The flag must be set BEFORE updateServiceWorker, or the controlling
+    // event can arrive first and this window declines its own reload.
+    const setIndex = source.indexOf('weInitiatedUpdate.current = true');
+    const callIndex = source.indexOf('updateServiceWorker(true)');
+    expect(setIndex).toBeGreaterThan(-1);
+    expect(callIndex).toBeGreaterThan(setIndex);
+  });
+
+  it('main.tsx does not arm a second, unowned reload', () => {
+    // There are two registrations; main.tsx's exists so a crashed render still
+    // receives updates. It must not also reload, since it owns no prompt.
+    const main = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'main.tsx'),
+      'utf8',
+    );
+    expect(main).toMatch(/onNeedReload\s*:/);
   });
 });

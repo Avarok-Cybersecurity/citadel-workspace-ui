@@ -33,11 +33,36 @@ export function PwaUpdatePrompt() {
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
+  // Whether the user clicked Reload in THIS window.
+  //
+  // skipWaiting activates the new worker for every client at once, so the
+  // `controlling` event fires everywhere — and the library reloads on it unless
+  // onNeedReload is supplied. Without this gate, one window's click reloaded
+  // all of them, dropping each one's WebSocket and P2P channels mid-session.
+  // A ref, not state: it is read inside a callback the library owns, and it
+  // must not trigger a render.
+  const weInitiatedUpdate = useRef(false);
+  // `toast` is declared below and the callback above closes over this instead,
+  // so the callback does not depend on declaration order.
+  const toastRef = useRef<((opts: { title: string; description?: string }) => void) | null>(null);
+
   const {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    onNeedReload: () => {
+      if (weInitiatedUpdate.current) {
+        window.location.reload();
+        return;
+      }
+      // Another window took the update. Say so rather than yanking the page
+      // out from under someone mid-conversation.
+      toastRef.current?.({
+        title: 'Updated in another window',
+        description: 'Reload when you are ready to pick up the new version.',
+      });
+    },
     onRegisteredSW(url, registration) {
       debugLog('PWA', 'Service worker registered', url);
       if (!registration) return;
@@ -75,6 +100,10 @@ export function PwaUpdatePrompt() {
   });
 
   useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+
+  useEffect(() => {
     if (!offlineReady) return;
     toast({
       title: 'Ready to work offline',
@@ -94,6 +123,7 @@ export function PwaUpdatePrompt() {
       action: {
         label: 'Reload',
         onClick: () => {
+          weInitiatedUpdate.current = true;
           void updateServiceWorker(true);
         },
       },

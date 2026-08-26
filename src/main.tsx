@@ -158,6 +158,18 @@ try {
   // this same registration and keeps owning the toast and the reload action.
   const updateSW = registerSW({
     immediate: true,
+    // onNeedReload is what suppresses the library's automatic reload.
+    //
+    // vite-plugin-pwa arms `controlling → window.location.reload()` unless this
+    // is supplied, and it arms it in EVERY window that sees the waiting worker.
+    // skipWaiting takes over all clients at once, so accepting the update in
+    // one window hard-reloaded every other one — dropping their WebSocket, P2P
+    // channels and in-flight document state mid-sentence. That is the exact
+    // guarantee registerType:'prompt' was chosen to provide, and this
+    // registration was quietly voiding it.
+    //
+    // PwaUpdatePrompt owns the reload for the window whose user clicked.
+    onNeedReload: () => {},
     onRegisterError: (error: unknown) => console.error('Service worker registration failed:', error),
   });
   void updateSW;
