@@ -20,6 +20,24 @@ import { refreshOnlineStatus } from './polling';
  * Uses deterministic initiator selection: higher CID is the initiator.
  * Only runs on leader tab.
  */
+/**
+ * Whether this browser's WebSocket owns the given session.
+ *
+ * Multi-tab P2P legitimately initiates from the other side, because one
+ * WebSocket owns both sessions. Across browsers it does not, and asking the
+ * service to act on a session we do not own is now refused outright.
+ */
+async function ownsSession(cid: bigint): Promise<boolean> {
+  try {
+    const sessions = await connectionManager.getActiveSessions();
+    return sessions.some((session) => session.cid === cid);
+  } catch {
+    // Unknown ownership: assume not ours and initiate from our own side, which
+    // is always a request we are allowed to make.
+    return false;
+  }
+}
+
 export async function connectToPeer(
   state: AutoConnectState,
   peerCid: bigint,
@@ -69,8 +87,21 @@ export async function connectToPeer(
   let targetCid = peerCid;
   if (shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
-  } else if (currentCid < peerCid) {
-    debugLog('P2PAutoConnectService', `P2PAutoConnect: Local CID ${currentCid.toString().slice(0, 8)}... < peer ${peerCid.toString().slice(0, 8)}...; initiating from peer side over shared WS (multi-tab P2P)`);
+  } else if (currentCid < peerCid && (await ownsSession(peerCid))) {
+    // Reverse ONLY when this browser actually owns the peer's session.
+    //
+    // The old condition was `currentCid < peerCid` alone, on the reasoning that
+    // for an external peer the service "either accepts (if it owns that
+    // session) or rejects with a benign error". That made a request naming a
+    // session belonging to someone else's connection a routine occurrence, and
+    // the client depended on the rejection to learn the peer was already
+    // connected — an error reply doing the work of a success.
+    //
+    // The internal service now refuses requests for sessions the caller does
+    // not own, which is correct and closes a real hole. That makes this branch
+    // an unanswered request rather than a benign error, so it has to stop being
+    // sent: 48 of them were logged in a single four-spec run.
+    debugLog('P2PAutoConnectService', `P2PAutoConnect: Local CID ${currentCid.toString().slice(0, 8)}... < peer ${peerCid.toString().slice(0, 8)}...; both sessions are ours, initiating from peer side (multi-tab P2P)`);
     initiatorCid = peerCid;
     targetCid = currentCid;
   } else {
