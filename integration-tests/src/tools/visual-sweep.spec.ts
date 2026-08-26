@@ -422,6 +422,27 @@ test('admin surfaces', async ({ browser }) => {
       for (const [label, vp] of [['desktop', DESKTOP], ['phone', PHONE]] as const) {
         await adminPage.setViewportSize(vp);
 
+        // At phone width the sidebar is collapsed behind the hamburger, so the
+        // node tree — and with it the context menu that opens Admin Settings —
+        // is not on screen. That is correct behaviour, not a defect; the sweep
+        // has to do what a person does.
+        //
+        // Settle after the resize BEFORE tapping. `useIsMobile` reads
+        // window.innerWidth from a media-query listener, so immediately after
+        // setViewportSize it still reports desktop — and toggleSidebar then
+        // collapses the desktop sidebar instead of opening the mobile sheet,
+        // leaving the tree off screen and this looking like a product defect.
+        if (label === 'phone') {
+          await adminPage.waitForTimeout(1000);
+          const treeNode = adminPage.locator('[data-testid^="tree-node-menu-"]').first();
+          const toggle = adminPage.getByTestId('sidebar-toggle');
+          for (let attempt = 0; attempt < 3; attempt++) {
+            if (await treeNode.isVisible().catch(() => false)) break;
+            await toggle.click({ force: true });
+            await adminPage.waitForTimeout(1200);
+          }
+        }
+
         if (!(await openAdminPanel(adminPage))) {
           throw new Error(`could not open Admin Settings at ${scheme}/${label} — ` +
             'this account should be the workspace administrator');
@@ -435,13 +456,27 @@ test('admin surfaces', async ({ browser }) => {
 
         // The permission matrix: 27 permissions against every role, the widest
         // table in the product and the one most likely to overflow a phone.
+        //
+        // Two clicks, not one. The advanced toggle only swaps the row's controls
+        // for a "Permissions" button; the matrix is behind that button. Stopping
+        // at the toggle captured the member list and filed it as the matrix.
         if (await activateAdminTab(adminPage, 'members')) {
           const toggle = adminDialog(adminPage).getByTestId('members-advanced-toggle');
           if (await toggle.isVisible().catch(() => false)) {
             await toggle.click({ force: true });
-            await adminPage.waitForTimeout(1200);
-            await shot(adminPage, `admin-permissions-${scheme}-${label}`);
-            await toggle.click({ force: true }).catch(() => undefined);
+            await adminPage.waitForTimeout(1000);
+            await shot(adminPage, `admin-advanced-${scheme}-${label}`);
+
+            const openMatrix = adminDialog(adminPage)
+              .locator('[data-testid^="member-permissions-"]')
+              .first();
+            if (await openMatrix.isVisible().catch(() => false)) {
+              await openMatrix.click({ force: true });
+              await adminPage.waitForTimeout(1500);
+              await shot(adminPage, `admin-permissions-${scheme}-${label}`);
+              await adminPage.keyboard.press('Escape');
+              await adminPage.waitForTimeout(500);
+            }
           }
         }
 

@@ -17,7 +17,17 @@ const ScrollArea = React.forwardRef<
   >
     <ScrollAreaPrimitive.Viewport
       ref={ref}
-      className="h-full w-full rounded-[inherit]"
+      // [&>div]:!block — Radix wraps the viewport's children in an element it
+      // styles `display: table; min-width: 100%`. A table box sizes to its
+      // content, so any child wider than the viewport widens that wrapper
+      // instead of being constrained by it, and `min-w-0`/`truncate` on the
+      // children then do nothing: there is no bounded width for them to shrink
+      // against. In the admin members list a 22-character username stayed at
+      // full width and pushed the role selector and remove button off a 375px
+      // screen. Forcing the wrapper to a block gives children a real width to
+      // shrink within. Content that genuinely needs to scroll sideways should
+      // own its own overflow container rather than rely on this wrapper.
+      className="h-full w-full rounded-[inherit] [&>div]:!block"
       onScroll={onScroll}
     >
       {children}

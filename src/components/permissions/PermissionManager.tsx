@@ -102,7 +102,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const allPermissions = Object.entries(PERMISSION_CATEGORIES);
 
   return (
-    <div className="bg-background border border-border rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="bg-background border border-border rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] min-w-0 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -125,7 +125,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           {/* Role column headers */}
           <thead className="sticky top-0 z-10 bg-background">
             <tr>
-              <th className="text-left text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-6 py-3 w-[200px] border-b border-border">
+              <th className="sticky left-0 z-20 bg-background text-left text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-6 py-3 w-[200px] border-b border-border">
                 Permission
               </th>
               {ROLE_HIERARCHY.map(role => (
@@ -149,7 +149,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                 <tr>
                   <td
                     colSpan={ROLE_HIERARCHY.length + 1}
-                    className="px-6 pt-4 pb-1.5"
+                    className="sticky left-0 bg-background px-6 pt-4 pb-1.5"
                   >
                     <span className="text-[11px] font-semibold tracking-wider uppercase text-primary-accent">
                       {category}
@@ -165,7 +165,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                       idx === permissions.length - 1 ? '' : ''
                     }`}
                   >
-                    <td className="px-6 py-2">
+                    <td className="sticky left-0 z-10 bg-background px-6 py-2">
                       <span className="text-sm text-foreground/80">{permission.label}</span>
                     </td>
                     {ROLE_HIERARCHY.map(role => {
