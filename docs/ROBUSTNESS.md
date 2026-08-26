@@ -870,6 +870,105 @@ naming the races and per-frame ownership re-checks; and RE-VFS naming OPFS
 directories by tree key alone so peer-controlled paths never reach a
 `getDirectoryHandle` argument.
 
+## Round eleven — session and identity, 2026-08-26
+
+### 107. A server-initiated disconnect left a zombie app · critical — FIXED (c473cef)
+
+### 108. Every stored CID is erased on every page load · critical
+`connection/service.ts` calls `clearSessionCids()` at init and **persists it**.
+This contradicts the CID-permanence invariant the architecture rests on, stated
+in a banner comment in the same module family, and the field's own doc ("Store
+the CID for claiming orphaned sessions"). Downstream, all following from it:
+`isOrphaned` is always true after a reload so the non-orphan branch is
+unreachable; `postAuthSetup`, `session:activated` and `loadUserRegistration`
+never run because the CID lookup never matches; and the workspace switcher
+shows no session as active and throws "Session CID not available" on switch.
+Fires on literally every reload.
+
+### 109. Multi-account data bleeds across accounts · critical
+The LocalDB `cid` argument IS the namespace, and almost every call site passes
+`0n`. Exactly one — `p2p-registration-service/connection.ts` — passes the real
+`currentCid`. So: chat history is keyed by the PEER's CID with nothing about
+which of my accounts is talking, and the sidebar lists the whole namespace, so
+every account sees every other account's conversations. Incoming peer requests
+sent to account A appear as pending for B, **and B can accept them**.
+Notifications render A's previews under B with A's handlers attached. Privacy
+settings are one global key.
+
+Sharpest case: the permissions cache is keyed by `domainId` only and is not
+cleared on account switch, and the cache grants everything for Admin/Owner — so
+**an admin switching to a member account keeps the admin UI**.
+
+### 110. "Remember Credentials" is a switch wired to nothing · high
+`storeCredentials` has no read site that gates persistence — the login handler
+stores unconditionally. The user turns it off, believes nothing is stored, and
+the password is written in plaintext. An inverted-safety control is worse than
+an absent one. The same handler also passes `undefined` where the session's
+security settings belong and stores `getDefaultSecuritySettings()` instead, so
+security level, secrecy mode, encryption algorithm, KEM and signature choice
+are all silently discarded on the login path. `useJoinRegistration` threads them
+correctly — one path got it.
+
+### 111. Auto-reconnect fires once per tab, then never again · high
+`handleConnectionSuccess` reads `username` off `ConnectSuccess`, which carries
+only `{cid, request_id}` — so the whole body is dead, `cancelRetry` never runs,
+the entry sticks in `reconnectAttempts`, and the reconnect loop skips that
+session for the life of the tab. An `as` cast on an untyped `getVariant` result
+hid it. The same dead body means `clearUserDisconnected` never runs — and it
+has zero callers anywhere — so **signing out bans that account from
+auto-reconnect permanently, persisted across browser restarts, with no UI to
+undo it**. The file documents fixing this exact "happy path disabled the
+recovery path" bug one layer down.
+
+### 112. Unauthenticated credential exfiltration from the internal service · **security decision**
+Three links, each documented separately, never composed: the socket does a bare
+`accept_async` with no Origin check or handshake auth; `GetSessions` returns
+`None` from `session_cid()` so the ownership gate never applies and it iterates
+the whole map including every peer relationship; and `LocalDBGetKV` is
+hard-exempt from the gate while a CID absent from the map is also let through —
+and the credential store lives at CID 0, which is never in the map.
+
+So two frames to `ws://localhost:12345`, from any local process or any page the
+user visits, yield every stored account's plaintext password and PSK. Nothing
+is logged on the read path.
+
+Compounded by 110 (stored regardless of the switch), by there being **no
+credential rotation or invalidation path anywhere** — a repo-wide grep for
+change/reset/revoke password returns only `URL.revokeObjectURL` — and by
+`serverPassword` being stored in plaintext forever while never being read back
+by any connect path.
+
+**Related to the ClaimSession decision already recorded.** Both turn on the same
+question: what is a localhost connection entitled to? **Not taken
+unilaterally.**
+
+### 113. Registration half-completes and the retry advice is wrong · high
+With `connect_after_register`, the service emits no `RegisterSuccess` — it
+synthesises a `Connect` reusing the request id, and the account exists the
+moment register returns. The client matches `ConnectFailure` only under
+`Response` and `SessionAlreadyActive` nowhere, and there is **no transport
+timeout on auth at all** while every other websocket op has one. So a
+register-OK/connect-rejected produces a 30-second spinner and then "The
+connection request timed out" — the real reason discarded. Pressing Join again
+says "An account with that username already exists. Please choose a different
+username", which is actively wrong: it is their own account from thirty seconds
+ago, and no path offers to log in with credentials the app never stored.
+
+### 114. Only one form validates credentials · medium-high
+The complete call graph of `credential-rules.ts` is the join form. The login
+form validates nothing beyond non-empty and sets no maxLength, so a
+24-character password from a password manager is accepted and reported back as
+"Incorrect password" — when the product maximum is 17 and it could never have
+been registered. Server-side the password check is passed `None`, so the 7-17
+rule is enforced by that one client-side gate and nowhere else.
+
+### 115. A guard that is cited in a comment and does not exist · medium
+`credential-rules.ts` states "the mirror is guarded: `cargo test -p
+citadel-workspace-types credential_mirror` fails if an SDK bump moves any of
+these numbers." A repo-wide grep for `credential_mirror` returns exactly one
+line — that comment. The numbers are correct today; the guard is fiction, so
+the next SDK bump drifts silently.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
