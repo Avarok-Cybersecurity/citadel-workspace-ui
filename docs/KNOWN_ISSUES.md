@@ -51,11 +51,19 @@ which would materially weaken XSS protection on a security product to satisfy a
 cosmetic score. Not done deliberately. Revisit only if cbor-x gains a build that
 skips the probe.
 
-### Fixed 2s delay on every login (needs a backend signal)
+### P2P messaging is unavailable for 2s after login (needs a backend signal)
 
-`lib/session-startup-service.ts` waits `SDK_TEARDOWN_SETTLE_MS` (2000ms) after a
+`lib/session-startup-sequence.ts` waits `SDK_TEARDOWN_SETTLE_MS` (2000ms) after a
 login before starting P2P setup, so the previous session's channel drops can
 propagate through the protocol layer first.
+
+**Corrected 2026-08-26 — this is NOT 2s of login latency.** The sequence runs
+from an `eventEmitter.on('session:activated', ...)` listener, which nobody
+awaits, so the user reaches the workspace immediately. What the delay defers is
+`wasmConnectionManager.start()`, one step further down: for the first ~2s after
+a login, ILM is not up, so messages cannot be sent or received. That is still
+worth removing, but it is "messaging is briefly unavailable", not "every login
+is 2s slower", and it should be prioritised as the former.
 
 It is a guess in both directions: too short on a loaded backend and it races
 anyway, too long and every login pays the difference. It stands because the
