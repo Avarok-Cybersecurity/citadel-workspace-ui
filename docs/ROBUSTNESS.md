@@ -470,12 +470,18 @@ success instead. `ensure_not_last_admin` — the admin-lockout fix — is
 referenced nowhere but its own definition. A `check_entity_permission` that
 returned `Ok(true)` unconditionally would pass the entire suite.
 
-### 57. The internal-service tests never run on a parent-repo PR · high
-`validate.yml` runs `cargo test` for the three root crates only. Every test
-covering session claim, orphan mode, P2P registration, P2P messaging and file
-transfer is outside that — and the documented commit order lands changes
-through the parent repo. Fix: `cargo test --workspace` with
-`working-directory: citadel-internal-service`.
+### 57. The internal-service tests do not re-run when the parent bumps its pointer · medium
+*(Corrected after checking: the audit reported these tests as never running.
+They do — `citadel-internal-service` runs `cargo nextest run` on its own PRs.
+The parent's `rust-tests` matrix covers only the three root crates, and its
+internal-service steps are fmt and clippy only.)*
+
+The real gap is narrower and still worth closing: a parent-side change to
+`citadel-workspace-types`, which the internal service depends on, is never
+tested against the internal service's suite. The submodule's CI validated it
+against the types as they were when that commit was made. Fix: a `cargo nextest
+run` job with `working-directory: citadel-internal-service` in the parent, or
+at minimum on changes touching the shared crates.
 
 ### 58. Orphan mode is written and never read · high
 Four write/remove sites, zero read-for-decision sites, and `ext.rs` says so
