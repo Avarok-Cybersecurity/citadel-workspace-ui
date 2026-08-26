@@ -1086,6 +1086,101 @@ V8 boxing cost explained; dev/prod CSP parity that is byte-identical rather
 than asserted; the deploy gate refusing to pass vacuously; and the file-upload
 path's 0700 root, RAII byte reservation, TTL sweeper and startup sweep.
 
+## Round thirteen — state, layout, PWA lifecycle, 2026-08-26
+
+### 129. A DM switch leaked the previous peer's messages into the new thread · critical — FIXED (cb5f204)
+Confidentiality, not cosmetics. No `key` on `<P2PChat>`, `useP2PMessages` resets
+only on a FALSY peerCid, and `mergeMessages` dedups by id alone — so Alice's
+messages merged into Bob's thread and rendered under Bob's name. Every live
+subscription in the same feature IS peer-scoped, each with a comment naming
+this hazard; only the switch path was missed. Same key fixed the group
+composer, which was pairing a stale draft with the current groupId.
+
+### 130. File-manager selection never reconciled with the grid · critical — FIXED (087137a)
+### 131. Accepting a PWA update force-reloaded every other window · critical — FIXED (434e048)
+### 132. overflow-checks off in release · high — FIXED
+### 133. No forbidOnly in CI · medium — FIXED
+
+### 134. Nine `max-h` ScrollAreas clip with no scrollbar · critical
+`ui/scroll-area` puts the caller's class on the Radix ROOT, whose height stays
+`auto` under a `max-height` — so the Viewport's `h-full` resolves to auto, no
+scrollbar appears, and the Root's `overflow: hidden` amputates the rest. The
+"View all N members" dialog — whose entire purpose is escaping the sidebar's
+5-member cap — shows about 7 of 40. Group member management loses the role
+selector and kick button for members 9+. The working call sites use `flex-1` or
+a definite `h-[...]`, which is the fix.
+
+### 135. A ringing call during any open dialog is visible, un-clickable and aria-hidden · critical
+`IncomingCallCard` is z-60 so it paints above a z-50 Radix modal — but every
+Radix layer sets `body { pointer-events: none }` and `hideOthers()`, so Accept
+and Decline do nothing and a screen reader cannot see it. `LoadingModal` at
+z-100 hides it entirely, so a call arriving during a workspace switch is both
+invisible and inert. A missed call with a working-looking UI is the worst
+failure mode a calling feature has.
+
+### 136. Pasted URLs escape the 1:1 chat bubble · high
+`TextBubble` renders `whitespace-pre-wrap` with no `break-words`; its sibling
+`GroupMessageItem` has both. A pasted link has no soft-wrap opportunity, so it
+paints outside the bubble and is cut at the panel edge. The most common long
+string a chat user produces. Related: the detailed `min-w-0` post-mortem in
+`TextBubble` describes a `<pre>` overflow — but TextBubble renders plain text;
+`MarkdownBubble` is the one with the `<pre>`, and it has no `min-w-0` at any of
+its three levels.
+
+### 137. The installed app is silent when open but unfocused · high
+Notifications gate on `document.hidden`, which stays false for a standalone
+window sitting behind the user's editor — the app's most common posture. There
+is no `hasFocus()` check and no `setAppBadge`, so an incoming message produces
+no signal at all.
+
+### 138. "Ready to work offline" is a promise the app cannot keep · high
+`state.workspace` comes only from a live `GetWorkspace` round trip, and
+`WorkspaceLoader` gates every authenticated route on it. Offline, the user gets
+~2.5s of leader election, then "Loading workspace…", then a redirect to
+/connect — with their entire message history on disk and unreadable. The app is
+offline-loadable and not offline-usable.
+
+### 139. Every launch lands on the marketing page · high
+`start_url` is `/`, Landing explicitly declines to auto-navigate, and the only
+route memory is `useState`. A daily user gets the hero every time and must pick
+their session from the navbar. Manifest shortcuts are discarded too: the
+re-auth path is a bare `navigate('/connect')` with no redirect target.
+
+### 140. `citadel:file-transfers` is write-only accretion · high
+Three references: the declaration, the read inside its own writer, and the
+write. Nothing reads it, nothing prunes it, and every state transition
+re-parses and re-stringifies the whole map against a 5MB cap. The same pattern
+was diagnosed and fixed in `WorkspaceEventHandler`, with the reasoning written
+down; it was never propagated here. First casualty at quota is
+`saveSettings`, whose catch is `// Silently fail` — so turning auto-accept OFF
+appears to work and reverts on next launch.
+
+### 141. Sign-out leaves nearly everything · high
+It removes the agent-side session and one tabContext row, then says "You have
+been fully logged out." Surviving: every transfer record and per-peer setting,
+`session_last_accessed_*`, `peer-first-seen:*`, recent servers, all three
+settings blobs, every OPFS tree, orphaned tabContext rows, and the entire
+precache. There is no "clear local data" anywhere.
+
+### 142. A precache install failure is silent and retries forever · high
+Any 404 on any of the 41 precached entries rejects install; `onRegisterError`
+does not fire for that. The user stays on the old build indefinitely, with no
+signal — while two hourly checks plus every visibilitychange and online event
+re-download ~2.7MB and fail again.
+
+### 143. Two closed loops with no exit · high
+The `VersionError` recovery button unregisters the SW and reloads, which during
+a real rollback re-serves the same older build and the same error. And a render
+crash unmounts the only code path that can apply a waiting update, while the
+error screen's Reload re-serves the same precached shell.
+
+### 144. Count and format vocabulary is unowned · medium
+Five unread badges with four different cap rules, two of them in the same
+sidebar list; three "1 items" bugs; nine byte formatters with five vocabularies,
+seven of them indexing `sizes[i]` unbounded so a 1TB file reads "1 undefined"
+and 1,048,575 bytes reads "1024 KB". `use-call-duration` never carries to
+hours, so a 3-hour call reads "180:00".
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
