@@ -49,6 +49,11 @@ export function PeerListRow({
             </div>
             {/* Status indicator - top-right corner */}
             <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface ${statusColor}`} />
+            {/* Colour alone would carry the meaning, which fails WCAG 1.4.1 —
+                same pairing as ParticipantTile's speaking indicator. */}
+            <span className="sr-only">
+              {isConnected ? 'Connected' : isOnline ? 'Online' : 'Offline'}
+            </span>
           </div>
           {/* Username */}
           <span className="flex-1 truncate text-sm">{username}</span>
@@ -56,6 +61,7 @@ export function PeerListRow({
           {unreadCount !== undefined && unreadCount > 0 && (
             <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground">
               {unreadCount}
+              <span className="sr-only"> unread messages</span>
             </Badge>
           )}
         </div>

@@ -80,6 +80,7 @@ export function ChatSettingsPanel({
               value="general"
               data-testid="tab-general"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
+             aria-label="General"
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">General</span>
@@ -88,6 +89,7 @@ export function ChatSettingsPanel({
               value="file"
               data-testid="tab-file"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
+             aria-label="File"
             >
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">File</span>
@@ -96,6 +98,7 @@ export function ChatSettingsPanel({
               value="advanced"
               data-testid="tab-advanced"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
+             aria-label="Advanced"
             >
               <Sliders className="h-4 w-4" />
               <span className="hidden sm:inline">Advanced</span>
@@ -104,6 +107,7 @@ export function ChatSettingsPanel({
               value="stats"
               data-testid="tab-stats"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
+             aria-label="Stats"
             >
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Stats</span>

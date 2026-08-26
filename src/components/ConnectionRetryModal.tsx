@@ -160,7 +160,11 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
         <AgentDownloadHint />
 
         <div className="space-y-4 py-4">
-          <div className="text-sm text-muted-foreground">
+          {/* Radix announces title+description once on open and nothing after.
+              maxRetries=10 with up to 300s backoff means minutes of progress —
+              including the terminal failure that disables Retry Now — reaching
+              nobody. Mounted unconditionally so the region pre-exists its text. */}
+          <div className="text-sm text-muted-foreground" role="status">
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -231,7 +235,6 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
           <Button
             variant="outline"
             onClick={handleCancel}
-            disabled={isLoading}
           >
             <X className="h-4 w-4 mr-2" />
             Cancel

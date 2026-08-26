@@ -96,6 +96,7 @@ export function AdminModal({
               value="general"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-general"
+             aria-label="General"
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">General</span>
@@ -104,6 +105,7 @@ export function AdminModal({
               value="members"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-members"
+             aria-label="Members"
             >
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Members</span>
@@ -112,6 +114,7 @@ export function AdminModal({
               value="chat"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-chat"
+             aria-label="Chat"
             >
               <MessageSquare className="h-4 w-4" />
               <span className="hidden sm:inline">Chat</span>

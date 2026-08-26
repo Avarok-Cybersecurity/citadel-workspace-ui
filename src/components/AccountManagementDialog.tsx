@@ -166,7 +166,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                         {!isConnected && (
                           <Button variant="outline" size="sm" className="border-primary-accent text-primary-accent hover:bg-primary-accent/20" onClick={() => handleSwitchAccount(session.username, session.serverAddress)}>Switch</Button>
                         )}
-                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/20" onClick={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}>
+                        <Button variant="ghost" size="icon" aria-label={`Delete saved account ${session.username} on ${session.serverAddress}`} className="text-destructive hover:bg-destructive/20" onClick={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

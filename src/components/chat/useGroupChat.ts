@@ -65,7 +65,11 @@ export function useGroupChat(groupId: string) {
               return [...prev, newMsg];
             });
             setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              // An explicit `behavior` in ScrollIntoViewOptions beats the
+              // `scroll-behavior: auto !important` that index.css sets under
+              // prefers-reduced-motion, so the media query has to be read here.
+              const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              messagesEndRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
             }, 100);
           }
           break;
