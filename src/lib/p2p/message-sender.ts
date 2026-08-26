@@ -17,6 +17,7 @@ import type { MessageType } from '@/types/message-protocol';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import type { P2PMessage, P2PConversation } from './p2p-types';
+import { persistMessageStatus } from './message-status-persistence';
 import type { MessageSenderConfig } from './message-sender-types';
 import {
   sendRawMessage as rawMessageOp,
@@ -126,11 +127,15 @@ export class MessageSender {
       await this.sendP2PCommand(recipientCid, command);
       message.status = 'sent';
       this.config.notifyMessageStatusListeners(messageId, 'sent');
+      await persistMessageStatus(this.config, recipientCid, messageId, message);
       debugLog('MessageSender', `[P2P] Message ${messageId} sent successfully in ${Date.now() - sendStartTime}ms`);
     } catch (error) {
       message.status = 'failed';
       message.error = error instanceof Error ? error.message : 'Failed to send';
       this.config.notifyMessageStatusListeners(messageId, 'failed');
+      // Before the rethrow. The failed status is exactly the one worth keeping:
+      // it is what makes the message retryable after a reload.
+      await persistMessageStatus(this.config, recipientCid, messageId, message);
       debugLog('MessageSender', `Message ${messageId} FAILED after ${Date.now() - sendStartTime}ms:`, error);
       throw error;
     }
@@ -196,10 +201,11 @@ export class MessageSender {
       message.status = 'failed';
       message.error = error instanceof Error ? error.message : 'Failed to send';
       this.config.notifyMessageStatusListeners(messageId, 'failed');
+      await persistMessageStatus(this.config, peerCid, messageId, message);
       throw error;
     }
 
-    await this.config.updateMessageInPages(peerCid, messageId, { status: message.status, error: message.error });
+    await persistMessageStatus(this.config, peerCid, messageId, message);
   }
 
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> {
