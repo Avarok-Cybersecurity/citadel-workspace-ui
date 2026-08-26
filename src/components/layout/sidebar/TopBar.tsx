@@ -81,7 +81,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border flex items-center justify-between pr-4 z-50">
+    // <header>, not a div: this is the app's banner, and it completes the
+    // landmark set alongside <nav> and <main> in AppLayout. Without it a screen
+    // reader has no way to jump to the workspace switcher or the user menu.
+    <header className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border flex items-center justify-between pr-4 z-50">
       {/*
         min-w-0 so this group can shrink. Flex children default to
         min-width:auto, meaning they refuse to go narrower than their content —
@@ -208,6 +211,6 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         open={showSettingsModal}
         onOpenChange={setShowSettingsModal}
       />
-    </div>
+    </header>
   );
 };

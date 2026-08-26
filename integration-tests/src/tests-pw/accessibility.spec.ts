@@ -522,6 +522,7 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     // Structure a screen reader can navigate by.
     await expect(page.getByRole('main')).toBeAttached();
     await expect(page.getByRole('navigation', { name: /workspace navigation/i })).toBeAttached();
+    await expect(page.getByRole('banner')).toBeAttached();
 
     // The skip link must be FIRST, or it is not a skip link.
     await page.keyboard.press('Tab');
