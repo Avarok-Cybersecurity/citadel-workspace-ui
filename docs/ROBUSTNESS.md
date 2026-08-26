@@ -6,6 +6,14 @@ against source before being recorded — several entries in the old
 KNOWN_ISSUES table turned out to describe code that no longer existed, so a
 report is not evidence.
 
+**That standard applies to this file too, and it was not being met.** Findings
+were recorded and then fixed in the same session without the entry being
+amended, so ten entries — three of them critical — sat under "Open" while the
+code was already correct. One of them, #1b, described building an authorization
+gate that #1 four lines above says is shipped. Corrected 2026-08-26 by checking
+every claimed-open entry against the tree. A work queue that misstates its own
+state costs more than no queue.
+
 ## Fixed
 
 | Fix | What it prevented |
@@ -42,6 +50,12 @@ reported but that belong to another browser. Correct to refuse; does not arise
 in the ordinary one-browser topology.
 
 ### 1b. Origin allowlist · open, needs a deployment decision
+
+> **Corrected 2026-08-26.** The "remaining work" this entry described — reject
+> when `session_cid()` is `Some(cid)` and the connection does not own it — is
+> SHIPPED, at `kernel/requests/mod.rs`, and finding #1 four lines above says so.
+> Only the Origin allowlist itself is still open, and it remains a deployment
+> decision rather than a code change.
 Every handler reads `cid` from the request and never checks it against the
 connection that sent it; `deregister.rs:32` removes whatever session is named.
 Production binds loopback, but **WebSocket is exempt from CORS**, so any page a
@@ -55,20 +69,20 @@ An Origin allowlist would also close the drive-by vector, but the UI can be
 served from a remote domain while the agent runs locally, so it risks breaking
 that topology. That is a deployment decision, not purely a code one.
 
-### 2. Backup and restore do not exist · high
+### 2. Backup and restore do not exist · ~~high~~ FIXED
 No script, no documented procedure, no restore path. There is **no server-side
 key escrow by design**, so a lost `agent_data` volume is an unrecoverable
 identity rather than an inconvenience. `docs/UPGRADING.md` says only "data
 volumes are never touched", which is the whole durability contract today.
 
-### 3. Install docs for the paths people actually use · high
+### 3. Install docs for the paths people actually use · ~~high~~ FIXED
 `docker-compose.local.yml` (the end-user path) and
 `docker-compose.production.yml` (the operator path) appear in **zero** markdown
 files. A first-time reader follows README, stands up the *dev* stack, and loses
 every account on first reload because dev is contractually ephemeral.
 `docs/UPGRADING.md` is linked from neither README nor `docs/README.md`.
 
-### 4. A failed deploy leaves a mixed-version stack · high
+### 4. A failed deploy leaves a mixed-version stack · ~~high~~ MOSTLY FIXED
 `deploy.sh` swaps the server first and health-waits. On failure it exits 1 with
 the server on the new image (crash-looping) and the other two on the old — the
 topology its ordering exists to prevent. Nothing reverts, nothing records the
@@ -104,7 +118,7 @@ fields ungated. Each has file:line evidence in the audit transcripts.
 Call/media, accessibility, build integrity and observability. Ground the first
 five audits never covered.
 
-### 9. Call state can rest in `connecting` and `ringing-in` forever · high
+### 9. Call state can rest in `connecting` and `ringing-in` forever · ~~high~~ FIXED (89927b7)
 The ring timer is armed only in `start()` and cancelled on the *first*
 transition out of `ringing-out`; the heartbeat watchdog refuses to arm until
 `active`. Its comment says earlier states "have their own guardians", which is
@@ -117,7 +131,7 @@ first layer** (accept() fan-out containment, d0b5249); the timeout itself is
 open. Fix: arm a per-status deadline inside `apply()` for every non-terminal
 state, not only `ringing-out`.
 
-### 10. `captureFailure` is produced, typed, threaded — and read by nothing · high
+### 10. `captureFailure` is produced, typed, threaded — and read by nothing · ~~high~~ FIXED (32718da)
 Six carefully-classified capture failures ("Allow it in your browser's address
 bar, then try again", "already in use by another application") reach a context
 field with zero consumers. Deny camera permission and the Call button does
@@ -177,7 +191,7 @@ hits, both emitters. The app knows it is unhealthy and tells no one. Meanwhile
 stalled ILM, or a wedged leader tab — and `WorkspaceApp` suppresses the retry
 modal while it reads offline.
 
-### 18. The WASM client's log facade is half-wired · high
+### 18. The WASM client's log facade is half-wired · ~~high~~ FIXED (7f797c1)
 `messenger/mod.rs` does `use citadel_logging as log`, so its `log::` macros are
 tracing macros — and no WASM build installs a tracing subscriber. 26 of 30
 diagnostics there are discarded, including `[MSG-ROUTE] FAILED to send to ISM
@@ -210,7 +224,7 @@ explicitly exempt from the revision gate.
 
 ## Round three — data integrity and dead ends, 2026-08-26
 
-### 22. Live document edits are never persisted, and the header says "Last saved" · critical
+### 22. Live document edits are never persisted, and the header says "Last saved" · ~~critical~~ FIXED (f1662ec)
 `liveDocumentStore`'s only production caller is `createDocument`.
 `updateDocumentState`, `loadDocument` and `loadIntoYDoc` have zero callers
 outside their own directory. `useCollaborativeEditor` starts a fresh empty
@@ -220,7 +234,7 @@ with no `onSave`, and `LiveDocumentView` calls `setLastSaved(new Date())`
 nothing, and stamps a timestamp. Everything typed exists only in RAM and in the
 P2P stream. This is not a swallowed exception — there is no write to fail.
 
-### 23. Peer registration writes bigints as strings and never revives them · high
+### 23. Peer registration writes bigints as strings and never revives them · ~~high~~ FIXED (f1662ec)
 `persistence.ts` persists with `safeJSONStringify`, whose own doc says "Use
 this ONLY for logging purposes, not for storage", and reads back with a bare
 `JSON.parse` — no reviver. Every downstream comparison is `===`, and
@@ -247,7 +261,7 @@ residue: `peer-registration-store/state.ts` returns the **unfiltered** pending
 list when there is no current CID — which is exactly the logged-out state — so
 the next user sees the previous user's incoming peer requests and badge count.
 
-### 26. Mass conversation deletion when the peer list comes back empty · high
+### 26. Mass conversation deletion when the peer list comes back empty · ~~high~~ FIXED (f1662ec)
 `cleanupStaleConversations(validPeerCids)` deletes the persisted pages of every
 cached conversation not in the set. `ListRegisteredPeers` is documented in the
 same file as timing out intermittently under concurrent P2P activity, and
@@ -273,7 +287,10 @@ op. Separately, `revfs-io` carefully returns `{success:false}` and all 23 call
 sites `await` it bare, so under quota exhaustion the UI repaints and disk is
 unchanged.
 
-`mergeTrees` **is** union-only as documented — do not "fix" that. But conflict
+`mergeTrees` **is** union-only as implemented — do not "fix" that. Note the
+JSDoc above it is the thing that lies: it describes deletion propagation the
+body does not do, and the body says so in its own note. Fix the comment, not
+the code. But conflict
 resolution is last-write-wins on unsynchronised `Date.now()` with no Lamport
 counter, so a peer with a slow clock loses every edit silently.
 
@@ -466,8 +483,10 @@ them all green. `workspace_crud_test.rs` matches the response variant properly
 ### 56. No test anywhere asserts a workspace command is REFUSED · critical
 `execute_command` hardcodes `TEST_ADMIN_USER_ID` across ~120 call sites, so
 every test runs as workspace owner. Three tests *named* for denial assert
-success instead. `ensure_not_last_admin` — the admin-lockout fix — is
-referenced nowhere but its own definition. A `check_entity_permission` that
+success instead. `ensure_not_last_admin` — the admin-lockout fix — has three
+production call sites and **no test** references it, which is the claim that
+matters. (Corrected: the original wording said it was referenced nowhere at
+all, which is false.) A `check_entity_permission` that
 returned `Ok(true)` unconditionally would pass the entire suite.
 
 ### 57. The internal-service tests do not re-run when the parent bumps its pointer · medium
@@ -612,7 +631,7 @@ spinner or a false empty state, and the server drops refused requests with a
 15s timeout — exists as `WorkspaceService.sendRequest` and is used only by
 tests, so **the suite structurally cannot observe the failure mode users hit**.
 
-### 73. A wrong password renders as "Something went wrong: Invalid password" · high
+### 73. A wrong password renders as "Something went wrong: Invalid password" · ~~high~~ FIXED (c7eb84b)
 `error-messages.ts` tests `errorMessage.includes('invalid password')` in
 lowercase, with no `toLowerCase()` anywhere in the file. The SDK emits
 `"Invalid password"` with a capital I, and `.includes()` is case-sensitive — so
