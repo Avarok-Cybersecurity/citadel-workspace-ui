@@ -105,8 +105,11 @@ export async function createAccount(page: Page, username: string, options: Creat
       // auto-dismisses it ~4s later, so any watcher started after the race
       // below is looking for something that has already gone. The text is
       // captured the instant it becomes visible for the same reason.
+      // 15s, not 30: the toast lands ~2.5s after submit, so this is already 6x
+      // the observed latency, and every extra second is a Playwright poll loop
+      // running per context — three of them at once in the group-call specs.
       rejection = errorToast
-        .waitFor({ state: 'visible', timeout: 30_000 })
+        .waitFor({ state: 'visible', timeout: 15_000 })
         .then(async () => ({
           kind: 'rejected' as const,
           detail: (await errorToast.textContent().catch(() => null))?.trim() ?? 'unknown error',
