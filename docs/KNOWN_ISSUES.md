@@ -28,52 +28,65 @@ rather than carried forward.
 | `Math.random()` mock presence in the user directory | Removed in the auth/session refactor |
 | Simulated demo chat ("Kathy McCooper", Unsplash avatars) | Removed in the auth/session refactor |
 
-## Broken
+## Fixed here
 
-### The workspace creator cannot edit any document
+### Nobody in the workspace was ever an administrator
 
-The first user registers, supplies the master password, initialises the
-workspace and is its administrator. Their **Edit** button is disabled on every
-office and room, permanently — measured at 2s, 10s, 20s, 40s and 60s after the
-workspace finished loading, disabled at every one. It is not slow arrival; it
-never enables.
+**Symptom.** The Edit button was disabled on every office and room, for every
+account, permanently — measured at 2s, 10s, 20s, 40s and 60s after load. The
+console showed `role: Member` and `0 permissions` for the user who had just
+supplied the master password and initialised the workspace.
 
-What the running app receives, captured from the console:
+**Cause.** Three separate faults, each of which alone was enough:
 
-```
-UserPermissions received { user_id: eg_…, role: Member, domain_id: 592ea151-… }
-[PermissionsService] Cache updated for 592ea151-…: 0 permissions
-```
+1. **No promotion ever ran.** The "Initialize & Become Admin" modal sends
+   `UpdateWorkspace`, and `update_workspace` does contain correct promotion
+   code — but the server seeds the root workspace at boot from
+   `WORKSPACE_MASTER_PASSWORD`, so the workspace already exists and that flow
+   never runs. `async_kernel.rs` adds each connecting user to the workspace as
+   `UserRole::Member` and nothing else grants a role. In a deployed stack, no
+   account was ever an admin. The server log said as much — users were "added to
+   workspace domain" and never anything more.
+2. **`GetUserPermissions` did not inherit.** It answered with
+   `user.get_permissions(domain_id).unwrap_or_default()`, an exact-domain lookup
+   returning empty for any domain the user was not explicitly added to. CLAUDE.md
+   documents "Domain permissions inherit: Workspace → Office → Room"; this did
+   not. It now reports through `check_entity_permission`, the same function that
+   authorises the operation, so what the UI is told matches what the server will
+   allow.
+3. **The Owner role was weaker than Member.** `Permission::for_role` built each
+   role by hand and the Owner arm had drifted: no ViewContent, SendMessages,
+   ReadMessages, UploadFiles or DownloadFiles, and no EditMdx. Promoting someone
+   to Owner in the admin UI took away their ability to read the workspace and
+   chat in it, and still left them unable to edit a document. Owner is now
+   derived from `Permission::ALL_VARIANTS` minus the two permissions it should
+   not have, so a permission added later is included by default.
 
-The chain, each step read rather than assumed:
+**Fixes.** The first member of the workspace is promoted to Admin where members
+are actually added (`async_kernel.rs`); `Permission::ALL_VARIANTS` is the single
+source of truth for what permissions exist, used by both the role definitions and
+the server's permission reporting; and the frontend's two hand-written copies of
+the model — which covered 16 of 27 permissions and offered Member an
+`EditContent` the server refuses — now derive from one mirror.
 
-1. `initialization.rs:102` adds the creator to **WORKSPACE_ROOT_ID** as
-   `UserRole::Admin`. That part is correct.
-2. `BaseOffice` asks `usePermission(nodeId, Permission.EditMdx)` — where
-   `nodeId` is the **office's** UUID, not the workspace root.
-3. `GetUserPermissions` (async_process_command.rs:434) answers with
-   `user.get_permissions(domain_id).unwrap_or_default()` — an exact-domain
-   lookup returning **empty** for any domain the user was not explicitly added
-   to — and `role: user.role`, the user's GLOBAL role, not their role in that
-   domain. Hence `Member` with zero permissions.
+**Guards.** `citadel-workspace-types/tests/role_permissions.rs` asserts the
+hierarchy (Owner ⊇ Member ⊇ Guest, Owner has EditMdx, Owner is not Admin), and
+`scripts/check-permission-parity.mjs` fails CI if the Rust enum and the
+TypeScript mirror disagree on either the permissions or the roles. Both were
+confirmed to fail against the pre-fix code before being relied on.
 
-CLAUDE.md states "Domain permissions inherit: Workspace → Office → Room". This
-lookup does not inherit, so the inheritance the product documents does not
-happen for the one user who is supposed to have everything.
+**Coverage.** `tests-pw/node-content-propagation.spec.ts` is no longer `fixme`:
+it edits as the admin and asserts a member's open page receives the change
+without reloading. The editor is the admin deliberately — EditMdx belongs to
+Owner and Admin by design, so a two-member fixture can never reach it. The new
+`adminMemberTest` fixture provides that pairing.
 
-**Why the suite is green.** `office-mdx-content.test.ts` treats the gate as a
-tolerated condition: it logs "Edit button is still permission-gated — not
-clicking, edit mode is unreachable" and skips the editor verification, in two
-places. A spec that skips its subject when the subject is broken cannot fail.
-
-The reproduction is `tests-pw/node-content-propagation.spec.ts`, marked
-`fixme` — it asserts the whole path and should go green when this is fixed.
-
-**Not fixed here deliberately.** The correct behaviour is for permission
-resolution to walk up the domain tree, which is a change to a security boundary
-in the Rust backend: it decides who may edit what, it needs container rebuilds
-to test, and getting it wrong grants access rather than withholding it. That is
-a decision for whoever owns the permission model, not for a sweep.
+**Still outstanding.** The legacy `src/tests/office-mdx-content.test.ts` treats a
+closed gate as a tolerated condition and logs "skipping editor read-back" in
+three places. It registers its own account with `isFirstUser: true`, so whether
+it is the admin depends on run order — making it fail hard would trade a false
+pass for an order-dependent failure. It should adopt `adminCredentials()` when it
+is ported to `@playwright/test`.
 
 ## Accepted trade-offs
 

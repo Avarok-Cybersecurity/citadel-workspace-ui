@@ -19,6 +19,10 @@ export enum Permission {
   EditNodeConfig = 'EditNodeConfig',
   UpdateNodeSettings = 'UpdateNodeSettings',
   ManageNodeMembers = 'ManageNodeMembers',
+  /** Rearrange the node tree: move, nest and reorder offices and rooms. */
+  EditTreeStructure = 'EditTreeStructure',
+  /** Define which node types exist and how they behave. */
+  ManageNodeTypes = 'ManageNodeTypes',
   // Workspace permissions
   CreateWorkspace = 'CreateWorkspace',
   UpdateWorkspace = 'UpdateWorkspace',
@@ -77,6 +81,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.DeleteWorkspace]: 'Delete Workspace',
   [Permission.EditWorkspaceConfig]: 'Edit Workspace Config',
   [Permission.Themes]: 'Edit Workspace Theme',
+  [Permission.EditTreeStructure]: 'Edit Tree Structure',
+  [Permission.ManageNodeTypes]: 'Manage Node Types',
   [Permission.ViewContent]: 'View Content',
   [Permission.EditContent]: 'Edit Content',
   [Permission.EditMdx]: 'Edit MDX Content',
@@ -89,6 +95,35 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.DownloadFiles]: 'Download Files',
   [Permission.ManageDomains]: 'Manage Domains',
   [Permission.ConfigureSystem]: 'Configure System',
+};
+
+/** Every permission, in declaration order. Mirrors `Permission::ALL_VARIANTS`. */
+export const ALL_PERMISSIONS: Permission[] = Object.values(Permission);
+
+/**
+ * What each role is granted by default, mirroring `Permission::for_role` in
+ * citadel-workspace-types. The server is authoritative — this exists so the
+ * admin UI can show what a role means before it is applied, and
+ * scripts/check-permission-parity.mjs fails the build if the two disagree.
+ *
+ * Admin is listed as the full set rather than the bare `All` wildcard the server
+ * stores: the two grant identical access, and the permission matrix would
+ * otherwise render an administrator with every box unticked but one.
+ */
+export const ROLE_DEFAULT_PERMISSIONS: Record<string, Permission[]> = {
+  Admin: ALL_PERMISSIONS,
+  Owner: ALL_PERMISSIONS.filter(
+    (p) => p !== Permission.All && p !== Permission.ConfigureSystem,
+  ),
+  Member: [
+    Permission.ViewContent,
+    Permission.SendMessages,
+    Permission.ReadMessages,
+    Permission.UploadFiles,
+    Permission.DownloadFiles,
+  ],
+  Guest: [Permission.ViewContent],
+  Banned: [],
 };
 
 /**
@@ -117,6 +152,8 @@ export const PERMISSION_CATEGORIES = {
       Permission.EditNodeConfig,
       Permission.UpdateNodeSettings,
       Permission.ManageNodeMembers,
+      Permission.EditTreeStructure,
+      Permission.ManageNodeTypes,
     ],
   },
   workspace: {

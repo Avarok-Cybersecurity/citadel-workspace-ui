@@ -4,41 +4,45 @@ import {
   ROLE_HIERARCHY,
   getRoleDefaultPermissions,
 } from '../permission-constants';
+import { Permission, ROLE_DEFAULT_PERMISSIONS } from '@/lib/permissions-service/types';
 
+/**
+ * These used to assert a hand-written model that lived in permission-constants
+ * itself, so they passed while disagreeing with the server on what a role
+ * grants — the earlier version required Member to have EditContent, which the
+ * backend refuses. They now assert the presentation layer is a faithful
+ * rendering of the canonical model; Rust parity is checked separately by
+ * scripts/check-permission-parity.mjs.
+ */
 describe('permission-constants', () => {
   describe('PERMISSION_CATEGORIES', () => {
-    it('has all expected categories', () => {
-      expect(Object.keys(PERMISSION_CATEGORIES)).toEqual(
-        expect.arrayContaining(['Content', 'Messaging', 'Files', 'Members', 'Management', 'System'])
-      );
+    it('covers every permission exactly once', () => {
+      const ids = Object.values(PERMISSION_CATEGORIES).flat().map((p) => p.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect([...ids].sort()).toEqual([...Object.values(Permission)].sort());
     });
 
-    it('each permission has id, label, and description', () => {
-      for (const [, permissions] of Object.entries(PERMISSION_CATEGORIES)) {
-        for (const perm of permissions) {
-          expect(perm).toHaveProperty('id');
-          expect(perm).toHaveProperty('label');
-          expect(perm).toHaveProperty('description');
-          expect(typeof perm.id).toBe('string');
-          expect(typeof perm.label).toBe('string');
-          expect(typeof perm.description).toBe('string');
-        }
+    it('gives every permission a label and a description', () => {
+      for (const perm of Object.values(PERMISSION_CATEGORIES).flat()) {
+        expect(perm.label, `${perm.id} has no label`).toBeTruthy();
+        expect(perm.description, `${perm.id} has no description`).toBeTruthy();
       }
     });
 
-    it('has no duplicate permission IDs', () => {
-      const allIds = Object.values(PERMISSION_CATEGORIES).flat().map(p => p.id);
-      expect(new Set(allIds).size).toBe(allIds.length);
+    it('groups permissions under readable headings', () => {
+      expect(Object.keys(PERMISSION_CATEGORIES)).toEqual(
+        expect.arrayContaining(['Content', 'Messaging', 'Files', 'Nodes', 'Workspace']),
+      );
     });
   });
 
   describe('ROLE_HIERARCHY', () => {
-    it('contains Admin, Owner, Member, Guest', () => {
-      const values = ROLE_HIERARCHY.map(r => r.value);
-      expect(values).toContain('Admin');
-      expect(values).toContain('Owner');
-      expect(values).toContain('Member');
-      expect(values).toContain('Guest');
+    it('offers every role the model defines a default for, except Banned', () => {
+      const offered = ROLE_HIERARCHY.map((r) => r.value).sort();
+      const defined = Object.keys(ROLE_DEFAULT_PERMISSIONS)
+        .filter((r) => r !== 'Banned')
+        .sort();
+      expect(offered).toEqual(defined);
     });
 
     it('each role has value, label, and color', () => {
@@ -51,49 +55,42 @@ describe('permission-constants', () => {
   });
 
   describe('getRoleDefaultPermissions', () => {
-    it('Admin gets all permissions', () => {
-      const allPermIds = Object.values(PERMISSION_CATEGORIES).flat().map(p => p.id);
-      const adminPerms = getRoleDefaultPermissions('Admin');
-      expect(adminPerms).toEqual(expect.arrayContaining(allPermIds));
-      expect(adminPerms.length).toBe(allPermIds.length);
+    it('returns the canonical defaults, not a second opinion', () => {
+      for (const [role, expected] of Object.entries(ROLE_DEFAULT_PERMISSIONS)) {
+        expect(getRoleDefaultPermissions(role)).toEqual(expected);
+      }
     });
 
-    it('Owner gets content + messaging + files + members + management but NOT system', () => {
-      const ownerPerms = getRoleDefaultPermissions('Owner');
-      expect(ownerPerms).toContain('ViewContent');
-      expect(ownerPerms).toContain('EditContent');
-      expect(ownerPerms).toContain('SendMessages');
-      expect(ownerPerms).toContain('CreateNode');
-      expect(ownerPerms).not.toContain('ManageDomains');
-      expect(ownerPerms).not.toContain('ConfigureSystem');
+    it('withholds content editing from Member, as the server does', () => {
+      const member = getRoleDefaultPermissions('Member');
+      expect(member).toContain(Permission.ViewContent);
+      expect(member).not.toContain(Permission.EditContent);
+      expect(member).not.toContain(Permission.EditMdx);
     });
 
-    it('Member gets content + messaging + files but NOT members/management', () => {
-      const memberPerms = getRoleDefaultPermissions('Member');
-      expect(memberPerms).toContain('ViewContent');
-      expect(memberPerms).toContain('SendMessages');
-      expect(memberPerms).not.toContain('AddUsers');
-      expect(memberPerms).not.toContain('CreateNode');
+    it('gives Owner the editing rights Member lacks', () => {
+      const owner = getRoleDefaultPermissions('Owner');
+      expect(owner).toContain(Permission.EditContent);
+      expect(owner).toContain(Permission.EditMdx);
+      expect(owner).not.toContain(Permission.ConfigureSystem);
     });
 
-    it('Guest gets only ViewContent and ReadMessages', () => {
-      const guestPerms = getRoleDefaultPermissions('Guest');
-      expect(guestPerms).toEqual(['ViewContent', 'ReadMessages']);
+    it('is a hierarchy: each role contains the one below it', () => {
+      const chain = ['Admin', 'Owner', 'Member', 'Guest'];
+      for (let i = 0; i < chain.length - 1; i++) {
+        const higher = new Set(getRoleDefaultPermissions(chain[i]));
+        for (const perm of getRoleDefaultPermissions(chain[i + 1])) {
+          expect(higher.has(perm), `${chain[i]} is missing ${perm}, which ${chain[i + 1]} has`).toBe(true);
+        }
+        expect(getRoleDefaultPermissions(chain[i]).length).toBeGreaterThan(
+          getRoleDefaultPermissions(chain[i + 1]).length,
+        );
+      }
     });
 
     it('unknown role returns empty array', () => {
       expect(getRoleDefaultPermissions('Unknown')).toEqual([]);
       expect(getRoleDefaultPermissions('')).toEqual([]);
-    });
-
-    it('role hierarchy is strictly descending in permission count', () => {
-      const admin = getRoleDefaultPermissions('Admin').length;
-      const owner = getRoleDefaultPermissions('Owner').length;
-      const member = getRoleDefaultPermissions('Member').length;
-      const guest = getRoleDefaultPermissions('Guest').length;
-      expect(admin).toBeGreaterThan(owner);
-      expect(owner).toBeGreaterThan(member);
-      expect(member).toBeGreaterThan(guest);
     });
   });
 });
