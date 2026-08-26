@@ -1,10 +1,10 @@
 import { useCallback } from "react";
+import { useFileManagerSelectionHandlers } from './useFileManagerSelectionHandlers';
 import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
 import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
 import { peerPairKey } from "@/lib/revfs/tree-queries";
-import { findNodeByPath } from "./useFileManagerContent";
 import { useConfirm } from "@/components/shared/confirm-dialog";
 import { usePrompt } from "@/components/shared/prompt-dialog";
 
@@ -23,8 +23,7 @@ interface HandlerDeps {
   clearClipboard: () => void;
   clearSelection: () => void;
   selectItem: (path: string, mode: 'replace' | 'toggle' | 'range') => void;
-  /** The grid's active filter, so Select All cannot select what is hidden. */
-  filterText: string;
+  /** The grid's filter, so Select All cannot reach what is hidden. */ filterText: string;
   currentTreeKey: TreeKey | null;
   hasPasteItems: boolean;
   clipboard: { sourceTreeKey: TreeKey | null; items: RevfsNode[] };
@@ -163,33 +162,8 @@ export function useFileManagerHandlers({
       .catch(err => toast.error(`Failed to delete: ${err}`));
   }, [rmdir, removeFile, clearSelection, confirm]);
 
-  const handleCutMultiple = useCallback((nodes: RevfsNode[]) => {
-    if (!currentTreeKey) return;
-    cut(nodes, currentTreeKey);
-    toast.info(`Cut ${nodes.length} item${nodes.length !== 1 ? 's' : ''}`);
-  }, [cut, currentTreeKey]);
-
-  const handleCopyMultiple = useCallback((nodes: RevfsNode[]) => {
-    if (!currentTreeKey) return;
-    copyToClipboard(nodes, currentTreeKey);
-    toast.info(`Copied ${nodes.length} item${nodes.length !== 1 ? 's' : ''}`);
-  }, [copyToClipboard, currentTreeKey]);
-
-  const handleSelectAll = useCallback(() => {
-    if (!tree) return;
-    const currentNode = tree.path === currentPath ? tree : findNodeByPath(tree, currentPath);
-    if (!currentNode?.children) return;
-    // Filtered, matching what the grid shows. This iterated the unfiltered
-    // children, so Select All under a filter silently selected hidden files —
-    // and the Delete shortcut resolves the selection against the whole tree,
-    // so the user then deleted items they had never seen.
-    const visible = filterText
-      ? currentNode.children.filter((n) => n.name.toLowerCase().includes(filterText.toLowerCase()))
-      : currentNode.children;
-    visible.forEach((n, i) => {
-      selectItem(n.path, i === 0 ? 'replace' : 'toggle');
-    });
-  }, [tree, currentPath, filterText, selectItem]);
+  const { handleCutMultiple, handleCopyMultiple, handleSelectAll } =
+    useFileManagerSelectionHandlers({ tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectItem });
 
   const handleDrop = useCallback(async (targetPath: string, files: FileList) => {
     if (!myCid) { toast.error('Not connected'); return; }

@@ -1,6 +1,7 @@
 /** Transfer Lifecycle - state machine transitions and core operations. */
 
 import { eventEmitter } from '../event-emitter';
+import { getMimeType, formatBytes } from './transfer-format';
 import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import { completeStagedDownload } from './server-download';
@@ -178,11 +179,8 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
     throw new Error(`Cannot accept transfer in state: ${transfer.state}`);
   }
 
-  // The setting is labelled "Max file size to accept" and, until now, was read
-  // at exactly one site: the SEND path above. So a user who lowered the slider
-  // to protect themselves carried on receiving files of any size — and with
-  // auto-accept on, without being asked. A receiver had no way to limit what
-  // arrived. The size is already on the transfer we were offered.
+  // Labelled "Max file size to accept" but read only on the SEND path above,
+  // so lowering the slider never limited what arrived. Size is on the offer.
   const settings = deps.state.getSettings(transfer.senderCid);
   if (transfer.fileSize > settings.maxFileSize) {
     throw new Error(
@@ -236,21 +234,5 @@ export async function declineTransfer(
   deps.emitStateChange(transfer);
 }
 
-export function getMimeType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  const mimeTypes: Record<string, string> = {
-    pdf: 'application/pdf', txt: 'text/plain',
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
-    mp3: 'audio/mpeg', mp4: 'video/mp4', zip: 'application/zip',
-    json: 'application/json', html: 'text/html', css: 'text/css', js: 'application/javascript',
-  };
-  return mimeTypes[ext] || 'application/octet-stream';
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
+// Re-exported so existing importers keep working; see transfer-format.
+export { getMimeType, formatBytes };
