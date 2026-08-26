@@ -1,6 +1,5 @@
 import { Download } from 'lucide-react';
-import { usePwaInstall } from './usePwaInstall';
-import { useToast } from '@/hooks/use-toast';
+import { useInstallAction } from './use-install-action';
 
 /**
  * In-app install affordance.
@@ -12,28 +11,14 @@ import { useToast } from '@/hooks/use-toast';
  * than showing a button that does nothing.
  */
 export function InstallAppButton({ className }: { className?: string }) {
-  const { canInstall, install } = usePwaInstall();
-  const { toast } = useToast();
+  const { canInstall, installNow } = useInstallAction();
 
   if (!canInstall) return null;
-
-  const handleInstall = () => {
-    void (async () => {
-      const accepted = await install();
-      if (accepted) {
-        toast({
-          title: 'Citadel installed',
-          description: 'You can now launch it like any other app.',
-          variant: 'success',
-        });
-      }
-    })();
-  };
 
   return (
     <button
       type="button"
-      onClick={handleInstall}
+      onClick={installNow}
       title="Install Citadel as an app"
       className={
         className ??

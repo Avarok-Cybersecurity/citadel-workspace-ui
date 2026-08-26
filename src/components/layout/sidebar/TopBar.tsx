@@ -1,8 +1,9 @@
-import { Menu, LogOut, ArrowLeft } from "lucide-react";
+import { Menu, LogOut, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { useInstallAction } from "@/components/pwa/use-install-action";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +35,11 @@ interface TopBarProps {
 }
 
 export const TopBar = ({ currentWorkspace }: TopBarProps) => {
+  // Installing was only offered on the landing page, so anyone already signed
+  // in had no way to it except the browser's own omnibox icon, which is easy to
+  // miss and absent on some platforms. Renders nothing unless the browser has
+  // actually offered a prompt and we are not already the installed copy.
+  const { canInstall, installNow } = useInstallAction();
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const { state } = useWorkspace();
@@ -145,6 +151,15 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             >
               Settings
             </DropdownMenuItem>
+            {canInstall && (
+              <DropdownMenuItem
+                className="text-foreground cursor-pointer gap-2 focus:bg-primary-accent/15 focus:text-foreground"
+                onClick={installNow}
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Install app
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem
               className="text-muted-foreground cursor-pointer gap-2 focus:bg-primary-accent/15 focus:text-foreground"
