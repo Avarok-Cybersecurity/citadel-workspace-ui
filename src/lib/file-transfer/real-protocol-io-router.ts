@@ -196,6 +196,15 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   // Helper Methods
   // ============================================================================
 
+  /**
+   * The protocol object_id for a transfer, or undefined when the two halves have
+   * not been joined yet. Protected rather than private because the accept path
+   * lives in the subclass and MUST translate before responding.
+   */
+  protected resolveObjectId(transferId: string): string | undefined {
+    return this.transferIdToObjectId.get(transferId);
+  }
+
   registerTransferMapping(transferId: string, objectId: string): void {
     this.transferIdToObjectId.set(transferId, objectId);
     this.objectIdToTransferId.set(objectId, transferId);

@@ -21,6 +21,7 @@ import type {
 } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { handleAsyncSend, handleTransferRequest, handleTransferResponse } from './async-transfers';
+import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import {
   streamFileToRecipient, handleTransferProgress, handleTransferComplete,
   handleTransferCancel, handleTransferChunk,
@@ -33,6 +34,9 @@ export class FileTransferService {
   private static instance: FileTransferService;
 
   private readonly state = new FileTransferState();
+  private readonly correlator = new ProtocolOfferCorrelator((transferId, objectId) =>
+    this.io.registerTransferMapping(transferId, objectId)
+  );
   private io: FileTransferIO;
   private initialized = false;
 
@@ -160,6 +164,29 @@ export class FileTransferService {
 
   private setupMessageHandlers(): void {
     eventEmitter.on('p2p:file-transfer-message', this.handleFileTransferMessage.bind(this));
+
+    // The protocol half of every incoming transfer. Without this subscription
+    // nothing ever learned the object_id, so accept could not name the transfer
+    // the bytes arrive under — `onTransferRequest` existed with no callers, and
+    // `registerTransferMapping` was written for this join and never invoked.
+    this.io.onTransferRequest((event) => {
+      // name and size are optional on the event type, but the protocol
+      // notification always carries both (`metadata.name` / `metadata.file_size`).
+      // Without them there is nothing to join on, so say so rather than
+      // correlating against undefined and matching the wrong transfer.
+      if (event.fileName === undefined || event.fileSize === undefined) {
+        debugLog('FileTransferService', 'protocol offer without name/size; cannot correlate', {
+          protocolId: event.protocolId,
+        });
+        return;
+      }
+      this.correlator.noteProtocolOffer(
+        event.protocolId,
+        event.peerCid.toString(),
+        event.fileName,
+        event.fileSize
+      );
+    });
   }
 
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
@@ -168,6 +195,15 @@ export class FileTransferService {
     const deps = this.deps;
 
     if (isFileTransferRequest(layer)) {
+      // Join the two halves BEFORE handleTransferRequest, because auto-accept
+      // fires from inside it — and an accept that cannot name the object_id is
+      // exactly the failure this correlation exists to prevent.
+      this.correlator.noteMessageOffer(
+        layer.transfer_id,
+        senderCid,
+        layer.file_name,
+        layer.file_size
+      );
       await handleTransferRequest(
         deps, layer, senderCid,
         (cid) => this.getAutoAccept(cid),

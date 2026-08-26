@@ -81,8 +81,21 @@ export class FileTransferIO extends RealProtocolIORouter {
   }
 
   private async executeSendResponse(intent: SendResponseIntent): Promise<void> {
+    // The protocol names a transfer by its numeric object_id; the in-band
+    // announcement names it by a UUID. Accept/decline go back over the PROTOCOL,
+    // so the UUID has to be translated. Passing it through reached
+    // `BigInt(<uuid>)`, which throws SyntaxError synchronously while the request
+    // literal is built — before anything is sent — so RespondFileTransfer was
+    // never issued for any incoming transfer and the bytes never landed.
+    const objectId = this.resolveObjectId(intent.transferId);
+    if (objectId === undefined) {
+      throw new Error(
+        'This transfer has not been announced over the protocol yet. ' +
+          'Wait a moment and try again.'
+      );
+    }
     await this.respondToTransfer({
-      protocolId: intent.transferId,
+      protocolId: objectId,
       cid: BigInt(0), // Not used for message-based
       peerCid: BigInt(intent.targetCid),
       accept: intent.accepted,
