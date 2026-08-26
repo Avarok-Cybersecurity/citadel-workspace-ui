@@ -67,6 +67,31 @@ Connection's channels are released and should emit that as an event. Once it
 does, replace the delay with `waitForEvent(...)` from `lib/utils/scheduling`, and
 login proceeds the instant teardown completes.
 
+### The shadcn sidebar's own colour classes generate no CSS
+
+`components/ui/sidebar.tsx` styles itself with `bg-sidebar`,
+`text-sidebar-foreground` and `text-sidebar-accent-foreground` — 41 references
+across the file. None of those tokens exists: there is no `sidebar` entry in
+`tailwind.config.ts` and no `--sidebar-*` custom property in `index.css`, so
+Tailwind never emits the utilities.
+
+Confirmed against the built stylesheet rather than inferred: `.text-foreground`
+and `.bg-card` produce 2 and 3 rules, while `.bg-sidebar`,
+`.text-sidebar-foreground` and `.text-sidebar-accent-foreground` produce **zero**.
+
+It is not a visible defect. The primitive inherits `foreground` from the body,
+and the app's own wrappers under `components/layout/sidebar/` supply the
+surfaces, which is why every responsive and accessibility scan passes. It is a
+trap: someone adjusting sidebar colours will edit those class names and see
+nothing change.
+
+Two ways out, and they are not equivalent — deciding needs a look at the
+rendered sidebar, which is why neither was applied:
+
+- define the `sidebar` token family, which makes the primitive theme itself and
+  WILL change how the sidebar looks, or
+- delete the dead classes, keeping today's appearance and removing the trap.
+
 ### Continuous re-renders keep buttons from ever being "stable"
 
 Playwright's actionability check waits for an element to stop moving before
