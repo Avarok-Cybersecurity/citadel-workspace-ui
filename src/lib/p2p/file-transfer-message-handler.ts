@@ -39,7 +39,13 @@ export class FileTransferMessageHandler {
     const message: P2PMessage = {
       id: payload.message_id,
       content: `File transfer: ${layer.file_name}`,
-      senderCid: BigInt(payload.sender_cid),
+      // Transport peer, not `payload.sender_cid` — the same fix as
+      // message-handler-routing, which was never carried to this sibling.
+      // Both handle the same wire envelope from the same dispatcher; this one
+      // kept trusting the field the sender chooses, so any registered peer
+      // could attribute a file-transfer message to a third party in the
+      // victim's conversation. `peerCid` is already a parameter here.
+      senderCid: peerCid,
       recipientCid: BigInt(payload.recipient_cid),
       timestamp: layer.timestamp,
       index: payload.index,
