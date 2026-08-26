@@ -77,11 +77,22 @@ export const MembersSection = () => {
   const activeDomainId = currentNodeId;
   useEffect(() => {
     const loadMembers = async () => {
-      if (!activeDomainId) { setMembers([]); return; }
+      if (!activeDomainId) { setMembers([]); setIsLoadingMembers(false); return; }
+      // Clear first: the previous node's members would otherwise stay on screen,
+      // attributed to the node just opened.
+      setMembers([]);
       setIsLoadingMembers(true);
       try { await WorkspaceService.listMembers(activeDomainId); }
-      catch (error) { debugLog('MembersSection', 'Error loading members:', error); }
-      finally { setIsLoadingMembers(false); }
+      catch (error) {
+        debugLog('MembersSection', 'Error loading members:', error);
+        setIsLoadingMembers(false);
+      }
+      // NOT cleared here. listMembers only sends the request; the members
+      // arrive later on the 'members:loaded' event, so clearing it in a
+      // `finally` ended the load the moment the request went out — with
+      // members still empty. The sidebar then stated "No members yet. Use the
+      // + button to discover peers" about a workspace that was merely still
+      // fetching, which is what KNOWN_ISSUES #6 described.
     };
     runAsyncSetup(loadMembers);
   }, [activeDomainId]);
@@ -89,9 +100,21 @@ export const MembersSection = () => {
   useEffect(() => {
     const handleMembersLoaded = (payload: MembersPayload) => {
       if (payload.members) setMembers(payload.members);
+      // The response is what ends the load.
+      setIsLoadingMembers(false);
     };
     runAsyncSetup(async () => { await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded); });
   }, []);
+
+  // A response that never comes must not leave the section spinning forever.
+  // Falling back to the empty state after this long is a worse answer than the
+  // real list and a better one than an indefinite "Loading members...".
+  const MEMBER_LOAD_TIMEOUT_MS = 15_000;
+  useEffect(() => {
+    if (!isLoadingMembers) return;
+    const timer = window.setTimeout(() => setIsLoadingMembers(false), MEMBER_LOAD_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [isLoadingMembers]);
 
   const handleEditMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowEditModal(true); };
   const handleRemoveMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowRemoveModal(true); };

@@ -56,9 +56,8 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
             onClose();
           }}
           className={`
-            ml-1 p-0.5 rounded-full opacity-0 group-hover:opacity-100
-            hover:bg-white/10 transition-opacity
-            ${active ? 'opacity-100' : ''}
+            ml-1 p-0.5 rounded-full hover:bg-white/10
+            ${active ? '' : 'reveal-on-hover'}
           `}
           title="Close tab"
         >

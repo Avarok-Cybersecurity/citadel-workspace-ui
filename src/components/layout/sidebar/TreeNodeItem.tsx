@@ -152,7 +152,7 @@ export function TreeNodeItem({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground hover:bg-card"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 reveal-on-hover text-muted-foreground hover:text-foreground hover:bg-card"
               onClick={(e) => e.stopPropagation()}
               aria-label={`Actions for ${node.name}`}
               data-testid={`tree-node-menu-${node.id}`}

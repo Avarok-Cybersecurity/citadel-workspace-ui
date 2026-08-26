@@ -73,7 +73,7 @@ export const OrphanSessionIcon = ({
           "absolute -top-1 -right-1 w-4 h-4 rounded-full",
           "bg-background border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50",
           "flex items-center justify-center",
-          "opacity-0 group-hover:opacity-100 transition-all duration-200",
+          "reveal-on-hover",
           "cursor-pointer"
         )}
         title="Disconnect from workspace"

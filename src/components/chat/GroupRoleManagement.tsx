@@ -135,7 +135,7 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 reveal-on-hover">
                   {!isDefault && canManageRoles && !role.isBuiltIn && (
                     <Button
                       variant="ghost" size="icon"

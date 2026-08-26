@@ -34,6 +34,7 @@ import { test, type BrowserContext, type Page } from '@playwright/test';
 import {
   clearBrowserStorage, closeAnyModals, createAccount,
   waitForAppReady, waitForWorkspaceLoaded, config,
+  restartBackendServices, openAdminPanel, activateAdminTab, adminDialog,
 } from '../lib/index.js';
 
 const OUT = '/tmp/uishots';
@@ -368,4 +369,88 @@ test.describe.serial('visual sweep', () => {
     });
     console.log('UNNAMED(' + bad.length + '):\n  ' + (bad.join('\n  ') || '(none)'));
   });
+});
+
+/**
+ * The admin surfaces, which no sweep has ever captured.
+ *
+ * Not an oversight: until the first workspace member was promoted to Admin,
+ * nobody could open this panel at all, so every previous sweep photographed a
+ * UI whose administrative half was unreachable. The permission matrix in
+ * particular went from rendering 16 permissions to all 27 when the frontend
+ * stopped keeping its own truncated copy of the model, which is a third more
+ * rows in a table that has to fit a phone.
+ *
+ * It restarts the backend and registers its own account rather than reading the
+ * credentials global-setup writes: this config has no globalSetup, so those
+ * credentials belong to whenever the main suite last ran. After a restart the
+ * first account to register is the administrator, which makes this standalone.
+ */
+test('admin surfaces', async ({ browser }) => {
+  test.setTimeout(900_000);
+
+  await restartBackendServices();
+
+  const adminContext = await browser.newContext({ viewport: DESKTOP });
+  const adminPage = await adminContext.newPage();
+
+  try {
+    await adminPage.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+    await clearBrowserStorage(adminPage);
+    await adminPage.evaluate(() => localStorage.setItem('citadel:diagnostics', 'false'));
+    await adminPage.reload({ waitUntil: 'commit', timeout: 60_000 });
+    await waitForAppReady(adminPage, 60_000);
+
+    const admin = `adm_${Date.now()}`;
+    await createAccount(adminPage, admin, { isFirstUser: true, password: config.DEFAULT_PASSWORD });
+    await waitForWorkspaceLoaded(adminPage, 90_000);
+    await closeAnyModals(adminPage);
+
+    for (const scheme of ['dark', 'light'] as const) {
+      await adminPage.evaluate((sc) => localStorage.setItem('citadel:theme', sc), scheme);
+      await adminPage.reload({ waitUntil: 'commit', timeout: 60_000 });
+      await waitForAppReady(adminPage, 60_000);
+      await waitForWorkspaceLoaded(adminPage, 90_000).catch(() => {});
+      await closeAnyModals(adminPage);
+
+      const isDark = await adminPage.evaluate(() =>
+        document.documentElement.classList.contains('dark'));
+      if (isDark !== (scheme === 'dark')) {
+        throw new Error(`theme did not apply: wanted ${scheme}, document dark=${isDark}`);
+      }
+
+      for (const [label, vp] of [['desktop', DESKTOP], ['phone', PHONE]] as const) {
+        await adminPage.setViewportSize(vp);
+
+        if (!(await openAdminPanel(adminPage))) {
+          throw new Error(`could not open Admin Settings at ${scheme}/${label} — ` +
+            'this account should be the workspace administrator');
+        }
+
+        for (const tab of ['general', 'members', 'chat'] as const) {
+          if (await activateAdminTab(adminPage, tab)) {
+            await shot(adminPage, `admin-${tab}-${scheme}-${label}`);
+          }
+        }
+
+        // The permission matrix: 27 permissions against every role, the widest
+        // table in the product and the one most likely to overflow a phone.
+        if (await activateAdminTab(adminPage, 'members')) {
+          const toggle = adminDialog(adminPage).getByTestId('members-advanced-toggle');
+          if (await toggle.isVisible().catch(() => false)) {
+            await toggle.click({ force: true });
+            await adminPage.waitForTimeout(1200);
+            await shot(adminPage, `admin-permissions-${scheme}-${label}`);
+            await toggle.click({ force: true }).catch(() => undefined);
+          }
+        }
+
+        await adminPage.keyboard.press('Escape');
+        await adminPage.waitForTimeout(600);
+      }
+      await adminPage.setViewportSize(DESKTOP);
+    }
+  } finally {
+    await adminContext.close();
+  }
 });

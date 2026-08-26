@@ -37,6 +37,15 @@ interface MemberRowProps {
   member: MemberData;
   showAdvanced: boolean;
   isUpdatingRole: boolean;
+  /**
+   * This member is the workspace's only administrator.
+   *
+   * Demoting or removing them leaves nobody able to manage the workspace, and
+   * there is no way back: promotion requires an admin. The server refuses both
+   * operations, so this only decides whether the controls look available —
+   * offering an action that will be rejected is worse than not offering it.
+   */
+  isOnlyAdmin: boolean;
   onRoleChange: (userId: string, newRole: UserRole) => void;
   onAdvancedPermissions: (member: MemberData) => void;
   onRemove: (member: MemberData) => void;
@@ -48,10 +57,13 @@ export function MemberRow({
   member,
   showAdvanced,
   isUpdatingRole,
+  isOnlyAdmin,
   onRoleChange,
   onAdvancedPermissions,
   onRemove,
 }: MemberRowProps) {
+  const lastAdminReason =
+    'This is the only administrator. Promote another member to Admin first.';
   return (
     <div
       className="flex items-center justify-between p-3 bg-card rounded-lg"
@@ -104,7 +116,14 @@ export function MemberRow({
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
               {USER_ROLES.map((role) => (
-                <SelectItem key={role} value={role}>
+                <SelectItem
+                  key={role}
+                  value={role}
+                  // Every role but Admin is a demotion for the last admin, and
+                  // the server rejects it. Leaving Admin selectable keeps the
+                  // current value visible in the trigger.
+                  disabled={isOnlyAdmin && role !== 'Admin'}
+                >
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]}`} />
                     {role}
@@ -119,6 +138,9 @@ export function MemberRow({
           variant="ghost"
           size="icon"
           onClick={() => onRemove(member)}
+          disabled={isOnlyAdmin}
+          title={isOnlyAdmin ? lastAdminReason : `Remove ${member.username}`}
+          aria-label={isOnlyAdmin ? lastAdminReason : `Remove ${member.username}`}
           className="text-destructive hover:text-destructive hover:bg-destructive/15"
           data-testid={`member-remove-${member.userId}`}
         >

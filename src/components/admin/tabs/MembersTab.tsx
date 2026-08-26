@@ -196,6 +196,10 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
                 key={member.userId}
                 member={member}
                 showAdvanced={showAdvanced}
+                isOnlyAdmin={
+                  member.role === 'Admin' &&
+                  members.filter((m) => m.role === 'Admin').length === 1
+                }
                 isUpdatingRole={updatingRoles.has(member.userId)}
                 onRoleChange={handleRoleChange}
                 onAdvancedPermissions={handleAdvancedPermissions}

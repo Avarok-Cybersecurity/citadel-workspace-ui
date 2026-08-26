@@ -12,7 +12,6 @@ rather than carried forward.
 | 3 | Leader/Follower badge leaks multi-tab internals to end users | P2 | `layout/sidebar/TopBar.tsx:167` | Open |
 | 4 | Server-mode file transfer fabricates a success path, never uploads | P1 | `lib/file-transfer/io.ts:194,202,205` | Open |
 | 5 | `MessageSendFailure` emitted alongside successful delivery | P2 | `lib/p2p/`, `citadel-internal-service` | Open — needs root-cause |
-| 6 | WORKSPACE MEMBERS shows "No members yet" when members exist | P1 | `layout/sidebar/MembersSection.tsx:155` | Needs re-verification |
 | 7 | YJS live-document sync loop (64MB of logs, browser hang) | P0 | `p2p/CollaborativeEditor.tsx` | Needs re-verification — predates the auth/session refactor |
 | 8 | Peer Discovery lists stale test accounts with no filter | P3 | `p2p/PeerDiscoveryModal.tsx` | Open |
 | 9 | No progress detail during workspace load | P3 | `ui/workspace-loader.tsx` | Open |
@@ -29,6 +28,34 @@ rather than carried forward.
 | Simulated demo chat ("Kathy McCooper", Unsplash avatars) | Removed in the auth/session refactor |
 
 ## Fixed here
+
+### The member list reported an empty workspace while it was still loading
+
+Was issue #6, "WORKSPACE MEMBERS shows 'No members yet' when members exist",
+carried for a long time as *needs re-verification* — which is what a transient
+wrong state does to a bug report: whoever checks it later sees a correct list.
+
+`WorkspaceService.listMembers()` returns once the request has been **sent**; the
+members arrive separately on a `members:loaded` event. The sidebar cleared its
+loading flag in a `finally` attached to that send, so for the whole gap between
+request and response it had `loading === false` and `members === []` and
+rendered the definitive empty state — "No members yet. Use the + button to
+discover peers" — about a workspace that had members and was merely fetching
+them.
+
+`components/admin/tabs/MembersTab.tsx` already handled this correctly, clearing
+the flag in the event handler. The right implementation existed in the tree and
+the sidebar never got it.
+
+Fixed by ending the load when the response arrives, with a 15s fallback so a
+reply that never comes degrades to the empty state rather than an indefinite
+spinner. The same effect also now clears the previous node's members on a domain
+change; they used to stay on screen attributed to the node just opened.
+
+Covered by `tests-pw/member-list-loading.spec.ts`, which samples continuously
+across the load. Asserting the end state would not catch this — the list is
+correct a moment later, which is precisely why the issue survived so long.
+
 
 ### Nobody in the workspace was ever an administrator
 

@@ -79,7 +79,7 @@ export function TextBubble({
 
       {/* Message Actions Dropdown */}
       {hasActions && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 self-center">
+        <div className="reveal-on-hover flex-shrink-0 self-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Message actions">
