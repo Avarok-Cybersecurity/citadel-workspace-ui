@@ -208,6 +208,89 @@ opt-ins on the build-push action already in use. Production pulls by mutable
 tag, and `cloudflared:latest` — which terminates all inbound traffic — is
 explicitly exempt from the revision gate.
 
+## Round three — data integrity and dead ends, 2026-08-26
+
+### 22. Live document edits are never persisted, and the header says "Last saved" · critical
+`liveDocumentStore`'s only production caller is `createDocument`.
+`updateDocumentState`, `loadDocument` and `loadIntoYDoc` have zero callers
+outside their own directory. `useCollaborativeEditor` starts a fresh empty
+`Y.Doc` on every mount and loads nothing; `P2PChat` renders `LiveDocumentView`
+with no `onSave`, and `LiveDocumentView` calls `setLastSaved(new Date())`
+**outside** the `if (onSave)` guard. So the debounced autosave fires, does
+nothing, and stamps a timestamp. Everything typed exists only in RAM and in the
+P2P stream. This is not a swallowed exception — there is no write to fail.
+
+### 23. Peer registration writes bigints as strings and never revives them · high
+`persistence.ts` persists with `safeJSONStringify`, whose own doc says "Use
+this ONLY for logging purposes, not for storage", and reads back with a bare
+`JSON.parse` — no reviver. Every downstream comparison is `===`, and
+`"123" === 123n` is false. After any reload: incoming requests are filtered out
+of the UI and the badge, outgoing ones can never be deduped or removed so the
+list grows forever and re-sends, and strings reach `claimSession` and a CBOR
+`PeerRegister`. The validity filter passes them because non-empty strings are
+truthy. The correct round-trip is 40 lines away in `message-page-operations`.
+
+### 24. `citadel_sessions` is one global key rewritten wholesale from stale snapshots · high
+Read once at init into per-tab memory, then rewritten in full from that
+snapshot at seven sites, with no re-read and no lock. Two tabs each hold
+independent arrays: the second write erases the first tab's stored session —
+username, plaintext password, server, cid. `activeSessionIndex` lives in the
+same blob. Separately, every tab init calls `clearSessionCids()` and persists,
+so opening a second tab destroys the first's ability to reclaim its orphaned
+session.
+
+### 25. Logout leaves the next user the previous user's data · high
+`handleLogout` removes one session row. Surviving: the entire plaintext message
+history for every peer, both peer-request arrays, all live docs, every RE-VFS
+tree (`removeEntry` appears nowhere in src), recent servers. Worse than
+residue: `peer-registration-store/state.ts` returns the **unfiltered** pending
+list when there is no current CID — which is exactly the logged-out state — so
+the next user sees the previous user's incoming peer requests and badge count.
+
+### 26. Mass conversation deletion when the peer list comes back empty · high
+`cleanupStaleConversations(validPeerCids)` deletes the persisted pages of every
+cached conversation not in the set. `ListRegisteredPeers` is documented in the
+same file as timing out intermittently under concurrent P2P activity, and
+`startupComplete` initialises to `true`, so a plain reload is not covered. An
+empty set deletes everything, logged only at debugLog. One guard fixes it:
+refuse to delete on an empty set.
+
+### 27. Browser storage quota is not handled anywhere · medium
+Zero occurrences of `QuotaExceededError`, `navigator.storage.estimate`, or
+`navigator.storage.persist` in src. Because `persist()` is never requested,
+IndexedDB and OPFS stay best-effort and the browser may evict everything with
+no notice. The quota UI that exists measures the *server's* VFS quota.
+`citadel:file-transfers` in localStorage is written from 14 call sites and
+never read except to re-serialise itself — unbounded, against a ~5MB cap, and
+when it fills, the silent casualties are the other localStorage writers.
+
+### 28. RE-VFS: the pending-op queue is never rehydrated, and 23 persist sites discard the result · high
+`load-pending-ops` has an intent, a router handler and a storage implementation
+— and nothing dispatches it. After a reload `retryPendingOps` returns 0 and the
+UI toasts "Tree synced with peer"; the next failed op then overwrites
+`pending_ops.json` with the truncated in-memory list, destroying the abandoned
+op. Separately, `revfs-io` carefully returns `{success:false}` and all 23 call
+sites `await` it bare, so under quota exhaustion the UI repaints and disk is
+unchanged.
+
+`mergeTrees` **is** union-only as documented — do not "fix" that. But conflict
+resolution is last-write-wins on unsynchronised `Date.now()` with no Lamport
+counter, so a peer with a slow clock loses every edit silently.
+
+### 29. WorkspaceInitializationModal can seal shut · critical
+Both Cancel and Initialize are `disabled={isSubmitting}`, the overlay is
+hand-rolled `fixed inset-0` so there is no Escape or backdrop, and the awaits
+are ordered so the unbounded `sendWorkspaceRequest` precedes the promise the
+10s timer guards — so on a hang the `finally` never runs and `isSubmitting`
+stays true. Fixed in this round for the two guarded-dismissal dialogs and the
+sign-out blocker; this one still needs the same treatment.
+
+### 30. AlertDialogContent renders no close X at all · medium
+`ui/dialog.tsx` includes a built-in X; `ui/alert-dialog.tsx` is Portal >
+Overlay + Content with none. Radix AlertDialog also does not close on
+outside-click by design. So wherever Cancel is `disabled` — three confirm
+dialogs — Escape is the only exit.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
