@@ -128,7 +128,20 @@ async function main() {
     if (before.includes(DEPLOY_MARKER)) {
       throw new Error('the shell already carries the deploy marker before deploying');
     }
-    await writeFile(indexPath, before.replace('<title>', `<title>${DEPLOY_MARKER} `));
+    // A <meta>, NOT the <title>. The title used to carry this, and stopped
+    // working the moment the app began setting document.title per route: the
+    // marker arrives in the HTML, React hydrates, <DocumentTitle /> overwrites
+    // it, and a check that reads document.title can never see it. That failure
+    // looks exactly like a broken update path, which is the one thing this
+    // check exists to distinguish. A meta element is part of the same shell and
+    // nothing in the app rewrites it.
+    if (!before.includes('</head>')) {
+      throw new Error('cannot mark the shell: no </head> in index.html');
+    }
+    await writeFile(
+      indexPath,
+      before.replace('</head>', `  <meta name="x-deploy-marker" content="${DEPLOY_MARKER}">\n  </head>`),
+    );
 
     const swSource = await readFile(swPath, 'utf8');
     const bumped = swSource.replace(
@@ -185,13 +198,25 @@ async function main() {
     // over them passes vacuously - verified, with a no-op Reload handler.
     let activated = false;
     if (actionable) {
-      const stale = await page.title();
+      const readMarker = () =>
+        page.evaluate(
+          () =>
+            document.querySelector('meta[name="x-deploy-marker"]')?.getAttribute('content') ?? '',
+        );
+      const stale = await readMarker();
       if (stale.includes(DEPLOY_MARKER)) {
         throw new Error('the page already showed the new version before the update was taken');
       }
       await reload.first().click();
       activated = await page
-        .waitForFunction((m) => document.title.includes(m), DEPLOY_MARKER, { timeout: 30_000 })
+        .waitForFunction(
+          (m) =>
+            (document
+              .querySelector('meta[name="x-deploy-marker"]')
+              ?.getAttribute('content') ?? '').includes(m),
+          DEPLOY_MARKER,
+          { timeout: 30_000 },
+        )
         .then(() => true)
         .catch(() => false);
     }
