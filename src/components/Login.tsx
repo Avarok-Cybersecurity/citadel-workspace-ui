@@ -212,7 +212,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
               {/* Error */}
               {error && (
-                <div className="flex items-center gap-2 text-destructive-emphasis text-sm p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                <div
+                  role="alert"
+                  className="flex items-center gap-2 text-destructive-emphasis text-sm p-3 bg-destructive/10 rounded-lg border border-destructive/20"
+                >
                   <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
                   {error}
                 </div>

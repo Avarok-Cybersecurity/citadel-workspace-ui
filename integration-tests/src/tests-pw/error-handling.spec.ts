@@ -117,5 +117,21 @@ test.describe('Error Handling', () => {
     // trip rather than expecting an immediate client-side answer.
     await expect(errorSurface(page)).toBeVisible({ timeout: 45_000 });
     await expect(page).not.toHaveURL(/\/(workspace|office)/);
+
+    // Visible is not the same as reported. A sign-in failure rendered into a
+    // plain div is announced to nobody: a screen reader user presses Connect,
+    // hears nothing, and cannot tell a failure from a request still in flight.
+    //
+    // Deliberately EXCLUDES the toast. The first version of this accepted any
+    // [role="alert"], and a failed login also raises a Sonner toast — so it
+    // passed with the inline error's role removed, asserting nothing about the
+    // thing it named. The toast is transient and scrolls away; the inline
+    // error is what remains on the form, and it is the one that has to carry
+    // the live region.
+    const inlineAlert = page.locator('[role="alert"]:not([data-sonner-toast])').first();
+    await expect(
+      inlineAlert,
+      'the failure should be announced on the form, not only shown',
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
