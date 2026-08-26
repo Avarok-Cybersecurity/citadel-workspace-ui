@@ -18,7 +18,7 @@ export type {
 } from './types.js';
 
 // Configuration
-export { config } from './config.js';
+export { config, isCI, isHeaded } from './config.js';
 
 // Utilities
 export {

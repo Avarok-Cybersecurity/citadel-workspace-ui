@@ -15,8 +15,7 @@ import {
     waitForWorkspaceLoaded,
     closeAnyModals,
     startDiagnostics,
-    UxIssueTracker,
-} from '../lib/index.js';
+    UxIssueTracker, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 import type { DiagnosticsHandle } from '../lib/diagnostics.js';
 
@@ -68,8 +67,8 @@ const COMMON_ARGS = [
 
 async function launchBrowser(): Promise<Browser> {
     return chromium.launch({
-        headless: isCI,
-        slowMo: isCI ? 0 : 50,
+        headless: !isHeaded,
+        slowMo: isHeaded ? 50 : 0,
         args: [...COMMON_ARGS, ...(isCI ? CI_ARGS : [])],
     });
 }

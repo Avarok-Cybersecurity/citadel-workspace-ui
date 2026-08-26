@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { createAccount } from './lib/account.js';
 import { waitForAppReady, clearBrowserStorage } from './lib/browser.js';
 import { waitForWorkspaceLoaded, closeAnyModals } from './lib/modals.js';
-import { config, isCI } from './lib/config.js';
+import { config, isCI, isHeaded } from './lib/config.js';
 import { restartBackendServices } from './lib/service-helpers.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -55,7 +55,7 @@ export default async function globalSetup(): Promise<void> {
   const password = config.DEFAULT_PASSWORD;
 
   const browser = await chromium.launch({
-    headless: isCI,
+    headless: !isHeaded,
     args: isCI ? ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] : [],
   });
 

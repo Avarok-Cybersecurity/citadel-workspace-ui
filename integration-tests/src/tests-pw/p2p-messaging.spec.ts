@@ -19,8 +19,7 @@ import {
     waitForP2PChannelReady,
     sendMessage,
     verifyMessageReceived,
-    sleep,
-} from '../lib/index.js';
+    sleep, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 
 /* ── Shared state ── */
@@ -56,8 +55,8 @@ const LAUNCH_ARGS = [
 
 async function createSession(label: 'a' | 'b', isFirst: boolean): Promise<UserSession> {
     const browser = await chromium.launch({
-        headless: isCI,
-        slowMo: isCI ? 0 : 50,
+        headless: !isHeaded,
+        slowMo: isHeaded ? 50 : 0,
         args: LAUNCH_ARGS,
     });
     const context = await browser.newContext({ storageState: undefined });

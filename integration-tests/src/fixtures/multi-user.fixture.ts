@@ -19,8 +19,7 @@ import {
     openConversation,
     waitForP2PChannelReady,
     adminCredentials,
-    loginAfterDisconnect,
-} from '../lib/index.js';
+    loginAfterDisconnect, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 
 /* ── Fixture types ── */
@@ -78,8 +77,8 @@ const COMMON_ARGS = [
 
 async function createUserSession(label: string): Promise<UserSession> {
     const browser = await chromium.launch({
-        headless: isCI,
-        slowMo: isCI ? 0 : 50,
+        headless: !isHeaded,
+        slowMo: isHeaded ? 50 : 0,
         args: [...COMMON_ARGS, ...(isCI ? CI_ARGS : [])],
     });
 
@@ -134,8 +133,8 @@ async function loginAdminSession(): Promise<UserSession> {
     const { username, password } = adminCredentials();
 
     const browser = await chromium.launch({
-        headless: isCI,
-        slowMo: isCI ? 0 : 50,
+        headless: !isHeaded,
+        slowMo: isHeaded ? 50 : 0,
         args: [...COMMON_ARGS, ...(isCI ? CI_ARGS : [])],
     });
 

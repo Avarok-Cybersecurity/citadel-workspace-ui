@@ -24,8 +24,7 @@ import {
   waitForAppReady,
   createAccount,
   waitForWorkspaceLoaded,
-  closeAnyModals,
-} from '../lib/index.js';
+  closeAnyModals, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 import { connectPair } from './call-helpers.js';
 
@@ -61,7 +60,7 @@ let sessionA: UserSession;
 let sessionB: UserSession;
 
 async function createSession(label: 'a' | 'b', isFirst: boolean): Promise<UserSession> {
-  const browser = await chromium.launch({ headless: isCI, slowMo: isCI ? 0 : 50, args: LAUNCH_ARGS });
+  const browser = await chromium.launch({ headless: !isHeaded, slowMo: isHeaded ? 50 : 0, args: LAUNCH_ARGS });
   const context = await browser.newContext({
     storageState: undefined,
     permissions: ['camera', 'microphone'],

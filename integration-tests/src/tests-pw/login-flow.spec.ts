@@ -18,8 +18,7 @@ import {
     checkForErrors,
     disconnectViaTopBar,
     UxIssueTracker,
-    sleep,
-} from '../lib/index.js';
+    sleep, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 
 /* ── Shared state across serial steps ── */
@@ -112,8 +111,8 @@ async function loginWithCredentials(
 test.describe.serial('Login Flow', () => {
     test.beforeAll(async () => {
         browser = await chromium.launch({
-            headless: isCI,
-            slowMo: isCI ? 0 : 50,
+            headless: !isHeaded,
+            slowMo: isHeaded ? 50 : 0,
             args: [
                 '--disable-background-timer-throttling',
                 '--disable-backgrounding-occluded-windows',
