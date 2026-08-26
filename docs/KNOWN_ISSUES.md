@@ -125,6 +125,19 @@ because a handler that cannot fire is harmless, while removing one may discard
 wiring someone intends to complete — that is a call for whoever owns the
 feature, not for a sweep.
 
+**Where the emit-vs-listen check works, and where it does not.** It is only
+valid where handling requires naming the variant. `WorkspaceProtocolResponse` is
+handled by explicit `isVariant(response, 'Name')` checks, so a variant with no
+literal reference really is unhandled — that is how `NodeContentUpdated` was
+found, the one response of 25 the UI ignored while the server broadcast it to
+every other member.
+
+`InternalServiceResponse` is the opposite. The UI dispatches generically —
+`Object.keys(message)[0]`, then a generic `websocket-message` event that
+consumers filter themselves — so a variant needs no literal reference to be
+routed. Running the same comparison there reports 35 "unhandled" variants and
+every one of them is meaningless. Do not file them.
+
 **If you automate this check, expect false positives.** Three rounds of
 refinement were needed: `io.emitEvent('x')` wrappers, a bare aliased `emit('x')`
 after destructuring, and library events (`ydoc.on('update')`) that a third party
