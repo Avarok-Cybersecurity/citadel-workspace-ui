@@ -105,21 +105,47 @@ test.describe.serial('P2P Messaging', () => {
         await sessionB?.browser.close();
     });
 
+    // Every helper below returns a boolean and is DESIGNED not to throw —
+    // registration.ts says so outright: "these helpers report failure through
+    // their return value and the caller decides. Silently discarding it is what
+    // made the group-call stall unreadable."
+    //
+    // This test discarded all six. A total handshake failure surfaced in CI as
+    // two green tests named "P2P registration and handshake" and "Open
+    // conversations on both sides", on the suite's flagship leg.
     test('P2P registration and handshake', async () => {
         // User A discovers and registers with User B
-        await p2pRegister(sessionA.page, sessionA.username, sessionB.username);
+        expect(
+            await p2pRegister(sessionA.page, sessionA.username, sessionB.username),
+            `${sessionA.username} should be able to register with ${sessionB.username}`
+        ).toBe(true);
 
         // User B accepts the request
-        await acceptP2PRequest(sessionB.page, sessionB.username);
+        expect(
+            await acceptP2PRequest(sessionB.page, sessionB.username),
+            `${sessionB.username} should be able to accept the request`
+        ).toBe(true);
 
         // Wait for P2P channel to be fully ready (bidirectional)
-        await waitForP2PChannelReady(sessionA.page, sessionA.username, sessionB.username);
-        await waitForP2PChannelReady(sessionB.page, sessionB.username, sessionA.username);
+        expect(
+            await waitForP2PChannelReady(sessionA.page, sessionA.username, sessionB.username),
+            `the channel should be ready from ${sessionA.username} to ${sessionB.username}`
+        ).toBe(true);
+        expect(
+            await waitForP2PChannelReady(sessionB.page, sessionB.username, sessionA.username),
+            `the channel should be ready from ${sessionB.username} to ${sessionA.username}`
+        ).toBe(true);
     });
 
     test('Open conversations on both sides', async () => {
-        await openConversation(sessionA.page, sessionA.username, sessionB.username);
-        await openConversation(sessionB.page, sessionB.username, sessionA.username);
+        expect(
+            await openConversation(sessionA.page, sessionA.username, sessionB.username),
+            `${sessionA.username} should be able to open the conversation`
+        ).toBe(true);
+        expect(
+            await openConversation(sessionB.page, sessionB.username, sessionA.username),
+            `${sessionB.username} should be able to open the conversation`
+        ).toBe(true);
     });
 
     // A chat transcript has to be a live region or an arriving message is

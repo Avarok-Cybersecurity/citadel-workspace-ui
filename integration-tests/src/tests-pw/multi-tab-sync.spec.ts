@@ -86,6 +86,26 @@ test.describe.serial('Multi-Tab Synchronization', () => {
     });
 
     test('Open Tab 2 — should detect existing session', async () => {
+        // KNOWN FAILING, deliberately not silenced.
+        //
+        // This assertion used to include `seesLandingButtons` in its
+        // disjunction — which IS the not-detected state — so a test named
+        // "should detect existing session" passed precisely when the session
+        // was not detected. Strengthening it surfaced a real product bug:
+        // a second tab in the same browser context, opened seconds after the
+        // first registered and loaded a workspace, shows the logged-out landing
+        // page with no "Active Sessions" strip. Verified by screenshot.
+        //
+        // test.fail() rather than skip: the assertion still runs, and Playwright
+        // reports a FAILURE if it ever starts passing, so whoever fixes the bug
+        // is told to remove this annotation. Skipping would lose the detection
+        // again, and deleting the assertion would restore the false green.
+        //
+        // A bounded retry was added to OrphanSessionsNavbar (an empty result
+        // during startup is not evidence of no sessions) and did NOT resolve it,
+        // so the cause is not first-paint timing. Recorded in docs/ROBUSTNESS.md.
+        test.fail();
+
         tab2 = await context.newPage();
         await tab2.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
         await waitForAppReady(tab2, 60_000);
@@ -98,10 +118,14 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         const url = tab2.url();
         const onWorkspace = url.includes('/workspace') || url.includes('/office');
         const seesSession = await isVisibleWithin(tab2.locator(`button[title*="${USERNAME}"]`), 5000);
-        const seesLandingButtons = await isVisibleWithin(tab2.locator('button:has-text("Login Workspace")'), 2000);
-
-        // At least one of these should be true
-        expect(onWorkspace || seesSession || seesLandingButtons).toBe(true);
+        // `seesLandingButtons` used to be part of this disjunction — and it IS
+        // the not-detected state, so a test named "should detect existing
+        // session" passed precisely when the session was NOT detected. It now
+        // appears only as the thing that must not be the whole story.
+        expect(
+            onWorkspace || seesSession,
+            'Tab 2 should reach the workspace or show the existing session, not the logged-out landing page'
+        ).toBe(true);
     });
 
     test('Tab 2 can access workspace state from shared storage', async () => {
@@ -110,17 +134,31 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         await tab2.bringToFront();
         await sleep(1000);
 
-        const hasStorageData = await tab2.evaluate(() => {
-            // Check if workspace-related data exists in localStorage
-            const keys = Object.keys(localStorage);
-            return keys.length > 0;
-        });
+        // `keys.length > 0` was satisfied by any boot-time key — theme, sidebar
+        // state — so this asserted nothing about Tab 1's registration. Tie it
+        // to a key this app actually writes for a session.
+        const sessionKeys = await tab2.evaluate(() =>
+            Object.keys(localStorage).filter((k) => k.startsWith('citadel'))
+        );
 
-        // Shared context should have some storage state from Tab 1's registration
-        expect(hasStorageData).toBe(true);
+        expect(
+            sessionKeys,
+            "Tab 2 should see Tab 1's citadel state through the shared context"
+        ).not.toHaveLength(0);
     });
 
     test('Close Tab 1 (leader) — Tab 2 should remain functional', async () => {
+        // KNOWN FAILING, downstream of the same root cause as the session-detection
+        // test above: Tab 2 cannot see Tab 1's session, so it cannot reach the
+        // workspace after taking over either.
+        //
+        // The previous assertion was `expect(document.readyState).toBeTruthy()`,
+        // which is always one of three truthy strings — it asserted only that the
+        // tab had not crashed, and said nothing about leader re-election, the
+        // entire subject of the test. Reaching the workspace is the smallest
+        // thing that actually requires the WebSocket this tab must now own.
+        test.fail();
+
         // Close Tab 1
         await tab1.close();
         await sleep(2000);
@@ -129,9 +167,24 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         await tab2.bringToFront();
         await sleep(1000);
 
-        const responsive = await tab2.evaluate(() => document.readyState)
-            .catch(() => null);
-        expect(responsive).toBeTruthy();
+        // `document.readyState` is always one of three truthy strings, so this
+        // asserted only that the tab had not crashed — saying nothing about
+        // leader re-election, which is the entire subject of the test.
+        //
+        // A surviving tab must be able to do something only the LEADER can do.
+        // Reaching the workspace with its own session is that: it requires the
+        // WebSocket this tab now has to own.
+        await tab2.goto(`${config.BASE_URL}/workspace`, { waitUntil: 'domcontentloaded' });
+
+        const reachedWorkspace = await isVisibleWithin(
+            tab2.locator('[data-testid="add-node-button"], nav[aria-label="Workspace navigation"]'),
+            20000
+        );
+
+        expect(
+            reachedWorkspace,
+            'after the leader closed, Tab 2 should take over and still reach its workspace'
+        ).toBe(true);
     });
 
     test('Tab 2 can navigate independently after leader closes', async () => {

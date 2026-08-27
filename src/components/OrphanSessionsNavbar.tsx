@@ -19,10 +19,48 @@ export const OrphanSessionsNavbar = () => {
     handleLoadingComplete,
   } = useOrphanSessions();
 
-  // Initial load of sessions and notification counts
+  // Load sessions, and keep asking while the answer is still "none".
+  //
+  // This was a single call at mount. `getActiveSessions` is a round trip to the
+  // internal service — and in a FOLLOWER tab it is proxied through the leader,
+  // so early in startup it legitimately returns an empty list before the
+  // session is visible. Nothing re-checked, so a second tab opened in the same
+  // browser rendered the logged-out landing page with no "Active Sessions"
+  // strip, permanently, while the first tab held a live workspace.
+  //
+  // An empty answer during startup is not yet evidence that there are no
+  // sessions. It becomes evidence once we have asked for a while — hence a
+  // BOUNDED retry rather than a poll: it stops the moment a session appears,
+  // and it stops regardless after the window, so a genuinely session-less
+  // landing page does not poll forever.
+  const foundSessions = sessions.length > 0;
   useEffect(() => {
-    loadActiveSessions().catch(() => {});
-  }, [loadActiveSessions]);
+    if (foundSessions) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 8;
+    const RETRY_MS = 1_500;
+
+    const load = () => {
+      if (cancelled) return;
+      attempts += 1;
+      loadActiveSessions()
+        .catch(() => {})
+        .finally(() => {
+          // foundSessions is in the dep array, so this effect is torn down and
+          // not re-armed the moment a session appears.
+          if (cancelled || attempts >= MAX_ATTEMPTS) return;
+          timer = window.setTimeout(load, RETRY_MS);
+        });
+    };
+
+    let timer = window.setTimeout(load, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [loadActiveSessions, foundSessions]);
 
   if (sessions.length === 0) {
     return null;
