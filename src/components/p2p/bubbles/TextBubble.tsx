@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { getBubbleStyles } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import { getInitials } from '@/components/chat/shared';
 import type { BaseBubbleProps } from './types';
@@ -38,7 +38,7 @@ export function TextBubble({
     // whole row past the message list. Measured before the fix: a single long
     // code line produced a 762px bubble inside a 600px list, with the pre's
     // overflow-x-auto inert because nothing constrained its width.
-    <div className={`group flex min-w-0 gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div className={`group flex min-w-0 gap-2 ${BUBBLE_MAX_WIDTH} ${isOwn ? 'flex-row-reverse' : ''}`}>
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">

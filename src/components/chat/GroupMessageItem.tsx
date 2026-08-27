@@ -12,6 +12,7 @@ import type { GroupMessage } from '@/types/workspace-entities';
 import { cn } from '@/lib/utils';
 import { getInitials } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
+import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
 
 interface GroupMessageItemProps {
   message: GroupMessage;
@@ -69,7 +70,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
         </AvatarFallback>
       </Avatar>
 
-      <div className={cn('flex flex-col max-w-[70%]', isOwnMessage && 'items-end')}>
+      <div className={cn('flex flex-col', BUBBLE_MAX_WIDTH, isOwnMessage && 'items-end')}>
         <div className={cn(
           'flex items-center gap-2 mb-1',
           isOwnMessage && 'flex-row-reverse'

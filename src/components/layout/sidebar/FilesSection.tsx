@@ -14,6 +14,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer";
 import { useEventListeners } from "@/hooks";
+import { formatDateTime } from '@/lib/format-time';
 
 /**
  * File display type for sidebar rendering
@@ -42,20 +43,6 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-/**
- * Format timestamp to readable date
- */
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-}
 
 /**
  * Convert FileTransfer to FileDisplay for sidebar
@@ -70,7 +57,7 @@ function mapTransferToDisplay(transfer: FileTransfer): FileDisplay {
       name: transfer.senderCid.slice(0, 12) + '...', // Truncate CID for display
       avatar: '', // Default empty avatar for CID-based senders
     },
-    createdAt: formatDate(transfer.updatedAt),
+    createdAt: formatDateTime(transfer.updatedAt),
     url: transfer.downloadPath ?? '',
   };
 }

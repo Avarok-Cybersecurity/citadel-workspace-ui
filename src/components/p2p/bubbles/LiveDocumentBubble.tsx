@@ -1,5 +1,5 @@
 import { FileText, Users } from 'lucide-react';
-import { getBubbleStyles } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import type { LiveDocumentBubbleProps } from './types';
 
@@ -14,7 +14,7 @@ export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: 
   };
 
   return (
-    <div className={`max-w-[70%] rounded-lg px-3 py-2 ${bubbleStyles}`}>
+    <div className={`${BUBBLE_MAX_WIDTH} rounded-lg px-3 py-2 ${bubbleStyles}`}>
       <button
         onClick={handleClick}
         className="w-full text-left hover:opacity-90 transition-opacity"

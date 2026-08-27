@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { getBubbleStyles } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import { getInitials } from '@/components/chat/shared';
 import type { BaseBubbleProps } from './types';
@@ -113,7 +113,7 @@ export function MarkdownBubble({
   // the message list, with the pre's own overflow-x-auto inert because nothing
   // constrained its width.
   return (
-    <div className={`group flex min-w-0 gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div className={`group flex min-w-0 gap-2 ${BUBBLE_MAX_WIDTH} ${isOwn ? 'flex-row-reverse' : ''}`}>
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
         <Avatar className="h-8 w-8 flex-shrink-0">
@@ -132,7 +132,18 @@ export function MarkdownBubble({
         )}
 
         <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
-          <div className="prose prose-sm dark:prose-invert max-w-none">
+          {/* Own bubbles invert UNCONDITIONALLY, because they are dark in both
+              themes: `bg-primary text-primary-foreground`, and --primary is a
+              dark purple in light mode too. `dark:prose-invert` alone meant that
+              in light mode the typography plugin painted its own
+              `color: hsl(var(--foreground))` — near-black — onto that dark
+              purple, and links got `hsl(var(--primary))`, i.e. the bubble's own
+              colour. Your own markdown messages were barely legible and their
+              links were invisible, on the light theme only. Peer bubbles sit on
+              `bg-surface` and correctly follow the theme. */}
+          <div
+            className={`prose prose-sm max-w-none ${isOwn ? 'prose-invert' : 'dark:prose-invert'}`}
+          >
             <RenderedMarkdown content={message.content} />
           </div>
           {/* Inline failure indicator */}

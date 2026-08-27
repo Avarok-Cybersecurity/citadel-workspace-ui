@@ -6163,3 +6163,86 @@ that only exists on the happy path, a parser that returns null and moves on, an
 allowlist scoped wider than its argument. None of them was ever red. That is the
 whole problem: the only signal a guard like this gives is the one it fails to
 give.
+
+## Round ninety — two reads that asked nobody's permission, 2026-08-27
+
+### 397. `GetMember` had no authorization check at all
+
+A `User` carries the role, the **full per-domain permissions map** and the
+metadata. `GetMember` took a `user_id` from the request and returned that record
+to anyone authenticated — no admin check, no self check, nothing. Any account
+could enumerate every other account and read the entire enforced permission state
+of the workspace, which is the reconnaissance step for every privilege-grant path
+in this kernel.
+
+`GetUserPermissions` sits fifteen lines below it and gates exactly this data
+correctly (`actor == user_id || is_admin`). The rule existed; this handler simply
+never applied it.
+
+### 398. `ListMembers` trusted the `domain_id` in the request
+
+It read the roster of whatever domain the caller named, with no check that they
+belong to it — returning full `User` objects for every member. Any account could
+read the complete membership, roles and permission maps of every office and room,
+including ones they were never added to. Now gated on membership of that domain,
+or admin.
+
+Both fixes come with the tests that matter in both directions: a non-member is
+refused, and — equally important — reading your own record, an admin reading any
+record, and an admin listing the roster all still work. A gate that also breaks
+the admin panel is not a fix.
+
+### Recorded from the permission audit, not fixed
+
+**`delete_workspace` ignores the actor entirely.** Its signature takes
+`_user_id` — discarded — and the only check is that the supplied master password
+matches the stored one. And `create_workspace` stores *root's* password for every
+workspace it mints, so possession of the single root master password authorises
+deleting **any** non-root workspace, by any authenticated user, member or not.
+Two things to fix and they are separable: gate on admin or an explicit
+`DeleteWorkspace` permission, and stop reusing one secret across every workspace.
+
+The audit also confirmed the good news worth writing down: `actor_user_id` is
+derived from the authenticated session CID and never read from the request body,
+so identity itself cannot be spoofed; and the enforced permission oracle is the
+*stricter* of the two in the tree — the role-derived RBAC table is dead in the
+request path, so no capability is ever handed out implicitly by role.
+
+### Recorded from the deployment audit, not fixed
+
+- **The hosting quickstart produces a server no remote user can reach, and steers
+  away from the fix.** `INSTALL.md` says the server binds `127.0.0.1` and that
+  publishing means a tunnel or proxy, "not widening the bind address" — but the
+  supported topology is each user's own agent dialling the server directly over
+  Citadel TCP/QUIC, and the production compose file says the opposite in its own
+  comment, with the one-line answer (`WORKSPACE_BIND_ADDR=0.0.0.0:12349`). The
+  tunnel profile routes only `:8080` and `/ws`; port 12349 has no route at all.
+- **The tunnel setup steps tell the operator to publish the unauthenticated agent
+  control plane** — a `/ws*` public-hostname rule to `:12345`, in the same file
+  that says in capitals that the UI served there cannot reach an agent by design,
+  and that proxying it "would hand it to the internet".
+- **`update-avarok-server.sh` cannot work**, on a clean machine or the author's:
+  a hardcoded ssh alias and remote path, a build with no `--target` (so it builds
+  the ~5.6 GB dev stage), and no `WORKSPACE_MASTER_PASSWORD`, which the server
+  exits without.
+- `.env.example` documents a `VITE_WS_URL` build step that no longer exists, and
+  the env-var gate cannot catch it because it scans only two docs.
+- No monitoring guidance, no health surface beyond port-liveness, and no
+  secret-rotation story for `WORKSPACE_MASTER_PASSWORD`.
+
+### Also this round — visual consistency
+
+- **Own markdown bubbles were barely legible in light mode.** The bubble is
+  `bg-primary text-primary-foreground` — dark purple in *both* themes — but the
+  prose wrapper was `prose prose-sm dark:prose-invert`, so in light mode the
+  typography plugin painted its own near-black `--foreground` onto that dark
+  purple, and links got `--primary`, the bubble's own colour. Own bubbles now
+  invert unconditionally; peer bubbles sit on `bg-surface` and correctly follow
+  the theme.
+- **Bubbles in one thread stopped at two different right edges** — 80% for text
+  and markdown, 70% for file transfers and live documents, and a third value for
+  group messages. One `BUBBLE_MAX_WIDTH` now.
+- **Six independent timestamp formatters, two pinned to `'en-US'`.** A French
+  browser got US dates in the files sidebar and native dates in chat. One
+  `lib/format-time.ts`, browser locale throughout — a hardcoded locale is not a
+  formatting choice, it writes 3/4/2026 to a reader for whom that means March.

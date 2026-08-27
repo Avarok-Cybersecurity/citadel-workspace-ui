@@ -45,3 +45,14 @@ export function getBubbleStyles(isOwn: boolean, isFailed: boolean): string {
 export function getBubbleContainerStyles(isOwn: boolean): string {
   return `flex ${isOwn ? 'justify-end' : 'justify-start'}`;
 }
+
+/**
+ * How wide a message bubble may get.
+ *
+ * One constant because bubbles in the SAME thread stopped at two different right
+ * edges depending on their content: text and markdown at 80%, file transfers and
+ * live documents at 70%. Group messages used a third value for identical text.
+ * Nothing decided that — it is what happens when a number is retyped at each
+ * site.
+ */
+export const BUBBLE_MAX_WIDTH = 'max-w-[75%]';

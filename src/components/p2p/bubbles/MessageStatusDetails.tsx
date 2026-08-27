@@ -1,6 +1,7 @@
 import type { P2PMessage } from '@/lib/p2p';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { interactive } from '@/lib/a11y';
+import { formatPreciseDateTime } from '@/lib/format-time';
 
 interface MessageStatusDetailsProps {
   message: P2PMessage;
@@ -22,18 +23,6 @@ const statusColors: Record<P2PMessage['status'], string> = {
   failed: 'text-destructive'
 };
 
-function formatFullDateTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour12: false
-  });
-}
 
 function truncateCid(cid: string): string {
   if (!cid) return 'N/A';
@@ -92,7 +81,7 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps) {
       />
       <Row
         label="Sent"
-        value={formatFullDateTime(message.timestamp)}
+        value={formatPreciseDateTime(message.timestamp)}
       />
       <Row
         label="ID"
