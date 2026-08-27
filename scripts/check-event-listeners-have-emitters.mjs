@@ -26,7 +26,6 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
  */
 const RECORDED_DEAD = new Map([
   ['group:member-kicked', 'ROBUSTNESS.md #206 — kicks are never distinguished from leaves; no emitter exists yet'],
-  ['group:message-received', 'ROBUSTNESS.md #206 — inbound path emits group:message:new; two half-built pipes'],
   ['instance:registry-update', 'ROBUSTNESS.md #230 — knownInstances feeds one debugLog and is always empty'],
 ]);
 

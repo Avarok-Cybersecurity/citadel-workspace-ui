@@ -30,6 +30,16 @@ export function handleGroupVariants(
       message,
       connection: connectionInfo,
     });
+    // The sidebar's unread badge, last-message preview and recency sort all
+    // hang off 'group:message-received', which NOTHING emitted. Two half-built
+    // pipes that never met: the badge never incremented for any message ever,
+    // and the recency sort never reordered because lastMessageTime was never
+    // set. Emitted here, beside its sibling, in the shape the store reads.
+    eventEmitter.emit('group:message-received', {
+      groupId: group_id,
+      senderId: message.sender_id,
+      content: message.content,
+    });
     return true;
   }
 

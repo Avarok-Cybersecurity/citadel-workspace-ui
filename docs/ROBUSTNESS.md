@@ -4518,6 +4518,49 @@ empty. The window here was capped at 100 and restored as `[]`; four separate
 features assumed otherwise, and each failed only on reload, which is why none of
 them showed up in ordinary use.
 
+## Round sixty-two — the guard told me the debt was paid, 2026-08-28
+
+### 316. The group unread badge never incremented for any message, ever — FIXED
+
+`group:message-received` carried the sidebar's unread count, last-message preview
+and recency sort. **Nothing emitted it** — the inbound path emitted
+`group:message:new`. Two half-built pipes that never met: the badge never
+incremented for any message in the product's life, and the recency sort never
+reordered because `lastMessageTime` was never set. Invited members additionally
+carried a permanent phantom "1" that opening the group could not clear.
+
+Now emitted beside its sibling, in the shape the store destructures.
+
+### 317. The stale-marker check earned itself
+
+`group:message-received` was one of the three entries in the event guard's
+`RECORDED_DEAD` map — debt markers carried so a known-dead listener does not fail
+CI while the feature behind it is unbuilt.
+
+Round thirty-six built that map to be checked **in both directions**, on the
+argument that *paying the debt is what should remove the marker, rather than the
+marker silently outliving the bug*. That was speculative when written. This round
+it fired for real:
+
+```
+STALE MARKER: 'group:message-received' is in RECORDED_DEAD but now HAS an emitter.
+  The debt was paid — remove the entry so a future regression fails.
+```
+
+The fix was refused by CI until the marker was removed — which is the whole
+point, because with the entry left in place the listener would have been
+permanently exempt from the guard that now protects it. Two markers remain.
+
+### 318. Method note — the test asserts the payload, not just the event
+
+Emitting the right event name with the wrong payload is the same defect one layer
+along: the store destructures `{ groupId, senderId, content }`, and an emit that
+delivers `{ group_id, message }` would satisfy a name-only assertion while the
+badge stayed at zero.
+
+The control confirms both halves — deleting the emit fails the test AND makes the
+guard report a dead listener again.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
