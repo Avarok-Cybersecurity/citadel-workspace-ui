@@ -8464,3 +8464,83 @@ persist, so a disk failure tells the author it saved, shows peers the new text,
 and reverts on restart; `remove_workspace` can leave a dangling index entry if
 the password-key delete fails; `MoveNode`'s descendant depth recomputation can
 wrap on inconsistent stored depths.
+
+## Round 139 — the outside-in audit: deploy, first run, upgrade
+
+**Every launch between a deploy and the user clicking Reload ran old glue
+against the new binary.** This is the third wrong answer this repo has shipped
+to the same question, and the guard test was enforcing it.
+
+wasm-bindgen glue and its `.wasm` binary are coupled through export tables and
+closure-shim indices. The glue lives in hashed chunks the precache versions
+atomically; the binary sat at a stable URL, excluded from the precache and
+runtime-cached instead. So the binary's strategy alone decided whether the pair
+matched, and every strategy answers from a generation independent of the
+precache:
+
+| strategy | what it paired |
+|---|---|
+| `CacheFirst` | old binary with new glue, for up to thirty days |
+| `StaleWhileRevalidate` | the very reload applying an update got new glue and the previous binary |
+| `NetworkFirst` | with `registerType: 'prompt'` the OLD worker keeps serving OLD glue while the network hands it the NEW binary — every launch until the user accepts, and the mismatched binary poisons the cache for offline starts too |
+
+Each fix corrected the previous direction and opened another. The binary is now
+precached *with* the glue: both halves are revisioned by the same worker, so an
+old worker serves an old pair and a new worker serves a new pair, and there is
+no window in which a page holds one of each. The 3.3 MB install cost buys an
+atomic update. `assets/*.wasm` — a hashed duplicate the bundler emits that
+nothing ever requests — stays excluded.
+
+`wasm-is-never-served-stale.test.ts` **required** `NetworkFirst`, which is to
+say it enforced the current bug. Rewritten to pin the property rather than the
+mechanism; controls: dropping `wasm` from `globPatterns` fails it, and
+reinstating any runtime `.wasm` rule fails it.
+
+**A user's chosen security settings silently reverted to defaults after five
+minutes.** `SecuritySettings` wrote them with `setQueryData(['securitySettings'])`
+and `useJoinRegistration` read them back with `getQueryData(...) || defaults`.
+Nothing anywhere observes that key — no `useQuery` for it exists — and React
+Query garbage-collects an unobserved entry after its default five-minute
+`gcTime`. So a user who raised their security level and then spent five minutes
+on the profile step (a password manager, a Back and a Next) created their
+account with the defaults, permanently, with nothing said. `Landing` had already
+lifted the server address out of the cache for exactly this reason, and the fix
+was not carried across.
+
+The values now travel by prop. The guard
+(`query-cache-reads-have-observers.test.ts`) generalises it: any `getQueryData`
+on a key no `useQuery` observes is a read of a value that expires. It found a
+second instance immediately — three `getQueryData(['serverConnectForm'])` calls
+in `SecuritySettings`, left over from debugging this exact bug, all inside
+`debugLog` and therefore invisible in production anyway.
+
+And the three copies of the default security posture — the form's initial state,
+the registration fallback, the login hook — are now one constant. Disagreement
+between them is a security question, not a tidiness one.
+
+**A failed workspace setup after registration was reported nowhere.** Both
+`postAuthSetup` awaits in `WorkspaceLoader` failed into `runAsyncSetup`, whose
+catch does nothing but `debugLog` — compiled out of production. The new user saw
+"Connected!", then a spinner, then "Workspace data is taking longer than
+expected", with no cause and no action, while the login path has toasted the
+same failure since it was written. Both now report. The extraction that made
+room for it (158 of 268 lines) is `use-auto-claim-session.ts`.
+
+**Refuted, and worth recording as such:** the deployment configs are the most
+hardened files in the repo — nginx cache headers correct per asset class,
+injection-guarded envsubst, fail-closed `/ws` proxy with rebinding and origin
+defenses, no hardcoded localhost in the socket path. The server versions its
+persisted state and *refuses to boot* on a newer-than-expected schema. The
+IndexedDB migration framework is real, with drift detection. Published images
+build glue and binary from one wasm-pack run, so the skew above is purely a
+client-cache phenomenon.
+
+**Open from this audit**, needing a decision: IndexedDB cannot downgrade, so the
+documented "rollback is the same operation as upgrading" is false for installed
+clients the day `DB_VERSION` moves past 1 — `storage-utils.ts` catches
+`VersionError` with advice that is wrong in a real rollback and offers no reset.
+The internal service's on-disk `agent_data` has no version handling at all,
+unlike the server's; an SDK serialization change turns a routine `docker compose
+pull` into an agent that cannot read its own accounts, with key loss the only
+recovery. A registration that times out at 30s while the server completes tells
+the user to "choose a different username" when the right action is Login.

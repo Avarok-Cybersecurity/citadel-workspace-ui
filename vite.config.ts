@@ -174,63 +174,46 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          // Precache the shell. Excluding the WASM binary keeps the install small;
-          // 4 MiB still comfortably covers the JS/CSS chunks.
+          // Precache the shell AND the WASM binary, together.
+          //
+          // The binary used to be excluded and runtime-cached instead, on the
+          // reasoning that keeping it out kept the install small. That is what
+          // made the pair splittable: the glue JS lives in hashed chunks the
+          // precache versions atomically, so whichever strategy the binary uses
+          // decides whether the two match. Every strategy that answers from a
+          // DIFFERENT generation than the precache is wrong in one direction or
+          // the other, and this repo has now shipped all three of them.
+          //
+          // Precaching removes the question. Both halves are revisioned by the
+          // same service worker, so an old worker serves an old pair and a new
+          // worker serves a new pair, and there is no window in which a page
+          // holds one of each. The cost is a 3.3 MB background download during
+          // install, which finishes before the update prompt is answered.
+          //
           // webp included: the landing hero and the app backdrop are both .webp,
           // so without it every offline launch rendered the whole app with no
           // imagery at all — the one launch where it most wants to look normal.
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,wasm}'],
           // The install-card screenshots are fetched by the BROWSER from the
           // manifest, before there is an app to serve them, and are never
           // rendered by it afterwards. Precaching them added ~800 KB to the
-          // install for bytes the app itself never asks for — the same reason
-          // the WASM binary is excluded above.
-          globIgnores: ['**/*.wasm', '**/screenshots/*'],
+          // install for bytes the app itself never asks for.
+          //
+          // assets/*.wasm is a hashed duplicate the bundler emits and nothing
+          // ever requests — WASM init passes the stable /wasm/ URL explicitly.
+          // Precaching it would double the install for bytes no page fetches.
+          globIgnores: ['assets/*.wasm', '**/screenshots/*'],
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           // SPA fallback, minus the endpoints that must always hit the network.
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/ws$/, /^\/api/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
-            {
-              // StaleWhileRevalidate, NOT CacheFirst.
-              //
-              // The comment here used to say the WASM was content-hashed. It is
-              // not: the app fetches /wasm/citadel_internal_service_wasm_client
-              // _bg.wasm, a stable name copied into public/. CacheFirst on a
-              // mutable URL meant an updated app kept the OLD binary for up to
-              // thirty days, while the JS bindings that call into it ARE hashed
-              // and did update — old WASM against new bindings, which surfaces
-              // as undefined-function errors rather than anything obvious.
-              //
-              // StaleWhileRevalidate was the previous fix for CacheFirst, and it
-              // is still wrong here: it serves the stale copy FIRST and
-              // revalidates behind it. So the very reload that applies an update
-              // — the one the update toast promises will reconnect the session —
-              // is guaranteed to pair the new, hashed glue JS with the PREVIOUS
-              // binary. wasm-bindgen glue and binary are coupled through export
-              // tables and closure-shim indices, and the symptom is not a clean
-              // error: every internal-service call silently no-ops, so login and
-              // register do nothing at all with no message and no server log.
-              // The following start would be correct, with nothing telling the
-              // user to reload again.
-              //
-              // NetworkFirst pairs them correctly whenever the network is
-              // reachable — which it must be for an update to have arrived —
-              // while the cache still answers offline starts and slow networks.
-              urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'citadel-wasm',
-                // Bounded so a slow or captive network degrades to the cached
-                // binary instead of blocking startup indefinitely.
-                networkTimeoutSeconds: 10,
-                expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 30 },
-                // 200 only. A 0 here would cache opaque responses, so a
-                // cross-origin error could be stored and served as if valid.
-                cacheableResponse: { statuses: [200] },
-              },
-            },
+            // There is no .wasm runtime-caching rule here on purpose.
+            //
+            // A runtime rule answers from a generation independent of the
+            // precache, which is exactly how the glue and the binary came
+            // apart. The binary is precached above, with the glue.
           ],
         },
         devOptions: {

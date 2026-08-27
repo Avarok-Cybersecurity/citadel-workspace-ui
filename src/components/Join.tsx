@@ -6,6 +6,7 @@ import { StepIndicator } from "@/components/ui/step-indicator";
 import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import { ConnectLoadingModal } from "./LoadingModal";
 import { useJoinRegistration } from "./useJoinRegistration";
+import type { SecuritySettingsValues } from "./SecuritySettings";
 import { JoinFormFields } from "./JoinFormFields";
 
 interface JoinProps {
@@ -14,9 +15,10 @@ interface JoinProps {
   defaultWorkspace?: string;
   serverAddress: string;
   serverPassword: string;
+  securitySettings?: SecuritySettingsValues;
 }
 
-export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword }: JoinProps) => {
+export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings }: JoinProps) => {
   const {
     formData,
     isRegistering,
@@ -29,7 +31,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
-  } = useJoinRegistration(onBack, serverAddress, serverPassword);
+  } = useJoinRegistration(onBack, serverAddress, serverPassword, securitySettings);
 
   const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Create your profile', onDismiss: onBack });
 

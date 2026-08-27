@@ -1,7 +1,8 @@
 import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
+import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ArrowRight } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { SecurityLevelSelect } from "./security/SecurityLevelSelect";
 import { SecurityModeSelect } from "./security/SecurityModeSelect";
 import { useState, useEffect } from "react";
@@ -44,16 +45,7 @@ export const SecuritySettings = ({
   isFromLogin = false
 }: SecuritySettingsProps) => {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const [settings, setSettings] = useState<SecuritySettingsValues>({
-    securityLevel: 'Standard',
-    secrecyMode: 'BestEffort',
-    encryptionAlgorithm: 'AES_GCM_256',
-    kemAlgorithm: 'MlKem',
-    sigAlgorithm: 'None',
-    headerObfuscatorSettings: {},
-    storeCredentials: false,
-  });
+  const [settings, setSettings] = useState<SecuritySettingsValues>(DEFAULT_SECURITY_SETTINGS);
 
   // Initialize settings with provided initialValues if available
   useEffect(() => {
@@ -68,15 +60,17 @@ export const SecuritySettings = ({
   const { mutate: updateSecuritySettings } = useMutation({
     mutationFn: (newSettings: SecuritySettingsValues) => {
       debugLog('SecuritySettings', 'Updating security settings:', JSON.stringify(newSettings));
-      debugLog('SecuritySettings', 'serverConnectForm cache BEFORE onSuccess:', queryClient.getQueryData(['serverConnectForm']));
       return Promise.resolve(newSettings);
     },
     onSuccess: (updatedSettings) => {
-      debugLog('SecuritySettings', 'onSuccess called, serverConnectForm cache:', queryClient.getQueryData(['serverConnectForm']));
-      // Save the security settings to query cache
-      queryClient.setQueryData(['securitySettings'], updatedSettings);
-
-      debugLog('SecuritySettings', 'serverConnectForm cache AFTER setQueryData securitySettings:', queryClient.getQueryData(['serverConnectForm']));
+      // NOT written to the query cache.
+      //
+      // Nothing observed the ['securitySettings'] key, so React Query dropped
+      // the entry after its default five-minute gcTime and the registration
+      // hook's `|| defaults` fallback quietly took over: a user who raised
+      // their security level and then spent five minutes on the profile step
+      // registered with the defaults, permanently, with nothing said. The
+      // chosen values now travel by prop, like the server address does.
 
       // If onComplete is provided, call it with the current settings
       if (onComplete) {

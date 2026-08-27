@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { websocketService } from "@/lib/websocket-service";
@@ -40,11 +41,8 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
   const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsState>({
-    securityLevel: 'Standard', secrecyMode: 'BestEffort',
-    encryptionAlgorithm: 'AES_GCM_256', kemAlgorithm: 'MlKem',
-    sigAlgorithm: 'None', headerObfuscatorSettings: {}, storeCredentials: false
-  });
+  const [securitySettings, setSecuritySettings] =
+    useState<SecuritySettingsState>(DEFAULT_SECURITY_SETTINGS);
 
   const { toast } = useToast();
   const navigate = useNavigate();

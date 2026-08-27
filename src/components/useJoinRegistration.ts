@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { validateUsername, validatePassword, validateFullName } from "@/lib/credential-rules";
-import { useQueryClient } from "@tanstack/react-query";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { websocketService } from "@/lib/websocket-service";
 import { eventEmitter } from "@/lib/event-emitter";
@@ -21,10 +21,14 @@ interface JoinFormData {
   confirmPassword: string;
 }
 
-export function useJoinRegistration(onBack: () => void, serverAddress: string, serverPassword: string) {
+export function useJoinRegistration(
+  onBack: () => void,
+  serverAddress: string,
+  serverPassword: string,
+  providedSecuritySettings?: SecuritySettingsValues,
+) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [isRegistering, setIsRegistering] = useState(false);
   const [showNotInitializedModal, setShowNotInitializedModal] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -70,14 +74,17 @@ export function useJoinRegistration(onBack: () => void, serverAddress: string, s
     confirmPassword: visible("confirmPassword"),
   };
 
-  const securitySettings = queryClient.getQueryData<SecuritySettingsValues>(['securitySettings']) || {
-    securityLevel: 'Standard',
-    secrecyMode: 'BestEffort',
-    encryptionAlgorithm: 'AES_GCM_256',
-    kemAlgorithm: 'MlKem',
-    sigAlgorithm: 'None',
-    headerObfuscatorSettings: {},
-  };
+  // Passed in, not read from the query cache.
+  //
+  // It used to be `queryClient.getQueryData(['securitySettings'])`, and nothing
+  // anywhere observes that key — no useQuery for it exists. An unobserved cache
+  // entry is garbage-collected after React Query's default five-minute gcTime,
+  // so a user who raised their security level and then spent five minutes on
+  // the profile step (a password manager, a Back and a Next) registered with
+  // the defaults instead, permanently, with nothing said. Landing already
+  // lifted the server address out of the cache for exactly this reason and did
+  // not carry the fix here.
+  const securitySettings = providedSecuritySettings ?? DEFAULT_SECURITY_SETTINGS;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

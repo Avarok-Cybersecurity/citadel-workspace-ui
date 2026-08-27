@@ -4,6 +4,8 @@ import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
+import type { SecuritySettingsValues } from "@/components/SecuritySettings";
+import { DEFAULT_SECURITY_SETTINGS } from "@/components/security-settings-defaults";
 import { Join } from "@/components/Join";
 import { Login } from "@/components/Login";
 import { postAuthSetup } from '@/lib/post-auth-setup';
@@ -31,6 +33,13 @@ export const Landing = () => {
   // Server connection data lifted to Landing state to avoid React Query GC eviction
   const [serverAddress, setServerAddress] = useState('');
   const [serverPassword, setServerPassword] = useState('');
+  // Lifted for the same reason, which the server fields' fix did not carry to.
+  // Nothing observes the ['securitySettings'] query key, so the entry was
+  // garbage-collected five minutes after the user chose -- and the account was
+  // then registered with the defaults, permanently, with nothing said.
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsValues>(
+    DEFAULT_SECURITY_SETTINGS,
+  );
 
   // Check for orphan sessions (don't auto-navigate, just detect)
   useEffect(() => {
@@ -103,7 +112,8 @@ export const Landing = () => {
     setServerPassword(password);
     setCurrentStep('security');
   };
-  const handleSecurityNext = () => {
+  const handleSecurityComplete = (chosen: SecuritySettingsValues) => {
+    setSecuritySettings(chosen);
     if (currentStep === 'security') {
       setCurrentStep('join');
     }
@@ -272,7 +282,12 @@ export const Landing = () => {
         />
       )}
       {currentStep === 'security' && (
-        <SecuritySettings onNext={handleSecurityNext} onBack={handleSecurityBack} />
+        <SecuritySettings
+          onNext={() => setCurrentStep('join')}
+          onBack={handleSecurityBack}
+          onComplete={handleSecurityComplete}
+          initialValues={securitySettings}
+        />
       )}
       {currentStep === 'join' && (
         <Join
@@ -280,6 +295,7 @@ export const Landing = () => {
           onBack={handleJoinBack}
           serverAddress={serverAddress}
           serverPassword={serverPassword}
+          securitySettings={securitySettings}
         />
       )}
       {currentStep === 'login' && (
