@@ -132,8 +132,23 @@ function handlePeerRegisterNotification(data: Record<string, unknown>, ctx: Regi
       cid: peerCid, username: fallbackName, fullName: peerUsername || 'Unknown User',
       isOnline: true, isRegistered: false
     };
-    peer.isRegistered = true;
-    ctx.registeredPeers.set(peerCid, peer);
+    // NOT marked registered, and NOT added to `registeredPeers`.
+    //
+    // This notification is an incoming *request*. The backend defines registered
+    // as mutual — `list_registered` answers from `GetMutuals` — so recording it
+    // here claimed a relationship that does not exist until the user accepts.
+    //
+    // It was not cosmetic: `MessageSender` checks `isPeerRegistered` and skips
+    // registration when it is true, so a first message to someone whose request
+    // was merely pending went out against a peer with no mutual registration and
+    // no ratchet, and failed. The peer also appeared among the user's
+    // connections before they had agreed to anything.
+    //
+    // `allPeers` still learns the name, so the request renders with a username
+    // rather than a bare CID, and `handleIncomingRegistration` below still runs
+    // the pending-request flow. Auto-connect's mutual detection keys off
+    // `hasOutgoingRegistration`, not this map, so it is unaffected.
+    ctx.allPeers.set(peerCid, peer);
     eventEmitter.emit('p2p:peer-registered', { peer, isIncoming: true });
     broadcastPeerUpdate(peerCid, peer.username, { isIncoming: true });
     ctx.handleIncomingRegistration(notificationCid, peerCid, peerUsername).catch(error => {

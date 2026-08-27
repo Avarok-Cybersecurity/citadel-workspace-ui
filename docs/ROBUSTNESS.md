@@ -6806,3 +6806,75 @@ the caller unchanged. That is exactly the state each of these was found in.
 - **Accepting can be "confirmed" by an unrelated peer's connect notification**,
   because the matcher accepts any notification naming our own CID.
 - The "Invite User" buttons in the empty search state have no `onClick`.
+
+## Round ninety-nine — a request that was pending, treated as a relationship, 2026-08-28
+
+### 413. Receiving a request marked the sender as a registered peer, before any accept
+
+`handlePeerRegisterNotification` fires when someone sends *us* a registration
+request. It set `isRegistered = true` and added them to `registeredPeers`.
+
+The backend defines registered as **mutual** — `list_registered` answers from
+`GetMutuals` — so this claimed a relationship that would not exist until the user
+accepted. And it was not cosmetic: `MessageSender` checks `isPeerRegistered` and
+**skips registration** when it is true, so a first message to someone whose
+request was merely pending went out against a peer with no mutual registration
+and no ratchet, and failed. The sender also appeared among the user's connections
+before they had agreed to anything.
+
+`allPeers` still learns the name — the request should render with a username
+rather than a bare CID — and the pending-request flow still runs. Auto-connect's
+mutual detection keys off `hasOutgoingRegistration`, not this map, so it is
+unaffected. The test covers the resend case explicitly: a peer who *is* already
+mutually registered must not be downgraded by their sender's five-minute repeat.
+
+### 414. A refused registration reached only `debugLog`
+
+The discovery modal toasted "Request Sent" immediately after `sendMessage`, and
+its websocket listener handled only the Success variants. `PeerRegisterFailure`
+went to `debugLog` — compiled out in production — so the user was told the
+request was sent, the pending state later vanished with no explanation, and they
+waited on a request the other side never saw.
+
+Now surfaced, correlated by `request_id`, because the failure payload carries no
+`peer_cid` — the name comes from what was recorded at send time, and it is
+recorded *before* the send since a failure can arrive before the await resolves.
+
+### Recorded from the routing-core audit — the standout
+
+**Four response handlers match variants the protocol cannot produce.**
+`CreateWorkspace`, `AddMember`, `UpdateMemberRole`, `RemoveMember` and
+`WorkspaceError` are handled as "runtime-only" response variants; they exist only
+as *requests*, and the server never constructs any of them. Everything emitted
+inside those branches is therefore dead — including `members:reload`, which means
+**no event-driven refresh of the members list happens after an admin adds or
+removes a member or changes a role**.
+
+And the reason the listener-emitter CI guard passes over it: the guard is a text
+scan, so an emit inside an unreachable branch counts as an emitter. That is the
+guard's structural blind spot, and this is a live instance of it. Also recorded:
+`SUCCESS_RESPONSES.CreateWorkspace` waits for a variant that does not exist while
+the same repo maps it correctly in `service.ts` (two disagreeing type-maps for
+one protocol), and `useMessageEventSetup`'s unmount calls
+`cleanupAllListeners()`, which wipes the singleton's **entire** registry rather
+than its own.
+
+### Recorded from the settings audit — the standout
+
+**The login flow discards every security setting the user chose.**
+`SecuritySettings` writes to hook state; `handleLogin` calls
+`websocketService.connect(requestId, username, password, undefined)`, and the
+auth layer fills the gap with `getDefaultSecuritySettings()`. The chosen values
+are then persisted as defaults too, so reconnects use them as well. A user who
+selects a higher security level, a post-quantum KEM and a signature algorithm
+connects with `Standard/BestEffort/AES_GCM_256` and is told nothing. The
+registration flow reads these correctly from a query cache; the login flow reads
+neither the cache nor its own state.
+
+Also recorded: the group settings panel's rename and its **entire roles editor**
+write throwaway page state behind a "Saving…" button — every role created and
+every permission edit evaporates on navigation and never reaches another member;
+five of six Appearance controls are inert, and the one that works (font size) is
+never re-applied at startup; and the P2P chat settings panel has three switches
+with `defaultChecked` and no handler, an encryption-level select with no
+`onChange`, and a "Storage Used" figure computed as a constant 15% of quota.

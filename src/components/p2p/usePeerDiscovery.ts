@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { websocketService } from '@/lib/websocket-service';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -24,6 +24,9 @@ export interface Peer {
 
 export function usePeerDiscovery(isOpen: boolean) {
   const [peers, setPeers] = useState<Peer[]>([]);
+  // requestId -> peer name, so a PeerRegisterFailure — which carries a
+  // request_id but no peer_cid — can say who it was for.
+  const sentRequests = useRef(new Map<string, string>());
   const [registeredPeers, setRegisteredPeers] = useState<Set<string>>(new Set());
   const [outgoingRequests, setOutgoingRequests] = useState<Set<string>>(new Set());
   const [incomingRequests, setIncomingRequests] = useState<Map<string, PendingPeerRequest>>(new Map());
@@ -76,6 +79,25 @@ export function usePeerDiscovery(isOpen: boolean) {
     const handleRegistrationSuccess = (raw: unknown) => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
+      // A refusal used to reach only `debugLog`, compiled out in production, so
+      // the user was told "Request Sent" and then nothing. Correlated by
+      // request_id: the failure carries no peer_cid.
+      if (hasVariant(message, 'PeerRegisterFailure')) {
+        const failure = getVariant(message, 'PeerRegisterFailure')!;
+        const requestId = failure.request_id as string | undefined;
+        const peerName = requestId ? sentRequests.current.get(requestId) : undefined;
+        if (requestId && peerName) {
+          sentRequests.current.delete(requestId);
+          const reason = typeof failure.message === 'string' ? failure.message : undefined;
+          toastError(
+            toast,
+            'Request Failed',
+            reason
+              ? `Your request to ${peerName} was not accepted: ${reason}`
+              : `Your request to ${peerName} could not be delivered.`,
+          );
+        }
+      }
       if (hasVariant(message, 'PeerRegisterSuccess')) {
         const peerCid = (getVariant(message, 'PeerRegisterSuccess')!.peer_cid as bigint | undefined)?.toString();
         if (peerCid) { setRegisteredPeers(prev => new Set([...prev, peerCid])); }
@@ -87,7 +109,9 @@ export function usePeerDiscovery(isOpen: boolean) {
     };
     eventEmitter.on('websocket-message', handleRegistrationSuccess);
     return () => { eventEmitter.off('websocket-message', handleRegistrationSuccess); };
-  }, []);
+    // `toast` is a stable module function (see hooks/use-toast), so this
+    // re-subscribes on nothing.
+  }, [toast]);
 
   // Listen for incoming registration notifications
   useEffect(() => {
@@ -203,6 +227,8 @@ export function usePeerDiscovery(isOpen: boolean) {
         id: requestId, fromCid: currentCid, toCid: BigInt(peerCid),
         peerUsername: peerUsername, timestamp: now, timeLastSent: now
       });
+      // Before the send: a failure can arrive before the await resolves.
+      sentRequests.current.set(requestId, peerUsername);
       await websocketService.sendMessage(request);
       toast({
         title: "Request Sent",
