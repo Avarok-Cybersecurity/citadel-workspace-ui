@@ -2772,6 +2772,68 @@ non-discriminating test this campaign, except deliberate.
   carelessly inside the membership handlers would create the first real ordering
   constraint in the codebase.
 
+## Round thirty-three — a regression I introduced, 2026-08-27
+
+### 221. Four writes I gated always reported failure — FIXED
+
+Two rounds ago I extended `awaitWriteResponse` from four write types to eleven.
+**Four of the seven I added were gated on variants the response router HANDLES.**
+
+The router emits `workspace:raw-response` from the `Success` and `Error` branches
+and from its unhandled fallback. A variant with its own handler returns `true`,
+and the response ends there. So the signal those four waits depend on was never
+emitted: **every role change, theme save, message edit and message delete waited
+out the full 15-second timeout and told the user "the change may not have been
+saved"** — after the same handler had already applied it to the UI.
+
+The action worked and the app said it had not. **That is worse than the bug I was
+fixing**, which at least told the truth when things succeeded.
+
+**What I should have checked and did not:** adding an entry to `SUCCESS_RESPONSES`
+asserts a variant WILL arrive at the waiter. Nothing verified that. I checked the
+server emits the variant — and never checked the client router forwards it.
+
+The new test drives the real router and asserts every gated variant reaches the
+waiter, including `Success`, so the three that always worked stay covered.
+
+### 222. The general lesson: wiring a gate is two halves
+
+This is the same shape the campaign keeps finding — a mechanism correct at one
+end and unconnected at the other — except this time I built the disconnected
+half. Every previous instance was someone else's; the pattern does not care.
+
+A gate needs: the waiter, and proof the signal reaches it. I verified the first
+against the server source and assumed the second. **The test that would have
+caught it takes four lines and drives the real router** — which is now what
+guards it.
+
+### 223. Recorded, not fixed — error handling and recovery
+
+- **A failed group-message load is a permanent spinner.** `loading` is cleared
+  only by the `messages_loaded` event, and the fetch resolves on send with no
+  error branch — so a refused response spins forever with nothing to press. Same
+  shape disables "Load older messages" permanently.
+- **The login "session already active" path never settles its promise** — it
+  clears the timeout and neither resolves nor rejects, so the form shows no error
+  and pressing Connect repeats the identical path, with the plaintext password
+  retained in the closure for the page's lifetime.
+- **ConnectionRetryModal has a LIFETIME retry budget of 10, never reset.** The
+  counter accumulates across separate outages, so after ten total failures every
+  subsequent disconnection opens a modal with a disabled Retry and no recovery
+  but reload. Its close-on-success listener is also wired to an event nobody
+  emits.
+- **One authentication rejection silently disables auto-reconnect for that
+  account forever** — the failure branch logs and never calls `cancelRetry`, so
+  the map entry persists and the scheduler skips it. Send-level failures retry
+  forever instead, with no ceiling and no UI.
+- **Every collaborative-document edit ships a stale hash**, so the receiver's
+  post-apply hash never matches and a full-state resend fires on every update —
+  making genuine divergence indistinguishable from the constant false positives.
+- **The camera toggle is inert in a call started audio-only** — it flips
+  `enabled` on zero video tracks and broadcasts `video: true` anyway.
+- **Group leave/kick fail silently** (try/finally with no catch), and delete-group
+  navigates away even when no client existed to send the request.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
