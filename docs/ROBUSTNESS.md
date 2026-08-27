@@ -2618,6 +2618,57 @@ A deployment audit walked the quickstart as a reader would:
   deliberately made impossible**, and there is **no upgrade procedure at all for
   the local client stack** every non-operator user runs.
 
+## Round thirty — a healthcheck that could not fail, and the first-run race, 2026-08-27
+
+### 212. The quickstart reported success on a stack the browser cannot reach — FIXED
+
+`docker compose up -d --wait` exits 0 when every healthcheck passes, and every
+healthcheck in the dev compose probes `127.0.0.1` **from inside its own
+container**. All five dev services use `network_mode: host`; on macOS and Windows
+Docker runs in a VM, so "host" is the VM's network and the ports bind where the
+browser cannot see them.
+
+The container is genuinely healthy — it is listening on its own loopback — so the
+healthcheck is **structurally incapable of detecting the condition it is inside
+of**. The documented first command on a clean Mac prints success and leaves an
+unreachable stack with no diagnostic anywhere.
+
+`docker-compose.local.yml` explains this failure at length. The dev compose the
+README leads with carries no such warning: **the explanation existed and was
+never propagated to the path new users take.**
+
+`scripts/check-stack-reachable.mjs` asks from OUTSIDE whether a request from this
+machine reaches the app — deliberately not a healthcheck, because a container
+cannot answer that about itself. The README now runs it as the last quickstart
+step and says what to do when it fails.
+
+### 213. Two users connecting at once both became Admin — FIXED
+
+The connect-time member-add reads the whole workspace record, decides
+`is_first_member`, and writes it back across two awaits with no lock. Both
+observe `members == []`, both are promoted, and the second write **erases the
+first's membership**.
+
+The promoted-but-unlisted admin still passes every gate (`is_admin` reads the
+global role and never consults membership) while `ensure_not_last_admin`, which
+counts admins among `workspace.members`, cannot see them — so the workspace can
+reach zero *visible* admins with an invisible one remaining.
+
+`lock_workspaces()` was built for exactly this, and its only production caller
+was the theme handler. Its other caller is a test that races 25 concurrent
+read-modify-writes and asserts none is lost — the primitive was already proven;
+only this call site was missing it. **First-run is precisely when two people are
+most likely to connect at once, and the moment there is no other admin to
+recover.**
+
+### 214. Method note — two healthchecks, two different questions
+
+A container healthcheck answers "is this process up". A user needs "can I reach
+the app". Those diverge exactly when the networking is wrong, which is the case
+worth catching — so the check that mattered had to live outside the thing being
+checked. Worth applying to the other healthchecks here: every one of them probes
+its own loopback.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
