@@ -2349,6 +2349,57 @@ verified is not one worth shipping.
   offline after a long idle renders its shell and cannot initialise the client —
   while the toast promises it "will now load without a connection".
 
+## Round twenty-six — the file round trip closes, 2026-08-26
+
+### 200. A file could be uploaded and never downloaded back — FIXED
+
+The download handler waited on `FileTransferStatusNotification`, which the
+internal service emits from exactly ONE place: `respond_file_transfer.rs`, the
+accept/decline flow for STANDARD transfers. A REVFS pull auto-accepts and
+streams `FileTransferTickNotification` instead.
+
+So **the success branch was unreachable**. Every download waited out the full
+30-second timeout, resolved `success: false`, and the caller — which checked only
+`result.type`, never `.success` — returned `undefined`. The UI read that as
+**"Download initiated for X"**. A download that provably did not happen was
+reported as progress.
+
+Two more defects in the same few lines:
+- it read `status.response?.download_path`, where `response` is a plain `bool` on
+  the wire, so even an impossible match would have produced `undefined`;
+- it correlated on `status.cid === cid`, matching ANY transfer notification for
+  the session — unlike both siblings in the same file, which use `request_id`.
+  A concurrent standard transfer would settle an unrelated pending download.
+
+Now correlated on `request_id`, completing on `ReceptionComplete` /
+`TransferComplete`, failing on `Fail`, and taking the local path from
+`ReceptionBeginning` — the variant that actually carries it. The callers no
+longer swallow a failure into `undefined`, and the UI's "Download initiated"
+branch is gone: **there is no longer a state where the code knows the download
+did not happen and says something encouraging about it.**
+
+Negative-controlled: disabling the tick branch fails all three tests, two of them
+by hanging for the full timeout — precisely what users experienced.
+
+### 201. The round trip, end to end
+
+Three rounds closed one feature that never worked:
+
+| Round | Defect |
+|---|---|
+| 23 | Upload sent a directory path as `source` where the backend wanted a `FileSource` enum, and `'FileTransfer'` where it wanted `RemoteEncryptedVirtualFilesystem`. The request died in the browser's WASM deserializer; nothing was ever stored. The peer path sent no bytes at all, and `handleDrop` never read the `File`. |
+| 24-25 | Download and delete addressed the containing DIRECTORY, not the file. Corrected once more when an audit showed the key must be the UPLOAD-TIME path — the backend cannot re-path an object, so a rename cannot move the bytes. |
+| 26 | Download listened for an event REVFS pulls never emit. |
+
+Each layer was individually plausible and the whole was inert. **The unifying
+tell in all three: a failure resolved rather than rejected, and a caller that
+awaited the result and discarded it.** Upload discarded `{success:false}`,
+delete discarded it, download turned it into `undefined` — and every one of them
+had a green toast waiting on the other side.
+
+The ordering fix matters as much as the protocol fix: bytes now go first and the
+tree commits only on success, so a node exists if and only if its content does.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
