@@ -85,16 +85,25 @@ describe('the retry engine', () => {
   });
 });
 
-describe('the channel arms it', () => {
-  it('InstanceChannel starts the queue when it initializes', async () => {
-    // The unit tests above pass against a queue nobody ever starts. This is the
-    // wiring: without it, all of the above is unreachable in the product.
-    const { readFileSync } = await import('node:fs');
-    const { join } = await import('node:path');
-    const { stripComments } = await import('@/test-utils/strip-comments');
-    const source = stripComments(
-      readFileSync(join(process.cwd(), 'src/lib/multi-instance/instance-channel.ts'), 'utf8'),
-    );
-    expect(source).toContain('outboundQueue.start()');
+describe('it arms itself', () => {
+  it('starts polling on the first enqueue, with no caller needed', () => {
+    // The tests above pass against a queue nobody ever starts — which is exactly
+    // the state this found, and why the arming is self-service rather than a
+    // call site someone has to remember.
+    expect(outboundQueue.isPolling).toBe(false);
+
+    const id = outboundQueue.enqueue({ kind: 'test' });
+    expect(outboundQueue.isPolling).toBe(true);
+
+    outboundQueue.acknowledge(id, { status: 'processed' });
+  });
+
+  it('stops when the queue drains, so an idle app carries no timer', () => {
+    const id = outboundQueue.enqueue({ kind: 'test' });
+    expect(outboundQueue.isPolling).toBe(true);
+
+    outboundQueue.acknowledge(id, { status: 'processed' });
+
+    expect(outboundQueue.isPolling).toBe(false);
   });
 });

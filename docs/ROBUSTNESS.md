@@ -6593,3 +6593,79 @@ dialog takes an object and the browser's takes a string.
 - **The legacy broadcast channel still fans most response types to every tab**
   unfiltered, which is the cross-session bleed the CID-routing work exists to
   stop, for every type outside the eight-member routed set.
+
+## Round ninety-six — the retry engine arms itself now, and one fix I backed out, 2026-08-27
+
+### 408 (revised). The retry engine now arms on first use
+
+Round ninety-five started it from `InstanceChannel.initialize`. That was wrong in
+a way the test suite showed within minutes: the channel is constructed in every
+module graph, so a poller started there runs wherever the module is imported —
+and a privacy test that resets modules went from 2.7s to a 5s timeout.
+
+Self-arming is the better design regardless. `enqueue` starts the poller and
+`acknowledge` stops it once the queue drains, so the timeout checker exists
+exactly when there is something to time out, an idle app carries no timer, and
+no future call site has to remember. A guard that has to be switched on by
+someone else is the shape that produced this bug in the first place.
+
+### On the fix I backed out
+
+The multi-tab audit's second finding is real and confirmed: the leader-change
+replay **error-acks** every pending request rather than recovering it, because
+module-eval order runs the outbound queue's replay listener before the handler's
+own `instance:leader-changed` listener sets `isActive`, and a newly promoted
+tab's `websocketSendFn` is null until its socket finishes booting.
+
+I built the fix — hold instead of error-ack, flush when ready, with a bounded
+queue and a deadline so a request that can never be served still fails rather
+than hanging. Then a privacy test started timing out at exactly 5s, and
+bisecting showed the handler change caused it. Three attempts to explain that
+did not: seeding `isActive` from `instanceManager.isLeader`, deriving the park
+deadline from the retry interval, and arming a sweep timer all left it at 5002ms.
+
+So I reverted it. This is a change to the failure semantics of a hot path in
+multi-tab coordination, on a branch I cannot exercise against two live tabs, and
+I did not understand why it behaved as it did. Shipping a behavioural change to a
+recovery path while unable to explain its observed timing is how a recovery path
+becomes the thing that needs recovering.
+
+What is recorded, for whoever picks it up: the finding is PROVED, the shape of
+the fix is right, and the unexplained part is why a parked request in a
+leaderless jsdom graph does not fail at its deadline. That is where to start.
+
+### Recorded from the notification audit — the standout
+
+**The User Directory is a closed loop.** `sendRegistrationRequest` is a
+`setTimeout` that hands the request to a simulation guarded on
+`recipientId === 'current-user'` — but the request is created with the *target's*
+id, so even the simulation does nothing. The user is toasted "Request Sent" and
+nothing was ever sent. `canMessageUser` requires a connection only that dead path
+can create, so the "Online" tab is permanently empty and "Send Message" always
+refuses — **including for peers who are genuinely P2P-connected through the real
+flow**. The careful username-vs-CID navigation fix below it is unreachable code.
+
+Also recorded: every DM raises a bell notification even while the user is looking
+at that conversation, because `setActiveConversation` is only called by an
+adapter nothing mounts; opening the bell in one session marks **other** sessions'
+notifications read, because `markAllAsRead` is unscoped while the panel is
+scoped; OS-notification permission is only ever requested from a hidden tab, so
+it can never be granted on Firefox or Safari; group messages produce no
+notification at all, while DMs beep and raise one; and the "Online Status"
+privacy toggle suppresses presence *messages* while every surface derives Online
+from the connection itself.
+
+### Recorded from the boot audit — the standout
+
+**A first boot whose structure failed to load is permanently stamped "seeded".**
+The legacy structure-load failure is non-fatal, so the seed-pending marker is
+never armed; the next boot sees neither marker, takes the "predates the markers"
+back-fill branch, and marks it seeded. The workspace has no offices, forever,
+and every subsequent boot logs "already seeded; skipping". The recommended
+`content_base_dir` path is correctly fatal — only the deprecated one swallows it.
+
+And: any stray directory under `content_base_dir` without a `CONTENT.md` is a
+**fatal** boot error on every boot, including boots that will never seed — while
+the server itself creates exactly that shape if it dies between `create_dir_all`
+and `write`. Under `restart: unless-stopped` that is a crash loop until an
+operator hand-deletes a directory the loader would never have used.

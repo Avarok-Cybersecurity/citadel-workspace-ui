@@ -62,20 +62,20 @@ class OutboundQueue extends PollingService {
     });
   }
 
+  /** Nothing to time out means nothing to poll for. */
+  private stopIfIdle(): void {
+    if (this.queue.size === 0 && this.isPolling) this.stopPolling();
+  }
+
   /**
-   * Arm the timeout checker. **Nothing above works until this is called.**
-   *
-   * It had no caller anywhere in production, and `checkTimeouts` runs only from
-   * the poller it arms — so the contract documented at the top of this file
-   * ("retried after ACK_TIMEOUT_MS; max MAX_RETRIES; then 'outbound-failed'")
-   * never executed, and `handleTimeout`, `MAX_RETRIES` and that event were all
-   * unreachable code behind a written promise. A follower request dropped at
-   * the wrong moment waited out the full 30s ACK timeout and failed, with no
-   * retry attempted. `BroadcastChannelService` starts its own poller in
-   * `initialize()`; this one was never wired. `InstanceChannel.initialize` now
-   * calls it.
+   * Arm the timeout checker. The Timeout/Retry contract at the top of this file
+   * does not happen without it — and it had no caller anywhere in production,
+   * so `handleTimeout`, `MAX_RETRIES` and `outbound-failed` were unreachable
+   * code behind a written promise. `enqueue` arms it now, so it cannot be
+   * forgotten again.
    */
   start(): void {
+    if (this.isPolling) return;
     this.startPolling();
     debugLog('OutboundQueue', '[OutboundQueue] Started timeout checker');
   }
@@ -97,6 +97,8 @@ class OutboundQueue extends PollingService {
     };
 
     this.queue.set(id, message);
+    // Self-arming — see `start()`.
+    if (!this.isPolling) this.start();
     debugLog('OutboundQueue', `[OutboundQueue] Enqueued message: ${id} (queue size: ${this.queue.size})`);
 
     return id;
@@ -115,6 +117,7 @@ class OutboundQueue extends PollingService {
     }
 
     this.queue.delete(requestId);
+    this.stopIfIdle();
 
     const latency = Date.now() - message.timestamp;
     debugLog('OutboundQueue', `[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
@@ -139,6 +142,7 @@ class OutboundQueue extends PollingService {
       clearTimeout(message.timeoutId);
     }
     this.queue.delete(requestId);
+    this.stopIfIdle();
   }
 
   getPending(): QueuedMessage[] {
@@ -169,6 +173,7 @@ class OutboundQueue extends PollingService {
       debugLog('OutboundQueue', `Max retries exceeded for ${requestId}, giving up`);
 
       this.queue.delete(requestId);
+    this.stopIfIdle();
 
       eventEmitter.emit('outbound-failed', {
         requestId,
