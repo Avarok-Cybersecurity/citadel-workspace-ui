@@ -2834,6 +2834,48 @@ guards it.
 - **Group leave/kick fail silently** (try/finally with no catch), and delete-group
   navigates away even when no client existed to send the request.
 
+## Round thirty-four — PWA: the update that broke other windows, 2026-08-27
+
+### 224. Accepting an update broke every OTHER open window — FIXED
+
+`skipWaiting` takes over all clients at once, so the new precache is active
+everywhere the moment one window accepts. The old hashed chunks are gone from it
+**and 404 from nginx**, which serves only the current build. Every route in this
+app is lazy, so any other open window that then navigated somewhere it had not
+already visited failed its dynamic import.
+
+With nothing listening, that rejection reached the **top-level error boundary and
+replaced the whole app** — for a user who did nothing but have a second tab open.
+Multi-tab is first-class here; the leader/follower architecture assumes it.
+
+`vite:preloadError` exists for exactly this, and a reload is the correct answer:
+the new build is already the one installed. `preventDefault` stops the rejection
+so the boundary does not also fire mid-reload.
+
+### 225. iOS had no install affordance at all — FIXED
+
+Safari never fires `beforeinstallprompt` — there is no programmatic install on
+that platform — so `canInstall` was permanently false and the button rendered
+nothing. That **silently zeroed the install funnel for every iPhone and iPad**, on
+a product whose primary mobile surface is the installed PWA. The manifest and
+apple-touch-icon groundwork was all in place; only the affordance was missing.
+
+Detected by capability rather than browser name: **iPadOS reports a Mac
+user-agent**, so a name check misses exactly the device most likely to install
+this. Rendered as text rather than a button, because there is nothing to click —
+it is the instruction Safari requires the user to follow.
+
+### 226. Method note — an extraction that took too much
+
+Splitting the initialization modal under the line gate, the first cut ran past
+the explanatory panel and pulled the form's Label and Input with it. `tsc` named
+them immediately, but the lesson is the boundary: I chose the end of the block by
+searching for the next `</CardContent>` rather than the panel's own closing tag.
+
+Reverted and re-cut at the real boundary. **A split is a refactor, and a refactor
+that compiles by accident is worse than one that fails** — this one failed
+loudly, which is the good case.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
