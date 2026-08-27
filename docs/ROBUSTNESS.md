@@ -4561,6 +4561,56 @@ badge stayed at zero.
 The control confirms both halves — deleting the emit fails the test AND makes the
 guard report a dead listener again.
 
+## Round sixty-three — every group survived exactly until you reloaded, 2026-08-28
+
+### 319. A page reload permanently lost every group — FIXED
+
+The group store was memory-only, and nothing rebuilt it. `refresh()` has no
+caller anywhere, and `GroupListGroupsSuccess` is handled nowhere — the request is
+sent and the reply is dropped. So every reload emptied the sidebar, and opening a
+bookmarked `/groups/:id` reported **"This group may have been deleted"** and
+bounced to the workspace, for a group that still existed with its history still
+on the server, now unreachable because there was no route back in.
+
+The store's own header explains why the previous attempt failed and, in doing so,
+prescribes the fix: localStorage persistence *"never once worked: member CIDs are
+bigint, `JSON.stringify` throws on bigint, and the save was wrapped in a
+try/catch that logged and moved on — so every instance always started from
+nothing"*. It was removed rather than patched with a replacer, on the rule that
+browser persistence belongs to IndexedDB.
+
+So: IndexedDB, where structured clone stores bigint natively. Three properties
+the tests pin independently, because each fails differently:
+
+- **A member CID round-trips as bigint.** The control reintroduces the original
+  defect — a `JSON.parse(JSON.stringify(...))` round trip — and that test alone
+  fails.
+- **Groups are keyed per account.** Two accounts in one browser must not inherit
+  each other's group list, exactly as conversations were scoped in round
+  fifty-nine. Dropping the key fails only that test.
+- **A read failure reports no groups rather than throwing**, so a storage hiccup
+  cannot stop the app starting; the live event stream still repopulates.
+
+**Bindings are armed before the restore, and the restore MERGES under whatever
+arrived live.** An invite landing while the read is in flight would otherwise be
+overwritten by a snapshot taken before it existed — the read is async, and
+assigning the result over current state is how a race becomes data loss.
+
+Persisting is fire-and-forget on every mutation: a storage failure must not block
+a state change the user can already see on screen.
+
+### 320. What this does NOT fix, stated plainly
+
+Restoring the store is not the same as re-syncing with the server. A group
+created on another device, or one the user was invited to while this browser was
+closed, still will not appear until an invite arrives live. Closing that needs
+`GroupListGroupsSuccess` handled — and the internal service's handler returns
+**owned groups only** (`list_owned_groups`), so member-of groups need a wire-level
+roster the protocol does not currently carry.
+
+Recorded rather than glossed: this fix removes the catastrophic case (your own
+groups vanishing on refresh) and leaves the incomplete one.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

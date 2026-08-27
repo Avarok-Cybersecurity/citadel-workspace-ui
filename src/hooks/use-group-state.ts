@@ -16,6 +16,7 @@ import {
   subscribeToGroups,
   updateGroups,
   startGroupEventBindings,
+  restorePersistedGroups,
 } from '@/lib/group-conversations/group-store';
 
 export interface GroupState {
@@ -40,6 +41,9 @@ export function useGroupState(): GroupState {
     // Idempotent: the first consumer to mount arms the store's event
     // subscriptions; everyone after is a no-op.
     startGroupEventBindings();
+    // Bindings FIRST, then the restore. An invite landing while the read is in
+    // flight is merged under the snapshot rather than lost behind it.
+    void restorePersistedGroups();
   }, []);
 
   const setGroups = useCallback<React.Dispatch<React.SetStateAction<GroupConversation[]>>>(

@@ -23,6 +23,7 @@ import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
 import { toast } from '@/hooks/use-toast';
+import { loadPersistedGroups, persistGroups } from './group-persistence';
 import { debugLog } from '@/lib/debug-config';
 
 let groups: GroupConversation[] = [];
@@ -47,6 +48,30 @@ export function updateGroups(
   if (next === groups) return;
   groups = next;
   for (const listener of listeners) listener();
+  // Fire and forget: a storage failure must not block a state update the user
+  // can already see. persistGroups logs and swallows for the same reason.
+  void persistGroups(groups);
+}
+
+/**
+ * Restore the previous session's groups.
+ *
+ * Without this the store was memory-only and nothing rebuilt it, so every
+ * reload emptied the sidebar and a bookmarked /groups/:id reported "This group
+ * may have been deleted" for a group that still existed.
+ *
+ * Restored groups are MERGED under whatever has arrived live, not assigned over
+ * it: bindings are started before this resolves, so an invite that lands during
+ * the read must not be overwritten by a snapshot taken before it.
+ */
+export async function restorePersistedGroups(): Promise<void> {
+  const stored = await loadPersistedGroups();
+  if (stored.length === 0) return;
+  updateGroups((prev) => {
+    const known = new Set(prev.map((g) => g.id));
+    const missing = stored.filter((g) => !known.has(g.id));
+    return missing.length === 0 ? prev : [...prev, ...missing];
+  });
 }
 
 /**
