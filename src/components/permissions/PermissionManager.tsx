@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLoadedPermissions } from './use-loaded-permissions';
+import { PermissionMatrixNotice } from './PermissionMatrixNotice';
 import { Shield, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -6,7 +8,6 @@ import WorkspaceService from '@/lib/workspace-service';
 import type { PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
 import {
@@ -33,7 +34,11 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
-  // Track permissions per role
+  // What the SERVER currently grants. The load used to be fired and its result
+  // discarded even on success, so the matrix below rendered client-side default
+  // constants and Save diffed against those — see use-loaded-permissions.
+  const load = useLoadedPermissions(userId, domainId);
+
   const [rolePermissions, setRolePermissions] = useState<RolePermissions>(() => {
     const initial: RolePermissions = {};
     for (const role of ROLE_HIERARCHY) {
@@ -42,15 +47,21 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     return initial;
   });
 
+  // The set the diff is taken against. Held separately from the editable state
+  // so Save can compute what actually CHANGED rather than how the edits differ
+  // from a default nobody consulted.
+  const [serverPermissions, setServerPermissions] = useState<Set<string> | null>(null);
+
   useEffect(() => {
-    runAsyncSetup(async () => {
-      try {
-        await WorkspaceService.getUserPermissions(userId, domainId);
-      } catch (error) {
-        debugLog('PermissionManager', 'Error loading permissions:', error);
-      }
-    });
-  }, [userId, domainId]);
+    if (load.status !== 'loaded') return;
+    setServerPermissions(load.permissions);
+    setRolePermissions((prev) => ({
+      ...prev,
+      // The user's own role is the row that describes THEM; the rest of the
+      // matrix stays at its defaults, which is what it has always shown.
+      [load.role]: new Set(load.permissions),
+    }));
+  }, [load]);
 
   const togglePermission = useCallback((role: string, permissionId: string) => {
     setRolePermissions(prev => {
@@ -67,25 +78,30 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   }, []);
 
   const handleSave = async () => {
+    // Refused rather than guessed. Saving without knowing what the server has
+    // is how the defaults got written over real permissions.
+    if (load.status !== 'loaded' || !serverPermissions) return;
+
     setIsSaving(true);
     try {
-      // Save permission overrides for each role
-      for (const role of ROLE_HIERARCHY) {
-        const currentPerms = rolePermissions[role.value];
-        const roleDefaults = new Set(getRoleDefaultPermissions(role.value));
-        const addedPermissions = [...currentPerms].filter(p => !roleDefaults.has(p));
-        const removedPermissions = [...roleDefaults].filter(p => !currentPerms.has(p));
+      // Diffed against what the SERVER has, for the row that describes this
+      // user. It used to diff every role's row against that role's client-side
+      // DEFAULTS and apply all four to this one user — so an admin who changed
+      // nothing still sent writes, and every write was relative to a baseline
+      // the server had never agreed to.
+      const edited = rolePermissions[load.role] ?? new Set<string>();
+      const addedPermissions = [...edited].filter((p) => !serverPermissions.has(p));
+      const removedPermissions = [...serverPermissions].filter((p) => !edited.has(p));
 
-        if (addedPermissions.length > 0) {
-          await WorkspaceService.updateMemberPermissions(
-            userId, domainId, addedPermissions as PermissionTS[], 'Add' as UpdateOperationTS
-          );
-        }
-        if (removedPermissions.length > 0) {
-          await WorkspaceService.updateMemberPermissions(
-            userId, domainId, removedPermissions as PermissionTS[], 'Remove' as UpdateOperationTS
-          );
-        }
+      if (addedPermissions.length > 0) {
+        await WorkspaceService.updateMemberPermissions(
+          userId, domainId, addedPermissions as PermissionTS[], 'Add' as UpdateOperationTS
+        );
+      }
+      if (removedPermissions.length > 0) {
+        await WorkspaceService.updateMemberPermissions(
+          userId, domainId, removedPermissions as PermissionTS[], 'Remove' as UpdateOperationTS
+        );
       }
 
       toastSuccess(toast, "Permissions Updated", "Permissions saved successfully.");
@@ -118,6 +134,8 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           </div>
         </div>
       </div>
+
+      <PermissionMatrixNotice load={load} />
 
       {/* Matrix Table */}
       <div className="flex-1 overflow-auto min-h-0">
@@ -205,7 +223,9 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
           )}
           <Button
             onClick={handleSave}
-            disabled={isSaving}
+            // Disabled until the server's answer is in. A matrix showing
+            // defaults is not something to save.
+            disabled={isSaving || load.status !== 'loaded'}
             className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 text-sm rounded-lg shadow-lg shadow-primary-accent/20 gap-2 px-5"
           >
             {isSaving ? (

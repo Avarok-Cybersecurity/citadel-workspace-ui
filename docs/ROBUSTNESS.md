@@ -8063,3 +8063,32 @@ The answer was to stop relying on a guard whose absence is untestable: the walk
 is now bounded by construction, at one iteration per node. With the bound in
 place, removing the visited set still terminates and the test still passes —
 which is the point. Remove *both* and the suite hangs, which is at least loud.
+
+### Round 128 — the permission editor showed constants and saved them over reality
+
+`PermissionManager` called `getUserPermissions` and discarded the result — even
+on success. Nothing ever wrote a response into state, so the matrix always
+rendered `getRoleDefaultPermissions()` constants. An admin opening it to review
+someone's access was reading fiction.
+
+Saving was worse than showing. The diff was taken against those same client-side
+defaults, so pressing Save pushed the defaults-plus-edits over whatever the
+server was actually enforcing — a silent reset for anyone with fewer permissions
+than the default, a silent escalation for anyone with more. And the save loop
+ran over every ROLE in the hierarchy and applied each row's diff to the one user
+being edited, so an admin who changed nothing still sent writes.
+
+Three states now, where there was one: loading, loaded, failed. Before this,
+"not loaded yet", "failed to load" and "these are the permissions" were
+indistinguishable — which is what let the defaults pass as fact for so long.
+Save is disabled until the server has answered, and the notice above the matrix
+says which of the three it is looking at rather than leaving the reader to
+assume.
+
+The diff is now against what the server returned, so an admin who changes
+nothing sends nothing.
+
+The answer is matched on **both** user and domain. One editor can be open while
+another domain's response arrives, and the response is the only thing that says
+which is which — a control confirms that dropping either check lets the wrong
+answer populate the matrix.
