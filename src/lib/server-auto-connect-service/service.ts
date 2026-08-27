@@ -124,9 +124,13 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   }
 
   public async setEnabled(enabled: boolean): Promise<void> {
-    this.isEnabled = enabled;
     try {
+      // Assigned only after the write lands. Setting it first meant a failed
+      // save left the service running the NEW value while the UI reverted its
+      // switch and told the user it had not saved — and the next getEnabled()
+      // reported the value the user had just been told was rejected.
       await saveEnabledSetting(enabled);
+      this.isEnabled = enabled;
       if (enabled) {
         this.startPolling();
       } else {

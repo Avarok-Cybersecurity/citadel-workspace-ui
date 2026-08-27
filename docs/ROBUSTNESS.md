@@ -4058,6 +4058,67 @@ fix for each is "wire it or delete it", which is a product decision:
   clear value, the server only writes `if let Some(avatar)`, and the echoed
   response puts the avatar straight back under a "Profile Updated" toast.
 
+## Round fifty-three — three fixes that already existed elsewhere in the tree, 2026-08-27
+
+Every finding here is the *fix applied in one place* pattern: the correct
+treatment was already written, documented, and working somewhere in the
+codebase, and a sibling never received it.
+
+### 287. Unsaved theme edits were wiped by any workspace refresh — FIXED
+
+`useAppearanceDraft` reseeded its draft on every change of `savedTheme`'s
+**reference**. That value is re-derived from `state.workspace.metadata`, which is
+re-minted as a new object by every `workspace:loaded` and by leader-to-follower
+state sync — identical content, new identity. So mid-edit the colours snapped
+back and the selection cleared, silently, most likely in a follower tab or across
+a reconnect.
+
+The admin tabs were given exactly this dirty guard in round forty-five, with the
+reasoning written down. This hook never got it.
+
+### 288. The admin Members tab spun forever on a refused list — FIXED
+
+`listMembers` resolves on SEND, and the tab cleared `loading` only in the
+`members:loaded` handler. A refusal arrives as a generic `Error`, for which there
+was no branch and no deadline, so the panel spun until it was closed.
+
+`useMemberEventSetup` has armed `armLoadingDeadline('members', …)` since it was
+written, with a comment explaining this precise failure. The deadline here is
+keyed per entity, so two admin modals open on different nodes cannot cancel each
+other's.
+
+### 289. A rejected save left the service holding the value — FIXED
+
+`setEnabled` assigned `this.isEnabled` before awaiting the write. On failure the
+UI reverted its switch and told the user it had not saved, while the service kept
+the new value — the next `getEnabled()` reported the value the user had just been
+told was rejected, and polling was left in whichever state the failed call set.
+One line: assign after the await.
+
+### 290. Method note — a test that passed for the wrong reason
+
+The theme test's first version mocked `@/components/theme/WorkspaceThemeProvider`.
+The hook imports `useWorkspaceTheme` from `@/lib/theme/workspace-theme-context`,
+so the mock did nothing — `savedTheme` was a stable real object, no reseed could
+occur, and **the guard test passed without exercising the guard at all**.
+
+It only surfaced because a SECOND test in the same file — the one asserting that
+reopening still starts from saved — failed with `{ id: 'avarok-purple' }`, a
+value my fixture never produced. A single-assertion file would have shipped
+green.
+
+Worth generalising: **a fixture value appearing where your own value should be is
+the signal that a mock is not applied**, and it is the reason to write the
+"still does the normal thing" test even when the defect is about the exception.
+
+### 291. Not tested, and why — the auto-connect toggle
+
+The one-line ordering fix above is verified by inspection only. Three successive
+attempts to render the service under test pulled in `instanceManager`,
+`EventListenerPollingService` and `BroadcastChannelService`, each failing on a
+different singleton, and the value of a test for `assign-after-await` did not
+justify mocking a quarter of the app. Recorded rather than quietly skipped.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

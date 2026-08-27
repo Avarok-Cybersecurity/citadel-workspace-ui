@@ -12,11 +12,15 @@ import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
 import { PermissionManager } from '@/components/permissions/PermissionManager';
 import { Loader2, Shield } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
   const { toast } = useToast();
+  // Per entity: two admin modals open on different nodes must not cancel
+  // each other's deadline.
+  const deadlineKey = `admin-members:${entityId}`;
   const [members, setMembers] = useState<MemberData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -47,15 +51,22 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
           role: (m.role ?? 'Member') as UserRole,
         }))
       );
+      cancelLoadingDeadline(deadlineKey);
       setLoading(false);
     };
     runAsyncSetup(async () => {
       await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
     });
-  }, []);
+  }, [deadlineKey]);
 
   const loadMembers = async () => {
     setLoading(true);
+    // `listMembers` resolves on SEND, and this tab cleared `loading` only in the
+    // `members:loaded` handler — so a server refusal, which arrives as a generic
+    // `Error`, left the panel spinning with no way out but closing it. The
+    // sibling `useMemberEventSetup` has armed this deadline since it was
+    // written; this tab never received it.
+    armLoadingDeadline(deadlineKey, () => setLoading(false));
     try {
       await WorkspaceService.listMembers(entityId);
     } catch (error) {
@@ -65,6 +76,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
         description: 'Failed to load members',
         variant: 'destructive',
       });
+      cancelLoadingDeadline(deadlineKey);
       setLoading(false);
     }
   };

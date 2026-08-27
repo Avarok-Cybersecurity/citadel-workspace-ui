@@ -8,7 +8,7 @@
  * state machine lives here.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 import { PRESET_THEMES } from '@/lib/theme/presets';
@@ -47,11 +47,28 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
 
   // Reopening starts from whatever is saved, so an abandoned edit does not
   // resurrect itself the next time the modal opens.
+  //
+  // But NOT on every change of `savedTheme`'s reference. It is re-derived from
+  // `state.workspace.metadata`, which is re-minted as a new object by every
+  // `workspace:loaded` and by leader-to-follower state sync — so mid-edit the
+  // colours snapped back to the saved theme and the selection cleared, with no
+  // message and no way to recover the work. The admin tabs already carry this
+  // dirty guard; this hook never got it.
+  const seededForOpenRef = useRef(false);
+  const dirtyRef = useRef(false);
   useEffect(() => {
-    if (open) {
-      setDraft(savedTheme);
-      setSelection(null);
+    dirtyRef.current = draft !== savedTheme;
+  }, [draft, savedTheme]);
+
+  useEffect(() => {
+    if (!open) {
+      seededForOpenRef.current = false;
+      return;
     }
+    if (seededForOpenRef.current && dirtyRef.current) return;
+    seededForOpenRef.current = true;
+    setDraft(savedTheme);
+    setSelection(null);
   }, [open, savedTheme]);
 
   // Preview the draft across the entire app while the modal is open, and hand
