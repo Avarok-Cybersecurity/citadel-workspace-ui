@@ -56,6 +56,16 @@ const RECORDED_DEAD = new Map([
  * this direction.
  */
 const RECORDED_UNCONSUMED = new Map([
+  // Newly VISIBLE, not newly dead: the whole file-transfer:* family was named
+  // by constants, which this scan could not see until it learned to resolve
+  // them. Every one of these fires alongside file-transfer:state-changed, which
+  // the Files sidebar does listen to, so nothing is missing a refresh -- they
+  // are finer-grained events kept for consumers that do not exist yet.
+  ['file-transfer:request-received', 'the receiver is prompted by the chat bubble, which reads the message; state-changed drives the sidebar'],
+  ['file-transfer:request-sent', 'as request-received'],
+  ['file-transfer:progress-updated', 'progress is rendered from the transfer record; state-changed drives the sidebar'],
+  ['file-transfer:cancelled', 'cancellation also emits state-changed, which the sidebar listens to'],
+  ['file-transfer:error', 'as cancelled'],
   ['revfs:persist-failed', 'REAL GAP — a failed tree persist is announced to nobody, same shape as live-document:persist-failed'],
   ['outbound-failed', 'REAL GAP — the queue knows a proxied request is dead ~10s before sendToLeader times out; nobody hears it'],
   ['outbound-error', 'REAL GAP — as outbound-failed'],
@@ -81,6 +91,42 @@ const RECORDED_UNCONSUMED = new Map([
   ['broadcast-workspace-response', 'internal to the broadcast-channel service'],
   ['yjs:document-update', 'the provider wires its own document listeners'],
 ]);
+
+// Event names given as constants, resolved to their literals.
+//
+// The scan matched single-quoted arguments only, so a family declared as
+// `export const FILE_TRANSFER_EVENTS = { COMPLETED: 'file-transfer:completed' }`
+// and used as `emit(FILE_TRANSFER_EVENTS.COMPLETED)` was invisible on BOTH
+// sides -- listeners and emitters alike. Deleting both emits of COMPLETED stops
+// the Files sidebar ever refreshing, and this guard still reported every
+// listener matched, because it could not see either half.
+//
+// Resolving the constants first means the rest of the scan works unchanged: a
+// `NAME.MEMBER` reference is rewritten to the literal it stands for before the
+// emitter and listener patterns run.
+const CONST_FAMILY = /export const (\w+_EVENTS)\s*=\s*\{([^}]*)\}/g;
+const CONST_MEMBER = /(\w+)\s*:\s*'([^']+)'/g;
+
+function eventConstants(sources) {
+  const byReference = new Map();
+  for (const source of sources) {
+    for (const family of source.matchAll(CONST_FAMILY)) {
+      for (const member of family[2].matchAll(CONST_MEMBER)) {
+        byReference.set(`${family[1]}.${member[1]}`, member[2]);
+      }
+    }
+  }
+  return byReference;
+}
+
+/** `EVENTS.COMPLETED` -> `'file-transfer:completed'`, so the scan can see it. */
+function inlineConstants(source, byReference) {
+  let out = source;
+  for (const [reference, literal] of byReference) {
+    out = out.split(reference).join(`'${literal}'`);
+  }
+  return out;
+}
 
 // Emitter forms: eventEmitter.emit('x'), io.emitEvent('x'), and the
 // `name: 'x'` literal used by the group-events translator, whose names are
@@ -120,9 +166,26 @@ const files = [];
 const emitted = new Set();
 const listened = new Map(); // name -> [file, ...]
 
+// Read every file once, resolve the constant families across all of them, then
+// scan. The families are declared in one module and used from others, so this
+// cannot be done file by file.
+const sources = new Map();
 for (const file of files) {
   if (isTest(file)) continue;
-  const src = readFileSync(file, 'utf8');
+  sources.set(file, readFileSync(file, 'utf8'));
+}
+const constants = eventConstants(sources.values());
+if (constants.size === 0) {
+  console.error(
+    'check-event-listeners-have-emitters: no *_EVENTS constant families found. ' +
+      'They used to be invisible to this scan entirely; finding none now means ' +
+      'the declaration shape changed and half the bus is unguarded again.',
+  );
+  process.exit(1);
+}
+
+for (const [file, raw] of sources) {
+  const src = inlineConstants(raw, constants);
   for (const re of EMIT_PATTERNS) for (const m of src.matchAll(re)) emitted.add(m[1]);
   for (const re of LISTEN_PATTERNS) {
     for (const m of src.matchAll(re)) {

@@ -73,6 +73,52 @@ describe('connect', () => {
     expect(disconnect).not.toHaveBeenCalled();
   });
 
+  it('sends the password the user typed', async () => {
+    // Nothing inspected the payload. Ship `password: []` from auth-operations
+    // and every test in this file stayed green while every login failed --
+    // the register path is checked byte-for-byte and Connect was not, which
+    // is the asymmetry that let it through.
+    await operations().connect('req-1', 'alice', 'hunter2');
+
+    const [request] = sendRequest.mock.calls[0] as [{ Connect: { password: number[] } }];
+    expect(request.Connect.password).toEqual(Array.from(new TextEncoder().encode('hunter2')));
+  });
+
+  it('does not send an empty password for a non-empty one', async () => {
+    // The specific regression: a truthy-looking payload whose credential is
+    // gone. Asserting the exact bytes above would catch it, but so would a
+    // rename of the field to something the server ignores -- this asserts the
+    // field the SERVER reads is populated.
+    await operations().connect('req-1', 'alice', 'hunter2');
+
+    const [request] = sendRequest.mock.calls[0] as [{ Connect: { password: number[] } }];
+    expect(request.Connect.password.length).toBeGreaterThan(0);
+  });
+
+  it('sends the username under the name the server reads', async () => {
+    await operations().connect('req-1', 'alice', 'hunter2');
+
+    const [request] = sendRequest.mock.calls[0] as [{ Connect: { username: string } }];
+    expect(request.Connect.username).toBe('alice');
+  });
+
+  it('carries the security settings the user chose, not the defaults', async () => {
+    // A registration's chosen posture reaching the wire as defaults was a real
+    // defect one layer up (round 139); this pins the Connect half of it.
+    await operations().connect('req-1', 'alice', 'hunter2', {
+      security_level: 'Reinforced',
+      secrecy_mode: 'Perfect',
+      header_obfuscator_settings: {},
+      crypto_params: { encryption_algorithm: 'Kyber' },
+    } as never);
+
+    const [request] = sendRequest.mock.calls[0] as [
+      { Connect: { session_security_settings: { security_level: string; secrecy_mode: string } } },
+    ];
+    expect(request.Connect.session_security_settings.security_level).toBe('Reinforced');
+    expect(request.Connect.session_security_settings.secrecy_mode).toBe('Perfect');
+  });
+
   it('carries the caller’s request id, so the answer can be matched', async () => {
     // The claim used its own id, so the caller's 30s wait for ConnectSuccess /
     // ConnectFailure / SessionAlreadyActive could never be satisfied.

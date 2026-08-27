@@ -8692,3 +8692,55 @@ from the trigger, and requiring an `onClick` there would push people to add a
 no-op one; and `stripComments` leaves `{}` where a JSX comment was, which sat
 between several triggers and their buttons. Control: restoring "Remove
 Connection" fails it by file and line.
+
+## Round 143 — four checks whose green survived the regression they guard
+
+A parallel audit looked for checks that cannot fail: for each candidate, name a
+specific change to production code that breaks the guarded behaviour, and show
+the check stays green. Four were worth acting on immediately.
+
+**The first-connect-admin gate was tested at the switch and never at the wire.**
+Round 109 closed a real hole: registration has no invite gate, so unconditional
+promotion of the first member meant that on a deployment reachable from
+anywhere, whoever found the port and registered first became the administrator —
+a stranger, by race. The tests that came with it pin the env-var resolver and
+that the flag is stored. Reverting the decision to `let is_first_member =
+ws_was_empty;` left every one of them green. The integration suite could not
+have caught it either: it runs with `WORKSPACE_ALLOW_FIRST_CONNECT_ADMIN=1`,
+which makes the gated and ungated versions behave identically.
+
+The decision lived inline in a match arm of the connection handler, reachable
+only through a kernel, a backend and a live Citadel session. It is now
+`first_member_outcome`, with the truth table pinned. Control: removing the gate
+fails two of four tests by name.
+
+**Nothing inspected the Connect payload.** The register path is checked
+byte-for-byte; Connect was not. Ship `password: []` from `auth-operations` and
+every test in `connect-always-authenticates` stayed green while every login
+failed. Four assertions added — the password bytes, that they are non-empty, the
+username, and that the caller's chosen security settings reach the wire rather
+than the defaults (the Connect half of round 139's eviction bug). Controls: an
+empty password fails two, ignoring the chosen settings fails one.
+
+**Media call ownership and generation enforcement had no test reaching it.**
+`close_authorised` was extracted and tested when it was written, and the two
+guards beside it were not. Removing `owner == uuid` from the send path lets a
+stale connection — one whose uuid a reconnect replaced, or a second tab that
+never opened a call — inject audio and video frames into somebody else's live
+call on the same peer pair. Removing the generation compare in the commit path
+installs a session into a call the client has already ended, leaving a pump
+decoding frames forever. Both are now `send_authorised` and `open_may_commit`,
+tested. Control: neutering both fails four of eight.
+
+**The listener-emitter guard was blind to half the bus, in both directions.** It
+matched single-quoted arguments only, so a family declared as
+`FILE_TRANSFER_EVENTS = { COMPLETED: 'file-transfer:completed' }` and used as
+`emit(FILE_TRANSFER_EVENTS.COMPLETED)` was invisible as an emit AND as a
+listen — deleting both emits of `COMPLETED` stops the Files sidebar ever
+refreshing, and the guard reported 75 of 75 matched. It now resolves the
+constant families before scanning, and fails outright if it finds none, since
+finding none is exactly what the blind version looked like. Seeing that half of
+the bus for the first time surfaced five file-transfer events with no
+subscriber; each fires alongside `state-changed`, which the sidebar does listen
+to, so they are recorded with that reason rather than presented as new gaps.
+Control: deleting the `COMPLETED` emits now reports a dead listener.
