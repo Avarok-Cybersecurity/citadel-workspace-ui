@@ -2173,6 +2173,55 @@ text, so a meaningful alt would announce the person twice — and that choice is
 now visible in the diff rather than absent from it. The account-menu button
 carries its own `aria-label`, which is what survives the image failing to load.
 
+## Round twenty-three — uploads actually store the file, 2026-08-26
+
+### 192. File uploads stored no bytes at all — FIXED
+
+Confirmed by independent verification and fixed end to end. Four defects on one
+path, and the ordering that made all of them silent.
+
+- **`source` was a bare string**, and the string was a tree DIRECTORY PATH — not
+  a filesystem path and not data. The backend field is `FileSource`, an
+  externally-tagged enum, and the WASM client deserializes strictly, so the
+  request was **rejected in the browser**. Nothing reached the internal service,
+  so nothing was logged there either — which is why this survived so long.
+- **`transfer_type` was `'FileTransfer'`** rather than
+  `RemoteEncryptedVirtualFilesystem`, with `virtual_path` never sent, so even a
+  correct source would have put the bytes somewhere `DownloadFile` and
+  `DeleteVirtualFile` cannot address.
+- **The peer-scoped upload never called the backend at all** — it sent the peer a
+  tree op describing a file whose contents existed only in the uploader's page.
+  Both peers showed the file; neither had it.
+- **`handleDrop` discarded the browser `File`**, reading only name, size and
+  type. `arrayBuffer()` appeared nowhere in the file-manager or revfs paths.
+
+**The ordering is what made it silent.** The tree was mutated and persisted
+BEFORE the call, the failed result was awaited and discarded, and the user was
+shown "Uploaded: {name}". Phantom files counted against the storage quota and
+could trigger the limit modal. Bytes now go first, and a node appears **if and
+only if** they were accepted — the optimistic render is worth less than the
+guarantee, since there is no progress UI and a file that silently is not there
+is far worse than one that takes a moment to appear.
+
+Reachable and enabled by default: sidebar → File Manager, no feature flag.
+
+**Why no unit test caught it:** the existing helper mocks the whole intent as
+`{ type: 'backend-send-file', success: true }` — the mock sat exactly where the
+defect was, which is the third time this campaign has found that shape. The new
+test asserts on the REQUEST OBJECT through the module's injected I/O seam, so it
+sees what the backend would see.
+
+### 193. Method note — the fix that only a compiler could sequence
+
+Threading the bytes through required changing the intent type first and letting
+`tsc` walk the change up: intent → network layer → dispatcher → file-ops →
+service facade → two hooks → shared interface → the drop handler that had the
+`File` all along. Each error named the next place the data had to reach.
+
+Making the parameter **required** rather than optional is what produced that
+chain. An optional `content?: Uint8Array` would have compiled at every step and
+shipped the same silent failure.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
