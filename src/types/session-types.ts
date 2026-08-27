@@ -21,7 +21,12 @@ export interface StoredSession {
    */
   password?: string;
   serverAddress: string;
-  serverPassword: string;
+  /**
+   * The workspace's pre-shared key. Optional because it is only kept when the
+   * user asked for their credentials to be remembered -- it used to be stored
+   * unconditionally, beside an account password that was correctly gated.
+   */
+  serverPassword?: string;
   fullName: string;
   lastConnected: number;
   cid?: bigint; // Store the CID for claiming orphaned sessions

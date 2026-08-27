@@ -49,7 +49,13 @@ export async function handleAuthSuccess(
     // stopped there, so this line stored the password unconditionally.
     password: params.storeCredentials ? params.password : undefined,
     serverAddress: params.serverAddress,
-    serverPassword: params.serverPassword,
+    // The server PSK is a credential too, and it was stored unconditionally
+    // while the account password beside it was gated. A user who declined to
+    // have their credentials remembered still had the workspace's pre-shared
+    // key written to disk in cleartext -- and the PSK is the one that admits
+    // ANY account to that server, so it is the worse of the two to leave
+    // behind.
+    serverPassword: params.storeCredentials ? params.serverPassword : undefined,
     fullName: params.fullName,
     lastConnected: Date.now(),
     cid: params.cid,

@@ -7683,3 +7683,54 @@ refcount fails the copy test. Each failed for its stated reason.
 Also fixed here: the new executor crate had no CI coverage, which the repo's own
 `crate coverage` gate caught on the next preflight — a guard written in an
 earlier round catching me.
+
+### Round 119 — the login form's password was never read
+
+From the auth audit, and the finding I most wanted to be wrong about.
+
+`handleLogin` required a non-empty password, then looked up the active sessions,
+matched on `session.username` **alone**, and redirected straight into the
+session. The password was never checked against anything. `getActiveSessions` is
+agent-wide, so the username did not even have to be one this browser had ever
+signed in as: after "Exit to landing", which deliberately leaves the session
+alive, anyone who knew a username was in.
+
+The legitimate case it was short-circuiting is handled one step later and by the
+right party. Connect goes to the server with the credentials; if a session is
+already live the server answers `SessionAlreadyActive`, and the existing handler
+turns that into the same redirect. So the shortcut was redundant as well as
+wrong, and removing it puts the decision where it can actually be made.
+
+**What that does not fix, stated plainly.** The internal service's own reuse
+branch does not verify the password either: `connect.rs` finds a session by
+username, asks the SDK whether it is active, re-points that session's
+`associated_localhost_connection` to the caller and returns the real CID — all
+before any credential is examined. So a `Connect { username: victim, password:
+anything }` on that localhost socket still redirects the victim's message stream
+to the caller.
+
+I went looking for the obvious fix and it is not available.
+`ClientNetworkAccount::validate_credentials` — documented as "used for the login
+process" — succeeds only for `ArgonContainerType::Server`. The internal service
+is a *client*; its container is the client variant, so calling it there returns
+`AccountNotPasswordProtected` for every account. Wiring it in would not have
+hardened the check, it would have broken login outright while looking like a
+security fix. Recording that is the point: the next person to reach for it
+should not lose a day to it.
+
+The deeper reason is that this is not one handler's bug. `Connect`, `GetSessions`
+and `ClaimSession` share one missing authorization boundary — every session on
+that agent is available to every client of that socket, by design, under the
+documented "one local agent per user" model. Hardening `Connect` while the other
+two stay open would be theatre. The honest options are an origin/token check on
+the localhost socket, or a per-session claim secret; both are decisions about the
+trust model, not patches.
+
+Also fixed here: the workspace pre-shared key was stored regardless of the
+"Remember credentials" switch, on the line directly below an account password
+that was correctly gated — and which carries a comment recording that *it* used
+to be stored unconditionally. The PSK is the worse of the two to leave behind,
+because it admits any account to that server rather than just this one, and both
+are written by plain `JSON.stringify` with no encryption. A user who declined to
+be remembered now has neither on disk, and still keeps the session itself:
+CIDs are permanent and the navbar claims by CID, not by password.

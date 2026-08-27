@@ -58,21 +58,27 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
     setError(null);
 
     try {
-      const activeSessions = await connectionManager.getActiveSessions();
-      const existingSession = activeSessions.find(session => session.username === username.trim());
-      if (existingSession) {
-        debugLog('Login', 'User already has active session, redirecting:', existingSession);
-        try {
-          await doRedirect({
-            cid: existingSession.cid,
-            username: existingSession.username ?? username.trim(),
-            server_address: existingSession.server_address,
-          });
-        } finally {
-          setLoading(false);
-        }
-        return;
-      }
+      // No pre-emptive claim on a username match.
+      //
+      // This used to look up the active sessions, match on username ALONE, and
+      // redirect straight into the session -- so the password box on the login
+      // form was never read whenever a session for that username was already
+      // active on this agent. Typing any password, or the wrong one, signed you
+      // in. `getActiveSessions` is agent-wide, so the username did not even have
+      // to be one this browser had ever signed in as.
+      //
+      // The legitimate case it was short-circuiting is still handled, one step
+      // later and by the right party: Connect goes to the server with the
+      // credentials, and if a session is already live the server answers
+      // SessionAlreadyActive, which the handler below turns into the same
+      // redirect. Whether the password is correct stops being a question this
+      // component answers.
+      //
+      // NOTE, recorded rather than implied: the internal service's own reuse
+      // branch does not verify the password either (see docs/ROBUSTNESS.md).
+      // Removing this does not by itself close that hole -- it removes the
+      // frontend's independent copy of it, and puts the decision where it can
+      // actually be made.
 
       const storedSessions = connectionManager.getStoredSessions();
       const storedSession = storedSessions.sessions.find(s => s.username === username.trim());
