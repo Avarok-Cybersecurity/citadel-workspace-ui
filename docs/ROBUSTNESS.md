@@ -4394,6 +4394,49 @@ These are one connected design problem — the in-memory window is treated as th
 source of truth by four separate paths that outlive it — and the fix is a single
 decision about where message state lives. Recorded rather than patched piecemeal.
 
+## Round fifty-nine — two accounts in one browser no longer share a transcript, 2026-08-28
+
+### 309. Message pages were keyed by peer alone, in a bucket every account shares — FIXED
+
+Pages lived at `msgs_with_peer_{peerCid}` in LocalDB bucket `0n`, which every
+account on the device shares — on a product that explicitly expects several
+accounts in one browser and documents that workflow. Two accounts chatting with
+the same peer therefore **appended into the same pages**, and after a reload each
+one's private messages rendered in the other's transcript.
+
+An `ownerCid` stamp had been added, but it guarded **deletion only**. So the
+second account's "Clear Chat History" hit a refusal written to `debugLog` — the
+screen emptied, the user was told *"This cannot be undone"*, and the history came
+back on the next reload.
+
+The fix removes the sharing rather than policing it: the owner is now part of the
+key. Three details were not optional:
+
+- **Legacy records are still readable.** Pre-scoping history would otherwise be
+  orphaned by the rename. `loadMetadata` and `loadMessagePage` fall back to the
+  peer-only prefix.
+- **Only ours.** A legacy record stamped for a different account is refused
+  rather than adopted — adopting it would be the same guess the shared key made.
+  An unattributed one predates the stamp and is accepted, which is the same
+  exposure as before rather than a new one.
+- **Clearing deletes the legacy records too**, or the read fallback resurrects
+  the conversation the user was just told could not be undone.
+
+With no session yet, the key falls back to the legacy shape rather than inventing
+an owner: a record filed under a guessed account is worse than an unscoped one.
+
+### 310. Method note — the extraction that had to happen mid-fix
+
+Adding the fallbacks pushed `message-page-operations` to 270 lines, so the
+delete path moved to its own module. Splitting a file while changing its
+behaviour is how a fragment gets orphaned — and one did: the `DeleteScope`
+interface header was left behind, wedged into the middle of an unrelated
+docstring, which `tsc` caught immediately.
+
+Worth stating because the temptation is to do the extraction "while I'm here".
+The safer order is fix, verify, then extract — and if the cap forces the
+extraction first, verify between the two.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

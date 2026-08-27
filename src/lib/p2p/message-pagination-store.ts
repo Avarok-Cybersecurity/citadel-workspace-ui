@@ -32,9 +32,8 @@ import {
   loadMessagePage,
   tryLoadMessagePage,
   saveMessagePage,
-  deleteConversationPages,
-  type DeleteScope,
 } from './message-page-operations';
+import { deleteConversationPages, type DeleteScope } from './message-page-delete';
 import { debugLog } from '@/lib/debug-config';
 import { withPeerLock } from './peer-write-lock';
 

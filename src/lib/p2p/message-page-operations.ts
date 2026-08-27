@@ -12,9 +12,8 @@ import type {
   MessagePage,
   P2PMessage,
 } from './p2p-types';
-import {
-  PAGINATED_PREFIX,
-} from './p2p-types';
+import { conversationPrefix, legacyConversationPrefix, hasLegacyFallback } from './message-page-keys';
+import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { debugLog } from '@/lib/debug-config';
 
 /**
@@ -76,15 +75,35 @@ export async function loadMetadataByKey(key: string): Promise<ConversationMetada
  * Load metadata for a specific peer.
  */
 export async function loadMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
-  return loadMetadataByKey(key);
+  const scoped = await loadMetadataByKey(`${conversationPrefix(peerCid)}_metadata`);
+  if (scoped || !hasLegacyFallback(peerCid)) return scoped;
+
+  // Nothing under the account-scoped key. Records written before conversations
+  // were scoped live under the peer-only prefix; read them so existing history
+  // is not orphaned by the rename.
+  //
+  // Only OURS, though: an unattributed record predates the ownerCid stamp and
+  // could belong to anyone, but adopting it is the same guess the old shared
+  // key made. A record stamped for a different account is left alone.
+  const legacy = await loadMetadataByKey(`${legacyConversationPrefix(peerCid)}_metadata`);
+  if (!legacy) return null;
+  if (legacy.ownerCid !== undefined && legacy.ownerCid !== instanceManager.cid) {
+    debugLog('MessagePageOperations', `[P2P] Legacy conversation ${peerCid.toString().slice(0, 8)} belongs to another account`);
+    return null;
+  }
+  return legacy;
+}
+
+/** Read a page under the legacy peer-only prefix, for conversations not yet migrated. */
+async function loadLegacyMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> {
+  return loadMessagePageByKey(`${legacyConversationPrefix(peerCid)}_${pageNumber}`);
 }
 
 /**
  * Save metadata for a peer.
  */
 export async function saveMetadata(peerCid: bigint, metadata: ConversationMetadata): Promise<void> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
+  const key = `${conversationPrefix(peerCid)}_metadata`;
   const serializableMetadata = {
     ...metadata,
     peerCid: metadata.peerCid.toString(),
@@ -100,7 +119,14 @@ export async function saveMetadata(peerCid: bigint, metadata: ConversationMetada
  * Load a specific page of messages for a peer.
  */
 export async function loadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNumber}`;
+  const scoped = await loadMessagePageByKey(`${conversationPrefix(peerCid)}_${pageNumber}`);
+  if (scoped || !hasLegacyFallback(peerCid)) return scoped;
+  // Pre-scoping history: loadMetadata has already refused a record owned by
+  // another account, so reaching here means this conversation is ours.
+  return loadLegacyMessagePage(peerCid, pageNumber);
+}
+
+async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
   try {
     const response = await websocketService.sendLocalDBGet(0n, key);
     if (response?.value) {
@@ -140,7 +166,7 @@ export async function loadMessagePage(peerCid: bigint, pageNumber: number): Prom
  * Save a page of messages for a peer.
  */
 export async function saveMessagePage(peerCid: bigint, pageNumber: number, page: MessagePage): Promise<void> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNumber}`;
+  const key = `${conversationPrefix(peerCid)}_${pageNumber}`;
   const serializablePage = {
     ...page,
     peerCid: page.peerCid.toString(),
@@ -153,58 +179,6 @@ export async function saveMessagePage(peerCid: bigint, pageNumber: number, page:
   const valueStr = JSON.stringify(serializablePage);
   const valueBytes = stringToBytes(valueStr);
   await websocketService.sendLocalDBSet(0n, key, valueBytes);
-}
-
-/**
- * Delete all pages and metadata for a conversation.
- */
-export interface DeleteScope {
-  /** The account performing the delete. */
-  ownerCid: bigint | null;
-  /**
-   * Whether records with no recorded owner may be deleted.
-   *
-   * False for the automatic sweep, true for an explicit "clear this
-   * conversation" — the user has that conversation open and is acting on it
-   * deliberately, so refusing would make their own button silently do nothing.
-   * A sweep has no such mandate.
-   */
-  includeUnattributed: boolean;
-}
-
-export async function deleteConversationPages(peerCid: bigint, scope: DeleteScope): Promise<void> {
-  const metadata = await loadMetadata(peerCid);
-  if (!metadata) return;
-
-  // Delete only what we can PROVE belongs to the account doing the deleting.
-  //
-  // Pages live in LocalDB bucket `0n`, shared by every account on the device,
-  // and are keyed by peer alone. cleanupStaleConversations deletes any cached
-  // conversation missing from the CURRENT account's peer list — which is true
-  // of every conversation belonging to a DIFFERENT account. A second user
-  // logging in permanently destroyed the first user's message history, on a
-  // device this product explicitly expects to hold several accounts.
-  if (metadata.ownerCid === undefined) {
-    if (!scope.includeUnattributed) {
-      debugLog('MessagePageOperations', `[P2P] Keeping unattributed conversation ${peerCid.toString().slice(0, 8)}: owner unknown`);
-      return;
-    }
-  } else if (scope.ownerCid === null || metadata.ownerCid !== scope.ownerCid) {
-    debugLog('MessagePageOperations', `[P2P] Refusing to delete conversation ${peerCid.toString().slice(0, 8)}: it belongs to another account`);
-    return;
-  }
-
-  const deletePromises: Promise<void>[] = [];
-  for (let pageNum = 0; pageNum <= metadata.latestPage; pageNum++) {
-    const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNum}`;
-    deletePromises.push(websocketService.sendLocalDBDelete(0n, key));
-  }
-
-  const metadataKey = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
-  deletePromises.push(websocketService.sendLocalDBDelete(0n, metadataKey));
-
-  await Promise.all(deletePromises);
-  debugLog('MessagePageOperations', `[P2P] Deleted ${metadata.latestPage + 1} pages + metadata for peer ${peerCid.toString().slice(0, 8)}...`);
 }
 
 /**
