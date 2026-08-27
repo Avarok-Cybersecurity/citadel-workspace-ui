@@ -29,6 +29,14 @@ export interface ToastOptions {
   /** Milliseconds before auto-dismiss. Omit for Sonner's default. */
   duration?: number;
   action?: { label: string; onClick: () => void };
+  /**
+   * Stable identity for a toast that can be raised more than once for the same
+   * underlying fact. Sonner replaces an existing toast with the same id instead
+   * of stacking a second one, which is what a re-offer wants: the update prompt
+   * accumulated an identical infinite-duration toast every time the user
+   * returned to the tab.
+   */
+  id?: string | number;
 }
 
 export interface ToastHandle {
@@ -54,6 +62,7 @@ export function toast(options: ToastOptions): ToastHandle {
     description: body(options),
     duration: options.duration,
     action: options.action,
+    id: options.id,
   };
 
   const message = headline(options);

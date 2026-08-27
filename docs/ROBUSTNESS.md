@@ -7252,3 +7252,39 @@ protocol itself is unversioned bare JSON. Every user pulls their own agent image
 on their own cadence while the server upgrades centrally, so agent-versus-server
 is the unguarded seam, and the failure mode is decrypt garbage rather than a
 clean "please update".
+
+### Round 110 — a Reload button that did nothing, then hard-reloaded you next time
+
+From the PWA audit. Two windows, both showing the infinite-duration "Update
+available" toast. Window A accepts; `skipWaiting` activates the new worker for
+every client, so `registration.waiting` becomes null everywhere. Window B
+correctly gets an "Updated in another window" toast — but its *original* toast
+is still on screen, and its Reload button is now inert: messaging SKIP_WAITING
+to nothing is a silent no-op in workbox, `controlling` never fires again, and
+the toast simply dismisses with the page unchanged. The user pressed Reload and
+nothing happened.
+
+The dangerous half is what it leaves behind. `weInitiatedUpdate` was set on
+click and never cleared, so on the *next* deploy — if another window accepted
+first — this window's `onNeedReload` saw the stale flag and hard-reloaded
+mid-session without asking, dropping the WebSocket and P2P state that
+prompt-mode exists to protect. A dead button that arms an unconsented reload
+later.
+
+The fix reuses `applyWaitingUpdate`, which already existed for the crashed-render
+recovery path and, unlike the library call, reports whether a worker actually
+took control. If it did, `onNeedReload` reloads us and there is nothing to do.
+If it did not, the flag is cleared and the window reloads itself — the user
+pressed a button and is owed an outcome, and when the new version is already
+active elsewhere a plain reload is exactly what picks it up.
+
+Both halves have controls: leave the flag set and the next-deploy test fails;
+drop the self-reload and the press goes back to doing nothing.
+
+Also from the same audit: the re-offer raised a fresh infinite-duration toast on
+every return to the tab, with no id, so tabbing in and out accumulated a stack of
+identical prompts. Both offers now share one toast id, which is what makes a
+re-offer replace rather than pile up. The toast wrapper gained `id` for it —
+the first thing it has ever needed beyond title/description/action, and worth it
+because "raise this again, don't duplicate it" is the general shape of a
+re-offer.

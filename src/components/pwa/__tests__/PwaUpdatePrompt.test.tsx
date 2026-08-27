@@ -21,8 +21,15 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const updateServiceWorker = vi.fn();
+const applyWaitingUpdate = vi.fn<() => Promise<boolean>>();
+const reload = vi.fn();
+
+vi.mock('@/lib/pwa/apply-waiting-update', () => ({
+  applyWaitingUpdate: () => applyWaitingUpdate(),
+}));
 let registeredOptions: {
   onRegisteredSW?: (url: string, registration?: { update: () => Promise<void> }) => void;
+  onNeedReload?: () => void;
 } = {};
 
 /** Drives the two flags vite-plugin-pwa exposes, so a test can flip either. */
@@ -66,9 +73,17 @@ function renderPrompt() {
   );
 }
 
+// jsdom's location.reload is a no-op that warns; replacing it lets a test see
+// whether the component reloaded, which is the whole question below.
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { ...window.location, reload: () => reload() },
+});
+
 describe('PwaUpdatePrompt', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    applyWaitingUpdate.mockResolvedValue(true);
     setOnline(true);
     state.offlineReady = false;
     state.needRefresh = false;
@@ -92,14 +107,53 @@ describe('PwaUpdatePrompt', () => {
 
   it('applies the update when the user takes the offer', async () => {
     state.needRefresh = true;
+    applyWaitingUpdate.mockResolvedValue(true);
     const user = userEvent.setup();
 
     renderPrompt();
     await user.click(await screen.findByRole('button', { name: 'Reload' }));
 
-    // `true` is the load-bearing argument: it tells the waiting worker to
-    // activate and reload. Calling it without one swaps nothing.
-    expect(updateServiceWorker).toHaveBeenCalledWith(true);
+    expect(applyWaitingUpdate).toHaveBeenCalled();
+    // The worker took control, so `controlling` fires and onNeedReload reloads
+    // this window. Reloading here as well would race that.
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('still reloads when another window already activated the update', async () => {
+    // Once another window accepts, `registration.waiting` is null everywhere,
+    // and messaging SKIP_WAITING to nothing is a silent no-op: `controlling`
+    // never fires again. This window's original toast is still on screen, and
+    // its Reload button did nothing whatsoever -- the toast dismissed and the
+    // page stayed exactly where it was.
+    state.needRefresh = true;
+    applyWaitingUpdate.mockResolvedValue(false);
+    const user = userEvent.setup();
+
+    renderPrompt();
+    await user.click(await screen.findByRole('button', { name: 'Reload' }));
+
+    await vi.waitFor(() => expect(reload).toHaveBeenCalled());
+  });
+
+  it('does not arm a hard reload for the NEXT deploy when its own attempt found nothing', async () => {
+    // The dangerous half. `weInitiatedUpdate` was set on click and never
+    // cleared, so after a press that did nothing, the next release accepted in
+    // another window hard-reloaded THIS one without asking -- dropping the
+    // WebSocket and P2P state that prompt-mode exists to protect.
+    state.needRefresh = true;
+    applyWaitingUpdate.mockResolvedValue(false);
+    const user = userEvent.setup();
+
+    renderPrompt();
+    await user.click(await screen.findByRole('button', { name: 'Reload' }));
+    await vi.waitFor(() => expect(reload).toHaveBeenCalled());
+    reload.mockClear();
+
+    // The next deploy, accepted somewhere else.
+    act(() => { registeredOptions.onNeedReload?.(); });
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(await screen.findByText('Updated in another window')).toBeInTheDocument();
   });
 
   it('says nothing when there is no update', () => {
@@ -197,10 +251,10 @@ describe('an update accepted elsewhere does not reload this window', () => {
       join(dirname(fileURLToPath(import.meta.url)), '..', 'PwaUpdatePrompt.tsx'),
       'utf8',
     );
-    // The flag must be set BEFORE updateServiceWorker, or the controlling
+    // The flag must be set BEFORE the skip-waiting message, or the controlling
     // event can arrive first and this window declines its own reload.
     const setIndex = source.indexOf('weInitiatedUpdate.current = true');
-    const callIndex = source.indexOf('updateServiceWorker(true)');
+    const callIndex = source.indexOf('applyWaitingUpdate()');
     expect(setIndex).toBeGreaterThan(-1);
     expect(callIndex).toBeGreaterThan(setIndex);
   });

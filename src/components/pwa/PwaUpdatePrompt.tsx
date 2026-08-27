@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
+import { applyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
 
 /**
  * Offers a reload when a new build has been downloaded, and confirms when the
@@ -27,6 +28,9 @@ import { debugLog } from '@/lib/debug-config';
  * infrequent to matter as traffic.
  */
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+
+/** One identity for the update offer, so re-offering replaces rather than stacks. */
+const UPDATE_TOAST_ID = 'pwa-update-available';
 export function PwaUpdatePrompt() {
   const { toast } = useToast();
 
@@ -57,7 +61,6 @@ export function PwaUpdatePrompt() {
   const {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
   } = useRegisterSW({
     onNeedReload: () => {
       if (weInitiatedUpdate.current) {
@@ -122,8 +125,27 @@ export function PwaUpdatePrompt() {
    */
   const acceptUpdate = useCallback(() => {
     weInitiatedUpdate.current = true;
-    void updateServiceWorker(true);
-  }, [updateServiceWorker]);
+    void (async () => {
+      // `applyWaitingUpdate` rather than the library's `updateServiceWorker`,
+      // because it reports whether a worker actually took control.
+      //
+      // Once another window has accepted the update, `registration.waiting` is
+      // null everywhere -- and messaging SKIP_WAITING to nothing is a silent
+      // no-op, so `controlling` never fires again. A window still showing its
+      // original "Update available" toast therefore had a Reload button that
+      // did nothing at all: the toast dismissed and the page stayed put.
+      //
+      // Worse, `weInitiatedUpdate` stayed true. On the NEXT deploy, if another
+      // window accepted first, this window's `onNeedReload` would see the stale
+      // flag and hard-reload mid-session without asking -- dropping the
+      // WebSocket and P2P state that prompt-mode exists to protect.
+      if (await applyWaitingUpdate()) return;
+      weInitiatedUpdate.current = false;
+      // The user pressed a button and is owed an outcome. If the new version is
+      // already active elsewhere, a plain reload is what picks it up here.
+      window.location.reload();
+    })();
+  }, []);
 
   useEffect(() => {
     toastRef.current = toast;
@@ -146,6 +168,10 @@ export function PwaUpdatePrompt() {
       description: 'A new version of Citadel is ready. Reloading will reconnect your session.',
       // No auto-dismiss: this is an action the user should get to on their own time.
       duration: Infinity,
+      // Same id as the re-offer below. Both are infinite-duration, and the
+      // re-offer fires on every return to the tab, so without a shared identity
+      // a user who tabbed in and out collected a stack of identical prompts.
+      id: UPDATE_TOAST_ID,
       action: { label: 'Reload', onClick: acceptUpdate },
     });
     setNeedRefresh(false);
@@ -172,6 +198,7 @@ export function PwaUpdatePrompt() {
             title: 'Update available',
             description: 'A new version of Citadel is ready. Reloading will reconnect your session.',
             duration: Infinity,
+            id: UPDATE_TOAST_ID,
             action: { label: 'Reload', onClick: acceptUpdate },
           });
         })
