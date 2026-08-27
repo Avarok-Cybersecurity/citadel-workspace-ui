@@ -6383,3 +6383,72 @@ The audit's most useful structural finding: the app survives because it routes
 reimplementing every correlation and auth flow itself with `request_id` matching.
 That is why none of this shows up in the product, and why it will bite the first
 consumer of the published surface.
+
+## Round ninety-three — the library that threw the user out of their workspace, 2026-08-27
+
+Two defects recorded rounds ago, confirmed still live, and both firing inside the
+one code path this app actually uses.
+
+### 404. The caller's `errorHandler` was overwritten before its first error
+
+`InternalServiceWasmClient` keeps a single handler slot, and
+`WorkspaceSessionManager`'s constructor called `setErrorHandler(...)` — so the
+`errorHandler` this app passes in its config was silently discarded during
+construction, before an error could ever reach it. The base client now supports
+additional subscribers through `addErrorListener`, which returns a remover and
+does not displace the config handler; the session manager uses that.
+
+The listener list is deliberately *additional*. Deleting the config handler would
+have "fixed" the clobber by removing the thing being clobbered, which is the
+wrong direction and easy to reach for.
+
+### 405. "Reconnect" cleared the workspace session, on the success path
+
+The scheduled reconnect logged "Reconnection would require stored credentials"
+and then cleared the workspace session — unconditionally, not on failure. So any
+error from the WASM layer, including a routine message-processing error, threw
+the user out of their workspace. Combined with the clobber above, that path was
+reached by every error the app's own handler was supposed to see.
+
+It never attempted a reconnection of any kind, while the base client has had a
+real `restart_ws_connection` all along — used by its own recovery loop, never by
+this. It calls that now, and resets the attempt counter on success.
+
+The session is deliberately **not** cleared on failure either. A CID is permanent
+per account and a session survives a transport drop, so discarding local session
+state is both wrong and unrecoverable; what a dead transport means is the
+caller's decision, and the caller can now actually hear about it.
+
+Also added `dispose()`: the reconnect timer was cancellable only by firing, and
+the error listener and session subscription lived for the life of the page.
+
+### On testing a package with no test harness
+
+`citadel-workspace-client-ts` has no test setup, and adding one is a larger
+change than these two fixes. The guard is therefore a source assertion written
+from the app's suite — it cannot prove the behaviour is right, and it says so in
+the file. What it does do is prevent this exact pair returning and name the line
+to look at. Both controls bite: restoring `setErrorHandler` fails one test,
+restoring the session-clearing stub fails two.
+
+### Still open in that library
+
+- **Responses are matched by response TYPE, not `request_id`**, though the
+  generated types carry one. `connect()` waits for `ConnectSuccess`/`Failure`, so
+  the service's routine `SessionAlreadyActive` matches neither and the call hangs
+  its full 30s timeout in a normal flow; `register()` resolves on any
+  `ConnectSuccess`, including one belonging to a concurrent connect for a
+  different user. On timeout the temporary handler is never restored.
+- **`open_p2p_connection` / `send_p2p_message` are declared in the `WasmModule`
+  interface but not exported by the glue**, so the three methods using them throw
+  at runtime. `p2pConnections` can therefore never be non-empty.
+- **`auth.getSession()` races the background message loop** on the same
+  `next_message()` stream, so it either throws or steals a message the handler
+  chain then never sees.
+- **The entire `MessageDelivered` branch handles a variant no Rust code emits** —
+  zero hits across the tree, and absent from the generated union.
+
+The structural point worth keeping: the app survives all of this by routing
+*around* the library — using it as transport and reimplementing every correlation
+and auth flow itself with `request_id` matching. That is why none of it shows up
+in the product, and why it will bite the first consumer of the published surface.
