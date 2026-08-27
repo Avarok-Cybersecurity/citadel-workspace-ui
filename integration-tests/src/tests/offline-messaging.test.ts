@@ -485,7 +485,14 @@ async function runTest(): Promise<boolean> {
       results.disconnection.user2Disconnected &&
       results.disconnection.sessionOrphaned &&
       results.reconnection.claimSessionSuccess &&
-      offlineDeliverySuccess;
+      offlineDeliverySuccess &&
+      // Printed PASS/FAIL and gated on nothing, directly under a comment saying
+      // all checks are mandatory. Post-reconnect bidirectional messaging is the
+      // fragile part this spec exists for — ILM channel asymmetry means
+      // Alice->Bob can work while Bob->Alice does not — so a run could print two
+      // FAILs and still exit 0.
+      results.postReconnectMessaging.user1Received &&
+      results.postReconnectMessaging.user2Received;
 
     console.log('\nPhase 1 - Account & Registration:');
     console.log(`  Account Creation:       ${results.accountCreation.user1 && results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);

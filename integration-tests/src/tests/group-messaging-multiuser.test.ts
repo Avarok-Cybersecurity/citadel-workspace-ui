@@ -266,7 +266,20 @@ async function runTest(): Promise<boolean> {
 
     const accountsCreated = results.accountCreation.user1 && results.accountCreation.user2;
 
-    const officeTestPassed = !results.officeChatEnabled || (
+    // The seeded workspace declares its offices and rooms chat_enabled, so chat
+    // MUST work. The old `!results.officeChatEnabled || ...` shape turned a
+    // BROKEN Chat tab into a silent pass — `isChatEnabled()` returns false
+    // whenever no tab is visible, including when a regression removed it. The
+    // sibling spec (group-messaging.test.ts) was repaired for exactly this and
+    // the fix was never propagated here.
+    //
+    // Navigation was printed PASS/FAIL and gated on nothing at all, so a spec
+    // that could not even reach an office still reported success.
+    const chatExpected = results.accountCreation.user1 && results.accountCreation.user2;
+
+    const officeTestPassed = (chatExpected ? results.officeChatEnabled : true) && (
+      results.officeNavigation.user1 &&
+      results.officeNavigation.user2 &&
       results.officeChatTab.user1 &&
       results.officeChatTab.user2 &&
       results.officeMessaging.user1Sent &&
@@ -275,7 +288,9 @@ async function runTest(): Promise<boolean> {
       results.officeMessaging.user1Received
     );
 
-    const roomTestPassed = !results.roomChatEnabled || (
+    const roomTestPassed = (chatExpected ? results.roomChatEnabled : true) && (
+      results.roomNavigation.user1 &&
+      results.roomNavigation.user2 &&
       results.roomChatTab.user1 &&
       results.roomChatTab.user2 &&
       results.roomMessaging.user1Sent &&

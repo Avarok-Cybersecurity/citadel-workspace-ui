@@ -19,6 +19,9 @@ import { isVisibleWithin } from '../lib/index.js';
 // ============================================================================
 
 interface TestResults {
+  /** The seeded workspace always has rooms; their absence is a regression. */
+  roomsRendered: boolean;
+
   // Step 0: Account setup
   accountCreated: boolean;
   workspaceLoaded: boolean;
@@ -181,6 +184,7 @@ async function runTest(): Promise<boolean> {
   const { browser, context } = await createBrowser();
 
   const results: TestResults = {
+    roomsRendered: false,
     accountCreated: false,
     workspaceLoaded: false,
     officeCreated: false,
@@ -468,6 +472,12 @@ async function runTest(): Promise<boolean> {
     const allMenuBtns = page.locator('[data-testid^="tree-node-menu-"]');
     const menuBtnCount = await allMenuBtns.count();
     const roomExists = menuBtnCount >= 2;
+    // Recorded as a RESULT, not just a branch. When room checks stayed
+    // `undefined` they were filtered out of both the numerator and the
+    // denominator below — so a regression that stopped rendering child nodes
+    // did not fail the room checks, it deleted them from the verdict. The
+    // seeded workspace always has rooms, so their absence IS the failure.
+    results.roomsRendered = roomExists;
 
     if (roomExists) {
       console.log('  Room found in sidebar');

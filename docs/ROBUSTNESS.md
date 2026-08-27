@@ -3991,6 +3991,73 @@ The suite is not uniformly suspect. The defects clustered in exactly one place:
 **tests that assert on source text instead of behaviour** — which is also where
 three of this campaign's four cannot-fail guards lived.
 
+## Round fifty-two — three integration specs that could not fail, and a setting one account made for another, 2026-08-27
+
+### 284. A security setting leaked between accounts in the same browser — FIXED
+
+Per-peer file-transfer settings — including **auto-accept incoming files from
+this peer** — were keyed by the PEER's CID alone. This browser holds several
+sessions at once by design, so one account enabling auto-accept for peer X made
+**every other account in the same browser** auto-accept from X: a security
+decision inherited by an account that never made it.
+
+Now scoped to the account that set it. A missing own-CID falls back to the bare
+peer key rather than inventing a scope — a setting written before a session
+exists belongs to no account, and silently filing it under one would be worse
+than leaving it unscoped.
+
+### 285. Three integration specs reported success for regressions they exist to catch — FIXED
+
+All three are the "self-excluding gate" shape: a check that removes itself from
+the verdict exactly when the thing it guards is broken.
+
+- **`group-messaging-multiuser`** gated on `!results.officeChatEnabled || (…)`.
+  `isChatEnabled()` returns false whenever no Chat tab is visible — *including
+  when a regression removed it* — so a broken tab became a pass. Its sibling spec
+  was repaired for precisely this, with a comment saying so, and the fix was
+  never propagated. Navigation results were printed PASS/FAIL and gated on
+  nothing at all, so a run that could not even reach an office still passed.
+- **`offline-messaging`** left `postReconnectMessaging` out of the conjunction —
+  directly under a comment reading *"All checks are mandatory."* That is the
+  fragile part the spec exists for: ILM channel asymmetry means Alice→Bob can
+  work while Bob→Alice does not, so a run could print two FAILs and exit 0.
+- **`admin-modal`** filtered `undefined` results out of BOTH the numerator and
+  the denominator, so a regression that stopped rendering child nodes did not
+  fail the room checks — it deleted them from the verdict. Room rendering is now
+  a recorded result; the seeded workspace always has rooms, so their absence is
+  the failure.
+
+### 286. Recorded, not fixed — the settings surfaces are substantially decorative
+
+From the same audit, all PROVED, and too large to take unilaterally because the
+fix for each is "wire it or delete it", which is a product decision:
+
+- **The entire Privacy tab is a placebo.** Every toggle is written to
+  localStorage and read by nothing. Typing indicators are real and outbound —
+  `sendTypingIndicator` fires unconditionally — so switching them off changes
+  nothing. "Who Can Message You: Nobody" blocks nobody. "Screenshot Alerts"
+  promises what a browser cannot do.
+- **Three of six Appearance controls are inert**: `compact-mode` and
+  `reduce-motion` classes are toggled on the root element and appear in no
+  stylesheet; `showAvatars`, `messageGrouping` and `sidebarWidth` have no
+  readers. Nothing applies the saved settings at boot, and merely OPENING the tab
+  drops the root font size to 14px because that is the default in its own state.
+- **The P2P Chat Settings panel** has six `defaultChecked`/`defaultValue`
+  controls with no handlers, and two fabricated statistics: "Storage Used" is a
+  constant 15% of quota, and "First Connected" records when the Stats tab was
+  first opened, because it writes the key on first read.
+- **The workspace rename in the admin General tab can never succeed** — it sends
+  no master password, which the wire type requires and the server verifies
+  unconditionally. Save always fails with "Please try again", inviting a retry
+  that cannot work. Fixing it means either collecting the password there or
+  adding a permission-gated rename to the protocol, as themes already have.
+- **A saved theme never reaches members who are already online.** Nothing
+  broadcasts it — node content and group messages are broadcast; workspace
+  metadata is not — while the admin is told "Every member will see this theme".
+- **"Remove avatar" is unimplementable and reported as success**: the wire has no
+  clear value, the server only writes `if let Some(avatar)`, and the echoed
+  response puts the avatar straight back under a "Profile Updated" toast.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

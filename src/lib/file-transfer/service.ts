@@ -5,6 +5,7 @@
  * State Machine: PENDING -> UPLOADING -> STAGED -> TRANSFERRING -> COMPLETE
  */
 
+import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { eventEmitter } from '../event-emitter';
 import {
   type MessagingLayer, type FileTransferMode,
@@ -108,17 +109,35 @@ export class FileTransferService {
   }
 
   // Settings
-  getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(peerCid); }
-  getAutoAccept(peerCid: string): boolean { return this.state.getSettings(peerCid).autoAccept; }
-  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(peerCid).transferMode; }
+  /**
+   * Per-peer settings are scoped to the ACCOUNT that set them.
+   *
+   * They were keyed by peer CID alone, and this browser holds several sessions
+   * at once — so one account enabling "auto-accept files from X" made every
+   * other account in the same browser auto-accept from X too. A security
+   * setting inherited by an account that never agreed to it.
+   *
+   * A missing own-CID falls back to the bare peer key rather than inventing a
+   * scope: settings written before a session is established belong to no
+   * account, and silently filing them under one would be worse.
+   */
+  private scopedKey(peerCid: string): string {
+    const own = instanceManager.cid;
+    return own ? `${own.toString()}:${peerCid}` : peerCid;
+  }
+
+  getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(this.scopedKey(peerCid)); }
+  getAutoAccept(peerCid: string): boolean { return this.state.getSettings(this.scopedKey(peerCid)).autoAccept; }
+  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(this.scopedKey(peerCid)).transferMode; }
 
   private async updateSetting<K extends keyof FileTransferSettings>(
     peerCid: string, key: K, value: FileTransferSettings[K]
   ): Promise<void> {
-    const settings = this.state.getSettings(peerCid);
+    const key_ = this.scopedKey(peerCid);
+    const settings = this.state.getSettings(key_);
     settings[key] = value;
-    this.state.setSettings(peerCid, settings);
-    await this.saveSettings(peerCid, settings);
+    this.state.setSettings(key_, settings);
+    await this.saveSettings(key_, settings);
   }
 
   async setAutoAccept(peerCid: string, enabled: boolean): Promise<void> { return this.updateSetting(peerCid, 'autoAccept', enabled); }
