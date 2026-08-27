@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCallMediaToggles } from './use-call-media-toggles';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import type { ConnectionQuality } from './ParticipantTile';
@@ -14,7 +14,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import { callPeerName } from '@/lib/call/peer-name';
 import { toast } from 'sonner';
-import { callOutcomeMessage, callOutcomePeerName } from '@/lib/call/call-outcome-message';
+import { useCallCapability } from './use-call-capability';
 
 interface CallProviderProps {
   selfCid: bigint | null;
@@ -54,71 +54,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     if (!captureFailure) return;
     toast.error(captureFailure.message);
   }, [captureFailure]);
-  // Announce ONCE per call: the terminal state survives teardown (which clears
-  // the refs, not the React state), so without this the effect would re-fire on
-  // every later render.
-  const announcedOutcome = useRef<string | null>(null);
-  useEffect(() => {
-    if (!call || call.status !== 'ended') return;
-    // Only the side that placed the call is left guessing; the callee who
-    // pressed Decline already knows what happened.
-    if (!call.outgoing) return;
-    if (announcedOutcome.current === call.callId) return;
-
-    const message = callOutcomeMessage(call.reason, callOutcomePeerName(call));
-    if (!message) return;
-    announcedOutcome.current = call.callId;
-    toast(message);
-  }, [call]);
-
-  const [browserCapability, setBrowserCapability] = useState<{ supported: boolean; reason?: string }>({
-    supported: false,
-    reason: 'Checking whether this browser supports calls…',
-  });
-  const isLeaderTab = useIsLeaderTab();
-
-  // A follower tab has no WebSocket client, so MediaOpen threw, MediaClose did
-  // nothing and every frame was dropped on the floor — a call that looked
-  // placed and carried no audio. Reported as a capability so the existing
-  // disabled-with-a-reason treatment covers it: the buttons stay visible and
-  // explain themselves rather than vanishing or lying.
-  const capability = useMemo(() => {
-    if (!browserCapability.supported) return browserCapability;
-    if (!isLeaderTab) {
-      return {
-        supported: false,
-        reason: 'Calls run in whichever Citadel tab you opened first. Switch to it to call.',
-      };
-    }
-    return browserCapability;
-  }, [browserCapability, isLeaderTab]);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Imported on demand, like the session below: the probe lives in
-    // codec-support, which drags the whole codec table in with it.
-    void import('@/lib/call/codec-support')
-      .then((m) => m.probeMediaCapabilities())
-      .then((report) => {
-        if (!cancelled) setBrowserCapability({ supported: report.supported, reason: report.reason });
-      })
-      .catch(() => {
-        // No catch here meant the initial "Checking…" was permanent: after a
-        // redeploy invalidated this chunk's hash, the call buttons stayed
-        // disabled behind a tooltip that claimed a check was still running.
-        // This is the one place in calling with a raised-forever flag; the rest
-        // uses CallDeadline.
-        if (!cancelled) {
-          setBrowserCapability({
-            supported: false,
-            reason: 'Could not load calling support. Reload the page to try again.',
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { capability } = useCallCapability({ call, isLeaderTab: useIsLeaderTab() });
 
   const { managerRef, sessionRef, teardown, ensureManager, ensureSession } = useCallRuntime({
     selfCid,

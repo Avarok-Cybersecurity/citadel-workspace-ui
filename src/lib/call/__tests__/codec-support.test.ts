@@ -6,13 +6,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  negotiateVideoCodec,
-  negotiateGroupVideoCodec,
   VIDEO_CODEC_PREFERENCE,
   VIDEO_PROFILE_MAIN,
   VIDEO_PROFILE_THUMBNAIL,
   type VideoCodec,
 } from '../codec-support';
+import { negotiateVideoCodec, negotiateGroupVideoCodec } from '../codec-negotiation';
 
 const AV1 = 'av01.0.05M.08';
 const VP9 = 'vp09.00.31.08';

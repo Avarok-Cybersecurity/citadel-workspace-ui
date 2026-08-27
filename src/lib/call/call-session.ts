@@ -9,7 +9,8 @@ import { captureLocalMedia, stopStream, type CaptureFailure } from './media-capt
 import { createAudioEncoder, createVideoEncoder, type AudioEncoderHandle, type VideoEncoderHandle } from './media-pipeline';
 import { ReceiverPool } from './receiver-pool';
 import { INITIAL_CONGESTION, applyReport, shouldDropFrame, type CongestionState, type LinkVerdict } from './congestion';
-import { supportedVideoEncoders, negotiateGroupVideoCodec, type VideoCodec } from './codec-support';
+import { supportedVideoEncoders, type VideoCodec } from './codec-support';
+import { negotiateGroupVideoCodec } from './codec-negotiation';
 import type { WireFrame } from './frame-codec';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { CapturePump } from './capture-pump';
@@ -113,9 +114,7 @@ export class CallSession {
   }
 
   /** The codec chosen for this call, once video is running. */
-  getCodec(): VideoCodec | null {
-    return this.codec;
-  }
+  getCodec(): VideoCodec | null { return this.codec; }
 
   /**
    * Re-pick the send codec now that peers have advertised what they decode.
@@ -140,9 +139,7 @@ export class CallSession {
   }
 
   /** Record what a peer will send us, rebuilding its decoder on a change. */
-  setPeerReceiveCodec(peerCid: bigint, codec: string): void {
-    this.receivers.setReceiveCodec(peerCid, codec);
-  }
+  setPeerReceiveCodec(peerCid: bigint, codec: string): void { this.receivers.setReceiveCodec(peerCid, codec); }
 
   /** Feed one captured video frame into the encoder. */
   encodeVideo(frame: VideoFrame, isKeyframe: boolean): void {
@@ -160,17 +157,9 @@ export class CallSession {
         false,
         hardware,
         this.callbacks.onFrame,
-        (error) => {
-          debugLog('Call', 'video encode error', error);
-          // Drop the handle so the next frame builds a fresh encoder — the
-          // decoder path already does exactly this, and only logged here. A
-          // fatal WebCodecs error closes the codec, the next encode() throws,
-          // and that throw escapes the capture pump's read loop and kills the
-          // pump permanently. Outbound video then stopped for the rest of the
-          // call with nothing shown to either side: the camera stayed lit and
-          // heartbeats kept the call "alive".
-          this.videoEncoder = null;
-        },
+        // Drop the handle so the next frame rebuilds, as the decoder does: a
+        // closed codec makes encode() throw out of the capture pump, killing it.
+        (error) => { debugLog('Call', 'video encode error', error); this.videoEncoder = null; },
       );
     }
 
@@ -191,11 +180,9 @@ export class CallSession {
       return;
     }
     if (!this.audioEncoder) {
+      // As above; audio has no fallback, so a dead encoder means silence.
       this.audioEncoder = createAudioEncoder(this.callbacks.onFrame, (error) => {
-        debugLog('Call', 'audio encode error', error);
-        // Same reasoning as video above. Audio has no fallback path at all, so
-        // a dead encoder here is a call that continues in silence.
-        this.audioEncoder = null;
+        debugLog('Call', 'audio encode error', error); this.audioEncoder = null;
       });
     }
     this.audioEncoder.encode(data);

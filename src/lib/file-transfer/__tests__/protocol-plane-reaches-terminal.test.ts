@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { createCompleteHandler, parseTickStatus } from '../receive-operations';
-import { applyTransferOutcome } from '../p2p-transfers';
+import { applyTransferOutcome } from '../transfer-outcome';
 import type { ObjectTransferStatus } from '../protocol-types';
 import type { FileTransfer } from '../types';
 import type { P2PTransferDeps } from '../p2p-transfers';

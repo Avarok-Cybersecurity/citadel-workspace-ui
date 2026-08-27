@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
-import { evaluate } from '@mdx-js/mdx';
-import remarkGfm from 'remark-gfm';
-import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -12,13 +9,15 @@ import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
 import { saveOfficeContent } from "./save-office-content";
+import { useCompiledMdx } from "./use-compiled-mdx";
+import { useUnsavedMdxGuard, DISCARD_EDIT_PROMPT } from "./use-unsaved-mdx-guard";
+import { useConfirm } from "@/components/shared/confirm-dialog";
 import WorkspaceService from "@/lib/workspace-service";
 import { OfficeChatTabs } from "./OfficeChatTabs";
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { applyGfmStrikethrough } from './mdx-preprocess';
 import { debugLog } from '@/lib/debug-config';
 
 interface BaseOfficeProps {
@@ -37,8 +36,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const [content, setContent] = useState<string>(
     entityData?.mdx_content || getInitialContent()
   );
-  const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const compiledContent = useCompiledMdx(content, components);
   const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
   const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
   const { toast } = useToast();
@@ -62,6 +61,16 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     domainId,
     Permission.EditMdx
   );
+
+  const { isDirty } = useUnsavedMdxGuard({ isEditing, content });
+  const confirm = useConfirm();
+
+  // Cancel used to be a bare toggle. The load effect below then restored the
+  // stored document over the buffer, so the edits were gone with no prompt.
+  const handleEditToggle = async () => {
+    if (isEditing && isDirty && !(await confirm(DISCARD_EDIT_PROMPT))) return;
+    setIsEditing(!isEditing);
+  };
 
   const handleSave = async () => {
     // The decision lives in saveOfficeContent so it can be tested without
@@ -111,30 +120,6 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     }
   }, [entityData, getInitialContent, isEditing]);
 
-  useEffect(() => {
-    const compileContent = async () => {
-      try {
-        debugLog('BaseOffice', 'Compiling MDX content...');
-        // remark-gfm handles strikethrough, tables, autolinks, task-lists.
-        // Pre-pass escapes JSX-significant chars inside `~~...~~` regions
-        // so `~~value < 5~~` doesn't fail MDX parsing before remark-gfm
-        // consumes it. See `applyGfmStrikethrough` for details.
-        const processedContent = applyGfmStrikethrough(content);
-        const result = await evaluate(processedContent, {
-          ...runtime,
-          remarkPlugins: [remarkGfm],
-          useMDXComponents: () => components,
-          baseUrl: window.location.origin
-        });
-        debugLog('BaseOffice', 'MDX compilation successful');
-        setCompiledContent(result.default({ components: components }));
-      } catch (error) {
-        debugLog('BaseOffice', 'Error compiling MDX:', error);
-      }
-    };
-
-    runAsyncSetup(compileContent);
-  }, [content]);
 
   // Handle template selection
   const handleTemplateSelect = (template: MdxTemplate) => {
@@ -212,7 +197,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       <OfficeLayout
         title={entityData?.name || title}
         isEditing={isEditing}
-        onEditToggle={() => setIsEditing(!isEditing)}
+        onEditToggle={() => { void handleEditToggle(); }}
         onSave={handleSave}
         canEdit={hasEditPermission}
         editDeniedReason={editDeniedReason || undefined}
@@ -227,7 +212,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     <OfficeLayout
       title={entityData?.name || title}
       isEditing={isEditing}
-      onEditToggle={() => setIsEditing(!isEditing)}
+      onEditToggle={() => { void handleEditToggle(); }}
       onSave={handleSave}
       canEdit={hasEditPermission}
       editDeniedReason={editDeniedReason || undefined}

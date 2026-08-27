@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, ChevronRight, Loader2, RefreshCw, X } from "lucide-react";
 import { useRetry, useEventListener } from "@/hooks";
 import { websocketService } from "@/lib/websocket-service";
+import { useRetryCountdown } from './use-retry-countdown';
 import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { AgentDownloadHint } from './AgentDownloadHint';
-import { getRetryDelay, type ConnectionRetryModalProps } from './connection-retry-types';
+import { type ConnectionRetryModalProps } from './connection-retry-types';
 
 export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   isOpen,
@@ -20,7 +21,6 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   maxBackoffSeconds = 300
 }) => {
   const userFriendlyError = errorMessage ? getUserFriendlyErrorMessage(errorMessage) : "Unable to connect to the workspace server.";
-  const [countdown, setCountdown] = useState(0);
   const [hasInitialized, setHasInitialized] = useState(false);
   const { toast } = useToast();
 
@@ -84,62 +84,24 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     }
   }, [isOpen, hasInitialized, attempt]);
 
-  useEffect(() => {
-    if (!isOpen || isLoading || attempt === 0 || attempt >= maxRetries) return;
+  const { countdown, resetCountdown } = useRetryCountdown({
+    isOpen, isLoading, attempt, maxRetries, maxBackoffSeconds, retryFnRef, retryInProgressRef,
+  });
 
-    const retryDelayMs = getRetryDelay(attempt, maxBackoffSeconds);
-    const startTime = Date.now();
-    setCountdown(Math.ceil(retryDelayMs / 1000));
-
-    let hasTriggeredRetry = false;
-
-    const updateProgress = () => {
-      const elapsed = Date.now() - startTime;
-      const remainingSeconds = Math.ceil((retryDelayMs - elapsed) / 1000);
-      setCountdown(Math.max(remainingSeconds, 0));
-
-      if (elapsed >= retryDelayMs && attempt < maxRetries && !hasTriggeredRetry && !retryInProgressRef.current) {
-        hasTriggeredRetry = true;
-        retryInProgressRef.current = true;
-
-        const retryFn = retryFnRef.current;
-        if (retryFn) {
-          runAsyncSetup(async () => {
-            try {
-              await retryFn();
-            } finally {
-              retryInProgressRef.current = false;
-            }
-          });
-        }
-      }
-    };
-
-    const interval = setInterval(updateProgress, 100);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, attempt, maxRetries, isLoading]);
-
-  // 'on-ws-connection-success' is the event the socket layer actually emits.
-  //
-  // This listened for 'connection-success', which NOTHING emits — so a
-  // connection recovered by any other path never closed this modal.
-  //
-  // Resetting the attempt counter on success is the other half. `maxRetries` is
-  // a per-OUTAGE budget, but nothing ever called reset, so the count accumulated
-  // across the tab's whole lifetime: after ten failures spread over hours, every
-  // subsequent disconnection opened a modal reading "Failed to reconnect after
-  // 10 attempts" with Retry already disabled and no recovery but a reload. Even
-  // before exhaustion, each outage inherited the previous count and started at
-  // an inflated backoff.
+  // 'on-ws-connection-success' is what the socket layer actually emits; this
+  // listened for 'connection-success', which nothing emits, so a connection
+  // recovered by any other path never closed the modal. Resetting the counter
+  // is the other half: `maxRetries` is a per-OUTAGE budget, but reset was never
+  // called, so it accumulated across the tab's lifetime — after ten failures
+  // spread over hours, every later disconnection opened a modal with Retry
+  // already disabled and no recovery but a reload.
   useEventListener('on-ws-connection-success', () => {
     resetAttempts();
     onClose();
   }, [onClose, resetAttempts]);
 
   const handleManualRetry = () => {
-    setCountdown(0);
+    resetCountdown();
     const retryFn = retryFnRef.current;
     if (retryFn && !retryInProgressRef.current) {
       retryInProgressRef.current = true;

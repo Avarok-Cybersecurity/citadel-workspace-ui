@@ -108,11 +108,8 @@ export async function probeMediaCapabilities(): Promise<MediaCapabilityReport> {
     };
   }
 
-  // WebCodecs alone is not enough: the pipeline moves samples through
-  // Insertable Streams at both ends. Without them the probe used to report
-  // supported, the call rang, connected and ticked its timer, and neither side
-  // heard anything — capture logged one debug line and the inbound sink threw
-  // every frame away.
+  // The pipeline moves samples through Insertable Streams at both ends.
+  // Without them the probe reported supported and no audio ever flowed.
   if (!hasTrackTransforms()) {
     return {
       supported: false,
@@ -220,40 +217,4 @@ export async function localCapabilities(): Promise<CallCodecCapabilities> {
     audio: (await supportsAudioEncode()) ? [AUDIO_CODEC] : [],
     video: await supportedVideoDecoders(),
   };
-}
-
-/**
- * Pick the video codec to send with: our best encoder that the peer can decode.
- *
- * Returns null when there is no overlap, which is a real outcome and must be
- * reported rather than papered over — an audio call still works.
- */
-export function negotiateVideoCodec(
-  ourEncoders: Array<{ codec: VideoCodec; hardware: boolean }>,
-  peerDecoders: Array<{ codec: string; hardware: boolean; maxHeight: number }>,
-): VideoCodec | null {
-  const peerCodecs = new Set(peerDecoders.map((d) => d.codec));
-  for (const { codec } of ourEncoders) {
-    if (peerCodecs.has(codec)) return codec;
-  }
-  return null;
-}
-
-/**
- * The codec every participant in a group call can decode.
- *
- * A mesh sender encodes ONCE and fans the same bitstream out to everyone, so
- * one codec has to satisfy the whole room. Picking per-peer would mean an
- * encoder instance per participant, which is what makes mesh calls melt laptops.
- */
-export function negotiateGroupVideoCodec(
-  ourEncoders: Array<{ codec: VideoCodec; hardware: boolean }>,
-  peerDecoderLists: Array<Array<{ codec: string; hardware: boolean; maxHeight: number }>>,
-): VideoCodec | null {
-  for (const { codec } of ourEncoders) {
-    if (peerDecoderLists.every((list) => list.some((d) => d.codec === codec))) {
-      return codec;
-    }
-  }
-  return null;
 }

@@ -8,7 +8,7 @@
  * have nothing wrong with them.
  */
 
-import { createAudioDecoder, createVideoDecoder, type AudioDecoderHandle, type VideoDecoderHandle } from './media-pipeline';
+import { createAudioDecoder, createVideoDecoder, type AudioDecoderHandle, type VideoDecoderHandle } from './media-decoders';
 import { createRemoteAudioSink, createRemoteVideoSink, type RemoteAudioSink, type RemoteVideoSink } from './remote-stream';
 import { isVideoFrame, type WireFrame } from './frame-codec';
 import { debugLog } from '@/lib/debug-config';

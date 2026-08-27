@@ -73,19 +73,17 @@ export class CallManager {
 
   /** The face the extracted signal/session modules operate on. */
   private internals(): CallManagerInternals {
+    const o = this.options;
     return {
-      transport: this.options.transport,
-      selfCid: this.options.selfCid,
-      capabilities: this.options.capabilities,
-      codecs: this.codecs,
-      openSessions: this.openSessions,
+      transport: o.transport, selfCid: o.selfCid, capabilities: o.capabilities,
+      codecs: this.codecs, openSessions: this.openSessions,
       getState: () => this.state,
       apply: (event) => this.apply(event),
-      keyframeRequested: (track) => this.options.onKeyframeRequested(track),
-      observedLink: (cid) => this.options.observedLink?.(cid),
-      linkReported: (link) => this.options.onLinkReported?.(link),
+      keyframeRequested: (track) => o.onKeyframeRequested(track),
+      observedLink: (cid) => o.observedLink?.(cid),
+      linkReported: (link) => o.onLinkReported?.(link),
       peerSeen: (cid) => this.liveness.peerSeen(cid),
-      resolvePeerName: (cid) => this.options.resolvePeerName(cid),
+      resolvePeerName: (cid) => o.resolvePeerName(cid),
     };
   }
 
@@ -178,7 +176,7 @@ export class CallManager {
     if (!state) return;
 
     const peers = [...state.participants.keys()];
-    this.apply({ type: 'declined-locally', reason });
+    this.apply({ type: 'declined-locally', reason }); // before the send: see end()
     const decline: CallSignalPayload = { kind: 'CallDecline', call_id: state.callId, reason };
     await Promise.all(
       peers.map((cid) => this.options.transport.sendSignal(cid, decline).catch(() => undefined)),
@@ -192,21 +190,10 @@ export class CallManager {
 
     const peers = [...state.participants.keys()];
     const bye: CallSignalPayload = { kind: 'CallEnd', call_id: state.callId, reason };
-
-    // Settle local state FIRST, exactly as decline() already does. This awaited
-    // the sends, and sendSignal is unbounded all the way down to the WASM
-    // messenger — the constants file says so in as many words. A wedged send
-    // therefore left the stage up, the timer ticking and the camera lit while
-    // Leave appeared to do nothing, and pressing it again only queued another.
-    //
-    // Worse, the ring deadline fires `end('unanswered')`: a stalled send there
-    // meant 'ended' was never applied, so the deadline never re-armed and no
-    // timer anywhere was left to rescue the call.
+    // Settle local state FIRST, as decline() does: sendSignal is unbounded, so
+    // awaiting it left the camera lit while Leave did nothing, and the ring
+    // deadline's end('unanswered') never applied. The rest is best-effort.
     this.apply({ type: 'ended', reason });
-
-    // Best-effort from here. Peers also detect a departure through the liveness
-    // timeout, so neither the goodbye nor the session close may hold up the
-    // local teardown the user just asked for.
     void closeAllSessions(this.internals());
     void Promise.all(
       peers.map((cid) => this.options.transport.sendSignal(cid, bye).catch(() => undefined)),

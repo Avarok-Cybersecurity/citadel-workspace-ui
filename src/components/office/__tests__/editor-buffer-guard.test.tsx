@@ -15,6 +15,7 @@
  * test.
  */
 import { describe, it, expect, vi } from 'vitest';
+import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
@@ -61,9 +62,11 @@ describe('the MDX editor buffer', () => {
     }
 
     render(
-      <MemoryRouter>
-        <Harness />
-      </MemoryRouter>
+      <ConfirmDialogProvider>
+        <MemoryRouter>
+          <Harness />
+        </MemoryRouter>
+      </ConfirmDialogProvider>
     );
 
     const edit = await screen.findByRole('button', { name: /edit/i });

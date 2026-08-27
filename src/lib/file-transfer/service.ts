@@ -23,9 +23,10 @@ import { debugLog } from '@/lib/debug-config';
 import { handleAsyncSend, handleTransferRequest, handleTransferResponse } from './async-transfers';
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import {
-  streamFileToRecipient, handleTransferProgress, handleTransferComplete,
+  streamFileToRecipient, handleTransferProgress,
   handleTransferCancel, handleTransferChunk,
 } from './p2p-transfers';
+import { handleTransferComplete } from './transfer-outcome';
 import {
   sendFile, sendFileWithNativePicker, cancelTransfer, acceptTransfer, declineTransfer,
 } from './transfer-lifecycle';

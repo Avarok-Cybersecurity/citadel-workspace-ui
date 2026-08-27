@@ -78,12 +78,10 @@ export class P2PRegistrationService {
       });
     });
 
-    // Re-sync the peer roster as soon as the socket is back, rather than waiting
-    // out the remainder of the 30s poll with a stale list. This listened for
-    // 'connection:status-changed' — an event nothing has ever emitted — so the
-    // immediate re-sync never ran and reconnect always paid the full poll delay.
-    // The options are the ones start() was given: re-checking without them would
-    // silently drop autoRegisterAll on every reconnect.
+    // Re-sync as soon as the socket is back instead of waiting out the 30s
+    // poll. This listened for 'connection:status-changed', which nothing emits,
+    // so the immediate re-sync never ran. Replays start()'s options, because
+    // re-checking without them would silently drop autoRegisterAll.
     eventEmitter.on('on-ws-connection-success', async () => {
       if (!this.isRunning) return;
       await this.checkAndRegisterPeers(this.startOptions);

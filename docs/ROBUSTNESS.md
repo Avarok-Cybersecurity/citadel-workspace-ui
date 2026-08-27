@@ -3637,6 +3637,63 @@ emitting 'workspace:raw-response'."*
 **The general rule: when a test asserts an observable that a fallback path also
 produces, assert first that the fallback is not what produced it.**
 
+## Round forty-six — I broke CI with my own comments, 2026-08-28
+
+### 265. Eight files over the 250-line cap, every one pushed there by me — FIXED
+
+Adding the unsaved-edit guard made me run the CI line-cap check locally for the
+first time in this campaign. **Eight files were over, and CI was red.** The
+before/after is unambiguous:
+
+```
+250 -> 264  ConnectionRetryModal.tsx      249 -> 261  media-pipeline.ts
+247 -> 278  CallProvider.tsx              249 -> 263  call-manager.ts
+243 -> 251  p2p-registration-service      248 -> 270  p2p-transfers.ts
+244 -> 259  codec-support.ts              250 -> 263  call-session.ts
+```
+
+Every one sat at 243–250 — just under the cap — and every one was pushed over by
+the explanatory comments I have been adding with each fix. The comments are
+worth having; writing eight lines where three carry the same information is not,
+and doing it to a file already at the limit breaks the build.
+
+Fixed by condensing my own prose and by five real extractions —
+`transfer-outcome`, `media-decoders`, `codec-negotiation`, `use-call-capability`,
+`use-retry-countdown` — which is what the cap is for. **Not by adding anything to
+the skip list**, which would have been dodging my own rule.
+
+Two things this cost that are worth recording. Extracting `handleTransferComplete`
+alongside `applyTransferOutcome` broke three import sites; splitting the decoders
+out of `media-pipeline` moved a type its consumer still imported from the old
+module. Both were caught by `tsc` immediately — but only because I ran it after
+each step rather than at the end.
+
+### 266. Method note — a gate you never run locally is a gate you will break
+
+The line cap runs only in CI. I have been pushing after `tsc`, `eslint`,
+`vitest` and the submodule-pointer guard, and never this one — so eight
+violations accumulated across many rounds without a single local signal.
+
+This is the same shape as finding 256, where the stack-reachability guard could
+not fail *and* ran nowhere in CI. **A check that nothing exercises is a check
+that is not running**, whichever side of the fence it sits on.
+
+### 267. Unsaved MDX edits could vanish on Cancel or a browser close — FIXED
+
+The editor buffer is plain component state, Cancel was a bare toggle, and the
+load effect then restored the stored document over the top. Closing the tab did
+the same with no prompt anywhere.
+
+Cancel now confirms when the buffer is dirty, and a `beforeunload` guard is armed
+while it is. The baseline is captured when editing BEGINS rather than compared
+against the stored document, because the two differ legitimately — a node with no
+content opens with a template the user has not written and must not be warned
+about.
+
+**Still open, and stated plainly:** clicking another node in the sidebar unmounts
+the editor (the view is keyed by node id), and that path is not yet guarded. It
+needs interception where the navigation happens, not in the editor.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
