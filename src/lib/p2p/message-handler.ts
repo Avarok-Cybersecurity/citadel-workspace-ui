@@ -196,7 +196,7 @@ export class MessageHandler {
       case P2PCommandType.MessageAck:
         debugLog('P2PMessageHandler', 'handleP2PCommand: MessageAck branch reached');
         if (isMessageAckPayload(command.payload)) {
-          await this.ackHandler.handleMessageAck(command.payload);
+          await this.ackHandler.handleMessageAck(command.payload, peerCid);
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: MessageAck payload failed type check', command.payload);
         }

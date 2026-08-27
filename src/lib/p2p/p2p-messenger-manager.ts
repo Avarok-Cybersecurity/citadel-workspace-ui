@@ -65,6 +65,8 @@ export class P2PMessengerManager extends EventListenerManager {
       getCurrentCid: () => resolveCurrentCid(),
       getOrCreateConversation: (peerCid) => this.conversationManager.getOrCreateConversation(peerCid),
       addMessageToConversation: (peerCid, message) => this.conversationManager.addMessageToConversation(peerCid, message),
+      findStoredMessage: (p, id) => messagePaginationStore.findMessageInPages(p, id),
+
       updateMessageInPages: (peerCid, messageId, updates) => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
       emitEvent: (event, data) => this.emit(event, data),
       notifyMessageListeners: (message) => this.messageListeners.forEach(l => l(message)),

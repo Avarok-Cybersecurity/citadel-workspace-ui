@@ -144,7 +144,19 @@ export class MessageSender {
   }
 
   public async resendMessage(peerCid: bigint, messageId: string, conversation: P2PConversation): Promise<void> {
-    const message = conversation.messages.find(m => m.id === messageId);
+    // Memory first, then storage. `loadFromStorage` restores every conversation
+    // with `messages: []`, and nothing rehydrates it — so after a reload the red
+    // "retry" bubble was rendered from the page store while this lookup searched
+    // an empty array and threw, every time, for ever.
+    let message = conversation.messages.find(m => m.id === messageId);
+    if (!message) {
+      message = (await this.config.findStoredMessage(peerCid, messageId)) ?? undefined;
+      if (message) {
+        // Put it back in the window so the status mutations below, and any
+        // later ack, find it where the rest of the code expects.
+        conversation.messages.push(message);
+      }
+    }
     if (!message) {
       throw new Error(`Message ${messageId} not found in conversation`);
     }

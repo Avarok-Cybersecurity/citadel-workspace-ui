@@ -27,7 +27,12 @@ export class MessageAckHandler {
   /**
    * Handle message acknowledgment
    */
-  public async handleMessageAck(payload: P2PMessageAckPayload): Promise<void> {
+  /**
+   * @param peerCid The peer this ack arrived from. Required for the page-store
+   *   fallback below; the in-memory scan alone cannot see a message that is
+   *   outside the 100-message window or predates a reload.
+   */
+  public async handleMessageAck(payload: P2PMessageAckPayload, peerCid?: bigint): Promise<void> {
     debugLog('MessageAckHandler', '[P2P] handleMessageAck received:', {
       ack_type: payload.ack_type,
       message_id: payload.message_id.slice(0, 8),
@@ -70,8 +75,27 @@ export class MessageAckHandler {
       updatedMessages.forEach(({ messageId }) => {
         this.config.notifyMessageStatusListeners(messageId, newStatus);
       });
+    } else if (peerCid !== undefined) {
+      // The in-memory window is capped at 100 and is EMPTY after a reload, so
+      // this miss is the ordinary offline-peer flow, not an anomaly: send to an
+      // offline peer, reload, the peer comes online hours later and acks. That
+      // ack used to be dropped with a debug line, leaving the message on a
+      // single check for ever even though it had been read.
+      const status: P2PMessage['status'] =
+        payload.ack_type === 'failed' ? 'failed' : payload.ack_type;
+      const patched = await this.config.updateMessageInPages(peerCid, payload.message_id, {
+        status,
+        error: payload.error,
+      });
+
+      if (patched) {
+        debugLog('MessageAckHandler', '[P2P] Ack applied to stored page for', payload.message_id.slice(0, 8));
+        this.config.notifyMessageStatusListeners(payload.message_id, status);
+      } else {
+        debugLog('MessageAckHandler', 'handleMessageAck: message not in memory or in storage', payload.message_id.slice(0, 8));
+      }
     } else {
-      debugLog('MessageAckHandler', 'handleMessageAck: Message NOT FOUND in any conversation!', payload.message_id.slice(0, 8));
+      debugLog('MessageAckHandler', 'handleMessageAck: Message NOT FOUND and no peer to search', payload.message_id.slice(0, 8));
     }
   }
 

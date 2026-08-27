@@ -4437,6 +4437,51 @@ Worth stating because the temptation is to do the extraction "while I'm here".
 The safer order is fix, verify, then extract — and if the cap forces the
 extraction first, verify between the two.
 
+## Round sixty — message status stops dying at the first reload, 2026-08-28
+
+Two of the four paths that treated the in-memory window as the source of truth.
+It never survives a reload: `loadFromStorage` restores every conversation with
+`messages: []`, and nothing rehydrates it.
+
+### 311. A delivered/read ack for anything outside the window was discarded — FIXED
+
+`handleMessageAck` scanned only the in-memory conversations — capped at 100 and
+empty after a reload — and its miss path was a `debugLog`.
+
+That miss is not an anomaly, it is the **ordinary offline-peer flow**: send to an
+offline peer, close the tab, the peer comes online hours later and acks. The ack
+arrived, was dropped, and the message stayed on a single check for ever even
+though it had been delivered and read. Users conclude delivery failed and re-send.
+
+The peer CID was already available at the call site and simply never passed. It
+now falls through to the page store, and notifies listeners only when the store
+actually patched something — `updateMessageInPages` returns false when the
+message is in neither place, and claiming an update there would be the same lie
+one layer down.
+
+### 312. A failed message could never be retried after a reload — FIXED
+
+The `failed` status is persisted deliberately, with a comment saying it is
+*"exactly the one worth keeping: it is what makes the message retryable after a
+reload"*. But `resendMessage` looked only in memory, so after a reload the red
+retry bubble — rendered from the page store — sat above a lookup that searched an
+empty array and threw. Every click produced "Message … not found in
+conversation", for ever. The only escape was retyping.
+
+`resendMessage` now reads the message back from storage and returns it to the
+window, so the status mutations that follow, and any later ack, find it where the
+rest of the code expects.
+
+### 313. Method note — the mundane half of each test is what proves it discriminates
+
+Each fix got two tests: the new behaviour, and the behaviour that must NOT
+change — an ack for a message in neither memory nor storage must still notify
+nobody, and a genuinely unknown message id must still throw.
+
+Removing both fixes fails exactly the two new tests and leaves the two mundane
+ones green. A control where everything fails would not have told me whether the
+fallback was correct or merely present.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

@@ -21,6 +21,32 @@ import type { P2PMessage } from './p2p-types';
  * Returns false when the id is in no page — the normal way of reporting
  * "nothing was written", which callers must distinguish from a throw.
  */
+/**
+ * Find a stored message by id, newest page first.
+ *
+ * The in-memory window is capped at 100 and is restored EMPTY after a reload, so
+ * a lookup that consults only that window cannot see most of a conversation.
+ * `resendMessage` did exactly that, which made the persisted `failed` status —
+ * kept deliberately *"because it is what makes the message retryable after a
+ * reload"* — a promise nothing could honour: every retry click threw
+ * "not found in conversation".
+ */
+export async function findMessageInPages(
+  peerCid: bigint,
+  messageId: string
+): Promise<P2PMessage | null> {
+  const metadata = await tryLoadMetadata(peerCid);
+  if (!metadata) return null;
+
+  for (let pageNum = metadata.latestPage; pageNum >= 0; pageNum--) {
+    const page = await tryLoadMessagePage(peerCid, pageNum);
+    const found = page?.messages.find((m) => m.id === messageId);
+    if (found) return found;
+  }
+
+  return null;
+}
+
 export async function updateMessageInPages(
   peerCid: bigint,
   messageId: string,

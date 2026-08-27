@@ -20,6 +20,7 @@ import type {
 } from './p2p-types';
 import { MESSAGES_PER_PAGE, PAGINATED_PREFIX } from './p2p-types';
 import {
+  findMessageInPages,
   updateMessageInPages,
   updatePeerUsernameInMetadata,
   updateUnreadCount,
@@ -209,6 +210,10 @@ export class MessagePaginationStore {
 
     const latestPage = await tryLoadMessagePage(peerCid, metadata.latestPage);
     return latestPage?.messages || [];
+  }
+
+  public async findMessageInPages(peerCid: bigint, messageId: string): Promise<P2PMessage | null> {
+    return findMessageInPages(peerCid, messageId);
   }
 
   public async updateMessageInPages(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
