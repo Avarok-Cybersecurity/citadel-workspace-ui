@@ -116,7 +116,23 @@ export function useCallRuntime({
           // Releasing the camera the moment a call reaches a terminal state,
           // not when the surface happens to unmount — the light staying on
           // after a call ends is what users notice and remember.
-          if (next && (next.status === 'ended' || next.status === 'failed')) teardown();
+          //
+          // Deferred by a microtask, and re-checked against the manager's own
+          // state. In glare — both sides dialling each other — the manager ends
+          // its own call and then adopts the incoming one, and the two happen
+          // in one synchronous stretch. Tearing down on the first left
+          // `managerRef` null while the reducer went on to `ringing-in`: the
+          // loser saw an incoming card whose Accept and Decline both read
+          // `managerRef.current` and silently no-opped, the ring tone played
+          // its full 45 seconds because sound keys off React state, and the
+          // orphan's own deadline then sent CallEnd to the glare WINNER,
+          // killing the surviving call too.
+          if (next && (next.status === 'ended' || next.status === 'failed')) {
+            queueMicrotask(() => {
+              const live = managerRef.current?.getState();
+              if (!live || live.status === 'ended' || live.status === 'failed') teardown();
+            });
+          }
         },
         resolvePeerName: callPeerName,
       onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),

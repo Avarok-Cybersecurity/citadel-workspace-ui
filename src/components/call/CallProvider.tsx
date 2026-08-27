@@ -15,6 +15,7 @@ import { debugLog } from '@/lib/debug-config';
 import { callPeerName } from '@/lib/call/peer-name';
 import { toast } from 'sonner';
 import { useCallCapability } from './use-call-capability';
+import { callBusyReason } from '@/lib/call/call-busy';
 
 interface CallProviderProps {
   selfCid: bigint | null;
@@ -102,6 +103,21 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
 
   const startCall = useCallback(
     async (peers: Array<{ cid: bigint; username: string }>, video: boolean, roomId?: string) => {
+      // Before capturing anything. The group entry path has refused a second
+      // call since it was written; this one never did, so from any other
+      // conversation during an active call both call buttons were live -- and
+      // pressing one overwrote the live stream and pump without stopping
+      // either, leaving the camera light on until a reload while the original
+      // peer waited out their 20s silence timeout.
+      // The manager's own state, not the React copy: a call that started
+      // milliseconds ago has not necessarily reached this closure yet, and the
+      // whole failure is a second start racing the first.
+      const busy = callBusyReason(managerRef.current?.getState() ?? null);
+      if (busy) {
+        toast.error(busy);
+        return;
+      }
+
       setCaptureFailure(null);
       const manager = await ensureManager();
       if (!manager) return;
@@ -120,7 +136,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       // may change it, in which case the signal path announces the new one.
       await manager.start(callId, peers, got, roomId ?? null, session.getCodec());
     },
-    [ensureManager, ensureSession, teardown],
+    [ensureManager, ensureSession, teardown, managerRef],
   );
 
   const accept = useCallback(

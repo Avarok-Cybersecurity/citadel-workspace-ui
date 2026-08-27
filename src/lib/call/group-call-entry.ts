@@ -12,6 +12,7 @@ import {
   canAddParticipant,
   type CallState,
 } from './call-state';
+import { callBusyReason } from './call-busy';
 
 export type GroupCallEntryMode =
   /** No live call: offer to start one, with per-media reasons when the room outgrows the mesh. */
@@ -47,15 +48,10 @@ export function groupCallEntryMode(
     }
     // A failed call elsewhere is over in every way except its error panel;
     // letting it block calling HERE would strand the user with no way out.
-    if (call.status !== 'failed') {
-      return {
-        kind: 'busy',
-        reason:
-          call.status === 'ringing-in'
-            ? 'You have an incoming call.'
-            : 'You are already in another call.',
-      };
-    }
+    // `callBusyReason` owns that rule, shared with the 1:1 start path — which
+    // had no busy check at all until it was extracted.
+    const busy = callBusyReason(call);
+    if (busy) return { kind: 'busy', reason: busy };
   }
 
   // Starting invites every other member, so the mesh must survive all of them

@@ -7417,3 +7417,56 @@ group read receipts render sent/partial/all-read from a `read_by` field nothing
 in the tree ever writes; and opening the bell in one session calls the
 service-wide `markAllAsRead`, clearing every other session's badges — including
 from the logged-out landing page, where the panel shows nothing at all.
+
+### Round 114 — a second call left the first one's camera on, and glare orphaned the loser
+
+Two findings from the calls audit, both at the seam between well-tested layers
+rather than inside one.
+
+**Starting a call while already in one was unguarded on the 1:1 path.** The group
+entry path has refused a second call since it was written; the chat header gates
+its buttons only on whether the peer is connected, so from any *other*
+conversation during an active call both call buttons were live. Pressing one
+re-entered `CallSession.start` with the `starting` promise already settled — that
+guard covers same-session races, not a re-entry after a completed start — which
+overwrote `localStream` and `pump` **without stopping either**. The first stream
+was orphaned with the camera light on until a page reload, two pumps fed one
+encoder, and the original peer never received a CallEnd: they were evicted only
+by their own 20-second silence timeout, believing the other side had vanished.
+
+One module now owns "am I busy?", shared by both paths, including the rule that a
+*failed* call is not busy — it is over in every way except its error panel still
+owing the user a reason, and blocking on it would strand them. The guard reads
+the manager's own state rather than the React copy, because the whole failure is
+a second start racing the first.
+
+The divergence test earned its place twice. Its first version listed five
+statuses and omitted `ringing-in`, and the control that reintroduced the
+divergence for exactly that status passed against it. A completeness gap in a
+test whose entire job is to catch divergence *is* the divergence.
+
+**Glare orphaned the loser.** When both sides dial each other, the manager ends
+its own call and then adopts the incoming one, synchronously. Tearing down on the
+first left `managerRef` null while the reducer went on to `ringing-in`: the loser
+saw an incoming card whose Accept and Decline both read `managerRef.current` and
+silently no-opped, the ring tone played its full 45 seconds because sound keys
+off React state rather than the manager, and then the orphan's own deadline fired
+`end('unanswered')` — sending CallEnd to the glare *winner* and killing the
+surviving call too. Teardown is now deferred by a microtask and re-checked
+against the manager's live state, so an adopted call keeps its runtime.
+
+The manager-level glare test passes and always did: it uses a mock
+`onStateChanged`, so the provider interaction it broke on was never exercised.
+That is the third time this campaign has found a bug living exactly where two
+tested layers meet.
+
+Recorded, not fixed: nothing anywhere listens for `track.onended` or
+`devicechange`, so a mic or camera unplugged mid-call is invisible — the button
+still shows unmuted, peers still see an unmuted tile, heartbeats keep flowing,
+and the only recovery is Leave and re-dial with nothing saying so. An incoming
+call to a session displayed in a follower tab rings audibly with no card and no
+way to answer, because `CallSoundEffects` has no leader gate while `RingingCall`
+does. The speaking indicator is inert: `speaking-changed` is in the event union
+and handled by the reducer, and nothing dispatches it. And call duration restarts
+from 00:00 whenever the stage remounts, because it anchors to effect-run time
+rather than to anything in the call state.
