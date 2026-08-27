@@ -19,6 +19,8 @@ interface P2PMessageInputProps {
   messageType: MessageType;
   showMarkdownPreview: boolean;
   canSendMessages: boolean;
+  /** A message is between submit and appearing in the transcript. */
+  isSending: boolean;
   onInputChange: (value: string) => void;
   onInputFocus: () => void;
   onInputBlur: () => void;
@@ -36,6 +38,7 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
       messageType,
       showMarkdownPreview,
       canSendMessages,
+      isSending,
       onInputChange,
       onInputFocus,
       onInputBlur,
@@ -109,7 +112,11 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
               // `critical button-name` without it and a screen reader
               // announces nothing at all.
               aria-label="Send message"
-              disabled={!canSendMessages || (!inputMessage.trim() && !isLiveDocMode)}
+              // isSending is the guard against a second Enter during the
+              // send window -- peer registration and CheckState can take tens
+              // of seconds, and the text is still in the field for all of it.
+              disabled={!canSendMessages || isSending || (!inputMessage.trim() && !isLiveDocMode)}
+              aria-busy={isSending}
               className="bg-primary text-primary-foreground"
             >
               <Send className="h-4 w-4" aria-hidden="true" />

@@ -6959,3 +6959,39 @@ does not already do, and the CI guard flagged them the moment their fake emitter
 were gone. That is the guard working as intended once the reachability blind spot
 is removed by hand: it cannot see that a branch is unreachable, but it sees
 immediately when the branch is deleted.
+
+### Round 102 — the composer that let you send the same message twice
+
+Two independent audits, one on degraded-network UX and one on forms and input
+handling, arrived at the same finding first. That is worth noting on its own:
+the defect is visible from more than one angle, which is usually a sign it is
+being hit in practice.
+
+`sendMessage` does a lot before the message exists anywhere the user can see it:
+peer registration is a 10s budget, CheckState another 3s, and on a follower tab
+the leader ACK is up to 30s. The composer cleared only after the whole promise
+resolved, and the Send button was disabled by nothing but an empty field. So for
+that entire window the text sat in the field with Send lit, and the natural
+reaction — *did that go? press Enter again* — minted a second `messageId` and
+delivered a genuine duplicate.
+
+The group composer has had `if (!inputValue.trim() || sending) return;` since it
+was written. The P2P one never got it: the familiar shape where a rule exists in
+one place and not the other.
+
+The fix is an in-flight guard plus a change of when the composer clears. Not on
+resolve, and not up front either — on a new `onOptimisticAppend` callback fired
+the moment the pending bubble is in the transcript. That is the exact instant the
+message becomes visible *and* retryable, so clearing then loses nothing; the
+failures that happen before it (registration refused, no session CID) leave no
+bubble at all, and clearing up front would lose the message outright. Three
+negative controls pin all three positions: drop the guard and the duplicate comes
+back; clear on resolve and the composer stays full through the send window; clear
+up front and the text is lost on a pre-append failure.
+
+The guard also releases at append time rather than at resolution, so the composer
+is usable again immediately — a guard held for the full round trip would have
+traded a duplicate-send bug for a 30-second lockout.
+
+While in there: the send options type was declared twice, inline, in both the
+manager and the sender. It is now one exported `SendMessageOptions`.

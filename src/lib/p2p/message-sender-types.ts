@@ -5,6 +5,29 @@
  */
 
 import type { P2PMessage, P2PConversation } from './p2p-types';
+import type { P2PAttachment } from '@/types/p2p-types';
+import type { MessageType } from '@/types/message-protocol';
+
+export interface SendMessageOptions {
+  replyTo?: string;
+  mentions?: string[];
+  attachments?: P2PAttachment[];
+  messageType?: MessageType;
+  documentId?: string;
+  documentTitle?: string;
+  /**
+   * Fired once the message exists in the transcript as a pending bubble --
+   * i.e. once it is visible and, if it later fails, retryable from there.
+   *
+   * The composer clears on this, NOT on the promise resolving. Everything
+   * before this point (peer registration, CheckState) can take tens of
+   * seconds, and for that whole window the text sat in the composer with Send
+   * enabled: pressing Enter again minted a second messageId and delivered a
+   * genuine duplicate. Clearing any earlier would lose the text on the
+   * failures that happen before the bubble exists.
+   */
+  onOptimisticAppend?: () => void;
+}
 
 export interface MessageSenderConfig {
   /** Function to get current CID */

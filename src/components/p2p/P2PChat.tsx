@@ -89,7 +89,7 @@ export function P2PChat({
 
   // Composition hook (input, reply/edit context, send, live-doc flow)
   const {
-    inputRef, inputMessage, setInputMessage,
+    inputRef, inputMessage, setInputMessage, isSending,
     messageType, showDocModal, setShowDocModal,
     showMarkdownPreview, setShowMarkdownPreview,
     applyFormat,
@@ -221,7 +221,7 @@ export function P2PChat({
             />
             <P2PMessageInput
               ref={inputRef} inputMessage={inputMessage} messageType={messageType}
-              showMarkdownPreview={showMarkdownPreview} canSendMessages={true}
+              showMarkdownPreview={showMarkdownPreview} canSendMessages={true} isSending={isSending}
               onInputChange={setInputMessage} onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
               onFileClick={() => setShowFileModal(true)} onFormat={applyFormat}

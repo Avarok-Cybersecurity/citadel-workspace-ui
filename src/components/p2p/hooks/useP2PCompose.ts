@@ -28,6 +28,10 @@ interface UseP2PComposeParams {
 
 export function useP2PCompose({ peerCid, messages, editMessage, createDocument }: UseP2PComposeParams) {
   const [inputMessage, setInputMessage] = useState('');
+  // True between submit and the message appearing in the transcript. The group
+  // composer has had this guard since it was written; the P2P one never did, so
+  // a second Enter during the send window sent a genuine duplicate.
+  const [isSending, setIsSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputMessageRef = useRef(inputMessage);
 
@@ -74,9 +78,11 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   }, [editingMessage]);
 
   const handleSendMessage = async () => {
+    if (isSending) return;
     if (!inputMessage.trim()) return;
     if (messageType === 'live_document') { setShowDocModal(true); return; }
     messenger.stopTypingPolling(peerCid);
+    setIsSending(true);
     try {
       if (editingMessage) {
         await editMessage(editingMessage.id, inputMessage);
@@ -87,12 +93,20 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
       await messenger.sendMessage(peerCid, inputMessage, {
         messageType,
         replyTo: replyingTo?.id,
+        // Clears the composer the moment the bubble exists, rather than when
+        // the network round trip finishes. Failures BEFORE that point leave
+        // no bubble to retry from, so the text has to survive them.
+        onOptimisticAppend: () => {
+          setInputMessage('');
+          setReplyingTo(null);
+          setIsSending(false);
+        },
       });
-      setInputMessage('');
-      setReplyingTo(null);
     } catch (error) {
       debugLog('P2PChat', 'Failed to send message:', error);
       toast({ variant: 'destructive', title: 'Failed to send message', description: 'Check your connection and try again.' });
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -116,7 +130,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   }, [peerCid, messenger]);
 
   return {
-    inputRef, inputMessage, setInputMessage,
+    inputRef, inputMessage, setInputMessage, isSending,
     messageType, showDocModal, setShowDocModal,
     showMarkdownPreview, setShowMarkdownPreview,
     applyFormat,

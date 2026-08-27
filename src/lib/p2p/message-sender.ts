@@ -5,7 +5,6 @@
  * Delegates low-level operations to message-send-operations.
  */
 
-import type { P2PAttachment } from '@/types/p2p-types';
 import {
   createMessagingLayerCommand,
 } from '@/types/p2p-types';
@@ -13,12 +12,11 @@ import {
   createMessage,
 } from '@/types/messaging-layer';
 import type { MessagingLayer } from '@/types/messaging-layer';
-import type { MessageType } from '@/types/message-protocol';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import type { P2PMessage, P2PConversation } from './p2p-types';
 import { persistMessageStatus } from './message-status-persistence';
-import type { MessageSenderConfig } from './message-sender-types';
+import type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 import {
   sendRawMessage as rawMessageOp,
   sendMessageAck as messageAckOp,
@@ -29,7 +27,7 @@ import { debugLog } from '@/lib/debug-config';
 import { markSendFailed } from './mark-send-failed';
 import { resendMessage } from './resend-message';
 
-export type { MessageSenderConfig } from './message-sender-types';
+export type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 
 export class MessageSender {
   private readonly config: MessageSenderConfig;
@@ -41,14 +39,7 @@ export class MessageSender {
   public async sendMessage(
     recipientCid: bigint,
     content: string,
-    options?: {
-      replyTo?: string;
-      mentions?: string[];
-      attachments?: P2PAttachment[];
-      messageType?: MessageType;
-      documentId?: string;
-      documentTitle?: string;
-    }
+    options?: SendMessageOptions
   ): Promise<P2PMessage> {
     debugLog('MessageSender', `[P2P] *** sendMessage ENTRY *** recipientCid=${recipientCid?.toString().slice(0, 8)}..., content="${content.slice(0, 20)}..."`);
 
@@ -134,6 +125,7 @@ export class MessageSender {
     // event. It had a subscriber and no emitter, so sending a message never
     // moved that conversation up the list - only receiving one did.
     this.config.emitEvent('p2p:message-sent', { peerCid: recipientCid, message });
+    options?.onOptimisticAppend?.();
 
     debugLog('MessageSender', `[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}...`);
     const sendStartTime = Date.now();

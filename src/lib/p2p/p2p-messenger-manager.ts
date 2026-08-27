@@ -13,20 +13,19 @@
 import type { MessagingLayer } from '@/types/messaging-layer';
 import { markP2PMessageHandlerAttached } from './p2p-handler-ready';
 import { editMessage, deleteMessage } from './messenger-revision';
-import type { MessageType } from '@/types/message-protocol';
 import { websocketService } from '../websocket-service';
 import { notificationService } from '../notification-service';
 import { EventListenerManager } from '../utils/event-listener-manager';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
-import type { P2PAttachment } from '@/types/p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
 import { eventEmitter } from '@/lib/event-emitter';
 import { PresenceManager } from './presence-manager';
 import { CheckStateManager } from './checkstate-manager';
 import { MessageHandler } from './message-handler';
 import { MessageSender } from './message-sender';
+import type { SendMessageOptions } from './message-sender-types';
 import { ConversationManager } from './conversation-manager';
 import { resolveCurrentCid, updatePeerPresenceOnConnect, updatePeerPresenceOnDisconnect } from './messenger-cid-resolver';
 import { syncConnectionsFromBackend, updateFileTransferState, markMessagesAsRead, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
@@ -144,7 +143,7 @@ export class P2PMessengerManager extends EventListenerManager {
   private async loadCachedMessages(): Promise<void> { await this.conversationManager.loadFromStorage(); this.cachedMessagesLoaded = true; }
 
   // ===== Public API: Messaging =====
-  public async sendMessage(recipientCid: bigint, content: string, options?: { replyTo?: string; mentions?: string[]; attachments?: P2PAttachment[]; messageType?: MessageType; documentId?: string; documentTitle?: string; }): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
+  public async sendMessage(recipientCid: bigint, content: string, options?: SendMessageOptions): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
   public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> { return this.messageSender.sendRawMessage(recipientCid, layer); }
   public async editMessage(peerCid: bigint, messageId: string, contents: string): Promise<void> { return editMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId, contents); }
