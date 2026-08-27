@@ -46,7 +46,12 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
       <span className="text-sm font-medium truncate max-w-[120px]">{tab.title}</span>
       {/* Notification dot for unread activity */}
       {showNotificationDot && (
-        <span className="notification-dot animate-pulse-green" />
+        <>
+          <span className="notification-dot animate-pulse-green" aria-hidden="true" />
+          {/* The dot was the ONLY signal: nothing for a screen reader, and a
+              small green-or-nothing cue for a colour-blind user. */}
+          <span className="sr-only">, unread activity</span>
+        </>
       )}
       {/* Close button for live document tabs */}
       {onClose && (

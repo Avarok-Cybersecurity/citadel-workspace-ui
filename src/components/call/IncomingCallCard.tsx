@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Video } from 'lucide-react';
@@ -37,6 +38,21 @@ export function IncomingCallCard({
     ? `Incoming ${kind} call in ${roomName}`
     : `Incoming ${kind} call`;
 
+  // The card's own comment says it "announces itself through a live region
+  // instead" of taking focus. There was no live region anywhere in the call
+  // path — `role="group"` is inserted silently — so a screen-reader user with
+  // call sounds turned off was told nothing at all, for the full 45s ring.
+  //
+  // Populated in an effect rather than rendered with its text already present:
+  // a live region that mounts WITH content is frequently not announced, because
+  // assistive technology watches it for changes.
+  const [announcement, setAnnouncement] = useState('');
+  useEffect(() => {
+    const message = `${description} from ${callerName}. Press Tab to reach Decline and Accept.`;
+    const id = window.setTimeout(() => setAnnouncement(message), 100);
+    return () => window.clearTimeout(id);
+  }, [description, callerName]);
+
   return (
     <div
       role="group"
@@ -50,6 +66,10 @@ export function IncomingCallCard({
       // not is the worst failure a calling feature has.
       className="pointer-events-auto fixed inset-x-3 top-16 z-[60] rounded-lg border border-border bg-popover p-4 shadow-xl motion-safe:animate-fade-in sm:inset-x-auto sm:right-4 sm:w-80"
     >
+      {/* Assertive: a ring is time-limited, so a polite queue can outlast it. */}
+      <span role="alert" aria-live="assertive" className="sr-only">
+        {announcement}
+      </span>
       <div className="flex items-center gap-3">
         {/* Halo rings radiating from the caller, not a whole-avatar opacity
             blink: the motion says "ringing" instead of "loading". Under

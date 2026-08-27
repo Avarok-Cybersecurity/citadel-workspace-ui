@@ -3885,6 +3885,47 @@ incomplete looks identical, in the summary line, to one that fails because the
 code is wrong — and reading only the summary would have sent me to change
 working code.
 
+## Round fifty — four places the UI said nothing at all, 2026-08-27
+
+### 277. A ringing call announced nothing — FIXED
+
+`IncomingCallCard`'s own comment says it "announces itself through a live region
+instead" of taking focus, because taking focus mid-typing is hostile. **There was
+no live region anywhere in the call path.** `role="group"` is inserted silently,
+so a screen-reader user with call sounds turned off was told nothing for the full
+45-second ring. The *outgoing* panel got `role="status"`; the incoming one never
+did.
+
+Now an assertive `sr-only` region — assertive because a ring is time-limited and
+a polite queue can outlast it — carrying the caller and how to reach the
+controls, since focus is deliberately not moved.
+
+It is populated in an effect rather than rendered with its text already in place:
+**a live region that mounts WITH content is frequently not announced**, because
+assistive technology watches it for changes.
+
+### 278. The registration overlay's progress was colour-only and silent — FIXED
+
+`LoadingModal` is the full-screen "Connecting…" surface the whole register/login
+flow runs behind. It had no role, so its changing headline never announced —
+between submitting a registration and landing in the workspace a screen-reader
+user got nothing. Step progress was distinguishable **only by fill colour**,
+which a colour-blind user cannot read.
+
+Now `role="status"` on the content box (polite: this is progress, not an
+emergency), plus a ring and `aria-current="step"` on the active dot and an
+`sr-only` "(current step)" on its label.
+
+### 279. Two more colour-only or unreachable affordances — FIXED
+
+- **The chat tab's unread dot** was the only signal: nothing for a screen reader,
+  and a small green-or-nothing cue for a colour-blind user. It now carries
+  `aria-hidden` with an `sr-only` ", unread activity" beside it.
+- **The orphan-session disconnect button** was a 16px target under the WCAG 2.2
+  floor, sitting on top of the session button that switches workspaces — so a
+  thumb-sized miss switched workspace instead of disconnecting. The visible dot
+  stays 16px; the hit area is grown to 24px with a pseudo-element.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

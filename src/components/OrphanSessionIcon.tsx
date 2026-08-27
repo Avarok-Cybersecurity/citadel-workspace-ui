@@ -74,7 +74,12 @@ export const OrphanSessionIcon = ({
           "bg-background border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50",
           "flex items-center justify-center",
           "reveal-on-hover",
-          "cursor-pointer"
+          "cursor-pointer",
+          // The visible dot stays 16px, but the HIT AREA is grown to 24px with
+          // a pseudo-element: below the WCAG 2.2 target-size floor this was a
+          // thumb-sized miss away from the session button underneath, which
+          // switches workspaces instead of disconnecting.
+          "before:absolute before:-inset-1 before:content-['']"
         )}
         title="Disconnect from workspace"
         data-testid={`disconnect-button-${session.username}`}

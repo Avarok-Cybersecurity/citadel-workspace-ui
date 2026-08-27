@@ -123,6 +123,12 @@ export const LoadingModal = ({
 
       {/* Modal Content */}
       <div
+        // The headline changes as the flow advances and said nothing while it
+        // did: during registration a screen-reader user got no signal at all
+        // between submitting and landing in the workspace. Polite, not
+        // assertive — this is progress, not an emergency.
+        role="status"
+        aria-live="polite"
         className={`relative z-10 bg-background border border-border rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
           }`}
       >
@@ -163,8 +169,12 @@ export const LoadingModal = ({
               {config.steps.map((step, index) => (
                 <div
                   key={step.key}
+                  // Progress was distinguishable ONLY by fill colour, which a
+                  // colour-blind user cannot read and a screen reader cannot see
+                  // at all. The ring and aria-current carry it independently.
+                  aria-current={index === currentStepIndex ? 'step' : undefined}
                   className={`w-2 h-2 rounded-full transition-colors duration-300 ${index === currentStepIndex
-                    ? "bg-primary-accent"
+                    ? "bg-primary-accent ring-2 ring-primary-accent/50 ring-offset-1 ring-offset-background"
                     : "bg-primary-accent/30"
                     }`}
                 />
@@ -175,9 +185,10 @@ export const LoadingModal = ({
               {config.steps.map((step, index) => (
                 <span
                   key={step.key}
-                  className={index === currentStepIndex ? "text-primary-accent" : ""}
+                  className={index === currentStepIndex ? "text-primary-accent font-semibold" : ""}
                 >
                   {step.shortLabel}
+                  {index === currentStepIndex && <span className="sr-only"> (current step)</span>}
                 </span>
               ))}
               <span>Ready</span>
