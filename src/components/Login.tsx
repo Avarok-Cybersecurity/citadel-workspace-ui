@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -17,13 +18,6 @@ export function Login({ onNext, onCancel }: LoginProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Dismiss on Escape key
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCancel]);
 
   const {
     username,
@@ -51,8 +45,15 @@ export function Login({ onNext, onCancel }: LoginProps) {
     });
   };
 
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({
+    label: 'Sign in',
+    onDismiss: onCancel,
+    // SecuritySettings brings its own dialog treatment when shown.
+    enabled: !showSecuritySettings,
+  });
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4" ref={dialogRef} {...dialogProps}>
       {showSecuritySettings ? (
         <SecuritySettings
           onNext={() => setShowSecuritySettings(false)}

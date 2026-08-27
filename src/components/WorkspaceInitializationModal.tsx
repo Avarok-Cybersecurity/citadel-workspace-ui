@@ -1,3 +1,4 @@
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import React, { useState } from "react";
 import { WorkspaceInitializationDetails } from './WorkspaceInitializationDetails';
 import { Button } from "@/components/ui/button";
@@ -137,10 +138,16 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
         }
     };
 
+    // Above the early return: hooks must run in the same order every render.
+    const { ref: dialogRef, dialogProps } = useDialogOverlay({
+        label: 'Initialize workspace',
+        enabled: isOpen,
+    });
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" ref={dialogRef} {...dialogProps}>
             <Card className="bg-card border-surface shadow-lg w-full max-w-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">

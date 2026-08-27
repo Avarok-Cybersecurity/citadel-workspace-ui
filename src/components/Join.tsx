@@ -1,3 +1,4 @@
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -30,8 +31,10 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     handleReturnToLogin,
   } = useJoinRegistration(onBack, serverAddress, serverPassword);
 
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Create your profile', onDismiss: onBack });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto" ref={dialogRef} {...dialogProps}>
       <div className="w-full max-w-md">
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">

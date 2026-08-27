@@ -3789,6 +3789,49 @@ returns `Ok` unconditionally. Recorded so nobody re-chases it.
 - Opening a folder in the file grid is **double-click only**; the tree sidebar
   rescues keyboard users, so this is degraded rather than blocked.
 
+## Round forty-eight — the front door was a modal only to sighted mouse users, 2026-08-27
+
+### 272. Six pre-auth overlays had no dialog semantics at all — FIXED
+
+Login, Join, ServerConnect, SecuritySettings and both initialisation modals were
+each a `fixed inset-0` div with a scrim. Visually a modal; to assistive
+technology, nothing:
+
+- **No `role="dialog"`**, so a screen reader was never told one opened and focus
+  stayed on whatever launched it.
+- **No trap**, so Tab walked the landing-page controls buried under the *opaque*
+  scrim — focus landing on things the user cannot see, which is WCAG 2.4.11.
+- **No restore**, so closing dropped focus to `<body>`.
+- Join and SecuritySettings had **no Escape handler at all**.
+
+This is the front door of the product, and every Radix surface deeper in the app
+already does all of this correctly.
+
+Fixed once, in `useDialogOverlay`, rather than six times by hand. Two details
+were not obvious from the audit and only appeared while wiring it:
+
+- **Login renders SecuritySettings inside its own scrim.** Two live traps both
+  listening on the document answer one Escape twice and fight over focus, so the
+  hook takes an `enabled` flag and Login stands down while it has delegated.
+- **The initialisation modals get role and focus but no Escape.** Wiring Escape
+  to a modal that deliberately refuses to close would be a behaviour change
+  dressed as an accessibility fix — their "Not now" semantics are documented and
+  were left alone.
+
+`Login` also had its own Escape listener, which would have fired alongside the
+hook's and called `onCancel` twice. Removed.
+
+### 273. Method note — assert the trap, not the attribute
+
+The tempting test is that the markup contains `role="dialog"`. It would pass on
+an overlay that still leaks focus out to the page behind it — and leaking is the
+half that actually strands people.
+
+So the test presses real Tab keys through the real hook and asserts focus wraps
+at both ends and never reaches a control outside. Deleting the trap fails
+**exactly those two tests**; the role, focus-in, Escape and focus-restore tests
+keep passing, because they are not the discriminating ones.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

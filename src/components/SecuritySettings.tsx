@@ -1,3 +1,4 @@
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ArrowRight } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -98,8 +99,10 @@ export const SecuritySettings = ({
     }));
   };
 
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Security settings', onDismiss: onBack });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto" ref={dialogRef} {...dialogProps}>
       <div className="w-full max-w-xl">
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">

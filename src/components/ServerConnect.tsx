@@ -1,3 +1,4 @@
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -60,8 +61,10 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
     onNext(serverAddress, password);
   };
 
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Connect to a server', onDismiss: onCancel });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" ref={dialogRef} {...dialogProps}>
       <div className="w-full max-w-md">
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
