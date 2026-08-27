@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
+import { seedDocument } from '@/lib/live-document-store/seed-document';
 import { liveDocumentStore } from '@/lib/live-document-store';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { debugLog } from '@/lib/debug-config';
@@ -88,19 +89,28 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     }
   }, [tabs, currentUserCid, peerCid]);
 
-  const handleCreateDocument = useCallback(async (title: string, _initialContent: string) => {
-    if (!currentUserCid) return;
-    try {
-      const metadata = await liveDocumentStore.createDocument(title, peerCid.toString(), currentUserCid.toString());
-      await messenger.sendMessage(peerCid, `Created live document: ${title}`, {
-        messageType: 'live_document',
-        documentId: metadata.id,
-        documentTitle: title,
-      });
-      handleOpenDocument(metadata.id, title);
-    } catch (error) {
-      debugLog('P2PChat', 'Failed to create live document:', error);
-    }
+  const handleCreateDocument = useCallback(async (title: string, initialContent: string) => {
+    // Was `if (!currentUserCid) return;` — a success-shaped no-op that closed
+    // the modal and cleared the compose box having created nothing.
+    if (!currentUserCid) throw new Error('Cannot create a document before the session has a CID');
+
+    // The typed message, which this parameter used to ignore entirely.
+    const metadata = await liveDocumentStore.createDocument(
+      title,
+      peerCid.toString(),
+      currentUserCid.toString(),
+      initialContent ? seedDocument(initialContent) : undefined,
+    );
+    await messenger.sendMessage(peerCid, `Created live document: ${title}`, {
+      messageType: 'live_document',
+      documentId: metadata.id,
+      documentTitle: title,
+    });
+    handleOpenDocument(metadata.id, title);
+    // No catch: LiveDocumentModal was written to render this failure
+    // ("Could not create the document…"), and swallowing it here made that
+    // branch unreachable — the modal closed normally, the title and the typed
+    // content were discarded, and no tab opened.
   }, [peerCid, currentUserCid, handleOpenDocument, messenger]);
 
   const tabsWithUnread = tabs.map(tab => ({

@@ -3520,6 +3520,64 @@ recognise — silence beats "the call ended because it ended" — and the peer n
 falls back to a generic noun rather than a raw CID, which this register has
 already recorded leaking into the UI as identity.
 
+## Round forty-four — the typed message that never became a document, 2026-08-28
+
+### 259. "Turn this message into a document" discarded the message, every time — FIXED
+
+The flow exists only to turn typed text into a live document — the modal opens
+solely when the compose box is non-empty. The text was passed all the way to the
+last function and dropped there: the parameter was underscore-ignored, and
+`createDocument` was called with no initial doc. The compose box was then cleared
+regardless. **The document opened empty and the work was gone, on every use,
+whether or not anything failed.**
+
+The shape of the fix matters as much as its presence. TipTap's `Collaboration`
+extension binds to `getXmlFragment('default')` and expects ProseMirror's document
+model, so a plain `Y.Text` insert would have persisted, round-tripped, and still
+rendered a blank page — the same silent loss with more steps and a green result.
+Paragraphs are built as `XmlElement('paragraph')` nodes, and the tests assert the
+fragment rather than merely that something was written.
+
+The editor also mints its **own** `Y.Doc` on mount and loads persisted state into
+it, so a seed that does not survive an encode/decode is not a seed. That round
+trip is its own test.
+
+### 260. The same function's error branch was unreachable — FIXED
+
+`handleCreateDocument` swallowed every failure in a `debugLog` catch, while
+`LiveDocumentModal` had already been written to render exactly that failure
+("Could not create the document…") — with its own comment noting that `debugLog`
+is a production no-op. The correct fix applied in one place, the sibling keeping
+the bug.
+
+It also opened with `if (!currentUserCid) return;` — a success-shaped no-op that
+closed the modal and cleared the compose box having created nothing.
+
+Both are gone, and the two fixes compose: because the call now throws, the caller
+no longer reaches `setInputMessage('')`, so a failed creation **keeps the user's
+text in the box** instead of destroying it on the way to an error nobody saw.
+
+### 261. Recorded, not fixed — from the same audit
+
+- **Unsaved MDX edits are discarded with no warning** on Cancel, on clicking any
+  other sidebar node (the view is keyed by node id, so it unmounts mid-edit), and
+  on browser close. There is no `beforeunload` guard and no dirty check.
+- **Live-document persist failure is announced to nobody.** `live-document:persist-failed`
+  has one emitter and no subscriber — the same class round thirty-six gates for,
+  in the direction the guard cannot yet see.
+- **Two people editing one MDX page: last writer silently wins.** `UpdateNode`
+  carries no revision or hash, and the existing comment records that only "the
+  safe half" of the fix was done.
+- **RE-VFS drops queued peer ops after MAX_OP_RETRIES with a debug line, then
+  toasts "Tree synced with peer"** — the give-up is not counted in what the
+  caller checks, so the same click that discards a change reports success.
+- **`UpdateWorkspace`, `CreateWorkspace` and `UpdateUserProfile` still resolve on
+  send**, and the profile spinner has no deadline, so a refusal locks the
+  settings form in "Saving…" until it is closed and reopened.
+- **The YJS ack "retry" never resends anything** — `PendingAck` does not store
+  the update bytes, so a resend is impossible — and the badge never leaves
+  "Synced".
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
