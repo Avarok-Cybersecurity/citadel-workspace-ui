@@ -5640,3 +5640,71 @@ These are in the Rust submodules and want a bottom-up commit round of their own:
   question, deterministically.
 - `'sent'` means "queued locally" and nothing ever escalates it, so a
   permanently undeliverable message shows a checkmark for ever.
+
+## Round eighty-two — the queue that a slow read erased, 2026-08-27
+
+This round is in the Rust submodules, so it needed a bottom-up commit sequence:
+`intersession-layer-messaging` → `citadel-internal-service` → main repo pointers.
+
+### 376. A 5-second storage timeout replaced the entire pending queue with an empty one
+
+ILM keeps a CID's whole outbound queue in **one blob under one LocalDB key**, and
+every operation on it is a read-modify-write over the whole map: get it, change
+one entry, write it back. `get_map` answered a read timeout with
+`Ok(State::new())` — an empty map — under the comment "initialize a new map as a
+fallback".
+
+So one slow LocalDB read during a send replaced the entire pending queue with a
+map containing only the message being sent. Every other queued message vanished:
+messages to an offline peer, each of whose senders had already been shown "sent",
+because the UI marks `sent` exactly when `store_outbound` returns. Nothing
+surfaced; there is no path from `sent` to `failed`.
+
+The distinction the code needed was already there and only half-used: genuine
+absence arrives as `"Key not found"` and correctly initializes a new map; every
+*other* failure already returned `Err`. Only the timeout branch guessed, and it
+guessed the one answer that destroys data. A timeout means "we don't know", and
+"we don't know" must never be spelled "it was empty".
+
+### 377. Two more places that reported success they had not observed
+
+- `update_map` answered an unacknowledged write with `Ok(())` and the comment
+  "assume the update worked" — telling the sender their message was durably
+  queued when it may not have been. It now fails, so the caller marks the message
+  failed and the user gets a retry. A visible failure beats a checkmark on a
+  message that is gone.
+- Four copies of the same branch substituted an empty map when the read could not
+  reach the agent, and the very next line writes that map back — so a momentary
+  connection failure erased the queue as well. All four now propagate. The caller
+  can retry; it cannot un-erase.
+
+### 378. A message we failed to store was acknowledged anyway
+
+`mark_received` persists "(source, id) has arrived" and then the code stored the
+message, logging and dropping any store failure. No ACK is sent on that branch,
+so the sender retransmits — but the retransmission then matched the mark, took
+the duplicate branch, and **was** acked. The sender cleared the message from its
+queue and the receiver never had it. One failed store meant permanent, silent
+loss with the sender's UI showing "sent".
+
+The cause is that `mark_received` answers "is this new?" *and records the answer
+as a side effect*, which forces every caller to commit to "received" before it
+has anywhere to put the message. Added `has_received`, a read with no side
+effect, so the durable write happens first; if it fails, nothing claims the
+message arrived.
+
+The test asserts through the wire rather than through the tracker, because the
+ACK is what does the damage: an ACK tells the sender it may stop retransmitting,
+so an ACK for a message that was never stored is the exact moment the content is
+lost. Under the old ordering it fails on "retransmission delivered within
+deadline" — the resent copy is swallowed as a duplicate and never reaches the
+application.
+
+### The pattern under all three
+
+Every one of these is the same shape: an operation that could not determine an
+answer returned the *most convenient* answer instead of failing. Empty map,
+assumed success, new map. Each reads as defensive — none of them crashes — and
+each converts a transient, recoverable fault into permanent data loss with a
+reassuring checkmark on top. Failing loudly at the point of uncertainty is what
+makes the layers above able to do their job.
