@@ -7912,3 +7912,44 @@ longer existed, with retry advice for an unrecoverable state.
 The new state is gated on the nodes having loaded: during the initial fetch
 `state.nodes` is empty for every id, and announcing "no longer here" about a page
 that is simply still arriving would be its own lie.
+
+### Round 124 — documents render again, and are verified before they run
+
+An explicit product decision: render MDX client-side, grant `'unsafe-eval'`, and
+compensate with document integrity. Recorded here with the trade-off stated
+rather than implied, because the CSP is now weaker for the whole origin.
+
+**What changed.** `script-src` gains `'unsafe-eval'` in production, so
+`@mdx-js/mdx` can compile and execute a document — the thing that had been
+silently failing for every document in every shipped build. `frame-ancestors`
+goes from `'self'` to `'none'` and `X-Frame-Options` from `SAMEORIGIN` to
+`DENY`: this is a PWA holding a live authenticated session, and framing it is
+only ever clickjacking.
+
+**The compensating control.** The server computes a hex SHA-256 of `mdx_content`
+on every write and stores it on the node; the client re-hashes before executing
+and refuses on a mismatch. One canonical rule on each side, and both pin the
+*published* SHA-256 of `"abc"` rather than comparing each implementation to
+itself — two implementations of one hash can only be kept honest against an
+external constant. Neither side normalises Unicode, and both say so: normalising
+on one side only would make correct documents refuse to render, which is a worse
+failure than the one being prevented.
+
+**What it covers, exactly.** Tampering between the server and the renderer — a
+corrupted IndexedDB cache, a store-layer bug, another tab writing over the
+content, a truncated response. It does **not** stop an attacker who already has
+script execution on the page, who can patch the verifier or change content and
+hash together; and it says nothing about whether the document was hostile when
+it was written, since a member with edit rights gets a perfectly matching hash.
+That residual risk is inherent in executing member-authored documents at all,
+and is what the sandboxed alternatives would have addressed.
+
+Three states, not two: `verified`, `mismatch`, and `unhashed`. Documents written
+before the field existed have no hash, and treating that as a mismatch would
+take every old document offline to prevent a tamper that has not happened. The
+editor buffer is likewise exempt — while editing, the content is the user's own
+typing and matches no stored hash.
+
+The module tests were not enough, and the control proved it: disabling the check
+in the hook left all eight of them passing, because they test the hash and not
+whether anyone consults it. The wiring test that followed fails correctly.

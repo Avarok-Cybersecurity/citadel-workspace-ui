@@ -37,7 +37,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     entityData?.mdx_content || getInitialContent()
   );
   const [isEditing, setIsEditing] = useState(false);
-  const { compiled: compiledContent, renderError } = useCompiledMdx(content, components);
+
   const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
   const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
   const { toast } = useToast();
@@ -52,6 +52,15 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
   // Determine if we're in a loading state
   const isLoading = state.loading.nodes && !entityData;
+
+  const { compiled: compiledContent, renderError } = useCompiledMdx(
+    content,
+    components,
+    // Only the STORED document is verified. While the user is editing, `content`
+    // is their unsaved buffer and will not match any hash — refusing to render
+    // their own typing would be absurd.
+    isEditing || isNewContent ? undefined : entityData?.mdx_content_hash,
+  );
 
   // Determine the domain ID for permission checks
   const domainId = nodeId;

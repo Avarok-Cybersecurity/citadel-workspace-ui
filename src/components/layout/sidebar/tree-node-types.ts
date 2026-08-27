@@ -58,6 +58,12 @@ export interface DomainNode {
   members: string[];
   children: string[];
   mdx_content: string;
+  /**
+   * SHA-256 of `mdx_content`, hex, computed by the server on write. Verified
+   * before the document is executed — see lib/mdx-integrity.ts. Null for
+   * documents stored before the field existed.
+   */
+  mdx_content_hash: string | null;
   rules: string | null;
   chat_enabled: boolean;
   chat_channel_id: string | null;

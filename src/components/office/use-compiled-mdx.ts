@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { applyGfmStrikethrough } from './mdx-preprocess';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { verifyDocument } from '@/lib/mdx-integrity';
 
 /**
  * Compile MDX source to a rendered element.
@@ -24,6 +25,16 @@ export interface CompiledMdx {
 export function useCompiledMdx(
   content: string,
   components: MDXComponents,
+  /**
+   * The hash the SERVER stored for this content, if any.
+   *
+   * Rendering executes the document, so the bytes have to be the bytes the
+   * server stored. `null`/`undefined` means the server has no hash for it —
+   * documents written before the field existed — which renders normally; a hash
+   * that is present and different does not. See lib/mdx-integrity.ts for what
+   * this covers and, more importantly, what it does not.
+   */
+  expectedHash?: string | null,
 ): CompiledMdx {
   const [compiled, setCompiled] = useState<ReactElement | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -36,6 +47,17 @@ export function useCompiledMdx(
         // Pre-pass escapes JSX-significant chars inside `~~...~~` regions
         // so `~~value < 5~~` doesn't fail MDX parsing before remark-gfm
         // consumes it. See `applyGfmStrikethrough` for details.
+        const verdict = await verifyDocument(content, expectedHash);
+        if (verdict.status === 'mismatch') {
+          debugLog('BaseOffice', 'MDX integrity mismatch', verdict);
+          setCompiled(null);
+          setRenderError(
+            'This document was not displayed because it does not match what the ' +
+              'server stored. Reload to fetch a fresh copy.',
+          );
+          return;
+        }
+
         const processedContent = applyGfmStrikethrough(content);
         const result = await evaluate(processedContent, {
           ...runtime,
@@ -69,7 +91,7 @@ export function useCompiledMdx(
     };
 
     runAsyncSetup(compileContent);
-  }, [content, components]);
+  }, [content, components, expectedHash]);
 
   return { compiled, renderError };
 }

@@ -71,6 +71,9 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     members: [],
     children: roots.map(r => r.id),
     mdx_content: '',
+    // A synthetic root the client invents to hold the real roots; it has no
+    // stored document and therefore no server hash.
+    mdx_content_hash: null,
     rules: null,
     chat_enabled: false,
     chat_channel_id: null,
