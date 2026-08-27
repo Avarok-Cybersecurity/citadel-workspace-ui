@@ -8291,3 +8291,36 @@ immediately — so the emit is gone too, while the variant is still *handled*,
 because returning false would make a caller awaiting confirmation wait out its
 timeout. The guard checks both directions, and this is the first time the
 unheard-emit half has fired.
+
+### Round 135 — an identifier no screen shows, and names that could not be found
+
+**The Messages empty state pointed at an internal identifier the app never
+displays.** "Add a peer to start messaging", beside an input labelled "Enter
+peer CID…", and a validation message advising the reader to "copy it from the
+peer's account" — a place that does not exist. Nothing anywhere renders a full
+CID; only a six-character short handle. So the primary affordance on the
+messaging screen asked for a number the user had no way to obtain, under an
+acronym they were never told, while the two paths that actually work — the
+workspace directory and Discover Peers — were named nowhere near it.
+
+Extracting the form to fit the line cap also surfaced that its failure message
+discarded the real one: "Could not add that peer. Check the CID and try again."
+where the underlying error had something specific to say. That is the fourth
+place this round-133 shape has appeared.
+
+**No matcher folded diacritics.** Every search in the app was
+`toLowerCase().includes(...)`, so "jose" did not find "José" and "cafe" did not
+find "café" — and the names most likely to carry a diacritic are exactly the
+ones a colleague will type without it. Worse in combination: the sorting beside
+these lists uses `localeCompare`, so a list could show two neighbours, one of
+which the obvious query could not reach.
+
+One folding rule now, used by the user search, the tree filter and the file
+grid. It deliberately does not transliterate: "ß" does not become "ss" and "ø"
+does not become "o", because those are language-specific and a matcher that is
+right for German and wrong for Danish is worse than one that is predictable.
+
+The control caught my own carelessness. My first attempt to remove the folding
+did not match the source, so the "control" passed and would have let me claim a
+verified test that had never been run against the defect. Removing it properly
+fails two.

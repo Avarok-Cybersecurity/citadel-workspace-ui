@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAddPeer } from './use-add-peer';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService, type Peer } from '@/lib/p2p-registration-service';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,7 +10,6 @@ import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { isUsablePeerCid } from '@/lib/peer-cid-input';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
 import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
@@ -23,9 +23,6 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [availablePeers, setAvailablePeers] = useState<Peer[]>([]);
   const [showAvailablePeers, setShowAvailablePeers] = useState(false);
-  const [newPeerCid, setNewPeerCid] = useState('');
-  const [isAddingPeer, setIsAddingPeer] = useState(false);
-  const [addPeerError, setAddPeerError] = useState<string | null>(null);
 
   const messenger = P2PMessengerManager.getInstance();
 
@@ -84,30 +81,14 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     setAvailablePeers(allPeers);
   };
 
-  const handleAddPeer = async () => {
-    const entered = newPeerCid.trim();
-    if (!entered) return;
-
-    // Before BigInt, which throws on anything else — see peer-cid-input.
-    if (!isUsablePeerCid(entered)) {
-      setAddPeerError('A peer CID is a number. Copy it from the peer\'s account, or find them in the directory.');
-      return;
-    }
-
-    setIsAddingPeer(true);
-    setAddPeerError(null);
-    try {
-      await messenger.autoRegisterPeer(BigInt(entered));
-      setNewPeerCid('');
-      loadPeers();
-    } catch (error) {
-      debugLog('P2PPeerList', 'Failed to add peer:', error);
-      // Shown too: debugLog is a no-op outside dev, so this was silent.
-      setAddPeerError('Could not add that peer. Check the CID and try again.');
-    } finally {
-      setIsAddingPeer(false);
-    }
-  };
+  const {
+    value: newPeerCid,
+    setValue: setNewPeerCid,
+    error: addPeerError,
+    setError: setAddPeerError,
+    adding: isAddingPeer,
+    submit: handleAddPeer,
+  } = useAddPeer((cid) => messenger.autoRegisterPeer(cid), loadPeers);
 
   return (
     <div className="h-full flex flex-col bg-input">
@@ -144,7 +125,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                 setNewPeerCid(e.target.value);
                 if (addPeerError) setAddPeerError(null);
               }}
-              placeholder="Enter peer CID..."
+              placeholder="Peer CID (or use Discover Peers)"
               aria-invalid={addPeerError ? true : undefined}
               aria-describedby={addPeerError ? 'add-peer-error' : undefined}
               className="flex-1 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 h-9 rounded-lg text-sm"
@@ -226,7 +207,15 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
               <div className="text-center py-8 text-muted-foreground">
                 <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">No conversations yet</p>
-                <p className="text-xs mt-1">Add a peer to start messaging</p>
+                {/* This said "Add a peer to start messaging" and pointed at an
+                    input that wants a CID -- an internal identifier no screen
+                    in the app displays, under an acronym the reader was never
+                    told. The two paths that actually work are named here
+                    instead. */}
+                <p className="text-xs mt-1">
+                  Find someone in the workspace directory, or use Discover Peers
+                  in the sidebar.
+                </p>
               </div>
             ) : (
               <div className="space-y-1">

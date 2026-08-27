@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { matchesSearch } from '@/lib/fold-for-search';
 import { FolderOpen } from "lucide-react";
 import type { RevfsNode } from "@/types/revfs-types";
 import type { SelectMode } from "@/hooks/useVFSSelection";
@@ -59,7 +60,7 @@ export function VFSContentGrid({
   const currentNode = findNodeByPath(tree, currentPath);
   const allChildren = currentNode?.children ?? [];
   const children = filterText
-    ? allChildren.filter(n => n.name.toLowerCase().includes(filterText.toLowerCase()))
+    ? allChildren.filter(n => matchesSearch(n.name, filterText))
     : allChildren;
 
   const handleBackgroundClick = useCallback(() => { onClearSelection?.(); }, [onClearSelection]);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { matchesSearch } from '@/lib/fold-for-search';
 import { debugLog } from '@/lib/debug-config';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -90,8 +91,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
           .filter(member =>
             !exclude.includes(member.id) &&
             (
-              member.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              (member.email && member.email.toLowerCase().includes(searchTerm.toLowerCase()))
+              matchesSearch(member.displayName, searchTerm) ||
+              (member.email ? matchesSearch(member.email, searchTerm) : false)
             )
           )
           .map(member => ({
