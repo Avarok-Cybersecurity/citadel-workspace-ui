@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -16,7 +17,15 @@ interface AppLayoutProps {
 export const AppLayout = ({ children }: AppLayoutProps) => {
   return (
     <SidebarProvider>
-      <div className="h-dvh flex w-full bg-background text-foreground overflow-hidden">
+      {/* `--app-height` is published by keyboard-inset.ts on browsers that do
+          not honour `interactive-widget=resizes-content` (i.e. WebKit), and is
+          absent otherwise — so this is dvh everywhere it already worked.
+          `pb-[env(safe-area-inset-bottom)]` keeps the composer's bottom edge out
+          of the iPhone home-indicator gesture zone in standalone; iOS reserves
+          the status bar for us but not the bottom inset, and the value is 0
+          everywhere else. */}
+      <AppHeaderHeightVar />
+      <div className="h-[var(--app-height,100dvh)] pb-[env(safe-area-inset-bottom)] flex w-full bg-background text-foreground overflow-hidden">
         {/*
           First tab stop, visible only once focused. The workspace renders 43
           tabbable controls and had NO landmarks at all, so reaching the content
@@ -64,3 +73,24 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
     </SidebarProvider>
   );
 };
+
+/**
+ * Publishes the app header's height while this layout is mounted.
+ *
+ * The offline banner is fixed and mounted globally, above the router, and sat
+ * at a hardcoded `top-14` on every route — including the landing page, which has
+ * no header at all. There it floated in mid-air over the hero, which is exactly
+ * the offline cold-start screen. Driving the offset from a variable the header's
+ * owner publishes means it is below the header where there is one and at the top
+ * where there is not, without the banner having to know about routes.
+ */
+function AppHeaderHeightVar() {
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--app-header-height', '3.5rem');
+    return () => {
+      root.style.removeProperty('--app-header-height');
+    };
+  }, []);
+  return null;
+}

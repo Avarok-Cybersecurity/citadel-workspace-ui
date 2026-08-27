@@ -5997,3 +5997,96 @@ than this build understands.
 - The offline banner is positioned `top-14` for the app header on every route,
   including the header-less landing page — which is exactly the offline
   cold-start screen.
+
+## Round eighty-eight — the iOS half of the PWA, and the guard list that drifted, 2026-08-27
+
+### 387. The keyboard fix was Chromium-only
+
+`index.html` carries `interactive-widget=resizes-content` with a comment naming
+exactly what it fixes: without it the layout viewport keeps its full height when
+the keyboard opens, so `h-dvh` does not shrink and the chat shell — which is
+`overflow-hidden` with the composer as its last flex child — leaves that composer
+underneath the keyboard.
+
+But `interactive-widget` is a Chromium-only viewport key. WebKit does not
+implement it, so on iOS — the platform whose installed PWA is the product's
+primary mobile surface — the bug that meta tag exists to fix was still live.
+
+`keyboard-inset.ts` publishes `visualViewport.height` as `--app-height`, and the
+shell uses `h-[var(--app-height,100dvh)]`. Chromium already resizes the layout
+viewport, so there the difference stays under the 120px threshold and this never
+fires: the two mechanisms do not fight. Same measured-CSS-variable style the
+offline banner already uses for its own height.
+
+### 388. Nothing anywhere reserved the bottom safe area
+
+The top inset is handled by choosing the `default` status-bar style, which is
+sound and documented — but iOS reserves only the status bar. In standalone the
+shell ran to the physical bottom, putting the composer's bottom edge in the
+home-indicator gesture zone, where a tap can trigger the system gesture instead.
+`pb-[env(safe-area-inset-bottom)]` on the shell; the value is 0 everywhere else.
+
+### 389. "Reload when you are ready" in a window with no reload control
+
+The cross-window update toast carried no action, and an installed standalone
+window has no reload button and no URL bar. The re-offer-on-return path cannot
+help either: it is gated on `registration.waiting`, which is already null once
+another window has activated the new worker. The toast now carries a Reload
+action, like the other two.
+
+### 390. The offline banner floated in mid-air on the one screen it matters most
+
+It is `fixed` at `top-14` and mounted globally, above the router — including on
+the landing page, which has no header and *is* the offline cold-start screen.
+`AppLayout` now publishes `--app-header-height` while mounted, and the banner
+uses `top-[var(--app-header-height,0px)]`: below the header where there is one,
+at the top where there is not, without the banner knowing about routes.
+
+Its layering test had pinned its regex to `top-14`, so a correct change to the
+offset silently extracted `0` for the z-index. The regex matches on
+`fixed inset-x-0` now, and a new case asserts the extraction found anything at
+all — otherwise every comparison degrades to `0 > n`, which fails for the wrong
+reason.
+
+### 391. `npm run preflight` had drifted eleven gates behind CI
+
+Preflight's header states its charter: "Every CI gate that can run without
+Docker, in one command," written after three gates were found red by finally
+running them by hand. Its list was a hand-maintained array of ten. CI had grown
+to twenty-one `node scripts/*.mjs` gates — every one of which runs from a plain
+checkout. Eleven checks a developer could have run in one second were only ever
+discovered by pushing: the exact failure the file was written to end, re-appearing
+one gate at a time, which is what a hand-copied list does.
+
+The list is now **derived from validate.yml**. Adding a gate to CI adds it to
+preflight with no second edit. Exclusions are an explicit map with a reason and
+are printed as skipped, because an exclusion nobody can see is how a list starts
+lying — there is exactly one, `check-production-image`, which drives a browser
+against a built image.
+
+Two ways this could become a clean run over nothing, both now fatal: the workflow
+being unreadable (says which file), and it being present but reshaped so few
+gates parse (says how many it found). Verified by control against a temporary
+tree — both exit 1.
+
+Preflight went from 14 checks to 24.
+
+### Recorded from the guard audit, not yet fixed
+
+- **`check-generated-types-fresh` proves copy-sync, not freshness.** It compares
+  two committed directories; nothing regenerates the ts-rs output and diffs it.
+  If a Rust type changes and nobody re-runs ts-rs, both copies agree and the gate
+  passes while client and server disagree on the wire.
+- **`check-storage-keys` is still blind to class-field keys** — resolves only
+  `const NAME = '...'`, so `private static readonly STORAGE_KEY = '...'` and all
+  its call sites are dropped while the summary prints OK. Recorded before; still
+  open, and it exempts the very module it was written for.
+- **`check-handlers-cannot-panic` exempts a whole file per ALLOWED entry**, so a
+  new `unwrap` anywhere in `requests/media/open.rs` passes — and the check named
+  "cannot panic" does not look for `panic!`, `todo!` or `unimplemented!` at all.
+- **The Windows agent binary is published without ever being executed** — the
+  smoke step is `if: runner.os != 'Windows'`.
+- Several guards no-op quietly if their input is renamed
+  (`check-no-test-features-shipped`, `check-restart-policies`,
+  `check-doc-env-vars.sh`), and the 250-line cap plus the env-var gate hang off a
+  matrix leg whose own comment warns that renaming it takes the gate with it.

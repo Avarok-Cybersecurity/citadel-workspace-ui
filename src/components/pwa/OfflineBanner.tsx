@@ -72,7 +72,12 @@ export function OfflineBanner() {
         // painted over by the thing that was not loading. top-14 is what keeps
         // the header clear, so the z-index is free to go above them — a 36px
         // strip below the header cannot swallow a control the way top-0 did.
-        'fixed inset-x-0 top-14 z-[110] flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
+        // The offset follows whether a header exists: AppLayout publishes
+        // `--app-header-height` while it is mounted, and the landing page —
+        // which has no header and IS the offline cold-start screen — leaves it
+        // unset, so the strip sits at the top there instead of floating over
+        // the hero.
+        'fixed inset-x-0 top-[var(--app-header-height,0px)] z-[110] flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
         // Not red: being offline is a condition to inform about, not an error
         // the user caused or can fix by retrying.
         offline || agentDown

@@ -45,7 +45,14 @@ export function PwaUpdatePrompt() {
   const weInitiatedUpdate = useRef(false);
   // `toast` is declared below and the callback above closes over this instead,
   // so the callback does not depend on declaration order.
-  const toastRef = useRef<((opts: { title: string; description?: string }) => void) | null>(null);
+  const toastRef = useRef<
+    | ((opts: {
+        title: string;
+        description?: string;
+        action?: { label: string; onClick: () => void };
+      }) => void)
+    | null
+  >(null);
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
@@ -59,9 +66,16 @@ export function PwaUpdatePrompt() {
       }
       // Another window took the update. Say so rather than yanking the page
       // out from under someone mid-conversation.
+      // With an action, not just an instruction. An installed standalone
+      // window has no reload button and no URL bar, so "reload when you are
+      // ready" was something the user could not actually do — and the
+      // re-offer-on-return path cannot help here either, because it is gated on
+      // `registration.waiting`, which is already null once another window has
+      // activated the new worker.
       toastRef.current?.({
         title: 'Updated in another window',
-        description: 'Reload when you are ready to pick up the new version.',
+        description: 'Reload to pick up the new version.',
+        action: { label: 'Reload', onClick: () => window.location.reload() },
       });
     },
     onRegisteredSW(url, registration) {

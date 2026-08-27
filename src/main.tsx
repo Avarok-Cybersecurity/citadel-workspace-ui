@@ -39,6 +39,7 @@ if (import.meta.env.DEV) {
 import { instanceInboundRouter } from './lib/multi-instance';
 import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store';
 import { showStorageVersionRecovery } from './storage-version-recovery';
+import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
 void instanceInboundRouter.isRouterActive();
 
 // Construct the P2P messenger during boot so its 'websocket-message'
@@ -167,6 +168,7 @@ try {
   // happens to be mounted at that moment. Same reasoning as the service-worker
   // registration above.
   startInstallPromptCapture();
+  startKeyboardInsetTracking();
 
   const root = createRoot(rootElement);
   root.render(<App />);
