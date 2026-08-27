@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
 import { getDefaultNodeContent, getDefaultChildNodeContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
+import { NodeNotFound } from './NodeNotFound';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { isVariant } from 'citadel-workspace-client-ts';
 import { connectionManager } from '@/lib/connection';
@@ -105,6 +106,17 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
         />
       </div>
     );
+  }
+
+  // A URL naming a node we do not have is not the same as no URL at all. Both
+  // used to fall through to `getDefaultMDXShowcase()` and render the editor
+  // demo as though it were the document -- see NodeNotFound.
+  //
+  // Gated on the nodes having loaded: during the initial fetch `state.nodes` is
+  // empty for every id, and announcing "no longer here" about a page that is
+  // simply still arriving would be its own lie.
+  if (nodeId && !node && !state.loading.nodes) {
+    return <NodeNotFound nodeId={nodeId} />;
   }
 
   // Otherwise show the normal workspace content

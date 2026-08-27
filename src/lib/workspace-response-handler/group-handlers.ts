@@ -38,6 +38,7 @@ export function handleGroupVariants(
     eventEmitter.emit('group:message-received', {
       groupId: group_id,
       senderId: message.sender_id,
+      senderName: message.sender_name,
       content: message.content,
     });
     // Raw as well, so a sender awaiting confirmation can see it. This handler

@@ -7878,3 +7878,37 @@ once with no per-track restart, `start` is guarded against a second capture, and
 a replacement track needs a distinct swap path plus encoder-timestamp continuity
 across the gap. That is its own piece of work, and the honest failure message
 above — reconnect and rejoin — is complete without it.
+
+### Round 123 — group chat never interrupted anyone, and a deleted page pretended to be a tutorial
+
+**Group messages produced no notification of any kind.**
+`addMessageNotification` had exactly two callers — the P2P manager and a
+dev-only simulator — so the whole group pipeline moved the sidebar badge and
+stopped. No bell entry, no OS notification, no sound, and the backgrounded-tab
+path unreachable for groups entirely. Someone working in another window learned
+of group traffic only by happening to look at the sidebar.
+
+The three suppression rules are borrowed from the P2P path rather than invented,
+because two notification surfaces that disagree about when to interrupt are
+worse than one that is slightly wrong: never for your own message (the server
+echoes the sender's own message back as the send confirmation, so without this
+every message you sent would ring your own bell), never for the group you are
+reading, and keyed by group-sender-content so a redelivery cannot stack a second
+identical entry.
+
+One rule is deliberately NOT copied. The P2P path suppresses via an "active
+conversation" field set only by an adapter nothing in the app constructs — so
+its suppression has never worked, and copying the mechanism would have copied
+the bug. This reads the URL instead.
+
+**A URL naming a node that is not there rendered the editor demo as the
+document.** The fallback chain ended in `getDefaultMDXShowcase()` with no
+not-found state before it, so a stale bookmark, a shared link to something since
+deleted, or a node deleted by someone else while you were reading it all
+silently became "MDX Editor Showcase", titled "Welcome to Your Workspace". If
+the reader had been editing, Save then failed for ever against a node that no
+longer existed, with retry advice for an unrecoverable state.
+
+The new state is gated on the nodes having loaded: during the initial fetch
+`state.nodes` is empty for every id, and announcing "no longer here" about a page
+that is simply still arriving would be its own lie.
