@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
@@ -29,6 +29,7 @@ import { debugLog } from '@/lib/debug-config';
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 export function PwaUpdatePrompt() {
   const { toast } = useToast();
+
   const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => () => cleanupRef.current?.(), []);
@@ -99,6 +100,17 @@ export function PwaUpdatePrompt() {
     },
   });
 
+  /**
+   * The single accept path for both the first offer and the return-to-tab
+   * re-offer. Setting `weInitiatedUpdate` is what makes `onNeedReload` reload
+   * THIS window instead of showing "Updated in another window" — the re-offer
+   * used to omit it, so the user pressed Reload and was told to reload.
+   */
+  const acceptUpdate = useCallback(() => {
+    weInitiatedUpdate.current = true;
+    void updateServiceWorker(true);
+  }, [updateServiceWorker]);
+
   useEffect(() => {
     toastRef.current = toast;
   }, [toast]);
@@ -120,16 +132,10 @@ export function PwaUpdatePrompt() {
       description: 'A new version of Citadel is ready. Reloading will reconnect your session.',
       // No auto-dismiss: this is an action the user should get to on their own time.
       duration: Infinity,
-      action: {
-        label: 'Reload',
-        onClick: () => {
-          weInitiatedUpdate.current = true;
-          void updateServiceWorker(true);
-        },
-      },
+      action: { label: 'Reload', onClick: acceptUpdate },
     });
     setNeedRefresh(false);
-  }, [needRefresh, setNeedRefresh, updateServiceWorker, toast]);
+  }, [needRefresh, setNeedRefresh, acceptUpdate, toast]);
 
   // Re-offer the update when the user comes back to the tab.
   //
@@ -152,12 +158,7 @@ export function PwaUpdatePrompt() {
             title: 'Update available',
             description: 'A new version of Citadel is ready. Reloading will reconnect your session.',
             duration: Infinity,
-            action: {
-              label: 'Reload',
-              onClick: () => {
-                void updateServiceWorker(true);
-              },
-            },
+            action: { label: 'Reload', onClick: acceptUpdate },
           });
         })
         .catch(() => undefined);
@@ -165,7 +166,7 @@ export function PwaUpdatePrompt() {
 
     document.addEventListener('visibilitychange', offerIfWaiting);
     return () => document.removeEventListener('visibilitychange', offerIfWaiting);
-  }, [toast, updateServiceWorker]);
+  }, [toast, acceptUpdate]);
 
   return null;
 }

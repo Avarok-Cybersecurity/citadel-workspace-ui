@@ -3069,6 +3069,90 @@ Adjacent: "Add member" sends an untrimmed typed username, and the server mints a
 permanent roster entry for a person who does not exist, and toasts that they were
 added.
 
+## Round thirty-eight — a poisoned retry, a shadow type, and a button that told you to press it, 2026-08-27
+
+### 237. The first failed init poisoned every later attempt — FIXED
+
+`initService` caches its in-flight promise so concurrent callers share one
+attempt. **On failure the promise was left set**, so the guard replayed the same
+rejection for ever.
+
+The full chain is the worst part. A brand-new user without the local agent
+running gets a connection failure — the exact case the "install the agent" hint
+exists for. They install it. They press Retry. The cached rejection returns
+**instantly**, nothing re-attempts, and after ten of those the modal reads
+"Failed to reconnect after 10 attempts" with Retry disabled. Login and Join both
+begin with `await init()`, so they replay it too. Only a page reload recovered,
+and nothing said so.
+
+One line: clear the promise in the catch.
+
+The test drives the real `initService` — its `initOps` is injectable, which is
+SBIO paying off — and **counts attempts**, because asserting that the second call
+rejects would pass on the broken version too: the broken version rejects
+precisely because it never tried.
+
+### 238. Method note — a control that flips the wrong test is a broken test
+
+The first control run showed the retry test failing (right) *and the concurrency
+test passing without the fix while failing with it* (impossible — the catch does
+not run on success).
+
+That was the test, not the code: `initService` short-circuits on a `window`
+global, test one left it set, and my `beforeEach` cleared a **guessed** key name
+rather than the imported `GLOBAL_INIT_KEY`. `create` was never called at all.
+Chasing the anomaly instead of accepting the green run is what found it. After the
+fix the control is clean: only the discriminating test moves.
+
+### 239. `ObjectTransferStatus` is hand-written fiction — RECORDED, blocks the file-transfer stack
+
+Round thirty-seven recorded that the SDK's progress and completion ticks have no
+subscribers. Wiring them up revealed **why nobody ever did**: the parser they
+would feed is written against a type that does not exist.
+
+`file-transfer/protocol-types.ts` hand-declares `ObjectTransferStatus` instead of
+importing the generated one, so `tsc` validates the whole parser against the
+invention and passes. Every variant disagrees with
+`@avarok/citadel-protocol-types`, which is generated from the Rust enum:
+
+| hand-written (fiction) | generated (real) |
+|---|---|
+| `{ ReceptionTick: { object_id, received, total } }` | `{ ReceptionTick: [number, number, number] }` |
+| `{ ReceptionComplete: { object_id } }` | `"ReceptionComplete"` — a bare string |
+| `{ TransferComplete: { object_id } }` | `"TransferComplete"` — a bare string |
+| `{ Fail: { object_id, message } }` | `{ Fail: string }` |
+
+Two independent sources agree against the local copy: the generated `.d.ts` and
+the Rust `ObjectTransferStatus::ReceptionTick(_cid, _rel_group_id, percent)`.
+
+The consequence is larger than a parsing bug. **The real tick carries no object
+id at all**, so the `objectId -> transferId` correlation the entire file-transfer
+stack is built on cannot be satisfied from these notifications. This is not a
+subscription that was forgotten; it is a join that cannot be made as designed.
+
+**The subscriptions were reverted rather than shipped.** Subscribing a parser
+that can never fire would have been exactly the defect this campaign exists to
+find — a mechanism built at one end — and would have been announced as a fix.
+Two `it.fails` tests now pin the divergence: they feed the canonical shapes and
+document what the parser does with them, so the day the type is corrected they
+flip to passing and demand attention.
+
+What did survive is `applyTransferOutcome`: one idempotent terminal-state applier
+shared by both planes, so whichever reports first wins and no transfer can be
+double-completed.
+
+### 240. The re-offered update's Reload button did not reload — FIXED
+
+`PwaUpdatePrompt` gates `onNeedReload` on a `weInitiatedUpdate` ref, so one
+window taking an update does not yank every other window. The return-to-tab
+re-offer — added in an earlier round of this campaign — **omitted setting that
+ref**. Pressing Reload therefore took the other branch and displayed *"Updated in
+another window — reload when you are ready."* The user pressed Reload and was
+told to reload.
+
+My own two-ends failure, in the round that named the pattern. Both toasts now
+share one `acceptUpdate` handler, so they cannot drift apart again.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
