@@ -4290,6 +4290,60 @@ fail, failing, is the fix working.
   **retry fallback** for PeerConnect timeouts, so it reported the retry as having
   worked in precisely the case where it had not.
 
+## Round fifty-seven — reading fields the wire does not have, 2026-08-27
+
+An audit aimed only at hand-written types that shadow generated ones — the class
+that killed the file-transfer progress path. It found six more.
+
+### 304. Every discovered peer showed offline and unnamed — FIXED
+
+The peer list declared `PeerEntry { full_name, is_online }`. The generated
+`PeerInformation` declares **`name`** and **`online_status`**. Both reads were
+`undefined` on every peer, so the online badge was always off and the full name
+always blank — and because the fields were optional, tsc said nothing.
+
+Worse underneath it: `peer_information` is a Rust `HashMap`, which
+`serde_wasm_bindgen` delivers as a JS **Map**. `Object.values()` on a Map returns
+`[]`, so the primary discovery path found **no peers at all** and fell through to
+the GetSessions fallback, which only sees peers on the same internal service. The
+same shape made the already-registered set empty, so peers who were already
+registered were offered for registration again.
+
+A normalizer for the Map hazard was written once, in the P2P registration
+service, and never propagated. It now lives in `lib/wire-map.ts` and is used by
+both call sites here.
+
+### 305. The admin shield never rendered in the sidebar — FIXED
+
+`getRoleIcon` compared against `"owner"`/`"admin"` in lowercase. The wire sends
+PascalCase, so no member loaded from the server ever matched. The neighbouring
+code already knew — `TopBar` and `AdminSettingsSection` check both cases, and
+`role-badge.ts` lowercases first — making this the one place the fix was not
+applied.
+
+### 306. Recorded, not fixed — four more shadow types
+
+- **Incoming file offers show NaN for size.** The local notification type
+  declares `metadata.file_size` and `mime_type`; the generated
+  `VirtualObjectMetadata` has neither — the size field is `plaintext_length`. So
+  `Number(undefined)` is displayed in the accept UI. Folds into the recorded
+  rewrite of that same file.
+- **`ActiveSession.full_name` is phantom**, so session avatars and the disconnect
+  modal always fall back to the username.
+- **`UserRoleTS` and `UpdateOperationTS` encode lowercase values the server
+  rejects** — Rust has no `rename_all`, so `"admin"`/`"add"` fail serde and the
+  whole payload is refused. It works today only because every live caller
+  bypasses the enum with a PascalCase literal plus a cast: tsc is validating
+  fiction in both directions, and the enum's own members are the one thing
+  guaranteed to fail.
+- **Two more `Object.keys` over wire HashMaps** — cached-peer sync after
+  reconnect, and the LocalDB key listing that feeds paginated message history.
+
+The report also names the mechanism that lets all of these past CI: three
+`as unknown as` adapters between the hand-written request types and the generated
+ones. Replacing the hand types with the generated imports removes the need for
+all three, and is the real fix.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

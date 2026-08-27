@@ -36,7 +36,13 @@ import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import { roleBadgeClass } from '@/lib/role-badge';
 
 export function getRoleIcon(role: string) {
-  return (role === "owner" || role === "admin")
+  // Case-normalised: the wire sends PascalCase ("Admin", "Owner") and this
+  // compared against lowercase only, so the shield NEVER rendered for a member
+  // loaded from the server. The neighbouring code already knew — TopBar and
+  // AdminSettingsSection check both cases, and role-badge.ts lowercases first —
+  // so this was the one place the fix was not applied.
+  const normalized = role.toLowerCase();
+  return (normalized === "owner" || normalized === "admin")
     ? <Shield className="h-4 w-4" />
     : <UserIcon className="h-4 w-4" />;
 }

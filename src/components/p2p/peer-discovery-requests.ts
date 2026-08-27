@@ -1,6 +1,7 @@
 import { websocketService } from '@/lib/websocket-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
+import { wireMapValues, wireMapEntries } from '@/lib/wire-map';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '@/lib/timeout-constants';
@@ -11,11 +12,18 @@ interface SessionEntry {
   username?: string;
 }
 
+/**
+ * Mirrors the generated `PeerInformation`: `{ cid, online_status, name, username }`.
+ *
+ * This declared `full_name` and `is_online`, which do not exist on the wire —
+ * both were read as `undefined` on every peer, so the sidebar showed every
+ * discovered peer as offline and unnamed. Optional fields kept tsc silent.
+ */
 interface PeerEntry {
   cid: bigint;
-  username?: string;
-  full_name?: string;
-  is_online?: boolean;
+  username?: string | null;
+  name?: string | null;
+  online_status?: boolean;
 }
 
 /**
@@ -107,12 +115,10 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
   await websocketService.sendMessage(request);
   const response = await responsePromise;
 
+  // Same HashMap-as-Map hazard: an empty set here meant peers who were ALREADY
+  // registered were offered for registration again.
   const registered = new Set<string>();
-  if (response.peers) {
-    Object.keys(response.peers).forEach((peerCid: string) => {
-      registered.add(peerCid);
-    });
-  }
+  for (const [peerCid] of wireMapEntries(response.peers, 'peers')) registered.add(peerCid);
   return registered;
 }
 
@@ -159,14 +165,17 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
   await websocketService.sendMessage(request);
   const response = await responsePromise;
 
-  const peerInfo: Record<string, PeerEntry> = response.peer_information || {};
-  const peerList: PeerEntry[] = Object.values(peerInfo);
+  // `peer_information` is a Rust HashMap: over the WASM boundary it is a JS Map,
+  // and Object.values() on a Map returns [] — so this path found no peers at all
+  // and fell through to the GetSessions fallback, which only sees peers on the
+  // same internal service.
+  const peerList = wireMapValues<PeerEntry>(response.peer_information, 'peer_information');
   return peerList
     .filter((p) => p.cid !== currentCid)
     .map((p) => ({
       cid: p.cid.toString(),
       username: p.username || 'Unknown',
-      fullName: p.full_name,
-      is_online: p.is_online || false
+      fullName: p.name ?? undefined,
+      is_online: p.online_status ?? false
     }));
 }
