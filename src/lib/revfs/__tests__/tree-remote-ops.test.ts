@@ -61,7 +61,10 @@ describe('applyRemoteOp', () => {
     const result = applyRemoteOp(tree, op, CID_B);
     const file = findNode(result, '/docs/file.pdf');
     expect(file).not.toBeNull();
-    expect(file!.fileState).toBe(RevfsFileState.Remote);
+    // A uploaded, so the bytes travelled to B: B is the one HOSTING them.
+    // This expected Remote, encoding the inversion that made an uploader's own
+    // file un-downloadable. See placeFile in tree-mutations.ts.
+    expect(file!.fileState).toBe(RevfsFileState.Hosted);
   });
 
   it('applies remote RemoveFile', () => {
@@ -86,7 +89,8 @@ describe('applyRemoteOp', () => {
     [remoteTree] = mkdir(remoteTree, '/docs');
     const meta = makeMeta({ uploadedByCid: CID_A });
     [remoteTree] = placeFile(remoteTree, '/docs/test.pdf', meta, CID_A);
-    expect(findNode(remoteTree, '/docs/test.pdf')!.fileState).toBe(RevfsFileState.Hosted);
+    // A uploaded it, so from A's side the blob lives on the peer: Remote.
+    expect(findNode(remoteTree, '/docs/test.pdf')!.fileState).toBe(RevfsFileState.Remote);
 
     const op = {
       op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/',
@@ -95,7 +99,8 @@ describe('applyRemoteOp', () => {
     const result = applyRemoteOp(createDefaultTree(), op, CID_B);
     const file = findNode(result, '/docs/test.pdf');
     expect(file).not.toBeNull();
-    expect(file!.fileState).toBe(RevfsFileState.Remote);
+    // ...and flipping to B's perspective makes it Hosted, since B holds it.
+    expect(file!.fileState).toBe(RevfsFileState.Hosted);
   });
 
   it('returns tree unchanged for SyncResponse with null tree', () => {

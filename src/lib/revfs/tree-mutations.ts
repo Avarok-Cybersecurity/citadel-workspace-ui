@@ -126,10 +126,20 @@ export function placeFile(
     throw new Error(`Parent directory not found: ${parent}`);
   }
 
-  // Determine file state: if I uploaded it, I'm Hosting; otherwise Remote
+  // This was inverted, against the enum's own documentation.
+  //
+  // `uploadFileToPeer` sends the BYTES to the peer (`backend-send-file` with
+  // that peer's cid), so after an upload it is the PEER who stores the encrypted
+  // blob. RevfsFileState says exactly that: Remote = "peer stores the encrypted
+  // blob for me (downloadable)", Hosted = "I store it for the peer (can't
+  // decrypt)". Stamping the uploader Hosted made a user's own file permanently
+  // un-downloadable — the download handler excludes Hosted — and told them it
+  // was "Hosted for peer (encrypted, cannot open)" about a file only they could
+  // open. The peer, meanwhile, was stamped Remote and pulled from the uploader's
+  // node, where nothing was ever stored. The file was retrievable by nobody.
   const fileState = metadata.uploadedByCid === viewerCid
-    ? RevfsFileState.Hosted
-    : RevfsFileState.Remote;
+    ? RevfsFileState.Remote
+    : RevfsFileState.Hosted;
 
   const t = now();
   const fileNode: RevfsNode = {

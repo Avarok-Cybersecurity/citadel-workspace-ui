@@ -169,3 +169,32 @@ describe('moveNode', () => {
     expect(findNode(tree, '/archive/docs')).toBeNull();
   });
 });
+
+describe('rebasePath under names containing $', () => {
+  it('does not let a $ sequence in the new name rewrite descendant paths', () => {
+    let tree = createDefaultTree();
+    [tree] = mkdir(tree, '/reports');
+    [tree] = mkdir(tree, '/reports/inner');
+
+    // `$$` is a legal folder name — VFSRenameInput only rejects "." and "..".
+    // With String.replace it was interpreted as an escape in the REPLACEMENT,
+    // so descendants got `cost$report` while the node was named `cost$$report`:
+    // findNode then missed every child and those files became unreachable.
+    const [renamed] = renameNode(tree, '/reports', 'cost$$report');
+
+    expect(findNode(renamed, '/cost$$report')).not.toBeNull();
+    expect(findNode(renamed, '/cost$$report/inner')).not.toBeNull();
+    expect(findNode(renamed, '/cost$report/inner')).toBeNull();
+  });
+
+  it('survives the other replacement patterns too', () => {
+    for (const name of ['a$&b', "a$'b", 'a$`b']) {
+      let tree = createDefaultTree();
+      [tree] = mkdir(tree, '/src');
+      [tree] = mkdir(tree, '/src/child');
+
+      const [renamed] = renameNode(tree, '/src', name);
+      expect(findNode(renamed, `/${name}/child`)).not.toBeNull();
+    }
+  });
+});

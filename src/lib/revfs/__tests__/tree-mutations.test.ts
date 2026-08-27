@@ -105,24 +105,28 @@ describe('rmdir', () => {
 // ============================================================================
 
 describe('placeFile', () => {
-  it('places file with Hosted state when viewer uploaded', () => {
+  it('places file with Remote state when viewer uploaded', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
     const meta = makeMeta({ uploadedByCid: CID_A });
     const [newTree, op] = placeFile(tree, '/docs/test.pdf', meta, CID_A);
     const file = findNode(newTree, '/docs/test.pdf');
     expect(file).not.toBeNull();
-    expect(file!.fileState).toBe(RevfsFileState.Hosted);
+    // The uploader sent the bytes AWAY, so the peer holds them. Remote is also
+    // the only state the download handler accepts, and downloadFileFromPeer
+    // pulls FROM the peer — so this is what makes an uploader able to retrieve
+    // their own file. These tests expected Hosted, encoding the inversion.
+    expect(file!.fileState).toBe(RevfsFileState.Remote);
     expect(op.op_type).toBe(RevfsOpType.PlaceFile);
   });
 
-  it('places file with Remote state when peer uploaded', () => {
+  it('places file with Hosted state when peer uploaded', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
     const meta = makeMeta({ uploadedByCid: CID_A });
     const [newTree] = placeFile(tree, '/docs/test.pdf', meta, CID_B);
     const file = findNode(newTree, '/docs/test.pdf');
-    expect(file!.fileState).toBe(RevfsFileState.Remote);
+    expect(file!.fileState).toBe(RevfsFileState.Hosted);
   });
 
   it('throws on missing parent', () => {

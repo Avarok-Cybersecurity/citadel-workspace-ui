@@ -17,6 +17,7 @@ import {
   cloneTree,
   findNode,
   flipNodeStates,
+  rebasePath,
 } from './tree-queries';
 
 // ============================================================================
@@ -71,9 +72,12 @@ export function applyRemoteOp(
       if (!parentNode || parentNode.type !== 'directory') return newTree;
       if (!parentNode.children) parentNode.children = [];
 
+      // Same inversion as tree-mutations.ts `placeFile` — see the note there.
+      // Whoever uploaded holds the decryptable copy's address (Remote); whoever
+      // received the bytes is the one hosting them.
       const fileState = op.metadata.uploadedByCid === _viewerCid
-        ? RevfsFileState.Hosted
-        : RevfsFileState.Remote;
+        ? RevfsFileState.Remote
+        : RevfsFileState.Hosted;
 
       const fileNode: RevfsNode = {
         name,
@@ -131,7 +135,7 @@ export function applyRemoteOp(
       if (parentNode.children.some(c => c.path === newPath)) return newTree;
 
       const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-        n.path = n.path.replace(oldBasePath, newBasePath);
+        n.path = rebasePath(n.path, oldBasePath, newBasePath);
         n.updatedAt = op.timestamp;
         if (n.children) {
           for (const child of n.children) {
@@ -170,7 +174,7 @@ export function applyRemoteOp(
       sourceParentNode.updatedAt = op.timestamp;
 
       const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-        n.path = n.path.replace(oldBasePath, newBasePath);
+        n.path = rebasePath(n.path, oldBasePath, newBasePath);
         n.updatedAt = op.timestamp;
         if (n.children) {
           for (const child of n.children) {
@@ -206,7 +210,7 @@ export function applyRemoteOp(
         const copy: RevfsNode = {
           ...node,
           name: node.path === oldBasePath ? destName : node.name,
-          path: node.path.replace(oldBasePath, newBasePath),
+          path: rebasePath(node.path, oldBasePath, newBasePath),
           createdAt: op.timestamp,
           updatedAt: op.timestamp,
         };

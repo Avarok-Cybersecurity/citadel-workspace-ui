@@ -17,6 +17,7 @@ import {
   findNode,
   makeOpId,
   now,
+  rebasePath,
 } from './tree-queries';
 
 // ============================================================================
@@ -80,7 +81,7 @@ export function copyNode(
     const copy: RevfsNode = {
       ...node,
       name: node.path === oldBasePath ? finalName : node.name,
-      path: node.path.replace(oldBasePath, newBasePath),
+      path: rebasePath(node.path, oldBasePath, newBasePath),
       createdAt: t,
       updatedAt: t,
     };

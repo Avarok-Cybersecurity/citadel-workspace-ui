@@ -7,7 +7,7 @@
  * operation and assert on the intents it emits.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { serverRmdir } from '../revfs-dir-ops';
+import { serverRmdir, peerRmdir } from '../revfs-dir-ops';
 import type { DirOpsContext } from '../revfs-dir-ops';
 import { collectFiles } from '../tree-queries';
 import { createDefaultTree, mkdir, placeFile, serverTreeKey } from '../tree-operations';
@@ -54,7 +54,7 @@ function setup(tree: RevfsNode) {
   const ctx = {
     state: { setTree: vi.fn(), getTree: vi.fn() },
     ensureIO: () => io,
-    getTree: vi.fn(),
+    getTree: vi.fn(() => Promise.resolve(tree)),
     getServerTree: vi.fn(() => Promise.resolve(tree)),
     sendAndAwaitAck: vi.fn(),
   } as unknown as DirOpsContext;
@@ -143,5 +143,44 @@ describe('serverRmdir', () => {
       );
 
     await expect(serverRmdir(ctx, MY_CID, '/docs')).rejects.toThrow(/could not be deleted/);
+  });
+});
+
+describe('peerRmdir', () => {
+  const PEER_CID = 42n;
+
+  it('deletes the orphaned bytes from peer storage, like its server twin', async () => {
+    const { ctx, executed } = setup(buildTree());
+
+    await peerRmdir(ctx, MY_CID, PEER_CID, '/docs');
+
+    const deletes = executed.filter((i) => i.type === 'backend-delete-file');
+    // This sent only the tree op. The peer applied it, both sides forgot the
+    // files, and every encrypted blob stayed in the host's storage forever —
+    // unreferenced and unreclaimable, with no tree entry left to reach it from.
+    expect(deletes.map((d) => d.virtualDir).sort()).toEqual(['/docs/a.txt', '/docs/deep/b.txt']);
+  });
+
+  it('addresses the deletes to the peer that holds the bytes', async () => {
+    const { ctx, executed } = setup(buildTree());
+
+    await peerRmdir(ctx, MY_CID, PEER_CID, '/docs');
+
+    const deletes = executed.filter((i) => i.type === 'backend-delete-file');
+    expect(deletes.length).toBeGreaterThan(0);
+    for (const d of deletes) {
+      expect(d.peerCid).toBe(PEER_CID);
+    }
+  });
+
+  it('leaves files outside the removed directory alone', async () => {
+    const { ctx, executed } = setup(buildTree());
+
+    await peerRmdir(ctx, MY_CID, PEER_CID, '/docs');
+
+    const deleted = executed
+      .filter((i) => i.type === 'backend-delete-file')
+      .map((d) => d.virtualDir);
+    expect(deleted).not.toContain('/keep/c.txt');
   });
 });

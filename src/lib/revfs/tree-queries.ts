@@ -91,6 +91,18 @@ export function getExtension(filename: string): string {
 
 import { RECEIVED_FILES_DIR, SENT_FILES_DIR } from '@/types/revfs-types';
 
+/**
+ * Re-root `path` from `oldBase` onto `newBase`. Replaces
+ * `path.replace(oldBase, newBase)`, written out at six sites: `String.replace`
+ * interprets `$$`, `$&`, `` $` `` and `$'` in the REPLACEMENT, and folder names
+ * may contain `$`. Renaming a folder to `cost$$report` rewrote descendant paths
+ * to `cost$report`, so `findNode` missed every child: those files became
+ * impossible to open, move or delete.
+ */
+export function rebasePath(path: string, oldBase: string, newBase: string): string {
+  if (!path.startsWith(oldBase)) return path;
+  return newBase + path.slice(oldBase.length);
+}
 export function createDefaultTree(): RevfsNode {
   const t = now();
   return {
@@ -180,7 +192,10 @@ export function calculateStorageUsage(tree: RevfsNode, scope: TreeScope): number
     if (node.type === 'file' && node.fileMetadata) {
       if (scope === TreeScope.Server && node.fileState === RevfsFileState.ServerStored) {
         total += node.fileMetadata.fileSize;
-      } else if (scope === TreeScope.Peer && node.fileState === RevfsFileState.Hosted) {
+      // Quota gates uploads (`storageQuota - storageUsed`), so "used" means what
+      // I have PUT somewhere — which, with the Hosted/Remote inversion fixed, is
+      // Remote. Counting Hosted here would meter what peers store on my disk.
+      } else if (scope === TreeScope.Peer && node.fileState === RevfsFileState.Remote) {
         total += node.fileMetadata.fileSize;
       }
     }
@@ -198,6 +213,22 @@ export function calculateStorageUsage(tree: RevfsNode, scope: TreeScope): number
 // ============================================================================
 // Flip File States (for incoming remote operations)
 // ============================================================================
+
+/**
+ * Can this file's bytes actually be fetched by the viewer?
+ *
+ * Single source of truth for a predicate that was written out by hand at each
+ * use site. It is the predicate the Hosted/Remote inversion broke: an uploader
+ * was stamped Hosted, which fails this, so their own file was permanently
+ * un-downloadable while the toast told them it was "encrypted, cannot open".
+ */
+export function isDownloadableState(state: RevfsFileState | undefined): boolean {
+  return (
+    state === RevfsFileState.Remote ||
+    state === RevfsFileState.Received ||
+    state === RevfsFileState.ServerStored
+  );
+}
 
 export function flipFileState(state: RevfsFileState): RevfsFileState {
   switch (state) {

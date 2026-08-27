@@ -219,7 +219,8 @@ describe('deep nested tree stress tests', () => {
     result = applyRemoteOp(result, placeOp, CID_B);
     const file = findNode(result, `${deepPath}/remote-dir/remote.dat`);
     expect(file).not.toBeNull();
-    expect(file!.fileState).toBe(RevfsFileState.Remote);
+    // CID_A uploaded; the viewer (CID_B) received the bytes, so hosts them.
+    expect(file!.fileState).toBe(RevfsFileState.Hosted);
 
     const removeOp = { op_id: '3', op_type: RevfsOpType.RemoveFile, path: `${deepPath}/remote-dir/remote.dat`, timestamp: Date.now() };
     result = applyRemoteOp(result, removeOp, CID_B);

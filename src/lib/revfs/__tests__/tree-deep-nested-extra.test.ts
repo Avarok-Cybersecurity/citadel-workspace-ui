@@ -94,7 +94,8 @@ describe('deep nested tree stress tests (extra)', () => {
 
     const deepFile = findNode(result, '/level-0/level-1/level-2/level-3/level-4/file-5-0.dat');
     expect(deepFile).not.toBeNull();
-    expect(deepFile!.fileState).toBe(RevfsFileState.Remote);
+    // Flipped to the receiving viewer's perspective: they hold the bytes.
+    expect(deepFile!.fileState).toBe(RevfsFileState.Hosted);
   });
 
   it('handles wide tree at each level (many siblings)', () => {

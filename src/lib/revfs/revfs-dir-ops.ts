@@ -46,12 +46,24 @@ export async function peerMkdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
 export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string): Promise<void> {
   const key = peerPairKey(myCid, peerCid);
   const tree = await ctx.getTree(myCid, peerCid);
+
+  // Collect BEFORE the removal — rmdir takes the list of what was inside with
+  // it. `serverRmdir` has done this since the orphaned-bytes fix; the peer twin
+  // never got it, so deleting a folder of peer-stored files removed them from
+  // both trees while every encrypted blob stayed in the host's storage, with no
+  // tree entry left to reach it from. `removeFileFromPeer` deletes with the
+  // peer's cid for exactly this reason.
+  const target = findNode(tree, path);
+  const orphaned = target ? collectFiles(target) : [];
+
   const [newTree, op] = treeRmdir(tree, path);
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
   await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
+
+  await sweepOrphanedBytes(io, myCid, peerCid, orphaned, 'peer storage');
 }
 
 export async function peerRename(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<void> {
@@ -119,6 +131,55 @@ export async function serverMkdir(ctx: DirOpsContext, myCid: bigint, path: strin
   await persistTree(io, key, newTree);
 }
 
+/**
+ * Delete the bytes of files that a directory removal just orphaned.
+ *
+ * A directory is a tree-only concept: the backend stores files keyed by virtual
+ * path and knows nothing about the folder above them. So removing a folder from
+ * the tree without this leaves every blob under it on disk forever —
+ * unreferenced, unreclaimable, and still consuming the real quota even though
+ * the storage bar stops counting it.
+ */
+async function sweepOrphanedBytes(
+  io: RevfsIO,
+  myCid: bigint,
+  peerCid: bigint | null,
+  orphaned: RevfsNode[],
+  storageLabel: string,
+): Promise<void> {
+  const undeleted: string[] = [];
+  for (const file of orphaned) {
+    if (!file.fileMetadata) {
+      // Nothing identifies this file to the backend, so it cannot be deleted
+      // there. Say so rather than dropping it silently and reporting success.
+      debugLog('RevfsDirOps', `rmdir: no metadata for ${file.path}, cannot delete remotely`);
+      continue;
+    }
+    const deleted = await io.execute({
+      type: 'backend-delete-file',
+      cid: myCid,
+      peerCid,
+      // The upload-time key. See uploadFileToServer — a renamed file's bytes
+      // stay where they were written, so node.path is the wrong thing here.
+      virtualDir: file.fileMetadata.virtualDirectory,
+    });
+
+    // Collected rather than thrown per file: the directory is already gone from
+    // the tree, so aborting halfway would leave the remaining files both
+    // undeleted AND unreported. The user is told which ones survived.
+    if (deleted.type !== 'backend-delete-file' || !deleted.success) {
+      undeleted.push(file.path);
+    }
+  }
+
+  if (undeleted.length > 0) {
+    throw new Error(
+      `The folder was removed, but ${undeleted.length} file(s) could not be deleted from ` +
+        `${storageLabel} and are still using space: ${undeleted.join(', ')}`
+    );
+  }
+}
+
 export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: string): Promise<void> {
   const key = serverTreeKey(myCid);
   const tree = await ctx.getServerTree(myCid);
@@ -140,37 +201,7 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
   const io = ctx.ensureIO();
   await persistTree(io, key, newTree);
 
-  const undeleted: string[] = [];
-  for (const file of orphaned) {
-    if (!file.fileMetadata) {
-      // Nothing identifies this file to the backend, so it cannot be deleted
-      // there. Say so rather than dropping it silently and reporting success.
-      debugLog('RevfsDirOps', `serverRmdir: no metadata for ${file.path}, cannot delete server-side`);
-      continue;
-    }
-    const deleted = await io.execute({
-      type: 'backend-delete-file',
-      cid: myCid,
-      peerCid: null,
-      // The upload-time key. See uploadFileToServer — a renamed file's bytes
-      // stay where they were written, so node.path is the wrong thing here.
-      virtualDir: file.fileMetadata.virtualDirectory,
-    });
-
-    // Collected rather than thrown per file: the directory is already gone from
-    // the tree, so aborting halfway would leave the remaining files both
-    // undeleted AND unreported. The user is told which ones survived.
-    if (deleted.type !== 'backend-delete-file' || !deleted.success) {
-      undeleted.push(file.path);
-    }
-  }
-
-  if (undeleted.length > 0) {
-    throw new Error(
-      `The folder was removed, but ${undeleted.length} file(s) could not be deleted from ` +
-        `server storage and are still using space: ${undeleted.join(', ')}`
-    );
-  }
+  await sweepOrphanedBytes(io, myCid, null, orphaned, 'server storage');
 }
 
 export async function serverRename(ctx: DirOpsContext, myCid: bigint, path: string, newName: string): Promise<void> {

@@ -5243,3 +5243,56 @@ timer to the effect.
 - The file-length cap broke again — on comments this time, three files at 251–254.
   Fixed by keeping each explanation once at the mechanism (the service, the hook)
   and leaving a pointer at the call sites, which is where it belonged anyway.
+
+## Round seventy-six — the file you uploaded, which you were told you could not open, 2026-08-27
+
+### 359. Hosted and Remote were inverted, so a peer-stored file was retrievable by nobody
+
+`RevfsFileState` documents itself precisely: `Hosted` = "I store the encrypted
+blob for the peer (can't decrypt)", `Remote` = "Peer stores the encrypted blob
+for me (downloadable)". `placeFile` stamped the **uploader** `Hosted`.
+
+`uploadFileToPeer` sends the bytes to the peer, and `downloadFileFromPeer` pulls
+them back from the peer — so the uploader is unambiguously the `Remote` side.
+Under the inversion the uploader's own file failed the download predicate
+forever, and the UI told them it was "Hosted for peer (encrypted, cannot open)"
+about the one file only they could open. The peer, stamped `Remote`, pulled from
+the uploader's node, where nothing had ever been stored. Neither party could
+retrieve it.
+
+**Six tests across the suite asserted the two labels directly**, so they moved
+with the bug rather than catching it. They are updated, and the new test asserts
+what the user can *do* — the uploader's node passes the download predicate, the
+holder's does not, and the two sides disagree — which is a property the labels
+cannot be quietly swapped underneath. The quota accounting followed the same
+inversion; it now bills the uploader, preserving what "used" has to mean for a
+check written as `storageQuota - storageUsed`.
+
+Also extracted `isDownloadableState`: the predicate was written out by hand at
+three sites, which is how one of them could drift.
+
+### 360. `peerRmdir` never deleted the bytes its server twin carefully deletes
+
+`serverRmdir` collects the files under a directory *before* removing it and
+deletes each one, with a comment explaining that a directory is a tree-only
+concept and the backend would otherwise keep every blob forever. `peerRmdir`
+sent only the tree op. Deleting a folder of peer-stored files removed it from
+both trees while every encrypted blob stayed in the host's storage —
+unreferenced, unreclaimable, with no tree entry left to reach it from. The
+sweep is now one function both call.
+
+### 361. A `$` in a folder name detached its entire subtree
+
+Path rewriting was `path.replace(oldBase, newBase)` at six sites.
+`String.replace` interprets `$$`, `$&`, `` $` `` and `$'` in the *replacement*,
+and folder names may contain `$` — the rename input rejects only `.` and `..`.
+Renaming a folder to `cost$$report` rewrote its descendants to `cost$report`,
+which matched no node name, so `findNode` missed every child: those files could
+no longer be opened, moved or deleted. One `rebasePath` helper now, with a test
+covering all four replacement patterns.
+
+### Carried forward
+
+- The line cap broke again, on comments again. The rule that keeps holding: when
+  an explanation applies to a mechanism, it belongs at the mechanism, and the
+  call sites get a pointer. That is shorter *and* the right place.

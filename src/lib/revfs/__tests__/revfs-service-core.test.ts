@@ -125,7 +125,9 @@ describe('RevfsService', () => {
       const tree = await service.getTree(ALICE, BOB);
       const file = tree.children?.find(c => c.name === 'Sent Files')?.children?.find(c => c.name === 'doc.pdf');
       expect(file).toBeDefined();
-      expect(file!.fileState).toBe(RevfsFileState.Hosted);
+      // Alice uploaded, so Bob holds the bytes and Alice's copy is Remote —
+      // the state that lets her download her own file back.
+      expect(file!.fileState).toBe(RevfsFileState.Remote);
 
       const intents = getExecuteCalls(service);
       expect(intents.filter(i => i.type === 'persist-tree').length).toBeGreaterThanOrEqual(2);

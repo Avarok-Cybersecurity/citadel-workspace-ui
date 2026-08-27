@@ -99,7 +99,8 @@ describe('RevfsService (events & sync)', () => {
       const tree = await service.getTree(ALICE, BOB);
       const file = tree.children?.find(c => c.name === 'docs')?.children?.find(c => c.name === 'file.pdf');
       expect(file).toBeDefined();
-      expect(file!.fileState).toBe(RevfsFileState.Remote);
+      // The peer uploaded it to us, so we are the ones hosting the blob.
+      expect(file!.fileState).toBe(RevfsFileState.Hosted);
     });
 
     it('applies remote RemoveFile and sends ACK', async () => {

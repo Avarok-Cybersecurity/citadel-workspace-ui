@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
 import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
-import { peerPairKey } from "@/lib/revfs/tree-queries";
+import { peerPairKey, isDownloadableState } from "@/lib/revfs/tree-queries";
 import { useConfirm } from "@/components/shared/confirm-dialog";
 import { usePrompt } from "@/components/shared/prompt-dialog";
 
@@ -86,10 +86,7 @@ export function useFileManagerHandlers({
   }, [rmdir, removeFile, confirm]);
 
   const handleDownload = useCallback((node: RevfsNode) => {
-    const { Remote, Received, ServerStored } = RevfsFileState;
-    const isDownloadable = [Remote, Received, ServerStored].some((s) => s === node.fileState);
-
-    if (isDownloadable) {
+    if (isDownloadableState(node.fileState)) {
       // No "initiated" branch: downloadFile now throws rather than resolving
       // undefined on failure, so there is no longer a state where we know the
       // download did not happen and say something encouraging about it.

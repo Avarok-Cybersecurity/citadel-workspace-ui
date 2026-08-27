@@ -19,6 +19,7 @@ import {
   findNode,
   makeOpId,
   now,
+  rebasePath,
 } from './tree-queries';
 
 // ============================================================================
@@ -68,7 +69,7 @@ export function renameNode(
   const t = now();
 
   const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-    n.path = n.path.replace(oldBasePath, newBasePath);
+    n.path = rebasePath(n.path, oldBasePath, newBasePath);
     n.updatedAt = t;
     if (n.children) {
       for (const child of n.children) {
@@ -150,7 +151,7 @@ export function moveNode(
   sourceParentNode.updatedAt = t;
 
   const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-    n.path = n.path.replace(oldBasePath, newBasePath);
+    n.path = rebasePath(n.path, oldBasePath, newBasePath);
     n.updatedAt = t;
     if (n.children) {
       for (const child of n.children) {
