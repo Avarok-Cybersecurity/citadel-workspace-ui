@@ -2457,6 +2457,91 @@ the guard being broken.** Now resolved relative to the script file. Worth
 checking on every guard here: several are invoked from CI at the root and by hand
 from elsewhere.
 
+## Round twenty-eight — the write gate, wired to all of it, 2026-08-27
+
+### 205. Seven of eleven workspace writes still reported success on send — FIXED
+
+`awaitWriteResponse` exists, works, and narrates this exact defect in its own
+header. It was wired to **four** of the eleven write types. The other seven each
+had a UI that reported success regardless:
+
+- *"Member Added — {username} has been added to the workspace as {role}"* — for a
+  username that does not exist;
+- *"Permissions saved successfully"*, modal closed, for permissions the server
+  refused;
+- the edit composer clearing the user's typed text while the message kept its old
+  content;
+- *"Every member will see this theme"* — for a theme nobody receives.
+
+Every one of those surfaces has a carefully written `catch` that **could never
+fire**, because a refusal arrives as a response and a response cannot reject a
+send-only promise.
+
+All seven success variants were read from the server source rather than guessed.
+The new test asserts on the SOURCE, because "no write bypasses the gate" is a
+property no single call can demonstrate — and it checks the map too, since a
+variant wired at the call site but missing from the map falls through the early
+return and sends without waiting: **the same defect wearing the fix's clothes.**
+
+`MoveNode` is deliberately excluded from the call-site assertion — the server
+implements it and the client has a full response path, but there is no
+`moveNode` method and no drag affordance, so asserting it is gated would assert
+something about code that does not exist.
+
+### 206. Recorded, not fixed — group chat is largely a local illusion
+
+An audit of the group stack found the client's model is almost entirely
+page-local. Ranked as reported:
+
+- **Groups do not survive a reload.** The list lives in module memory only, and
+  both halves of the recovery path are missing: `refresh()` → `sendGroupListRequest()`
+  has **no caller anywhere**, and `GroupListGroupsSuccess` is handled nowhere. So
+  opening a group after a reload bounces the user out with *"This group may have
+  been deleted"* — which is false. Server-side membership persists; the client's
+  view can never reconverge.
+- **"Own message" compares a username to a CID, so it is never true.** The server
+  sets `sender_id` to the username; the client compares against
+  `String(connectionInfo.cid)`. Edit and Delete are gated on that, so **they never
+  render for anyone**, and your own messages render left-aligned as if from
+  someone else.
+- **Every group operation reports success on write**, and every failure variant —
+  `GroupCreateFailure`, `GroupInviteFailure`, `GroupLeaveFailure`,
+  `GroupKickFailure` — has **zero handlers** in the UI. Leave removes the group
+  from the sidebar on send; delete navigates away on send; accepting an invite to
+  a group that no longer exists keeps a phantom group locally.
+- **Deletion never converges on other members.** Only the deleter gets
+  `GroupEndNotification`; everyone else gets `GroupDisconnectNotification`, which
+  appears nowhere in the UI. Their sidebar keeps the group and they can keep
+  posting into it. Kicks are indistinguishable from voluntary leaves —
+  `group:member-kicked` is subscribed in two places and **emitted by nothing**.
+- **Invitations are auto-accepted with no consent.** `sendGroupRespond` is never
+  called with `accept=false` anywhere: any peer who can address you can put you
+  in a group, and the toast arrives after you have already joined.
+- **"Load more" replaces the message list instead of prepending.** The prepend
+  branch exists; the only caller never passes the flag. Scrolling up to read
+  history destroys the recent view.
+- **The group name never crosses the wire.** The dialog collects it, the create
+  request has no name field, and every member computes a different fallback.
+  Rename writes page-local React state only.
+- **Unread counts and previews listen for an event nothing emits.** The store
+  handles `group:message-received`; the real inbound path emits
+  `group:message:new`, which has zero listeners. Two half-built pipes that do not
+  meet.
+
+### 207. Recorded, not fixed — resolve-on-failure outside revfs
+
+The same sweep that found the write gap found more of the shape:
+
+- **A live document's edits are never persisted for the RECIPIENT peer.**
+  `updateDocumentState` returns early when the cache has no entry, resolving
+  successfully while writing nothing — and only the creator ever calls
+  `createDocument`. The unmount flush, documented as existing "so closing the tab
+  does not drop the last edits", is the same no-op. Every peer who receives a
+  shared document loses everything they type, silently.
+- **Sign-out toasts "You have been fully logged out"** while the backend
+  disconnect is best-effort and may have failed — a security claim that is false
+  when the session lives on as an orphan.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
