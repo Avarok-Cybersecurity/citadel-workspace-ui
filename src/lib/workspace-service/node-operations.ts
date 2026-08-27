@@ -8,6 +8,7 @@
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import { awaitWriteResponse } from './await-write-response';
+import { aboutNode, newChildOf, nodeWithId } from './response-matchers';
 import type { ProtocolSender } from './workspace-operations';
 
 /**
@@ -35,7 +36,13 @@ export async function createNode(
   // Resolves when the SERVER has accepted it, not when the frame leaves.
   // A refusal arrives as a response, which cannot reject a send-only promise —
   // so this used to report success for writes the server was about to refuse.
-  return awaitWriteResponse('CreateNode', () => sender.sendProtocolRequest(requestPart));
+  // The matcher is not optional now that the server broadcasts `Node` to every
+  // other member: without it, any other member's tree write resolves this one.
+  return awaitWriteResponse(
+    'CreateNode',
+    () => sender.sendProtocolRequest(requestPart),
+    newChildOf(parentId, name),
+  );
 }
 
 /**
@@ -67,7 +74,11 @@ export async function updateNode(
   // Resolves when the SERVER has accepted it, not when the frame leaves.
   // A refusal arrives as a response, which cannot reject a send-only promise —
   // so this used to report success for writes the server was about to refuse.
-  return awaitWriteResponse('UpdateNode', () => sender.sendProtocolRequest(requestPart));
+  return awaitWriteResponse(
+    'UpdateNode',
+    () => sender.sendProtocolRequest(requestPart),
+    nodeWithId(nodeId),
+  );
 }
 
 /**
@@ -84,7 +95,11 @@ export async function deleteNode(
   // Resolves when the SERVER has accepted it, not when the frame leaves.
   // A refusal arrives as a response, which cannot reject a send-only promise —
   // so this used to report success for writes the server was about to refuse.
-  return awaitWriteResponse('DeleteNode', () => sender.sendProtocolRequest(requestPart));
+  return awaitWriteResponse(
+    'DeleteNode',
+    () => sender.sendProtocolRequest(requestPart),
+    aboutNode(nodeId),
+  );
 }
 
 /**

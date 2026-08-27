@@ -37,7 +37,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     entityData?.mdx_content || getInitialContent()
   );
   const [isEditing, setIsEditing] = useState(false);
-  const compiledContent = useCompiledMdx(content, components);
+  const { compiled: compiledContent, renderError } = useCompiledMdx(content, components);
   const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
   const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
   const { toast } = useToast();
@@ -186,7 +186,13 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     // document showed its body copy and its emoji, and nothing else.
     <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
-        {compiledContent}
+        {compiledContent ?? (renderError && (
+          // Only when there is nothing to show. A transient compile error while
+          // typing keeps the last good render, which is the whole point of
+          // holding it -- but a document that has never rendered used to be a
+          // blank body under a title, indistinguishable from an empty one.
+          <p role="alert" className="text-destructive-emphasis">{renderError}</p>
+        ))}
       </MDXProvider>
     </div>
   );

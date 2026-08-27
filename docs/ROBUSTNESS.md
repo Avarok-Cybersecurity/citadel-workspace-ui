@@ -7564,3 +7564,51 @@ peer never stores the bytes; a copied node shares the original's backend byte
 key, so deleting either destroys both; and concurrent tree operations are
 lost-update races, with bulk delete resurrecting nodes whose bytes are already
 gone.
+
+### Round 117 — a stranger's broadcast could resolve your save, over your own text
+
+From the workspace-tree audit. `awaitWriteResponse` matches responses by TYPE,
+because the workspace protocol carries no request id — a limitation the module
+records honestly in its own header, with the reasoning that the UI issues these
+one at a time from a modal, so two same-kind writes are never in flight together.
+
+That was true when it was written. Round 85 then gave the server live tree
+updates by broadcasting `Node`, `NodeDeleted` and `NodeMoved` to *every other
+member*. From that moment the assumption was false, and nothing said so: the
+second write in flight was no longer another dialog on this client, it was
+everybody else's.
+
+The harm is not a mismatched toast. Alice saves a document the server is about to
+refuse; Bob renames any node in the same 15-second window; his broadcast `Node`
+resolves Alice's pending write; the editor closes on "success" and the load
+effect replaces her buffer with the stored copy. Her text is gone under a green
+toast — precisely the data loss the write gate was built to end, reintroduced
+from the other side by an unrelated feature.
+
+The `matches` parameter existed for exactly this — its comment says "variants
+that are ALSO broadcast" — and was passed only for group messages. It is now
+passed for all four node writes, and a scan requires it for any write whose
+success variant the server broadcasts. Creation matches on parent and name
+rather than id, because the client does not know the id of a node it has not
+created yet; that is narrower than "any `Node` at all", which is the point.
+
+**Recorded, not fixed, and the most serious thing this campaign has found:
+workspace documents do not render at all in the production build.**
+`use-compiled-mdx` calls `@mdx-js/mdx`'s `evaluate()`, which executes the
+compiled document through `new AsyncFunction`. The production CSP is
+`script-src 'self' 'wasm-unsafe-eval'` with no `'unsafe-eval'`. Development adds
+it for HMR — which is why every dev run, every tilt session and every Playwright
+test renders documents perfectly. The throw was caught into a `debugLog`, so in
+production every document showed its title chrome and a blank body,
+indistinguishable from an empty document, with no error anywhere.
+
+Fixed here: the failure is now shown rather than swallowed, so the condition is
+visible instead of looking like an empty workspace. Not fixed: the rendering
+itself. The obvious remedy is a trap — adding `'unsafe-eval'` would turn every
+member-authored document into stored XSS executed in every viewer's browser,
+gated only by `EditMdx`, with `NodeContentUpdated` pushing new code to open
+viewers live. The real options are compiling to a sandboxed worker or iframe, or
+rendering the view path with a non-executing markdown renderer and re-expressing
+the four custom components (`Card`, `Alert`, `Badge`, `Table`) as directives.
+Both are projects, not rounds, and the choice is a product decision about whether
+documents may contain executable JSX at all.
