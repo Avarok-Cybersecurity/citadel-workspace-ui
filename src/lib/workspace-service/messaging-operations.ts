@@ -43,7 +43,18 @@ export async function sendGroupMessage(
       mentions
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // The composer clears on resolve, so a send that resolved on DISPATCH threw
+  // the user's text away whenever the server refused — a store failure, or the
+  // rate limiter's "Please slow down" — with the message never appearing and no
+  // error shown, because the refusal arrives as a generic Error nothing handles.
+  return awaitWriteResponse(
+    'SendGroupMessage',
+    () => sender.sendProtocolRequest(requestPart),
+    (payload) => {
+      const p = payload as { group_id?: string; message?: { content?: string } } | undefined;
+      return p?.group_id === groupId && p?.message?.content === content;
+    }
+  );
 }
 
 /**

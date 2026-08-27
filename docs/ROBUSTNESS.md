@@ -4706,6 +4706,52 @@ Replaced with a pointer to the file and a description of the *rule*, plus the
 note that a fixture-coverage test enforces membership. **An excerpt of a list is
 a copy that will go stale**, and this one had; the rule is what belongs in prose.
 
+## Round sixty-six — a refused group message no longer eats the text, 2026-08-28
+
+### 326. A server refusal discarded the user's message silently — FIXED
+
+`sendGroupMessage` resolved when the frame left, and the composer clears on
+resolve. So when the server refused — a store failure, or the rate limiter's
+*"Rate limit exceeded. Please slow down."* — the text was gone: it never appeared
+in the transcript, and the refusal arrives as a generic `Error` that no handler
+surfaces.
+
+Now gated. Two things made this one harder than the writes gated before it:
+
+- **The success variant is also the broadcast.** The server answers the SENDER
+  with `GroupMessageNotification` and sends the identical variant to every other
+  member, so type-only matching would let someone else's message resolve this
+  write — reporting success for a send the server may still refuse. The gate
+  now takes an optional payload matcher, used here to recognise our own answer.
+- **The handler returned `true` without emitting the raw response**, so gating
+  first would have reproduced the round-twenty-six regression exactly. The emit
+  went in first, and the guard from round forty-five confirmed it.
+
+### 327. My own guards caught two things, and my own tests caught nothing
+
+The round-forty-five guard did its job immediately: adding the table entry failed
+with *"add a sample payload for the 'GroupMessageNotification' variant"*, which
+is the guard refusing to be satisfied by an untested entry.
+
+The tests I wrote for this fix were another matter. **Both controls passed**:
+
+- The "another member's message must not resolve this" test used a single
+  `await Promise.resolve()` before asserting, which is not enough for the
+  promise's own continuation to run — so `settled` had not been called yet
+  either way. It passed with the matcher deleted.
+- The source guard did not cover `SendGroupMessage` at all; its list still had
+  not been extended, the same gap found in round fifty-one.
+
+And once added, that guard failed for a third reason: it matched the literal
+`awaitWriteResponse('SendGroupMessage'`, while a call needing an extra argument
+is written across lines. **A guard that fails on formatting teaches people to
+reformat rather than to gate**, so it is now whitespace-tolerant.
+
+Three defects in the verification of one fix, none of them in the fix. Recorded
+because the pattern is consistent: **the code under test gets scrutiny, and the
+scaffolding around it does not** — which is precisely why every control here has
+to be run rather than assumed.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

@@ -67,6 +67,10 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   // Group message edits and deletes. The edit composer used to close and
   // discard the user's edited text as though it had landed, while the message
   // silently kept its old content.
+  // The server answers the SENDER with the same variant it broadcasts to every
+  // other member, so this one needs the payload matcher to tell its own answer
+  // from someone else's message.
+  SendGroupMessage: ['GroupMessageNotification'],
   EditGroupMessage: ['GroupMessageEdited'],
   DeleteGroupMessage: ['GroupMessageDeleted'],
 };
@@ -90,7 +94,15 @@ function describeFailure(response: Record<string, unknown>): string {
  */
 export async function awaitWriteResponse(
   requestType: keyof typeof SUCCESS_RESPONSES,
-  send: () => Promise<void>
+  send: () => Promise<void>,
+  /**
+   * Optional payload check, for variants that are ALSO broadcast to other
+   * members. `GroupMessageNotification` is both this sender's response and
+   * everyone else's copy of every message, so type alone would let another
+   * member's message resolve this write. Matching on the payload narrows the
+   * window the missing request-id leaves open.
+   */
+  matches?: (payload: unknown) => boolean
 ): Promise<void> {
   const accepted = SUCCESS_RESPONSES[requestType];
   if (!accepted) {
@@ -123,6 +135,8 @@ export async function awaitWriteResponse(
         return;
       }
       if (accepted.includes(responseType)) {
+        // A broadcast of the same variant from another member is not our answer.
+        if (matches && !matches((response as Record<string, unknown>)[responseType])) return;
         clearTimeout(timeoutId);
         eventEmitter.off('workspace:raw-response', handler);
         resolve();

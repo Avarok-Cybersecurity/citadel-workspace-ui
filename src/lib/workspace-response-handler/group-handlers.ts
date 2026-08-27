@@ -40,6 +40,11 @@ export function handleGroupVariants(
       senderId: message.sender_id,
       content: message.content,
     });
+    // Raw as well, so a sender awaiting confirmation can see it. This handler
+    // returned true without it, so gating the send on this variant would have
+    // made every successful send wait out the timeout — the exact regression
+    // round twenty-six shipped.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 

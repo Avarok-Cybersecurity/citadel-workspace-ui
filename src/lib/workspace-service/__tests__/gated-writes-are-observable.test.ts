@@ -29,6 +29,7 @@ const PAYLOADS: Record<string, unknown> = {
   Workspace: { id: 'w1', name: 'w', description: '', metadata: [] },
   CreateWorkspace: { id: 'w1', name: 'w', description: '', metadata: [] },
   UserProfileUpdated: { id: 'u1', name: 'u' },
+  GroupMessageNotification: { group_id: 'g1', message: { id: 'm1', sender_id: 'ada', content: 'hi' } },
   GroupMessageEdited: { group_id: 'g1', message_id: 'm1' },
   GroupMessageDeleted: { group_id: 'g1', message_id: 'm1' },
 };

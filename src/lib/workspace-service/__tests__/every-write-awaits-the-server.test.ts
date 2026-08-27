@@ -40,6 +40,9 @@ const MUTATING = [
   // them: the workspace rename, workspace creation, and the profile save whose
   // spinner disabled the entire settings form.
   'UpdateWorkspace', 'CreateWorkspace', 'UpdateUserProfile',
+  // The group send, whose composer clears on resolve — an ungated one throws
+  // the user's text away on any refusal.
+  'SendGroupMessage',
 ];
 
 /**
@@ -59,7 +62,12 @@ const sources = readdirSync(DIR)
 
 describe('workspace writes', () => {
   it.each(MUTATING)('%s waits for the server to accept it', (variant) => {
-    expect(sources).toContain(`awaitWriteResponse('${variant}'`);
+    // Whitespace-tolerant: a call that needs extra arguments is written across
+    // lines, and a guard that fails on formatting teaches people to reformat
+    // rather than to gate.
+    expect(sources).toMatch(
+      new RegExp(`awaitWriteResponse\\(\\s*'${variant}'`),
+    );
   });
 
   it('names every gated variant in the success-response map', () => {
