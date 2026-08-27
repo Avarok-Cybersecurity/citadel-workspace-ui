@@ -25,15 +25,6 @@ export class FileTransferState {
   // Progress callbacks by transfer ID
   private progressCallbacks: Map<string, ((progress: TransferProgressEvent) => void)[]> = new Map();
 
-  // Pending files waiting to be sent after acceptance (transfer_id -> File)
-  private pendingFiles: Map<string, File> = new Map();
-
-  // Received chunks for incoming P2P transfers (transfer_id -> chunks[])
-  private receivedChunks: Map<string, { data: string; index: number }[]> = new Map();
-
-  // Map to store received file blobs for retrieval
-  private receivedFiles: Map<string, Blob> = new Map();
-
   // ============================================================================
   // Transfer Operations
   // ============================================================================
@@ -139,74 +130,11 @@ export class FileTransferState {
     }
   }
 
-  // ============================================================================
-  // Pending Files (for P2P streaming)
-  // ============================================================================
-
-  getPendingFile(transferId: string): File | undefined {
-    return this.pendingFiles.get(transferId);
-  }
-
-  setPendingFile(transferId: string, file: File): void {
-    this.pendingFiles.set(transferId, file);
-  }
-
-  deletePendingFile(transferId: string): boolean {
-    return this.pendingFiles.delete(transferId);
-  }
-
-  // ============================================================================
-  // Received Chunks (for incoming P2P transfers)
-  // ============================================================================
-
-  getReceivedChunks(transferId: string): { data: string; index: number }[] | undefined {
-    return this.receivedChunks.get(transferId);
-  }
-
-  initReceivedChunks(transferId: string): void {
-    if (!this.receivedChunks.has(transferId)) {
-      this.receivedChunks.set(transferId, []);
-    }
-  }
-
-  addReceivedChunk(transferId: string, chunk: { data: string; index: number }): void {
-    const chunks = this.receivedChunks.get(transferId);
-    if (chunks) {
-      chunks.push(chunk);
-    }
-  }
-
-  getReceivedChunkCount(transferId: string): number {
-    return this.receivedChunks.get(transferId)?.length ?? 0;
-  }
-
-  deleteReceivedChunks(transferId: string): boolean {
-    return this.receivedChunks.delete(transferId);
-  }
-
-  // ============================================================================
-  // Received Files (completed downloads)
-  // ============================================================================
-
-  getReceivedFile(transferId: string): Blob | undefined {
-    return this.receivedFiles.get(transferId);
-  }
-
-  setReceivedFile(transferId: string, blob: Blob): void {
-    this.receivedFiles.set(transferId, blob);
-  }
-
-  deleteReceivedFile(transferId: string): boolean {
-    return this.receivedFiles.delete(transferId);
-  }
-
-  // ============================================================================
-  // Cleanup
-  // ============================================================================
-
-  cleanupTransfer(transferId: string): void {
-    this.pendingFiles.delete(transferId);
-    this.receivedChunks.delete(transferId);
-    // Note: Don't delete receivedFiles - user may still want to download
-  }
 }
+
+// The pending-file stash, received-chunk buffers and received-file blobs that
+// used to live here served the message-plane chunk transfer — a second
+// implementation nothing ever emitted (its chunk messages had no producers).
+// The bytes of a real transfer never pass through browser state at all: they
+// leave inside the SendFile request and arrive on disk at the path the
+// ReceptionBeginning tick names.

@@ -87,6 +87,12 @@ export function copyNode(
     };
 
     if (copy.fileMetadata && newFileIdGenerator) {
+      // Fresh identity, SHARED bytes. `virtualDirectory` is the upload-time
+      // backend key and is deliberately kept: the backend cannot duplicate an
+      // object and the browser does not hold the bytes, so both nodes point
+      // at one blob. Every delete site refcounts that key via
+      // tree-byte-refs.ts and only destroys the blob with its last reference
+      // — without that, deleting either copy silently broke the other.
       copy.fileMetadata = {
         ...copy.fileMetadata,
         fileId: newFileIdGenerator(),

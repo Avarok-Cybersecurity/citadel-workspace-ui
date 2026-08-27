@@ -15,10 +15,8 @@ import { RealProtocolIORouter } from './real-protocol-io-router';
 import type { FileSource } from './io-router-types';
 import type {
   FileTransferIntent,
-  SendChunkIntent,
   SendResponseIntent,
   SendCancelIntent,
-  SendCompleteIntent,
   UploadToServerIntent,
   DownloadFromServerIntent,
   PickFileIntent,
@@ -26,7 +24,8 @@ import type {
   FilePickerResult,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
-import { executeSendTransferRequest } from './send-transfer-request';
+import { announceTransfer, executeSendTransferRequest } from './send-transfer-request';
+import { sendTransferCancelSignal, sendTransferResponseSignal } from './in-band-signals';
 import { awaitSendFileAck, uploadFileToServer } from './server-upload';
 import { downloadFileFromServer } from './server-download';
 
@@ -43,14 +42,10 @@ export class FileTransferIO extends RealProtocolIORouter {
     switch (intent.type) {
       case 'send-transfer-request':
         return executeSendTransferRequest(this, intent);
-      case 'send-chunk':
-        return this.executeSendChunk(intent);
       case 'send-response':
         return this.executeSendResponse(intent);
       case 'send-cancel':
         return this.executeSendCancel(intent);
-      case 'send-complete':
-        return this.executeSendComplete(intent);
       case 'upload-to-server':
         return this.uploadToServer(intent);
       case 'download-from-server':
@@ -69,16 +64,6 @@ export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
   // Intent Adapters (convert old intent pattern to new interface)
   // ============================================================================
-
-  private async executeSendChunk(intent: SendChunkIntent): Promise<void> {
-    await this.sendChunk(
-      intent.transferId,
-      BigInt(intent.recipientCid),
-      intent.chunkIndex,
-      intent.totalChunks,
-      intent.data
-    );
-  }
 
   private async executeSendResponse(intent: SendResponseIntent): Promise<void> {
     // The protocol names a transfer by its numeric object_id; the in-band
@@ -109,28 +94,52 @@ export class FileTransferIO extends RealProtocolIORouter {
     }
     await this.respondToTransfer({
       protocolId: objectId,
+      // Lets the router pre-register the reception tick stream: an accept
+      // spawns that stream under the RespondFileTransfer request UUID, and
+      // its ticks carry no other usable id (see tick-events.ts).
+      transferId: intent.transferId,
       cid: ownCid,
       peerCid: BigInt(intent.targetCid),
       accept: intent.accepted,
       downloadLocation: intent.reason, // Using reason as download location in old API
     });
+
+    // The protocol respond above reaches only OUR internal service. The
+    // sender's UI learns of an accept when its tick stream starts, but a
+    // DECLINE produces no signal on their side at all — their bubble would
+    // wait for acceptance forever. The in-band response is what moves the
+    // sender's bubble to 'declined' (and gives an accepted send an early
+    // 'transferring'), so it is sent for both outcomes.
+    await sendTransferResponseSignal(
+      ownCid,
+      BigInt(intent.targetCid),
+      intent.transferId,
+      intent.accepted,
+      intent.accepted ? undefined : intent.reason
+    );
   }
 
   private async executeSendCancel(intent: SendCancelIntent): Promise<void> {
+    // The protocol has no cancel command — cancellation is implicit in
+    // disconnect — so `cancelTransfer` below only clears local correlation
+    // state. Without the in-band signal the peer was never told, and their
+    // bubble stayed pending/transferring for a transfer that no longer
+    // existed. Signal first: local cleanup cannot fail, the send can.
+    const ownCid = await this.getCurrentCid();
+    if (ownCid === null) {
+      throw new Error('No active session to cancel this transfer from.');
+    }
+    await sendTransferCancelSignal(
+      ownCid,
+      BigInt(intent.targetCid),
+      intent.transferId,
+      intent.reason
+    );
     await this.cancelTransfer({
       transferId: intent.transferId,
       targetCid: BigInt(intent.targetCid),
       reason: intent.reason,
     });
-  }
-
-  private async executeSendComplete(intent: SendCompleteIntent): Promise<void> {
-    await this.sendComplete(
-      intent.transferId,
-      BigInt(intent.targetCid),
-      intent.success,
-      intent.errorMessage
-    );
   }
 
   // ============================================================================
@@ -165,6 +174,13 @@ export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
 
   private async sendFileViaProtocol(intent: SendFileViaProtocolIntent): Promise<void> {
+    // Announce BEFORE the bytes, exactly as executeSendTransferRequest does:
+    // the announcement is the only thing that gives the recipient a bubble to
+    // accept from. This path used to issue only the protocol SendFile, so the
+    // recipient's internal service held an offer no UI ever surfaced and the
+    // sender waited forever on an accept nobody could click.
+    await announceTransfer(intent.transfer);
+
     const requestId = crypto.randomUUID();
 
     // Build FileSource - support both direct path and PickFileRef

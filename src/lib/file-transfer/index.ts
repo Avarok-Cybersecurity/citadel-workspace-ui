@@ -26,8 +26,6 @@ export type {
   TransferProgressEvent as IOTransferProgressEvent,
   TransferCompleteEvent,
   TransferStatusEvent,
-  ChunkData,
-  BlobResult,
   FileSource,
   IORouterType,
   IORouterConfig,

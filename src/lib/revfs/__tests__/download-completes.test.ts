@@ -15,6 +15,18 @@
  * And it correlated on `status.cid === cid`, matching ANY transfer notification
  * for the session, so a concurrent standard transfer settled an unrelated
  * pending download.
+ *
+ * THE FIXTURE BELOW IS A CONTRACT, NOT A CONVENIENCE. Ticks addressed to the
+ * browser's request_id only exist because the internal service threads it
+ * through: the SDK's PullObject cannot carry a request id, so the kernel
+ * registers it per-session in `kernel/revfs_correlation.rs` (written by
+ * `requests/file/download.rs`, consumed by
+ * `responses/object_transfer_handle.rs` when the pull's Receiver handle
+ * arrives). Before that registry existed, real ticks carried the TCP
+ * connection uuid — this suite's fabricated matching ticks passed while every
+ * real download failed on timeout. If the kernel ever stops stamping pull
+ * ticks with the DownloadFile request_id, this suite will keep passing and
+ * the product will break: the seam is Rust-side, verify it there.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';

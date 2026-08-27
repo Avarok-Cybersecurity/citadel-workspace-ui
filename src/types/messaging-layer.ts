@@ -430,6 +430,14 @@ export function createCheckStateResponse(): MessagingLayer {
 // ============================================================================
 // File Transfer Helper Constructors
 // ============================================================================
+//
+// Only the variants something actually SENDS have constructors: Request (the
+// offer announcement), Response (accept/decline signal) and Cancel. The
+// Progress / Complete / Chunk constructors that used to sit here had zero
+// callers ever — they belonged to an abandoned message-plane transfer
+// implementation; progress and completion are protocol notifications
+// (FileTransferTickNotification), not chat messages. The TYPE variants stay
+// declared because the wire union and its guards still name them.
 
 /**
  * Create a FileTransferRequest variant
@@ -486,51 +494,6 @@ export function createFileTransferResponse(
 }
 
 /**
- * Create a FileTransferProgress variant
- * @param transfer_id - ID of the transfer
- * @param bytes_transferred - Bytes transferred so far
- * @param total_bytes - Total size of file
- */
-export function createFileTransferProgress(
-  transfer_id: string,
-  bytes_transferred: number,
-  total_bytes: number
-): MessagingLayer {
-  return {
-    type: MessagingLayerType.FileTransferProgress,
-    transfer_id,
-    bytes_transferred,
-    total_bytes,
-    percentage: Math.round((bytes_transferred / total_bytes) * 100),
-    timestamp: Date.now()
-  };
-}
-
-/**
- * Create a FileTransferComplete variant
- * @param transfer_id - ID of the transfer
- * @param success - Whether the transfer completed successfully
- * @param options - Optional download_path or error_message
- */
-export function createFileTransferComplete(
-  transfer_id: string,
-  success: boolean,
-  options?: {
-    download_path?: string;
-    error_message?: string;
-  }
-): MessagingLayer {
-  return {
-    type: MessagingLayerType.FileTransferComplete,
-    transfer_id,
-    success,
-    download_path: options?.download_path,
-    error_message: options?.error_message,
-    timestamp: Date.now()
-  };
-}
-
-/**
  * Create a FileTransferCancel variant
  * @param transfer_id - ID of the transfer to cancel
  * @param reason - Optional reason for cancellation
@@ -543,32 +506,6 @@ export function createFileTransferCancel(
     type: MessagingLayerType.FileTransferCancel,
     transfer_id,
     reason,
-    timestamp: Date.now()
-  };
-}
-
-/**
- * Create a FileTransferChunk variant for P2P streaming
- * @param transfer_id - ID of the transfer
- * @param chunk_index - 0-based index of this chunk
- * @param total_chunks - Total number of chunks for the file
- * @param data - Base64-encoded chunk data
- * @param checksum - Optional SHA-256 hash of chunk data
- */
-export function createFileTransferChunk(
-  transfer_id: string,
-  chunk_index: number,
-  total_chunks: number,
-  data: string,
-  checksum?: string
-): MessagingLayer {
-  return {
-    type: MessagingLayerType.FileTransferChunk,
-    transfer_id,
-    chunk_index,
-    total_chunks,
-    data,
-    checksum,
     timestamp: Date.now()
   };
 }
@@ -662,18 +599,7 @@ export const FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES = 100 * 1024 * 1024;
 /** Default RE-VFS storage quota per peer (100 MB) */
 export const REVFS_DEFAULT_QUOTA_BYTES = 100 * 1024 * 1024;
 
-// ============================================================================
-// P2P Chunk Streaming Constants
-// ============================================================================
-
-/** Default chunk size for P2P file streaming (64 KB) - optimized for WebSocket frames */
-export const FILE_TRANSFER_CHUNK_SIZE_BYTES = 64 * 1024;
-
-/** Maximum chunk size allowed (256 KB) */
-export const FILE_TRANSFER_MAX_CHUNK_SIZE_BYTES = 256 * 1024;
-
-/** Timeout for receiving next chunk (30 seconds) */
-export const FILE_TRANSFER_CHUNK_TIMEOUT_MS = 30 * 1000;
-
-/** Maximum number of chunk retries before failing transfer */
-export const FILE_TRANSFER_CHUNK_MAX_RETRIES = 3;
+// The P2P chunk-streaming constants that used to sit here (chunk size,
+// max size, per-chunk timeout, retries) were tuning for the abandoned
+// message-plane transfer implementation and were deleted with it — the SDK
+// chunks the real transfer itself, server-side.

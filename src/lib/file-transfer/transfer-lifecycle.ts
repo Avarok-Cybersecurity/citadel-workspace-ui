@@ -70,9 +70,11 @@ export async function sendFile(
   if (mode === 'async') {
     await deps.handleAsyncSend(transfer, file);
   } else {
-    deps.state.setPendingFile(transferId, file);
     // `wrapInMemory` brands the File for the intent's `file?: InMemoryOnly<File>`
     // contract — see `types.ts` for why a raw `File` would be a TS error here.
+    // The bytes leave inside this call (SendFile ByteContents); there is no
+    // stashed copy to stream later — the chunk-streaming plane that once
+    // consumed one is gone.
     await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
   }
 
@@ -115,7 +117,11 @@ export async function sendFileWithNativePicker(
     fileSize: Number(fileInfo.file_size),
     fileType: getMimeType(fileInfo.file_name),
     mode: 'p2p',
-    state: 'transferring',
+    // 'pending' — nothing is moving yet. The recipient has not accepted, and
+    // the protocol tick stream (which is what moves this to 'transferring')
+    // only starts once they do. Starting at 'transferring' showed a busy
+    // progress bar for an offer the peer had not even seen.
+    state: 'pending',
     progress: 0,
     senderCid: senderCid.toString(),
     recipientCid,
@@ -135,6 +141,9 @@ export async function sendFileWithNativePicker(
       peerCid: recipientCid,
       filePath: fileInfo.file_path,
       transferId,
+      // Carries the record the executor announces to the recipient — the
+      // in-band bubble is built from these fields.
+      transfer,
     });
 
     debugLog('transfer-lifecycle', 'SendFile request submitted');

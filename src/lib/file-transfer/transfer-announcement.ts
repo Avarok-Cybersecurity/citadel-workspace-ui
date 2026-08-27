@@ -18,9 +18,31 @@
  * without a socket.
  */
 
-import { createFileTransferRequest } from '@/types/messaging-layer';
+import { createFileTransferRequest, type MessagingLayer } from '@/types/messaging-layer';
 import type { P2PMessagingLayerPayload } from '@/types/p2p-commands';
 import type { FileTransfer } from './types';
+
+/**
+ * Wrap a messaging layer in the P2P envelope used for file-transfer signals.
+ *
+ * `message_id` is distinct from any transfer id on purpose: it identifies the
+ * chat MESSAGE, and reusing a transfer id would collide with any later message
+ * about the same transfer in the conversation's message map.
+ */
+export function buildLayerPayload(
+  layer: MessagingLayer,
+  senderCid: bigint,
+  recipientCid: bigint
+): P2PMessagingLayerPayload {
+  return {
+    layer,
+    sender_cid: senderCid,
+    recipient_cid: recipientCid,
+    message_id: crypto.randomUUID(),
+    index: 0,
+    message_type: 'file_transfer',
+  };
+}
 
 /**
  * The in-band announcement for `transfer`.
@@ -43,15 +65,5 @@ export function buildTransferAnnouncement(transfer: FileTransfer): P2PMessagingL
     },
   );
 
-  return {
-    layer,
-    sender_cid: BigInt(transfer.senderCid),
-    recipient_cid: BigInt(transfer.recipientCid),
-    // Distinct from transfer_id: this identifies the chat message, and reusing
-    // the transfer id would collide with any later message about the same
-    // transfer (progress, completion) in the conversation's message map.
-    message_id: crypto.randomUUID(),
-    index: 0,
-    message_type: 'file_transfer',
-  };
+  return buildLayerPayload(layer, BigInt(transfer.senderCid), BigInt(transfer.recipientCid));
 }

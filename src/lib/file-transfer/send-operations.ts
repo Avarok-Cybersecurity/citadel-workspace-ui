@@ -4,7 +4,6 @@
  * Outbound file transfer operations for the real protocol I/O router:
  * - SendFile: Initiate file transfer via InternalServiceRequest
  * - CancelTransfer: Clean up local state (protocol cancels implicitly)
- * - sendChunk / sendComplete: Stubs (SDK handles these automatically)
  */
 
 import { eventEmitter } from '../event-emitter';
@@ -181,22 +180,3 @@ export function executeCancelTransfer(
   }
 }
 
-/**
- * sendChunk is not supported - the Citadel SDK handles chunking internally.
- */
-export function throwChunkNotSupported(): never {
-  throw new Error(
-    'sendChunk not supported by RealProtocolIORouter. ' +
-    'Chunking is handled automatically by the Citadel SDK.'
-  );
-}
-
-/**
- * sendComplete is not supported - the Citadel SDK signals completion automatically.
- */
-export function throwCompleteNotSupported(): never {
-  throw new Error(
-    'sendComplete not supported by RealProtocolIORouter. ' +
-    'Completion is signaled automatically by the Citadel SDK.'
-  );
-}

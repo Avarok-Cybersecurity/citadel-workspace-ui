@@ -99,20 +99,12 @@ export interface SendTransferRequestIntent {
    *     go through `wrapInMemory(file)` so the in-memory-only contract
    *     is explicit at the call site.
    *
-   * The matching lookup path (transfer-lifecycle.ts pre-populates
-   * `state.setPendingFile(transferId, file)`) is what a cross-tab
-   * intent router should consult after dropping this field.
+   * There is deliberately NO side-channel copy of the File to fall back
+   * on: the bytes leave in the same call that carries this intent, so a
+   * dispatcher that lost the File has lost the transfer and must fail
+   * loudly (io.ts does).
    */
   file?: InMemoryOnly<File>;
-}
-
-export interface SendChunkIntent {
-  type: 'send-chunk';
-  transferId: string;
-  recipientCid: string;
-  chunkIndex: number;
-  totalChunks: number;
-  data: string; // base64
 }
 
 export interface SendResponseIntent {
@@ -128,14 +120,6 @@ export interface SendCancelIntent {
   transferId: string;
   targetCid: string;
   reason: string;
-}
-
-export interface SendCompleteIntent {
-  type: 'send-complete';
-  transferId: string;
-  targetCid: string;
-  success: boolean;
-  errorMessage?: string;
 }
 
 export interface UploadToServerIntent {
@@ -163,16 +147,22 @@ export interface SendFileViaProtocolIntent {
   peerCid: string | null;
   filePath: string;
   transferId: string;
+  /**
+   * The full transfer record, so the executor can send the in-band
+   * announcement that gives the recipient a bubble to accept from. Without
+   * it the native-picker path used to issue only the protocol SendFile: the
+   * recipient's internal service held an offer no UI ever surfaced, and the
+   * sender waited forever on an accept nobody could click.
+   */
+  transfer: FileTransfer;
   /** Optional PickFile request ID - if provided, uses PickFileRef instead of direct path */
   pickFileRequestId?: string;
 }
 
 export type FileTransferIntent =
   | SendTransferRequestIntent
-  | SendChunkIntent
   | SendResponseIntent
   | SendCancelIntent
-  | SendCompleteIntent
   | UploadToServerIntent
   | DownloadFromServerIntent
   | PickFileIntent

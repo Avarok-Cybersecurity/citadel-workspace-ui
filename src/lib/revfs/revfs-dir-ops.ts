@@ -18,6 +18,7 @@ import {
   copyNode as treeCopy,
 } from './tree-operations';
 import { debugLog } from '@/lib/debug-config';
+import { countByteKeyRefs } from './tree-byte-refs';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { persistTree } from './persist-tree';
@@ -63,7 +64,7 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
   await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 
-  await sweepOrphanedBytes(io, myCid, peerCid, orphaned, 'peer storage');
+  await sweepOrphanedBytes(io, myCid, peerCid, orphaned, newTree, 'peer storage');
 }
 
 export async function peerRename(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<void> {
@@ -145,15 +146,27 @@ async function sweepOrphanedBytes(
   myCid: bigint,
   peerCid: bigint | null,
   orphaned: RevfsNode[],
+  remainingTree: RevfsNode,
   storageLabel: string,
 ): Promise<void> {
   const undeleted: string[] = [];
+  // Copies share their original's byte key (tree-byte-refs.ts): a blob still
+  // referenced OUTSIDE the removed folder must survive the sweep — rmdir of a
+  // folder holding only a copy used to destroy the original's bytes — and two
+  // copies INSIDE it are one blob, one delete.
+  const sweptKeys = new Set<string>();
   for (const file of orphaned) {
     if (!file.fileMetadata) {
       // Nothing identifies this file to the backend, so it cannot be deleted
       // there. Say so rather than dropping it silently and reporting success.
       debugLog('RevfsDirOps', `rmdir: no metadata for ${file.path}, cannot delete remotely`);
       continue;
+    }
+    const byteKey = file.fileMetadata.virtualDirectory;
+    if (byteKey !== '') {
+      if (sweptKeys.has(byteKey)) continue;
+      sweptKeys.add(byteKey);
+      if (countByteKeyRefs(remainingTree, byteKey) > 0) continue;
     }
     const deleted = await io.execute({
       type: 'backend-delete-file',
@@ -201,7 +214,7 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
   const io = ctx.ensureIO();
   await persistTree(io, key, newTree);
 
-  await sweepOrphanedBytes(io, myCid, null, orphaned, 'server storage');
+  await sweepOrphanedBytes(io, myCid, null, orphaned, newTree, 'server storage');
 }
 
 export async function serverRename(ctx: DirOpsContext, myCid: bigint, path: string, newName: string): Promise<void> {

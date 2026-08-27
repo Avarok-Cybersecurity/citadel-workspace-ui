@@ -7,17 +7,15 @@ import type { IFileTransferIORouter } from './io-router';
 import type {
   SendFileParams, SendFileResult, CancelTransferParams, RespondTransferParams,
   DownloadFileParams, TransferRequestEvent, TransferProgressEvent,
-  TransferCompleteEvent, TransferStatusEvent, ChunkData, BlobResult,
+  TransferCompleteEvent, TransferStatusEvent,
 } from './io-router-types';
 import type { FileTransfer } from './types';
-import {
-  executeSendFile, executeCancelTransfer,
-  throwChunkNotSupported, throwCompleteNotSupported,
-} from './send-operations';
+import { executeSendFile, executeCancelTransfer } from './send-operations';
 import {
   executeRespondToTransfer, executeDownloadFile, createTransferRequestHandler,
   createProgressHandler, createCompleteHandler, createStatusChangeHandler,
 } from './receive-operations';
+import type { TickCorrelation } from './tick-events';
 
 export class RealProtocolIORouter implements IFileTransferIORouter {
   private subscriptions = new Map<string, () => void>();
@@ -27,6 +25,21 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   private transferIdToObjectId = new Map<string, string>();
   private objectIdToTransferId = new Map<string, string>();
 
+  /**
+   * Correlation state for the id-less tick stream (see tick-events.ts):
+   * the ticks and completes that report a transfer's progress carry no
+   * object id on the wire, only the notification's request_id — which for
+   * an accepted reception is the RespondFileTransfer request UUID. These
+   * maps join that UUID (and the download path ReceptionBeginning reveals)
+   * back to the client transfer id.
+   */
+  private readonly tickCorrelation: TickCorrelation = {
+    objectIdToTransferId: this.objectIdToTransferId,
+    requestIdToTransferId: new Map<string, string>(),
+    requestIdToDownloadPath: new Map<string, string>(),
+    foreignRequestIds: new Set<string>(),
+  };
+
   async sendFile(params: SendFileParams): Promise<SendFileResult> {
     return executeSendFile(params);
   }
@@ -35,27 +48,14 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
     executeCancelTransfer(params, this.transferIdToObjectId, this.objectIdToTransferId);
   }
 
-  async sendChunk(
-    _transferId: string,
-    _recipientCid: bigint,
-    _chunkIndex: number,
-    _totalChunks: number,
-    _data: string
-  ): Promise<void> {
-    throwChunkNotSupported();
-  }
-
-  async sendComplete(
-    _transferId: string,
-    _targetCid: bigint,
-    _success: boolean,
-    _errorMessage?: string
-  ): Promise<void> {
-    throwCompleteNotSupported();
-  }
-
   async respondToTransfer(params: RespondTransferParams): Promise<void> {
-    return executeRespondToTransfer(params);
+    const requestId = await executeRespondToTransfer(params);
+    // An accept spawns the reception tick stream under this request UUID.
+    // Register the join BEFORE any tick can arrive (the WebSocket is ordered,
+    // so nothing for this stream precedes the request we just sent).
+    if (params.accept && params.transferId) {
+      this.tickCorrelation.requestIdToTransferId.set(requestId, params.transferId);
+    }
   }
 
   async downloadFile(params: DownloadFileParams): Promise<void> {
@@ -71,7 +71,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   onProgress(callback: (event: TransferProgressEvent) => void): () => void {
-    const handler = createProgressHandler(callback, this.objectIdToTransferId);
+    const handler = createProgressHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
     const unsubscribe = () => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`progress-${Date.now()}`, unsubscribe);
@@ -79,7 +79,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   onComplete(callback: (event: TransferCompleteEvent) => void): () => void {
-    const handler = createCompleteHandler(callback, this.objectIdToTransferId);
+    const handler = createCompleteHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
     const unsubscribe = () => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`complete-${Date.now()}`, unsubscribe);
@@ -87,7 +87,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   onStatusChange(callback: (event: TransferStatusEvent) => void): () => void {
-    const handler = createStatusChangeHandler(callback, this.objectIdToTransferId);
+    const handler = createStatusChangeHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
     const unsubscribe = () => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`status-${Date.now()}`, unsubscribe);
@@ -97,39 +97,6 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   // ============================================================================
   // File Utilities
   // ============================================================================
-
-  async fileChunkToBase64(chunk: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = () => reject(new Error('Failed to read chunk'));
-      reader.readAsDataURL(chunk);
-    });
-  }
-
-  base64ToBinary(base64: string): Uint8Array {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  }
-
-  createBlobFromChunks(chunks: ChunkData[], fileType: string): BlobResult {
-    const sortedChunks = [...chunks].sort((a, b) => a.index - b.index);
-    const binaryChunks: Uint8Array[] = [];
-    for (const chunk of sortedChunks) {
-      binaryChunks.push(this.base64ToBinary(chunk.data));
-    }
-    const blob = new Blob(binaryChunks as BlobPart[], { type: fileType });
-    const downloadUrl = URL.createObjectURL(blob);
-    return { blob, downloadUrl };
-  }
 
   async generateThumbnail(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -225,5 +192,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
 
     this.transferIdToObjectId.clear();
     this.objectIdToTransferId.clear();
+    this.tickCorrelation.requestIdToTransferId.clear();
+    this.tickCorrelation.requestIdToDownloadPath.clear();
+    this.tickCorrelation.foreignRequestIds.clear();
   }
 }

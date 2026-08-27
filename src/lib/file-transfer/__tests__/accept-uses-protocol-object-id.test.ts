@@ -28,8 +28,16 @@ vi.mock('../../tab-context', () => ({
   getSelectedUser: async () => ({ selectedCid: 7n }),
 }));
 const sendRequest = vi.fn(async (_request: unknown): Promise<void> => undefined);
+// Accepting also sends an in-band response signal to the SENDER, whose UI
+// otherwise learns of a decline not at all — the SDK gives a declined sender no
+// notification whatsoever. Mocked so this file keeps testing the protocol half
+// it is about; `in-band-signals` has its own tests.
+const sendP2PMessageReliable = vi.fn(async (): Promise<void> => undefined);
 vi.mock('@/lib/websocket-service', () => ({
-  websocketService: { sendRequest: (r: unknown) => sendRequest(r) },
+  websocketService: {
+    sendRequest: (r: unknown) => sendRequest(r),
+    sendP2PMessageReliable: () => sendP2PMessageReliable(),
+  },
 }));
 
 import { FileTransferIO } from '../io';

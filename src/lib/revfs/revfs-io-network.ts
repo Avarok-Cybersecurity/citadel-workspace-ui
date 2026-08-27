@@ -63,32 +63,77 @@ export async function backendSendFile(
   };
 
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
+    // Idle timeout, re-armed on every event for THIS request: a large
+    // transfer that is still ticking must not be declared dead at a fixed
+    // 30s, while a transfer nobody is answering still fails honestly.
+    let timeout: ReturnType<typeof setTimeout>;
+    const armTimeout = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        eventEmitter.off('websocket-message', handleMessage);
+        debugLog('RevfsIO', 'backendSendFile timed out');
+        resolve({ type: 'backend-send-file', success: false });
+      }, BACKEND_TIMEOUT_MS);
+    };
+
+    const settle = (result: RevfsIntentResult) => {
+      clearTimeout(timeout);
       eventEmitter.off('websocket-message', handleMessage);
-      debugLog('RevfsIO', 'backendSendFile timed out');
-      resolve({ type: 'backend-send-file', success: false });
-    }, BACKEND_TIMEOUT_MS);
+      resolve(result);
+    };
 
     const handleMessage = (message: unknown) => {
       const msg = message as Record<string, unknown>;
 
-      const success = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
-      if (success?.request_id === requestId) {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        debugLog('RevfsIO', 'backendSendFile success');
-        resolve({ type: 'backend-send-file', success: true, virtualDir });
+      // SendFileRequestSuccess is emitted the moment the internal service
+      // QUEUES the SendObject — before the receiving side has accepted
+      // anything. Resolving on it reported success for peer-scoped uploads
+      // that nothing ever accepted: the uploader placed the node and synced
+      // the tree op, so both peers listed a "downloadable" file whose bytes
+      // existed nowhere. It is only a dispatch ack; keep waiting for the
+      // Sender-side tick stream, which the internal service now stamps with
+      // this request_id (kernel/revfs_correlation.rs).
+      const dispatched = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
+      if (dispatched?.request_id === requestId) {
+        debugLog('RevfsIO', 'backendSendFile dispatched, awaiting transfer completion');
+        armTimeout();
+        return;
+      }
+
+      // TransferComplete is the Sender-side terminal tick: every chunk was
+      // streamed and acknowledged by the node that now stores the bytes. The
+      // receiver only acks the file header after ACCEPTING the transfer, so
+      // this cannot fire for a push nobody accepted. Unit variants serialise
+      // as the bare string; Fail is a newtype carrying the message.
+      const tick = msg.FileTransferTickNotification as {
+        request_id?: string;
+        status?: Record<string, unknown> | string;
+      } | undefined;
+      if (tick && tick.request_id === requestId) {
+        const status = tick.status;
+        if (status === 'TransferComplete') {
+          debugLog('RevfsIO', 'backendSendFile transfer complete');
+          settle({ type: 'backend-send-file', success: true, virtualDir });
+          return;
+        }
+        if (status === 'Fail' || (status !== null && typeof status === 'object' && 'Fail' in status)) {
+          debugLog('RevfsIO', 'backendSendFile transfer failed');
+          settle({ type: 'backend-send-file', success: false });
+          return;
+        }
+        // Progress (TransferBeginning / TransferTick): still alive.
+        armTimeout();
+        return;
       }
 
       const failure = msg.SendFileRequestFailure as { request_id?: string; message?: string } | undefined;
       if (failure?.request_id === requestId) {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
         debugLog('RevfsIO', 'backendSendFile failed:', failure.message);
-        resolve({ type: 'backend-send-file', success: false });
+        settle({ type: 'backend-send-file', success: false });
       }
     };
 
+    armTimeout();
     eventEmitter.on('websocket-message', handleMessage);
 
     deps.sendInternalServiceRequest(request).catch(error => {
@@ -101,8 +146,7 @@ export async function backendSendFile(
 }
 
 /**
- * Download a file via the Citadel protocol.
- * Returns the local download path on success.
+ * Delete a file from the virtual filesystem via the Citadel protocol.
  */
 export async function backendDeleteFile(
   deps: NetworkIODeps,

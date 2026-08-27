@@ -80,8 +80,14 @@ export interface CancelTransferParams {
 // ============================================================================
 
 export interface RespondTransferParams {
-  /** For real protocol: object_id. For message-based: transfer_id */
+  /** The protocol's object_id for this transfer. */
   protocolId: string;
+  /**
+   * Client transfer id, so an ACCEPT can pre-register the reception tick
+   * stream: the internal service spawns that stream under the
+   * RespondFileTransfer request UUID, and the ticks themselves are id-less.
+   */
+  transferId?: string;
   cid: bigint;
   peerCid: bigint;
   accept: boolean;
@@ -124,8 +130,19 @@ export interface TransferRequestEvent {
 }
 
 export interface TransferProgressEvent {
-  transferId: string;
-  protocolId?: string;
+  /**
+   * Resolved client transfer id, when the tick stream could be joined exactly
+   * (recipient streams; see tick-events.ts). Sender-side ticks carry no id on
+   * the wire, so this is undefined there and the service resolves by
+   * (cid, peerCid, direction) instead.
+   */
+  transferId?: string;
+  /** Local session CID the notification was addressed to. */
+  cid: bigint;
+  /** The other side of the transfer. */
+  peerCid: bigint;
+  direction: 'outgoing' | 'incoming';
+  /** Group counts, not bytes — the wire reports groups; percentage is exact. */
   bytesTransferred: number;
   totalBytes: number;
   percentage: number;
@@ -141,8 +158,12 @@ export type TransferProgressStatus =
   | 'failed';
 
 export interface TransferCompleteEvent {
-  transferId: string;
-  protocolId?: string;
+  /** Resolved client transfer id when known — see TransferProgressEvent. */
+  transferId?: string;
+  cid: bigint;
+  peerCid: bigint;
+  /** 'unknown' for Fail ticks, which name neither a direction nor an id. */
+  direction: 'outgoing' | 'incoming' | 'unknown';
   success: boolean;
   downloadPath?: string;
   errorMessage?: string;
@@ -150,24 +171,12 @@ export interface TransferCompleteEvent {
 
 export interface TransferStatusEvent {
   protocolId: string;
+  /** Resolved from protocolId via the offer correlator, when joined. */
+  transferId?: string;
   cid: bigint;
   success: boolean;
   accepted: boolean;
   message?: string;
-}
-
-// ============================================================================
-// Utility Types
-// ============================================================================
-
-export interface ChunkData {
-  data: string; // base64 encoded
-  index: number;
-}
-
-export interface BlobResult {
-  blob: Blob;
-  downloadUrl: string;
 }
 
 // ============================================================================

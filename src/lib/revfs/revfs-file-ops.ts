@@ -15,6 +15,8 @@ import {
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { persistTree } from './persist-tree';
+import { countByteKeyRefs } from './tree-byte-refs';
+import { debugLog } from '@/lib/debug-config';
 
 export interface FileOpsContext {
   state: RevfsState;
@@ -88,7 +90,14 @@ export async function removeFileFromPeer(
   // the node first and then discarding the delete result left the bytes with
   // nothing referencing them: storage consumed, and no node left to retry from.
   const fileNode = ctx.findFileInTree(tree, filePath);
-  if (fileNode?.fileMetadata) {
+  // A copy shares its original's byte key (see tree-byte-refs.ts), so the
+  // backend delete only goes out when this node is the LAST reference —
+  // otherwise deleting one copy destroyed the bytes every other copy still
+  // pointed at, under a green "deleted" toast.
+  const sharedElsewhere =
+    fileNode?.fileMetadata !== undefined &&
+    countByteKeyRefs(tree, fileNode.fileMetadata.virtualDirectory) > 1;
+  if (fileNode?.fileMetadata && !sharedElsewhere) {
     const deleted = await io.execute({
       type: 'backend-delete-file',
       cid: myCid,
@@ -101,6 +110,8 @@ export async function removeFileFromPeer(
     if (deleted.type !== 'backend-delete-file' || !deleted.success) {
       throw new Error(`"${filePath}" could not be deleted from peer storage. It has been left in place.`);
     }
+  } else if (sharedElsewhere) {
+    debugLog('RevfsFileOps', `removeFileFromPeer: bytes for ${filePath} still referenced by a copy; node removed, bytes kept`);
   }
 
   const [newTree, op] = treeRemoveFile(tree, filePath);

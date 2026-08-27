@@ -110,32 +110,39 @@ export async function handleTransferRequest(
 }
 
 /**
- * Handle FileTransferResponse - start P2P stream if accepted, mark declined otherwise.
+ * Handle the peer's in-band accept/decline of OUR outgoing offer.
+ *
+ * The bytes themselves move over the protocol plane (SendFile / ticks); this
+ * signal exists because the protocol tells a sender nothing about a decline —
+ * see in-band-signals.ts. An accept here is an early 'transferring' (the tick
+ * stream confirms it moments later); a decline is the sender's ONLY route to a
+ * terminal state.
+ *
+ * This used to also start a base64 chunk stream on accept — the abandoned
+ * message-plane transfer implementation, deleted along with the pending-file
+ * stash it read from.
  */
 export async function handleTransferResponse(
   deps: AsyncTransferDeps,
   data: FileTransferResponseData & { type: MessagingLayerType.FileTransferResponse },
-  _senderCid: string,
-  streamFileToRecipient: (transfer: FileTransfer, file: File) => Promise<void>
+  _senderCid: string
 ): Promise<void> {
   const transfer = deps.state.getTransfer(data.transfer_id);
   if (!transfer || transfer.isIncoming) return;
+  // Never regress a terminal transfer: a late or duplicated response must not
+  // resurrect a bubble that already completed, failed or was cancelled.
+  if (
+    transfer.state === 'complete' || transfer.state === 'error' ||
+    transfer.state === 'cancelled' || transfer.state === 'declined'
+  ) {
+    return;
+  }
 
   if (data.accepted) {
     transfer.state = 'transferring';
-    if (transfer.mode === 'p2p') {
-      const file = deps.state.getPendingFile(transfer.id);
-      if (file) {
-        await streamFileToRecipient(transfer, file);
-      } else {
-        transfer.state = 'error';
-        transfer.errorMessage = 'File data not found';
-      }
-    }
   } else {
     transfer.state = 'declined';
     transfer.errorMessage = data.decline_reason;
-    deps.state.deletePendingFile(transfer.id);
   }
 
   transfer.updatedAt = Date.now();

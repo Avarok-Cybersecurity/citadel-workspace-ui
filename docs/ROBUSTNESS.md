@@ -7612,3 +7612,74 @@ rendering the view path with a non-executing markdown renderer and re-expressing
 the four custom components (`Card`, `Alert`, `Badge`, `Table`) as directives.
 Both are projects, not rounds, and the choice is a product decision about whether
 documents may contain executable JSX at all.
+
+### Round 118 — the completion plane, and why it was never going to work
+
+Two agents implemented this; both were killed mid-test-rewrite by a session
+limit, and the work was finished and independently re-verified by hand. Every
+claim below was checked against the generated types or the Rust, not taken on
+report.
+
+**The root cause was sharper than the audit found.** The audit said the protocol
+router's `onProgress` / `onComplete` / `onStatusChange` had zero subscribers.
+True — but wiring them would not have helped, because `protocol-types.ts`
+hand-wrote `ObjectTransferStatus` and every variant disagreed with the wire. The
+generated type (ts-rs output from Rust, in `@avarok/citadel-protocol-types`) is:
+
+```
+"TransferBeginning" | { ReceptionBeginning: [string, VirtualObjectMetadata] }
+| { TransferTick: [number, number, number] } | { ReceptionTick: [...] }
+| "TransferComplete" | "ReceptionComplete" | { Fail: string }
+```
+
+The local copy gave every variant an `object_id` the real enum does not carry,
+made the completes objects when they are bare strings, and gave the metadata a
+`file_size`/`mime_type` that does not exist. `tsc` validated a parser that could
+never match a single real notification. The types are now re-exported from the
+generated package, so a Rust-side change breaks the build here instead of
+silently breaking the parser — which is the only kind of fix that holds.
+
+Because ticks carry no object id, a tick stream is correlated by its envelope
+(`cid` / `peer_cid` / `request_id`), not by the payload. That required work on
+the Rust side too: `PullObject` / `SendObject` carry no application request id,
+so the kernel stamped ticks with the TCP-connection uuid. A new FIFO correlation
+registry, keyed by direction and scope, restores the browser's id — FIFO because
+it is the strongest join available, and with a TTL longer than the browser's
+timeout so a pull whose remote errors (producing no handle at all) expires
+rather than sitting at the head of the queue misattributing every later
+transfer. The limitation is written down at the top of the module rather than
+discovered later.
+
+**Two more severed joints closed.** A decline never reached the sender at all —
+the SDK gives a declined sender no notification, and `RespondFileTransfer`
+travels only between a browser and its own internal service, so the sender's
+bubble sat on "Waiting for acceptance" for ever. Accept and decline now also
+send an in-band P2P signal. And a peer-targeted RE-VFS push arrived at the
+receiving service as a transfer awaiting an explicit accept that no client ever
+issued: a RE-VFS storage write is an internal mechanism, not a user-facing
+offer. The receiving service now auto-accepts it, as the server kernel always
+has, and the uploader waits for the Sender-side `TransferComplete` rather than
+the dispatch ack.
+
+**The copy fix is better than the one I sketched.** I had assumed a copied node
+needed its own byte key. The backend cannot duplicate an object and the browser
+does not hold the bytes, so that was never available; the honest answer is that
+both nodes point at one blob and every delete site refcounts the key. Deleting
+either copy now leaves the other intact, and the blob dies with its last
+reference.
+
+840 lines deleted against 529 added, most of it the message-plane chunk
+machinery — `handleTransferChunk`, `streamFileToRecipient`, `reassembleFile` and
+their constructors — which had no production callers and could not have had any:
+its first chunk hit a `throwChunkNotSupported()`. It was a decoy, and decoys are
+what make the next reader believe the feature exists.
+
+Three negative controls run by hand after the fact, since the agents did not
+survive to run their own: renaming the bare-string `ReceptionComplete` fails two
+parser tests; removing the terminal-state guard in `applyTransferOutcome` fails
+the double-report and declined-resurrection tests; making delete ignore the
+refcount fails the copy test. Each failed for its stated reason.
+
+Also fixed here: the new executor crate had no CI coverage, which the repo's own
+`crate coverage` gate caught on the next preflight — a guard written in an
+earlier round catching me.

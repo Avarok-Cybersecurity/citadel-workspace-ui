@@ -9,8 +9,7 @@ import { scopedSettingsKey } from './settings-key';
 import { eventEmitter } from '../event-emitter';
 import {
   type MessagingLayer, type FileTransferMode,
-  isFileTransferRequest, isFileTransferResponse, isFileTransferProgress,
-  isFileTransferComplete, isFileTransferCancel, isFileTransferChunk,
+  isFileTransferRequest, isFileTransferResponse, isFileTransferCancel,
 } from '@/types/messaging-layer';
 import { FileTransferState } from './state';
 import { FileTransferIO } from './io';
@@ -23,11 +22,10 @@ import type {
 import { debugLog } from '@/lib/debug-config';
 import { handleAsyncSend, handleTransferRequest, handleTransferResponse } from './async-transfers';
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
+import { handleTransferCancel } from './p2p-transfers';
 import {
-  streamFileToRecipient, handleTransferProgress,
-  handleTransferCancel, handleTransferChunk,
-} from './p2p-transfers';
-import { handleTransferComplete } from './transfer-outcome';
+  handleProtocolProgress, handleProtocolComplete, handleProtocolStatus,
+} from './protocol-transfer-events';
 import {
   sendFile, sendFileWithNativePicker, cancelTransfer, acceptTransfer, declineTransfer,
 } from './transfer-lifecycle';
@@ -171,16 +169,6 @@ export class FileTransferService {
     return this.state.getAllTransfers();
   }
 
-  getReceivedFile(transferId: string): Blob | undefined {
-    return this.state.getReceivedFile(transferId);
-  }
-
-  async getReceivedFileAsText(transferId: string): Promise<string | undefined> {
-    const blob = this.state.getReceivedFile(transferId);
-    if (!blob) return undefined;
-    return blob.text();
-  }
-
   private setupMessageHandlers(): void {
     eventEmitter.on('p2p:file-transfer-message', this.handleFileTransferMessage.bind(this));
 
@@ -206,6 +194,30 @@ export class FileTransferService {
         event.fileSize
       );
     });
+
+    // THE PROTOCOL PLANE IS AUTHORITATIVE for moving bytes and reporting on
+    // them. The bytes of every transfer travel over the SDK's own file
+    // transfer (SendFile / RespondFileTransfer), and its
+    // FileTransferTickNotification stream is the only ground truth for
+    // progress and completion — the message plane's chunk machinery was an
+    // abandoned design that nothing ever emitted, and has been deleted. The
+    // message plane keeps exactly the jobs the protocol cannot do: the offer
+    // announcement (the recipient's bubble), the decline signal, and cancel.
+    //
+    // These three subscriptions are what let a transfer reach a terminal
+    // state at all. They existed on the router with ZERO subscribers, so
+    // every transfer stayed 'pending'/'transferring' forever and the sidebar
+    // Files list — which shows `state === 'complete'` incoming transfers —
+    // was permanently empty.
+    this.io.onProgress((event) => {
+      void handleProtocolProgress(this.deps, event);
+    });
+    this.io.onComplete((event) => {
+      void handleProtocolComplete(this.deps, event);
+    });
+    this.io.onStatusChange((event) => {
+      void handleProtocolStatus(this.deps, event);
+    });
   }
 
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
@@ -229,19 +241,14 @@ export class FileTransferService {
         (id) => this.acceptTransfer(id)
       );
     } else if (isFileTransferResponse(layer)) {
-      await handleTransferResponse(
-        deps, layer, senderCid,
-        (t, f) => streamFileToRecipient(deps, t, f)
-      );
-    } else if (isFileTransferProgress(layer)) {
-      await handleTransferProgress(deps, layer, senderCid);
-    } else if (isFileTransferComplete(layer)) {
-      await handleTransferComplete(deps, layer, senderCid);
+      await handleTransferResponse(deps, layer, senderCid);
     } else if (isFileTransferCancel(layer)) {
       await handleTransferCancel(deps, layer, senderCid);
-    } else if (isFileTransferChunk(layer)) {
-      await handleTransferChunk(deps, layer, senderCid);
     }
+    // FileTransferProgress / FileTransferComplete / FileTransferChunk layers
+    // have no handlers on purpose: they belonged to an abandoned message-plane
+    // transfer implementation that nothing ever emitted. Progress and
+    // completion are protocol notifications now (see setupMessageHandlers).
   }
 
   private emitStateChange(transfer: FileTransfer): void {
