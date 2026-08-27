@@ -25,6 +25,17 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
  * feature behind it is unbuilt, and the reason must name the finding.
  */
 const RECORDED_DEAD = new Map([
+  // Revealed only once this guard learned the `workspaceEvents.on*Event` and
+  // `this.listen` facades — they were invisible to it until then, which is why
+  // eight arrived at once rather than one at a time.
+  ['typing:started', 'a redundant second path; typing DOES work via messenger.onTyping() in useP2PMessages-subscriptions'],
+  ['typing:stopped', 'as typing:started — the working path is the onTyping callback, not this event'],
+  ['message:received', 'the live inbound path is the P2P messenger; this listener predates it'],
+  ['protocol:warning', 'no producer; the protocol-warning banner is driven by its own component state'],
+  ['notification', 'notification-service listens to its own bus name; every real producer calls addNotification directly'],
+  ['member:permissions-updated', 'no producer — permission changes are read back via GetUserPermissions'],
+  ['user:login', 'EventListenerManager base-class example subscriptions; no producer anywhere'],
+  ['user:logout', 'as user:login'],
   ['group:member-kicked', 'ROBUSTNESS.md #206 — kicks are never distinguished from leaves; no emitter exists yet'],
   ['instance:registry-update', 'ROBUSTNESS.md #230 — knownInstances feeds one debugLog and is always empty'],
 ]);
@@ -33,10 +44,25 @@ const RECORDED_DEAD = new Map([
 // `name: 'x'` literal used by the group-events translator, whose names are
 // emitted later through a dynamic `emit(event.name, ...)`.
 const EMIT_PATTERNS = [/\bemit(?:Event)?\(\s*'([^']+)'/g, /\bname:\s*'([^']+)'/g];
-// Listener forms. Deliberately NOT a bare `.on(` — Yjs docs and sockets use
+// Listener forms — ALL SIX subscription facades on this bus.
+//
+// Round forty-one recorded that the reverse direction (an emitter nobody hears)
+// could not be mechanised because a naive scan reported 75 false positives. The
+// cause was this list being incomplete: `workspaceEvents.on*Event` is a family
+// of six, `this.listen` is the EventListenerManager base class, and a generic
+// type parameter — `useEventListener<Payload>('x')` — defeated the pattern
+// entirely. With all of them recognised the false positives drop to zero.
+//
+// Deliberately NOT a bare `.on(` — Yjs documents, awareness and the editor use
 // that too, and their event names are not on this bus.
-const LISTEN_PATTERNS = [/(?:useEventListener|eventEmitter\.(?:on|once))\(\s*'([^']+)'/g];
-const LISTEN_ARRAY = /useEventListeners\(\s*\[([^\]]*)\]/g;
+const GENERIC = String.raw`(?:<[^>()]*>)?`;
+const LISTEN_PATTERNS = [
+  new RegExp(String.raw`eventEmitter\.(?:on|once)${GENERIC}\(\s*'([^']+)'`, 'g'),
+  new RegExp(String.raw`useEventListener${GENERIC}\(\s*'([^']+)'`, 'g'),
+  new RegExp(String.raw`\.on[A-Z]\w*Event${GENERIC}\(\s*'([^']+)'`, 'g'),
+  new RegExp(String.raw`this\.listen(?:Once)?${GENERIC}\(\s*'([^']+)'`, 'g'),
+];
+const LISTEN_ARRAY = new RegExp(String.raw`useEventListeners${GENERIC}\(\s*\[([^\]]*)\]`, 'g');
 
 const isTest = (p) => p.includes('__tests__') || /\.test\.[tj]sx?$/.test(p);
 

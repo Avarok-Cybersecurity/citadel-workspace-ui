@@ -4844,6 +4844,61 @@ The second audit is right. Recorded as verified-and-unfixed: the repair is to
 return the matching `LocalDB*Failure` from each of the five handlers, which is a
 Rust change worth doing deliberately rather than at the end of a round.
 
+## Round sixty-nine — the guard was blind to five of six subscription facades, 2026-08-28
+
+### 334. Completing the facade list found eight more dead listeners — RECORDED
+
+Round forty-one recorded that the reverse direction of the event guard "resisted
+mechanisation" because a naive scan reported 75 false positives, and blamed a
+third subscription facade. That diagnosis was **incomplete in a way that
+mattered**: there are six.
+
+- `eventEmitter.on/once`
+- `useEventListener` / `useEventListeners`
+- `workspaceEvents.on*Event` — a family of **six** methods, not one
+  (`onWorkspaceEvent`, `onMemberEvent`, `onNodeEvent`, `onMessageEvent`,
+  `onOperationEvent`, `onProtocolEvent`)
+- `this.listen` / `this.listenOnce` — the EventListenerManager base class
+
+And a subscription written with a generic type parameter —
+`useEventListener<Payload>('x')` — defeated the pattern outright.
+
+The consequence was not only the missing reverse check. **Teaching the guard
+those forms immediately surfaced eight dead listeners in the direction it was
+already checking**, hidden the whole time because they subscribe through a
+facade: `message:received`, `typing:started`, `typing:stopped`,
+`protocol:warning`, `notification`, `member:permissions-updated`, `user:login`,
+`user:logout`.
+
+Measured, not asserted: the new guard exits 1 on a facade-subscribed dead
+listener; the previous version exits 0 on the identical defect.
+
+### 335. And one of those eight is a refutation, not a defect
+
+`typing:started` / `typing:stopped` look damning — typing indicators are sent
+unconditionally, so a dead receive path would mean they are transmitted and never
+shown.
+
+They are shown. The working path is `messenger.onTyping(...)` in
+`useP2PMessages-subscriptions`, a callback registry rather than the event bus.
+These two listeners are a redundant second path, not a broken feature.
+
+Recorded that way in `RECORDED_DEAD`, because a debt marker that misstates the
+debt is worse than none: someone reading "typing is broken" would go and rebuild
+a feature that works.
+
+### 336. Method note — a wrong diagnosis is stickier than a wrong fix
+
+Round forty-one's conclusion ("this cannot be mechanised") was accepted for
+twenty-eight rounds, and in that time the un-mechanised direction cost two
+defects that lose user work. The conclusion was reached from real evidence — 75
+false positives — but the evidence was produced by an incomplete scanner, and
+nobody re-derived it.
+
+The cheap check that would have caught it is one command: enumerate the
+subscription call shapes actually present in the tree, rather than assuming the
+list. That took a single `grep` this round.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
