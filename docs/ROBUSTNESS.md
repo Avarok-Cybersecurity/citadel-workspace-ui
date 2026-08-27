@@ -4657,6 +4657,55 @@ Worth recording because the reasoning was sound and the conclusion was still
 wrong: **`diff` cannot distinguish a copy from a link, and the check that
 distinguishes them is one `ls` away.**
 
+## Round sixty-five — the instructions file described a system that no longer exists, 2026-08-28
+
+`CLAUDE.md` is what a contributor — human or agent — reads before touching the
+code. Three of its claims were not merely stale but **inverted**, and each was
+verified against the tree before rewriting.
+
+### 323. "TCP drop cleans up sessions unless in orphan mode" — the opposite is true
+
+`kernel/ext.rs` says it in as many words: *"ALWAYS preserve sessions when TCP
+drops"*, and *"The orphan_sessions map is no longer used for cleanup
+decisions."* A page refresh, a navigation or a closed tab leaves the session
+intact by design. The document described orphan mode as the exception; it is now
+the only behaviour.
+
+Two further claims in the same section describe code that **does not exist**:
+
+- *"Connection struct implements Drop for automatic cleanup"* at a cited
+  line range — `impl Drop for Connection` has **zero matches repo-wide**.
+- *"Kept exponential backoff retry as fallback (100ms, 200ms, 400ms)"* — there is
+  no such retry in the connect path.
+
+And the pre-connect behaviour is now the reverse of what was written: `connect.rs`
+does **not** delete the existing session. It asks the SDK whether that session is
+live and, if so, returns `SessionAlreadyActive` and leaves it alone — which is
+what prevents the ratchet reset a ClaimSession racing a second Connect used to
+cause. The documented 50ms delay is 200ms, and applies only to the stale branch.
+
+Rewritten from the source, with an explicit note that the Drop impl and the
+backoff do not exist — because someone who read the old text will go looking for
+them.
+
+### 324. "The UI runs locally, and not in the docker container" — inverted
+
+The Tiltfile says *"UI service now runs in Docker container with HMR support"*,
+and docker-compose defines a full `ui` service. This one directly misdirects
+debugging: it sends you to the wrong logs.
+
+### 325. A copied set that listed three of its eight members
+
+The `CID_ROUTED_NOTIFICATIONS` excerpt named the wrong file and three entries;
+the real set has eight, including all three file-transfer notifications and both
+media ones. Routing any of those by `request_id` delivers them to whichever tab
+issued the original request — so with two sessions in one browser, one session
+receives the other's files or call media.
+
+Replaced with a pointer to the file and a description of the *rule*, plus the
+note that a fixture-coverage test enforces membership. **An excerpt of a list is
+a copy that will go stale**, and this one had; the rule is what belongs in prose.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
