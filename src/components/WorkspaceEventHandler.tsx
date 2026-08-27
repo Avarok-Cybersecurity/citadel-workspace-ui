@@ -153,7 +153,17 @@ export const WorkspaceEventHandler: React.FC<{
     setShowInitModal(false);
     setInitModalDismissed(true);
     sessionStorage.setItem('workspace-init-modal-dismissed', 'true');
-    window.location.assign('/');
+    // Deliberately no navigation.
+    //
+    // This used to `window.location.assign('/')`, throwing the user out of the
+    // workspace they had just successfully joined. Initialization needs the
+    // operator's WORKSPACE_MASTER_PASSWORD, which no ordinary member has — and
+    // this modal is shown to EVERY user until somebody completes it — so the
+    // only available action ejected them.
+    //
+    // The dismissal is already recorded above and the workspace is already
+    // usable: the root workspace is seeded at boot and Admin is granted at
+    // connect to the first member, so nothing here gates access.
   };
 
   return (

@@ -155,6 +155,17 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4 max-h-[calc(100dvh-16rem)] overflow-y-auto">
+                        {/* Says what to do when you cannot complete this. The
+                            password is the operator's WORKSPACE_MASTER_PASSWORD,
+                            which an ordinary member has no way to obtain — and
+                            this used to offer only a "Cancel" that threw them out
+                            of the workspace. */}
+                        <p className="text-sm text-muted-foreground">
+                            This is the <span className="font-medium text-foreground">workspace master password</span>{' '}
+                            from the server operator&rsquo;s configuration — not your account password. If you
+                            do not have it, choose <span className="font-medium text-foreground">Not now</span>:
+                            the workspace is already usable, and an administrator can complete this later.
+                        </p>
                         <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
                             <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                             <div className="text-sm text-warning">
@@ -216,7 +227,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                             className="text-foreground hover:bg-primary-accent/20"
                             disabled={isSubmitting}
                         >
-                            Cancel
+                            Not now
                         </Button>
                         <Button
                             type="submit"
