@@ -11,6 +11,7 @@ import type {
 } from '@/types/workspace-protocol';
 import { GroupMessageTypeTS as GroupMessageTypeEnum } from '@/types/workspace-protocol';
 import type { ProtocolSender } from './workspace-operations';
+import { awaitWriteResponse } from './await-write-response';
 
 /**
  * Send a message via workspace protocol
@@ -61,7 +62,10 @@ export async function editGroupMessage(
       new_content: newContent
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('EditGroupMessage', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -78,7 +82,10 @@ export async function deleteGroupMessage(
       message_id: messageId
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('DeleteGroupMessage', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**

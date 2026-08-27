@@ -38,6 +38,25 @@ const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   UpdateNode: ['Node'],
   DeleteNode: ['NodeDeleted'],
   MoveNode: ['NodeMoved'],
+
+  // Member and permission writes. These were left out when this module was
+  // written, so "Member Added — {username} has been added to the workspace as
+  // {role}" appeared for a username that does not exist, and "Permissions saved
+  // successfully" for permissions the server refused. ACL state the admin
+  // believes exists, and does not.
+  AddMember: ['Success'],
+  RemoveMember: ['Success'],
+  UpdateMemberRole: ['MemberRoleUpdated'],
+  UpdateMemberPermissions: ['Success'],
+
+  // The theme write, whose UI promises "Every member will see this theme".
+  UpdateWorkspaceTheme: ['Workspace'],
+
+  // Group message edits and deletes. The edit composer used to close and
+  // discard the user's edited text as though it had landed, while the message
+  // silently kept its old content.
+  EditGroupMessage: ['GroupMessageEdited'],
+  DeleteGroupMessage: ['GroupMessageDeleted'],
 };
 
 function describeFailure(response: Record<string, unknown>): string {

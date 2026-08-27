@@ -13,6 +13,7 @@ import type {
 } from '@/types/workspace-protocol';
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import type { ProtocolSender } from './workspace-operations';
+import { awaitWriteResponse } from './await-write-response';
 
 /**
  * Add a member to a domain node
@@ -32,7 +33,10 @@ export async function addMember(
       metadata: metadata ? Array.from(metadata) : undefined
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('AddMember', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -61,7 +65,10 @@ export async function updateMemberRole(
       metadata: metadata ? Array.from(metadata) : undefined
     }
   } as WorkspaceProtocolRequestTS;
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('UpdateMemberRole', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -82,7 +89,10 @@ export async function updateMemberPermissions(
       operation
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('UpdateMemberPermissions', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -99,7 +109,10 @@ export async function removeMember(
       domain_id: domainId
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('RemoveMember', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**

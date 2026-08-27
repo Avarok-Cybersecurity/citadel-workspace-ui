@@ -7,6 +7,7 @@
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import { debugLog } from '@/lib/debug-config';
+import { awaitWriteResponse } from './await-write-response';
 
 /** Interface matching WorkspaceService's protocol-send method */
 export interface ProtocolSender {
@@ -88,7 +89,10 @@ export async function updateWorkspaceTheme(
       theme: Array.from(theme),
     },
   } as WorkspaceProtocolRequestTS;
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('UpdateWorkspaceTheme', () => sender.sendProtocolRequest(requestPart));
 }
 
 export async function updateWorkspace(
