@@ -3444,6 +3444,82 @@ and both were worth the detour:
 The end() control does not fail with a mismatch — it **times out at 5000ms**,
 which is precisely the defect: Leave never returning.
 
+## Round forty-three — I built a check that could not fail, 2026-08-28
+
+### 256. The stack-reachability guard reported a dead port as reachable — FIXED
+
+This campaign has repeatedly recorded *checks that cannot fail*. This one was
+mine, and it was the single guard for the documented macOS blind spot where every
+container healthcheck probes its own loopback and proves nothing.
+
+It fetched the port and decided from the error **text** whether the failure was a
+refused connection or a protocol mismatch, treating anything unmatched as proof
+the port was open:
+
+```js
+if (tcpOnly && !/ECONNREFUSED|abort|timeout/i.test(message)) return { ok: true };
+```
+
+undici sets `error.message` to the constant `"fetch failed"` and puts the real
+cause in `error.cause`. Verified directly rather than reasoned about:
+
+```
+message: "fetch failed"   cause: connect ECONNREFUSED   regex on message: false
+```
+
+So a refused connection took the `ok: true` branch. Running the pre-fix script
+against a port with nothing on it prints **"reachable: internal service"** and
+exits 0 — the exact condition it exists to catch.
+
+Two things made it survive: the default was "assume open unless proven
+otherwise", and it runs nowhere in CI (Linux runners do not have the problem it
+was written for), so nothing ever exercised its failing branch.
+
+Now it opens a **TCP socket** for such targets instead of parsing error strings.
+That answers the actual question — is anything listening — with nothing to
+misread, and still works for a WebSocket-only port that would never speak HTTP.
+The HTTP branch now reports `error.cause`, because "fetch failed" alone tells the
+reader nothing.
+
+**The lesson generalises past this script: a check whose default is `ok` when it
+does not understand what it saw is not a check.**
+
+### 257. One flaky chunk fetch disabled calling until a page reload — FIXED
+
+`ensureManager` memoises its in-flight build so two concurrent callers cannot
+each construct a manager. The build had **no catch**, so a single failure was
+permanent: the rejected promise stayed in the ref, the CID guard kept matching,
+and every later start, accept and inbound signal awaited the *same* rejection —
+unhandled, with no toast and no retry.
+
+The likely trigger is a lifecycle one: the codec table is dynamically imported,
+so a redeploy that invalidates its chunk hash breaks it for anyone whose tab is
+still open. Incoming invites were then dropped without a decline, so callers rang
+out the full 45 seconds against a peer who could never answer.
+
+The sibling defect is in the capability probe: no catch there either, so the
+initial `"Checking whether this browser supports calls…"` was permanent — the one
+raised-forever flag in a feature that otherwise uses deadlines everywhere.
+
+Both now clear their state so the next attempt is a real retry, and the probe
+falls back to a reason the user can act on.
+
+### 258. The caller was never told why a call did not connect — FIXED
+
+`CallState.reason` is documented as being there "for the UI to explain itself",
+and both surfaces hide the `ended` status — so declined, busy, unsupported, no
+microphone and forty-five seconds unanswered all presented identically: the
+outgoing panel silently vanished with a down-chime.
+
+`no-devices` is the case that makes this matter. The callee's client sends it
+*precisely* so the caller knows to try another way, and it was the outcome most
+likely to be read as being ignored.
+
+The map returns null for a normal hangup and for any reason this build does not
+recognise — silence beats "the call ended because it ended" — and the peer name
+falls back to a generic noun rather than a raw CID, which this register has
+already recorded leaking into the UI as identity.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

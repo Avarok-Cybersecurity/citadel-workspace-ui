@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { callPeerName } from '@/lib/call/peer-name';
+import { debugLog } from '@/lib/debug-config';
 import { CallManager } from '@/lib/call/call-manager';
 import { verdictFromLink } from '@/lib/call/congestion';
 import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
@@ -136,8 +137,26 @@ export function useCallRuntime({
       managerRef.current = manager;
       return manager;
     })();
-    managerPromiseRef.current = build;
-    return build;
+    // Without this catch a single failure was permanent: the rejected promise
+    // stayed in the ref, the cid guard above kept matching, and every later
+    // start/accept/inbound-signal awaited the SAME rejection — unhandled, with
+    // no toast and no retry. One flaky chunk fetch, or a redeploy that
+    // invalidated the hash of the dynamically imported codec table, disabled
+    // calling until a full page reload.
+    //
+    // Resolving null rather than rethrowing: every caller already handles a null
+    // manager, and the call sites are `void (async …)` wrappers where a
+    // rethrow would only become an unhandled rejection.
+    const guarded: Promise<CallManager | null> = build.catch((error: unknown) => {
+      debugLog('Call', 'call runtime failed to initialise', error);
+      if (managerPromiseRef.current === guarded) {
+        managerPromiseRef.current = null;
+        managerCidRef.current = null;
+      }
+      return null;
+    });
+    managerPromiseRef.current = guarded;
+    return guarded;
   }, [selfCid, senderConfig, teardown, setCall]);
 
   /**
