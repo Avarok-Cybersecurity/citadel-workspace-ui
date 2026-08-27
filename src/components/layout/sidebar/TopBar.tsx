@@ -1,4 +1,5 @@
 import { Menu, LogOut, ArrowLeft, Download } from "lucide-react";
+import { isPrivilegedRole } from '@/lib/role-predicate';
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -75,9 +76,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const userInitials = getUserInitials(name);
   const avatarUrl = state.currentUser?.avatarUrl;
 
-  // Check if user is admin (handle both 'Admin' from backend and 'admin' from frontend)
+
   const userRole = state.currentUser?.role;
-  const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
+  const isAdmin = isPrivilegedRole(userRole);
 
 
   return (

@@ -6,6 +6,7 @@
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
+import { isAdminRole, isOwnerRole, isPrivilegedRole } from '@/lib/role-predicate';
 import WorkspaceService from '@/lib/workspace-service';
 import { connectionManager } from '@/lib/connection';
 import { EventListenerManager } from '@/lib/utils/event-listener-manager';
@@ -210,14 +211,19 @@ export class PermissionsService extends EventListenerManager {
     return cacheGetRole(this.cache, domainId);
   }
 
+  /** Exactly the Admin role. For gating admin affordances use isPrivileged. */
   public isAdmin(domainId: string): boolean {
-    const role = this.getRole(domainId);
-    return role === 'Admin';
+    return isAdminRole(this.getRole(domainId));
   }
 
+  /** Exactly the Owner role. This used to answer Owner-or-Admin under this name. */
   public isOwner(domainId: string): boolean {
-    const role = this.getRole(domainId);
-    return role === 'Owner' || role === 'Admin';
+    return isOwnerRole(this.getRole(domainId));
+  }
+
+  /** Admin or Owner: what gates an administrative affordance. */
+  public isPrivileged(domainId: string): boolean {
+    return isPrivilegedRole(this.getRole(domainId));
   }
 
   public clearCache(): void {

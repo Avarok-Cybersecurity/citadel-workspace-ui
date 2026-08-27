@@ -34,15 +34,14 @@ import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import { roleBadgeClass } from '@/lib/role-badge';
+import { isPrivilegedRole } from '@/lib/role-predicate';
 
 export function getRoleIcon(role: string) {
-  // Case-normalised: the wire sends PascalCase ("Admin", "Owner") and this
-  // compared against lowercase only, so the shield NEVER rendered for a member
-  // loaded from the server. The neighbouring code already knew — TopBar and
-  // AdminSettingsSection check both cases, and role-badge.ts lowercases first —
-  // so this was the one place the fix was not applied.
-  const normalized = role.toLowerCase();
-  return (normalized === "owner" || normalized === "admin")
+  // This compared against lowercase only, so the shield NEVER rendered for a
+  // member loaded from the server -- the wire sends PascalCase. It was the one
+  // place a fix the neighbours already had was not applied; the predicate now
+  // lives in lib/role-predicate so there is no "one place" left to miss.
+  return isPrivilegedRole(role)
     ? <Shield className="h-4 w-4" />
     : <UserIcon className="h-4 w-4" />;
 }

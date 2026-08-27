@@ -4,6 +4,7 @@
  */
 
 import { Button } from '@/components/ui/button';
+import { isAdminRole } from '@/lib/role-predicate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Select,
@@ -142,7 +143,7 @@ export function MemberRow({
                   // Every role but Admin is a demotion for the last admin, and
                   // the server rejects it. Leaving Admin selectable keeps the
                   // current value visible in the trigger.
-                  disabled={isOnlyAdmin && role !== 'Admin'}
+                  disabled={isOnlyAdmin && !isAdminRole(role)}
                 >
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]}`} />

@@ -1,4 +1,5 @@
 import { Settings, Shield, Users, Key } from "lucide-react";
+import { isPrivilegedRole } from '@/lib/role-predicate';
 import { useState } from "react";
 import {
   SidebarGroup,
@@ -33,13 +34,10 @@ export const AdminSettingsSection = () => {
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showAdminInfo, setShowAdminInfo] = useState(false);
 
-  // Only show for admin users
-  // Check if user role is Admin (from workspace context)
-  // Handle both backend 'Admin' and frontend 'admin' conventions
-  const userRole = state.currentUser?.role;
-  const isAdmin = userRole === 'Admin' ||
-                  userRole === 'admin' ||
-                  (typeof userRole === 'object' && userRole !== null && (userRole as Record<string, unknown>)?.Admin !== undefined);
+  // An Owner counts. This check used to accept Admin only, so an Owner saw the
+  // admin ring in TopBar and the shield in the workspace switcher and then got
+  // nothing here -- an administrator in two places and not in the third.
+  const isAdmin = isPrivilegedRole(state.currentUser?.role);
 
   if (!isAdmin) {
     return null;

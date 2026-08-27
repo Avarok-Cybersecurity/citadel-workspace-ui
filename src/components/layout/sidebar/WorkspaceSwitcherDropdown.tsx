@@ -1,4 +1,5 @@
 import { Plus, Server, Settings, Shield } from "lucide-react";
+import { isPrivilegedRole } from '@/lib/role-predicate';
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -64,7 +65,7 @@ export function WorkspaceSwitcherDropdown({
                 </span>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   @{workspace.username} · {workspace.role || 'Member'}
-                  {(workspace.role === 'Admin' || workspace.role === 'admin' || workspace.role === 'Owner' || workspace.role === 'owner') && (
+                  {isPrivilegedRole(workspace.role) && (
                     <span title="Administrator"><Shield className="w-3 h-3 text-warning" /></span>
                   )}
                 </span>

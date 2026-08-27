@@ -8370,3 +8370,39 @@ another tab connects. Inline in the hook it was reachable only through a render
 with a connection manager and an IndexedDB read behind it, and had no test.
 Seven now, including that precedence rule (control: flipping the fallback order
 fails two).
+
+## Round 137 — an Owner was an administrator in two places and not in the third
+
+A parallel audit for duplication found the "is this role privileged?" predicate
+in seven places, and the copies already disagreed:
+
+| copy | logic |
+|---|---|
+| TopBar | `'Admin'\|'admin'\|'Owner'\|'owner'` |
+| AdminSettingsSection | `'Admin'\|'admin'` plus the object form — **no Owner** |
+| WorkspaceSwitcherDropdown | the four literals, no object form |
+| MembersSectionModals | lowercase first, then `owner\|admin` |
+| permissions-service/cache | `'Admin'\|'Owner'`, exact case only |
+| permissions-service | exact case only; `isOwner()` meant Owner-or-Admin |
+| MembersTab | `'Admin'`, exact case only |
+
+Three casing conventions, two answers to "does Owner count", and one copy that
+understood the object role shape — and it was not the one gating the admin
+section. The visible defect: an Owner sees the admin ring in TopBar and the
+shield in the workspace switcher, then `AdminSettingsSection` returns null for
+them. The same person is an administrator in two places and not in the third.
+
+`lib/role-predicate.ts` is now the one place: `normalizeRole`, `isAdminRole`,
+`isOwnerRole`, `isPrivilegedRole`. `permissionsService.isOwner()` answered
+Owner-or-Admin under that name; it now answers Owner, and the gating question
+has its own honest name, `isPrivileged()`.
+
+The guard (`role-checks-use-the-predicate.test.ts`) found an eighth copy the
+audit had missed — `MemberRow`'s last-admin demotion guard — and then its
+exemption test rejected the one exemption I wrote: `role-badge.ts` names all
+four roles but maps them through a lookup object rather than comparing them, so
+exempting it would have shielded a future comparison in a file that had never
+made one. Second time in two rounds that the exemption-honesty test caught a
+wrong exemption; it is worth writing every time.
+
+Control: reverting TopBar to its literal comparison fails the scan.

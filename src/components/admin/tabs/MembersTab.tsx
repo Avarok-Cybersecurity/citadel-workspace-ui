@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { isAdminRole } from '@/lib/role-predicate';
 import { describeFailure } from '@/lib/failure-message';
 import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import { useMemberAdminActions } from './use-member-admin-actions';
@@ -171,8 +172,8 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
                 member={member}
                 showAdvanced={showAdvanced}
                 isOnlyAdmin={
-                  member.role === 'Admin' &&
-                  members.filter((m) => m.role === 'Admin').length === 1
+                  isAdminRole(member.role) &&
+                  members.filter((m) => isAdminRole(m.role)).length === 1
                 }
                 isUpdatingRole={updatingRoles.has(member.userId)}
                 onRoleChange={handleRoleChange}

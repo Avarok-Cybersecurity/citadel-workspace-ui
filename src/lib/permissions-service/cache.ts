@@ -6,6 +6,7 @@
  */
 
 import { debugLog } from '@/lib/debug-config';
+import { isPrivilegedRole } from '@/lib/role-predicate';
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
 
@@ -60,7 +61,7 @@ export function hasPermission(
   const cached = cache.get(domainId);
 
   if (cached) {
-    if (cached.role === 'Admin' || cached.role === 'Owner') return true;
+    if (isPrivilegedRole(cached.role)) return true;
     if (cached.permissions.has(Permission.All)) return true;
     if (cached.permissions.has(permission)) return true;
   }
@@ -69,7 +70,7 @@ export function hasPermission(
   if (domainId !== 'workspace-root') {
     const root = cache.get('workspace-root');
     if (root) {
-      if (root.role === 'Admin' || root.role === 'Owner') return true;
+      if (isPrivilegedRole(root.role)) return true;
       if (root.permissions.has(Permission.All)) return true;
       return root.permissions.has(permission);
     }
