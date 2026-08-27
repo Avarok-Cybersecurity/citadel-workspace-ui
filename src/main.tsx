@@ -40,6 +40,12 @@ import { instanceInboundRouter } from './lib/multi-instance';
 import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store';
 import { showStorageVersionRecovery } from './storage-version-recovery';
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
+import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
+
+// Before render, so the user's font size, sidebar width, avatar and motion
+// choices are in place for the first paint rather than snapping into effect
+// later -- or, as was the case, only while the Settings tab happened to be open.
+applyAppearanceSettings(loadAppearanceSettings());
 void instanceInboundRouter.isRouterActive();
 
 // Construct the P2P messenger during boot so its 'websocket-message'

@@ -133,7 +133,10 @@ const SidebarProvider = React.forwardRef<
           <div
             style={
               {
-                "--sidebar-width": SIDEBAR_WIDTH,
+                // Falls back to the built-in width, so the Sidebar Width
+                // preference is honoured without this file needing to know the
+                // preference exists.
+                "--sidebar-width": `var(--appearance-sidebar-width, ${SIDEBAR_WIDTH})`,
                 "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
                 ...style,
               } as React.CSSProperties

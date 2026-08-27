@@ -7135,3 +7135,43 @@ The unit test that covers the agent-down banner could not have caught any of
 this: it mocks the emitter, so it tests what the banner does with a health
 verdict, never how the verdict is reached. A test can be entirely correct about
 its half and blind to the half that is wrong.
+
+### Round 107 — a settings page where five of six controls did nothing
+
+From the visual-polish audit, and the finding that most damages the product's
+credibility: Appearance had six controls. Compact Mode and Animations toggled
+root classes — `.compact-mode`, `.reduce-motion` — that no stylesheet defined.
+Show Avatars, Group Messages and Sidebar Width were persisted to localStorage
+and read by nothing anywhere in the tree. Font Size worked, but only from inside
+the tab's own effect, so it took hold while Settings was open and was never
+re-applied at boot: a user's 18px choice reverted on every reload until they
+went back into Settings.
+
+A settings page where flipping a switch changes nothing is worse than a shorter
+one, because it teaches the user not to trust the controls that do work.
+
+Four now work, each with exactly one consumer path. Font Size and the rest are
+applied from `lib/appearance-settings.ts`, called by `main.tsx` before render —
+that boot call is the entire reason Font Size appeared to forget itself. Sidebar
+Width publishes `--appearance-sidebar-width`, which the sidebar provider reads
+with the built-in width as its fallback, so that file does not need to know the
+preference exists. Show Avatars sets `data-avatars` on the root and the primitive
+carries `data-avatar`, so one CSS rule is the whole feature and no component can
+forget to opt in. Animations gets the same clamp as `prefers-reduced-motion` —
+deliberately a copy of those rules rather than a shared selector list, because
+the OS preference must keep working if the class is never set, and a user who
+turns animations back on must not thereby override their own OS setting.
+
+Two are deleted. Compact Mode had no spacing system to drive, and Group Messages
+switched off a grouping behaviour the app does not implement. Leaving them as
+switches that move and change nothing was not an option, and inventing two
+features to justify two switches was not the ask.
+
+The scan that came with it took a correction. The first version required every
+preference to have a reader elsewhere in the tree, and `fontSize` failed it —
+because the reader is the layout engine, not our code. A scan whose premise is
+slightly wrong reports a real fix as a defect, which is how scans get relaxed
+into uselessness. It now separates preferences with a code reader from those the
+browser applies directly, and names the reason for each of the latter; a
+completeness test fails if a new field appears in the interface without being
+classified either way.

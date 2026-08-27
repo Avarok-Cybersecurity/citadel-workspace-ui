@@ -6,53 +6,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { ThemeSelector } from './ThemeSelector';
 import { WorkspaceAppearanceSection } from './WorkspaceAppearanceSection';
+import {
+  type AppearanceSettings,
+  loadAppearanceSettings,
+  saveAppearanceSettings,
+} from '@/lib/appearance-settings';
 
-const STORAGE_KEY = 'citadel:appearance-settings';
-
-interface AppearanceSettings {
-  compactMode: boolean;
-  fontSize: number;
-  sidebarWidth: 'narrow' | 'default' | 'wide';
-  showAvatars: boolean;
-  animationsEnabled: boolean;
-  messageGrouping: boolean;
-}
-
-const defaultSettings: AppearanceSettings = {
-  compactMode: false,
-  fontSize: 14,
-  sidebarWidth: 'default',
-  showAvatars: true,
-  animationsEnabled: true,
-  messageGrouping: true,
-};
-
-function loadSettings(): AppearanceSettings {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return { ...defaultSettings, ...JSON.parse(stored) };
-  } catch { /* ignore */ }
-  return defaultSettings;
-}
-
-function saveSettings(settings: AppearanceSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  // Emit custom event so other components can react
-  window.dispatchEvent(new CustomEvent('appearance-settings-changed', { detail: settings }));
-}
+/**
+ * Compact Mode and Group Messages used to sit here too. Neither had any
+ * consumer anywhere in the tree -- no `.compact-mode` rule existed, and the app
+ * has no message grouping to switch off -- so both were switches that moved and
+ * changed nothing. They are gone rather than left in place: a settings page
+ * where flipping a control does nothing visible is worse than a shorter one,
+ * because it teaches the user not to trust the controls that DO work.
+ */
 
 export function AppearanceSettingsTab() {
-  const [settings, setSettings] = useState<AppearanceSettings>(loadSettings);
+  const [settings, setSettings] = useState<AppearanceSettings>(loadAppearanceSettings);
 
-  useEffect(() => {
-    saveSettings(settings);
-    // Apply font size to root
-    document.documentElement.style.fontSize = `${settings.fontSize}px`;
-    // Apply compact mode
-    document.documentElement.classList.toggle('compact-mode', settings.compactMode);
-    // Apply animations
-    document.documentElement.classList.toggle('reduce-motion', !settings.animationsEnabled);
-  }, [settings]);
+  // Persisting and applying are the same act, and both live in the module that
+  // main.tsx also calls at boot -- which is what makes a choice survive a
+  // reload instead of lasting only as long as this tab is mounted.
+  useEffect(() => { saveAppearanceSettings(settings); }, [settings]);
 
   const update = <K extends keyof AppearanceSettings>(key: K, value: AppearanceSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -76,34 +51,12 @@ export function AppearanceSettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Compact Mode</Label>
-            <p className="text-xs text-muted-foreground">Reduce spacing between elements</p>
-          </div>
-          <Switch
-            checked={settings.compactMode}
-            onCheckedChange={(v) => update('compactMode', v)}
-          />
-        </div>
-
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
             <Label className="text-sm font-medium">Show Avatars</Label>
             <p className="text-xs text-muted-foreground">Display user avatars in messages and lists</p>
           </div>
           <Switch
             checked={settings.showAvatars}
             onCheckedChange={(v) => update('showAvatars', v)}
-          />
-        </div>
-
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
-            <Label className="text-sm font-medium">Group Messages</Label>
-            <p className="text-xs text-muted-foreground">Visually group consecutive messages from the same sender</p>
-          </div>
-          <Switch
-            checked={settings.messageGrouping}
-            onCheckedChange={(v) => update('messageGrouping', v)}
           />
         </div>
       </div>

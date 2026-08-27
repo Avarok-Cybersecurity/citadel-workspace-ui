@@ -9,6 +9,10 @@ const Avatar = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Root
     ref={ref}
+    // The hook the Show Avatars preference hangs off. Every avatar in the app
+    // goes through this primitive, so one attribute here is the whole feature —
+    // and it cannot fall out of step with a component that forgot to opt in.
+    data-avatar=""
     className={cn(
       "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
       className

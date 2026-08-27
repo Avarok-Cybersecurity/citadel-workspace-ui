@@ -411,6 +411,35 @@ h1, h2, h3, h4, h5, h6 {
  * dialogs were verified to close either way), but not every consumer here is
  * Radix, and a near-zero duration costs nothing.
  */
+/* The Animations switch in Settings, expressed as the same clamp the OS
+ * preference gets. It used to toggle a `.reduce-motion` class that no
+ * stylesheet defined, so turning animations off did nothing at all.
+ *
+ * Deliberately a copy of the rules below rather than a shared selector list:
+ * the OS preference must keep working even if this class is never set, and a
+ * user who turns animations back on must not override their own OS setting.
+ * Two independent reasons to stop moving; either one is sufficient.
+ */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .animate-spin {
+  animation-duration: 1.5s !important;
+  animation-iteration-count: infinite !important;
+}
+
+/* The Show Avatars switch. One rule, because every avatar in the app goes
+ * through the same primitive and now carries `data-avatar`. */
+[data-avatars='off'] [data-avatar] {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
