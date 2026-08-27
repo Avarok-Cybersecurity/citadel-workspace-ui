@@ -85,3 +85,39 @@ describe('retrying a failed message after a reload', () => {
     await expect(sender.resendMessage(PEER, 'nope', conversation)).rejects.toThrow(/not found/);
   });
 });
+
+describe('opening a conversation after a reload', () => {
+  it('sends read receipts for the messages actually on screen', async () => {
+    const stored = [
+      { id: 'a', senderCid: PEER, status: 'delivered' },
+      { id: 'b', senderCid: PEER, status: 'delivered' },
+    ];
+    vi.resetModules();
+    vi.doMock('../message-pagination-store', () => ({
+      messagePaginationStore: {
+        findUnreadFromPeer: vi.fn(async () => stored),
+        updateMessageInPages: vi.fn(async () => true),
+        updateUnreadCount: vi.fn(async () => {}),
+      },
+    }));
+    const conversationManager = {
+      // Empty, exactly as after a reload — while the transcript on screen came
+      // from the page store.
+      getConversation: () => ({ messages: [], unreadCount: 2 }),
+    };
+    const { markMessagesAsRead } = await import('../messenger-compatibility');
+
+    const sendMessageAck = vi.fn(async () => {});
+    await markMessagesAsRead(
+      conversationManager as never,
+      sendMessageAck,
+      vi.fn(),
+      PEER,
+    );
+
+    // Previously zero: the badge cleared while the sender's bubbles stayed on
+    // 'delivered' for ever.
+    expect(sendMessageAck).toHaveBeenCalledTimes(2);
+    expect(sendMessageAck).toHaveBeenCalledWith('a', 'read', PEER);
+  });
+});

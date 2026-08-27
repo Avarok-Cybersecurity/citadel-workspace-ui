@@ -80,9 +80,20 @@ export async function markMessagesAsRead(
   const conversation = conversationManager.getConversation(peerCid);
   if (!conversation) return;
 
-  const messagesToMark = messageIds
+  // `conversation.messages` is EMPTY after a reload — loadFromStorage restores it
+  // as [] and nothing rehydrates it — while the transcript on screen was
+  // rendered from the page store. So this filtered an empty array: zero read
+  // receipts were sent for messages the user had visibly just read, and the
+  // unread count computed from the same empty array came out 0 and was
+  // persisted. The badge cleared without the receipts that justify it, and the
+  // sender's bubbles stayed on 'delivered' for ever.
+  let messagesToMark = messageIds
     ? conversation.messages.filter(m => messageIds.includes(m.id))
     : conversation.messages.filter(m => m.senderCid === peerCid && m.status === 'delivered');
+
+  if (messagesToMark.length === 0 && !messageIds) {
+    messagesToMark = await messagePaginationStore.findUnreadFromPeer(peerCid);
+  }
 
   const markedMessageIds: string[] = [];
   for (const message of messagesToMark) {
@@ -93,7 +104,14 @@ export async function markMessagesAsRead(
     }
   }
 
-  const newUnreadCount = conversation.messages.filter(m => m.senderCid === peerCid && m.status === 'delivered').length;
+  // Derived from what was actually marked when memory is empty, rather than
+  // from the empty array — which reported 0 unread whatever the truth was.
+  const remainingInMemory = conversation.messages.filter(
+    m => m.senderCid === peerCid && m.status === 'delivered',
+  ).length;
+  const newUnreadCount = conversation.messages.length === 0
+    ? Math.max(0, conversation.unreadCount - markedMessageIds.length)
+    : remainingInMemory;
   conversation.unreadCount = newUnreadCount;
 
   await Promise.all([

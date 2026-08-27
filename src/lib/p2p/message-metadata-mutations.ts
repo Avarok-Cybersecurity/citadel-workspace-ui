@@ -47,6 +47,30 @@ export async function findMessageInPages(
   return null;
 }
 
+/**
+ * Stored messages from this peer still marked 'delivered' — i.e. unread.
+ *
+ * Bounded by the metadata's own `unreadCount`: unread messages are recent, and
+ * without a bound this would read every page of a long conversation on every
+ * open. Reading newest-first means the bound is reached almost immediately in
+ * the normal case.
+ */
+export async function findUnreadFromPeer(peerCid: bigint): Promise<P2PMessage[]> {
+  const metadata = await tryLoadMetadata(peerCid);
+  if (!metadata || metadata.unreadCount <= 0) return [];
+
+  const found: P2PMessage[] = [];
+  for (let pageNum = metadata.latestPage; pageNum >= 0 && found.length < metadata.unreadCount; pageNum--) {
+    const page = await tryLoadMessagePage(peerCid, pageNum);
+    if (!page) continue;
+    for (let i = page.messages.length - 1; i >= 0 && found.length < metadata.unreadCount; i--) {
+      const m = page.messages[i];
+      if (m.senderCid === peerCid && m.status === 'delivered') found.push(m);
+    }
+  }
+  return found;
+}
+
 export async function updateMessageInPages(
   peerCid: bigint,
   messageId: string,

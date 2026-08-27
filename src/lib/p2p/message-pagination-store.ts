@@ -21,6 +21,7 @@ import type {
 import { MESSAGES_PER_PAGE, PAGINATED_PREFIX } from './p2p-types';
 import {
   findMessageInPages,
+  findUnreadFromPeer,
   updateMessageInPages,
   updatePeerUsernameInMetadata,
   updateUnreadCount,
@@ -210,6 +211,10 @@ export class MessagePaginationStore {
 
     const latestPage = await tryLoadMessagePage(peerCid, metadata.latestPage);
     return latestPage?.messages || [];
+  }
+
+  public async findUnreadFromPeer(peerCid: bigint): Promise<P2PMessage[]> {
+    return findUnreadFromPeer(peerCid);
   }
 
   public async findMessageInPages(peerCid: bigint, messageId: string): Promise<P2PMessage | null> {

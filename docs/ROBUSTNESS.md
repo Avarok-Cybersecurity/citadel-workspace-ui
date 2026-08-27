@@ -4482,6 +4482,42 @@ Removing both fixes fails exactly the two new tests and leaves the two mundane
 ones green. A control where everything fails would not have told me whether the
 fallback was correct or merely present.
 
+## Round sixty-one — the third path, and the badge that lied both ways, 2026-08-28
+
+### 314. Opening a conversation after a reload cleared the badge without sending receipts — FIXED
+
+`markMessagesAsRead` filtered `conversation.messages` — empty after a reload,
+while the transcript on screen had been rendered from the page store. So **zero
+read receipts** were sent for messages the user had visibly just read, and the
+sender's bubbles stayed on 'delivered' for ever.
+
+The second half was worse than the first: the new unread count was computed from
+that same empty array, came out **0**, and was persisted. The badge cleared as if
+everything had been handled, so nothing on either side recorded that the receipts
+were owed.
+
+It now falls back to a stored scan when memory has nothing, and derives the
+remaining count from what was actually marked rather than from the empty array.
+
+The scan is bounded by the metadata's own `unreadCount` and reads newest-first,
+so it stops almost immediately in the normal case rather than reading every page
+of a long conversation on every open.
+
+### 315. That closes three of the four in-memory-window defects
+
+Rounds sixty and sixty-one fixed the ack path, the retry path and the read-receipt
+path. The fourth — a LocalDB hiccup during send stranding a 'pending' bubble that
+is neither retryable nor removable, because the append sits outside the try/catch
+— is still open and is a different shape: it needs the outbound path to separate
+durability from delivery, which the INBOUND path was already hardened to do.
+
+Worth recording as a pattern rather than three coincidences: **a cache that the
+code treats as the source of truth will be believed by every path that touches
+it**, and the ones that break are exactly those that run after the cache is
+empty. The window here was capped at 100 and restored as `[]`; four separate
+features assumed otherwise, and each failed only on reload, which is why none of
+them showed up in ordinary use.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
