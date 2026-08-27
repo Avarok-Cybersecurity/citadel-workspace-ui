@@ -5,6 +5,7 @@
  */
 
 import { requestResponse } from './request-response';
+import { wireMapEntries } from '@/lib/wire-map';
 import { TIMEOUT } from '../timeout-constants';
 
 export interface LocalDBConfig {
@@ -118,8 +119,12 @@ export class LocalDBOperations {
         matchSuccess: (msg) => {
           const r = msg as { LocalDBGetAllKVSuccess?: { request_id: string; map?: Record<string, unknown> } };
           if (r.LocalDBGetAllKVSuccess?.request_id !== requestId) return undefined;
-          const map = r.LocalDBGetAllKVSuccess.map || {};
-          let keys = Object.keys(map);
+          // A Rust HashMap arrives as a JS Map, and Object.keys() on a Map is
+          // []. So this returned NO keys — and message-pagination-store reads
+          // its persisted page index through here, meaning a reload found no
+          // stored history and silently started from empty.
+          let keys = wireMapEntries<unknown>(r.LocalDBGetAllKVSuccess.map, 'LocalDBGetAllKV.map')
+            .map(([key]) => key);
           if (prefix) {
             keys = keys.filter(k => k.startsWith(prefix));
           }

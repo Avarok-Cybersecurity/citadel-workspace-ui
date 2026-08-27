@@ -4344,6 +4344,56 @@ The report also names the mechanism that lets all of these past CI: three
 ones. Replacing the hand types with the generated imports removes the need for
 all three, and is the real fix.
 
+## Round fifty-eight — the rest of the HashMap class, and a privacy leak recorded, 2026-08-27
+
+### 307. Message history and cached peers both read empty from populated maps — FIXED
+
+The remaining two `Object.keys` over Rust `HashMap`s, which
+`serde_wasm_bindgen` delivers as JS **Maps**:
+
+- **`LocalDBGetAllKV` key listing.** `message-pagination-store` finds its
+  persisted page index through here, so it returned no keys and **a reload found
+  no stored history at all** — silently starting from empty.
+- **`peer_connections` in cached-peer sync.** Sync after a reconnect therefore
+  synced nothing.
+
+Both now use `lib/wire-map.ts`, alongside the peer-discovery sites fixed last
+round. The test asserts all three files and, separately, that each routes through
+the shared normalizer — because "does not use Object.keys" alone would pass on a
+file that had simply stopped reading the map.
+
+### 308. Recorded, not fixed — the P2P delivery audit, and one of them is a privacy leak
+
+- **Two accounts in one browser share a peer's message store.** Pages are keyed
+  by PEER only, in LocalDB bucket `0n`, which every account on the device shares
+  — the type's own comment concedes it. So with A and B both chatting to X, their
+  private messages interleave in both tabs after a reload. The `ownerCid` stamp
+  guards deletion only, so B's "Clear Chat History" hits a `debugLog` refusal
+  — *"it belongs to another account"* — while the screen empties and the history
+  returns on reload, after telling the user "This cannot be undone."
+- **A failed message can never be retried after a reload.** The `failed` status
+  is persisted deliberately, *"because it is what makes the message retryable"* —
+  but `resendMessage` looks only in the in-memory window, which `loadFromStorage`
+  restores as `[]`. Every retry click yields "Message … not found in
+  conversation", forever.
+- **Delivered/read acks for anything outside the 100-message window are
+  discarded**, so the ordinary offline-peer flow — send, reload, peer acks hours
+  later — leaves the message on one check permanently even though it was read.
+  And opening a conversation after a reload **clears the unread badge without
+  sending the read receipts**, so both directions of the status protocol die at
+  the first reload.
+- **A LocalDB hiccup during send strands a 'pending' bubble** that is neither
+  retryable nor removable: the append is outside the try/catch, so its rejection
+  unwinds `sendMessage` before the wire send and before any status transition.
+- **Ack propagation fabricates 'delivered'** for messages the peer deliberately
+  refused to confirm — the receiver withholds that ack when it could not store
+  the message, with a comment calling the alternative "a lie that outlives the
+  message itself", and propagation then tells exactly that lie.
+
+These are one connected design problem — the in-memory window is treated as the
+source of truth by four separate paths that outlive it — and the fix is a single
+decision about where message state lives. Recorded rather than patched piecemeal.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

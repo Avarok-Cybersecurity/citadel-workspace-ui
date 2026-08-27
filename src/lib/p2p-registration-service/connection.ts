@@ -8,6 +8,7 @@
 import { websocketService } from '../websocket-service';
 import { peerRegistrationStore } from '../peer-registration-store';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
+import { wireMapEntries } from '@/lib/wire-map';
 import { debugLog } from '@/lib/debug-config';
 import { eventEmitter } from '../event-emitter';
 import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
@@ -56,7 +57,12 @@ export async function syncPeerConnectionsFromSession(
     return;
   }
 
-  const peerCids = Object.keys(peerConnections);
+  // peer_connections is a Rust HashMap: a JS Map here, on which Object.keys is
+  // []. Cached-peer sync after a reconnect therefore synced nothing.
+  const peerEntries = wireMapEntries<{ cid: bigint; peer_cid: bigint; peer_username: string }>(
+    peerConnections, 'peer_connections',
+  );
+  const peerCids = peerEntries.map(([cid]) => cid);
   debugLog('P2PRegistrationService', '[P2P Registration] Syncing peer connections from session:', peerCids);
 
   let serverPeerCids: Set<bigint> | null = null;
@@ -79,7 +85,7 @@ export async function syncPeerConnectionsFromSession(
     return;
   }
 
-  for (const [peerCidStr, peerInfo] of Object.entries(peerConnections)) {
+  for (const [peerCidStr, peerInfo] of peerEntries) {
     const peerCid = BigInt(peerCidStr);
 
     if (serverPeerCids && !serverPeerCids.has(peerCid)) {

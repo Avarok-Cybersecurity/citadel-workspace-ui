@@ -50,3 +50,34 @@ describe('the peer discovery reader', () => {
     expect(source).not.toMatch(/Object\.(values|keys|entries)\(\s*response\./);
   });
 });
+
+/**
+ * The same HashMap hazard in the two places it reaches persisted state. The
+ * normalizer existed in ONE module and was never propagated, so these two read
+ * `[]` from a populated Map: no message-history page index after a reload, and
+ * no cached-peer sync after a reconnect.
+ */
+describe('every wire HashMap read', () => {
+  const strip = (s: string) =>
+    s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  const FILES = [
+    'src/lib/websocket/local-db-operations.ts',
+    'src/lib/p2p-registration-service/connection.ts',
+    'src/components/p2p/peer-discovery-requests.ts',
+  ];
+
+  it.each(FILES)('%s does not use Object.* on a wire map', (file) => {
+    const src = strip(readFileSync(join(process.cwd(), file), 'utf8'));
+
+    // The specific shapes that silently return nothing on a Map.
+    expect(src).not.toMatch(/Object\.(keys|values|entries)\(\s*(response|r|map|peerConnections)\b/);
+  });
+
+  it('routes them through the shared normalizer instead', () => {
+    for (const file of FILES) {
+      const src = readFileSync(join(process.cwd(), file), 'utf8');
+      expect(src, `${file} should use wireMap*`).toMatch(/wireMap(Entries|Values)/);
+    }
+  });
+});
