@@ -57,6 +57,14 @@ export function handleGroupVariants(
       editedAt: edited_at,
       connection: connectionInfo,
     });
+    // Also raw, so a caller awaiting confirmation can see it.
+    //
+    // `Success` and `Error` emit this; the handled variants did not — they
+    // returned true and the response ended there. So every write gated on THIS
+    // variant waited out its 15s timeout and told the user "the change may not
+    // have been saved", after the same handler had already applied it. The
+    // action worked, and the app said it had not.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 
@@ -70,6 +78,14 @@ export function handleGroupVariants(
       deletedBy: deleted_by,
       connection: connectionInfo,
     });
+    // Also raw, so a caller awaiting confirmation can see it.
+    //
+    // `Success` and `Error` emit this; the handled variants did not — they
+    // returned true and the response ended there. So every write gated on THIS
+    // variant waited out its 15s timeout and told the user "the change may not
+    // have been saved", after the same handler had already applied it. The
+    // action worked, and the app said it had not.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 
