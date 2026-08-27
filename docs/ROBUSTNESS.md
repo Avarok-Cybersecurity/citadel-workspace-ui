@@ -5832,3 +5832,51 @@ sidebar and they keep typing into its chat, which the server accepts because
 `SendGroupMessage` never checks `group_id` against a live node. The client
 handlers for these variants already exist — they only ever fire for the
 requester. That is the next thing to do here.
+
+## Round eighty-five — the tree only one person could see, 2026-08-27
+
+### 383. Structural changes never reached anyone but the person who made them
+
+Only `NodeContentUpdated` was ever broadcast. `CreateNode`, `DeleteNode`,
+`MoveNode` and renames answered the requester and stopped there — and the client
+calls `listNodes` exactly once, at login, with no polling and no reload event.
+
+So one user's new room stayed invisible to everyone else until they signed in
+again. A deleted office stayed in their sidebar, where they kept opening it and
+typing into its chat. A rename showed the old name indefinitely. The delete
+confirmation's child count is computed from that stale snapshot, so it could
+honestly say "0 children" while cascade-deleting rooms created since login.
+
+The client handlers for all three variants already existed, and the sidebar
+builds its tree from `parent_id` rather than each node's `children` array — so
+putting the node in the map is enough for it to appear. Nothing on that side
+needed changing. The handlers simply never fired for anyone but the requester,
+which is exactly why nothing looked broken from the seat that made the change:
+the only seat anyone tests from.
+
+A rename is not a content update, so the existing `NodeContentUpdated` broadcast
+did not cover it; structural edits now broadcast `Node` separately. A **pure**
+content save deliberately does not, and there is a test for that: adding a
+structural broadcast on top of every keystroke-save would make each one rewrite
+the receiver's whole node entry, clobbering anything local.
+
+### Still open in this cluster
+
+`SendGroupMessage` never checks `group_id` against a live node, so messages into
+a deleted room's channel are still accepted and stored under an orphan id. The
+broadcast above makes that much harder to reach — clients now learn the room is
+gone — but the server should not depend on the client having heard.
+
+### From the visual audit — recorded, next up
+
+The token architecture is in genuinely good shape (light mode is real end to end,
+and `index.css` documents measured contrast per surface). What is left is a thin
+layer of raw-palette stragglers, and four of them are **invisible controls in
+light mode**: the selected role-colour ring is `ring-white` offset against a
+white background, the workspace-switcher spinner is `border-white` on a 97%
+surface, the editor context menu is hardcoded `#1a1b26` from the pre-token
+palette, and the pending-requests badge is raw `bg-red-500 text-foreground`
+(≈3.9:1, below AA for its size) while a `destructive` Badge variant already
+exists. Also recorded: Cancel buttons use three variants and eight class recipes;
+six independent timestamp formatters, two pinned to `en-US`; three modal scrim
+darknesses; and bubble max-width differing by content type within one thread.
