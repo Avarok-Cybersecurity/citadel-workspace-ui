@@ -6878,3 +6878,58 @@ five of six Appearance controls are inert, and the one that works (font size) is
 never re-applied at startup; and the P2P chat settings panel has three switches
 with `defaultChecked` and no handler, an encryption-level select with no
 `onChange`, and a "Storage Used" figure computed as a constant 15% of quota.
+
+## Round one hundred — the login flow threw away every security choice, 2026-08-28
+
+### 415. Signing in discarded the user's cryptographic settings, and then persisted the defaults
+
+The Security Settings dialog on the sign-in screen writes its values into the
+login hook's state. `handleLogin` then called:
+
+```
+await websocketService.connect(requestId, username, password, undefined);
+```
+
+and `auth-operations` fills that fourth argument with
+`getDefaultSecuritySettings()`. So every choice — security level, secrecy mode,
+encryption algorithm, post-quantum KEM, signature algorithm — reached the hook's
+state and died there. A user who deliberately raised their security connected
+with `Standard / BestEffort / AES_GCM_256`, and nothing said otherwise.
+
+The second half is worse than the first: `handleAuthSuccess` was then given
+`securitySettings: getDefaultSecuritySettings()`, so the **stored** session
+carried defaults too. Every reconnect used them. The choice was not merely
+ignored at connect time — it was overwritten, for the life of the account's
+stored session.
+
+The registration flow has always mapped these correctly through
+`mapSecuritySettings`. The login flow read neither the shared cache registration
+uses nor its own state. Both call sites now use the same mapping.
+
+On this product, of all products, a security control that silently does nothing
+is the one worst kind of dead control. It is the third the campaign has found on
+this screen — after "Remember Credentials", which was also read into state and
+never consulted.
+
+The test's fixture is cast rather than typed, deliberately: what is under test is
+whether each field is *routed* to the right place in the wire shape, not whether
+particular strings are valid enum members. Real alternates would tie it to an
+algorithm list generated from Rust; the defaults would let a mapper that ignored
+its input pass. It also asserts the mapping produces something different from
+the defaults, so "returns defaults regardless" cannot pass.
+
+### Recorded, not fixed — the members list never refreshes
+
+From the routing audit: `members:reload` is emitted **only** inside handlers for
+response variants the protocol cannot produce — `AddMember`, `RemoveMember`,
+`UpdateMemberRole` and `CreateWorkspace` exist as *requests* only, and the server
+never constructs them as responses. So after an admin adds a member, removes one,
+or changes a role, no event-driven refresh happens at all.
+
+Two things make this worth its own entry. The dead branches also emit
+`member:added` and `member:removed`, whose listeners are equally unreachable. And
+the listener-emitter CI guard passes over all of it because it is a text scan:
+an emit inside an unreachable branch counts as an emitter. The guard's own
+recorded-debt maps are honest about what it tracks; this is a blind spot none of
+them covers, and it is worth teaching the guard about reachability or, failing
+that, recording the limit in the guard itself.

@@ -6,7 +6,6 @@ import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
 import { isResponseType } from 'citadel-workspace-client-ts';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { getDefaultSecuritySettings } from "@/lib/security-utils";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { postAuthSetup } from '@/lib/post-auth-setup';
@@ -14,6 +13,7 @@ import { setSelectedUser } from "@/lib/tab-context";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { redirectToExistingSession } from './login-session-redirect';
+import { mapSecuritySettings } from '@/lib/security-utils';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
 } from "@/types";
@@ -133,12 +133,25 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
         eventEmitter.on('websocket-message', handler);
       });
 
-      await websocketService.connect(requestId, username, password, undefined);
+      // The settings the user actually chose, not the defaults.
+      //
+      // This passed `undefined`, and `auth-operations` fills that gap with
+      // `getDefaultSecuritySettings()` — so every choice made in the Security
+      // Settings dialog reached this hook's state and died there. A user who
+      // selected a higher security level, a post-quantum KEM and a signature
+      // algorithm connected with Standard/BestEffort/AES_GCM_256 and was told
+      // nothing. The registration flow has always mapped these correctly; the
+      // login flow read neither its own state nor the shared cache.
+      const chosenSettings = mapSecuritySettings(securitySettings);
+      await websocketService.connect(requestId, username, password, chosenSettings);
       const cid = await responsePromise;
 
       await connectionManager.handleAuthSuccess({
         username, password, fullName: username, serverAddress,
-        serverPassword: "", securitySettings: getDefaultSecuritySettings(), cid,
+        // Stored as chosen too. Persisting the defaults here meant every
+        // reconnect silently downgraded to them as well, so the choice was lost
+        // for the life of the session, not just the first connect.
+        serverPassword: "", securitySettings: chosenSettings, cid,
         // The switch the user actually toggled. It reached this hook's state and
         // went no further, so the password was stored either way.
         storeCredentials: securitySettings.storeCredentials,
