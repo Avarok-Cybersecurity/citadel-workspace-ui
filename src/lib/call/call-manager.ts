@@ -192,11 +192,25 @@ export class CallManager {
 
     const peers = [...state.participants.keys()];
     const bye: CallSignalPayload = { kind: 'CallEnd', call_id: state.callId, reason };
-    await Promise.all(
+
+    // Settle local state FIRST, exactly as decline() already does. This awaited
+    // the sends, and sendSignal is unbounded all the way down to the WASM
+    // messenger — the constants file says so in as many words. A wedged send
+    // therefore left the stage up, the timer ticking and the camera lit while
+    // Leave appeared to do nothing, and pressing it again only queued another.
+    //
+    // Worse, the ring deadline fires `end('unanswered')`: a stalled send there
+    // meant 'ended' was never applied, so the deadline never re-armed and no
+    // timer anywhere was left to rescue the call.
+    this.apply({ type: 'ended', reason });
+
+    // Best-effort from here. Peers also detect a departure through the liveness
+    // timeout, so neither the goodbye nor the session close may hold up the
+    // local teardown the user just asked for.
+    void closeAllSessions(this.internals());
+    void Promise.all(
       peers.map((cid) => this.options.transport.sendSignal(cid, bye).catch(() => undefined)),
     );
-    await closeAllSessions(this.internals());
-    this.apply({ type: 'ended', reason });
   }
 
   /** Tell peers the microphone or camera changed, so their tiles stay honest. */

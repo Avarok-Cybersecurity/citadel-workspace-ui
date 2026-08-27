@@ -530,3 +530,40 @@ describe('ring timeout', () => {
     expect(h.manager.getState()?.reason).toBe('unanswered');
   });
 });
+
+/**
+ * `end()` used to await the CallEnd sends before closing sessions and applying
+ * 'ended'. sendSignal is unbounded all the way down to the WASM messenger — the
+ * constants file says so — so a wedged send left the stage up, the timer
+ * ticking and the camera lit while Leave appeared to do nothing.
+ *
+ * `decline()` was always immune because it applies its state first. These pin
+ * that the two now agree.
+ */
+describe('leaving a call does not wait on the network', () => {
+  it('reaches ended even when the goodbye signal never settles', async () => {
+    const h = harness();
+    // Only the goodbye stalls. Wedging every send would hang start()'s own
+    // invite instead, which is a different (and also unbounded) path.
+    h.transport.sendSignal.mockImplementation((_cid: bigint, payload: CallSignalPayload) =>
+      payload.kind === 'CallEnd' ? new Promise(() => {}) : Promise.resolve(),
+    );
+
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, null, null);
+    await h.manager.end('hangup');
+
+    const last = h.states[h.states.length - 1];
+    expect(last?.status).toBe('ended');
+  });
+
+  it('still tells the peer goodbye when the send does settle', async () => {
+    const h = harness();
+
+    await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, null, null);
+    await h.manager.end('hangup');
+    await Promise.resolve();
+
+    expect(h.signalsTo(BOB).some((s) => s.kind === 'CallEnd')).toBe(true);
+  });
+
+});

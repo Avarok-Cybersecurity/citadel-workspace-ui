@@ -3374,6 +3374,76 @@ reload (delete never touches the page store, while edit does), and OS
 notification permission is only ever requested from a hidden tab, where browsers
 suppress the prompt.
 
+## Round forty-two — three calling defects that all look like a healthy call, 2026-08-27
+
+Taken from the calling audit: the three findings that needed no decision about
+intended behaviour, only the propagation of a pattern the sibling code already
+had. Every one of them presents as a call that rings, connects, ticks its timer,
+and carries nothing.
+
+### 252. The capability probe never asked whether media tracks can be processed — FIXED
+
+`probeMediaCapabilities` checked WebCodecs and Opus encode, and stopped. But the
+pipeline moves samples through **Insertable Streams** at both ends, and neither
+end has a fallback for audio:
+
+- capture without `MediaStreamTrackProcessor` logs one debug line and gives up;
+- the inbound sink without `MediaStreamTrackGenerator` returns a writer that
+  closes every frame it is handed.
+
+So on a browser with WebCodecs but without those, the probe said `supported:
+true`, the buttons enabled, the call rang, connected, the timer ran and the mic
+indicator lit — and **neither side heard anything, in either direction**.
+
+Both detectors now live in one `track-transforms` module instead of being
+private to the two consumers, so the capability question and the capture code
+cannot disagree about what the browser has. The existing disabled-with-reason UI
+handles the rest for free.
+
+### 253. Leave could wedge with the camera still lit — FIXED
+
+`end()` awaited the CallEnd sends **before** closing sessions and applying
+'ended'. `sendSignal` is unbounded all the way down to the WASM messenger — the
+constants file says exactly that — so a stalled send left the stage up, the
+duration ticking and the camera on while Leave appeared to do nothing. Pressing
+it again queued another unbounded send.
+
+Worse: the ring deadline fires `end('unanswered')`. A stalled send there meant
+'ended' was never applied, so the deadline never re-armed and **no timer anywhere
+was left** to rescue the call.
+
+`decline()` was always immune because it applies its state first. The two now
+agree: local state settles, then the goodbye and the session close go
+best-effort. Peers detect a departure through liveness regardless, so neither may
+hold up a teardown the user just asked for.
+
+### 254. A fatal encoder error killed outbound media permanently — FIXED
+
+The **decoder** path nulls its handle on a fatal error so the next frame builds a
+fresh codec, with a comment explaining why. The **encoder** path only logged.
+A closed codec makes the next `encode()` throw, and that throw escapes the
+capture pump's read loop — which then exits for good. Video and/or audio stopped
+reaching the far side for the rest of the call, with nothing shown to anyone:
+the camera stayed lit and heartbeats kept the call "alive".
+
+Fixed for both encoders, plus the `state === 'closed'` guard the decoder already
+had, since the error callback fires asynchronously and a frame can race it.
+
+### 255. Method note — a control that hangs is still a control
+
+Two of these tests initially failed for reasons that were mine, not the code's,
+and both were worth the detour:
+
+- Wedging **every** `sendSignal` hung `start()`'s own invite send rather than
+  `end()`. The test now stalls only the CallEnd — and the detour recorded
+  something real: `start()` awaits an unbounded send too.
+- A third assertion expected `closeSession` on a call that was still ringing out,
+  where no media session has been opened yet. The premise was wrong, so the
+  assertion was removed rather than contorted into passing.
+
+The end() control does not fail with a mismatch — it **times out at 5000ms**,
+which is precisely the defect: Leave never returning.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

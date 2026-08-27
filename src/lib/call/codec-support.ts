@@ -9,6 +9,7 @@
  */
 
 import type { CallCodecCapabilities } from '@/types/p2p-commands';
+import { hasTrackTransforms } from './track-transforms';
 
 /** Opus. There is no serious alternative for interactive voice. */
 export const AUDIO_CODEC = 'opus';
@@ -104,6 +105,20 @@ export async function probeMediaCapabilities(): Promise<MediaCapabilityReport> {
       audio: false,
       video: false,
       reason: 'This browser does not support WebCodecs, which calls require.',
+    };
+  }
+
+  // WebCodecs alone is not enough: the pipeline moves samples through
+  // Insertable Streams at both ends. Without them the probe used to report
+  // supported, the call rang, connected and ticked its timer, and neither side
+  // heard anything — capture logged one debug line and the inbound sink threw
+  // every frame away.
+  if (!hasTrackTransforms()) {
+    return {
+      supported: false,
+      audio: false,
+      video: false,
+      reason: 'This browser cannot process media tracks, which calls require.',
     };
   }
 

@@ -7,6 +7,7 @@
  * both sides connect, tiles render, the timer ticks — and not one frame is sent.
  */
 
+import { trackProcessor } from './track-transforms';
 import { debugLog } from '@/lib/debug-config';
 
 export interface CapturePumpCallbacks {
@@ -14,15 +15,6 @@ export interface CapturePumpCallbacks {
   onAudioData: (data: AudioData) => void;
 }
 
-interface TrackProcessorCtor {
-  new (init: { track: MediaStreamTrack }): { readable: ReadableStream<VideoFrame | AudioData> };
-}
-
-function trackProcessor(): TrackProcessorCtor | null {
-  const ctor = (globalThis as { MediaStreamTrackProcessor?: TrackProcessorCtor })
-    .MediaStreamTrackProcessor;
-  return typeof ctor === 'function' ? ctor : null;
-}
 
 /**
  * Pull frames off a local stream until stopped.

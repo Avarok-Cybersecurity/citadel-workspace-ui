@@ -91,6 +91,12 @@ export function createVideoEncoder(
 
   return {
     encode(frame, congestion) {
+      // Mirrors the decoder guard below: a fatal error closes the codec
+      // asynchronously, and a frame can race that callback. encode() on a
+      // closed codec throws, and here the throw escapes the capture pump's
+      // read loop, which then exits for good — killing outbound media for the
+      // rest of the call. The owner rebuilds the encoder; this just stays quiet.
+      if (encoder.state === 'closed') return;
       // Reconfigure only when the rung actually changes. Reconfiguring per frame
       // resets the encoder's rate control and produces visible pulsing.
       if (congestion.rung !== appliedRung) {
@@ -150,6 +156,12 @@ export function createAudioEncoder(sink: FrameSink, onError: (error: Error) => v
 
   return {
     encode(data) {
+      // Mirrors the decoder guard below: a fatal error closes the codec
+      // asynchronously, and a frame can race that callback. encode() on a
+      // closed codec throws, and here the throw escapes the capture pump's
+      // read loop, which then exits for good — killing outbound media for the
+      // rest of the call. The owner rebuilds the encoder; this just stays quiet.
+      if (encoder.state === 'closed') return;
       encoder.encode(data);
     },
     close() {

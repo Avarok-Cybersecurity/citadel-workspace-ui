@@ -160,7 +160,17 @@ export class CallSession {
         false,
         hardware,
         this.callbacks.onFrame,
-        (error) => debugLog('Call', 'video encode error', error),
+        (error) => {
+          debugLog('Call', 'video encode error', error);
+          // Drop the handle so the next frame builds a fresh encoder — the
+          // decoder path already does exactly this, and only logged here. A
+          // fatal WebCodecs error closes the codec, the next encode() throws,
+          // and that throw escapes the capture pump's read loop and kills the
+          // pump permanently. Outbound video then stopped for the rest of the
+          // call with nothing shown to either side: the camera stayed lit and
+          // heartbeats kept the call "alive".
+          this.videoEncoder = null;
+        },
       );
     }
 
@@ -181,9 +191,12 @@ export class CallSession {
       return;
     }
     if (!this.audioEncoder) {
-      this.audioEncoder = createAudioEncoder(this.callbacks.onFrame, (error) =>
-        debugLog('Call', 'audio encode error', error),
-      );
+      this.audioEncoder = createAudioEncoder(this.callbacks.onFrame, (error) => {
+        debugLog('Call', 'audio encode error', error);
+        // Same reasoning as video above. Audio has no fallback path at all, so
+        // a dead encoder here is a call that continues in silence.
+        this.audioEncoder = null;
+      });
     }
     this.audioEncoder.encode(data);
     data.close();

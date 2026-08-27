@@ -7,19 +7,9 @@
  * preferred API was missing is the worst outcome here.
  */
 
+import { trackGenerator } from './track-transforms';
 import { debugLog } from '@/lib/debug-config';
 
-interface TrackGeneratorCtor {
-  new (init: { kind: 'video' | 'audio' }): MediaStreamTrack & {
-    writable: WritableStream<VideoFrame | AudioData>;
-  };
-}
-
-function trackGenerator(): TrackGeneratorCtor | null {
-  const ctor = (globalThis as { MediaStreamTrackGenerator?: TrackGeneratorCtor })
-    .MediaStreamTrackGenerator;
-  return typeof ctor === 'function' ? ctor : null;
-}
 
 export interface RemoteVideoSink {
   stream: MediaStream;
