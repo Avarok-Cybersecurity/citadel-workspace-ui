@@ -2400,6 +2400,63 @@ had a green toast waiting on the other side.
 The ordering fix matters as much as the protocol fix: bytes now go first and the
 tree commits only on success, so a node exists if and only if its content does.
 
+## Round twenty-seven — guarding the shape instead of finding it, 2026-08-27
+
+### 202. Twenty-two more discarded failure results — FIXED, and now gated
+
+Having fixed the resolve-instead-of-reject shape three times by hand, I went
+looking for it mechanically instead. `RevfsIO.execute` **never rejects** — a
+timeout, a refused request, a full disk all come back as `{ success: false }` on
+a RESOLVED promise — so `await io.execute({...})` with the result discarded is
+not fire-and-forget. It is asking whether something worked and then looking away.
+
+33 call sites; 21 discarded the answer.
+
+- **`serverRmdir` discarded every per-file delete result.** The directory is
+  already gone from the tree by then, so a refused delete left files consuming
+  server storage with nothing referencing them. Now collected and reported —
+  collected rather than thrown per file, because aborting halfway would leave the
+  remaining files both undeleted AND unreported.
+- **`removeFileFromPeer` had the server path's ordering bug**: node removed and
+  persisted first, delete result discarded.
+- **The twenty `persist-tree` calls** now go through one helper. Deliberately
+  **not** a throw: by then the in-memory tree is already mutated and, for a peer
+  op, the op may already be sent — throwing would report failure for something
+  that partly succeeded. The operation happened; its *durability* failed. One
+  event from one place, so a "changes may not survive a reload" notice gets wired
+  once rather than at twenty sites.
+
+`scripts/check-intent-results-checked.mjs` now gates it, with an explicit
+`// best-effort: <reason>` opt-out so a deliberate omission is **visible rather
+than absent**. Negative-controlled: removing one check exits 1 and names the
+file, line and intent.
+
+### 203. Method note — the mock that could represent neither outcome
+
+The rmdir test's IO mock returned a bare `{}` for every intent. That cannot
+represent success OR failure, so **any caller that started checking its result
+would fail against a working backend** — which is exactly what happened the
+moment `serverRmdir` began reporting undeletable files. The test broke on a
+correct change.
+
+A mock that returns a shape the real thing never returns is not a simplification;
+it is a third behaviour that exists only in tests. It now echoes the intent type
+with success, and a new test covers the refused-delete path that previously could
+not be expressed at all.
+
+Same family as the earlier finding that the revfs helper mocks
+`backend-send-file` as `{ success: true }` unconditionally — which is why no unit
+test could see that uploads stored nothing.
+
+### 204. Method note — a guard that only works from one directory
+
+The first version of the new check resolved its search root from the caller's
+cwd. Run from the repo root it worked; run from `citadel-workspaces/` it crashed
+with ENOENT — **which reads exactly like the guard being unavailable rather than
+the guard being broken.** Now resolved relative to the script file. Worth
+checking on every guard here: several are invoked from CI at the root and by hand
+from elsewhere.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
