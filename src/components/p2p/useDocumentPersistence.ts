@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { eventEmitter } from '@/lib/event-emitter';
 import type * as Y from 'yjs';
 import { liveDocumentStore } from '@/lib/live-document-store';
+import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 
 /** Yjs fires per keystroke and each save re-encodes the whole document. */
@@ -64,7 +64,16 @@ export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
       // rather than discarded.
       void liveDocumentStore.updateDocumentState(documentId, doc).catch((error: unknown) => {
         debugLog('CollaborativeEditor', 'Final flush failed for', documentId, error);
-        eventEmitter.emit('live-document:persist-failed', { documentId });
+        // Toasted, not emitted. This announced itself on
+        // 'live-document:persist-failed' — an event with ZERO listeners — so the
+        // comment above described a report that reached nobody, in the one place
+        // it says the user's work is gone. A direct toast removes the wire
+        // rather than adding a second end to it.
+        toast({
+          variant: 'destructive',
+          title: 'Your last edits could not be saved',
+          description: 'The document was closed before the final save completed.',
+        });
       });
     };
   }, [documentId, doc]);

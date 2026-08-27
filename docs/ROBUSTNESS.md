@@ -4776,6 +4776,74 @@ Two independent properties, so two controls: removing the disconnect mapping
 fails only the members' test, and dropping the `success` check fails only the
 failed-end test.
 
+## Round sixty-eight — two error reports that reached nobody, 2026-08-28
+
+An audit of error surfacing across the whole UI. Its baseline matters: `debugLog`
+is a **no-op in production**, so a catch whose only action is `debugLog` is not
+logging, it is silence.
+
+### 330. "This is the LAST chance" announced the loss to nobody — FIXED
+
+The unmount flush of a collaborative document carries this comment:
+
+> This is the LAST chance — the debounced write above can retry on the next
+> edit, and there are no more edits. A swallowed failure here is exactly the
+> case where the user's work is gone, so it is announced rather than discarded.
+
+It announced on `live-document:persist-failed`, an event with **zero listeners**.
+The user closes the document believing it saved; the edits are gone.
+
+### 331. "Connected successfully" over a messaging layer that never started — FIXED
+
+`session:startup-error` likewise had no listener. That catch wraps the entire
+post-login startup — P2P registration and auto-connect — so if either threw, the
+user had just been shown *"Connected to workspace successfully"* while peers
+showed offline and messages never arrived, with no error anywhere.
+
+Both are now toasted directly rather than emitted. **Removing the wire beats
+adding a second end to it**: an emit with one listener somewhere else is the
+arrangement that broke here twice.
+
+### 332. Method note — this is the direction the guard still cannot see
+
+Round thirty-six's guard catches a listener with no emitter. These are the
+mirror: an emitter with no listener. Round forty-one recorded that the reverse
+direction resisted mechanisation because a third subscription facade
+(`workspaceEvents.onWorkspaceEvent`) makes a naive scan report 75 false
+positives.
+
+That limitation has now cost two real defects, both of which lose user work.
+A third — `service-health`, computed every 10 seconds and emitted to nobody, so
+the app knows the local agent is down and tells no one — is recorded, not fixed.
+The honest next step is to enumerate the facades and finish the guard, rather
+than keep finding these by audit.
+
+### 333. Two audits contradicted each other; the source settled it
+
+One backend audit reported `generate_remote`'s `.expect("Should not fail to find
+target")` as a client-reachable panic. An earlier one had explicitly **refuted**
+it, reasoning that the `UserIdentifier::ID` path returns `Ok` unconditionally.
+
+Read directly rather than believing either:
+
+```rust
+async fn get_session_cid(...) -> Result<u64, NetworkError> {
+    Ok(account_manager.find_local_user_information(local_user).await?
+        .ok_or(citadel_io::error!(ErrorCode::RemoteUserDoesNotExist))?)
+}
+```
+
+`.ok_or(...)?` on an `Option` — an unknown CID yields `Err`, `propose_target`
+propagates it, and the `.expect` panics inside a spawned per-request task. **No
+response is ever sent**, so the browser waits out its own timeout with nothing.
+All five LocalDB handlers route through it, and `LocalDBGetKV` is exempt from the
+ownership gate, so a stale CID from a browser that outlived an
+internal-service restart reaches it directly.
+
+The second audit is right. Recorded as verified-and-unfixed: the repair is to
+return the matching `LocalDB*Failure` from each of the five handlers, which is a
+Rust change worth doing deliberately rather than at the end of a round.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

@@ -12,6 +12,7 @@ import { eventEmitter } from './event-emitter';
 import { p2pRegistrationService } from './p2p-registration-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { wasmConnectionManager } from './wasm-connection-manager';
+import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 import type { SessionActivatedEvent } from './session-startup-service';
 
@@ -96,7 +97,15 @@ export async function runStartupSequence(
     debugLog('SessionStartupService', `SessionStartup: Startup sequence complete for ${event.username}`);
   } catch (error) {
     debugLog('SessionStartupService', 'Error during startup sequence:', error);
-    // Emit error event but don't re-throw - session is still active
-    eventEmitter.emit('session:startup-error', { ...event, error });
+    // Toasted, not emitted. 'session:startup-error' had no listener anywhere, so
+    // this wrapped the whole post-login startup — P2P registration and
+    // auto-connect — and reported a total failure to nobody. The user had just
+    // been told "Connected to workspace successfully" while their messaging
+    // layer never came up: peers offline, messages not arriving, no error.
+    toast({
+      variant: 'destructive',
+      title: 'Messaging may be unavailable',
+      description: 'Some background services failed to start. Reload to try again.',
+    });
   }
 }
