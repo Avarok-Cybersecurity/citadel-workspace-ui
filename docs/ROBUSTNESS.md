@@ -1992,6 +1992,100 @@ guarantee.
 - **`check-submodule-pointers-pushed.mjs` is invoked by nothing** — no workflow,
   no npm script, no git hook. It is the exact thing its own header warns against.
 
+## Round twenty-one — secrets in logs, specs that can fail, a real multi-tab bug, 2026-08-26
+
+### 185. Passwords were printed to the console, because redaction checked the TYPE — FIXED
+
+Redaction lived entirely inside `shouldFormatAsBytes`, which begins
+`if (!Array.isArray(value)) return false`. `StoredSession.password` is a STRING,
+so it fell through and was printed verbatim on every session write — auth
+success, auto-reconnect, logout, role update, active-index change.
+`serverPassword` was in no list at all. Whether a secret is safe to print must
+not depend on how it happens to be encoded, so redaction is now on the field
+NAME, before any type-based formatting.
+
+`debugLog` is a no-op in production builds — but the shipped compose stack
+builds `target: dev`, where it is live.
+
+### 186. A second tab cannot see the first tab's session — REAL BUG, surfaced and flagged
+
+**The flagship P2P spec's two core tests contained no assertions at all.** Every
+helper returns `Promise<boolean>` and is designed not to throw; every return
+value was discarded. A total handshake failure surfaced as two green tests named
+"P2P registration and handshake" and "Open conversations on both sides".
+Asserted — and the flow genuinely works, 8 passed. They simply were not checking.
+
+**The multi-tab spec had three tests that could not fail, one asserting the
+failure state AS success**: its disjunction included `seesLandingButtons`, which
+IS the not-detected state, so a test named "should detect existing session"
+passed precisely when the session was not detected.
+
+Strengthening it surfaced a real bug, verified by screenshot: **a second tab in
+the same browser context, opened seconds after the first registered and loaded a
+workspace, shows the logged-out landing page with no Active Sessions strip.** A
+bounded retry (an empty result during startup is not evidence of no sessions)
+did not resolve it, so the cause is not first-paint timing. Under investigation.
+
+Marked `test.fail()` rather than skipped or reverted: the assertion still runs
+and Playwright reports a FAILURE if it starts passing, so whoever fixes the bug
+is told to remove the annotation. Skipping loses the detection; reverting
+restores the false green.
+
+### 187. Recorded, not fixed — RE-VFS (claims pending independent verification)
+
+An audit reports that **the RE-VFS upload path may never store any bytes**:
+`source` sent as a bare string where the backend expects an externally-tagged
+`FileSource` enum; `transfer_type: 'FileTransfer'` rather than
+`RemoteEncryptedVirtualFilesystem`, with `virtual_path` never sent; and the
+peer-scoped upload never calling the backend at all. If true, the user sees
+"Uploaded: x", the file appears in the tree and counts against quota, and no
+bytes exist. **Being independently verified before any fix** — the change is
+large and a wrong confirmation costs more than a wrong refutation.
+
+Also reported in the same layer, not yet acted on:
+- **The pending-op queue is written to OPFS and never read back** —
+  `load-pending-ops` and `setPendingOps` have zero production callers, so the
+  offline queue is empty on every page load and `retryPendingOps` returns 0,
+  which the UI reports as **"Tree synced with peer"**.
+- **The ACK reports success for operations the receiver silently dropped** —
+  `applyRemoteOp` no-ops on missing parent, name collision or missing source and
+  returns the unchanged tree, and the caller acks `success: true` as a literal.
+- **An unreadable `tree.json` is indistinguishable from "no tree"**, and the
+  recovery path writes a fresh default tree over the original — so one transient
+  OPFS read failure destroys the user's virtual tree.
+- **A file can overwrite a directory node**, deleting the subtree, in three
+  places; and `mergeTrees` resolves a directory/file conflict by timestamp with
+  a `>=` tie-break, which is **not symmetric** — the two peers converge to
+  different trees.
+
+### 188. Recorded, not fixed — accessibility
+
+- **The entire auth flow is four hand-rolled overlays with no dialog semantics**
+  — no `role="dialog"`, no `aria-modal`, no initial focus, no focus restore, and
+  Tab walks straight out into the still-live Landing buttons behind them.
+  `LoadingModal` is full-screen `z-[100]` with no live region at all.
+- **No `AvatarImage` in the app has an `alt` — 19 of 19.** Radix unmounts the
+  fallback once the image loads, so the initials carrying the name disappear:
+  the moment a user sets a profile picture, the only route to Profile / Settings
+  / Sign out becomes an unnamed button.
+- **Icon-only buttons with no accessible name**, concentrated in group chat and
+  the file manager — including the group-chat SEND button, where the DM
+  composer's identical fix carries a comment explaining exactly why it was
+  needed. The file manager's New folder / Upload / Sync are the only way to
+  create, upload or refresh.
+- **Tooltips whose trigger cannot be focused or tapped**: the signup
+  cryptography help, and the message delivery-status tooltip. `DisabledWithTooltip`
+  is worst — it forces `tabIndex: -1` and `pointer-events: none` on every child,
+  so the REASON a control is disabled is unreachable by keyboard and touch.
+- **A radiogroup made of buttons** — the workspace picker on reconnect uses
+  `role="button"` children with no `aria-checked`, so selection is colour-only.
+  The correct pattern is already in the repo twice.
+- **The mobile navigation drawer is an unnamed dialog with its close button
+  `display:none`d**, and the `className` prop is dropped in the mobile branch, so
+  the offline banner's reserved height is silently lost there.
+- **39 of 43 truncations carry no `title`**, including the DM list, workspace
+  switcher, chat tabs and member rows — every identity-bearing one.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
