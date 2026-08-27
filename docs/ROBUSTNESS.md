@@ -4119,6 +4119,67 @@ attempts to render the service under test pulled in `instanceManager`,
 different singleton, and the value of a test for `assign-after-await` did not
 justify mocking a quarter of the app. Recorded rather than quietly skipped.
 
+## Round fifty-four — folder navigation, nested controls, and a lock two writers never took, 2026-08-27
+
+### 292. Opening a folder was double-click only — FIXED
+
+Keyboard activation on a grid item ran `handleClick`, which **selects**. So a
+keyboard user could select a folder and never enter it, and `onNavigate` was
+reachable only through `onDoubleClick` — which iOS synthesizes unreliably, so on
+touch the grid was effectively navigation-dead. The tree sidebar rescued users
+from a total block, but it lists directories alone.
+
+Enter now opens and Space selects, the convention every file manager uses, and a
+single tap opens a folder where `(hover: none)`. Guarded on the pointer rather
+than viewport width — a tablet at desktop width still has no mouse.
+
+### 293. The chat tab was a button inside a button — FIXED
+
+The close control was a real `<button>` nested inside the tab's
+`role="button"` div: the nested-interactive pattern this project's own
+`lib/a11y.ts` forbids in writing. Assistive technology reports one control where
+there are two, and the inner one is not reliably reachable. Its target was also
+~16px.
+
+Restructured as siblings, the close button named for **its own tab** — "Close
+tab" repeated down a row says nothing about which one — and grown to a 24px
+target.
+
+### 294. Two of three role writers never took the lock their own test names — FIXED
+
+`last_admin_race_test.rs` states the contract in its header: `lock_workspaces`
+held across the check AND the write, *"in all three role writers"*. It was true
+in **one**. `update_workspace_member_role` took no lock at all.
+
+Two admins demoting each other both count two admins, both pass
+`ensure_not_last_admin`, and both write — leaving **zero admins**, which this
+file's own documentation calls unrecoverable, because promotion requires an
+admin.
+
+The existing race test is deliberately sequential; its docstring argues that a
+probabilistic race test which usually passes is worse than none, and says so.
+Accepting that argument leaves the lock itself as the thing to assert, so the new
+test extracts each writer's body — bounded at the next `async fn`, so a
+neighbour's lock cannot satisfy it — and requires the call. Comments are stripped
+first, for reasons this register has already recorded twice.
+
+### 295. Workspace-wide clippy was already failing — FIXED
+
+CI runs `cargo clippy --workspace --all-targets -- -D warnings`, and three test
+files tripped `empty line after doc comment`. Pre-existing, in files this round
+did not otherwise touch, and invisible to the per-crate clippy job that does not
+pass `--all-targets`.
+
+The cause is the same in all three: a `///` block written as file narrative,
+placed after the imports, where Rust binds it to the next item. `//!` is not
+available there, so they are now plain `//` comments — which is what they always
+were in intent.
+
+**This is the third CI gate found red by running it locally** (after the 250-line
+cap and the stack-reachability guard). The pattern is not carelessness about any
+one gate; it is that the local loop runs `tsc`, `eslint`, `vitest` and the
+pointer guard, and nothing else, while CI runs eleven things.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

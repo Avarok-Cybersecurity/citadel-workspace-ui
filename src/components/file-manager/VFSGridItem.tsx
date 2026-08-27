@@ -66,6 +66,43 @@ export function GridItem({
     if (isDir) onNavigate(node.path);
   };
 
+  /**
+   * Opening a folder was double-click ONLY.
+   *
+   * Keyboard activation ran `handleClick`, which selects — so a keyboard user
+   * could select a folder and never enter it. And a synthesized `dblclick` is
+   * unreliable on iOS, so on touch the grid was effectively navigation-dead;
+   * the tree sidebar was the only way to move around, and it lists directories
+   * alone.
+   *
+   * Enter opens, Space selects — the convention every file manager uses.
+   */
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isDir && e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      onNavigate(node.path);
+      return;
+    }
+    activateOnKey(handleClick)(e);
+  };
+
+  // A single tap opens a folder where there is no hover and no reliable
+  // double-tap. Guarded on the pointer, not on viewport width: a tablet at
+  // desktop width still has no mouse.
+  const isCoarsePointer =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(hover: none)').matches;
+
+  const handleClickOrOpen = (e: React.MouseEvent) => {
+    if (isDir && isCoarsePointer) {
+      handleDoubleClick();
+      return;
+    }
+    handleClick(e);
+  };
+
   // Widened from MouseEvent: this is now also the keyboard activation handler,
   // and every property it reads (stopPropagation, ctrlKey/metaKey/shiftKey for
   // the selection mode) exists on both event types.
@@ -126,10 +163,10 @@ export function GridItem({
           isCutItem && "opacity-50",
           isSelected && "bg-primary/40 ring-1 ring-ring",
         )}
-        onClick={handleClick}
+        onClick={handleClickOrOpen}
         role="button"
         tabIndex={0}
-        onKeyDown={activateOnKey(handleClick)}
+        onKeyDown={handleKeyDown}
         onDoubleClick={handleDoubleClick}
         onDragOver={handleDragOver}
         onDragLeave={() => setDragOver(false)}
