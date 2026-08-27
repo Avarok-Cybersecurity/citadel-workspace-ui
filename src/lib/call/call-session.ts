@@ -25,6 +25,17 @@ export interface CallSessionCallbacks {
   onCaptureFailed: (failure: CaptureFailure) => void;
   /** Called when a peer's stream can only recover via a keyframe from them. */
   onNeedKeyframe: (peerCid: bigint, track: number) => void;
+  /**
+   * A live capture device stopped mid-call — unplugged, or revoked by the OS.
+   *
+   * Nothing used to listen for this. The track ended, the pump's reader loop
+   * returned silently, and every part of the UI went on insisting the call was
+   * healthy: the mic button still read unmuted, peers still saw an unmuted
+   * tile, and heartbeats kept flowing so the liveness watchdog never noticed. A
+   * silently dead call that looked fine, with no recovery but Leave and re-dial
+   * and nothing saying so.
+   */
+  onTrackEnded: (kind: 'audio' | 'video') => void;
 }
 
 /** Decode fallback when a peer never announced its send codec (older client). */
@@ -111,6 +122,9 @@ export class CallSession {
     if (result.degraded) this.callbacks.onCaptureFailed(result.degraded);
 
     this.localStream = result.stream;
+    for (const track of result.stream.getTracks()) {
+      track.addEventListener('ended', () => this.handleTrackEnded(track));
+    }
     const hasVideo = result.stream.getVideoTracks().length > 0;
     const hasAudio = result.stream.getAudioTracks().length > 0;
 
@@ -195,6 +209,20 @@ export class CallSession {
   /** Release one peer's decoders when they leave a group call. */
   removePeer(peerCid: bigint): void {
     this.receivers.remove(peerCid);
+  }
+
+  /**
+   * A capture track stopped on its own.
+   *
+   * The `closed` guard is first and is load-bearing. Per spec `track.stop()`
+   * does not fire `ended`, so ordinary teardown should be silent — but test
+   * fakes do fire it, and every termination path runs through `close()`, which
+   * sets `closed` BEFORE stopping the stream. Without this check, every normal
+   * hangup would tell the user their microphone had been disconnected.
+   */
+  private handleTrackEnded(track: MediaStreamTrack): void {
+    if (this.closed) return;
+    this.callbacks.onTrackEnded(track.kind === 'video' ? 'video' : 'audio');
   }
 
   /** Stop the camera light, release every codec, drop every track. */

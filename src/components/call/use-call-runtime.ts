@@ -196,6 +196,35 @@ export function useCallRuntime({
       onCaptureFailed: setCaptureFailure,
       // Our decoder for this peer is stuck; ask their encoder for a keyframe.
       onNeedKeyframe: (peerCid, track) => void managerRef.current?.requestKeyframe(peerCid, track),
+      onTrackEnded: (kind: 'audio' | 'video') => {
+        // Two audiences, both of which were being lied to. The local UI:
+        // without this the mic button still read unmuted on a dead mic, and
+        // toggling it flipped `enabled` on an ended track — a no-op that
+        // still announced a state change. And the peers: heartbeats keep
+        // flowing regardless of capture health, so nothing else would ever
+        // have told them, and they would render an unmuted tile for a
+        // microphone that stopped existing.
+        //
+        // Read from the manager's own state at call time rather than a
+        // captured snapshot: a hub unplugged at once ends both tracks, and
+        // two updates computed from one stale snapshot would each undo the
+        // other.
+        const current = managerRef.current?.getState()?.selfMedia;
+        if (current) {
+          void managerRef.current?.setSelfMedia({ ...current, [kind]: false });
+        }
+        setCaptureFailure({
+          kind: 'device-lost',
+          message:
+            kind === 'audio'
+              ? 'Your microphone was disconnected. Reconnect it and rejoin the call to use it again.'
+              : 'Your camera was disconnected. Reconnect it and rejoin the call to use it again.',
+          // Nothing to retry: re-acquiring a device mid-call is not something
+          // this session can do, and offering a retry that cannot work is
+          // worse than saying so.
+          retryable: false,
+        });
+        },
     });
     sessionRef.current = session;
     return session;

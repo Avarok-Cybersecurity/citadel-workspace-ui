@@ -7835,3 +7835,46 @@ because it accepted any `aria-hidden` anywhere in the region — including the
 decorative icon's. Only version three, which requires the marker on the element
 directly wrapping the value, fails when the fix is removed. A guard whose control
 cannot fail it is not a guard, and I nearly shipped one.
+
+### Round 122 — a device unplugged mid-call was invisible to everyone
+
+Nothing in the tree listened for `track.onended`. When a microphone or camera
+was unplugged or revoked, the track ended, the capture pump's reader loop
+returned silently, and every part of the product went on insisting the call was
+healthy: the mic button still read unmuted, peers still saw an unmuted tile, and
+heartbeats kept flowing on their own timer so the liveness watchdog never
+noticed. A silently dead call that looked fine, with no recovery but Leave and
+re-dial and nothing saying so.
+
+The listener belongs on the session, not the pump. The pump's reader returning
+`done` is the *symptom*, and it is indistinguishable from ordinary cancellation
+— and the canvas fallback path used by Firefox and Safari has no reader at all,
+so a track-level listener covers both pump paths for free.
+
+**The `closed` guard is the load-bearing part**, and it is first for a reason.
+Per spec `track.stop()` does not fire `ended`, so ordinary teardown should be
+silent — but fakes do fire it, and every termination path runs through `close()`,
+which sets `closed` before stopping the stream. Without the guard, every normal
+hangup would tell the user their microphone had been disconnected. A negative
+control pins exactly that.
+
+Two adjacent bugs, found while wiring it and fixed with it. `toggleMic` flipped
+`enabled` on whatever audio tracks existed — including ended ones, which stay in
+the stream's list — so after a mic was unplugged, pressing unmute was a no-op
+that still announced "unmuted" to every peer and left the button reading
+unmuted. And `toggleCamera`'s count-based guard, added in an earlier round
+precisely to stop a camera toggle from lying, was defeated by the same thing: one
+dead track still counts as one track. Both now filter on `readyState === 'live'`.
+
+Peers are told through `setSelfMedia`, which is the existing "mic/camera
+toggled" signal — nothing new on the wire, the fix is only that someone now
+*sends* it when the device dies. The self-media update is computed from the
+manager's own state at call time rather than a captured snapshot, because a hub
+unplugged at once ends both tracks and two updates from one stale snapshot would
+each undo the other.
+
+Recorded, not fixed: re-acquiring a device mid-call. The pump reads its tracks
+once with no per-track restart, `start` is guarded against a second capture, and
+a replacement track needs a distinct swap path plus encoder-timestamp continuity
+across the gap. That is its own piece of work, and the honest failure message
+above — reconnect and rejoin — is complete without it.

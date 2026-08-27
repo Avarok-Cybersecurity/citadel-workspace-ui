@@ -16,6 +16,8 @@ export type CaptureFailureKind =
   | 'device-in-use'
   | 'insecure-context'
   | 'unsupported'
+  /** A device that WAS working stopped mid-call: unplugged, or revoked. */
+  | 'device-lost'
   | 'unknown';
 
 export interface CaptureFailure {

@@ -189,6 +189,11 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     // flip the button and announce video:true to every peer, with no frame ever
     // sent. Say what happened instead of reporting a success that cannot occur.
     toast.error('Your camera is not available for this call. Rejoin to try again.'),
+    () =>
+      // Same shape for the microphone. Reachable once a mic is unplugged
+      // mid-call: its track ends, and unmuting an ended track is a no-op that
+      // used to still announce "unmuted" to every peer.
+      toast.error('Your microphone is not available for this call. Rejoin to try again.'),
   );
 
   useEffect(() => {

@@ -22,7 +22,13 @@ type Manager = Parameters<typeof useCallMediaToggles>[0] extends MutableRefObjec
 
 function setup(videoTracks: number, selfVideo = false) {
   const setSelfMedia = vi.fn(() => Promise.resolve());
-  const tracks = Array.from({ length: videoTracks }, () => ({ enabled: false }));
+  // `readyState` matters now: the toggle filters to LIVE tracks, because an
+  // ended one stays in the stream's list and flipping `enabled` on it is a
+  // no-op that still announced a state change to every peer.
+  const tracks = Array.from({ length: videoTracks }, () => ({
+    enabled: false,
+    readyState: 'live' as const,
+  }));
   const managerRef = {
     current: {
       getState: () => ({ selfMedia: { audio: true, video: selfVideo, screen: false } }),
@@ -68,5 +74,17 @@ describe('toggleCamera', () => {
 
     expect(setSelfMedia).toHaveBeenCalledWith({ audio: true, video: false, screen: false });
     expect(onCameraUnavailable).not.toHaveBeenCalled();
+  });
+
+  it('refuses to turn the camera on when its track has ended', () => {
+    // A camera unplugged mid-call leaves a dead track in the stream, so the
+    // old count-based guard saw one video track and let the toggle through.
+    const { hook, setSelfMedia, onCameraUnavailable, tracks } = setup(1);
+    (tracks[0] as { readyState: string }).readyState = 'ended';
+
+    void hook.result.current.toggleCamera();
+
+    expect(setSelfMedia).not.toHaveBeenCalled();
+    expect(onCameraUnavailable).toHaveBeenCalled();
   });
 });

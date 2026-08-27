@@ -88,7 +88,7 @@ function makeSession() {
     onFrame: vi.fn(),
     onStreamsChanged: vi.fn(),
     onCaptureFailed: vi.fn(),
-    onNeedKeyframe: vi.fn(),
+    onNeedKeyframe: vi.fn(), onTrackEnded: vi.fn(),
   });
 }
 

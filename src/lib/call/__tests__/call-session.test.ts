@@ -23,10 +23,26 @@ function stubCodecClass() {
   };
 }
 
+/** A track that records its 'ended' listener, so a test can fire it. */
+function makeTrack(kind: 'audio' | 'video') {
+  const listeners: Array<() => void> = [];
+  return {
+    kind,
+    readyState: 'live',
+    enabled: true,
+    stop: vi.fn(),
+    addEventListener: (event: string, fn: () => void) => {
+      if (event === 'ended') listeners.push(fn);
+    },
+    /** Test-only: what the browser does when a device is unplugged. */
+    fireEnded: () => listeners.forEach((fn) => fn()),
+  };
+}
+
 function fakeStream(withVideo: boolean) {
   const tracks = withVideo
-    ? [{ kind: 'video', stop: vi.fn() }, { kind: 'audio', stop: vi.fn() }]
-    : [{ kind: 'audio', stop: vi.fn() }];
+    ? [makeTrack('video'), makeTrack('audio')]
+    : [makeTrack('audio')];
   stopped.push(...tracks);
   return {
     getTracks: () => tracks,
@@ -36,7 +52,7 @@ function fakeStream(withVideo: boolean) {
 }
 
 function callbacks() {
-  return { onFrame: vi.fn(), onStreamsChanged: vi.fn(), onCaptureFailed: vi.fn(), onNeedKeyframe: vi.fn() };
+  return { onFrame: vi.fn(), onStreamsChanged: vi.fn(), onCaptureFailed: vi.fn(), onNeedKeyframe: vi.fn(), onTrackEnded: vi.fn() };
 }
 
 beforeEach(() => {
