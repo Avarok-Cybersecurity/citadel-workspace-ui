@@ -15,7 +15,15 @@ import { GroupMessageFooter } from './GroupMessageFooter';
 
 interface GroupMessageItemProps {
   message: GroupMessage;
-  currentUserId: string;
+  /**
+   * The workspace USERNAME — what the server puts in `sender_id`.
+   *
+   * `currentUserId` (the CID) used to be passed here and compared against
+   * `sender_id`, which can never match. It is gone rather than underscore-
+   * hidden: an unused prop that looks like an identity invites the next person
+   * to compare against it again.
+   */
+  currentUserName: string;
   totalMembers: number;
   onEdit: (messageId: string, content: string) => void;
   onDelete: (messageId: string) => void;
@@ -24,13 +32,30 @@ interface GroupMessageItemProps {
 
 export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   message,
-  currentUserId,
+  currentUserName,
   totalMembers,
   onEdit,
   onDelete,
   onReply,
 }) => {
-  const isOwnMessage = message.sender_id === currentUserId;
+  // Compared against the USERNAME, not the CID.
+  //
+  // The server sets `sender_id` from `get_username_by_cid`, so it is a workspace
+  // username — while `currentUserId` is `String(connectionInfo.cid)`. A username
+  // can never equal a decimal CID, so this was ALWAYS false: Edit and Delete are
+  // gated on it and never rendered for anyone, and your own messages rendered
+  // left-aligned as if someone else had sent them.
+  //
+  // Fixed here rather than by changing `currentUserId`, which is genuinely a CID
+  // at three other sites in GroupChatPage — call-member filtering and a
+  // `BigInt()` conversion — and would break if it became a username.
+  //
+  // Guarded against the 'You' fallback: `currentUserName` defaults to that when
+  // the connection has no username yet, and a message from a user actually
+  // called "You" must not be mistaken for the reader's own.
+  const isOwnMessage = Boolean(currentUserName) && currentUserName !== 'You'
+    ? message.sender_id === currentUserName
+    : false;
   const initials = getInitials(message.sender_name);
 
   return (

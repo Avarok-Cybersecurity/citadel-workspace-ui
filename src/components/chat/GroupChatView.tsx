@@ -15,7 +15,8 @@ import { GroupMessageItem } from './GroupMessageItem';
 
 interface GroupChatViewProps {
   groupId: string;
-  currentUserId: string;
+  /** Unused by the view itself; kept only for callers that still pass it. */
+  currentUserId?: string;
   currentUserName: string;
   rules?: string;
   /** Total number of members in this group (for read receipts) */
@@ -24,8 +25,8 @@ interface GroupChatViewProps {
 
 export const GroupChatView: React.FC<GroupChatViewProps> = ({
   groupId,
-  currentUserId,
-  currentUserName: _currentUserName,
+  currentUserId: _currentUserId,
+  currentUserName,
   rules,
   totalMembers = 2,
 }) => {
@@ -77,7 +78,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                   <GroupMessageItem
                     key={message.id}
                     message={message}
-                    currentUserId={currentUserId}
+                    currentUserName={currentUserName}
                     totalMembers={totalMembers}
                     onEdit={(id, content) => {
                       chat.setEditingId(id);
