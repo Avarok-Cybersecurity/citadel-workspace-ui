@@ -13,6 +13,7 @@ import type {
 } from '@/types/workspace-protocol';
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import type { ProtocolSender } from './workspace-operations';
+import { aboutMember } from './response-matchers';
 import { awaitWriteResponse } from './await-write-response';
 import { eventEmitter } from '@/lib/event-emitter';
 
@@ -92,7 +93,11 @@ export async function updateMemberRole(
   // which cannot reject a send-only promise — so this used to report success
   // for writes the server was about to refuse.
   return afterMemberWrite(
-    awaitWriteResponse('UpdateMemberRole', () => sender.sendProtocolRequest(requestPart)),
+    awaitWriteResponse(
+      'UpdateMemberRole',
+      () => sender.sendProtocolRequest(requestPart),
+      aboutMember(userId),
+    ),
   );
 }
 

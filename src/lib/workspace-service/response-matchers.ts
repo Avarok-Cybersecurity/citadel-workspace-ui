@@ -43,3 +43,15 @@ export function newChildOf(parentId: string | null, name: string) {
   return (payload: unknown) =>
     field(payload, 'name') === name && (field(payload, 'parent_id') ?? null) === parentId;
 }
+
+/**
+ * `MemberRoleUpdated` — names the member whose role changed.
+ *
+ * This variant became a broadcast when demotions were made to reach the
+ * demoted user's own client. Before that it went only to the acting admin, so
+ * matching by type alone was safe; now another admin's role change in the same
+ * 15s window would resolve this one.
+ */
+export function aboutMember(userId: string) {
+  return (payload: unknown) => field(payload, 'user_id') === userId;
+}

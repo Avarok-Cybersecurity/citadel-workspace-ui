@@ -7953,3 +7953,43 @@ typing and matches no stored hash.
 The module tests were not enough, and the control proved it: disabling the check
 in the hook left all eight of them passing, because they test the hash and not
 whether anyone consults it. The wiring test that followed fails correctly.
+
+### Round 125 — a demotion that never reached the person demoted
+
+`UpdateMemberRole` and `UpdateMemberPermissions` answered only the requester —
+no broadcast, unlike every node write. And the client's permission-cache clear
+is gated on the payload naming the *current* user, which it never is for the
+admin doing the demoting. So the entire client-side role-changed pathway could
+only ever fire for an admin editing themselves.
+
+A demoted admin therefore kept every gated control until a full reload, with the
+server refusing each use as a raw error toast; a promoted member saw nothing new
+at all. The 60-second permission TTL does not rescue either, because
+`usePermission` refetches only when the domain is absent from the cache.
+
+Both writes now broadcast. `UpdateMemberPermissions` answers with `Success`,
+which carries no user id, so its broadcast is the role-shaped notification
+carrying the member's current role — what the client needs from it is "your
+permissions moved, drop your cache", and the role is how it identifies whose.
+A refused change is not broadcast, and a test pins that: announcing a demotion
+that did not happen would clear the member's cache and make them re-fetch —
+harmless once, and a lie the rest of the time.
+
+**This change re-created the round-117 defect, and I nearly shipped it.** Making
+`MemberRoleUpdated` a broadcast means `awaitWriteResponse` — which matches by
+type, because the protocol carries no request id — could have another admin's
+role change resolve this one. The matcher was added with the broadcast, in the
+same commit.
+
+The guard from round 117 did **not** catch this, and that is the part worth
+recording. Its `BROADCAST_WRITES` set is hand-maintained: adding a
+`kernel.broadcast` on the Rust side does not add a line to a TypeScript test, so
+the guard protects what it is told about and nothing else. The set now carries a
+comment saying so at the point where someone would add the next one. A guard
+that cannot see the change that creates the defect it guards against is worth
+having and worth being honest about.
+
+The last-admin guard also earned its place here, by refusing the first version
+of this test: demoting the only administrator is correctly impossible, so the
+test promotes instead — which covers the half of the finding where a member
+handed Admin sees nothing new.

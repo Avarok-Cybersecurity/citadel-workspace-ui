@@ -24,7 +24,18 @@ import { stripComments } from '@/test-utils/strip-comments';
  * than derived, because the fact lives in the Rust command processor and a
  * derived list would silently shrink if the grep stopped matching.
  */
-const BROADCAST_WRITES = new Set(['CreateNode', 'UpdateNode', 'DeleteNode', 'MoveNode']);
+const BROADCAST_WRITES = new Set([
+  'CreateNode',
+  'UpdateNode',
+  'DeleteNode',
+  'MoveNode',
+  // Added when demotions were made to reach the demoted user's client. Note
+  // that this list is hand-maintained: making a variant a broadcast on the Rust
+  // side does not add it here, so the guard protects what it is told about and
+  // nothing else. Adding a `kernel.broadcast` without adding a line here is the
+  // way back to the round-117 defect.
+  'UpdateMemberRole',
+]);
 
 const DIR = join(process.cwd(), 'src/lib/workspace-service');
 
