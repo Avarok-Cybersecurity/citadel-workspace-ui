@@ -37,6 +37,8 @@ if (import.meta.env.DEV) {
 // Initialize instance inbound router (routes WebSocket responses to correct instance)
 // Must be imported early to set up event listeners before any messages are processed
 import { instanceInboundRouter } from './lib/multi-instance';
+import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store';
+import { showStorageVersionRecovery } from './storage-version-recovery';
 void instanceInboundRouter.isRouterActive();
 
 // Construct the P2P messenger during boot so its 'websocket-message'
@@ -90,52 +92,6 @@ window.addEventListener('unhandledrejection', (e) => {
   }
 });
 
-/**
- * A recovery screen for the rollback case, built with safe DOM APIs.
- *
- * Unregisters the service worker before reloading: the stale bundle is very
- * often being served FROM the worker's precache, so a plain reload would hand
- * the user the same old build and the same error.
- */
-function showStorageVersionRecovery(): void {
-  const rootElement = document.getElementById('root');
-  if (!rootElement || rootElement.dataset.recovery === 'storage-version') return;
-  rootElement.dataset.recovery = 'storage-version';
-  rootElement.replaceChildren();
-
-  const panel = document.createElement('div');
-  panel.setAttribute('role', 'alert');
-  panel.style.cssText =
-    'max-width:34rem;margin:12vh auto;padding:2rem;font-family:system-ui,sans-serif;line-height:1.6';
-
-  const heading = document.createElement('h1');
-  heading.textContent = 'This version is older than your saved data';
-  heading.style.cssText = 'font-size:1.25rem;margin:0 0 0.75rem';
-
-  const body = document.createElement('p');
-  body.textContent =
-    'Your browser is running an older build of Citadel than the data stored on this device. ' +
-    'That usually means a cached copy loaded, or the app was rolled back. Getting the current ' +
-    'version will fix it — your data is untouched.';
-  body.style.cssText = 'margin:0 0 1.25rem';
-
-  const button = document.createElement('button');
-  button.textContent = 'Get the current version';
-  button.style.cssText =
-    'padding:0.6rem 1rem;border-radius:0.5rem;border:1px solid currentColor;background:transparent;' +
-    'color:inherit;font:inherit;cursor:pointer';
-  button.addEventListener('click', () => {
-    button.disabled = true;
-    button.textContent = 'Reloading…';
-    void navigator.serviceWorker?.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
-      .catch(() => undefined)
-      .finally(() => window.location.reload());
-  });
-
-  panel.append(heading, body, button);
-  rootElement.append(panel);
-}
 
 try {
   const rootElement = document.getElementById("root");
@@ -205,6 +161,12 @@ try {
       .then((registration) => registration?.update())
       .catch(() => undefined);
   }, UPDATE_CHECK_MS);
+
+  // Before React mounts. `beforeinstallprompt` fires once, early, and cannot
+  // be requested later — so capturing it must not depend on which component
+  // happens to be mounted at that moment. Same reasoning as the service-worker
+  // registration above.
+  startInstallPromptCapture();
 
   const root = createRoot(rootElement);
   root.render(<App />);

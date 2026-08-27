@@ -10,6 +10,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { InstallAppButton } from '../InstallAppButton';
+import {
+  startInstallPromptCapture,
+  resetInstallPromptCaptureForTests,
+} from '../install-prompt-store';
 
 const toast = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
@@ -47,7 +51,16 @@ function setStandalone(matches: boolean) {
 }
 
 describe('InstallAppButton', () => {
-  beforeEach(() => { toast.mockClear(); setStandalone(false); });
+  beforeEach(() => {
+    toast.mockClear();
+    setStandalone(false);
+    // The capture moved out of the hook and into a module-scope store, so the
+    // event no longer reaches anything until the store is listening. In the app
+    // main.tsx starts it before React mounts; here each test starts it fresh.
+    resetInstallPromptCaptureForTests();
+    startInstallPromptCapture();
+  });
+  afterEach(() => { resetInstallPromptCaptureForTests(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('renders nothing until the browser offers a prompt', () => {

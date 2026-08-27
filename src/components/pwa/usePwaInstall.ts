@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+import {
+  subscribeToInstallState,
+  getPromptEvent,
+  isAppInstalled,
+  clearPromptEvent,
+} from './install-prompt-store';
 import { debugLog } from '@/lib/debug-config';
 
 /**
@@ -6,11 +12,6 @@ import { debugLog } from '@/lib/debug-config';
  * Chromium fires it when the page meets the installability criteria (manifest +
  * service worker with a fetch handler + secure context).
  */
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-  prompt(): Promise<void>;
-}
 
 export interface PwaInstallState {
   /** True once the browser has offered an install prompt we can replay. */
@@ -31,13 +32,6 @@ export interface PwaInstallState {
   install: () => Promise<boolean>;
 }
 
-function detectStandalone(): boolean {
-  if (typeof window === 'undefined') return false;
-  // `display-mode: standalone` covers Chromium/Firefox; `navigator.standalone`
-  // is the iOS Safari equivalent, which does not implement the media query.
-  const iosStandalone = (window.navigator as { standalone?: boolean }).standalone === true;
-  return window.matchMedia('(display-mode: standalone)').matches || iosStandalone;
-}
 
 /**
  * Install affordance for the PWA.
@@ -50,48 +44,30 @@ function detectStandalone(): boolean {
  * the listener is installed on mount and the event stashed until the user acts.
  */
 export function usePwaInstall(): PwaInstallState {
-  const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(detectStandalone);
-
-  useEffect(() => {
-    const onBeforeInstallPrompt = (event: Event) => {
-      // Suppress the automatic mini-infobar so the app controls placement.
-      event.preventDefault();
-      setPromptEvent(event as BeforeInstallPromptEvent);
-      debugLog('PWA', 'Install prompt available');
-    };
-
-    const onInstalled = () => {
-      setIsInstalled(true);
-      setPromptEvent(null);
-      debugLog('PWA', 'App installed');
-    };
-
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    window.addEventListener('appinstalled', onInstalled);
-
-    // Launching an already-installed copy changes display-mode without a reload.
-    const standaloneQuery = window.matchMedia('(display-mode: standalone)');
-    const onDisplayModeChange = (e: MediaQueryListEvent) => setIsInstalled(e.matches);
-    standaloneQuery.addEventListener('change', onDisplayModeChange);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
-      standaloneQuery.removeEventListener('change', onDisplayModeChange);
-    };
-  }, []);
+  // Subscribed to the module-scope store rather than owning the listener, so
+  // every consumer sees the same captured event no matter when it mounted.
+  const promptEvent = useSyncExternalStore(
+    subscribeToInstallState,
+    getPromptEvent,
+    () => null,
+  );
+  const isInstalled = useSyncExternalStore(
+    subscribeToInstallState,
+    isAppInstalled,
+    () => false,
+  );
 
   const install = useCallback(async () => {
-    if (!promptEvent) return false;
-    await promptEvent.prompt();
-    const { outcome } = await promptEvent.userChoice;
+    const event = getPromptEvent();
+    if (!event) return false;
+    await event.prompt();
+    const { outcome } = await event.userChoice;
     // The event is single-use whichever way it goes; a dismissal means the
     // browser decides when (or whether) to offer another.
-    setPromptEvent(null);
+    clearPromptEvent();
     debugLog('PWA', `Install prompt ${outcome}`);
     return outcome === 'accepted';
-  }, [promptEvent]);
+  }, []);
 
   // Safari on iOS/iPadOS. Detected by the absence of a Chromium hook rather
   // than by browser name: iPadOS reports a Mac user-agent, so a name check

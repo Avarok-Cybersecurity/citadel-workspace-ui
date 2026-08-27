@@ -5941,3 +5941,59 @@ palette classes across the tree, and the test owns the two things ESLint cannot
 see — raw hexes in CSS files, and the `ring-white` / `border-white` sites the
 rule deliberately exempts because the colour picker needs them against arbitrary
 user-chosen hues.
+
+## Round eighty-seven — the install prompt that only the landing page could use, 2026-08-27
+
+### 386. Signing in permanently destroyed the install affordance
+
+Chromium fires `beforeinstallprompt` **once** per page load, early, and it cannot
+be requested later — the only way to show an install dialog is to replay the
+event you caught. It was stashed in `useState` inside `usePwaInstall`, with the
+listener registered in that instance's mount effect, so every consumer had its
+own listener and its own copy.
+
+That breaks the ordinary journey precisely. The event fires while the user is on
+the landing page. Signing in unmounts Landing, taking its stashed event with it,
+and mounts the TopBar consumer *after* the event has already fired. So the
+user-menu install entry — added specifically because "installing was only
+offered on the landing page" — could never appear for anyone who had signed in.
+The only remaining affordance was the omnibox icon, which the code's own comment
+calls "easy to miss and absent on some platforms".
+
+The capture now lives in a module-scope store started from `main.tsx` before
+React mounts, and the hook subscribes with `useSyncExternalStore`. Same reasoning
+the service-worker registration already follows and states: nothing that must not
+be missed should depend on a component being mounted at the right moment.
+
+`isAppInstalled` also reads display-mode live rather than caching it at start-up.
+Launching an already-installed copy flips display-mode without a reload, and a
+cached `false` keeps offering an install to someone already inside the app.
+
+The negative control makes the old behaviour explicit: have the store forget its
+event when its last subscriber unsubscribes — which is exactly what a per-hook
+`useState` does — and only the "mounts AFTER the event" test fails.
+
+`main.tsx` crossed the line cap, so the rollback recovery screen moved to
+`storage-version-recovery.ts`. It is one self-contained thing: the last-resort
+screen shown when IndexedDB refuses to open because the stored schema is newer
+than this build understands.
+
+### Recorded from the PWA audit, not fixed
+
+- **`interactive-widget=resizes-content` is Chromium-only.** The comment above
+  that meta tag describes the bug it fixes — `h-dvh` not shrinking, leaving the
+  composer under the keyboard — and WebKit does not implement the key, so that
+  bug is still live on iOS, the platform the install work targets. Needs a
+  `visualViewport` fallback driving a CSS variable.
+- **No `env(safe-area-inset-*)` anywhere.** The top inset is handled by choosing
+  the `default` status-bar style, which is sound and documented — but iOS
+  reserves only the status bar, so in standalone the composer's bottom edge sits
+  in the home-indicator gesture zone.
+- **"Updated in another window" tells the user to reload, in a window with no
+  reload control.** That toast carries no action, and the re-offer path is gated
+  on `registration.waiting`, which is null once another window has already
+  activated the new worker. In an installed standalone window there is no ⌘R and
+  no URL bar.
+- The offline banner is positioned `top-14` for the app header on every route,
+  including the header-less landing page — which is exactly the offline
+  cold-start screen.
