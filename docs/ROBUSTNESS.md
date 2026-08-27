@@ -8587,3 +8587,51 @@ written for the flow it actually serves.
 
 Controls: reverting the empty state fails three of the four directory tests;
 reintroducing `canMessageUser` anywhere outside its module fails the demo guard.
+
+## Round 141 — the exemptions, the ratchet, and the gates wired to nothing
+
+A parallel audit for checks that cannot fail found four worth acting on.
+
+**An exemption's reason is a claim, and a claim survives the removal of the
+thing it claims.** `follower-tabs-can-still-act.test.ts` exempted three files
+with "guarded by `instanceManager.isLeader`; followers proxy", and verified only
+that each still called `getClient`. Delete the `isLeader` branch from
+`workspace-operations.ts` and the suite stayed green — the fourth recurrence of
+the exact bug it documents. Worse, one of the three claims was simply false:
+`session-management.ts` has no `isLeader` anywhere; it returns silently when
+there is no client, which is a follower **no-op**, not a proxy.
+
+Exemptions now carry a machine-checkable `requires` pattern alongside the prose,
+and the reasons were corrected to what the code actually does. Control: removing
+the guard fails the suite by name.
+
+**An exemption without a bound is an allowance.** `check-file-length`'s SKIP
+list held seven bare filenames; `components/ui/sidebar.tsx` is at 764 lines,
+three times the cap, and nothing would have objected at 1500 — the exempt files
+being precisely the ones most likely to keep growing, since nobody is asked to
+split them. Each entry now records the length it was exempted at: a file may
+shrink, not grow. It also self-cleans — an entry whose file drops under the cap,
+or no longer exists, fails the check rather than sitting there shielding a
+future violation. Controls: appending one line to `Landing.tsx` fails; an
+exemption for a file under the cap fails.
+
+**The generated-types gate could pass with both sides stale.**
+`check-generated-types-fresh` diffs the committed bindings against the client's
+copy, but the bindings are only rewritten when someone runs the crate's ts-rs
+export tests, and nothing checked that the result matched what was committed.
+Edit a Rust struct, skip the cargo test, commit — parity is green while the
+client is built against a type the server no longer sends. That is not a
+cosmetic staleness: no protocol enum has a version field or a `serde(other)`
+arm, so an unknown variant fails the whole message and the client drops
+responses rather than degrading. CI now regenerates and runs `git diff
+--exit-code` on the bindings. The guard's own remediation advice said `cp` only,
+which against stale bindings propagates the staleness; it now says regenerate
+first.
+
+**Two guards ran nowhere.** `check-stack-reachable` — which exists because
+`docker compose up --wait` reports success for a stack the macOS browser cannot
+reach — was named only in a README line. `check-submodule-pointers-pushed` is
+*correctly* excluded from CI (by the time any job runs, checkout has already
+proved the pointers were pushed, so a CI copy could only report success), but
+that left it running nowhere at all. Both now have npm scripts, and the pointer
+check is a `.githooks/pre-push` hook.

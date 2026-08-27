@@ -27,17 +27,45 @@ import { stripComments } from '@/test-utils/strip-comments';
 
 const SRC = join(process.cwd(), 'src');
 
-/** Files allowed to reach for the raw client, and why it is leader-only there. */
-const LEADER_ONLY: Record<string, string> = {
-  'lib/websocket-service/core.ts': 'defines getClient/isConnected/canSendRequests',
-  'lib/websocket/messenger-operations.ts': 'guarded by instanceManager.isLeader; followers proxy',
-  'lib/websocket/session-management.ts': 'guarded by instanceManager.isLeader; followers proxy',
-  'lib/websocket/workspace-operations.ts': 'guarded by instanceManager.isLeader; followers proxy',
-  'lib/multi-instance/leader-proxy-handlers.ts': 'runs on the leader by definition',
-  'lib/call/websocket-call-transport.ts':
-    'calling is leader-only by design — see use-leader-tab.ts on the frame-path economics',
-  'lib/peer-registration-store/lifecycle.ts':
-    'only reachable from the leader-gated resend poll',
+/**
+ * Files allowed to reach for the raw client, and how that is enforced.
+ *
+ * `why` alone was not enough. Three entries said "guarded by
+ * instanceManager.isLeader; followers proxy" and nothing checked that the guard
+ * was there — delete the isLeader branch from workspace-operations.ts and this
+ * suite stayed green, which is the fourth recurrence of the exact bug it
+ * documents. And one of the three was simply wrong: session-management.ts has
+ * no isLeader anywhere; it returns silently when there is no client, which is
+ * a follower no-op, not a proxy.
+ *
+ * `requires` is the machine-checkable half. An exemption that claims a guard
+ * has to name a pattern that guard leaves in the file.
+ */
+const LEADER_ONLY: Record<string, { why: string; requires?: RegExp }> = {
+  'lib/websocket-service/core.ts': {
+    why: 'defines getClient/isConnected/canSendRequests',
+  },
+  'lib/websocket/messenger-operations.ts': {
+    why: 'guarded by instanceManager.isLeader; followers proxy',
+    requires: /instanceManager\.isLeader/,
+  },
+  'lib/websocket/session-management.ts': {
+    why: 'returns silently without a client, so a follower no-ops rather than throwing',
+    requires: /Cannot release session|if \(!client\)/,
+  },
+  'lib/websocket/workspace-operations.ts': {
+    why: 'guarded by instanceManager.isLeader; followers proxy',
+    requires: /instanceManager\.isLeader/,
+  },
+  'lib/multi-instance/leader-proxy-handlers.ts': {
+    why: 'runs on the leader by definition',
+  },
+  'lib/call/websocket-call-transport.ts': {
+    why: 'calling is leader-only by design — see use-leader-tab.ts on the frame-path economics',
+  },
+  'lib/peer-registration-store/lifecycle.ts': {
+    why: 'only reachable from the leader-gated resend poll',
+  },
 };
 
 async function sourceFiles(): Promise<string[]> {
@@ -65,13 +93,26 @@ describe('follower tabs', () => {
   });
 
   it('keeps every leader-only exemption real', async () => {
-    for (const rel of Object.keys(LEADER_ONLY)) {
+    for (const [rel, { why, requires }] of Object.entries(LEADER_ONLY)) {
       const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+
       expect(
         /\bgetClient\b/.test(source),
         `${rel} is exempted but no longer reaches for the client — drop the ` +
           `exemption rather than letting it shield a future one`,
       ).toBe(true);
+
+      // The exemption's REASON, checked. Without this the entry is a claim,
+      // and a claim survives the removal of the thing it claims.
+      if (requires) {
+        expect(
+          requires.test(source),
+          `${rel} is exempted because "${why}", but ${requires} no longer ` +
+            `appears in it. Either the guard was removed — in which case ` +
+            `follower tabs are now reaching for a null client — or the reason ` +
+            `is stale and the exemption should say what actually protects it.`,
+        ).toBe(true);
+      }
     }
   });
 
