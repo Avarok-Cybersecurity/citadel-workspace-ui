@@ -2266,6 +2266,89 @@ actually selected — it fails with `expected '/' to be '/notes.txt'`.
 This is the third test this campaign that passed with its own bug restored. The
 pattern in all three: **asserting below the layer where the decision is made.**
 
+## Round twenty-five — the key that must not be re-derived, and the update session, 2026-08-26
+
+### 197. The file key is recorded at upload, NOT re-derived — CORRECTED
+
+My own fix from round twenty-four was wrong for renamed files, and an audit
+caught it before it shipped anywhere real.
+
+The backend exposes send, download and delete for a file and **no way to re-path
+one** — the module header says so explicitly, which is why rename and move are
+local-only operations. So the server-side key is **immutable**: whatever the
+path was at upload time. A key derived from the current `node.path` therefore
+misses every renamed file — a worse failure than the one being fixed, because it
+only appears after a rename.
+
+`virtualDirectory` now holds the upload-time file path and is read back
+unchanged. That makes it the SSOT for a key the client **cannot recompute** —
+the opposite of the usual derive-don't-duplicate rule, and it needed the comment
+saying so, or the next person "fixes" it to track `node.path` and breaks exactly
+those files.
+
+The test now covers both mistakes: the original directory-vs-path bug, and a
+rename that must still address the original key. Negative-controlled against
+both — including against my own wrong version, which fails with
+`expected ['/notes.txt', '/renamed.txt'] to deeply equal ['/notes.txt', '/notes.txt']`.
+
+### 198. Recorded, not fixed — every accepted update runs one session on mismatched WASM
+
+The highest-reach PWA finding, and a **narrowed but not closed** version of a bug
+this repo already fixed once.
+
+The WASM binary is fetched from a stable URL (`/wasm/..._bg.wasm`) and runtime-
+cached StaleWhileRevalidate. The JS glue that calls into it is NOT at a stable
+URL — it is bundled into hashed, precached chunks. Workbox activates the new
+precache atomically, so on the first launch after a user accepts an update, the
+page runs the **new glue against the old binary**, and only revalidates in the
+background.
+
+The config comment names this exact failure — *"old WASM against new bindings,
+which surfaces as undefined-function errors rather than anything obvious"* — and
+the move from CacheFirst to SWR shrank the window from thirty days to one
+session. But that session is **the update session**, which every installed user
+hits on every wasm-changing deploy, and nothing tells them a second reload fixes
+it. There is no version compatibility check anywhere.
+
+**Fix direction:** give the binary a build-scoped identity — `?v=<build-id>` on
+the fetch, or a build-scoped runtime `cacheName` — so a new build is a cache MISS
+and fetches fresh, with offline preserved after first load. Not applied here: it
+spans the submodule that constructs the URL and needs a real
+install-then-update cycle to verify, and a caching change that cannot be
+verified is not one worth shipping.
+
+### 199. Recorded, not fixed — the rest of the PWA and RE-VFS audits
+
+- **Accepting an update half-updates every OTHER open window.** `skipWaiting`
+  takes over all clients at once, the old hashed chunks leave the precache, and
+  nginx 404s them — so a not-yet-visited lazy route in another window fails its
+  dynamic import into the top-level error boundary. There is no
+  `vite:preloadError` handler anywhere. Multi-window is first-class here.
+- **RE-VFS download listens for an event REVFS pulls never emit.**
+  `backendDownloadFile` waits on `FileTransferStatusNotification`, emitted only
+  by the standard accept/decline flow; a REVFS pull auto-accepts and streams
+  `FileTransferTickNotification`. It also reads `status.response?.download_path`
+  where `response` is a `bool`. Every download therefore times out at 30s and
+  resolves `success: false` — and the caller checks only `result.type`, so it
+  returns `undefined` and the UI toasts "Download initiated". **The success path
+  is unreachable.**
+- **`backendDownloadFile` correlates on CID, not request_id**, unlike both its
+  siblings in the same file — so a concurrent standard transfer resolves an
+  unrelated pending download.
+- **`copyNode` clones `fileMetadata` with a fresh id but the SAME key**, so two
+  tree nodes alias one backend object. Harmless while deletes miss; once they
+  land, deleting the copy destroys the original's bytes while its node still
+  shows the file.
+- **Deletes report success on enqueue**: the backend answers
+  `DeleteVirtualFileSuccess` after `remote.send`, without awaiting the actual
+  outcome — so even a delete of a nonexistent key succeeds.
+- **iOS has no install affordance at all** — the button requires
+  `beforeinstallprompt`, which iOS Safari never fires, zeroing the install funnel
+  for that platform.
+- **The WASM runtime cache expires after 30 days**, so an installed app launched
+  offline after a long idle renders its shell and cannot initialise the client —
+  while the toast promises it "will now load without a connection".
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
