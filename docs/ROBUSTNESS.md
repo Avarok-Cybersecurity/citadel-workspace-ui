@@ -2222,6 +2222,50 @@ Making the parameter **required** rather than optional is what produced that
 chain. An optional `content?: Uint8Array` would have compiled at every step and
 shipped the same silent failure.
 
+## Round twenty-four — one key per file, 2026-08-26
+
+### 194. A file was written under one key and read back under another — FIXED
+
+Upload writes `virtual_path = <full file path>`. Download and delete sent
+`fileMetadata.virtualDirectory` — the containing **directory** — so a file at
+`/docs/notes.txt` was stored as `/docs/notes.txt` and looked up as `/docs`.
+Five call sites, two different keys for one object.
+
+Now that uploads actually store bytes (round twenty-three), this is the
+difference between a file the user can open and one that exists but is
+unreachable — with the delete missing too, so the storage stays consumed with
+nothing referencing it.
+
+Deriving from `node.path` also ends a drift the stored field could not avoid:
+**rename and move rewrite `node.path` and never touch `virtualDirectory`**, so
+the stored key grew staler with every rename while the path stayed correct. One
+derivation, no second copy to fall behind — the SSOT rule, applied to a key
+rather than to data.
+
+### 195. A failed delete left bytes with nothing referencing them — FIXED
+
+`removeFileFromServer` removed the node and persisted the tree first, then
+issued the backend delete and **ignored its result**. A failure left the bytes on
+the server with no tree node pointing at them: storage consumed permanently, and
+no node left to retry from. Bytes go first now, and a failure stops the removal.
+
+Same shape as the upload ordering fixed last round — the irreversible local step
+belongs last, after the remote one has been confirmed.
+
+### 196. Method note — a test that passed with the bug fully restored, again
+
+The first version of the key-correspondence test called the network functions
+directly with a path and asserted they passed it through. They always did: the
+network layer was never wrong. **The caller chose the wrong value**, and a test
+one layer below the decision cannot see a decision.
+
+It passed the negative control, which is the only reason it was caught. Rewritten
+to assert on the INTENTS the file operations emit — the level where the key is
+actually selected — it fails with `expected '/' to be '/notes.txt'`.
+
+This is the third test this campaign that passed with its own bug restored. The
+pattern in all three: **asserting below the layer where the decision is made.**
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
