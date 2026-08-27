@@ -138,5 +138,9 @@ export async function updateUserProfile(
       avatar_data: avatarData
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // The settings form disables every input on `isSaving` and cleared it only on
+  // the success event, so a refusal locked the whole panel in "Saving…" until
+  // it was closed and reopened. Gating makes the refusal a rejection the caller
+  // can actually see.
+  return awaitWriteResponse('UpdateUserProfile', () => sender.sendProtocolRequest(requestPart));
 }

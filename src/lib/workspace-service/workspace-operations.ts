@@ -63,7 +63,9 @@ export async function createWorkspace(
       metadata: metadata ? Array.from(metadata) : undefined
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Same reasoning as updateWorkspace: a refusal arrives as a response and
+  // cannot reject a send-only promise.
+  return awaitWriteResponse('CreateWorkspace', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -110,5 +112,8 @@ export async function updateWorkspace(
       metadata: metadata ? Array.from(metadata) : undefined
     }
   } as WorkspaceProtocolRequestTS;
-  return sender.sendProtocolRequest(requestPart);
+  // A refusal (no permission, wrong master password) arrives as a response,
+  // which cannot reject a send-only promise — so GeneralTab toasted "updated
+  // successfully" and cleared its dirty flag for a rename the server rejected.
+  return awaitWriteResponse('UpdateWorkspace', () => sender.sendProtocolRequest(requestPart));
 }

@@ -124,6 +124,11 @@ export function handleGeneratedVariants(
       userId: user.id, name: user.name,
     });
     eventEmitter.emit('user:profile-updated', { user, connection: connectionInfo });
+    // Raw as well, so a caller awaiting confirmation can see it. A handled
+    // variant that returns true without this leaves every write gated on it
+    // waiting out the 15s timeout and telling the user the change may not have
+    // saved — after this handler already applied it.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 

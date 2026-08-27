@@ -3578,6 +3578,65 @@ text in the box** instead of destroying it on the way to an error nobody saw.
   the update bytes, so a resend is impossible — and the badge never leaves
   "Synced".
 
+## Round forty-five — gating the last resolve-on-send writes, and the trap in doing so, 2026-08-28
+
+### 262. Three more writes reported success on send — FIXED
+
+`UpdateWorkspace`, `CreateWorkspace` and `UpdateUserProfile` were still
+send-only. The workspace rename is the worst: `GeneralTab` awaited it, toasted
+"updated successfully" and cleared its dirty flag — so a refusal (no permission,
+wrong master password) left the admin believing the rename had landed,
+contradicted seconds later by a disjoint global error toast, with the name
+unchanged.
+
+The profile save compounded it: the settings form disables **every input** on
+`isSaving`, which was cleared only by the success event and by the catch of a
+promise that could not reject. A refusal locked the whole panel in "Saving…"
+until it was closed and reopened. Gating the send was the entire fix — the catch
+that clears the flag and toasts was already there, waiting for a rejection that
+never came.
+
+### 263. Two of the three would have reproduced my own regression — CAUGHT BEFORE SHIPPING
+
+Round twenty-six shipped exactly this change for eleven types and broke four of
+them, because `awaitWriteResponse` settles on `workspace:raw-response` and most
+router handlers apply a response and `return true` **without emitting it**. I had
+verified the server sends the variant and never checked the client forwards it.
+
+Checked first this time. `Workspace` emits (fixed in that round). `CreateWorkspace`
+and `UserProfileUpdated` **did not** — gating them as-is would have made every
+successful workspace creation and profile save wait out 15s and report possible
+failure. The emit was added to both handlers before the table entry.
+
+### 264. And the test for it could not fail — CAUGHT, then fixed
+
+To stop this recurring I wrote a test that drives the real router with each
+gated variant and asserts the raw event arrives. **It passed with the emit
+deleted.**
+
+The wire shape was wrong — I nested the payload one level too deep, so every
+variant fell through to the router's *Unhandled* branch, which also emits
+`workspace:raw-response`. Every variant "passed", and would have passed whatever
+the handlers did.
+
+This is the second check-that-cannot-fail I have written in two rounds, both with
+the same root cause: **a fallback path that produces the same observable as
+success.** The stack guard defaulted to `ok` on an error it did not recognise;
+this defaulted to the fallback's event.
+
+The fix is a precondition. The test now spies on `emit` and requires at least one
+**domain** event — proof that a real variant handler ran, since only the Unhandled
+branch emits raw-response alone. That precondition immediately earned its keep by
+catching a malformed test payload (`NodeDeleted` without `children_deleted`,
+which made the handler throw into the emitter's catch and look unhandled).
+
+With it, deleting the emit fails with the finding itself: *"UpdateUserProfile is
+gated on 'UserProfileUpdated', but the router handles that variant without
+emitting 'workspace:raw-response'."*
+
+**The general rule: when a test asserts an observable that a fallback path also
+produces, assert first that the fallback is not what produced it.**
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

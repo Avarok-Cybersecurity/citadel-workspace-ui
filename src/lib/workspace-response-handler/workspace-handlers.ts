@@ -84,6 +84,11 @@ function handleTypeGapVariants(
     };
     eventEmitter.emit('workspace:created', payload);
     eventEmitter.emit('workspace:loaded', payload);
+    // Raw as well, so a caller awaiting confirmation can see it. A handled
+    // variant that returns true without this leaves every write gated on it
+    // waiting out the 15s timeout and telling the user the change may not have
+    // saved — after this handler already applied it.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 

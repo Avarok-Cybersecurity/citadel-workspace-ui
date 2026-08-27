@@ -33,7 +33,7 @@ import { debugLog } from '@/lib/debug-config';
 export const WRITE_RESPONSE_TIMEOUT_MS = 15_000;
 
 /** The response variants that mean a given request succeeded. */
-const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
+export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   CreateNode: ['Node'],
   UpdateNode: ['Node'],
   DeleteNode: ['NodeDeleted'],
@@ -51,6 +51,18 @@ const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
 
   // The theme write, whose UI promises "Every member will see this theme".
   UpdateWorkspaceTheme: ['Workspace'],
+
+  // The workspace-level writes. GeneralTab awaited updateWorkspace, toasted
+  // "updated successfully" and cleared its dirty flag on the SEND — so a
+  // refusal (no permission, bad master password) left the admin believing the
+  // rename had landed, contradicted seconds later by a disjoint global error
+  // toast, with the name unchanged.
+  UpdateWorkspace: ['Workspace'],
+  CreateWorkspace: ['CreateWorkspace'],
+
+  // The profile save, whose spinner disables the whole settings form and was
+  // cleared only by the success event.
+  UpdateUserProfile: ['UserProfileUpdated'],
 
   // Group message edits and deletes. The edit composer used to close and
   // discard the user's edited text as though it had landed, while the message
