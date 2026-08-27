@@ -40,7 +40,17 @@ function buildTree(): RevfsNode {
 
 function setup(tree: RevfsNode) {
   const executed: Array<Record<string, unknown>> = [];
-  const io = { execute: vi.fn((intent: Record<string, unknown>) => { executed.push(intent); return Promise.resolve({}); }) };
+  // Echoes the intent type with success, so it models a backend that ACCEPTS.
+  // Returning a bare `{}` could represent neither success nor failure, so any
+  // caller that started checking its result would fail against a working
+  // backend — which is exactly what happened when serverRmdir began reporting
+  // files it could not delete.
+  const io = {
+    execute: vi.fn((intent: Record<string, unknown>) => {
+      executed.push(intent);
+      return Promise.resolve({ type: intent.type, success: true });
+    }),
+  };
   const ctx = {
     state: { setTree: vi.fn(), getTree: vi.fn() },
     ensureIO: () => io,
@@ -115,5 +125,23 @@ describe('serverRmdir', () => {
     const persisted = executed.find((i) => i.type === 'persist-tree')?.tree as RevfsNode;
     expect(persisted.children?.some((c) => c.name === 'docs')).toBe(false);
     expect(persisted.children?.some((c) => c.name === 'keep')).toBe(true);
+  });
+
+  it('reports the files it could not delete rather than losing them silently', async () => {
+    const { ctx } = setup(buildTree());
+    // A backend that refuses the deletes. The folder is already gone from the
+    // tree by this point, so the user must be told which files are still
+    // consuming server storage — otherwise they are unreferenceable and
+    // invisible.
+    (ctx.ensureIO() as unknown as { execute: ReturnType<typeof vi.fn> }).execute =
+      vi.fn((intent: Record<string, unknown>) =>
+        Promise.resolve(
+          intent.type === 'backend-delete-file'
+            ? { type: intent.type, success: false }
+            : { type: intent.type, success: true }
+        )
+      );
+
+    await expect(serverRmdir(ctx, MY_CID, '/docs')).rejects.toThrow(/could not be deleted/);
   });
 });

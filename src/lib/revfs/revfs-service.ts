@@ -28,6 +28,7 @@ import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
 import * as fileOps from './revfs-file-ops';
 import * as serverFileOps from './revfs-server-file-ops';
+import { persistTree } from './persist-tree';
 
 
 
@@ -106,7 +107,7 @@ export class RevfsService {
 
     const defaultTree = createDefaultTree();
     this.state.setTree(key, defaultTree);
-    await io.execute({ type: 'persist-tree', treeKey: key, tree: defaultTree });
+    await persistTree(io, key, defaultTree);
     return defaultTree;
   }
 
@@ -128,7 +129,7 @@ export class RevfsService {
 
     const defaultTree = createDefaultTree();
     this.state.setTree(key, defaultTree);
-    await io.execute({ type: 'persist-tree', treeKey: key, tree: defaultTree });
+    await persistTree(io, key, defaultTree);
     return defaultTree;
   }
 
@@ -179,7 +180,7 @@ export class RevfsService {
       const merged = mergeTrees(currentTree, applyRemoteOp(currentTree, op, myCid));
       this.state.setTree(key, merged);
       const io = this.ensureIO();
-      await io.execute({ type: 'persist-tree', treeKey: key, tree: merged });
+      await persistTree(io, key, merged);
       return;
     }
 
@@ -188,7 +189,7 @@ export class RevfsService {
     debugLog('RevfsService', `[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
     this.state.setTree(key, newTree);
     const io = this.ensureIO();
-    await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+    await persistTree(io, key, newTree);
 
     const ackOp: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack, path: op.path, ack_op_id: op.op_id, success: true, timestamp: Date.now() };
     await this.sendOp(senderCid, ackOp);

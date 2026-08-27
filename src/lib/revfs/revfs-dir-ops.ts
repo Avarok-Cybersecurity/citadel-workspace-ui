@@ -20,6 +20,7 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
+import { persistTree } from './persist-tree';
 
 export interface DirOpsContext {
   state: RevfsState;
@@ -38,7 +39,7 @@ export async function peerMkdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
@@ -49,7 +50,7 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
@@ -60,7 +61,7 @@ export async function peerRename(ctx: DirOpsContext, myCid: bigint, peerCid: big
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
@@ -71,7 +72,7 @@ export async function peerMove(ctx: DirOpsContext, myCid: bigint, peerCid: bigin
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
@@ -82,7 +83,7 @@ export async function peerCopy(ctx: DirOpsContext, myCid: bigint, peerCid: bigin
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
@@ -115,7 +116,7 @@ export async function serverMkdir(ctx: DirOpsContext, myCid: bigint, path: strin
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 }
 
 export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: string): Promise<void> {
@@ -137,8 +138,9 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 
+  const undeleted: string[] = [];
   for (const file of orphaned) {
     if (!file.fileMetadata) {
       // Nothing identifies this file to the backend, so it cannot be deleted
@@ -146,7 +148,7 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
       debugLog('RevfsDirOps', `serverRmdir: no metadata for ${file.path}, cannot delete server-side`);
       continue;
     }
-    await io.execute({
+    const deleted = await io.execute({
       type: 'backend-delete-file',
       cid: myCid,
       peerCid: null,
@@ -154,6 +156,20 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
       // stay where they were written, so node.path is the wrong thing here.
       virtualDir: file.fileMetadata.virtualDirectory,
     });
+
+    // Collected rather than thrown per file: the directory is already gone from
+    // the tree, so aborting halfway would leave the remaining files both
+    // undeleted AND unreported. The user is told which ones survived.
+    if (deleted.type !== 'backend-delete-file' || !deleted.success) {
+      undeleted.push(file.path);
+    }
+  }
+
+  if (undeleted.length > 0) {
+    throw new Error(
+      `The folder was removed, but ${undeleted.length} file(s) could not be deleted from ` +
+        `server storage and are still using space: ${undeleted.join(', ')}`
+    );
   }
 }
 
@@ -164,7 +180,7 @@ export async function serverRename(ctx: DirOpsContext, myCid: bigint, path: stri
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 }
 
 export async function serverMove(ctx: DirOpsContext, myCid: bigint, sourcePath: string, destParentPath: string): Promise<void> {
@@ -174,7 +190,7 @@ export async function serverMove(ctx: DirOpsContext, myCid: bigint, sourcePath: 
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 }
 
 export async function serverCopy(ctx: DirOpsContext, myCid: bigint, sourcePath: string, destParentPath: string): Promise<void> {
@@ -184,5 +200,5 @@ export async function serverCopy(ctx: DirOpsContext, myCid: bigint, sourcePath: 
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 }

@@ -14,6 +14,7 @@ import {
 } from './tree-operations';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
+import { persistTree } from './persist-tree';
 
 export interface FileOpsContext {
   state: RevfsState;
@@ -89,7 +90,7 @@ export async function uploadFileToServer(
   if (fileNode) fileNode.fileState = RevfsFileState.ServerStored;
 
   ctx.state.setTree(key, newTree);
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 }
 
 export async function removeFileFromServer(
@@ -129,7 +130,7 @@ export async function removeFileFromServer(
 
   const [newTree] = treeRemoveFile(tree, filePath);
   ctx.state.setTree(key, newTree);
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 }
 
 export async function downloadFileFromServer(

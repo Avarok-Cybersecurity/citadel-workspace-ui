@@ -11,7 +11,6 @@ import type { RevfsIntentResult } from '@/types/revfs-intents';
 import { eventEmitter } from '../event-emitter';
 import { BACKEND_TIMEOUT_MS, type NetworkIODeps } from './revfs-io-network';
 import { debugLog } from '@/lib/debug-config';
-import { TIMEOUT } from '../timeout-constants';
 
 export async function backendDownloadFile(
   deps: NetworkIODeps,

@@ -14,6 +14,7 @@ import {
 } from './tree-operations';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
+import { persistTree } from './persist-tree';
 
 export interface FileOpsContext {
   state: RevfsState;
@@ -69,7 +70,7 @@ export async function uploadFileToPeer(
   const [newTree, op] = treePlaceFile(tree, filePath, peerMetadata, myCid);
 
   ctx.state.setTree(key, newTree);
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
@@ -81,15 +82,14 @@ export async function removeFileFromPeer(
 ): Promise<void> {
   const key = peerPairKey(myCid, peerCid);
   const tree = await ctx.getTree(myCid, peerCid);
-  const [newTree, op] = treeRemoveFile(tree, filePath);
-
-  ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
 
+  // Bytes first, node second — the same ordering as the server path. Removing
+  // the node first and then discarding the delete result left the bytes with
+  // nothing referencing them: storage consumed, and no node left to retry from.
   const fileNode = ctx.findFileInTree(tree, filePath);
   if (fileNode?.fileMetadata) {
-    await io.execute({
+    const deleted = await io.execute({
       type: 'backend-delete-file',
       cid: myCid,
       peerCid,
@@ -97,7 +97,15 @@ export async function removeFileFromPeer(
       // re-path an object. See uploadFileToServer.
       virtualDir: fileNode.fileMetadata.virtualDirectory,
     });
+
+    if (deleted.type !== 'backend-delete-file' || !deleted.success) {
+      throw new Error(`"${filePath}" could not be deleted from peer storage. It has been left in place.`);
+    }
   }
+
+  const [newTree, op] = treeRemoveFile(tree, filePath);
+  ctx.state.setTree(key, newTree);
+  await persistTree(io, key, newTree);
 
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
@@ -160,7 +168,7 @@ export async function addSentFile(
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
   void ctx.sendOp(peerCid, op);
 }
 
@@ -188,5 +196,5 @@ export async function addReceivedFile(
 
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
+  await persistTree(io, key, newTree);
 }
