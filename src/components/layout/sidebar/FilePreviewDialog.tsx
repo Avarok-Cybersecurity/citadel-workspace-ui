@@ -1,9 +1,31 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Calendar, Download, FileSpreadsheet, FileText, FileType, FileCode, User } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatFileSize } from "@/lib/utils";
-import { useState } from "react";
+/**
+ * What happened to a file someone sent you.
+ *
+ * This used to be a preview dialog, and every control in it operated on a path
+ * the browser can never resolve. A completed P2P transfer records
+ * `downloadPath` — where the INTERNAL SERVICE, on its own filesystem, wrote the
+ * file. The dialog treated it as a URL:
+ *
+ *   txt/md   rendered the path string as the document body, so a user asking
+ *            to read their notes read "/root/.citadel/downloads/notes.txt"
+ *   pdf      iframed the path against the page origin — a 404 and a blank frame
+ *   xlsx/doc iframed view.officeapps.live.com with the path as `src`, which the
+ *            CSP blocks outright and which Microsoft could not have fetched
+ *   Download  set an anchor href to the path — another origin-relative 404
+ *
+ * There is no route from the browser to that file: the agent is a separate
+ * process with its own filesystem, and the direct-P2P path deliberately writes
+ * there rather than streaming bytes into the page. So the dialog now says what
+ * is true — the file arrived, here is what it is, here is where it landed —
+ * with the path copyable, which is the only action that helps.
+ */
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Calendar, Check, Copy, FileSpreadsheet, FileText, FileType, FileCode, HardDrive, User } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { formatFileSize } from '@/lib/utils';
+import { useState } from 'react';
 
 interface FileDetails {
   id: string;
@@ -15,7 +37,8 @@ interface FileDetails {
     avatar: string;
   };
   createdAt: string;
-  url: string;
+  /** Where the agent saved it, on the agent's filesystem. Not a URL. */
+  savedTo: string;
 }
 
 interface FilePreviewDialogProps {
@@ -26,7 +49,7 @@ interface FilePreviewDialogProps {
 
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split('.').pop()?.toLowerCase();
-  
+
   switch (extension) {
     case 'xlsx':
     case 'xls':
@@ -45,72 +68,53 @@ const getFileIcon = (fileName: string) => {
   }
 };
 
-const renderFilePreview = (file: FileDetails) => {
-  const extension = file.name.split('.').pop()?.toLowerCase();
+function SavedLocation({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false);
 
-  switch (extension) {
-    case 'pdf':
-      return (
-        <iframe
-          src={`${file.url}#toolbar=0`}
-          className="w-full h-[600px] rounded-lg"
-          title={file.name}
-        />
-      );
-    case 'txt':
-    case 'md':
-    case 'mdx':
-      return (
-        <div className="w-full max-h-[600px] overflow-auto bg-card p-4 rounded-lg">
-          <pre className="text-foreground whitespace-pre-wrap">{file.url}</pre>
-        </div>
-      );
-    case 'xlsx':
-    case 'xls':
-      return (
-        <iframe
-          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(file.url)}`}
-          className="w-full h-[600px] rounded-lg"
-          title={file.name}
-        />
-      );
-    case 'doc':
-    case 'docx':
-    case 'odt':
-      return (
-        <iframe
-          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(file.url)}`}
-          className="w-full h-[600px] rounded-lg"
-          title={file.name}
-        />
-      );
-    default:
-      return (
-        <div className="text-center p-8 bg-card rounded-lg">
-          <FileCode className="mx-auto h-12 w-12 text-foreground/80 mb-4" />
-          <p className="text-foreground">Preview not available for this file type</p>
-        </div>
-      );
+  if (!path) {
+    // Reached when a transfer completed without reporting a path. Saying so is
+    // better than an empty field the user reads as "nowhere".
+    return (
+      <p className="text-sm text-muted-foreground">
+        The agent did not report where this file was saved.
+      </p>
+    );
   }
-};
+
+  const copy = () => {
+    void navigator.clipboard.writeText(path).then(
+      () => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      },
+      () => setCopied(false),
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-muted-foreground">
+        Saved by your local agent to:
+      </p>
+      <div className="flex items-start gap-2">
+        <code className="flex-1 break-all rounded bg-muted px-2 py-1 text-xs text-foreground">
+          {path}
+        </code>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={copy}
+          aria-label={copied ? 'File path copied' : 'Copy file path'}
+        >
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogProps) => {
-  const [showPreview, setShowPreview] = useState(false);
-
   if (!file) return null;
-
-  const handlePreview = () => {
-    setShowPreview(true);
-  };
-
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = file.url;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -118,100 +122,35 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider">
             {getFileIcon(file.name)}
-            File Preview
+            {file.name}
           </DialogTitle>
         </DialogHeader>
 
-        {showPreview ? (
-          <div className="space-y-4">
-            {renderFilePreview(file)}
-            <div className="flex justify-end">
-              <Button
-                onClick={() => setShowPreview(false)}
-                className="bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25"
-              >
-                Back to Details
-              </Button>
-            </div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" aria-hidden="true" />
+            <Avatar className="h-6 w-6">
+              <AvatarImage src={file.sender.avatar} alt="" />
+              <AvatarFallback>{file.sender.name.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <span>Sent by {file.sender.name}</span>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="bg-card rounded-lg p-4">
-              <div className="flex flex-col space-y-6">
-                <div className="text-center">
-                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
-                    <User className="h-5 w-5" />
-                    Sent by
-                  </div>
-                  <div className="inline-flex items-center gap-3 bg-card rounded-full px-6 py-2">
-                    <Avatar className="h-10 w-10">
-                      {/* Decorative: the sender's name is shown beside it. */}
-                      <AvatarImage src={file.sender.avatar} alt="" />
-                      <AvatarFallback>{file.sender.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-lg font-medium">{file.sender.name}</span>
-                  </div>
-                </div>
 
-                <div className="text-center">
-                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
-                    {getFileIcon(file.name)}
-                    Filename
-                  </div>
-                  <div className="bg-card rounded-full px-6 py-2">
-                    {file.name}
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Create Date
-                  </div>
-                  <div className="bg-card rounded-full px-6 py-2">
-                    {file.createdAt}
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
-                    {getFileIcon(file.name)}
-                    File Type
-                  </div>
-                  <div className="bg-card rounded-full px-6 py-2">
-                    {file.type}
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <div className="text-sm text-foreground/80 mb-2 uppercase tracking-wider flex items-center justify-center gap-2">
-                    {getFileIcon(file.name)}
-                    File Size
-                  </div>
-                  <div className="bg-card rounded-full px-6 py-2">
-                    {formatFileSize(file.size)}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                onClick={handlePreview}
-                className="bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25"
-              >
-                Preview
-              </Button>
-              <Button
-                onClick={handleDownload}
-                className="bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Button>
-            </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" aria-hidden="true" />
+            <span>{file.createdAt}</span>
           </div>
-        )}
+
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <HardDrive className="h-4 w-4" aria-hidden="true" />
+            <span>
+              {formatFileSize(file.size)}
+              {file.type && file.type !== 'Unknown' ? ` · ${file.type}` : ''}
+            </span>
+          </div>
+
+          <SavedLocation path={file.savedTo} />
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,4 +1,6 @@
 import { FileSpreadsheet, FileText, FileType, FileCode, Folder, FileX } from "lucide-react";
+import { peerDisplayName } from '@/lib/peer-display';
+import { useRegisteredPeers } from '@/hooks';
 import { useState, useEffect, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -29,7 +31,8 @@ interface FileDisplay {
     avatar: string;
   };
   createdAt: string;
-  url: string;
+  /** Where the agent saved it, on the agent's filesystem. Not a URL. */
+  savedTo: string;
 }
 
 /**
@@ -47,18 +50,25 @@ function formatBytes(bytes: number): string {
 /**
  * Convert FileTransfer to FileDisplay for sidebar
  */
-function mapTransferToDisplay(transfer: FileTransfer): FileDisplay {
+function mapTransferToDisplay(
+  transfer: FileTransfer,
+  usernameForCid: (cid: string) => string | undefined,
+): FileDisplay {
   return {
     id: transfer.id,
     name: transfer.fileName,
     type: transfer.fileType || 'Unknown',
     size: transfer.fileSize,
     sender: {
-      name: transfer.senderCid.slice(0, 12) + '...', // Truncate CID for display
-      avatar: '', // Default empty avatar for CID-based senders
+      // A raw decimal CID, truncated, was shown as the sender's identity -- in
+      // the one dialog whose job is to say who sent the file. peerDisplayName
+      // is what every other surface uses; it falls back to a short handle
+      // rather than thirteen digits.
+      name: peerDisplayName({ cid: transfer.senderCid, username: usernameForCid(transfer.senderCid) }),
+      avatar: '',
     },
     createdAt: formatDateTime(transfer.updatedAt),
-    url: transfer.downloadPath ?? '',
+    savedTo: transfer.downloadPath ?? '',
   };
 }
 
@@ -87,6 +97,7 @@ export const FilesSection = () => {
   const [files, setFiles] = useState<FileDisplay[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileDisplay | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const { registeredPeers } = useRegisteredPeers();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -98,8 +109,11 @@ export const FilesSection = () => {
       .filter(t => t.state === 'complete' && t.isIncoming)
       .sort((a, b) => b.updatedAt - a.updatedAt); // Most recent first
 
-    setFiles(downloads.map(mapTransferToDisplay));
-  }, []);
+    const usernameForCid = (cid: string) =>
+      registeredPeers.find(peer => peer.cid.toString() === cid)?.username;
+
+    setFiles(downloads.map(transfer => mapTransferToDisplay(transfer, usernameForCid)));
+  }, [registeredPeers]);
 
   // Initial load
   useEffect(() => {

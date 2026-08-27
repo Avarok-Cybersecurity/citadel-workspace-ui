@@ -38,7 +38,7 @@ interface StatusDisplay {
   customColor?: string;
 }
 
-function getStatusDisplay(
+export function getStatusDisplay(
   presence: PeerPresence,
   connected: boolean,
   registered: boolean
@@ -46,9 +46,18 @@ function getStatusDisplay(
   if (connected) {
     return { text: 'Online', color: 'bg-success', textColor: 'text-success' };
   }
-  if (registered) {
-    return { text: 'Registered', color: 'bg-primary-accent', textColor: 'text-primary-accent' };
-  }
+
+  // `registered` used to short-circuit here, and it is true for every peer you
+  // can have a conversation with -- by construction, since the conversation
+  // exists because the registration does. So every branch below was
+  // unreachable: Away, Offline and the user's own custom status were sent by
+  // the peer, received, routed and stored, and displayed nowhere. The one
+  // surface designed to show presence showed the word "Registered" instead,
+  // which is protocol vocabulary, not a state a person is in.
+  //
+  // Registration now only decides what "we know nothing" looks like: an
+  // unregistered peer is genuinely unknown, a registered one with no presence
+  // yet is offline.
   switch (presence.status) {
     case MessagingLayerType.Online:
       return { text: 'Online', color: 'bg-success', textColor: 'text-success' };
@@ -64,7 +73,9 @@ function getStatusDisplay(
         customColor: presence.customColor
       };
     default:
-      return { text: 'Offline', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
+      return registered
+        ? { text: 'Offline', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' }
+        : { text: 'Not connected', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
   }
 }
 

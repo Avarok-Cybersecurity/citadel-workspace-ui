@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useConfirm } from '@/components/shared/confirm-dialog';
+import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { describeFailure } from '@/lib/failure-message';
 import { useToast } from '@/hooks/use-toast';
 import { shouldSendOnKey } from './should-send-on-key';
@@ -13,6 +15,7 @@ import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-ti
 
 export function useGroupChat(groupId: string) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -176,6 +179,10 @@ export function useGroupChat(groupId: string) {
 
   // Handle delete message
   const handleDeleteMessage = async (messageId: string) => {
+    // Asked first. Delete sits directly under Edit in the same dropdown, and a
+    // mis-click destroyed the message for everyone with no undo.
+    if (!(await confirm(DELETE_MESSAGE_PROMPT))) return;
+
     try {
       await WorkspaceService.deleteGroupMessage(groupId, messageId);
     } catch (error) {

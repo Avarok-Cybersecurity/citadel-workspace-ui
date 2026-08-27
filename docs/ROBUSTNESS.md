@@ -8635,3 +8635,60 @@ reach — was named only in a README line. `check-submodule-pointers-pushed` is
 proved the pointers were pushed, so a CI copy could only report success), but
 that left it running nowhere at all. Both now have npm scripts, and the pointer
 check is a `.githooks/pre-push` hook.
+
+## Round 142 — controls that operated on nothing, and one that operated on the wrong thing
+
+A parallel audit of the UI's state space found four worth fixing now.
+
+**The sidebar's file dialog operated entirely on a path the browser cannot
+resolve.** A completed P2P transfer records `downloadPath` — where the
+*internal service*, on its own filesystem, wrote the file. The dialog treated it
+as a URL: `txt`/`md` rendered the path string as the document body, so a user
+asking to read their notes read `/root/.citadel/downloads/notes.txt`; `pdf`
+iframed the path against the page origin for a 404 and a blank frame;
+spreadsheets and documents iframed `view.officeapps.live.com` with the path as
+`src`, which the CSP blocks outright and which Microsoft could not have fetched
+anyway; and Download set an anchor `href` to it, another origin-relative 404.
+Sender identity was `senderCid.slice(0, 12) + '...'` — a truncated decimal CID,
+in the one dialog whose job is to say who sent the file, while `peerDisplayName`
+is what every other surface uses.
+
+There is no route from the browser to that file: the agent is a separate
+process with its own filesystem, and the direct-P2P path deliberately writes
+there rather than streaming bytes into the page. So the dialog now says what is
+true — the file arrived, this is what it is, this is where it landed — with the
+path copyable, which is the only action that helps. Round 118 made transfer
+completions real, so this list populates now and every file-receiving user
+reaches it.
+
+**Deleting a message was one click, no confirmation, no undo, in both chats.**
+Delete sits directly under Edit in the same dropdown, and the message is
+destroyed for every participant. Every other destructive action in this app —
+node delete, group delete, kick, removing a saved account, disconnecting — asks
+first. Both chats now share one prompt, so they cannot drift into asking
+different questions or one of them into asking none, which is how this started.
+
+**"Registered" made the entire received-presence feature unreachable.** The DM
+header checked `connected`, then `registered`, then the peer's presence — and
+`registered` is true for every peer you can have a conversation with, by
+construction, since the conversation exists because the registration does. So
+Away, Offline and the user's own custom status text and colour were sent,
+received, routed and stored, and displayed nowhere; the one surface designed to
+show presence showed protocol vocabulary instead. Registration now only decides
+what "we know nothing" looks like.
+
+**Two buttons did nothing.** "Remove Connection" on the profile card rendered
+with no `onClick` in any form — round 131's finding (both Invite buttons had no
+handler) one branch over in the same component, never propagated. There is no
+peer-deregistration flow in the frontend at all, so the honest fix is not to
+offer it. And `MemberListItem` had an Unfavourite star with no handler inside a
+`variant === 'favorites'` branch nothing ever passes: an unreachable branch
+containing a control that does nothing, two ways of being wrong about one
+button.
+
+`buttons-do-something.test.ts` scans for the shape. Getting it to discriminate
+took two passes — `<DropdownMenuTrigger asChild><Button>` gets its behaviour
+from the trigger, and requiring an `onClick` there would push people to add a
+no-op one; and `stripComments` leaves `{}` where a JSX comment was, which sat
+between several triggers and their buttons. Control: restoring "Remove
+Connection" fails it by file and line.

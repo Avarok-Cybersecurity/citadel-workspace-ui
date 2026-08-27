@@ -6,6 +6,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useConfirm } from '@/components/shared/confirm-dialog';
+import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
@@ -37,6 +39,7 @@ export function useP2PMessages({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const messenger = P2PMessengerManager.getInstance();
+  const confirm = useConfirm();
 
   // Main effect for conversation loading and subscriptions
   useEffect(() => {
@@ -183,6 +186,9 @@ export function useP2PMessages({
   }, [peerCid, messenger]);
 
   const handleDeleteMessage = useCallback(async (messageId: string) => {
+    // Asked first; same reasoning as the group chat's delete.
+    if (!(await confirm(DELETE_MESSAGE_PROMPT))) return;
+
     try {
       await messenger.deleteMessage(peerCid, messageId);
     } catch (error) {
@@ -191,7 +197,7 @@ export function useP2PMessages({
         description: error instanceof Error ? error.message : 'Please try again.',
       });
     }
-  }, [peerCid, messenger]);
+  }, [peerCid, messenger, confirm]);
 
   return {
     messages,

@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, UserPlus, Star } from 'lucide-react';
+import { MessageCircle, UserPlus } from 'lucide-react';
 import { formatPresence } from '@/lib/date-utils';
 import { UserRole } from '@/types/workspace-entities';
 import { roleBadgeClass } from '@/lib/role-badge';
@@ -25,7 +25,13 @@ export { getRoleBadgeClass };
 
 interface MemberListItemProps {
   member: MemberDisplay;
-  variant: 'all' | 'online' | 'favorites';
+  /**
+   * There used to be a 'favorites' variant here, rendering an Unfavourite star
+   * with no onClick. Nothing ever passed it -- the directory has two tabs -- so
+   * it was an unreachable branch containing a control that did nothing, which
+   * is two ways of being wrong about the same button.
+   */
+  variant: 'all' | 'online';
   onSendMessage: (userId: string) => void;
   onInvite: (userId: string) => void;
   /** Show this member in the profile panel. Required — see the note below. */
@@ -78,27 +84,15 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
         </div>
       </button>
       <div className="flex space-x-2">
-        {variant === 'favorites' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary-accent hover:text-foreground hover:bg-accent"
-            aria-label={`Unfavourite ${member.displayName}`}
-          >
-            <Star className="h-4 w-4 fill-current" aria-hidden="true" />
-          </Button>
-        )}
-        {variant !== 'favorites' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground hover:bg-accent"
-            onClick={() => onInvite(member.id)}
-            aria-label={`Send a connection request to ${member.displayName}`}
-          >
-            <UserPlus className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground hover:bg-accent"
+          onClick={() => onInvite(member.id)}
+          aria-label={`Send a connection request to ${member.displayName}`}
+        >
+          <UserPlus className="h-4 w-4" aria-hidden="true" />
+        </Button>
         <Button
           variant="ghost"
           size="sm"

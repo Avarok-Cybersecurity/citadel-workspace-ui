@@ -135,15 +135,15 @@ export function UserProfileCard({
           </Button>
         ) : (
           <>
+            {/* "Remove Connection" stood here with no onClick, in no form -- a
+                destructive-looking control that did nothing, which teaches the
+                user that disconnecting is broken. There is no peer
+                deregistration flow in the frontend at all, so the honest thing
+                is not to offer it. This is round 131's finding (both Invite
+                buttons had no onClick) one branch over in the same component;
+                the fix was never propagated to the connected case. */}
             <Button
-              variant="outline"
-              className="flex-1 mr-2 border-border text-foreground/80 hover:bg-accent hover:text-foreground"
-            >
-              <UserX className="h-4 w-4 mr-2" />
-              Remove Connection
-            </Button>
-            <Button
-              className="flex-1 ml-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
               onClick={() => onSendMessage(selectedUser.id)}
             >
               <MessageCircle className="h-4 w-4 mr-2" />
