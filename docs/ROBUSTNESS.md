@@ -7204,3 +7204,51 @@ grammars in one product, visible to anyone who uses both in a session.
 The empty state is suppressed while the first page is still arriving — saying
 "no messages yet" about messages that are on their way is its own small lie, and
 a test pins it.
+
+### Round 109 — whoever found the port first owned the workspace
+
+From the deployment audit, and the finding most likely to hurt a real operator.
+
+The root workspace is seeded at boot with no owner. On connect, any
+authenticated account is added to it, and if it was the first, it was promoted
+to Admin — unconditionally. Registration has no invite gate, and `docs/INSTALL.md`
+tells anyone hosting for remote users to set `WORKSPACE_BIND_ADDR=0.0.0.0:12349`
+and open that port on their firewall. Put those together: on a fresh public
+deployment, whoever found the port and registered before the operator became the
+administrator of the workspace, and everyone afterwards joined a workspace they
+did not control.
+
+The production docs never mentioned it. `README.md` documented the behaviour for
+the dev stack; a grep of `INSTALL.md`, `UPGRADING.md` and
+`PRODUCTION_DEPLOYMENT.md` for it returned nothing. The operator had no way to
+know the clock was running.
+
+The behaviour survives, because a local dev stack genuinely depends on it —
+without it every account stays a Member with no editing rights, and typing the
+master password to get them is pure friction on a stack nobody can reach. But it
+has to be asked for by name now: `WORKSPACE_ALLOW_FIRST_CONNECT_ADMIN`, `1` in
+`docker-compose.yml` with the reason, explicitly `0` in
+`docker-compose.production.yml`, and off in the binary when nothing says
+otherwise. A workspace with the flag off waits for someone to present the master
+password through the initialization flow — the documented, already-implemented
+path that until now granted nothing the first account did not already have.
+
+Two details the tests pin. Unset means off, because the safe value should be the
+one you get by not thinking about it. And a value that means nothing —
+`WORKSPACE_ALLOW_FIRST_CONNECT_ADMIN=maybe` — is an error naming the variable
+and echoing what was set, not a silent false: `yes`, `on` and `TRUE ` are all
+things an operator would write believing they had switched it on, and reading
+them as "off" would leave a dev stack with no administrator and nothing to
+explain why. A separate test pins the kernel's own default and that it survives
+a clone, because the resolver could be perfect and still leave the hole open if
+a connection task worked from a clone that had lost the setting.
+
+Recorded, not fixed, from the same audit: there is no version compatibility
+check anywhere between the local agent and the central server. The Citadel
+handshake carries a semver and only warns on mismatch — with a `TODO: prevent
+logins if semvers out of sync` sitting next to a recorded wire-breaking bump
+whose own note says cross-version traffic must not interoperate. The workspace
+protocol itself is unversioned bare JSON. Every user pulls their own agent image
+on their own cadence while the server upgrades centrally, so agent-versus-server
+is the unguarded seam, and the failure mode is decrypt garbage rather than a
+clean "please update".
