@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { registerUnsavedEdits } from '@/lib/unsaved-edits';
 
 /**
  * Protects an in-progress MDX edit from being thrown away without a word.
@@ -17,9 +18,12 @@ import { useEffect, useRef } from 'react';
 export function useUnsavedMdxGuard({
   isEditing,
   content,
+  ownerId,
 }: {
   isEditing: boolean;
   content: string;
+  /** Identifies this editor in the shared unsaved-edits set. */
+  ownerId: string;
 }): { isDirty: boolean } {
   const baselineRef = useRef<string | null>(null);
 
@@ -38,6 +42,13 @@ export function useUnsavedMdxGuard({
   const isDirty =
     isEditing && baselineRef.current !== null && content !== baselineRef.current;
 
+  // Published so in-app navigation can ask, not just the browser. See
+  // `lib/unsaved-edits` for why this is a store rather than a router blocker.
+  useEffect(() => {
+    if (!isDirty) return;
+    return registerUnsavedEdits(ownerId);
+  }, [isDirty, ownerId]);
+
   useEffect(() => {
     if (!isDirty) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -53,7 +64,7 @@ export function useUnsavedMdxGuard({
   return { isDirty };
 }
 
-/** The wording used for both the Cancel prompt and any future navigation guard. */
+/** The wording used for the Cancel prompt and the navigation guard. */
 export const DISCARD_EDIT_PROMPT = {
   title: 'Discard your changes?',
   description: 'This page has edits that have not been saved. Discarding cannot be undone.',

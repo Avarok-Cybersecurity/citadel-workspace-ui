@@ -10,6 +10,9 @@ import { getEntityTypeString } from '@/lib/entity-type-registry';
 import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
 import { NodeManagementModal } from '@/components/node/NodeManagementModal';
 import { AdminModal } from '@/components/admin';
+import { hasUnsavedEdits } from '@/lib/unsaved-edits';
+import { DISCARD_EDIT_PROMPT } from '@/components/office/use-unsaved-mdx-guard';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 
 /**
  * Orchestrator component that wires TreeNodesSection to workspace state.
@@ -28,11 +31,19 @@ export function HierarchySidebar() {
   const [createModal, setCreateModal] = useState<{ parentId: string; entityType: string } | null>(null);
   const [editNode, setEditNode] = useState<DomainNode | null>(null);
   const [adminNode, setAdminNode] = useState<DomainNode | null>(null);
+  // The app's dialog, not window.confirm — which is what `confirm` resolves to
+  // if this line is missing, silently, with a `string` parameter.
+  const confirm = useConfirm();
 
   // Build flat node list from state
   const nodes = useMemo(() => Object.values(state.nodes), [state.nodes]);
 
-  const handleNodeSelect = useCallback((nodeId: string) => {
+  const handleNodeSelect = useCallback(async (nodeId: string) => {
+    // Ask before discarding an edit. `beforeunload` covers closing the tab and
+    // nothing else, and this is the click that loses the most work: selecting a
+    // node unmounts the editor, because BaseOffice is keyed by node.
+    if (hasUnsavedEdits() && !(await confirm(DISCARD_EDIT_PROMPT))) return;
+
     const newParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);
     newParams.delete('section');
@@ -41,7 +52,7 @@ export function HierarchySidebar() {
     newParams.delete('channel');
     newParams.delete('p2pUser');
     navigate(buildWorkspacePath(newParams));
-  }, [location.search, navigate]);
+  }, [location.search, navigate, confirm]);
 
   const handleNodeEdit = useCallback((node: DomainNode) => {
     setEditNode(node);

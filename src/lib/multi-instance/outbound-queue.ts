@@ -62,6 +62,19 @@ class OutboundQueue extends PollingService {
     });
   }
 
+  /**
+   * Arm the timeout checker. **Nothing above works until this is called.**
+   *
+   * It had no caller anywhere in production, and `checkTimeouts` runs only from
+   * the poller it arms — so the contract documented at the top of this file
+   * ("retried after ACK_TIMEOUT_MS; max MAX_RETRIES; then 'outbound-failed'")
+   * never executed, and `handleTimeout`, `MAX_RETRIES` and that event were all
+   * unreachable code behind a written promise. A follower request dropped at
+   * the wrong moment waited out the full 30s ACK timeout and failed, with no
+   * retry attempted. `BroadcastChannelService` starts its own poller in
+   * `initialize()`; this one was never wired. `InstanceChannel.initialize` now
+   * calls it.
+   */
   start(): void {
     this.startPolling();
     debugLog('OutboundQueue', '[OutboundQueue] Started timeout checker');

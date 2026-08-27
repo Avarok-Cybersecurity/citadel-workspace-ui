@@ -6526,3 +6526,70 @@ CID-routing work was built to stop, for every type outside the eight-member set.
 - A stale or foreign `nodeId` renders the default demo page titled "Welcome to
   Your Workspace" — indistinguishable from a real page.
 - The file manager's location is unlinkable and resets to `/` on reload.
+
+## Round ninety-five — a retry engine nobody started, and an edit nobody asked about, 2026-08-27
+
+### 408. The outbound retry engine was never started
+
+`outbound-queue.ts` documents its contract at the top of the file: "If no ACK
+within ACK_TIMEOUT_MS, message is retried. Max MAX_RETRIES attempts. After max
+retries, emits 'outbound-failed'." `checkTimeouts` runs only from the poller that
+`start()` arms — and `start()` had **no caller anywhere in production**.
+
+So none of it ever ran. `handleTimeout`, `MAX_RETRIES` and the `outbound-failed`
+event were unreachable code sitting behind a written promise, and a follower
+tab's request dropped at the wrong moment had exactly one recovery trigger — the
+leader-change replay — and otherwise waited out the full 30s ACK timeout before
+failing. The sibling `BroadcastChannelService` calls its own `startPolling()` in
+`initialize()`; this one was simply never wired.
+
+Started from `InstanceChannel.initialize`, where the channel it retries over
+comes up. The tests exercise the real timeouts with fake timers — retry, give up
+after the documented count, and stop on acknowledgement — plus one that asserts
+the **wiring**, because the first three pass perfectly against a queue nobody
+ever starts. That is precisely the state this fix found.
+
+### 409. In-app navigation discarded an unsaved document edit without asking
+
+`use-unsaved-mdx-guard` armed `beforeunload`, which covers closing the tab and
+nothing else — its own footer comment referred to "any *future* navigation
+guard". So the click that loses the most work went unguarded: selecting another
+node in the sidebar unmounts the editor, because `BaseOffice` is keyed by node.
+
+A router-level blocker would cover every path at once, and `useBlocker` is the
+right tool — but it requires a data router and this app mounts `<BrowserRouter>`.
+That migration touches every route and is not something to fold into this round.
+
+So: a shared `hasUnsavedEdits()` the navigation sources consult, keyed by owner
+rather than counted so releasing one editor cannot answer for another and a
+double release cannot drive a count negative. The sidebar — the dominant loss
+path — now asks, reusing the existing `DISCARD_EDIT_PROMPT`.
+
+**The gap is deliberate and worth stating**: browser Back/Forward is a popstate,
+which neither `beforeunload` nor a call-site check can intercept. That one still
+needs the data router, and until then Back still loses the buffer.
+
+While wiring it I hit a small version of the same class: importing `useConfirm`
+without calling it leaves `confirm` resolving to `window.confirm`, silently, with
+a compatible-looking signature. The type checker caught it because the app's
+dialog takes an object and the browser's takes a string.
+
+### Still open from the multi-tab audit
+
+- **The leader-change replay error-acks every pending request** instead of
+  recovering it: module-eval order runs the queue's replay listener before the
+  outbound handler sets `isActive`, and a newly promoted tab's `websocketSendFn`
+  is still null while its socket boots. With the retry engine now running, a
+  timeout retry will at least follow — but the replay path itself still turns a
+  recoverable request into a failure.
+- **A backgrounded leader flaps leadership every ~5s.** Heartbeat 2s, timeout 5s,
+  against Chrome's ~60s intensive-throttling clamp — so a hidden leader misses
+  every deadline, the foreground tab promotes and opens a socket, the hidden one
+  answers on the untrottled message path and reclaims, and the new socket is torn
+  down. Web Locks would be immune to this; timers are not.
+- **A frozen tab, on unfreeze, steals leadership back from the tab holding the
+  live socket**, because the "older tab wins" tiebreak assumes the older tab has
+  the connection — which freezing inverts.
+- **The legacy broadcast channel still fans most response types to every tab**
+  unfiltered, which is the cross-session bleed the CID-routing work exists to
+  stop, for every type outside the eight-member routed set.

@@ -62,7 +62,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     Permission.EditMdx
   );
 
-  const { isDirty } = useUnsavedMdxGuard({ isEditing, content });
+  const { isDirty } = useUnsavedMdxGuard({ isEditing, content, ownerId: nodeId ?? 'workspace-root' });
   const confirm = useConfirm();
 
   // Cancel used to be a bare toggle. The load effect below then restored the

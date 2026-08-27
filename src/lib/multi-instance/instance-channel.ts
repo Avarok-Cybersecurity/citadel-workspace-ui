@@ -16,6 +16,7 @@ import {
 } from './channel-leader-election';
 import { replayOutboundRequest } from './channel-messaging';
 import { setupBeforeUnloadHandler } from './channel-lifecycle';
+import { outboundQueue } from './outbound-queue';
 
 
 
@@ -57,6 +58,10 @@ class InstanceChannel {
       this.setupMessageHandler();
       this.setupEventListeners();
       startLeaderElection(this.electionState);
+      // Arms the retry engine — see outbound-queue.ts for what went unrun
+      // without this. Here because this is where the channel it retries over
+      // comes up.
+      outboundQueue.start();
       this.announcePresence();
       setupBeforeUnloadHandler(this);
       debugLog('InstanceChannel', '[InstanceChannel] Initialized');
