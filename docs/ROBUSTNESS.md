@@ -5555,3 +5555,88 @@ size is worth trusting.
   never activate.
 - **The thumbnail simulcast tier is built at every layer except the encoder**, so
   group video sends full resolution to everyone.
+
+## Round eighty-one — the thread that vanished when you scrolled up, 2026-08-27
+
+### 372. Loading older group messages replaced the whole thread
+
+`handleMessagesLoaded` took a `prepend` flag defaulting to `false`, and its one
+caller never passed it — so the paging branch was dead code and an older page
+*replaced* the transcript. Everything newer disappeared from screen until a new
+message arrived or the user reloaded. The prepend half was built; the caller was
+never wired to it, which is this codebase's most productive bug shape.
+
+The response carries no pagination cursor to correlate on, so the manager records
+that a load-older request is in flight and consumes the flag when the response
+lands. The merge is by id rather than a concat: a live message can arrive in the
+same window, and a non-paginated response can arrive while the flag is set, and
+either would otherwise render twice.
+
+### 373. A redelivered message became two messages, permanently
+
+ILM can deliver the same inbound message again after a reload — its delivered-set
+is memory-only, so anything still in the persisted inbound map at restart is
+delivered afresh. The dedup upstream cannot catch it: the in-memory conversation
+window is capped at 100 and comes back **empty** after a reload. The page store
+then appended blind, and the render-side merge dedups *across* batches but not
+*within* one — so both copies rendered, for ever.
+
+One id check at the store, which is the common exit of every path that can
+produce a duplicate. It costs one scan of a page that is already loaded.
+
+### 374. A group's unread badge counted your own messages and could never clear
+
+The server answers the sender with the same `GroupMessageNotification` it
+broadcasts — that echo is what confirms a send — and the store incremented on
+every one with no sender check. Send three messages into a group and your own
+sidebar badge reads 3. Meanwhile `markAsRead` existed on the hook with **zero
+callers anywhere**, so there was no path back to zero short of a reload. Both
+halves fixed: skip the increment for your own cid, and mark read when the group
+is opened, because opening it is reading it.
+
+### 375. A storage failure before send left a bubble on "sending…" for ever
+
+`addMessageToConversation` pushes to memory and then awaits the durable append,
+and that await sat *outside* the try that marks a message `failed`. A LocalDB
+timeout therefore skipped the send and left the message at `pending` — and the
+retry affordance is gated on `failed`, so there was no way to act on it short of
+retyping. Now marked and rethrown, so the existing toast-and-keep-the-text
+behaviour still runs and the retry button appears.
+
+### On the tests
+
+Two of these tests passed for the wrong reason before they passed for the right
+one, both from the same cause: `vi.resetModules()` gives the module under test a
+fresh copy of its dependencies, while a top-level import in the test file still
+holds the pre-reset instance. The unread-badge test emitted into an emitter the
+store was not listening on, so "does not count your own message" passed because
+*nothing* was counted. Anything imported at the top of a file that also calls
+`resetModules` is a different object from the one the code sees — import it
+inside the helper instead.
+
+Three files crossed the 250-line cap. Rather than shave comments, three genuine
+units came out: `mark-send-failed.ts` (two near-identical failure blocks that had
+drifted, now one), `resend-message.ts`, `message-page-append.ts`, and
+`group-message-list.ts` — the last being pure list arithmetic that is now
+testable without a manager.
+
+### Still open from the delivery audit, recorded not fixed
+
+These are in the Rust submodules and want a bottom-up commit round of their own:
+
+- **ILM's durable queue is one blob with an unlocked read-modify-write, and a 5s
+  LocalDB timeout replaces it with an empty map.** One hiccup during a send
+  erases every other pending outbound message, each of whose senders was already
+  shown "sent". The audit called the timeout-to-empty-map fallback the single
+  most dangerous line in the delivery path, and it is hard to disagree: it turns
+  a transient read failure into silent, permanent data loss.
+- **The receiver marks a message received before storing it.** If the store
+  fails, the mark is not rolled back, so every retransmission is answered "already
+  received" and ACKed — the sender clears its queue and the message never existed.
+- **ILM message ids restart at 0 after a one-sided state wipe**, and the
+  receiver's persisted dedup map swallows the first N real messages.
+- Ordering rests on sender wall-clocks; the durable per-conversation `index` is
+  written and never used to sort, so clock skew renders a reply above its
+  question, deterministically.
+- `'sent'` means "queued locally" and nothing ever escalates it, so a
+  permanently undeliverable message shows a checkmark for ever.

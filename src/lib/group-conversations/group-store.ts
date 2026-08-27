@@ -19,6 +19,7 @@
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
+import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
@@ -182,9 +183,16 @@ export function startGroupEventBindings(): void {
     updateGroups(prev =>
       prev.map(group => {
         if (group.id !== data.groupId) return group;
+        // The server answers the SENDER with the same GroupMessageNotification
+        // it broadcasts to everyone else — that echo is what confirms a send —
+        // so this counted the user's own messages as unread. Send three and
+        // your own badge reads 3.
+        const own = instanceManager.cid;
+        const fromSelf = own !== null && data.senderId === String(own);
+
         return {
           ...group,
-          unreadCount: group.unreadCount + 1,
+          unreadCount: fromSelf ? group.unreadCount : group.unreadCount + 1,
           lastMessageTime: Date.now(),
           lastMessagePreview:
             data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content,

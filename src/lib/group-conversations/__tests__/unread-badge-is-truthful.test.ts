@@ -1,0 +1,68 @@
+/**
+ * A group's unread badge counted the user's own messages and could never be
+ * cleared.
+ *
+ * The server answers the SENDER with the same GroupMessageNotification it
+ * broadcasts to everyone else — that echo is what confirms a send — and the
+ * store incremented on every one with no sender check. Send three messages into
+ * a group and your own sidebar badge reads 3. Meanwhile `markAsRead` existed on
+ * the hook with zero callers anywhere in the app, so there was no path back to
+ * zero short of a reload.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const h = vi.hoisted(() => ({ cid: null as bigint | null }));
+vi.mock('@/lib/multi-instance/instance-manager', () => ({
+  instanceManager: { get cid() { return h.cid; } },
+}));
+
+const SELF = 7n;
+const OTHER = 42n;
+
+async function freshStore() {
+  vi.resetModules();
+  const store = await import('../group-store');
+  // The emitter must come from the SAME module graph as the store. Importing it
+  // at the top of the file gives the pre-reset instance, so every event went to
+  // an emitter the store was not listening on — and the "does not count own
+  // message" test passed for that reason rather than the intended one.
+  const { eventEmitter } = await import('@/lib/event-emitter');
+  store.startGroupEventBindings();
+  return { store, eventEmitter };
+}
+
+beforeEach(() => {
+  h.cid = SELF;
+});
+
+describe('group unread count', () => {
+  it('does not count a message the user sent themselves', async () => {
+    const { store, eventEmitter } = await freshStore();
+    store.updateGroups(() => [
+      { id: 'g1', name: 'G', members: [], unreadCount: 0 } as never,
+    ]);
+
+    eventEmitter.emit('group:message-received', {
+      groupId: 'g1',
+      senderId: String(SELF),
+      content: 'hello',
+    });
+
+    expect(store.getGroups().find((g) => g.id === 'g1')?.unreadCount).toBe(0);
+  });
+
+  it('counts a message from someone else', async () => {
+    const { store, eventEmitter } = await freshStore();
+    store.updateGroups(() => [
+      { id: 'g1', name: 'G', members: [], unreadCount: 0 } as never,
+    ]);
+
+    eventEmitter.emit('group:message-received', {
+      groupId: 'g1',
+      senderId: String(OTHER),
+      content: 'hello',
+    });
+
+    expect(store.getGroups().find((g) => g.id === 'g1')?.unreadCount).toBe(1);
+  });
+});

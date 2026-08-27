@@ -38,6 +38,7 @@ import {
 import { deleteConversationPages, type DeleteScope } from './message-page-delete';
 import { debugLog } from '@/lib/debug-config';
 import { withPeerLock } from './peer-write-lock';
+import { placeInPage, recordAppend } from './message-page-append';
 
 export class MessagePaginationStore {
   private readonly dbPrefix = 'p2p_messages';
@@ -181,23 +182,19 @@ export class MessagePaginationStore {
       debugLog('MessagePaginationStore', `[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.toString().slice(0, 8)}...`);
     }
 
-    currentPage.messages.push(message);
-    currentPage.messages.sort((a, b) => a.timestamp - b.timestamp);
-    currentPage.pageTimestamps.minTimestamp = currentPage.messages[0].timestamp;
-    currentPage.pageTimestamps.maxTimestamp = currentPage.messages[currentPage.messages.length - 1].timestamp;
-
-    metadata.totalMessageCount++;
-    metadata.newestMessageTimestamp = message.timestamp;
-    if (isNewConversation || message.timestamp < metadata.oldestMessageTimestamp) {
-      metadata.oldestMessageTimestamp = message.timestamp;
+    // The last gate before a duplicate becomes permanent. ILM can redeliver an
+    // inbound message after a reload (its delivered-set is memory-only), and the
+    // upstream in-memory dedup cannot see it — that window is capped at 100 and
+    // comes back EMPTY after a reload. A blind push wrote two copies into one
+    // page, and the render-side merge dedups ACROSS batches but not within one,
+    // so the pair rendered twice for ever.
+    if (currentPage.messages.some((m) => m.id === message.id)) {
+      debugLog('MessagePaginationStore', `[P2P] Skipping duplicate message ${message.id}`);
+      return;
     }
-    metadata.lastMessageIndex = Math.max(metadata.lastMessageIndex, message.index);
-    metadata.lastUpdated = Date.now();
 
-    const currentCid = await getCurrentCid();
-    if (message.senderCid !== currentCid && message.status === 'delivered') {
-      metadata.unreadCount++;
-    }
+    placeInPage(currentPage, message);
+    recordAppend(metadata, message, isNewConversation, await getCurrentCid());
 
     // Page first, pointer last: two round-trips, no transaction, and
     // `latestPage` is the only pointer to the page.

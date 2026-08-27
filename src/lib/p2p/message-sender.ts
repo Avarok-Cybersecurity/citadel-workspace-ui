@@ -26,6 +26,8 @@ import {
   sendRawBytes as rawBytesOp,
 } from './message-send-operations';
 import { debugLog } from '@/lib/debug-config';
+import { markSendFailed } from './mark-send-failed';
+import { resendMessage } from './resend-message';
 
 export type { MessageSenderConfig } from './message-sender-types';
 
@@ -114,7 +116,19 @@ export class MessageSender {
       document_title: documentTitle
     };
 
-    await this.config.addMessageToConversation(recipientCid, message);
+    try {
+      await this.config.addMessageToConversation(recipientCid, message);
+    } catch (error) {
+      // The in-memory push happens before the durable append, so on a storage
+      // failure the message is already in the conversation — at 'pending',
+      // outside the try below that would have marked it 'failed'. It surfaced
+      // as a bubble stuck on "sending…" for the rest of the session, and the
+      // retry affordance is gated on 'failed', so there was no way to act on it
+      // short of retyping. Mark it here, then rethrow: the caller still toasts
+      // and keeps the composer text.
+      markSendFailed(this.config, message, messageId, error, 'Could not be saved');
+      throw error;
+    }
     this.config.notifyMessageListeners(message);
     // The conversation list sorts by most recent message and refreshes on this
     // event. It had a subscriber and no emitter, so sending a message never
@@ -130,9 +144,7 @@ export class MessageSender {
       await persistMessageStatus(this.config, recipientCid, messageId, message);
       debugLog('MessageSender', `[P2P] Message ${messageId} sent successfully in ${Date.now() - sendStartTime}ms`);
     } catch (error) {
-      message.status = 'failed';
-      message.error = error instanceof Error ? error.message : 'Failed to send';
-      this.config.notifyMessageStatusListeners(messageId, 'failed');
+      markSendFailed(this.config, message, messageId, error, 'Failed to send');
       // Before the rethrow. The failed status is exactly the one worth keeping:
       // it is what makes the message retryable after a reload.
       await persistMessageStatus(this.config, recipientCid, messageId, message);
@@ -143,81 +155,9 @@ export class MessageSender {
     return message;
   }
 
+  /** Retry a message that previously failed. See ./resend-message. */
   public async resendMessage(peerCid: bigint, messageId: string, conversation: P2PConversation): Promise<void> {
-    // Memory first, then storage. `loadFromStorage` restores every conversation
-    // with `messages: []`, and nothing rehydrates it — so after a reload the red
-    // "retry" bubble was rendered from the page store while this lookup searched
-    // an empty array and threw, every time, for ever.
-    let message = conversation.messages.find(m => m.id === messageId);
-    if (!message) {
-      message = (await this.config.findStoredMessage(peerCid, messageId)) ?? undefined;
-      if (message) {
-        // Put it back in the window so the status mutations below, and any
-        // later ack, find it where the rest of the code expects.
-        conversation.messages.push(message);
-      }
-    }
-    if (!message) {
-      throw new Error(`Message ${messageId} not found in conversation`);
-    }
-
-    if (message.status !== 'failed') {
-      debugLog('MessageSender', `[P2P] Message ${messageId} is not in failed state (${message.status}), skipping resend`);
-      return;
-    }
-
-    debugLog('MessageSender', `[P2P] Resending message ${messageId} to ${peerCid}`);
-
-    message.status = 'pending';
-    message.error = undefined;
-    this.config.notifyMessageStatusListeners(messageId, 'pending');
-
-    await p2pAutoConnectService.ensurePeerConnectedInBackground(peerCid);
-
-    const peerReady = await this.config.tryEnsurePeerReady(peerCid);
-    if (!peerReady) {
-      debugLog('MessageSender', `[P2P] Resending to ${peerCid} without CheckState confirmation`);
-    }
-
-    const currentCid = await this.config.getCurrentCid();
-    if (!currentCid) {
-      message.status = 'failed';
-      message.error = 'Not connected to server';
-      this.config.notifyMessageStatusListeners(messageId, 'failed');
-      throw new Error('Not connected to server');
-    }
-
-    const layer = createMessage(message.content, message.timestamp);
-    const command = createMessagingLayerCommand(
-      layer,
-      currentCid,
-      peerCid,
-      message.index,
-      {
-        messageId: message.id,
-        replyTo: message.replyTo,
-        mentions: message.mentions,
-        attachments: message.attachments as P2PAttachment[] | undefined,
-        messageType: message.message_type,
-        documentId: message.document_id,
-        documentTitle: message.document_title
-      }
-    );
-
-    try {
-      await this.sendP2PCommand(peerCid, command);
-      message.status = 'sent';
-      this.config.notifyMessageStatusListeners(messageId, 'sent');
-      debugLog('MessageSender', `[P2P] Successfully resent message ${messageId}`);
-    } catch (error) {
-      message.status = 'failed';
-      message.error = error instanceof Error ? error.message : 'Failed to send';
-      this.config.notifyMessageStatusListeners(messageId, 'failed');
-      await persistMessageStatus(this.config, peerCid, messageId, message);
-      throw error;
-    }
-
-    await persistMessageStatus(this.config, peerCid, messageId, message);
+    return resendMessage(this, this.config, peerCid, messageId, conversation);
   }
 
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> {

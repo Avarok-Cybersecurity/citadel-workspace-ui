@@ -38,6 +38,7 @@ export function GroupChatPage() {
   const { toast } = useToast();
   const {
     getGroup,
+    markAsRead,
     leaveGroup,
     kickMember,
     updateMemberRole,
@@ -73,7 +74,11 @@ export function GroupChatPage() {
     }
 
     setGroup(loadedGroup);
-  }, [groupId, getGroup, navigate, toast]);
+    // Opening the group IS reading it. `markAsRead` existed on the hook with
+    // zero callers anywhere, so a group's unread badge could only ever climb —
+    // there was no path back to zero short of a reload.
+    markAsRead(groupId);
+  }, [groupId, getGroup, markAsRead, navigate, toast]);
 
   // Handlers
   const handleLeaveGroup = useCallback(async () => {

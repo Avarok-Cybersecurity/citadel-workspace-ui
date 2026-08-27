@@ -116,10 +116,15 @@ export function useGroupChat(groupId: string) {
     // Same shape, worse symptom: the "Load older messages" button is
     // `disabled={loadingMore}`, so a lost response disabled it permanently.
     armLoadingDeadline(`group-messages-more:${groupId}`, () => setLoadingMore(false));
+    // Tell the manager an older page is coming, so it merges rather than
+    // replacing the thread. Without this the response looked identical to an
+    // initial load and took the "replace" branch.
+    groupMessagingManager.markLoadingOlder(groupId);
     try {
       await WorkspaceService.getGroupMessages(groupId, oldestTimestamp);
     } catch (error) {
       debugLog('GroupChatView', 'Failed to load more messages:', error);
+      groupMessagingManager.clearLoadingOlder(groupId);
       setLoadingMore(false);
     }
   }, [groupId, hasMore, loadingMore]);
