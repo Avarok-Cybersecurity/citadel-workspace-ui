@@ -6933,3 +6933,29 @@ an emit inside an unreachable branch counts as an emitter. The guard's own
 recorded-debt maps are honest about what it tracks; this is a blind spot none of
 them covers, and it is worth teaching the guard about reachability or, failing
 that, recording the limit in the guard itself.
+
+### Round 101 — the members list refreshes, and the dead handlers are gone
+
+The finding above is now fixed, and the fix is smaller than the finding was.
+
+`members:reload` is emitted from one place: a helper in `member-operations.ts`
+that wraps the three member writes and fires **after** `awaitWriteResponse`
+resolves. Emitting before confirmation would ask the server for a list that does
+not yet reflect the write, and would ask it even when the write was refused; a
+test covers exactly that case.
+
+Removing the unreachable handlers had a useful side effect. `handleTypeGapVariants`
+claimed to handle `CreateWorkspace`, `AddMember`, `UpdateMemberRole`,
+`RemoveMember` and `WorkspaceError` as *responses*. Deleting it broke an existing
+test — because `SUCCESS_RESPONSES.CreateWorkspace` listed `'CreateWorkspace'` as
+the variant that confirms a create, while the server answers with `'Workspace'`.
+Two maps disagreed about the same protocol fact, and the dead handler had been
+absorbing the disagreement. Every workspace creation had been waiting out the
+full 15s write timeout and reporting failure on a write that succeeded.
+
+The two listeners the dead branches fed — `member:added` and `member:removed` —
+are deleted rather than re-emitted. Neither did anything a live `members:reload`
+does not already do, and the CI guard flagged them the moment their fake emitters
+were gone. That is the guard working as intended once the reachability blind spot
+is removed by hand: it cannot see that a branch is unreachable, but it sees
+immediately when the branch is deleted.

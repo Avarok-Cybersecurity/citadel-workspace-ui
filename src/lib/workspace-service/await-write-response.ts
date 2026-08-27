@@ -58,7 +58,14 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   // rename had landed, contradicted seconds later by a disjoint global error
   // toast, with the name unchanged.
   UpdateWorkspace: ['Workspace'],
-  CreateWorkspace: ['CreateWorkspace'],
+  // `Workspace`, not `CreateWorkspace`. There is no `CreateWorkspace` RESPONSE
+  // variant — it exists as a request only, and the server answers
+  // `WorkspaceProtocolResponse::Workspace(workspace)`. `getExpectedResponseTypes`
+  // in service.ts has always had this right; two maps for one protocol
+  // disagreed, and the write path used the wrong one. Every createWorkspace()
+  // would have applied the workspace and THEN rejected 15s later saying the
+  // change may not have been saved.
+  CreateWorkspace: ['Workspace'],
 
   // The profile save, whose spinner disables the whole settings form and was
   // cleared only by the success event.

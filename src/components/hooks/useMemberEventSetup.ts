@@ -3,7 +3,7 @@ import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
-import { setLoading, trackRequest, runAsyncSetup } from './event-setup-utils';
+import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 
@@ -98,11 +98,11 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         });
       });
 
-      // Member added event
-      await workspaceEvents.onMemberEvent('member:added', (payload: { member: unknown; connection: ConnectionInfo }) => {
-        debugLog('UseMemberEventSetup', 'Member added:', payload.member);
-        trackRequest(setState, payload.connection.request_id);
-      });
+      // `member:added` / `member:removed` had subscriptions here, but the only
+      // emitters lived in handlers for response variants the server never
+      // constructs (AddMember/RemoveMember exist as requests only). Both
+      // handlers did nothing beyond trackRequest, and the list is refreshed by
+      // `members:reload`, emitted from the write path once the server confirms.
 
       // Member role updated event
       await workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; connection: ConnectionInfo }) => {
@@ -171,12 +171,6 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             currentUser: updatedCurrentUser,
           };
         });
-      });
-
-      // Member removed event
-      await workspaceEvents.onMemberEvent('member:removed', (payload: { userId: string; connection: ConnectionInfo }) => {
-        debugLog('UseMemberEventSetup', 'Member removed:', payload.userId);
-        trackRequest(setState, payload.connection.request_id);
       });
 
       // Members reload event

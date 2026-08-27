@@ -14,6 +14,27 @@ import type {
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import type { ProtocolSender } from './workspace-operations';
 import { awaitWriteResponse } from './await-write-response';
+import { eventEmitter } from '@/lib/event-emitter';
+
+/**
+ * Tell the members surfaces to reload, once the server has actually accepted.
+ *
+ * `members:reload` used to be emitted only from response handlers for
+ * `AddMember`, `RemoveMember` and `UpdateMemberRole` — response variants the
+ * protocol does not have. They exist as REQUESTS only; the server answers with
+ * `Success` and `MemberRoleUpdated`. So those branches were unreachable, and the
+ * members list simply never refreshed after an admin added a member, removed
+ * one, or changed a role.
+ *
+ * Emitted here instead, after `awaitWriteResponse` resolves — which is the point
+ * at which the change is known to have happened, and the only place that knows
+ * it.
+ */
+async function afterMemberWrite<T>(write: Promise<T>): Promise<T> {
+  const result = await write;
+  eventEmitter.emit('members:reload', undefined);
+  return result;
+}
 
 /**
  * Add a member to a domain node
@@ -36,7 +57,9 @@ export async function addMember(
   // Resolves when the SERVER accepts it. A refusal arrives as a response,
   // which cannot reject a send-only promise — so this used to report success
   // for writes the server was about to refuse.
-  return awaitWriteResponse('AddMember', () => sender.sendProtocolRequest(requestPart));
+  return afterMemberWrite(
+    awaitWriteResponse('AddMember', () => sender.sendProtocolRequest(requestPart)),
+  );
 }
 
 /**
@@ -68,7 +91,9 @@ export async function updateMemberRole(
   // Resolves when the SERVER accepts it. A refusal arrives as a response,
   // which cannot reject a send-only promise — so this used to report success
   // for writes the server was about to refuse.
-  return awaitWriteResponse('UpdateMemberRole', () => sender.sendProtocolRequest(requestPart));
+  return afterMemberWrite(
+    awaitWriteResponse('UpdateMemberRole', () => sender.sendProtocolRequest(requestPart)),
+  );
 }
 
 /**
@@ -112,7 +137,9 @@ export async function removeMember(
   // Resolves when the SERVER accepts it. A refusal arrives as a response,
   // which cannot reject a send-only promise — so this used to report success
   // for writes the server was about to refuse.
-  return awaitWriteResponse('RemoveMember', () => sender.sendProtocolRequest(requestPart));
+  return afterMemberWrite(
+    awaitWriteResponse('RemoveMember', () => sender.sendProtocolRequest(requestPart)),
+  );
 }
 
 /**
