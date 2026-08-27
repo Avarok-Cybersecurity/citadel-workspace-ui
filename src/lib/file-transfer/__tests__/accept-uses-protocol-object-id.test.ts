@@ -17,7 +17,16 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-type SentRequest = { RespondFileTransfer: { object_id: bigint; accept: boolean } };
+type SentRequest = {
+  RespondFileTransfer: { object_id: bigint; accept: boolean; cid: bigint };
+};
+
+// The accept now names the LOCAL session, which the router reads from the tab
+// selection (IndexedDB). Mocked here rather than left to fail, because the CID
+// is the second half of what this file is about: see the cid-0 test below.
+vi.mock('../../tab-context', () => ({
+  getSelectedUser: async () => ({ selectedCid: 7n }),
+}));
 const sendRequest = vi.fn(async (_request: unknown): Promise<void> => undefined);
 vi.mock('@/lib/websocket-service', () => ({
   websocketService: { sendRequest: (r: unknown) => sendRequest(r) },
@@ -62,5 +71,26 @@ describe('accepting a transfer', () => {
     // The point of the guard: nothing is sent, and the failure is not a raw
     // BigInt parse error the user cannot act on.
     expect(sendRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe('the accept it sends', () => {
+  it('names the local session, not cid 0', async () => {
+    // `cid: BigInt(0)` was there with the comment "Not used for message-based".
+    // The internal service looks the connection up by exactly this field --
+    // `server_connection_map.get_mut(&cid)` -- and nothing is filed under 0, so
+    // every accept and decline came back "Connection not found". The send was
+    // fire-and-forget, so nothing noticed: the recipient's bubble sat at
+    // "Downloading... 0%" and the sender's at "Waiting for acceptance" for
+    // ever, and no chat transfer ever moved a byte.
+    sendRequest.mockClear();
+    const io = new FileTransferIO();
+    io.registerTransferMapping(UUID, OBJECT_ID);
+
+    await accept(io, UUID);
+
+    const sent = sendRequest.mock.calls[0][0] as SentRequest;
+    expect(sent.RespondFileTransfer.cid).not.toBe(0n);
+    expect(sent.RespondFileTransfer.cid).toBe(7n);
   });
 });

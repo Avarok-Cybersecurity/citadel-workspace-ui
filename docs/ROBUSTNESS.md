@@ -7512,3 +7512,55 @@ claiming it was read but never written: a false positive caused by my inlining
 the key expression, since the guard matches on the literal text. But it was
 pointing at something real — four sites built that key by hand, two stringifying
 the CID and two interpolating it. There is one module for it now.
+
+### Round 116 — no chat file transfer could move a byte, in three different ways
+
+The file-transfer audit found a feature severed at three separate joints, with
+the code around each break meticulously repaired. The dominant pattern in this
+campaign, at its most complete.
+
+**Accept and decline sent `cid: 0`**, with the comment "Not used for
+message-based". The internal service looks the connection up by exactly that
+field — `server_connection_map.get_mut(&cid)` — and nothing is filed under 0, so
+every response came back "Connection not found". The send is fire-and-forget, so
+nothing checked; and the failure notification carries `cid: 0`, which CID routing
+cannot deliver to any tab. The recipient's bubble sat at "Downloading… 0%" and
+the sender's at "Waiting for acceptance…" for ever. An earlier fix on this exact
+line — translating the announcement UUID to the protocol's `object_id` —
+unblocked the request only for it to die one hop later.
+
+**The default "Recommended" async mode sent `cid: null`** for a non-nullable
+`u64`. The WASM client deserializes strictly before sending, so the request never
+left the browser: every send in that mode landed in its caller's catch, with
+nothing on the wire to debug from either side.
+
+**The max-file-size setting was written scoped and read bare.** Settings are
+stored under `"{ownCid}:{peerCid}"` so two accounts in one browser do not share a
+peer's limits — but both the send-time and the accept-time checks read
+`getSettings(peerCid)`, a key nothing writes in a live session. So both always
+saw the 100 MiB default and the user's slider limited nothing. The scoping fix
+and the accept-limit fix were each correct, and each worked only in isolation.
+
+The scan is the part that generalises: every settings read outside the module
+that owns the scoping must go through `scopedSettingsKey`. The existing
+accept-size test could not have caught this — it mocks `state.getSettings`
+wholesale, so the mock stood exactly where the defect was. That is the second
+time in this campaign a test has been perfectly correct about its half and blind
+to the half that was wrong.
+
+Recorded, not fixed, and larger than what is fixed here: **no completion or
+progress signal is wired on either plane.** The protocol router's `onProgress`,
+`onComplete` and `onStatusChange` have zero subscribers, and on the message plane
+the `FileTransferComplete` / `Response` / `Chunk` / `Progress` constructors have
+no production callers at all — so `handleTransferResponse`, `handleTransferChunk`
+and `reassembleFile` are subscribed-but-never-emitted, and the sidebar's Files
+list, which filters on `state === 'complete'`, is permanently empty. Even with
+the three fixes above, a transfer cannot reach a terminal state from the network.
+Also unfixed: native-picker sends never announce, so the recipient has no bubble
+to accept from; RE-VFS downloads report failure after succeeding because the
+ticks carry the TCP-connection UUID rather than the request id the browser waits
+on; peer-scoped RE-VFS uploads toast "Uploaded" on the dispatch ack while the
+peer never stores the bytes; a copied node shares the original's backend byte
+key, so deleting either destroys both; and concurrent tree operations are
+lost-update races, with bulk delete resurrecting nodes whose bytes are already
+gone.

@@ -105,7 +105,8 @@ export function stagedTransferRef(transferId: string, fileName: string): string 
 export async function uploadFileToServer(
   file: File,
   transferId: string,
-  recipientCid: string
+  recipientCid: string,
+  ownCid: bigint
 ): Promise<string> {
   if (file.size > MAX_BYTE_CONTENTS_BYTES) {
     const mib = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`;
@@ -129,7 +130,12 @@ export async function uploadFileToServer(
     SendFile: {
       request_id: requestId,
       source: { ByteContents: { file_name: file.name, data } },
-      cid: null,
+      // `SendFile.cid` is a non-nullable u64 on the wire. `null` failed
+      // deserialization in the WASM client, so the request never left the
+      // browser at all -- every send in the default, "Recommended" async mode
+      // landed in its caller's catch. Nothing about it reached the network, so
+      // there was nothing to debug on either side.
+      cid: ownCid,
       peer_cid: BigInt(recipientCid),
       chunk_size: null,
       transfer_type: 'FileTransfer',

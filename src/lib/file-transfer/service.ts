@@ -5,7 +5,7 @@
  * State Machine: PENDING -> UPLOADING -> STAGED -> TRANSFERRING -> COMPLETE
  */
 
-import { instanceManager } from '@/lib/multi-instance/instance-manager';
+import { scopedSettingsKey } from './settings-key';
 import { eventEmitter } from '../event-emitter';
 import {
   type MessagingLayer, type FileTransferMode,
@@ -122,8 +122,7 @@ export class FileTransferService {
    * account, and silently filing them under one would be worse.
    */
   private scopedKey(peerCid: string): string {
-    const own = instanceManager.cid;
-    return own ? `${own.toString()}:${peerCid}` : peerCid;
+    return scopedSettingsKey(peerCid);
   }
 
   getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(this.scopedKey(peerCid)); }

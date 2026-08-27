@@ -1,6 +1,7 @@
 /** Transfer Lifecycle - state machine transitions and core operations. */
 
 import { eventEmitter } from '../event-emitter';
+import { scopedSettingsKey } from './settings-key';
 import { getMimeType, formatBytes } from './transfer-format';
 import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
@@ -31,7 +32,7 @@ export async function sendFile(
     throw new Error('No active session');
   }
 
-  const settings = deps.state.getSettings(recipientCid);
+  const settings = deps.state.getSettings(scopedSettingsKey(recipientCid));
   if (file.size > settings.maxFileSize) {
     throw new Error(
       `File size ${formatBytes(file.size)} exceeds max ${formatBytes(settings.maxFileSize)}`
@@ -181,7 +182,7 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
 
   // Labelled "Max file size to accept" but read only on the SEND path above,
   // so lowering the slider never limited what arrived. Size is on the offer.
-  const settings = deps.state.getSettings(transfer.senderCid);
+  const settings = deps.state.getSettings(scopedSettingsKey(transfer.senderCid));
   if (transfer.fileSize > settings.maxFileSize) {
     throw new Error(
       `File size ${formatBytes(transfer.fileSize)} exceeds your limit of ` +

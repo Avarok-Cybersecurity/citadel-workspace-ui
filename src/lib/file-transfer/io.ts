@@ -94,9 +94,22 @@ export class FileTransferIO extends RealProtocolIORouter {
           'Wait a moment and try again.'
       );
     }
+    // The LOCAL session's CID. This was `BigInt(0)` with the comment "Not used
+    // for message-based" -- but the internal service looks the connection up by
+    // exactly this field (`server_connection_map.get_mut(&cid)` in
+    // respond_file_transfer.rs), and nothing is filed under 0. Every accept and
+    // every decline came back "Connection not found", with `cid: 0` on the
+    // failure notification so CID routing could not even deliver it to a tab.
+    // The send was fire-and-forget, so nothing noticed: the recipient's bubble
+    // sat at "Downloading... 0%" and the sender's at "Waiting for acceptance"
+    // for ever, and no chat transfer ever moved a byte.
+    const ownCid = await this.getCurrentCid();
+    if (ownCid === null) {
+      throw new Error('No active session to accept this transfer with.');
+    }
     await this.respondToTransfer({
       protocolId: objectId,
-      cid: BigInt(0), // Not used for message-based
+      cid: ownCid,
       peerCid: BigInt(intent.targetCid),
       accept: intent.accepted,
       downloadLocation: intent.reason, // Using reason as download location in old API
@@ -126,7 +139,11 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
     const { file, transferId, recipientCid } = intent;
-    return uploadFileToServer(file, transferId, recipientCid);
+    const ownCid = await this.getCurrentCid();
+    if (ownCid === null) {
+      throw new Error('No active session to send this file from.');
+    }
+    return uploadFileToServer(file, transferId, recipientCid, ownCid);
   }
 
   private async downloadFromServer(

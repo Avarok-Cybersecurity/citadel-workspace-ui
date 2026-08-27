@@ -49,14 +49,14 @@ describe('uploadFileToServer', () => {
       size: MAX_BYTE_CONTENTS_BYTES + 1,
     } as unknown as File;
 
-    await expect(uploadFileToServer(oversized, 'transfer-1', '123')).rejects.toThrow(
+    await expect(uploadFileToServer(oversized, 'transfer-1', '123', 7n)).rejects.toThrow(
       /above the .* limit for browser uploads/s
     );
   });
 
   it('names the offending file and the limit so the message is actionable', async () => {
     const oversized = { name: 'huge.bin', size: 32 * 1024 * 1024 } as unknown as File;
-    await expect(uploadFileToServer(oversized, 'transfer-1', '123')).rejects.toThrow(
+    await expect(uploadFileToServer(oversized, 'transfer-1', '123', 7n)).rejects.toThrow(
       /"huge\.bin" is 32\.0 MiB, above the 16\.0 MiB limit/
     );
   });
