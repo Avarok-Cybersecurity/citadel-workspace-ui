@@ -194,7 +194,12 @@ export function VFSTreeView({
   const showStorageUsage = storageUsed !== undefined && storageQuota !== undefined;
 
   return (
-    <div className="w-52 shrink-0 border-r border-border flex flex-col bg-surface">
+    // Hidden below md. A fixed 208px tree beside the grid left ~167px on a
+    // 375px phone — one column of tiles with names truncated to a few
+    // characters, a third of the screen spent on a folder tree. Every other
+    // split in the app got a mobile path; this one squashed. The grid opens
+    // folders and the path bar navigates up, so nothing is unreachable without it.
+    <div className="hidden w-52 shrink-0 border-r border-border md:flex flex-col bg-surface">
       {/* Scrollable tree area */}
       <div className="flex-1 overflow-y-auto py-1">
         {/* Root entry */}

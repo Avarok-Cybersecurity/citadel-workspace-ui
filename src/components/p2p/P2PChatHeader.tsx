@@ -86,7 +86,12 @@ export function P2PChatHeader({
           <Avatar className="h-8 w-8 shrink-0">
             <AvatarFallback>{getInitials(peerName)}</AvatarFallback>
           </Avatar>
-          <div>
+          {/* min-w-0, or the `truncate` below can never fire: a flex item
+              defaults to min-width:auto, so this div never becomes narrower
+              than the name's max-content width and a long peer name renders
+              underneath the call and settings buttons. GroupChatHeader has
+              carried this exact fix, with a comment, since it was written. */}
+          <div className="min-w-0">
             <h3 className="truncate text-base font-semibold text-foreground">{peerName}</h3>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <div

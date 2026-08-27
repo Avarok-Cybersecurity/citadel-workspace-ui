@@ -5084,6 +5084,60 @@ there is none, so the naive regex matches nothing and leaves the code alone.
 else.** The fixture now carries the trailing comment, and reverting the helper
 fails both it and the real-config test.
 
+## Round seventy-four — the file manager on a phone, 2026-08-28
+
+A responsive audit of everything the mobile guard structurally cannot reach — it
+scans four PRE-AUTH screens of a production build, so the entire authenticated
+app is outside it. One surface came back genuinely blocking rather than merely
+awkward.
+
+### 347. Peers beyond the first were unreachable on a phone — FIXED
+
+The file-manager storage bar had neither `flex-wrap` nor an overflow container,
+and its clipping ancestor is `main`'s `overflow-x-hidden`. With two or more
+registered peers at 375px the tail of the peer list was cut off **with no way to
+scroll to it**, so a phone user could not switch which peer's storage they were
+browsing at all.
+
+It now wraps, and the peer group shrinks and scrolls within its row.
+
+### 348. A fixed 208px folder tree beside the grid — FIXED
+
+`VFSTreeView` was `w-52 shrink-0` with no mobile path, leaving ~167px of a 375px
+phone for the file grid: one column of tiles with names truncated to a few
+characters, a third of the screen spent on a tree. Every other split in the app
+— the main sidebar, Messages — got a mobile path; this one simply squashed.
+
+Hidden below `md`. Nothing becomes unreachable: the grid opens folders and the
+path bar navigates up.
+
+### 349. A rigid filter input squeezed the breadcrumbs to nothing — FIXED
+
+The toolbar's right-hand group is `shrink-0` and contained a fixed `w-32` input,
+so at 375px the breadcrumb strip was left single-digit pixels — the path could
+not be read or navigated. Now `w-full min-w-0 max-w-32`. Its clear button was a
+12px box; padded to the 24px floor this project enforces elsewhere.
+
+### 350. A `truncate` that could never fire — FIXED
+
+`P2PChatHeader` had `truncate` on the peer name inside a plain `<div>`. A flex
+item defaults to `min-width: auto`, so that div never narrowed below the name's
+max-content width and a long peer name rendered underneath the call and settings
+buttons. `GroupChatHeader` beside it has carried `min-w-0` in exactly that
+position, with a comment, since it was written — the fix-in-one-place pattern
+again, now four occurrences deep for this single mechanism.
+
+### 351. Method note — asserting classes when there is no layout
+
+These tests assert the class lists rather than geometry, and say so in the file.
+jsdom has no layout engine: `getBoundingClientRect` returns zeros, so a
+geometric assertion here would pass against any markup at all — the exact
+cannot-fail shape this register keeps recording.
+
+Each fix is controlled independently: reverting any one of the three files fails
+exactly one test, which is what distinguishes a pinned mechanism from a snapshot
+of the current classes.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
