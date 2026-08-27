@@ -68,8 +68,23 @@ export function formatForDebug(obj: unknown): unknown {
     const formatted: Record<string, unknown> = {};
     
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      // Secrets first, and on the NAME alone.
+      //
+      // Redaction used to happen only inside shouldFormatAsBytes, which starts
+      // `if (!Array.isArray(value)) return false` — so a password that is a
+      // STRING fell through to the recursive branch and was printed verbatim.
+      // StoredSession.password is a string, and it is logged on every session
+      // write: auth success, auto-reconnect, logout, role update, active-index
+      // change. `serverPassword` was in no list at all, so it was never
+      // redacted anywhere.
+      //
+      // Whether a secret is safe to print must not depend on how it happens to
+      // be encoded at the moment.
+      if (isSecretField(key)) {
+        formatted[key] = value === undefined || value === null ? value : '<redacted>';
+      }
       // Special handling for known byte fields
-      if (shouldFormatAsBytes(key, value)) {
+      else if (shouldFormatAsBytes(key, value)) {
         formatted[key] = formatBytes(value as number[]);
       }
       // Special handling for known map fields with byte values
@@ -86,6 +101,21 @@ export function formatForDebug(obj: unknown): unknown {
   }
   
   return obj;
+}
+
+/**
+ * Field names whose VALUE must never reach a log, whatever its type.
+ *
+ * Matched case-insensitively on the whole name, plus a suffix rule so
+ * `serverPassword`, `proposed_password` and `workspace_master_password` are
+ * covered without having to enumerate every variant someone adds later. A new
+ * credential field should be redacted by default rather than by remembering to
+ * add it here.
+ */
+const SECRET_FIELD_PATTERN = /^(pass(word|phrase)|secret|token|psk|credential)$|pass(word|phrase)$|^.*_?secret$/i;
+
+export function isSecretField(fieldName: string): boolean {
+  return SECRET_FIELD_PATTERN.test(fieldName);
 }
 
 /**
