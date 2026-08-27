@@ -2708,6 +2708,70 @@ appeared in prose; here one failed for the same reason. A source assertion must
 read CODE. The fix strips comment lines before matching, and is worth applying to
 every source-level assertion added since.
 
+## Round thirty-two — the lock, applied to all of it, 2026-08-27
+
+### 217. My own locking fix was half-applied — FIXED
+
+An audit of the previous round's commit found it excluded only the writers that
+took the lock. **A mutex only excludes participants** — the lesson already
+written into this file — and three root-workspace writers still did an unguarded
+read-modify-write:
+
+- **`update_workspace`**, the first-run claim flow, reads the record whole,
+  appends the caller to `members`, and writes it back. It could read `[user1]`
+  and write `[user1]` over the `[user1, user2]` the connect path had just
+  written UNDER the lock. user2's membership vanishes; `get_workspace` then
+  refuses them with "Not a member", which the command processor maps to
+  `WorkspaceNotInitialized` — so their client re-shows the setup flow. **Same
+  first-run window the connect-side fix targeted.**
+- **Both membership handlers' workspace-root branches.** Their earlier fix added
+  `lock_nodes` to the node branch only.
+
+### 218. Two admins could remove each other down to zero — FIXED
+
+`ensure_not_last_admin` counts the admins and returns; the write happens
+separately. Two admins removing each other both counted 2, both passed the
+check, and both writes landed — leaving **zero admins**, which the guard's own
+doc calls terminal: *"promotion requires an admin, so there is no way back."*
+
+Placing the lock BEFORE the check, not after, is what makes the guard mean
+anything. Note this is only closed if **all three** role writers take the same
+lock across check-and-write; half-applying it leaves the TOCTOU intact, which is
+the same lesson as #217 one layer down.
+
+### 219. Method note — a test that passes with the fix removed, and saying so
+
+The new last-admin test covers the SEQUENTIAL invariant only. **It passes with
+the lock removed** — verified by control — because it removes admins one at a
+time, so the check legitimately refuses the second.
+
+The concurrent case is scheduler-dependent, and a probabilistic test that
+usually passes is worse than none: it reads as coverage. So the test's docstring
+states its scope explicitly and names what actually protects the race. The
+alternative — renaming it "race test" and moving on — would have been the fourth
+non-discriminating test this campaign, except deliberate.
+
+### 220. Recorded, not fixed — the remaining locking surface
+
+- **There is no user lock at all.** Six `get_user → mutate → insert_user` cycles
+  write the whole record — role, permissions map, profile — with nothing
+  serializing them. An admin granting a permission while that member edits their
+  avatar loses one or the other, and the lost write can be an **authorization**
+  change that enforcement then never sees. The fix is a dedicated `user_mutex`,
+  not reuse of `lock_workspaces` — reusing it would couple every profile edit to
+  workspace writes and create multi-lock paths that do not exist today.
+- **`CreateNodeType` has no lock**: two admins creating node types concurrently
+  lose one, and the lost type then cannot be used as a child anywhere. The lock
+  must go in the caller — putting it in the schema accessors would deadlock
+  `create_node` and `move_node`, which read the schema while holding `lock_nodes`.
+- **`add_office_to_workspace` / `remove_office_from_workspace`** are unguarded
+  and currently unreachable — no request maps to them. Fix when wiring, or now.
+- **Lock ordering is currently sound**: the only nesting is
+  workspace → index, index is strictly innermost, and no path takes two of
+  {group, node, workspace}. Worth preserving deliberately — a user lock added
+  carelessly inside the membership handlers would create the first real ordering
+  constraint in the codebase.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
