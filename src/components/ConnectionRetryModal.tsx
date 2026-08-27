@@ -102,7 +102,19 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
 
   const handleManualRetry = () => {
     resetCountdown();
-    const retryFn = retryFnRef.current;
+    // `maxRetries` bounds the MACHINE's patience; it was never meant to bound
+    // the person's. A laptop asleep through ten backed-off attempts -- about 18
+    // minutes -- woke into a modal whose Retry button refused to retry, on a
+    // connection that was by then very likely fine, with a reload as the only
+    // way out.
+    //
+    // Enabling the button is not enough on its own. `retry` keeps incrementing
+    // `attempt` and refuses once it passes `maxRetries` (use-retry), so with it
+    // the button would work exactly once more and then be dead again. A manual
+    // press past the budget starts a fresh series instead, which also lets the
+    // automatic countdown pick back up.
+    const exhausted = attempt >= maxRetries;
+    const retryFn = exhausted ? executeFnRef.current : retryFnRef.current;
     if (retryFn && !retryInProgressRef.current) {
       retryInProgressRef.current = true;
       runAsyncSetup(async () => {
@@ -214,7 +226,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
           </Button>
           <Button
             onClick={handleManualRetry}
-            disabled={isLoading || attempt >= maxRetries}
+            disabled={isLoading}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry Now

@@ -29,7 +29,7 @@ export const FileManagerContent = () => {
   }
 
   if (fm.error || !fm.tree) {
-    return <ErrorScreen error={fm.error ?? null} />;
+    return <ErrorScreen error={fm.error ?? null} onRetry={() => { void fm.refresh(); }} />;
   }
 
   // ── Main VFS Browser ──────────────────────────────────────────────────

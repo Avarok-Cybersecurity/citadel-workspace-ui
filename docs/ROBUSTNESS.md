@@ -7034,3 +7034,35 @@ make one room's chat private from another room's occupants. Room-level privacy
 is a membership-model change, not a check, and it is not one to make silently.
 A test pins the current inheritance behaviour with a comment saying exactly
 that, so nobody reads the other six tests as proof that rooms are private.
+
+### Round 104 — two recovery screens with no way to recover
+
+Both from the degraded-network audit, and the same shape: a state the user
+reaches by bad luck, with no exit but a reload or a navigation.
+
+**The connection retry modal disabled the only button that could help.**
+`Retry Now` was gated on `attempt >= maxRetries`. With the default budget of ten
+and a 2s doubling backoff capped at 300s, those attempts span about eighteen
+minutes — so a laptop asleep past that woke into a modal announcing "Failed to
+reconnect after 10 attempts", with Cancel as the only enabled control, on a
+connection that by then was very likely fine. `maxRetries` bounds the machine's
+patience. It was never meant to bound the person's.
+
+Enabling the button was not enough on its own, and the negative control proved
+it: with the button enabled but still wired to `retry`, all three tests passed.
+`retry` keeps incrementing `attempt` and refuses only once it *passes*
+`maxRetries` — so it works exactly once more and is then dead again. The test
+now presses twice, which is what discriminates a real fix from a button that
+merely looks enabled. Past the budget the press starts a fresh series, which
+also lets the automatic countdown pick back up.
+
+**The file manager's error screen had no controls at all.** An icon, a heading,
+and the raw error string. The hook has always exposed `refresh` — it was already
+threaded into the handlers — but the screen had no route to it and never offered
+it. One timed-out tree fetch on a flaky link (a 30s budget) painted a permanent
+dead end for a transient blip.
+
+The pattern worth naming: both screens are *about* failure, which is exactly why
+nobody looked at them twice. A screen whose whole job is to appear when
+something went wrong is the last place a missing exit gets noticed, because
+seeing it at all already feels like the bug.

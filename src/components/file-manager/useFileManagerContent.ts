@@ -136,6 +136,9 @@ export function useFileManagerContent() {
     myCid, registeredPeers, selectedPeerCid, setSelectedPeerCid,
     storageMode, setStorageMode,
     tree, loading, error,
+    // Exposed so the error screen can offer a way out. It was already threaded
+    // into the handlers; the screen that needs it had no route to it.
+    refresh,
     storageUsed, storageQuota, storageLabel,
     currentPath, setCurrentPath,
     fileInputRef, uploadTargetDir,
