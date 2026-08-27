@@ -89,7 +89,15 @@ export async function removeFileFromPeer(
       type: 'backend-delete-file',
       cid: myCid,
       peerCid,
-      virtualDir: fileNode.fileMetadata.virtualDirectory,
+      // The file's PATH, which is the key upload writes as `virtual_path`.
+      // This used to send `fileMetadata.virtualDirectory` — the containing
+      // DIRECTORY — so it addressed `/docs` for a file at `/docs/notes.txt`.
+      // Two different keys for the same object, one written and one read.
+      //
+      // Deriving from the path also ends a drift: rename and move rewrite
+      // `node.path` and never touch `virtualDirectory`, so the stored field
+      // grew staler with every rename while the path stayed correct.
+      virtualDir: filePath,
     });
   }
 
@@ -114,7 +122,8 @@ export async function downloadFileFromPeer(
     type: 'backend-download-file',
     cid: myCid,
     peerCid,
-    virtualDir: fileNode.fileMetadata.virtualDirectory,
+    // The file's PATH — the key upload writes. See removeFileFromPeer above.
+    virtualDir: filePath,
   });
 
   if (result.type === 'backend-download-file') {

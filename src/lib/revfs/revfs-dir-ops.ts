@@ -150,7 +150,8 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
       type: 'backend-delete-file',
       cid: myCid,
       peerCid: null,
-      virtualDir: file.fileMetadata.virtualDirectory,
+      // The file's PATH — the key upload writes, not the stored directory.
+      virtualDir: file.path,
     });
   }
 }

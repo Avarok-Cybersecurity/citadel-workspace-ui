@@ -86,21 +86,42 @@ export async function removeFileFromServer(
 ): Promise<void> {
   const key = serverTreeKey(myCid);
   const tree = await ctx.getServerTree(myCid);
-  const [newTree] = treeRemoveFile(tree, filePath);
-
-  ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
 
+  // Delete the bytes BEFORE dropping the node, and stop if that fails.
+  //
+  // The node used to be removed and persisted first, then the backend delete
+  // issued and its result ignored. A failed delete therefore left the bytes on
+  // the server with nothing in the tree referencing them — storage consumed
+  // permanently, with no node left to retry from. Removing the node is the
+  // irreversible half locally, so it goes last.
   const fileNode = ctx.findFileInTree(tree, filePath);
   if (fileNode?.fileMetadata) {
-    await io.execute({
+    const deleted = await io.execute({
       type: 'backend-delete-file',
       cid: myCid,
       peerCid: null,
-      virtualDir: fileNode.fileMetadata.virtualDirectory,
+      // The file's PATH, which is the key upload writes as `virtual_path`.
+      // This used to send `fileMetadata.virtualDirectory` — the containing
+      // DIRECTORY — so it addressed `/docs` for a file at `/docs/notes.txt`.
+      // Two different keys for the same object, one written and one read.
+      //
+      // Deriving from the path also ends a drift: rename and move rewrite
+      // `node.path` and never touch `virtualDirectory`, so the stored field
+      // grew staler with every rename while the path stayed correct.
+      virtualDir: filePath,
     });
+
+    if (deleted.type !== 'backend-delete-file' || !deleted.success) {
+      throw new Error(
+        `"${filePath}" could not be deleted from server storage. It has been left in place.`
+      );
+    }
   }
+
+  const [newTree] = treeRemoveFile(tree, filePath);
+  ctx.state.setTree(key, newTree);
+  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
 }
 
 export async function downloadFileFromServer(
@@ -120,7 +141,8 @@ export async function downloadFileFromServer(
     type: 'backend-download-file',
     cid: myCid,
     peerCid: null,
-    virtualDir: fileNode.fileMetadata.virtualDirectory,
+    // The file's PATH — the key upload writes. See removeFileFromServer above.
+    virtualDir: filePath,
   });
 
   if (result.type === 'backend-download-file') {
