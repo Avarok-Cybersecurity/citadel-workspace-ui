@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { shouldSendOnKey } from './should-send-on-key';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import WorkspaceService from '@/lib/workspace-service';
@@ -187,7 +188,7 @@ export function useGroupChat(groupId: string) {
   const messagesByDate = useMemo(() => groupMessagesByDate(messages), [messages]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (shouldSendOnKey(e)) {
       e.preventDefault();
       runAsyncSetup(async () => {
         if (editingId) {

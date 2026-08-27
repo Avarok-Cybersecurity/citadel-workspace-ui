@@ -146,6 +146,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             rows={1}
           />
           <Button
+            aria-label={chat.editingId ? 'Save edit' : 'Send message'}
             onClick={chat.editingId ? chat.handleEditMessage : chat.handleSendMessage}
             disabled={chat.sending || (chat.editingId ? !chat.editContent.trim() : !chat.inputValue.trim())}
             className="bg-primary hover:bg-primary/90"

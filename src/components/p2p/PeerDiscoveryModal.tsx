@@ -37,6 +37,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               Peer Discovery
             </span>
             <Button
+              aria-label="Refresh peer list"
               variant="ghost"
               size="sm"
               onClick={discoverPeers}

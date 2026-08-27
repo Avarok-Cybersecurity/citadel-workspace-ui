@@ -5346,3 +5346,97 @@ for a different rule. It walks the object now.
 - **`citadel:file-transfers` is write-only and unbounded** — appended on every
   transfer state change, never read by anything, never pruned, and its write
   failure is swallowed.
+
+## Round seventy-eight — the recovery route that sent you back, 2026-08-27
+
+### 363. The Connect page could not recover anyone
+
+`WorkspaceLoader` sends every user whose connection died to `/connect`. That
+page's only authenticated branch tested `session.cid` on the **stored** session —
+and `ConnectionManager.initialize` deliberately clears every stored CID on each
+load ("Clearing stored CIDs to force fresh connection") and persists that. So
+after any page load the branch was dead, and the fallthrough navigated into the
+workspace with no session at all: the loader found zero active sessions, its 5s
+timer fired, and it redirected back to `/connect`. A silent five-second bounce,
+repeatable forever, at exactly the moment the user was already stuck.
+
+What actually recovers someone is the live session list on the internal service —
+the same list `useOrphanSessions` claims from, and where a session survives a page
+reload. `connectToServer` now looks there first; if nothing matches the chosen
+server it asks auto-connect to re-establish one from stored credentials and waits
+for it; and only if both fail does it give up — saying so, and routing to sign-in
+rather than into a workspace that will bounce the user straight back.
+
+The old claim branch also omitted `setSelectedUser`, unlike every other claim path
+in the app, leaving the tab's identity for the loader to guess from
+`activeSessions[0]` — wrong in a multi-account browser. The extracted path mirrors
+`useOrphanSessions` step for step.
+
+### 364. Escape in "Add workspace" threw you out of the workspace
+
+`ServerConnect` carried a vestigial `window` keydown handler whose Escape branch
+fell back to `navigate('/')`, and a Cancel button with the same fallback.
+`WorkspaceSwitcher` renders it inside a Radix Dialog **without** `onCancel`, so
+pressing Escape — the standard way to close a dialog — closed the dialog and
+navigated the whole app to the Landing page. Mouse users hit it via Cancel.
+
+The handler was also redundant: `useDialogOverlay` already routes Escape to
+`onDismiss`. Deleted it, and made `onCancel` **required** with no navigation
+fallback, so a caller has to say what dismissing means to them. The type checker
+then found the one caller that never did.
+
+### 365. The pending-requests surface was unreachable without a mouse
+
+Both routes into the pending-requests modal were click-only divs: the sidebar's
+count `Badge`, and a notification `Card`. Neither took focus or appeared in the
+accessibility tree. The badge is now a real button with a name that says what it
+does; the notification card is recorded below, since giving it a keyboard route
+means adding an explicit action rather than making a container with nested
+buttons focusable.
+
+The test asserts through `getByRole` and tabs to the control with no pointer —
+and keeps the old shape as a live negative control, so if `Badge` ever starts
+rendering a button the test that proves the fix stops silently passing for the
+wrong reason.
+
+### 366. Enter sent half-composed messages to anyone using an IME
+
+The group composer handled Enter itself with no `isComposing` check, so a user
+typing Japanese, Chinese or Korean sent a fragment every time they chose a
+character. The P2P composer never had the bug because it submits through a
+native `<form>`, which browsers suppress during composition — so there was
+nothing to propagate, only a rule to state. `shouldSendOnKey` now states it.
+
+### 367. Smaller a11y items fixed in this pass
+
+- The group-chat **send button** and the peer-discovery **refresh button** had no
+  accessible name. Both live in the icon-button guard's documented blind spot:
+  its icon-only test does not match `{cond ? <A/> : <B/>}` children, deliberately,
+  to avoid false positives. Worth noting the guard's success message overstates
+  its coverage.
+- Online status in the P2P conversation list was colour-only. `PeerListRow` had
+  already been fixed with an `sr-only` span citing WCAG 1.4.1; not propagated.
+
+### 368. Per-peer transfer settings were read back without a default-merge
+
+`getSettings` returned the stored blob verbatim, so any field added after a user
+last saved arrives `undefined` — `allowRevfsStorage` would read as off, silently
+disabling RE-VFS for that peer, and `revfsQuota` as `NaN` MB. Nothing has shipped
+in that state yet; the spread closes the class before the next field does it.
+
+### Still open, recorded not fixed
+
+- The notification card route into pending requests (needs an explicit action
+  button; making the card focusable would be nested-interactive).
+- `FileTransferBubble` is unconditionally `role="button" tabIndex={0}` around
+  nested real buttons, with no name.
+- Cmd/Ctrl+B toggles the sidebar with no editable-target guard, colliding with
+  the editor's Bold.
+- Selection is conveyed only visually in three pickers (Connect's server list
+  uses `role="radiogroup"` over `role="button"` children with no `aria-checked`).
+- `VFSContentGrid`'s whole scroll container is an unnamed `role="button"`.
+- Group-chat edit/reply never moves focus to the composer; the P2P composer does.
+- `LoadingModal` has no focus management, and its Cancel path is dead — no caller
+  passes `onCancel`.
+- Privacy and Appearance settings tabs remain entirely inert.
+- `citadel:file-transfers` is still write-only and unbounded.

@@ -76,18 +76,27 @@ export class FileTransferState {
   // Settings Operations
   // ============================================================================
 
+  /** The shape a peer gets when nothing has been saved for them. */
+  static readonly DEFAULT_SETTINGS: FileTransferSettings = {
+    autoAccept: false,
+    maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
+    transferMode: 'browser',
+    allowRevfsStorage: true, // Default to true for RE-VFS file browser functionality
+    revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,
+  };
+
   getSettings(peerCid: string): FileTransferSettings {
     const stored = this.peerSettings.get(peerCid);
-    if (stored) return stored;
 
-    // Return defaults
-    return {
-      autoAccept: false,
-      maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
-      transferMode: 'browser',
-      allowRevfsStorage: true, // Default to true for RE-VFS file browser functionality
-      revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,
-    };
+    // Merge OVER the defaults rather than returning the stored object as-is.
+    //
+    // These come from localStorage, written by whatever version of the app the
+    // user last ran. Returning the blob verbatim means every field added after
+    // they saved arrives `undefined`: `allowRevfsStorage` reads as off, silently
+    // disabling RE-VFS for that peer, and `revfsQuota` shows as `NaN` MB in the
+    // settings UI. Nothing has shipped in that state yet — this closes the class
+    // before the next field does it.
+    return { ...FileTransferState.DEFAULT_SETTINGS, ...stored };
   }
 
   setSettings(peerCid: string, settings: FileTransferSettings): void {

@@ -1,0 +1,109 @@
+/**
+ * The Connect page is where WorkspaceLoader sends a user whose connection died.
+ * It must not send them somewhere that sends them back.
+ *
+ * The old handler tested `session.cid` on the STORED session — which
+ * `ConnectionManager.initialize` clears on every load and persists — so the
+ * branch was dead and the fallthrough navigated into the workspace with no
+ * session. The loader then found zero active sessions, timed out after 5s, and
+ * redirected here. A silent bounce, forever.
+ *
+ * These assert the outcome the caller acts on, not the navigation itself: the
+ * page may only route into the workspace when a session was actually adopted.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// vi.mock factories are hoisted above every top-level binding, so the doubles
+// have to live inside vi.hoisted rather than in module scope.
+const h = vi.hoisted(() => ({
+  claimSession: vi.fn(() => Promise.resolve()),
+  postAuthSetup: vi.fn(() => Promise.resolve()),
+  setSelectedUser: vi.fn(() => Promise.resolve()),
+  triggerAutoConnect: vi.fn(() => Promise.resolve()),
+  activeSessions: [] as Array<{ cid: bigint; username: string; server_address: string }>,
+  storedSessions: [] as Array<{ username: string; serverAddress: string; password?: string }>,
+}));
+const { claimSession, postAuthSetup, setSelectedUser, triggerAutoConnect } = h;
+
+vi.mock('@/lib/connection', () => ({
+  connectionManager: {
+    invalidateSessionCache: vi.fn(),
+    getActiveSessions: vi.fn(() => Promise.resolve(h.activeSessions)),
+    getStoredSessionsArray: vi.fn(() => h.storedSessions),
+    setActiveSessionIndex: vi.fn(() => Promise.resolve()),
+    triggerAutoConnect: h.triggerAutoConnect,
+  },
+}));
+vi.mock('@/lib/websocket-service', () => ({ websocketService: { claimSession: h.claimSession } }));
+vi.mock('@/lib/post-auth-setup', () => ({ postAuthSetup: h.postAuthSetup }));
+vi.mock('@/lib/tab-context', () => ({ setSelectedUser: h.setSelectedUser }));
+vi.mock('@/lib/multi-instance', () => ({
+  instanceManager: { setCid: vi.fn() },
+  instanceChannel: { announcePresence: vi.fn() },
+}));
+
+import { connectToServer } from '../use-connect-to-server';
+
+const SERVER = '127.0.0.1:12349';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  h.activeSessions = [];
+  h.storedSessions = [];
+});
+
+describe('connectToServer', () => {
+  it('adopts a session that is still live on the internal service', async () => {
+    h.activeSessions = [{ cid: 9n, username: 'alice', server_address: SERVER }];
+
+    const outcome = await connectToServer(SERVER);
+
+    expect(outcome).toEqual({ kind: 'connected', cid: 9n });
+    expect(claimSession).toHaveBeenCalledWith(9n, true);
+    expect(postAuthSetup).toHaveBeenCalledWith(9n);
+    // The old claim branch omitted this, leaving the tab's identity for the
+    // loader to guess from activeSessions[0] — wrong in a multi-account browser.
+    expect(setSelectedUser).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedCid: 9n, selectedUsername: 'alice' }),
+    );
+  });
+
+  it('does not report a connection when nothing is open and nothing is saved', async () => {
+    const outcome = await connectToServer(SERVER);
+
+    expect(outcome.kind).toBe('needs-sign-in');
+    expect(postAuthSetup).not.toHaveBeenCalled();
+  });
+
+  it('does not silently spin when the user declined credential storage', async () => {
+    h.storedSessions = [{ username: 'alice', serverAddress: SERVER }];
+
+    const outcome = await connectToServer(SERVER);
+
+    expect(outcome.kind).toBe('needs-sign-in');
+    // No point asking auto-connect: it skips password-less sessions.
+    expect(triggerAutoConnect).not.toHaveBeenCalled();
+    if (outcome.kind === 'needs-sign-in') {
+      expect(outcome.reason).toMatch(/credentials were not saved/i);
+    }
+  });
+
+  it('ignores a live session belonging to a different server', async () => {
+    h.activeSessions = [{ cid: 9n, username: 'alice', server_address: 'other.host:12349' }];
+
+    const outcome = await connectToServer(SERVER);
+
+    expect(outcome.kind).toBe('needs-sign-in');
+    expect(claimSession).not.toHaveBeenCalled();
+  });
+
+  it('treats "not orphaned" as already ours, not as a failure', async () => {
+    h.activeSessions = [{ cid: 9n, username: 'alice', server_address: SERVER }];
+    claimSession.mockRejectedValueOnce(new Error('session is not orphaned'));
+
+    const outcome = await connectToServer(SERVER);
+
+    expect(outcome).toEqual({ kind: 'connected', cid: 9n });
+    expect(postAuthSetup).toHaveBeenCalledWith(9n);
+  });
+});

@@ -112,6 +112,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
           {currentStep === "connect" && (
             <ServerConnect
               onNext={handleNext}
+              onCancel={() => setIsAddingWorkspace(false)}
               defaultServer={targetWorkspaceForNewAccount?.serverAddress}
               title={targetWorkspaceForNewAccount ?
                 `Connect to ${targetWorkspaceForNewAccount.workspaceName}` :

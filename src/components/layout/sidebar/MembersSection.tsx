@@ -113,14 +113,24 @@ export const MembersSection = () => {
               {getLocationText().toUpperCase()}
             </SidebarGroupLabel>
             {pendingRequestCount > 0 && (
-              <Badge
-                data-testid="pending-requests-badge"
-                className="h-5 min-w-[20px] px-1.5 bg-red-500 text-foreground cursor-pointer hover:bg-red-600 transition-colors"
+              /* A real button, not a clickable Badge. Badge renders a div, so
+                 this was invisible to the keyboard and announced as nothing —
+                 and it is one of only two ways to open the pending-requests
+                 modal (the other is a click-only notification card), which made
+                 that whole surface unreachable without a mouse. */
+              <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
-                title={`${pendingRequestCount} pending connection request${pendingRequestCount > 1 ? 's' : ''}`}
+                aria-label={`Review ${pendingRequestCount} pending connection request${pendingRequestCount > 1 ? 's' : ''}`}
+                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {pendingRequestCount}
-              </Badge>
+                <Badge
+                  data-testid="pending-requests-badge"
+                  className="h-5 min-w-[20px] px-1.5 bg-red-500 text-foreground cursor-pointer hover:bg-red-600 transition-colors"
+                >
+                  {pendingRequestCount}
+                </Badge>
+              </button>
             )}
           </div>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-accent hover:bg-purple-500/15 hover:text-foreground" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">

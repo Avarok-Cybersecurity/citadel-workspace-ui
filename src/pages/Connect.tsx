@@ -6,9 +6,7 @@ import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listKnownServers, getRecentServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
-import { connectionManager } from "@/lib/connection";
-import { websocketService } from "@/lib/websocket-service";
-import { postAuthSetup } from "@/lib/post-auth-setup";
+import { connectToServer } from "./connect/use-connect-to-server";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { activateOnKey } from '@/lib/a11y';
@@ -89,23 +87,19 @@ export const Connect = () => {
         description: `Connecting to ${selectedServer}...`,
       });
 
-      // Actually establish a connection by claiming any existing session for this server
-      const storedSessions = connectionManager.getStoredSessions();
-      const session = storedSessions.sessions.find(
-        (s) => s.serverAddress === selectedServer
-      );
+      const outcome = await connectToServer(selectedServer);
 
-      if (session?.cid) {
-        // Try to claim the stored session
-        try {
-          await websocketService.claimSession(session.cid, true);
-        } catch (claimError: unknown) {
-          if (claimError instanceof Error && !claimError.message?.includes('not orphaned')) {
-            throw claimError;
-          }
-        }
-
-        await postAuthSetup(session.cid);
+      if (outcome.kind === 'needs-sign-in') {
+        // Do NOT navigate into the workspace. With no session the loader times
+        // out after 5s and sends the user straight back here, silently — which
+        // is what this page used to do on every attempt.
+        toast({
+          title: "Sign in again to continue",
+          description: `${outcome.reason} Sign in to reconnect.`,
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
       }
 
       navigate(getWorkspacePath());

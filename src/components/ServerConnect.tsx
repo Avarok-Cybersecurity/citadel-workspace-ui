@@ -3,14 +3,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Globe, Lock, Shield, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { StepIndicator } from "@/components/ui/step-indicator";
 
 interface ServerConnectProps {
   onNext: (address: string, password: string) => void;
-  onCancel?: () => void;
+  /**
+   * Required, with no navigation fallback.
+   *
+   * It was optional, and both Escape and Cancel fell back to `navigate('/')`.
+   * WorkspaceSwitcher renders this inside a Radix Dialog without passing it, so
+   * pressing Escape — the standard way to close a dialog — closed the dialog AND
+   * threw the user out of their workspace to the Landing page. Making it
+   * required means a caller has to say what dismissing means to them.
+   */
+  onCancel: () => void;
   defaultServer?: string;
   title?: string;
   initialAddress?: string;
@@ -19,22 +27,9 @@ interface ServerConnectProps {
 
 export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps) => {
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const [serverAddress, setServerAddress] = useState(defaultServer || initialAddress || '');
   const [password, setPassword] = useState(initialPassword || '');
-
-  // Dismiss on Escape key
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (onCancel) onCancel();
-        else navigate('/');
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCancel, navigate]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +122,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
               <Button
                 type="button"
                 variant="ghost"
-                onClick={onCancel || (() => navigate("/"))}
+                onClick={onCancel}
                 className="text-muted-foreground hover:text-foreground hover:bg-transparent"
               >
                 Cancel
