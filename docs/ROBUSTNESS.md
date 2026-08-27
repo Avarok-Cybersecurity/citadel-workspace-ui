@@ -5030,6 +5030,60 @@ and this round closes it — with a guard, so the class cannot come back the way
 this instance did: through a helper nobody re-examined after its callers grew to
 five.
 
+## Round seventy-three — a thousand log calls that ship to production, 2026-08-28
+
+### 344. `debugLog` is a no-op in production, and its ARGUMENTS still run — FIXED
+
+`debugLog` compiles to `noop` in production, so the logging looks free. It is
+not: the **1,092 call sites remain**, and their arguments are evaluated before
+being handed to a function that discards them.
+
+That is worse than dead bytes on a phone's first paint. One call recursively
+stringifies the serialized session store on **every write**, in production, to
+feed the noop.
+
+esbuild's `pure` list is what lets the minifier drop the call and its arguments
+together — and it covered only `console.*`, which never included this. `errorLog`
+and `warnLog` are deliberately absent from the list: a render crash is the one
+error a user cannot report themselves.
+
+Context that makes this more than tidiness: the landing budget is at 297.8 KB
+against a 300 KB limit, so the headroom the budget script exists to protect is
+already down to 2.2 KB.
+
+### 345. The comment-stripper used by seven guards was silently broken — FIXED
+
+The test asserting the new `pure` entry failed with *"the pure list is gone from
+vite.config.ts"* — for a list sitting right there.
+
+The cause is worth stating exactly. Source guards strip comments before matching
+(this register records an assertion that matched the comment explaining its own
+code's removal). The idiom everyone copied is
+`replace(/\/\*[\s\S]*?\*\//g, '')` — and `vite.config.ts` contains
+`globPatterns: ['**/*.{js,css,html,…}']`. That glob contains `/*`. The regex
+read it as a comment opener, ran to the next real `*/` further down the file, and
+**deleted the entire esbuild block in between**.
+
+Seven files had copied that idiom. It now lives once, in `stripComments`, with a
+rule that a block comment's opener is preceded by start-of-line, whitespace or a
+bracket — never by another `*`, which is what a glob has. Not a parser, and not
+trying to be one: the smallest rule that separates the two for source this
+project contains.
+
+### 346. Method note — a minimal fixture that did not reproduce the bug
+
+The first version of the helper's test built a two-line fixture: the glob, then
+the code. It passed against the NAIVE implementation, which should have been
+impossible.
+
+It reproduced nothing because the phantom comment needs something to CLOSE it.
+In the real file a later doc comment supplies the `*/`; in a two-line fixture
+there is none, so the naive regex matches nothing and leaves the code alone.
+
+**A fixture reduced past the conditions that produce the bug tests something
+else.** The fixture now carries the trailing comment, and reverting the helper
+fails both it and the real-config test.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

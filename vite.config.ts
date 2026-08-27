@@ -449,8 +449,19 @@ export default defineConfig(({ mode }) => {
       target: "esnext",
       // In production: strip console.log and console.debug (treat as pure/side-effect-free).
       // console.error and console.warn are preserved for runtime error visibility.
+      //
+      // `debugLog` is on this list for a reason that is easy to miss: in
+      // production it is already a `noop`, but the 1,000-plus CALL SITES remain,
+      // and their arguments are still evaluated. That is not only dead bytes on
+      // a phone's first paint — `formatForDebug(...)` recursively stringifies
+      // the serialized session store on every write, in production, to feed a
+      // function that discards it. Marking the call pure lets the minifier drop
+      // the call and its arguments together.
+      //
+      // `errorLog` is deliberately NOT here: it logs in every build, because a
+      // render crash is the one error a user cannot report themselves.
       ...(mode === 'production' ? {
-        pure: ['console.log', 'console.debug', 'console.info'],
+        pure: ['console.log', 'console.debug', 'console.info', 'debugLog'],
         drop: ['debugger'],
       } : {}),
     },
