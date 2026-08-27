@@ -6995,3 +6995,42 @@ traded a duplicate-send bug for a 30-second lockout.
 
 While in there: the send options type was declared twice, inline, in both the
 manager and the sender. It is now one exported `SendMessageOptions`.
+
+### Round 103 — group chat had no authorization at all
+
+From the backend audit, and confirmed by reading every handler: `SendGroupMessage`,
+`GetGroupMessages`, `GetThreadMessages`, `EditGroupMessage` and
+`DeleteGroupMessage` took `group_id` straight from the request and used it. No
+membership check, no existence check. Any authenticated account could read a
+channel's entire history, post into it, and — because nothing tied a `group_id`
+to a node — store messages under a channel that belonged to no node at all,
+including channels whose node had since been deleted. Every posted message was
+then `broadcast` to *every* connected session, membership irrelevant.
+
+This is the same class as the `GetMember` / `ListMembers` hole fixed earlier: the
+rule existed elsewhere in the tree and chat never adopted it. `update_node` has
+checked `check_entity_permission` against its target node for some time.
+
+The gate is now one function, `authorize_group_access`, used by both the request
+handlers and the broadcast filter so the two cannot drift. It resolves the node
+owning the channel and asks for `ViewContent` on it — the same permission that
+governs reading that node's content. Denials are a single constant string,
+identical whether the channel is unknown or merely forbidden, so the handler
+cannot be used as an oracle for which rooms exist. A test asserts that the two
+responses are byte-identical.
+
+Broadcasts now carry an audience. `BroadcastAudience::Group(id)` is filtered in
+the per-connection forwarding loop, which is the only place in the kernel that
+knows which user a socket belongs to — so it is the only place the check can be
+made at all.
+
+**What this does not fix, stated plainly.** `is_member_of_domain` recurses to the
+parent, and every account is added to the workspace domain when it connects. The
+seeded offices are created with an empty `members` list and depend on exactly
+that inheritance. So a gate demanding direct node membership would have taken
+chat away from every user in every seeded office, and the gate as written stops
+accounts outside the workspace and channels belonging to no node — it does *not*
+make one room's chat private from another room's occupants. Room-level privacy
+is a membership-model change, not a check, and it is not one to make silently.
+A test pins the current inheritance behaviour with a comment saying exactly
+that, so nobody reads the other six tests as proof that rooms are private.
