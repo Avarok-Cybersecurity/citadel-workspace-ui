@@ -42,7 +42,8 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     execute,
     retry: retryConnection,
     isLoading,
-    error
+    error,
+    reset: resetAttempts,
   } = useRetry(
     retryOperation,
     {
@@ -120,9 +121,22 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, attempt, maxRetries, isLoading]);
 
-  useEventListener('connection-success', () => {
+  // 'on-ws-connection-success' is the event the socket layer actually emits.
+  //
+  // This listened for 'connection-success', which NOTHING emits — so a
+  // connection recovered by any other path never closed this modal.
+  //
+  // Resetting the attempt counter on success is the other half. `maxRetries` is
+  // a per-OUTAGE budget, but nothing ever called reset, so the count accumulated
+  // across the tab's whole lifetime: after ten failures spread over hours, every
+  // subsequent disconnection opened a modal reading "Failed to reconnect after
+  // 10 attempts" with Retry already disabled and no recovery but a reload. Even
+  // before exhaustion, each outage inherited the previous count and started at
+  // an inflated backoff.
+  useEventListener('on-ws-connection-success', () => {
+    resetAttempts();
     onClose();
-  }, [onClose]);
+  }, [onClose, resetAttempts]);
 
   const handleManualRetry = () => {
     setCountdown(0);

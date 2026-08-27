@@ -7,6 +7,7 @@ import { groupMessagingManager } from '@/lib/group-messaging-manager';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { groupMessagesByDate } from './shared';
 import { debugLog } from '@/lib/debug-config';
+import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 
 export function useGroupChat(groupId: string) {
   const { toast } = useToast();
@@ -28,6 +29,15 @@ export function useGroupChat(groupId: string) {
   useEffect(() => {
     const loadMessages = async () => {
       setLoading(true);
+      // getGroupMessages resolves when the request is SENT, and `loading` is
+      // cleared only by the messages_loaded event — so a refused or lost
+      // response left the view spinning forever with nothing to press. The only
+      // escape was navigating away or reloading.
+      //
+      // Falling back to the empty state is honest: "no messages yet" is at
+      // least a statement the user can act on, where an unresolvable spinner is
+      // not.
+      armLoadingDeadline(`group-messages:${groupId}`, () => setLoading(false));
       try {
         await WorkspaceService.getGroupMessages(groupId);
       } catch (error) {
@@ -48,6 +58,8 @@ export function useGroupChat(groupId: string) {
     const unsubscribe = groupMessagingManager.subscribeToGroup(groupId, (event) => {
       switch (event.type) {
         case 'messages_loaded':
+          cancelLoadingDeadline(`group-messages:${groupId}`);
+          cancelLoadingDeadline(`group-messages-more:${groupId}`);
           setMessages(event.messages || []);
           setHasMore(event.hasMore || false);
           setLoading(false);
@@ -100,6 +112,9 @@ export function useGroupChat(groupId: string) {
     if (!oldestTimestamp) return;
 
     setLoadingMore(true);
+    // Same shape, worse symptom: the "Load older messages" button is
+    // `disabled={loadingMore}`, so a lost response disabled it permanently.
+    armLoadingDeadline(`group-messages-more:${groupId}`, () => setLoadingMore(false));
     try {
       await WorkspaceService.getGroupMessages(groupId, oldestTimestamp);
     } catch (error) {
