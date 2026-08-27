@@ -7175,3 +7175,32 @@ into uselessness. It now separates preferences with a code reader from those the
 browser applies directly, and names the reason for each of the latter; a
 completeness test fails if a new field appears in the interface without being
 classified either way.
+
+### Round 108 — a Return button that returned nowhere, and a conversation that showed nothing
+
+Two more from the visual audit, both the shape this campaign keeps finding.
+
+The ongoing-call bar sent 1:1 callers to `/messages?peer=<cid>`. The Messages
+page reads `?channel=`, and nothing anywhere reads `peer`. So during a call,
+leaving the conversation and pressing **Return** landed on "No conversation
+selected": the call stage never came back, and the bar kept floating over the
+empty state offering the same dead button. Wired from one end — the button
+navigated, the page never listened — and nothing fails or warns, so the only way
+to find it is to be in a call and press it.
+
+The guard that came with the fix is worth more than the fix. It reads every
+`/<route>?<param>=` literal in the tree and requires the destination page to
+actually `get()` that param. One route in the table so far; adding another is a
+line.
+
+And an empty P2P conversation rendered nothing at all — the loading hints, then
+`messages.map` over an empty array. The first conversation a new user opens is
+the product's core flow, and it looked like a screen that had failed to load.
+The group chat view has had "No messages yet" since it was written. The two
+surfaces just diverged, which is the same divergence the audit found in bubble
+colours, date separators, composer type and pagination affordance: two chat
+grammars in one product, visible to anyone who uses both in a session.
+
+The empty state is suppressed while the first page is still arriving — saying
+"no messages yet" about messages that are on their way is its own small lie, and
+a test pins it.

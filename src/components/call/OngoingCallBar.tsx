@@ -38,7 +38,12 @@ export function OngoingCallBar() {
       return;
     }
     const peer = others[0];
-    if (peer) navigate(`/messages?peer=${peer.cid.toString()}`);
+    // `channel`, which is the param the Messages page reads. This said `peer`,
+    // which nothing reads anywhere -- so during a 1:1 call, leaving the
+    // conversation and pressing Return landed on "No conversation selected",
+    // the call stage never came back, and the bar kept floating over it. Wired
+    // from one end: the button navigated, the page never listened.
+    if (peer) navigate(`/messages?channel=${peer.cid.toString()}`);
   };
 
   return (

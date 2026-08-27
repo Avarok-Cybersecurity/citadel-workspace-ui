@@ -78,6 +78,18 @@ export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
               <div className="text-xs text-muted-foreground">↑ Scroll up for older messages</div>
             </div>
           )}
+          {messages.length === 0 && !isLoadingMore && (
+            // The group chat view has had this since it was written; the P2P
+            // one rendered an empty div, so the first conversation a new user
+            // opens -- the product's core flow -- was a blank void that reads
+            // as a screen that failed to load.
+            <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
+              <p className="text-sm text-foreground">No messages yet</p>
+              <p className="text-xs text-muted-foreground">
+                Say hello to {peerName}. Messages are end-to-end encrypted.
+              </p>
+            </div>
+          )}
           {messages.map((message) => {
             const isOwn = message.senderCid === currentUserCid;
             const messageSenderName = isOwn ? currentUserName : peerName;
