@@ -5788,3 +5788,47 @@ thing currently bailing out; received file blobs and their object URLs are pinne
 for the session; file reassembly decodes base64 in one synchronous pass; and the
 file manager re-renders wholesale every 2 seconds because its peer poll builds
 fresh arrays.
+
+## Round eighty-four — the room edit written where rooms are never read from, 2026-08-27
+
+### 382. Editing a room's document lost the edit and invented an office
+
+`persist_node_content` took a single node **name** and wrote
+`{base}/{name}/CONTENT.md`. The boot loader reads offices from
+`{base}/{office}/CONTENT.md` and rooms from `{base}/{office}/{room}/CONTENT.md` —
+so every room edit landed at a path the loader interprets as an *office*.
+
+Three consequences, all silent:
+
+- The edit went somewhere the room is never read from, so at the next restart the
+  room came back with its seed content and the user's work was gone.
+- A phantom **office** appeared, named after the room, holding the orphaned text.
+- Two rooms with the same name in different offices shared one file, so editing
+  one overwrote the other.
+
+The correctly-pathed `persist_room_content` already existed; this path simply
+never called it. Fixed by resolving the node's full ancestor chain
+(`content_path_segments`) and writing at that path. The walk carries a visited
+set — the tree validator guards mutations, but this reads whatever is on disk,
+and a corrupt chain must not spin.
+
+An unresolvable chain returns empty and the writer **refuses**, rather than
+falling through to a guessed path. That check runs before the base-path lookup on
+purpose: an unresolvable node is a data problem worth surfacing whether or not
+file persistence is configured, and the segments are computed from the nodes map,
+not the filesystem, so it stays quiet on a deployment with persistence off.
+
+The negative control is unusually clear: stop the walk at the node itself and
+both `Alpha/Standup` and `Beta/Standup` collapse to `["Standup"]` — the two
+rooms sharing one file, exactly as shipped.
+
+### Still open — the other half of this cluster
+
+**Structural changes are never broadcast.** `CreateNode`, `DeleteNode`,
+`MoveNode` and renames return only to the requester; only `NodeContentUpdated`
+broadcasts, and `listNodes` runs exactly once, at login. One user's new room is
+invisible to everyone else until they re-log; a deleted office stays in their
+sidebar and they keep typing into its chat, which the server accepts because
+`SendGroupMessage` never checks `group_id` against a live node. The client
+handlers for these variants already exist — they only ever fire for the
+requester. That is the next thing to do here.
