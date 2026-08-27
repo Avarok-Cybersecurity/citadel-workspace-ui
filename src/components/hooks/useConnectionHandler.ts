@@ -45,11 +45,20 @@ export function useConnectionHandler() {
     const initializeServices = async () => {
       try {
         debugLog('WorkspaceApp', 'Starting ConnectionManager initialization...');
-        healthCheckService.startHealthChecks(10000);
         await connectionManager.initialize();
         debugLog('WorkspaceApp', 'ConnectionManager initialized successfully');
       } catch (error) {
         debugLog('WorkspaceApp', 'Failed to initialize ConnectionManager:', error);
+      } finally {
+        // After initialization, not before. The first probe is immediate, so
+        // starting here sampled the service before it could possibly be up and
+        // published "agent unreachable" to a banner that then sat there until
+        // the next poll ten seconds later -- on every single boot, teaching
+        // people to ignore the one banner that explains a real failure.
+        //
+        // In `finally` rather than after the await: an initialization that
+        // FAILS is exactly when the banner needs to be right.
+        healthCheckService.startHealthChecks(10000);
       }
     };
 

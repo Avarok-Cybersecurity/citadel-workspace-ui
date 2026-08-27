@@ -38,6 +38,17 @@ describe('the agent-down banner', () => {
     expect(banner).toHaveAttribute('aria-live', 'polite');
   });
 
+  it('is not labelled as the reassuring banner', () => {
+    render(<OfflineBanner />);
+    announceHealth(false);
+
+    // `agentDown` implies the device is online, so this state used to carry
+    // data-testid="reconnected-banner" -- the green "back online" name on the
+    // red "your agent is unreachable" state.
+    expect(screen.getByTestId('agent-down-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('reconnected-banner')).toBeNull();
+  });
+
   it('clears itself when the agent comes back', () => {
     render(<OfflineBanner />);
     announceHealth(false);

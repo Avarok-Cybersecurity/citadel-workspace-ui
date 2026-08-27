@@ -59,7 +59,12 @@ export function OfflineBanner() {
       // change in ambient condition rather than a response to an action.
       role="status"
       aria-live="polite"
-      data-testid={offline ? 'offline-banner' : 'reconnected-banner'}
+      // Three states, three names. This read `offline ? 'offline-banner' :
+      // 'reconnected-banner'`, and `agentDown` implies the device IS online --
+      // so the alarming "agent unreachable" state was labelled as the green
+      // "back online" one, and anything asserting on these ids read the two as
+      // each other.
+      data-testid={offline ? 'offline-banner' : agentDown ? 'agent-down-banner' : 'reconnected-banner'}
       className={[
         // Below the header, not over it. At z-100 anchored to top-0 this covered
         // the whole 56px bar — taking the sidebar toggle, workspace switcher,

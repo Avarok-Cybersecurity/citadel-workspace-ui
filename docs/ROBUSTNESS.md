@@ -7097,3 +7097,41 @@ Also fixed here, from the same audit: `handleCreate` in the live-document modal
 had no in-flight guard. The Create button was disabled while creating, but the
 Enter path bypassed the button entirely, so two Enters during a slow create made
 two documents.
+
+### Round 106 — the agent-down banner was permanently wrong in every tab but one
+
+From the PWA audit, and the worst finding of the three rounds: the health probe
+asked `websocketService.isConnected()`, which answers "does THIS tab own a WASM
+client". There is one WebSocket per browser — the leader owns the client, every
+follower proxies through it with `client = null` by design. So in the app's own
+documented multi-tab mode, every tab but one polled every ten seconds and
+published *the local agent is unreachable*, for ever, while everything worked.
+The user saw a red banner saying "Check that it is running" about an agent that
+was running, and the banner's measured height pushed the whole layout down to
+make room for it.
+
+`core.ts` already draws exactly this distinction. `canSendRequests` exists
+because of it, and its comment describes the identical bug in
+`fetchActiveSessions` — a follower gate that "refuses forever", producing a
+landing page with no sessions. The rule was written down, in the file, next to
+the function. This caller was never brought along. That is now four rounds in a
+row where the finding was a correct fix that had been applied in one place.
+
+Two more from the same seam:
+
+The first probe fires immediately, and `startHealthChecks` was called *before*
+`await connectionManager.initialize()` — so on every boot it sampled the service
+before it could possibly be up and published unhealthy, painting the banner
+until the next poll ten seconds later. It now starts in a `finally` after
+initialization: after, so the answer means something; in `finally`, because an
+initialization that fails is precisely when the banner needs to be right.
+
+And the banner tagged its alarming state with the reassuring state's name:
+`offline ? 'offline-banner' : 'reconnected-banner'`, where `agentDown` implies
+the device *is* online. Anything asserting on those ids read the two as each
+other. Three states, three names.
+
+The unit test that covers the agent-down banner could not have caught any of
+this: it mocks the emitter, so it tests what the banner does with a health
+verdict, never how the verdict is reached. A test can be entirely correct about
+its half and blind to the half that is wrong.

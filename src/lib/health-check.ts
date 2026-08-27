@@ -47,10 +47,20 @@ class HealthCheckService extends PollingService {
    */
   public async checkHealth(): Promise<ServiceHealth> {
     try {
-      const isConnected = await websocketService.isConnected();
+      // `canSendRequests`, not `isConnected`. The latter asks whether THIS tab
+      // owns a WASM client, and a follower tab never does -- one WebSocket per
+      // browser, followers proxy through the leader. Probing it here meant
+      // every tab but one reported the local agent unreachable, for ever,
+      // while everything worked: a red "Can't reach the Citadel agent" banner
+      // permanently pinned in the app's own documented multi-tab mode.
+      //
+      // core.ts already carries this distinction, with a comment describing the
+      // identical bug in `fetchActiveSessions`. The rule was written down and
+      // this caller was never brought along.
+      const canReachAgent = websocketService.canSendRequests();
 
       this.health = {
-        isHealthy: isConnected,
+        isHealthy: canReachAgent,
         lastCheck: Date.now()
       };
 
