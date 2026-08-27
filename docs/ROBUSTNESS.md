@@ -5488,3 +5488,70 @@ same order, so the value under test is the value the code reads.
 - The read-receipt test takes ~2.7s because importing `messenger-compatibility`
   drags in the WASM client, which fails to load under jsdom and retries. Loud,
   not wrong — but worth remembering if that file grows more importers.
+
+## Round eighty — the camera that was never there, 2026-08-27
+
+Two independent audits reached the same finding the same day from opposite
+directions — one hunting silent failures, one hunting call-state divergence.
+That agreement is what moved it to the top of this round.
+
+### 370. The camera toggle reported success for a camera that was never acquired
+
+`captureLocalMedia` falls back to audio-only when video fails, and that fallback
+is right: a call worth having beats no call. But it returned `ok: true` with no
+other signal, so nothing told the user their camera had not started. Then
+pressing "Turn camera on" enabled zero video tracks — the loop iterated nothing —
+flipped the button to on, and announced `video: true` to every peer, whose tiles
+showed a camera badge for a stream that would never arrive.
+
+Two fixes, because there were two lies. The capture result now carries
+`degraded` when video was requested and only audio was obtained, surfaced through
+the same channel a hard failure already uses. And the toggle refuses to turn a
+camera on when there is no track to send, saying so instead. Turning the camera
+*off* is still always allowed — that is never a lie, and refusing it would strand
+a user whose track vanished with their peers still told video is coming.
+
+### 371. `CallSession.start()` could capture two streams, leaving one running
+
+Recorded as open in an earlier round and confirmed still live. `closed` was the
+only guard, and it does not cover a second `start()` arriving while the first is
+still awaiting the permission prompt. Both entries assigned `localStream` and
+`pump`, so the first stream was overwritten with nothing holding a reference —
+never stopped, camera light on until the page reloads. Reachable by
+double-clicking Call (the buttons are not disabled until `invite-sent`, which
+happens *after* capture) or Accept on an incoming call.
+
+Now one in-flight attempt is shared by every concurrent caller, and cleared when
+it settles so a genuine retry is a real attempt rather than a replay of the
+previous answer. The test stubs `getUserMedia` to resolve on a signal, which is
+the only way to have two starts truly in flight, and asserts on the tracks: the
+one stream captured is the one stopped.
+
+`call-session.ts` was exactly at the 250-line cap, so the guard needed room. The
+outbound encoder — send codec, encoder handles, congestion — moved to
+`send-encoder.ts`. It is a genuine unit: it changes when peers renegotiate, the
+rest of the session changes when the user hangs up. All 221 existing call tests
+passed through the move unchanged, which is the only evidence a refactor of this
+size is worth trusting.
+
+### Still open from the call audit, recorded not fixed
+
+- **Navigating to another conversation mid-call removes the only audio sink.**
+  The one `<audio>` element lives in `ParticipantTile`, which mounts only inside
+  the call's own conversation. Switch away and the peer's audio stops instantly,
+  your microphone keeps transmitting, and nothing on screen says you are in a
+  call or offers a hang-up. Needs an always-mounted audio host under `CallLayer`
+  plus a persistent in-call pill.
+- **Glare (both sides dial at once) leaves the loser with a dead ringing card.**
+  The glare branch routes through a terminal `ended`, which trips the provider's
+  teardown while the invite is still being adopted, orphaning the manager.
+  Accept then captures mic and camera and bails.
+- **A call to a session living in a follower tab rings with no card.** The card
+  is leader-gated; the ringtone is not. 45 seconds of ringing nobody can answer.
+- **UDP death mid-call is never reported.** The backend pump returns silently and
+  no unsolicited `MediaSessionClosed` is sent; the call stays "active" forever
+  with frozen media.
+- **`speaking-changed` has no producer** — the speaking ring and indicator can
+  never activate.
+- **The thumbnail simulcast tier is built at every layer except the encoder**, so
+  group video sends full resolution to everyone.

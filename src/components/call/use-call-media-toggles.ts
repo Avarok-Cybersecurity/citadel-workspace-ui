@@ -21,7 +21,9 @@ interface SessionLike {
 
 export function useCallMediaToggles(
   managerRef: MutableRefObject<ManagerLike | null>,
-  sessionRef: MutableRefObject<SessionLike | null>
+  sessionRef: MutableRefObject<SessionLike | null>,
+  /** Called when the camera cannot be turned on because no track was captured. */
+  onCameraUnavailable?: () => void
 ) {
   const setMedia = useCallback(
     async (next: CallMediaKinds) => {
@@ -50,9 +52,21 @@ export function useCallMediaToggles(
     const current = managerRef.current?.getState()?.selfMedia;
     if (!current) return;
     const stream = sessionRef.current?.getLocalStream();
-    for (const track of stream?.getVideoTracks() ?? []) track.enabled = !current.video;
+    const videoTracks = stream?.getVideoTracks() ?? [];
+
+    // Turning the camera ON with no video track was a no-op that reported
+    // success: the loop below iterated nothing, then `setMedia` flipped the
+    // button to "on" and announced `video: true` to every peer. Their tiles
+    // showed a camera badge and no frame ever arrived. This happens whenever
+    // capture fell back to audio-only — a blocked camera, or no camera at all.
+    if (!current.video && videoTracks.length === 0) {
+      onCameraUnavailable?.();
+      return;
+    }
+
+    for (const track of videoTracks) track.enabled = !current.video;
     await setMedia({ ...current, video: !current.video });
-  }, [setMedia, managerRef, sessionRef]);
+  }, [setMedia, managerRef, sessionRef, onCameraUnavailable]);
 
   return { setMedia, toggleMic, toggleCamera };
 }

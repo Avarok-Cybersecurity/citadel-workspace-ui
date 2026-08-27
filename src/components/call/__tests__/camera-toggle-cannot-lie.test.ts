@@ -1,0 +1,72 @@
+/**
+ * The camera toggle must not report a camera the call does not have.
+ *
+ * `captureLocalMedia` falls back to audio-only when video fails — a blocked
+ * camera, no camera at all — and that fallback is right: a call worth having
+ * beats no call. But the fallback returned `ok: true` with no other signal, so
+ * nothing told the user. Then pressing "Turn camera on" enabled zero video
+ * tracks, flipped the button to on, and announced `video: true` to every peer,
+ * whose tiles showed a camera badge for a stream that would never arrive.
+ *
+ * Two independent audits found this the same week, from opposite directions —
+ * one looking for silent failures, one for call-state divergence.
+ */
+import { describe, it, expect, vi } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { useCallMediaToggles } from '../use-call-media-toggles';
+import type { MutableRefObject } from 'react';
+
+type Manager = Parameters<typeof useCallMediaToggles>[0] extends MutableRefObject<infer M>
+  ? M
+  : never;
+
+function setup(videoTracks: number, selfVideo = false) {
+  const setSelfMedia = vi.fn(() => Promise.resolve());
+  const tracks = Array.from({ length: videoTracks }, () => ({ enabled: false }));
+  const managerRef = {
+    current: {
+      getState: () => ({ selfMedia: { audio: true, video: selfVideo, screen: false } }),
+      setSelfMedia,
+    },
+  } as unknown as MutableRefObject<Manager>;
+  const sessionRef = {
+    current: { getLocalStream: () => ({ getVideoTracks: () => tracks, getAudioTracks: () => [] }) },
+  } as unknown as Parameters<typeof useCallMediaToggles>[1];
+  const onCameraUnavailable = vi.fn();
+  const hook = renderHook(() =>
+    useCallMediaToggles(managerRef, sessionRef, onCameraUnavailable),
+  );
+  return { hook, setSelfMedia, onCameraUnavailable, tracks };
+}
+
+describe('toggleCamera', () => {
+  it('does not announce video when there is no video track to send', async () => {
+    const { hook, setSelfMedia, onCameraUnavailable } = setup(0);
+
+    await act(() => hook.result.current.toggleCamera());
+
+    expect(setSelfMedia).not.toHaveBeenCalled();
+    expect(onCameraUnavailable).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns the camera on when a track actually exists', async () => {
+    const { hook, setSelfMedia, onCameraUnavailable, tracks } = setup(1);
+
+    await act(() => hook.result.current.toggleCamera());
+
+    expect(setSelfMedia).toHaveBeenCalledWith({ audio: true, video: true, screen: false });
+    expect(tracks[0].enabled).toBe(true);
+    expect(onCameraUnavailable).not.toHaveBeenCalled();
+  });
+
+  it('always allows turning the camera OFF, whatever the track count', async () => {
+    // Turning off is never a lie, and refusing it would strand a user whose
+    // track vanished with their peers still told video is coming.
+    const { hook, setSelfMedia, onCameraUnavailable } = setup(0, true);
+
+    await act(() => hook.result.current.toggleCamera());
+
+    expect(setSelfMedia).toHaveBeenCalledWith({ audio: true, video: false, screen: false });
+    expect(onCameraUnavailable).not.toHaveBeenCalled();
+  });
+});

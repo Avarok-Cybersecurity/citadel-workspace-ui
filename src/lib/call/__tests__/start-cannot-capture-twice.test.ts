@@ -1,0 +1,136 @@
+/**
+ * `CallSession.start()` must not capture two streams.
+ *
+ * `closed` was the only guard, and it does not cover a SECOND start arriving
+ * while the first is still awaiting the permission prompt. Both entries then
+ * assigned `localStream` and `pump`, so the first stream was overwritten with
+ * nothing left holding a reference to it — never stopped, camera light on until
+ * the page reloads. Reachable by double-clicking Call (the buttons are not
+ * disabled until `invite-sent`, which happens after capture) or Accept.
+ *
+ * getUserMedia is stubbed to resolve on our signal, which is the only way to
+ * have two starts genuinely in flight at once.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { CallSession } from '../call-session';
+
+const g = globalThis as unknown as Record<string, unknown>;
+const savedMedia = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+const savedKeys: Record<string, unknown> = {};
+const KEYS = ['AudioEncoder', 'AudioDecoder', 'VideoEncoder', 'VideoDecoder',
+  'MediaStreamTrackProcessor', 'MediaStreamTrackGenerator'];
+
+function makeTrack() {
+  return { kind: 'audio', enabled: true, stop: vi.fn(), addEventListener: vi.fn() };
+}
+
+/** A stream whose tracks record whether anything ever stopped them. */
+function makeStream() {
+  const tracks = [makeTrack()];
+  return {
+    getTracks: () => tracks,
+    getAudioTracks: () => tracks,
+    getVideoTracks: () => [],
+    tracks,
+  };
+}
+
+let release: (() => void) | null = null;
+let streams: ReturnType<typeof makeStream>[] = [];
+let getUserMedia: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  for (const k of KEYS) savedKeys[k] = g[k];
+  g.AudioEncoder = Object.assign(function () {}, {
+    isConfigSupported: () => Promise.resolve({ supported: true }),
+  });
+  g.AudioDecoder = function () {};
+  g.VideoEncoder = Object.assign(function () {}, {
+    isConfigSupported: () => Promise.resolve({ supported: false }),
+  });
+  g.VideoDecoder = function () {};
+  // The pump reads frames off this; a reader that never yields keeps the pump
+  // idle without it throwing, which is all these tests need from it.
+  g.MediaStreamTrackProcessor = function (this: Record<string, unknown>) {
+    this.readable = { getReader: () => ({ read: () => new Promise(() => {}), cancel: () => Promise.resolve() }) };
+  };
+  g.MediaStreamTrackGenerator = function (this: Record<string, unknown>) {
+    this.writable = { getWriter: () => ({ write: vi.fn(), close: vi.fn() }) };
+  };
+
+  streams = [];
+  getUserMedia = vi.fn(
+    () =>
+      new Promise((resolve) => {
+        // Held open so a second start() can arrive mid-prompt, exactly as a
+        // user double-clicking does.
+        release = () => {
+          const stream = makeStream();
+          streams.push(stream);
+          resolve(stream as unknown as MediaStream);
+        };
+      }),
+  );
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: { getUserMedia, enumerateDevices: () => Promise.resolve([]) },
+  });
+});
+
+afterEach(() => {
+  for (const k of KEYS) g[k] = savedKeys[k];
+  if (savedMedia) Object.defineProperty(navigator, 'mediaDevices', savedMedia);
+  release = null;
+});
+
+function makeSession() {
+  return new CallSession({
+    onFrame: vi.fn(),
+    onStreamsChanged: vi.fn(),
+    onCaptureFailed: vi.fn(),
+    onNeedKeyframe: vi.fn(),
+  });
+}
+
+describe('CallSession.start re-entrancy', () => {
+  it('captures once when pressed twice during the permission prompt', async () => {
+    const session = makeSession();
+
+    const first = session.start({ audio: true, video: false, screen: false });
+    const second = session.start({ audio: true, video: false, screen: false });
+
+    // Both are in flight; the prompt has not answered yet.
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+    release?.();
+    const [a, b] = await Promise.all([first, second]);
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(streams).toHaveLength(1);
+    // Both callers get the same answer, so neither believes it started a call
+    // the other did not.
+    expect(a).toEqual(b);
+
+    session.close();
+    // The one stream captured is the one stopped. A second, orphaned stream
+    // would have no owner to stop it — that is the camera light that stays on.
+    expect(streams[0].tracks[0].stop).toHaveBeenCalled();
+  });
+
+  it('allows a genuine second attempt after the first finishes', async () => {
+    const session = makeSession();
+
+    const first = session.start({ audio: true, video: false, screen: false });
+    release?.();
+    await first;
+
+    const second = session.start({ audio: true, video: false, screen: false });
+    release?.();
+    await second;
+
+    // Not a replay of the first answer: a user who retries after a failure, or
+    // a session reused for a second call, must actually capture again.
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    session.close();
+  });
+});

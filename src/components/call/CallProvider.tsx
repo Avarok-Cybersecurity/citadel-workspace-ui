@@ -168,7 +168,12 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     setCall(null);
   }, [teardown, managerRef, setCall]);
 
-  const { toggleMic, toggleCamera } = useCallMediaToggles(managerRef, sessionRef);
+  const { toggleMic, toggleCamera } = useCallMediaToggles(managerRef, sessionRef, () =>
+    // Pressing "turn camera on" when capture never got a video track used to
+    // flip the button and announce video:true to every peer, with no frame ever
+    // sent. Say what happened instead of reporting a success that cannot occur.
+    toast.error('Your camera is not available for this call. Rejoin to try again.'),
+  );
 
   useEffect(() => {
     // Polled, not event-driven: 'lost' is defined by SILENCE, so the moment a

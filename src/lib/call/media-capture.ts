@@ -32,7 +32,14 @@ export interface CaptureRequest {
 }
 
 export type CaptureResult =
-  | { ok: true; stream: MediaStream }
+  /**
+   * `degraded` is set when video was asked for and could not be captured, but
+   * audio could. The call is worth having, so `ok` stays true — but it used to
+   * be the ONLY signal, which meant a user whose camera was blocked joined a
+   * video call with no self-video and no explanation at all. The caller is
+   * expected to surface this.
+   */
+  | { ok: true; stream: MediaStream; degraded?: CaptureFailure }
   | { ok: false; failure: CaptureFailure };
 
 /**
@@ -151,7 +158,7 @@ export async function captureLocalMedia(request: CaptureRequest): Promise<Captur
         const audioOnly = await navigator.mediaDevices.getUserMedia(
           constraintsFor({ audio: true, video: false }),
         );
-        return { ok: true, stream: audioOnly };
+        return { ok: true, stream: audioOnly, degraded: failure };
       } catch {
         // Both failed; report the original, which is the more specific one.
       }
