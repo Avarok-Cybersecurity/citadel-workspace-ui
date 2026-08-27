@@ -2669,6 +2669,45 @@ worth catching — so the check that mattered had to live outside the thing bein
 checked. Worth applying to the other healthchecks here: every one of them probes
 its own loopback.
 
+## Round thirty-one — the first-run dead end, 2026-08-27
+
+### 215. Dismissing the initialization prompt ejected the user — FIXED
+
+The prompt asks for the operator's `WORKSPACE_MASTER_PASSWORD`, which no
+ordinary member can obtain — and it is shown to **every** user until somebody
+completes it, because the root workspace is seeded at boot with empty metadata
+and only this modal ever writes `initialized: true`.
+
+So for most users the only available action was Cancel — and Cancel did
+`window.location.assign('/')`, throwing them out of the workspace they had just
+successfully joined. **A prompt they could not complete, whose only escape
+removed them from the product.**
+
+Nothing about the workspace actually requires initialization: it is created at
+boot from the master password, and Admin is granted at connect to the first
+member. The marker is read **nowhere on the server** — it exists only to decide
+whether to show this modal. The dismissal was already recorded in
+sessionStorage, so deleting the navigation was sufficient.
+
+The modal now says what the password is (the operator's, not the user's own) and
+that skipping is safe; the button reads "Not now" rather than "Cancel", because
+a prompt whose only escape was an eject should not describe that escape as
+abandoning something.
+
+The README claimed *"the first account to register initialises the workspace and
+becomes its administrator"* — wrong in a load-bearing way, and corrected.
+
+### 216. Method note — a source assertion that matched its own comment
+
+The first version of the test **failed against the fixed code**: it searched for
+`window.location.assign` and found it inside the comment explaining the removal.
+
+This is the exact `toContain`-matches-a-comment trap from earlier in this
+campaign, running the other direction — there a test passed because the word
+appeared in prose; here one failed for the same reason. A source assertion must
+read CODE. The fix strips comment lines before matching, and is worth applying to
+every source-level assertion added since.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
