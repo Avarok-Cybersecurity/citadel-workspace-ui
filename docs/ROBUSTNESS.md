@@ -5147,3 +5147,99 @@ of the current classes.
   this session passed against the surface they were written to reject.
 - **Assert the property the fix changes**, not the symptom the user reported.
   Symptoms sit downstream of state a test does not control.
+
+## Round seventy-five — the node mutator that skipped the lock, and three walks that never got the guard, 2026-08-27
+
+### 353. `update_node` read the node outside the lock it wrote under
+
+`async_node_ops.rs` is the only one of the node mutators that did not hold
+`lock_nodes()` across its read-modify-write. The *write* was safe — the backend's
+`update_node` takes that mutex itself — but the read above it was not, and the
+gap between them spans two awaits. Two callers editing the same node both read
+the original and both write it back: the first one's field silently reverts. A
+delete landing in that gap is undone outright, because the write re-inserts the
+node the other caller just removed.
+
+Fixed by taking `lock_nodes()` at the top and switching to
+`get_all_nodes` / mutate / `save_nodes` — the backend mutator cannot be called
+while the guard is held, because tokio's Mutex is not reentrant, and the lock's
+own doc comment says so.
+
+**The first test for this was green under its own negative control.** It asserted
+"update_node blocks while another caller holds the nodes lock" — which was true
+*before* the fix too, since the backend write takes the same mutex. The property
+that actually separates the two versions is whether the node is re-read *after*
+acquiring. The test now holds the lock, lets an update park on it, changes the
+node from underneath, and asserts the change survives.
+
+### 354. Three tree walks with no visited set, two of them called under the lock
+
+`get_descendants` in `tree_validator.rs` guards its walk with a `HashSet`.
+`is_ancestor_of`, `get_subtree_max_depth` and `get_path_to_root` in the same file
+do not. The first two run inside `validate_mutation`, which callers invoke *while
+holding `lock_nodes`* — so one cyclic tree would spin forever with the lock held,
+wedging every node operation in the workspace permanently rather than reporting
+the corruption. `is_ancestor_of` is, with some irony, the check whose job is to
+refuse creating a cycle. The BFS in `get_subtree_max_depth` also grows its queue
+without bound as it spins, so the hang takes the process's memory with it.
+
+All three now carry the same guard `get_descendants` always had.
+
+**`tokio::time::timeout` cannot bound these.** The walks are synchronous, so an
+unguarded loop never yields and the timeout future is never polled — a test
+written that way hangs forever instead of failing. The tests run the validator on
+a dedicated OS thread with `recv_timeout`, which is what makes the negative
+control terminate (5s) instead of hanging CI.
+
+### 355. `ListNodes` with the root's own id returned an empty workspace
+
+`WORKSPACE_ROOT_ID` is a sentinel, not a stored `DomainNode`, so
+`nodes.get("workspace-root")` always missed and fell through to
+`unwrap_or_default()` — `Ok([])` on a fully populated tree, with no error.
+`get_node` and `get_tree_structure` both special-case the sentinel; this listing
+never did. Normalized to the `None` branch, which is what it means.
+
+### 356. Subscriptions whose unsubscribe was discarded
+
+`react-hooks/exhaustive-deps` is `"error"` here, so stale-closure bugs are largely
+linted away. What survives is the class the lint rule cannot see: an effect that
+registers a listener and returns nothing.
+
+- `ConnectionService.onConnectionChange` returned `void`. Its three subscribers
+  all re-run on state changes or remount (`AppLayout` remounts per route), so the
+  handler array grew for the whole session; every connection change then ran a
+  pile of dead handlers, each doing IndexedDB reads. In the workspace switcher
+  each dead handler also held a stale `state.workspace`, so a late-resolving one
+  could restore a previous workspace's name. It now returns an unsubscribe —
+  which `P2PMessengerManager.onConnectionChange` has always done.
+- `MembersTab` and `use-domain-members` wrapped `workspaceEvents.onMemberEvent`
+  in `runAsyncSetup(async () => await ...)`, throwing away a return value that was
+  synchronous all along. `use-domain-call-members` subscribes to the same event
+  and returns its unsubscribe. Another fix that existed in-tree and was never
+  carried across.
+
+Leaks like these have no runtime symptom — setState on an unmounted component is
+a no-op — which is exactly why they accumulate. `WorkspaceEvents.listenerCount()`
+was added so the leak is observable at all; without it there is nothing to assert.
+
+### 357. A flash comment blanked the sender's cursor for every peer
+
+`useCollaborativeEditor` called `provider.setLocalState({...})`, which **replaces**
+the entire awareness state — including the `cursor` field TipTap's
+`CollaborationCursor` maintains there. Sending a flash comment wiped this user's
+cursor and selection for all peers, and the 10s expiry wiped it again. That
+expiry was also never cleared, so it fired against a provider `destroy()` had
+already torn down. Added `setLocalStateField` to the provider and scoped the
+timer to the effect.
+
+### 358. The group thread was regrouped on every keystroke
+
+`groupMessagesByDate(messages)` ran unmemoized in `useGroupChat`, which also owns
+`inputValue` — so every character typed re-grouped the whole thread, and
+`formatDate` builds three `Date` objects per message. Wrapped in `useMemo`.
+
+### Carried forward
+
+- The file-length cap broke again — on comments this time, three files at 251–254.
+  Fixed by keeping each explanation once at the mechanism (the service, the hook)
+  and leaving a pointer at the call sites, which is where it belonged anyway.

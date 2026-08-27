@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { GroupMessageTypeTS } from '@/types/workspace-protocol';
@@ -181,7 +181,10 @@ export function useGroupChat(groupId: string) {
     }
   };
 
-  const messagesByDate = groupMessagesByDate(messages);
+  // `inputValue` lives in this hook, so without the memo the entire thread was
+  // regrouped on every keystroke — and `formatDate` builds three Date objects
+  // per message. A long thread made typing visibly lag.
+  const messagesByDate = useMemo(() => groupMessagesByDate(messages), [messages]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

@@ -78,9 +78,12 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       if (active) setCurrentWorkspace(active);
     };
     runAsyncSetup(loadStoredWorkspaces);
-    // NOTE: ConnectionService.onConnectionChange does not return an unsubscribe function.
-    // This listener will persist for the lifetime of the component.
-    ConnectionService.getInstance().onConnectionChange(async () => { await loadStoredWorkspaces(); });
+    // Returning the unsubscribe drops the previous handler: it fixes the
+    // per-remount leak (see onConnectionChange) and a stale `state.workspace`
+    // closure whose late IndexedDB read could restore an old workspace name.
+    return ConnectionService.getInstance().onConnectionChange(() => {
+      void loadStoredWorkspaces();
+    });
   }, [state.workspace]);
 
   useEffect(() => {

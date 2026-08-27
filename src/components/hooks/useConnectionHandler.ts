@@ -74,7 +74,7 @@ export function useConnectionHandler() {
     let lastProcessedCid: string | null = null;
 
     debugLog('WorkspaceApp', 'Subscribing to connection changes');
-    connectionService.onConnectionChange(async (connection) => {
+    const unsubscribeConnection = connectionService.onConnectionChange(async (connection) => {
       debugLog('WorkspaceApp', `onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}`);
       const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
@@ -195,6 +195,12 @@ export function useConnectionHandler() {
     eventEmitter.on('session-already-connected', handleSessionAlreadyConnected);
 
     return () => {
+      // Drop this hook's own subscription explicitly. `connectionService.cleanup()`
+      // below wipes the singleton's whole handler array — every other component's
+      // subscription with it — which is only survivable because this hook mounts
+      // above the router and unmounts last. Owning our own teardown means that
+      // stops being load-bearing.
+      unsubscribeConnection();
       messagingService.cleanup();
       connectionService.cleanup();
       WorkspaceService.cleanup();

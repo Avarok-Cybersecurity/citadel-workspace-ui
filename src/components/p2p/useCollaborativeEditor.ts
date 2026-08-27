@@ -119,20 +119,23 @@ export function useCollaborativeEditor({
 
   // Listen for flash comments from awareness/P2P
   useEffect(() => {
-    const handleSendFlashComment = (comment: FlashComment) => {
-      if (provider) {
-        provider.setLocalState({
-          user: { name: currentUserName, color: userColor },
-          flashComment: comment,
-        });
+    // Timer per flash so a second comment does not leave the first's expiry
+    // armed against a provider that may already be gone.
+    let clearFlashTimer: number | undefined;
 
-        setTimeout(() => {
-          provider.setLocalState({
-            user: { name: currentUserName, color: userColor },
-            flashComment: null,
-          });
-        }, 10000);
-      }
+    const handleSendFlashComment = (comment: FlashComment) => {
+      if (!provider) return;
+      // Set only our field. `setLocalState` replaces the entire awareness state,
+      // which also holds the `cursor` field CollaborationCursor maintains — so
+      // sending a flash comment used to blank this user's cursor and selection
+      // for every peer, and blank it again when the 10s expiry fired.
+      provider.setLocalStateField('flashComment', comment);
+
+      if (clearFlashTimer !== undefined) window.clearTimeout(clearFlashTimer);
+      clearFlashTimer = window.setTimeout(() => {
+        clearFlashTimer = undefined;
+        provider.setLocalStateField('flashComment', null);
+      }, 10000);
     };
 
     let prevCommentsKey = '';
@@ -169,6 +172,9 @@ export function useCollaborativeEditor({
 
     return () => {
       eventEmitter.off('flash-comment:send', handleSendFlashComment);
+      // Without this the expiry outlives the effect and fires against a provider
+      // that `destroy()` has already torn the awareness off of.
+      if (clearFlashTimer !== undefined) window.clearTimeout(clearFlashTimer);
       if (provider) {
         provider.awareness.off('change', handleAwarenessChange);
       }

@@ -205,6 +205,17 @@ export class YjsP2PProvider {
   // ============================================
 
   setLocalState(state: Record<string, unknown>) { this.awareness.setLocalState(state); }
+  /**
+   * Set ONE awareness field, leaving the rest of the local state alone.
+   *
+   * `setLocalState` replaces the whole object. TipTap's CollaborationCursor keeps
+   * its `cursor` field in this same awareness state, so any caller that only
+   * wanted to set its own field was wiping every peer's view of this user's
+   * cursor and selection as a side effect.
+   */
+  setLocalStateField(field: string, value: unknown) {
+    this.awareness.setLocalStateField(field, value);
+  }
   getStates() { return this.awareness.getStates(); }
   get isConnected() { return this.connected && !this.destroyed; }
   get isSynced() { return this.initialSyncComplete; }

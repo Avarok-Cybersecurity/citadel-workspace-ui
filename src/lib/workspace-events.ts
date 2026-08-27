@@ -173,6 +173,17 @@ export class WorkspaceEvents {
   }
 
   /**
+   * How many listeners this facade currently holds for `event`.
+   *
+   * Exists so a leaked subscription is observable in a test. A discarded
+   * unsubscribe has no runtime symptom — setState on an unmounted component is a
+   * no-op — so without a count there is nothing to assert on.
+   */
+  public listenerCount(event: WorkspaceEventType): number {
+    return this.listeners.get(event)?.length ?? 0;
+  }
+
+  /**
    * Clean up all event listeners
    */
   public cleanupAllListeners(): void {

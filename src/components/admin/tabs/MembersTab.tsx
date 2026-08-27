@@ -52,9 +52,9 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       cancelLoadingDeadline(deadlineKey);
       setLoading(false);
     };
-    runAsyncSetup(async () => {
-      await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
-    });
+    // Return the unsubscribe — see use-domain-members.ts for why the async
+    // wrapper that used to swallow it leaked a listener per tab visit.
+    return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
   }, [deadlineKey]);
 
   const loadMembers = async () => {

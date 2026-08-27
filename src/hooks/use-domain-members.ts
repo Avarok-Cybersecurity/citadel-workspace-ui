@@ -64,9 +64,17 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
       // The response is what ends the load.
       setIsLoadingMembers(false);
     };
-    runAsyncSetup(async () => {
-      await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
-    });
+    // `onMemberEvent` returns its unsubscribe SYNCHRONOUSLY. It used to be
+    // wrapped in `runAsyncSetup(async () => await ...)`, which threw the return
+    // value away, so every remount left another live listener behind — and this
+    // hook lives in AppLayout's MembersSection, which remounts on every route
+    // change. Nothing broke visibly (setState on an unmounted component is a
+    // no-op), which is exactly why it accumulated: each members:loaded event ran
+    // an ever-growing pile of dead handlers, each retaining a dead closure.
+    // `use-domain-call-members` subscribes to this same event and has always
+    // returned its unsubscribe; the fix was simply never carried across.
+    // MembersTab.tsx had the identical defect.
+    return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
   }, []);
 
   useEffect(() => {
