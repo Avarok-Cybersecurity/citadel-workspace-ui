@@ -6090,3 +6090,76 @@ Preflight went from 14 checks to 24.
   (`check-no-test-features-shipped`, `check-restart-policies`,
   `check-doc-env-vars.sh`), and the 250-line cap plus the env-var gate hang off a
   matrix leg whose own comment warns that renaming it takes the gate with it.
+
+## Round eighty-nine — the specs that could not fail, and two guards that could not see, 2026-08-27
+
+### 392. Post-reconnect messaging was printed PASS/FAIL and gated on nothing
+
+`hard-disconnect-offline.test.ts` gates on account creation, registration,
+initial messaging, disconnect, re-login and offline delivery — but not on
+`postReconnectMessaging`, which it prints as PASS/FAIL at the end. A run could
+print two FAILs and exit 0.
+
+That is the fragile part the whole spec exists for: ILM channel asymmetry means
+Alice→Bob can work while Bob→Alice does not. `offline-messaging.test.ts` already
+carries this exact fix, under a comment describing this exact bug. It was never
+carried across.
+
+### 393. "Initial Messaging: PASS" meant "the send button worked"
+
+Three reconnection specs did:
+
+```
+const msg1Sent = await sendMessage(...);
+if (msg1Sent) { await verifyMessageReceived(...); }   // result discarded
+results.push({ status: msg1Sent ? 'PASS' : 'FAIL' });
+```
+
+The verification ran and its answer was thrown away. This is the baseline every
+later reconnection phase is measured against, so an undelivered baseline made
+each spec meaningless while green — "request send is not response", still live in
+three files after being fixed elsewhere.
+
+### 394. A failed reverse-direction send recorded no row at all
+
+`p2p-one-c2s-reconnect.test.ts` pushed its Phase 9c row inside `if (msg3Sent)`,
+and `allPassed` only checks rows that exist. So the reverse direction — the one
+most likely to break after an asymmetric reconnect — could fail silently while
+the forward direction carried the spec to green. Recorded unconditionally now.
+
+Also renamed Phase 10a from "No Session Errors" to "Session errors
+(informational)". Its status is hardcoded PASS, and the argument for that is
+sound and written down — but a row named "No Session Errors: PASS" that cannot
+report anything else reads, in the results table, exactly like a check that ran.
+
+### 395. `check-storage-keys` could not see a key held in a class field
+
+It resolved only `const NAME = '...'`. A key declared
+`private static readonly STORAGE_KEY_TRANSFERS = '...'` returned null, so every
+one of its call sites was dropped while the summary printed OK — silently
+exempting `lib/file-transfer/service.ts`, one of the modules the check exists to
+cover. It now reads class fields and resolves `Foo.NAME` / `this.NAME` by member
+name. Coverage went from 7 keys read / 8 written to 9 / 10.
+
+### 396. The panic guard exempted whole files and did not know what a panic is
+
+Two holes in one check:
+
+- `ALLOWED` was keyed by **file**, so the argued exception for one `.expect` in
+  `requests/media/open.rs` excused every future panic anywhere in that file. An
+  argued exception is about one line; it is now keyed by file *and* source text.
+- The matcher tested only `.expect(` and `.unwrap()`. A check named "handlers
+  cannot panic" did not look for `panic!`, `todo!` or `unimplemented!`, all of
+  which abort a handler exactly as hard.
+
+Both verified by control: a second `unwrap` in the allowlisted file, and a bare
+`panic!` in a handler, each now fail the run.
+
+### The shape these five share
+
+Every one is a check that reports a clean result over something it never looked
+at — a gate that omits a field, a verification whose answer is discarded, a row
+that only exists on the happy path, a parser that returns null and moves on, an
+allowlist scoped wider than its argument. None of them was ever red. That is the
+whole problem: the only signal a guard like this gives is the one it fails to
+give.

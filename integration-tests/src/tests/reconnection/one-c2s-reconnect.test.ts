@@ -163,16 +163,20 @@ async function runTest(): Promise<boolean> {
     // Send initial message
     const msg1 = `Initial message from ${USER1_NAME} - ${Date.now()}`;
     const msg1Sent = await sendMessage(page1, USER1_NAME, msg1, uxTracker);
-    if (msg1Sent) {
-      await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker);
-    }
+    // The verification result used to be DISCARDED, so the row below reported
+    // PASS when the send button worked — not when the message arrived. This is
+    // the baseline every later reconnection phase is measured against, so an
+    // undelivered baseline makes the whole spec meaningless while green.
+    const msg1Received = msg1Sent
+      ? await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker)
+      : false;
 
     await takeScreenshot(page1, `${USER1_NAME}_phase2_p2p_established`);
     await takeScreenshot(page2, `${USER2_NAME}_phase2_p2p_established`);
 
     results.push({
       step: 'Phase 2c: Initial Message',
-      status: msg1Sent ? 'PASS' : 'FAIL',
+      status: msg1Sent && msg1Received ? 'PASS' : 'FAIL',
       notes: msg1Sent ? 'Initial messaging works' : 'Failed',
     });
 

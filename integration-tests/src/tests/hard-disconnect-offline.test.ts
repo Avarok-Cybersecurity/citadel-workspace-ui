@@ -508,7 +508,15 @@ async function runTest(): Promise<boolean> {
       results.disconnection.sessionNotOrphaned &&
       results.reconnection.user2LoggedIn &&
       results.reconnection.p2pReEstablished &&
-      offlineDeliverySuccess;
+      offlineDeliverySuccess &&
+      // Printed PASS/FAIL and gated on nothing, so a run could print two FAILs
+      // and still exit 0. Post-reconnect bidirectional messaging is the fragile
+      // part this whole spec exists for — ILM channel asymmetry means Alice->Bob
+      // can work while Bob->Alice does not. `offline-messaging.test.ts` already
+      // carries this fix, with a comment describing the same bug; it was never
+      // carried across to here.
+      results.postReconnectMessaging.user1Received &&
+      results.postReconnectMessaging.user2Received;
 
     console.log('\nPhase 1 - Account & Registration:');
     console.log(`  Account Creation:       ${results.accountCreation.user1 && results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
