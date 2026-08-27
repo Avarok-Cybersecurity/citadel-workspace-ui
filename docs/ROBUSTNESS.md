@@ -5708,3 +5708,83 @@ assumed success, new map. Each reads as defensive — none of them crashes — a
 each converts a transient, recoverable fault into permanent data loss with a
 reassuring checkmark on top. Failing loudly at the point of uncertainty is what
 makes the layers above able to do their job.
+
+## Round eighty-three — deaf in a call, and the history that re-parsed on every keystroke, 2026-08-27
+
+### 379. Navigating away from a call made you deaf while your microphone stayed live
+
+The only `<audio>` element in the app lived inside `ParticipantTile`, which mounts
+only in the conversation the call belongs to. Opening another chat, the file
+manager or the directory unmounted every tile — so the peer's audio stopped
+instantly, the microphone kept transmitting (the session is provider-global by
+design, correctly), and nothing on screen said a call was in progress or offered
+a way out. The only hang-up control lives on the stage that just unmounted. A
+user could walk away from a live microphone believing the call ended with the
+page.
+
+Two halves:
+
+- `CallAudioHost` now owns every remote audio element and is mounted under
+  `CallLayer`, above the router, so audio is independent of what the user is
+  looking at. The tile no longer plays audio at all — one owner, not two.
+- `OngoingCallBar` appears whenever a call is running and its own surface is
+  *not* on screen, naming who the call is with and offering Return and Leave.
+  `CallStage` registers its presence through a small counter (not a boolean: the
+  stage can briefly mount twice while a route transition swaps layouts, and a
+  boolean would flip to false on the old one's unmount).
+
+### 380. Every keystroke re-parsed the entire message history
+
+The composer's value lives in the chat root, so each character re-rendered
+`P2PChat` and every message bubble below it — and each markdown bubble ran a full
+remark parse again on text that had not changed. The list has no windowing and
+grows as the user scrolls back, so the cost rises with how much history they have
+read. Fine on a fresh account, janky after a month, which is the class that never
+shows up in testing.
+
+The parse is now memoized on the message text alone. That holds even while the
+surrounding bubble re-renders with fresh inline callbacks, so it needed no change
+to any component's API — the bubbles' unstable props are a separate, larger
+problem and are recorded below rather than half-fixed here.
+
+### 381. An active call re-rendered the whole conversation once per second
+
+`useCallDuration` ticks a 1 Hz `setState`, and it was called in `use-direct-call`,
+which runs at the top of `P2PChat`. So for the entire duration of every call, the
+whole conversation and every bubble re-rendered every second — while the machine
+was also encoding and decoding video. The clock now lives in `CallControls`, the
+one element that displays it; `CallStage` passes `running` instead of a formatted
+string, and `GroupCallDock` and `use-direct-call` stopped ticking entirely.
+
+### Recorded from this round's audits, not fixed
+
+The workspace-lifecycle audit found two things worse than anything fixed here,
+both needing server work and their own round:
+
+- **Room documents are persisted under the wrong path.** `persist_node_content`
+  keys by node *name* with a single path segment, so editing a room writes
+  `{base}/{room}/CONTENT.md` instead of `{base}/{office}/{room}/CONTENT.md`. On
+  the next restart the room resurrects with its old content — the edits are gone
+  from where they were made — and a phantom *office* appears holding the orphaned
+  text. The correctly-pathed `persist_room_content` exists and this path never
+  calls it. Renames orphan the old directory; deletes never remove one.
+- **Structural changes are never broadcast.** `CreateNode`, `DeleteNode`,
+  `MoveNode` and renames return to the requester with no broadcast; only
+  `NodeContentUpdated` is broadcast. `listNodes` is called exactly once, at login.
+  So one user's new room is invisible to everyone else until they re-log, a
+  deleted office stays in their sidebar, and they keep typing into its chat —
+  which the server accepts, because `SendGroupMessage` never checks the
+  `group_id` against a live node.
+
+Also recorded: adding a member to any office or room overwrites their
+**workspace-global** role (and the last-admin guard there runs outside the lock,
+unlike the other two role writers); "Set as default" sends a field the wire
+format does not have, so it always reports success and never does anything; and
+adding a member who does not exist creates a phantom user and reports success.
+
+From the performance audit: bubbles have no `React.memo` anywhere and the list
+passes five fresh closures per item per render, so the memoized parse is the only
+thing currently bailing out; received file blobs and their object URLs are pinned
+for the session; file reassembly decodes base64 in one synchronous pass; and the
+file manager re-renders wholesale every 2 seconds because its peer poll builds
+fresh arrays.

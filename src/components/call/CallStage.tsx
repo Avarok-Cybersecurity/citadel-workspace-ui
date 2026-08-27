@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AlertCircle, PhoneOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -7,6 +7,7 @@ import { getInitials } from '@/components/chat/shared/formatters';
 import { ParticipantTile, type ConnectionQuality } from './ParticipantTile';
 import { CallControls } from './CallControls';
 import type { CallParticipant, CallState } from '@/lib/call/call-state';
+import { registerCallStage } from './call-stage-presence';
 
 interface CallStageProps {
   call: CallState;
@@ -14,9 +15,7 @@ interface CallStageProps {
   localStream: MediaStream | null;
   remoteStreams: Map<bigint, MediaStream>;
   /** Remote audio per peer; each tile owns playing its participant's sound. */
-  remoteAudioStreams?: Map<bigint, MediaStream>;
   qualities?: Map<bigint, ConnectionQuality>;
-  duration: string;
   onToggleMic: () => void;
   onToggleCamera: () => void;
   onLeave: () => void;
@@ -36,13 +35,15 @@ export function CallStage({
   selfUsername,
   localStream,
   remoteStreams,
-  remoteAudioStreams,
   qualities,
-  duration,
   onToggleMic,
   onToggleCamera,
   onLeave,
 }: CallStageProps) {
+  // Tells OngoingCallBar to stand down: the call's own surface is on screen, so
+  // the user can already see and end the call from here.
+  useEffect(() => registerCallStage(), []);
+
   const visible = useMemo(
     () => [...call.participants.values()].filter((p) => p.status !== 'declined' && p.status !== 'left'),
     [call.participants],
@@ -85,7 +86,6 @@ export function CallStage({
               key={participant.cid.toString()}
               participant={participant}
               stream={remoteStreams.get(participant.cid) ?? null}
-              audioStream={remoteAudioStreams?.get(participant.cid) ?? null}
               isSelf={false}
               quality={qualities?.get(participant.cid) ?? 'good'}
             />
@@ -112,7 +112,7 @@ export function CallStage({
           onToggleMic={onToggleMic}
           onToggleCamera={onToggleCamera}
           onLeave={onLeave}
-          duration={duration}
+          running={call.status === 'active'}
         />
       </div>
     </section>

@@ -1,5 +1,4 @@
 import { useCall } from '@/lib/call/call-context';
-import { useCallDuration } from '@/components/call/use-call-duration';
 import type { CallState } from '@/lib/call/call-state';
 import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
@@ -7,7 +6,6 @@ export interface DirectCallBinding {
   /** The call belonging to THIS conversation, or null. */
   call: CallState | null;
   active: boolean;
-  duration: string;
   localStream: MediaStream | null;
   remoteStreams: Map<bigint, MediaStream>;
   remoteAudioStreams: Map<bigint, MediaStream>;
@@ -53,12 +51,10 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     call.participants.has(peerCid) &&
     call.status !== 'ended';
 
-  const duration = useCallDuration(active && call?.status === 'active');
 
   return {
     call: active ? call : null,
     active,
-    duration,
     localStream,
     remoteStreams,
     remoteAudioStreams,

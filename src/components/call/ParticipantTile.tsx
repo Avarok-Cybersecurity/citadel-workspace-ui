@@ -12,7 +12,11 @@ interface ParticipantTileProps {
   /** Attached to the <video> element. Absent until frames decode. */
   stream: MediaStream | null;
   /** Remote audio, played through a hidden element. Never set for self. */
-  audioStream?: MediaStream | null;
+  /**
+   * Audio is NOT played here. `CallAudioHost`, mounted above the router, owns
+   * every remote audio element — a tile only exists while its conversation is
+   * on screen, and audio must not stop when the user navigates away.
+   */
   isSelf: boolean;
   quality?: ConnectionQuality;
 }
@@ -25,13 +29,9 @@ interface ParticipantTileProps {
  * the moment a call connects — which is exactly when the user is deciding
  * whether it worked.
  */
-export function ParticipantTile({ participant, stream, audioStream = null, isSelf, quality = 'good' }: ParticipantTileProps) {
+export function ParticipantTile({ participant, stream, isSelf, quality = 'good' }: ParticipantTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
   const showVideo = participant.media.video && stream !== null;
-  // Self audio must never be played back — that is the mic routed straight out
-  // of the speakers.
-  const playAudio = !isSelf && audioStream !== null;
 
   useEffect(() => {
     const element = videoRef.current;
@@ -43,15 +43,6 @@ export function ParticipantTile({ participant, stream, audioStream = null, isSel
       element.srcObject = null;
     };
   }, [stream]);
-
-  useEffect(() => {
-    const element = audioRef.current;
-    if (!element || !audioStream) return;
-    element.srcObject = audioStream;
-    return () => {
-      element.srcObject = null;
-    };
-  }, [audioStream]);
 
   const label = isSelf ? 'You' : participant.username;
 
@@ -66,13 +57,6 @@ export function ParticipantTile({ participant, stream, audioStream = null, isSel
         participant.speaking && 'ring-2 ring-primary-accent ring-offset-1 ring-offset-card',
       )}
     >
-      {playAudio && (
-        /* The element IS the speaker: decoded remote audio lands in a
-           MediaStream, and a stream attached to nothing plays nowhere. Hidden
-           because the tile is the visual; this exists purely to emit sound. */
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio ref={audioRef} autoPlay className="hidden" aria-hidden="true" />
-      )}
       {showVideo ? (
         /* A live peer stream has no caption track to attach: captions
            presuppose prepared content, and there is no transcript for a

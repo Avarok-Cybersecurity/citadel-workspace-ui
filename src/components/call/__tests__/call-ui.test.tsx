@@ -98,7 +98,7 @@ describe('CallControls', () => {
   it('flips the microphone label with its state, so it says what it will do', async () => {
     const onToggleMic = vi.fn();
     const { rerender } = render(
-      <CallControls media={VIDEO} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} duration="00:42" />,
+      <CallControls media={VIDEO} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
     const mic = screen.getByRole('button', { name: 'Mute microphone' });
@@ -107,7 +107,7 @@ describe('CallControls', () => {
     expect(onToggleMic).toHaveBeenCalled();
 
     rerender(
-      <CallControls media={MUTED} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} duration="00:42" />,
+      <CallControls media={MUTED} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
     expect(screen.getByRole('button', { name: 'Unmute microphone' })).toHaveAttribute('aria-pressed', 'false');
   });
@@ -116,7 +116,7 @@ describe('CallControls', () => {
     // Being unable to abandon a call that is still connecting is the worst
     // version of this component.
     render(
-      <CallControls media={AUDIO_ONLY} canToggleVideo={false} onToggleMic={noop} onToggleCamera={noop} onLeave={noop} duration="" />,
+      <CallControls media={AUDIO_ONLY} canToggleVideo={false} onToggleMic={noop} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
     expect(screen.getByRole('button', { name: /leave/i })).toBeEnabled();
@@ -125,7 +125,7 @@ describe('CallControls', () => {
   it('hides the timer from screen readers', () => {
     // Announcing it every second would make the call unusable with a reader.
     render(
-      <CallControls media={VIDEO} canToggleVideo onToggleMic={noop} onToggleCamera={noop} onLeave={noop} duration="01:23" />,
+      <CallControls media={VIDEO} canToggleVideo onToggleMic={noop} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
     expect(screen.getByTestId('call-duration')).toHaveAttribute('aria-hidden', 'true');

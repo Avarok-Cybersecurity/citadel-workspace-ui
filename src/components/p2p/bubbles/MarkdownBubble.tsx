@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import { memo } from 'react';
 import type { ReactNode } from 'react';
 import { AlertCircle, MoreVertical, Reply, Edit2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -13,6 +14,22 @@ import { getBubbleStyles } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import { getInitials } from '@/components/chat/shared';
 import type { BaseBubbleProps } from './types';
+
+/**
+ * The markdown parse, memoized on the text alone.
+ *
+ * The composer's value lives in the chat root, so every keystroke re-renders
+ * the whole loaded history — and each markdown bubble ran a full remark parse
+ * again, for text that had not changed. The cost grows with how far back the
+ * user has scrolled, which is exactly the class that looks fine on a fresh
+ * account and janks after a month.
+ *
+ * `content` is a string, so this memo holds even while the surrounding bubble
+ * re-renders with fresh inline callbacks — no change to the bubble's API.
+ */
+const RenderedMarkdown = memo(function RenderedMarkdown({ content }: { content: string }) {
+  return <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>;
+});
 
 type ChildrenProps = { children?: ReactNode };
 type LinkProps = { href?: string; children?: ReactNode };
@@ -116,9 +133,7 @@ export function MarkdownBubble({
 
         <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown components={markdownComponents}>
-              {message.content}
-            </ReactMarkdown>
+            <RenderedMarkdown content={message.content} />
           </div>
           {/* Inline failure indicator */}
           {isOwn && isFailed && (

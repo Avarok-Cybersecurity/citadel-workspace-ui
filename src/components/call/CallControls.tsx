@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CallMediaKinds } from '@/types/p2p-commands';
+import { useCallDuration } from './use-call-duration';
 
 interface CallControlsProps {
   media: CallMediaKinds;
@@ -11,7 +12,16 @@ interface CallControlsProps {
   onToggleCamera: () => void;
   onLeave: () => void;
   /** Shown beside the controls; hidden below sm where space is scarce. */
-  duration: string;
+  /**
+   * Whether the call clock should be running.
+   *
+   * This used to take the formatted string, computed by a 1 Hz hook up in
+   * `use-direct-call` — which is called from `P2PChat`, so every tick
+   * re-rendered the entire conversation, including every message bubble, for
+   * the whole duration of every call. Owning the tick here confines it to the
+   * one element that displays it.
+   */
+  running: boolean;
 }
 
 /**
@@ -26,8 +36,9 @@ export function CallControls({
   onToggleMic,
   onToggleCamera,
   onLeave,
-  duration,
+  running,
 }: CallControlsProps) {
+  const duration = useCallDuration(running);
   return (
     <div className="flex flex-wrap items-center justify-center gap-2" data-testid="call-controls">
       <ToggleButton

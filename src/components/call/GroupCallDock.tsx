@@ -1,6 +1,5 @@
 import { CallStage } from './CallStage';
 import { useCall } from '@/lib/call/call-context';
-import { useCallDuration } from './use-call-duration';
 
 /**
  * The in-call stage, docked above one group conversation and no other.
@@ -16,7 +15,6 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
     call,
     localStream,
     remoteStreams,
-    remoteAudioStreams,
     qualities,
     toggleMic,
     toggleCamera,
@@ -28,7 +26,6 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
     call.roomId === roomId &&
     call.status !== 'ended' &&
     call.status !== 'ringing-in';
-  const duration = useCallDuration(docked && call?.status === 'active');
 
   // The null check re-stated for the compiler: `docked` already implies it,
   // but boolean flags do not narrow the variable they were computed from.
@@ -40,9 +37,7 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
       selfUsername="You"
       localStream={localStream}
       remoteStreams={remoteStreams}
-      remoteAudioStreams={remoteAudioStreams}
       qualities={qualities}
-      duration={duration}
       onToggleMic={() => void toggleMic()}
       onToggleCamera={() => void toggleCamera()}
       onLeave={() => void leave()}

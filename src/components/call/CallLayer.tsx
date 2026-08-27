@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CallProvider } from './CallProvider';
 import { CallSoundEffects } from './CallSoundEffects';
+import { CallAudioHost } from './CallAudioHost';
+import { OngoingCallBar } from './OngoingCallBar';
 import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
 import { useIsLeaderTab } from './use-leader-tab';
@@ -33,7 +35,9 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
   return (
     <CallProvider selfCid={selfCid} senderConfig={senderConfig as MessageSenderConfig}>
       <CallSoundEffects />
+      <CallAudioHost />
       <RingingCall />
+      <OngoingCallBar />
       {children}
     </CallProvider>
   );
