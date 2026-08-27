@@ -18,9 +18,14 @@ export function handleGeneratedVariants(
   connectionInfo: ConnectionInfo,
 ): boolean {
   if (isVariant(response, 'Workspaces')) {
-    eventEmitter.emit('workspaces:listed', {
-      workspaces: response.Workspaces, connection: connectionInfo,
-    });
+    // Handled, not forwarded. `workspaces:listed` had exactly one subscriber,
+    // which wrote the list into `state.workspaces` -- a field nothing in the
+    // tree ever read. The subscriber and the field are gone, so emitting to
+    // nobody would just be the same dead weight with an extra hop; the guard
+    // that flags an unheard emit is what caught it.
+    //
+    // Still returns true: the variant IS handled, and saying otherwise would
+    // make a caller awaiting confirmation wait out its timeout.
     return true;
   }
 

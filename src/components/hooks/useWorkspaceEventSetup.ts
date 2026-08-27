@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import { workspaceEvents, type WorkspacesPayload } from '@/lib/workspace-events';
+import { workspaceEvents } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { connectionManager } from '@/lib/connection';
 import UserService from '@/lib/user-service';
-import WorkspaceService from '@/lib/workspace-service';
 import { bytesToString } from '@/lib/utils/encoding-utils';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
@@ -84,18 +83,13 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           }));
         }
 
-        // Fetch workspace list now that connection is active
-        await WorkspaceService.listWorkspaces().catch((err: unknown) => {
-          debugLog('UseWorkspaceEventSetup', 'Failed to list workspaces:', err);
-        });
-      });
-
-      // Workspaces listed event
-      await workspaceEvents.onWorkspaceEvent('workspaces:listed', (payload: WorkspacesPayload) => {
-        setState(prev => ({
-          ...prev,
-          workspaces: payload.workspaces,
-        }));
+        // `listWorkspaces()` used to run here on every workspace load, and its
+        // result was written into `state.workspaces` -- which nothing in the
+        // tree ever read. A network round trip per load feeding dead state, and
+        // a field in the context type that made the app look as though it
+        // tracked a workspace list. The switcher reads stored sessions, not
+        // this. Removed rather than left as a decoy; one line brings it back if
+        // something ever needs it.
       });
 
       // Workspace not initialized event

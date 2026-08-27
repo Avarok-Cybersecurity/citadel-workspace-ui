@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { User } from '../types/workspace-entities';
-import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { WorkspaceMetadataBytes } from '@/types/workspace-metadata';
 
@@ -13,7 +12,6 @@ export interface WorkspaceState {
     /** Raw `Vec<u8>` from the wire. Decode it; do not read properties off it. */
     metadata?: WorkspaceMetadataBytes;
   };
-  workspaces: WorkspaceMetadataTS[];
   currentUser?: {
     id: string;
     username: string;
@@ -54,7 +52,6 @@ export interface WorkspaceState {
 // Default initial state
 const initialState: WorkspaceState = {
   workspace: undefined,
-  workspaces: [],
   currentUser: undefined,
   members: {},
   nodes: {},

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { User } from '../types/workspace-entities';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
@@ -23,7 +22,6 @@ export interface WorkspaceEventState {
     name: string;
     metadata?: Record<string, unknown>;
   };
-  workspaces: WorkspaceMetadataTS[];
   nodes: Record<string, DomainNode>;
   treeSchema: TreeSchema | null;
   loading: {
@@ -72,7 +70,6 @@ export const WorkspaceEventHandler: React.FC<{
 }> = ({ onStateChange, children }) => {
   const [state, setState] = useState<WorkspaceEventState>({
     workspace: undefined,
-    workspaces: [],
     nodes: {},
     treeSchema: null,
     members: {},

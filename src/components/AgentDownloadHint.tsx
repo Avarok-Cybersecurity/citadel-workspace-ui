@@ -27,8 +27,17 @@ const LABELS: Record<AgentPlatform, string> = {
  * modal, where the question actually arises, rather than as a banner everyone
  * sees forever.
  */
-/** Shown, copied, and asserted in tests from one place. */
-const RUN_COMMAND = '--bind 127.0.0.1:12345 --backend filesystem';
+/**
+ * Shown, copied, and asserted in tests from one place.
+ *
+ * Names the binary. This was the flags alone — `--bind … --backend …` — so a
+ * first-run user who pressed Copy and pasted it got a shell error, and nothing
+ * anywhere told them what the executable inside the archive is called. A copy
+ * button that produces something unrunnable is worse than no copy button: it
+ * looks like the instruction, so the reader stops looking for the real one.
+ */
+const RUN_COMMAND =
+  './citadel-workspace-internal-service --bind 127.0.0.1:12345 --backend filesystem';
 
 export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navigatorRef }) => {
   const candidates = agentPlatformCandidates(navigatorRef ?? navigator);

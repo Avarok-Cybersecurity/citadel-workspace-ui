@@ -37,8 +37,13 @@ export function WorkspaceInitializationDetails({
                                 </ul>
                                 {(workspaceName || workspaceId || serverAddress || username) && (
                                     <div className="mt-3 pt-2 border-t border-warning/30 space-y-1 text-xs">
-                                        {(workspaceId || workspaceName) && (
-                                            <p><span className="text-warning">Workspace:</span> {workspaceId || workspaceName}</p>
+                                        {/* Name first. The precedence was inverted, and the
+                                            caller always passes an id, so the single most
+                                            consequential first-run dialog on a production
+                                            deployment read "Workspace: root" and never showed the
+                                            human name at all. */}
+                                        {(workspaceName || workspaceId) && (
+                                            <p><span className="text-warning">Workspace:</span> {workspaceName || workspaceId}</p>
                                         )}
                                         {serverAddress && <p><span className="text-warning">Server:</span> {serverAddress}</p>}
                                         {(fullName || username) && (

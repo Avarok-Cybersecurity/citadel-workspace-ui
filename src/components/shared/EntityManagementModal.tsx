@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
+import { EntityField } from './EntityField';
 import {
   Dialog,
   DialogContent,
@@ -8,16 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { debugLog } from '@/lib/debug-config';
 
@@ -119,10 +110,24 @@ export function EntityManagementModal<TMode extends string>({
       await onSubmit(formData);
       onClose();
     } catch (error) {
+      // The server's own words, not "please try again".
+      //
+      // `awaitWriteResponse` produces precise rejections -- "Permission denied:
+      // EditTreeStructure required", "Cannot demote the only administrator" --
+      // and this discarded every one of them into a debugLog, which is a no-op
+      // outside dev. A member whose first attempt to create an office is
+      // refused was told to retry, and retrying can never work: they cannot
+      // distinguish "you do not have permission" from a flaky network, so they
+      // try again, and again. The delete path was given this fix; create and
+      // edit never were.
       debugLog('EntityManagementModal', `Error managing ${entityName}:`, error);
+      const reason =
+        error instanceof Error && error.message
+          ? error.message
+          : `The server did not accept the change.`;
       toast({
-        title: "Error",
-        description: `Failed to ${mode} ${entityName}. Please try again.`,
+        title: `Could not ${mode} that ${entityName}`,
+        description: reason,
         variant: "destructive",
       });
     } finally {
@@ -150,7 +155,7 @@ export function EntityManagementModal<TMode extends string>({
                 key={field.id}
                 field={field}
                 value={formData[field.id] ?? ''}
-                onChange={value => setFormData(prev => ({ ...prev, [field.id]: value }))}
+                onChange={(value: string) => setFormData(prev => ({ ...prev, [field.id]: value }))}
                 disabled={isSubmitting}
               />
             ))}
@@ -184,67 +189,4 @@ export function EntityManagementModal<TMode extends string>({
       </DialogContent>
     </Dialog>
   );
-}
-
-interface EntityFieldProps {
-  field: FieldConfig;
-  value: string;
-  onChange: (value: string) => void;
-  disabled: boolean;
-}
-
-function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
-  switch (field.type) {
-    case 'input':
-      return (
-        <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
-          <Input
-            id={field.id}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className="bg-card border-border text-foreground placeholder:text-muted-foreground"
-            required={field.required}
-            disabled={disabled}
-          />
-        </div>
-      );
-    case 'textarea':
-      return (
-        <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
-          <Textarea
-            id={field.id}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className="bg-card border-border text-foreground placeholder:text-muted-foreground min-h-[100px]"
-            disabled={disabled}
-          />
-        </div>
-      );
-    case 'select':
-      return (
-        <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
-          <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger className="bg-card border-border text-foreground">
-              <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              {field.options?.map(option => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="text-foreground hover:bg-card"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      );
-  }
 }

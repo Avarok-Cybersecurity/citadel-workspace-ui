@@ -116,7 +116,20 @@ export function HierarchySidebar() {
       );
       const allowedTypes = workspaceRule?.allowed_child_types ?? [];
       if (allowedTypes.length === 0) {
-        toastError(toast, 'Permission Required', 'You need administrator permissions to create new items. Initialize the workspace to become an admin.');
+        // "Initialize the workspace to become an admin" was true once and is
+        // not now: since the first-connect-admin change, initialization
+        // requires the operator's master password, so a member following that
+        // advice hits a modal they cannot complete. And this branch is
+        // effectively unreachable anyway -- GetTreeSchema returns the same
+        // global schema to everyone, with no actor check, and the default
+        // schema always permits an Office under the workspace. The real refusal
+        // arrives from the server after submit, which is where it is now
+        // reported verbatim.
+        toastError(
+          toast,
+          'Cannot create here',
+          'This workspace does not allow new items at the top level.',
+        );
         return;
       }
       setCreateModal({ parentId: 'workspace-root', entityType: allowedTypes[0] });

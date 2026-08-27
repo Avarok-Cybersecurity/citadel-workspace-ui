@@ -8250,3 +8250,44 @@ Extracting the hook also surfaced that there are two different `UserRole` types
 in this tree, structurally similar and not interchangeable. The hook uses the
 tab's, and says so — a local re-declaration would have compiled until one of
 them gained a field.
+
+### Round 134 — five findings from the onboarding audit, and a guard that caught me twice
+
+**A member's first create was told to try again, for ever.**
+`EntityManagementModal` reported "Failed to create office. Please try again." and
+sent the server's actual refusal to `debugLog`, a no-op outside dev. A member
+whose first attempt is refused cannot distinguish "you do not have permission"
+from a flaky network, so they retry, and retrying can never work. The delete path
+was given this fix long ago; create and edit never were — the same shape as the
+admin writes fixed in round 133, in a third place.
+
+**The advice attached to it was stale in a way that leads somewhere worse.**
+"Initialize the workspace to become an admin" was true before first-connect-admin
+became opt-in; now initialization needs the operator's master password, so a
+member following that advice reaches a modal they cannot complete. The branch is
+also close to unreachable — `GetTreeSchema` returns the same global schema to
+everyone with no actor check, and the default schema always permits an Office
+under the workspace — so the real refusal comes from the server after submit,
+which is now where it is reported.
+
+**The first-run modal identified the workspace by internal id.**
+`{workspaceId || workspaceName}` with a caller that always passes an id, so the
+single most consequential dialog on a production deployment read "Workspace:
+root" and never showed the human name.
+
+**`state.workspaces` was fetched on every workspace load and read by nobody.** A
+network round trip per load feeding dead state, and a field in the context type
+that made the app look as though it tracked a workspace list. Removed rather than
+left as a decoy.
+
+**The agent hint's copy button produced something unrunnable** — `--bind …
+--backend …` with no binary name, and nothing anywhere says what the executable
+in the archive is called. A copy button that yields a shell error is worse than
+none: it looks like the instruction, so the reader stops looking for the real one.
+
+The listener-emitter guard earned its keep twice in one round. Removing the dead
+`workspaces:listed` subscriber left an emitter talking to nobody, which it caught
+immediately — so the emit is gone too, while the variant is still *handled*,
+because returning false would make a caller awaiting confirmation wait out its
+timeout. The guard checks both directions, and this is the first time the
+unheard-emit half has fired.
