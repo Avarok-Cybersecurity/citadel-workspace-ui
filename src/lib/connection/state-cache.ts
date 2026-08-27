@@ -6,6 +6,7 @@
  */
 
 import type { ActiveSession } from '@/types/session-types';
+import type { ActiveSessionsResult } from './queries';
 import type { PendingRequest } from './types';
 import { CACHE_TTL_MS } from './constants';
 import { ConnectionStateCore } from './state-core';
@@ -15,7 +16,7 @@ export class ConnectionState extends ConnectionStateCore {
   private _pendingRequests = new Map<string, PendingRequest>();
 
   // Session cache for deduplication
-  private _pendingGetSessions: Promise<ActiveSession[]> | null = null;
+  private _pendingGetSessions: Promise<ActiveSessionsResult> | null = null;
   private _cachedSessions: ActiveSession[] | null = null;
   private _cachedSessionsTimestamp = 0;
 
@@ -65,11 +66,11 @@ export class ConnectionState extends ConnectionStateCore {
     this._cachedSessionsTimestamp = 0;
   }
 
-  get pendingGetSessions(): Promise<ActiveSession[]> | null {
+  get pendingGetSessions(): Promise<ActiveSessionsResult> | null {
     return this._pendingGetSessions;
   }
 
-  setPendingGetSessions(promise: Promise<ActiveSession[]> | null): void {
+  setPendingGetSessions(promise: Promise<ActiveSessionsResult> | null): void {
     this._pendingGetSessions = promise;
   }
 

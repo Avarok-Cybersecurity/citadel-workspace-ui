@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { pickSessionToClaim } from '@/lib/sessions/pick-session-to-claim';
+import { useWorkspaceDataTimeout } from './use-workspace-data-timeout';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ConnectionService } from '@/lib/connection-service';
@@ -97,8 +99,22 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
         await Promise.race([connectionManager.waitForReady(), timeoutPromise]);
         debugLog('WorkspaceLoader', ' ConnectionManager is ready');
 
-        const activeSessions = await connectionManager.getActiveSessions();
-        debugLog('WorkspaceLoader', ' Found active sessions:', activeSessions.length);
+        // The result form, because everything below reads an empty list as
+        // "you are logged out". A GetSessions timeout used to produce exactly
+        // that: the loader concluded there were no sessions, the loading
+        // deadline redirected to /connect, and -- worse -- the branch below
+        // called clearSelectedUser(), so a failed READ destroyed the tab's
+        // session selection. The user re-authenticated a session that was
+        // still there, which is the SessionAlreadyActive churn the backend
+        // notes warn about.
+        const { ok, sessions: activeSessions } = await connectionManager.getActiveSessionsResult();
+        debugLog('WorkspaceLoader', ' Found active sessions:', activeSessions.length, 'ok:', ok);
+
+        if (!ok) {
+          debugLog('WorkspaceLoader', ' Could not reach the internal service; not concluding anything');
+          setIsAutoClaimingSession(false);
+          return;
+        }
 
         if (activeSessions.length === 0) {
           debugLog('WorkspaceLoader', ' No active sessions available');
@@ -113,20 +129,15 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
           selectedUsername: existingSelection?.selectedUsername ?? 'none',
         });
 
-        let sessionToUse: typeof activeSessions[0] | undefined;
-
-        if (existingSelection?.selectedCid) {
-          sessionToUse = activeSessions.find(s => s.cid === existingSelection.selectedCid);
-          if (!sessionToUse) {
-            debugLog('WorkspaceLoader', ' Selected session no longer active, trying first available');
-            await clearSelectedUser();
-          }
-        }
-
-        if (!sessionToUse) {
-          // No stored selection or stored selection invalid — use first active session
-          sessionToUse = activeSessions[0];
-          debugLog('WorkspaceLoader', ' Auto-selecting first available session:', sessionToUse?.username);
+        // Reached only when `ok` was true, so an empty list really is empty and
+        // clearing the selection is safe.
+        const { session: sessionToUse, staleSelection } = pickSessionToClaim(
+          activeSessions,
+          existingSelection?.selectedCid,
+        );
+        if (staleSelection) {
+          debugLog('WorkspaceLoader', ' Selected session no longer active, trying first available');
+          await clearSelectedUser();
         }
 
         if (!sessionToUse) {
@@ -205,22 +216,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode, isAutoClaimingSession]);
 
   // Secondary safety net: workspace data loading timeout
-  // Covers the case where connection is established (hasConnection=true) but
-  // workspace data never loads (e.g., Follower tab doesn't own WASM client)
-  const [workspaceDataTimeout, setWorkspaceDataTimeout] = useState(false);
-  useEffect(() => {
-    if (isDevMode || !hasConnection || !isLoading) {
-      setWorkspaceDataTimeout(false);
-      return;
-    }
-    const timer = setTimeout(() => {
-      if (isLoading && hasConnection) {
-        debugLog('WorkspaceLoader', 'Workspace data loading timeout — connection exists but data never arrived');
-        setWorkspaceDataTimeout(true);
-      }
-    }, 10_000); // 10s for workspace data to load
-    return () => clearTimeout(timer);
-  }, [hasConnection, isLoading, isDevMode]);
+  const workspaceDataTimeout = useWorkspaceDataTimeout(hasConnection, isLoading, isDevMode);
 
   if (isDevMode) {
     debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');

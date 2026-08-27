@@ -1,4 +1,5 @@
 import { websocketService } from "@/lib/websocket-service";
+import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from '@/lib/post-auth-setup';
@@ -39,8 +40,7 @@ export async function redirectToExistingSession(
       variant: 'success',
     });
 
-    const lastAccessedKey = `session_last_accessed_${session.cid.toString()}`;
-    localStorage.setItem(lastAccessedKey, Date.now().toString());
+    markLastAccessed(session.cid);
 
     try {
       await websocketService.claimSession(session.cid, true);

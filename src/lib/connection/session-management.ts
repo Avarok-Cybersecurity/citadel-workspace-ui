@@ -1,6 +1,7 @@
 /** Session storage, auth success, logout, and session CRUD for ConnectionManager. */
 
 import type { ConnectionState } from './state';
+import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import type { ConnectionIO } from './io';
 import type { AuthSuccessParams } from './types';
 import type { StoredSession } from '@/types/session-types';
@@ -76,12 +77,7 @@ export async function handleAuthSuccess(
     // is best-effort, and a localStorage failure here would abort the
     // auth flow if it weren't caught.
     if (params.cid !== undefined) {
-      try {
-        const lastAccessedKey = `session_last_accessed_${params.cid.toString()}`;
-        localStorage.setItem(lastAccessedKey, Date.now().toString());
-      } catch (e) {
-        debugLog('ConnectionService', 'lastAccessed write failed (non-critical):', e);
-      }
+      markLastAccessed(params.cid);
     }
 
     debugLog('ConnectionService', 'handleAuthSuccess: setting tab context for CID:', params.cid?.toString());

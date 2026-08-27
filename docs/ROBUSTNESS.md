@@ -7470,3 +7470,45 @@ does. The speaking indicator is inert: `speaking-changed` is in the event union
 and handled by the reducer, and nothing dispatches it. And call duration restarts
 from 00:00 whenever the stage remounts, because it anchors to effect-run time
 rather than to anything in the call state.
+
+### Round 115 — one function taught seven surfaces that a failure means "you have nothing"
+
+From the stale-list audit, which set out to catalogue a class and found instead
+that most of it came from a single place.
+
+`fetchActiveSessions` returned `[]` on every failure — a WebSocket init timeout,
+a tab that could not send, a GetSessions response that never came, any throw at
+all — and `getActiveSessions` then **cached** that empty list as a valid answer.
+So one timeout produced "you have no sessions" for the whole cache window,
+without re-asking, across the seven surfaces that consult it: the workspace
+loader, the orphan-sessions navbar, the account dialog, the login handler twice,
+auth-operations, and reconnect. Every downstream `catch` for it was close to dead
+code, because the promise never rejected.
+
+The worst consequence was not cosmetic. The workspace loader concluded there were
+no sessions, its loading deadline redirected to `/connect`, and on the way it
+called `clearSelectedUser()` — **a failed read destroying the tab's session
+selection**. The user then re-authenticated a session that was still alive, which
+is exactly the SessionAlreadyActive churn the backend notes warn about.
+
+`getActiveSessionsResult` now reports whether the question was actually answered,
+`getActiveSessions` keeps the lenient contract its eight callers were written
+against, and a failure is never cached. The two surfaces that must not confuse
+the two use the result form: the loader concludes nothing when `ok` is false, and
+the navbar keeps its last known-good list rather than asserting emptiness — CIDs
+are permanent, so stale is strictly better than empty there.
+
+The clear-the-selection decision is now returned rather than performed.
+`pickSessionToClaim` says *whether* the stored selection is stale; only the
+caller knows whether the list it compared against was a real answer. A test pins
+that an empty list never produces `staleSelection`, because that combination is
+precisely what a failed query used to produce.
+
+Three side-effects worth recording. Splitting three files under the line cap
+produced two genuinely better modules — a pure `withWorkspaceNames` and a
+`useWorkspaceDataTimeout` hook — which is the cap doing its job rather than
+getting in the way. And the storage-key guard fired on `session_last_accessed_`,
+claiming it was read but never written: a false positive caused by my inlining
+the key expression, since the guard matches on the literal text. But it was
+pointing at something real — four sites built that key by hand, two stringifying
+the CID and two interpolating it. There is one module for it now.

@@ -15,15 +15,40 @@ import {
 import { debugLog } from '@/lib/debug-config';
 
 /**
+ * The outcome of asking the internal service which sessions exist.
+ *
+ * `ok: false` means the question could not be asked or was not answered — the
+ * socket was not up, the tab could not send, or the response timed out. It does
+ * NOT mean there are no sessions, and the two must never be conflated: this
+ * query is how the app decides whether the user is logged in.
+ */
+export interface ActiveSessionsResult {
+  ok: boolean;
+  sessions: ActiveSession[];
+}
+
+/**
  * Get active sessions with caching and deduplication.
+ *
+ * Keeps the lenient contract its eight callers were written against — an empty
+ * array on failure — because most of them genuinely want best effort. Callers
+ * that must not read a failure as "you have no sessions" use
+ * `getActiveSessionsResult` instead.
  */
 export async function getActiveSessions(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<ActiveSession[]> {
+  return (await getActiveSessionsResult(state, io)).sessions;
+}
+
+export async function getActiveSessionsResult(
+  state: ConnectionState,
+  io: ConnectionIO,
+): Promise<ActiveSessionsResult> {
   const cached = state.cachedSessions;
   if (cached && state.isCacheValid()) {
-    return cached;
+    return { ok: true, sessions: cached };
   }
 
   const pending = state.pendingGetSessions;
@@ -36,7 +61,11 @@ export async function getActiveSessions(
 
   try {
     const result = await fetchPromise;
-    state.setCachedSessions(result);
+    // A failure is not an answer, so it is not cached. It used to be: one
+    // timeout produced an empty list that every later call returned instantly
+    // for the whole cache window, without re-asking. That is what turned a
+    // transient hiccup into a logged-out-looking app that would not recover.
+    if (result.ok) state.setCachedSessions(result.sessions);
     return result;
   } finally {
     state.setPendingGetSessions(null);
@@ -46,7 +75,7 @@ export async function getActiveSessions(
 async function fetchActiveSessions(
   state: ConnectionState,
   io: ConnectionIO,
-): Promise<ActiveSession[]> {
+): Promise<ActiveSessionsResult> {
   try {
     // canSendRequests, not isConnected. A FOLLOWER tab never owns a WASM client
     // — that is by design — so `isConnected` is false forever there, and this
@@ -62,11 +91,11 @@ async function fetchActiveSessions(
           ),
         ]);
       } catch {
-        return [];
+        return { ok: false, sessions: [] };
       }
 
       if (!io.canSendRequests()) {
-        return [];
+        return { ok: false, sessions: [] };
       }
     }
 
@@ -86,10 +115,10 @@ async function fetchActiveSessions(
     await io.sendWebSocketMessage({ GetSessions: { request_id: requestId } });
 
     const response = await responsePromise;
-    return response.sessions || [];
+    return { ok: true, sessions: response.sessions || [] };
   } catch (error) {
     debugLog('ConnectionService', 'Failed to get active sessions', error);
-    return [];
+    return { ok: false, sessions: [] };
   }
 }
 

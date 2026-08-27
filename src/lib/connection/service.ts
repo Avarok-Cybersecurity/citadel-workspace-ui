@@ -16,7 +16,7 @@ import {
 } from './session-management';
 import { handleSuccessfulConnection, disconnectSession, switchAccount } from './lifecycle';
 import { attemptLeaderConnection, autoReconnect } from './reconnect';
-import { getActiveSessions, getTabActiveSessionIndex, handleConnectFailure } from './queries';
+import { getActiveSessions, getActiveSessionsResult, type ActiveSessionsResult, getTabActiveSessionIndex, handleConnectFailure } from './queries';
 
 export class ConnectionManager {
   private static instance: ConnectionManager;
@@ -142,6 +142,11 @@ export class ConnectionManager {
 
   public async getActiveSessions(): Promise<ActiveSession[]> {
     return getActiveSessions(this.state, this.io);
+  }
+
+  /** The same query, with whether it was actually answered. See queries.ts. */
+  public async getActiveSessionsResult(): Promise<ActiveSessionsResult> {
+    return getActiveSessionsResult(this.state, this.io);
   }
 
   public invalidateSessionCache(): void {

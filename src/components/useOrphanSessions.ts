@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
+import { markLastAccessed, readLastAccessed } from '@/lib/sessions/last-accessed';
 import { useNavigate } from "react-router-dom";
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
@@ -49,30 +51,20 @@ export function useOrphanSessions() {
   const loadActiveSessions = useCallback(async () => {
     try {
       await connectionManager.waitForReady();
-      const activeSessions = await connectionManager.getActiveSessions();
+      const { ok, sessions: activeSessions } = await connectionManager.getActiveSessionsResult();
+      // A query that was never answered is not the answer "no sessions". The
+      // navbar renders nothing at zero, so treating a timeout as emptiness made
+      // the Active Sessions strip disappear and the user log in again -- and
+      // CIDs are permanent, so a stale list is strictly better than an empty
+      // one here.
+      if (!ok) return;
       const storedSessions = connectionManager.getStoredSessions();
 
-      const sessionsWithWorkspace: OrphanSessionWithWorkspace[] = activeSessions.map(
-        (activeSession: ActiveSession) => {
-          const storedIndex = storedSessions.sessions.findIndex(
-            (stored) =>
-              stored.username === activeSession.username &&
-              stored.serverAddress === activeSession.server_address
-          );
-          const storedSession = storedSessions.sessions[storedIndex];
-          const lastAccessedKey = `session_last_accessed_${activeSession.cid}`;
-          const lastAccessed = parseInt(localStorage.getItem(lastAccessedKey) || '0', 10);
-
-          return {
-            ...activeSession,
-            workspaceName: storedSession?.username || activeSession.username,
-            storedSessionIndex: storedIndex,
-            lastAccessed,
-          };
-        }
+      const sessionsWithWorkspace = withWorkspaceNames(
+        activeSessions,
+        storedSessions.sessions,
+        readLastAccessed,
       );
-
-      sessionsWithWorkspace.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
       setSessions(sessionsWithWorkspace);
       debugLog('OrphanSessionsNavbar', 'Loaded active sessions:', sessionsWithWorkspace);
 
@@ -89,8 +81,9 @@ export function useOrphanSessions() {
         }
       }
     } catch (error) {
+      // Keep whatever was last known good. Clearing here asserted "you have no
+      // sessions" on the strength of a failure.
       debugLog('OrphanSessionsNavbar', 'Failed to load active sessions:', error);
-      setSessions([]);
     }
   }, []);
 
@@ -98,8 +91,7 @@ export function useOrphanSessions() {
     try {
       debugLog('OrphanSessionsNavbar', 'Navigating to workspace:', session.workspaceName);
 
-      const lastAccessedKey = `session_last_accessed_${session.cid}`;
-      localStorage.setItem(lastAccessedKey, Date.now().toString());
+      markLastAccessed(session.cid);
 
       toast({
         title: "Reconnecting...",
