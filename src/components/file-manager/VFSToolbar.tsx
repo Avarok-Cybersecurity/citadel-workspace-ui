@@ -105,6 +105,7 @@ export function VFSToolbar({
             />
             {filterText && (
               <button
+                aria-label="Clear filter"
                 onClick={() => onFilterChange('')}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
@@ -147,13 +148,13 @@ export function VFSToolbar({
         <div className="w-px h-4 bg-primary" />
 
         {/* Action buttons */}
-        <Button variant="ghost" size="sm" onClick={onNewFolder} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" aria-label="New folder" onClick={onNewFolder} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <FolderPlus className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onUploadFile} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" aria-label="Upload file" onClick={onUploadFile} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <Upload className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" aria-label="Sync with peer" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>

@@ -39,6 +39,7 @@ export const ProtocolWarning: React.FC = () => {
           variant="ghost" 
           size="icon" 
           className="absolute top-2 right-2 text-warning hover:bg-warning/15 hover:text-warning"
+          aria-label="Dismiss warning"
           onClick={() => setVisible(false)}
         >
           <X className="h-4 w-4" />

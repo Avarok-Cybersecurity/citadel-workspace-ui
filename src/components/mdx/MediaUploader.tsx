@@ -161,6 +161,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                 />
                 <button 
                   className="absolute top-2 right-2 rounded-full bg-background/80 p-1 hover:bg-accent"
+                  aria-label="Remove uploaded image"
                   onClick={() => setUploadedImage(null)}
                 >
                   <X className="h-4 w-4 text-foreground" />

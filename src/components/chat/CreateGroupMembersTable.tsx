@@ -119,6 +119,7 @@ export function MembersTable({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                  aria-label={`Remove ${member.username} from the group`}
                   onClick={() => onRemoveMember(member.cid)}
                 >
                   <X className="h-4 w-4" />

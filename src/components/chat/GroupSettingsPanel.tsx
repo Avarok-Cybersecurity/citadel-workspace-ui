@@ -84,6 +84,7 @@ export function GroupSettingsPanel({
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Close group settings"
               onClick={() => onOpenChange(false)}
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
             >

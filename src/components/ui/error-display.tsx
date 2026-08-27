@@ -38,6 +38,7 @@ export const ErrorDisplay: React.FC = () => {
           variant="ghost" 
           size="icon" 
           className="absolute top-2 right-2"
+          aria-label="Dismiss error"
           onClick={() => setVisible(false)}
         >
           <X className="h-4 w-4" />

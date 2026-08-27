@@ -3694,6 +3694,101 @@ about.
 the editor (the view is keyed by node id), and that path is not yet guarded. It
 needs interception where the navigation happens, not in the editor.
 
+## Round forty-seven — the third check that could not fail, 2026-08-27
+
+### 268. The icon-button guard passed every unnamed button with an arrow handler — FIXED
+
+`check-icon-button-names.mjs` matched `<Button\b((?:[^&gt;]|\n)*?)&gt;`. The `[^&gt;]`
+attribute capture stops at the **first** `&gt;` — which, for any button carrying
+`onClick={() =&gt; …}`, is the `&gt;` inside the arrow. The handler body then landed
+in the "children" half, and the text check counted code like `setVisible(false)}`
+as the button's visible label.
+
+So it passed essentially every unnamed icon button in the codebase, while
+printing **"OK — all 39 icon-only Buttons have an accessible name"**. Thirteen
+were nameless, including the per-row remove-member control in the Create Group
+flow — destructive, repeated per row, announced by a screen reader as just
+"button".
+
+Rewritten with a brace-, quote- and comment-aware tag scanner. It now also sees
+**native `&lt;button&gt;`** and icon-only buttons that are not literally
+`size="icon"` — the file-manager toolbar's New folder / Upload / Sync were all
+invisible to the old rule — and it rejects `aria-label=""`, which the old
+presence-only test accepted. Scanned count went from 39 to 53.
+
+Two calibration passes were needed, and both are worth recording:
+
+- Stripping JSX **expressions** to find "no text" flagged 57 buttons, most of
+  which render `{loading ? <Spinner/> : 'Save'}`. The rule is now that children
+  must be **nothing but self-closing elements** — the shape that is always
+  nameless.
+- `ThemePreview` spreads `{...hotspot(id)}`, which supplies `aria-label`. A
+  spread cannot be judged statically, so it is exempted **knowingly** and in
+  writing: it is this guard's one blind spot, and a false accusation would push
+  someone to add a duplicate label.
+
+### 269. Three guards reported a pass when their input was missing — FIXED
+
+Trying to run the OLD guard for comparison produced neither a pass nor a
+failure: *"citadel-workspaces/src absent (submodule not checked out);
+skipping."*, exit 0.
+
+`check-storage-keys` and `check-destructive-contrast` had the same branch. Every
+CI job that runs them uses `submodules: recursive`, so the branch is unreachable
+there — but that is an argument for deleting it, not for keeping it. **A guard
+that cannot find what it guards has verified nothing, and must say so.** All
+three now exit 1 with a message naming what was missing.
+
+This is the third cannot-fail check found in this campaign and the third that was
+mine. The three have one shape between them: **when the check did not understand
+what it saw, it returned success** — an unrecognised error string, a fallback
+event, an absent input.
+
+### 270. Recorded, not fixed — two authorization holes in the local agent
+
+From the internal-service audit. Both are PROVED from source and neither is a
+UI-layer fix:
+
+- **`ClaimSession` can hijack any account's live message stream.** The request is
+  exempt from the ownership gate, and the only guard on taking over an ACTIVE
+  session is a boolean the *client* supplies (`only_if_orphaned`). Nothing checks
+  that the claiming connection has any prior relationship to the session. The
+  handler then reassigns `associated_localhost_connection` unconditionally, so
+  the victim's inbound P2P notifications route to the attacker's socket. Victim
+  CIDs are discoverable because `GetSessions` is also ungated. No credentials
+  required, and the dev stack binds all interfaces with WebSocket exempt from
+  CORS — so "any localhost client" includes a page the user merely visits.
+- **The ownership gate passes any CID that is not currently in the map.** It
+  refuses only when the CID is present AND owned by another connection. The
+  LocalDB handlers never consult the map, so read/write/**clear** against an
+  offline account's persistent store all succeed — and that store holds ILM
+  messenger state and offline-message queues, so a wipe destroys undelivered
+  messages. `LocalDBGetKV` is exempt unconditionally, so it reads even a live
+  account's store.
+
+The audit also **refuted** a flagged claim: `propose_target(cid, 0).expect(...)`
+in `local_db/mod.rs` cannot panic from client input, because the `ID` path
+returns `Ok` unconditionally. Recorded so nobody re-chases it.
+
+### 271. Recorded, not fixed — accessibility findings beyond the guard
+
+- **The incoming-call card's live region does not exist.** Its own comment says
+  it "announces itself through a live region instead" of taking focus; there is
+  no `aria-live` anywhere in the call path. The *outgoing* panel got
+  `role="status"`; the incoming one did not. A blind user with call sounds off is
+  never told a call is ringing.
+- **Every pre-auth overlay is a modal in appearance only** — Login, Join,
+  ServerConnect, SecuritySettings and both initialisation modals have no
+  `role="dialog"`, no focus move-in, no trap and no restore; Join and
+  SecuritySettings have no Escape handler at all. Tab walks controls buried under
+  the scrim.
+- **`check-hover-only-controls` cannot fail for named Tailwind groups** — it
+  requires the literal `group-hover:opacity-100`, so `group-hover/menu-item:` and
+  `invisible group-hover:visible` pass. Currently harmless only because the one
+  component using that form is imported nowhere.
+- Opening a folder in the file grid is **double-click only**; the tree sidebar
+  rescues keyboard users, so this is degraded rather than blocked.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

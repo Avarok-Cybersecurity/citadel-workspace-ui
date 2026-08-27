@@ -66,6 +66,7 @@ export function FileDropZone({
             </p>
           </div>
           <button
+            aria-label="Remove attached file"
             onClick={onRemoveFile}
             className="p-1 rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
             disabled={isSending}

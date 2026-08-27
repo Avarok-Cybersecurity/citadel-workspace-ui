@@ -55,6 +55,7 @@ export function UserProfileCard({
           variant="ghost"
           size="sm"
           className="absolute right-4 top-4 text-muted-foreground hover:text-foreground hover:bg-accent"
+          aria-label="Close profile"
           onClick={onClose}
         >
           <UserX className="h-4 w-4" />

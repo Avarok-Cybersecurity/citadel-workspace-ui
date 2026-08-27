@@ -97,6 +97,7 @@ export function GroupChatHeader({
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Group settings"
               className="h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-surface"
             >
               <Settings className="h-4 w-4 mr-1" />

@@ -126,6 +126,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
             />
             {!disabled && (
               <button
+                aria-label="Remove avatar"
                 onClick={handleRemove}
                 className="absolute top-0 right-0 p-1 bg-destructive rounded-full transform translate-x-1/4 -translate-y-1/4 hover:bg-destructive transition-colors"
               >
