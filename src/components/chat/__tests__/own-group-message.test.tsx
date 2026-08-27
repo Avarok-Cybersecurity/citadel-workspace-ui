@@ -32,12 +32,14 @@ function message(senderId: string) {
   } as never;
 }
 
+/** The handlers the item needs; none is exercised by these assertions. */
 const props = {
   onEdit: () => {},
   onDelete: () => {},
   onReply: () => {},
   onOpenThread: () => {},
-} as never;
+  totalMembers: 3,
+};
 
 describe('a group message', () => {
   /**
