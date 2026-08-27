@@ -6246,3 +6246,60 @@ request path, so no capability is ever handed out implicitly by role.
   browser got US dates in the files sidebar and native dates in chat. One
   `lib/format-time.ts`, browser locale throughout — a hardcoded locale is not a
   formatting choice, it writes 3/4/2026 to a reader for whom that means March.
+
+## Round ninety-one — a shared secret was the whole gate, 2026-08-27
+
+### 399. `delete_workspace` discarded its actor
+
+The parameter was literally `_user_id`. The only check was that the supplied
+master password matched the stored one — and `create_workspace` stores **root's**
+password against every workspace it mints, so one shared secret authorised
+deleting any non-root workspace, by any authenticated account, member or not.
+Every workspace creator holds that secret.
+
+Now gated on admin **or** the workspace's `owner_id`, with the password kept as a
+second factor rather than the only one. Owner as well as admin because a
+workspace's owner is not necessarily a global admin, and deleting their own
+workspace is the ordinary case.
+
+The test uses the *correct* password throughout — that is the point: knowing it
+is no longer enough. It also asserts the refused delete deleted nothing, and that
+an accepted delete actually deletes, because a gate that quietly no-ops is its
+own bug.
+
+### 400. The deployment instructions told operators to publish the agent
+
+`docker-compose.production.yml` opens with a capitalised warning that the UI
+served there cannot reach an agent **by design**, explains that the agent's
+control plane is unauthenticated and holds every connected user's ratchet keys,
+and ships `WS_PROXY_ENABLED=0` fail-closed to enforce it.
+
+Its own tunnel setup steps then instructed adding a public hostname rule
+`yourdomain.com/ws* → ws://localhost:12345`. That reaches the agent directly,
+bypassing nginx and the switch entirely. The switch closed the door; the setup
+steps reopened it one layer down, in the same file.
+
+Removed, with the reasoning in place — and `cloudflared` no longer declares
+`depends_on: internal-service`, because waiting on the agent implied a route to
+it that must not exist.
+
+### 401. The hosting quickstart produced a server nobody could reach
+
+`INSTALL.md` said the server binds `127.0.0.1` and that publishing it means a
+tunnel or reverse proxy "not widening the bind address". But each user runs their
+own local agent which dials the server directly over the Citadel protocol — so
+unlike an ordinary web app there is nothing an HTTP proxy can do here, the tunnel
+profile carries no route to `:12349`, and it could not carry the raw protocol if
+it did. An operator following the quickstart got a healthy-looking stack that
+every remote user failed to connect to, and the doc pointed away from the one
+line that fixes it. The production compose file has said the opposite in its own
+comment all along.
+
+### The theme of the last three rounds
+
+Nine findings, and eight of them are a check that exists somewhere in the tree
+being absent, weaker, or contradicted somewhere else: a gate applied fifteen lines
+below where it was missing, an exemption list wider than its argument, a fix
+comment-documented in one spec and never copied to its sibling, a fail-closed
+switch undone by the setup steps in the same file. Almost nothing here was
+unknown — it was known in one place and not another.
