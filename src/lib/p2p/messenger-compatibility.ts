@@ -13,6 +13,7 @@ import { messagePaginationStore } from './message-pagination-store';
 import type { ConversationManager } from './conversation-manager';
 import type { P2PMessage } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
+import { getPrivacySettings } from '@/lib/privacy-settings';
 
 type EmitFn = (event: string, data: unknown) => void;
 
@@ -95,12 +96,17 @@ export async function markMessagesAsRead(
     messagesToMark = await messagePaginationStore.findUnreadFromPeer(peerCid);
   }
 
+  // The LOCAL side of "read" always happens: the user did read these, so the
+  // unread badge must clear and the transcript must reflect it. Only the ack —
+  // the part that tells the sender — is the user's to withhold.
+  const sendReceipts = getPrivacySettings().sendReadReceipts;
+
   const markedMessageIds: string[] = [];
   for (const message of messagesToMark) {
     if (message.status === 'delivered') {
       message.status = 'read';
       markedMessageIds.push(message.id);
-      await sendMessageAck(message.id, 'read', peerCid);
+      if (sendReceipts) await sendMessageAck(message.id, 'read', peerCid);
     }
   }
 

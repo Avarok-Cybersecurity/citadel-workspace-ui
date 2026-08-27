@@ -3,45 +3,34 @@ import { Eye, MessageSquare, Users } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  getPrivacySettings,
+  savePrivacySettings,
+  PRIVACY_ENFORCEMENT,
+  type PrivacySettings,
+} from '@/lib/privacy-settings';
 
-const STORAGE_KEY = 'citadel:privacy-settings';
+/**
+ * The settings themselves live in `@/lib/privacy-settings`, which is what the
+ * send paths read. This tab used to own them outright — writing localStorage and
+ * dispatching an event nothing listened to — so every switch here was inert.
+ */
 
-interface PrivacySettings {
-  showOnlineStatus: boolean;
-  showTypingIndicators: boolean;
-  sendReadReceipts: boolean;
-  allowDirectMessages: 'everyone' | 'connections' | 'nobody';
-  showProfileToStrangers: boolean;
-  notifyOnScreenshot: boolean;
-}
-
-const defaultSettings: PrivacySettings = {
-  showOnlineStatus: true,
-  showTypingIndicators: true,
-  sendReadReceipts: true,
-  allowDirectMessages: 'connections',
-  showProfileToStrangers: false,
-  notifyOnScreenshot: false,
-};
-
-function loadSettings(): PrivacySettings {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return { ...defaultSettings, ...JSON.parse(stored) };
-  } catch { /* ignore */ }
-  return defaultSettings;
-}
-
-function saveSettings(settings: PrivacySettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  window.dispatchEvent(new CustomEvent('privacy-settings-changed', { detail: settings }));
+/** Shown beside a control this build cannot actually act on. */
+function NotEnforcedNote() {
+  return (
+    <p className="text-xs text-warning mt-1">
+      Not enforced yet — this needs server-side support, so leaving it on or off
+      changes nothing today.
+    </p>
+  );
 }
 
 export function PrivacySettingsTab() {
-  const [settings, setSettings] = useState<PrivacySettings>(loadSettings);
+  const [settings, setSettings] = useState<PrivacySettings>(getPrivacySettings);
 
   useEffect(() => {
-    saveSettings(settings);
+    savePrivacySettings(settings);
   }, [settings]);
 
   const update = <K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]) => {
@@ -72,8 +61,10 @@ export function PrivacySettingsTab() {
           <div>
             <Label className="text-sm font-medium">Profile Visibility</Label>
             <p className="text-xs text-muted-foreground">Show your profile to non-connected peers</p>
+            {!PRIVACY_ENFORCEMENT.showProfileToStrangers && <NotEnforcedNote />}
           </div>
           <Switch
+            disabled={!PRIVACY_ENFORCEMENT.showProfileToStrangers}
             checked={settings.showProfileToStrangers}
             onCheckedChange={(v) => update('showProfileToStrangers', v)}
           />
@@ -122,8 +113,10 @@ export function PrivacySettingsTab() {
             <div>
               <Label className="text-sm font-medium">Who Can Message You</Label>
               <p className="text-xs text-muted-foreground">Control who can send you direct messages</p>
+              {!PRIVACY_ENFORCEMENT.allowDirectMessages && <NotEnforcedNote />}
             </div>
             <Select
+              disabled={!PRIVACY_ENFORCEMENT.allowDirectMessages}
               value={settings.allowDirectMessages}
               onValueChange={(v) => update('allowDirectMessages', v as PrivacySettings['allowDirectMessages'])}
             >
@@ -143,8 +136,12 @@ export function PrivacySettingsTab() {
           <div>
             <Label className="text-sm font-medium">Screenshot Alerts</Label>
             <p className="text-xs text-muted-foreground">Get notified if someone takes a screenshot</p>
+            {/* A web page cannot observe a screenshot at all, so this one is not
+                waiting on a server — it is waiting on a platform that can. */}
+            {!PRIVACY_ENFORCEMENT.notifyOnScreenshot && <NotEnforcedNote />}
           </div>
           <Switch
+            disabled={!PRIVACY_ENFORCEMENT.notifyOnScreenshot}
             checked={settings.notifyOnScreenshot}
             onCheckedChange={(v) => update('notifyOnScreenshot', v)}
           />

@@ -5440,3 +5440,51 @@ in that state yet; the spread closes the class before the next field does it.
   passes `onCancel`.
 - Privacy and Appearance settings tabs remain entirely inert.
 - `citadel:file-transfers` is still write-only and unbounded.
+
+## Round seventy-nine — the privacy switches that promised and did nothing, 2026-08-27
+
+### 369. Every privacy setting was inert
+
+All six settings lived inside `PrivacySettingsTab`, which wrote them to
+localStorage and dispatched a `privacy-settings-changed` event nothing
+subscribed to. No field was read anywhere outside the tab that wrote it. On a
+product whose pitch is that the user controls their own data, "Send read
+receipts: off" still sent receipts, and "Show typing indicators: off" still
+showed them. The identical shape in `call-sound-preferences.ts` *is* consumed —
+the pattern was copied, the wiring was not.
+
+Three have a real enforcement point in this client and are now honoured:
+
+- **`showTypingIndicators`** — gated in `PresenceManager.sendTypingIndicator`.
+- **`showOnlineStatus`** — gated in `sendPresenceUpdate`, deliberately rather
+  than in `broadcastPresence`, so both the broadcast and the single-peer path
+  obey it (the broadcast loops through the single one).
+- **`sendReadReceipts`** — gated on the *ack only*. The local half of "read"
+  still happens: the user did read the message, so their unread badge must
+  clear. Withholding the receipt must not cost them their own state.
+
+The other three are not enforceable here, and saying so is part of the fix:
+`allowDirectMessages` and `showProfileToStrangers` need the **server** to refuse
+— a client that declines to display something has not stopped anyone from
+sending it — and `notifyOnScreenshot` is not observable from a web page at all.
+Those three controls are now disabled with a note saying they are not enforced
+yet, and `PRIVACY_ENFORCEMENT` gives a future server-side gate one place to flip.
+A disabled control that explains itself is honest; a working-looking switch that
+does nothing is not.
+
+The settings moved to `src/lib/privacy-settings.ts` so the send paths have
+something to read. Its loader merges over defaults — the lesson from the
+file-transfer settings two rounds ago — because `undefined` reads as "off" for a
+boolean, which would silently answer a privacy question the user was never asked.
+
+One note on the tests: the first version of the typing test failed for a reason
+that was not the code. `savePrivacySettings` wrote to one module instance while
+the manager under test held a binding to another, whose in-process cache still
+had the previous answer. Both helpers now write storage and reset modules in the
+same order, so the value under test is the value the code reads.
+
+### Carried forward
+
+- The read-receipt test takes ~2.7s because importing `messenger-compatibility`
+  drags in the WASM client, which fails to load under jsdom and retries. Loud,
+  not wrong — but worth remembering if that file grows more importers.

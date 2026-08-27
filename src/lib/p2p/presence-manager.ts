@@ -14,6 +14,7 @@ import {
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { PeerPresence } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
+import { getPrivacySettings } from '@/lib/privacy-settings';
 
 export type PresenceListener = (peerCid: bigint, presence: PeerPresence) => void;
 export type TypingListener = (peerCid: bigint, isTyping: boolean) => void;
@@ -66,6 +67,9 @@ export class PresenceManager {
    * Send presence update to a specific peer
    */
   public async sendPresenceUpdate(recipientCid: bigint, presence: MessagingLayer): Promise<void> {
+    // Gated here rather than in broadcastPresence so that BOTH the broadcast and
+    // the single-peer path obey it — broadcastPresence loops through this one.
+    if (!getPrivacySettings().showOnlineStatus) return;
     if (!isPresenceUpdate(presence)) {
       debugLog('PresenceManager', 'Invalid presence layer type');
       return;
@@ -180,6 +184,10 @@ export class PresenceManager {
    * setting up the full polling machinery.
    */
   public async sendTypingIndicator(recipientCid: bigint): Promise<void> {
+    // "Show typing indicators: off" now means the peer is not told. It used to
+    // mean nothing at all: the setting was written to localStorage and read by
+    // no one.
+    if (!getPrivacySettings().showTypingIndicators) return;
     try {
       const layer = createTyping();
       await this.config.sendCommand(recipientCid, layer);
