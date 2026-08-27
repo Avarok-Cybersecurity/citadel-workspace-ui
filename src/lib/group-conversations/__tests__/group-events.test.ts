@@ -112,3 +112,43 @@ describe('toGroupEvents', () => {
     expect(() => toGroupEvents({ GroupCreateSuccess: { cid: 7n, group_key: null } }, SELF, 'alice', peerName)).toThrow();
   });
 });
+
+/**
+ * `GroupEndNotification` is the OWNER's own confirmation. Every other member is
+ * told through `GroupDisconnectNotification`, which was handled nowhere — so
+ * deleting a group deleted it only for the person who pressed the button. The
+ * rest kept it in the sidebar and kept typing into it, and because the server's
+ * group messaging has no membership check, those messages still went somewhere.
+ *
+ * The same notification is how a kicked member learns they were removed.
+ */
+describe('being removed from a group', () => {
+  it('removes the group for a member told through GroupDisconnectNotification', () => {
+    const events = toGroupEvents(
+      { GroupDisconnectNotification: { cid: SELF, group_key: KEY } },
+      SELF, 'alice', peerName,
+    );
+
+    expect(events).toEqual([{ name: 'group:deleted', payload: { groupId: '7:42' } }]);
+  });
+
+  it('still removes it for the owner on a successful end', () => {
+    const events = toGroupEvents(
+      { GroupEndNotification: { cid: SELF, group_key: KEY, success: true } },
+      SELF, 'alice', peerName,
+    );
+
+    expect(events).toEqual([{ name: 'group:deleted', payload: { groupId: '7:42' } }]);
+  });
+
+  it('does NOT remove it when the end failed', () => {
+    // Ignoring `success` meant a failed delete still cleared the group from the
+    // sidebar of the only person who could delete it, while it lived on.
+    const events = toGroupEvents(
+      { GroupEndNotification: { cid: SELF, group_key: KEY, success: false } },
+      SELF, 'alice', peerName,
+    );
+
+    expect(events).toEqual([]);
+  });
+});

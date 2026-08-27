@@ -4752,6 +4752,30 @@ because the pattern is consistent: **the code under test gets scrutiny, and the
 scaffolding around it does not** — which is precisely why every control here has
 to be run rather than assumed.
 
+## Round sixty-seven — deleting a group deleted it for one person, 2026-08-28
+
+### 328. Every other member kept the group forever — FIXED
+
+`GroupEndNotification` is the **owner's own confirmation**. Every other member is
+told through `GroupDisconnectNotification`, which was handled nowhere and had no
+case in the event mapper. So deleting a group removed it only for the person who
+pressed the button: everyone else kept it in the sidebar and kept typing into it
+— and because the server's group messaging has no membership check, those
+messages still went somewhere.
+
+The same notification is how a **kicked** member learns they were removed, so
+that was equally silent from their side.
+
+### 329. A failed delete also cleared the owner's sidebar — FIXED
+
+The mapper ignored `GroupEndNotification.success` entirely, so `success: false`
+produced the same `group:deleted` as a real one. The group survived on the server
+while the only person who could delete it stopped seeing it.
+
+Two independent properties, so two controls: removing the disconnect mapping
+fails only the members' test, and dropping the `success` check fails only the
+failed-end test.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

@@ -134,9 +134,32 @@ export function toGroupEvents(
 
   const ended = variant(message, 'GroupEndNotification');
   if (ended) {
+    // Gated on `success`. This ignored the field entirely, so a FAILED end
+    // still removed the group from the owner's sidebar — the group survived on
+    // the server while the only person who could delete it stopped seeing it.
+    if (ended.success === false) return [];
     return [{
       name: 'group:deleted',
       payload: { groupId: groupKeyToId(parseGroupKey(ended.group_key)) },
+    }];
+  }
+
+  // The OTHER members' half of a deletion.
+  //
+  // `GroupEndNotification` is the owner's own confirmation. Everyone else is
+  // told through `GroupDisconnectNotification` — which was handled nowhere, so
+  // deleting a group deleted it only for the person who pressed the button.
+  // Every other member kept it in the sidebar and kept typing into it, and
+  // because the server's group messaging has no membership check, those
+  // messages still went somewhere.
+  //
+  // The same notification is how a KICKED member learns they were removed, and
+  // it was equally unhandled.
+  const disconnected = variant(message, 'GroupDisconnectNotification');
+  if (disconnected) {
+    return [{
+      name: 'group:deleted',
+      payload: { groupId: groupKeyToId(parseGroupKey(disconnected.group_key)) },
     }];
   }
 
