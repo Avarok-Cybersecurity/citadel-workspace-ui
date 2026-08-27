@@ -102,12 +102,48 @@ export class LiveDocumentStore {
     this.documentsCache.set(docId, doc);
   }
 
+  /**
+   * Adopt a document this side did not create, so its edits can be persisted.
+   *
+   * `createDocument` mints a NEW id, which is exactly wrong for a document
+   * arriving from a peer: both sides must agree on the id or they are editing
+   * two different documents. This keeps the id it was given.
+   *
+   * Idempotent — a second call is a no-op — so an open path can call it freely
+   * without needing to know whether this side is the creator.
+   */
+  async adoptDocument(docId: string, title: string, peerCid: string, creatorCid: string): Promise<void> {
+    if (this.documentsCache.has(docId)) return;
+    if (await this.loadDocument(docId)) return;
+
+    const now = Date.now();
+    const doc = new Y.Doc();
+    const state = Y.encodeStateAsUpdate(doc);
+    const rootHash = sha256Sync(state);
+
+    const storedDoc: StoredDocument = {
+      metadata: { id: docId, title, peerCid, creatorCid, createdAt: now, updatedAt: now, rootHash, revision: 0 },
+      state: Array.from(state),
+      revisionChain: [{ revision: 0, rootHash, timestamp: now }],
+    };
+
+    this.documentsCache.set(docId, storedDoc);
+    await this.saveDocument(docId, storedDoc);
+    await this.updateIndex();
+  }
+
   /** Update a document's Yjs state */
   async updateDocumentState(docId: string, ydoc: Y.Doc): Promise<void> {
     const existing = this.documentsCache.get(docId);
     if (!existing) {
-      debugLog('LiveDocumentStore', 'Document not found:', docId);
-      return;
+      // Resolving here wrote NOTHING while reporting success, and only the
+      // CREATOR of a document ever had a cache entry — the recipient's open
+      // path builds a tab and no store record. So every peer who received a
+      // shared live document lost everything they typed the moment they closed
+      // the tab, with no error anywhere. The unmount flush, added specifically
+      // "so closing the tab does not drop the last edits", was the same no-op.
+      debugLog('LiveDocumentStore', `Cannot persist ${docId}: no local record. Call adoptDocument first.`);
+      throw new Error(`Live document ${docId} is not tracked locally, so its edits cannot be saved.`);
     }
 
     const state = Y.encodeStateAsUpdate(ydoc);
@@ -140,30 +176,6 @@ export class LiveDocumentStore {
   }
 
   /** Get the revision chain for a document */
-  async getRevisionChain(docId: string): Promise<RevisionEntry[]> {
-    const doc = await this.loadDocument(docId);
-    return doc?.revisionChain || [];
-  }
-
-  /** Get the current root hash for a document */
-  async getRootHash(docId: string): Promise<string | null> {
-    const doc = await this.loadDocument(docId);
-    return doc?.metadata.rootHash || null;
-  }
-
-  /** Get the creator CID for a document */
-  async getCreatorCid(docId: string): Promise<string | null> {
-    const doc = await this.loadDocument(docId);
-    return doc?.metadata.creatorCid || null;
-  }
-
-  /** Check if a CID is the creator of a document */
-  async isCreator(docId: string, cid: string): Promise<boolean> {
-    const creatorCid = await this.getCreatorCid(docId);
-    return creatorCid === cid;
-  }
-
-  /** Load a document (cache-first, then LocalDB) */
   async loadDocument(docId: string): Promise<StoredDocument | null> {
     const cached = this.documentsCache.get(docId);
     if (cached) return cached;

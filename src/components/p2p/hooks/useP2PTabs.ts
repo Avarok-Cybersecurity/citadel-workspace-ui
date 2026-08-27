@@ -65,6 +65,19 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
   }, [activeTabId]);
 
   const handleOpenDocument = useCallback((docId: string, title: string) => {
+    // Adopt before opening. Only the CREATOR had a store record, so on the
+    // recipient's side updateDocumentState found nothing and silently wrote
+    // nothing — every edit they made was lost when the tab closed. Adoption is
+    // idempotent and keeps the id it was given, which is what makes this the
+    // same document on both sides rather than two.
+    if (currentUserCid) {
+      void liveDocumentStore
+        .adoptDocument(docId, title, peerCid.toString(), currentUserCid.toString())
+        .catch((error: unknown) =>
+          debugLog('P2PChat', 'Could not adopt live document', docId, error)
+        );
+    }
+
     const existingTab = tabs.find(t => t.documentId === docId);
     if (existingTab) {
       setActiveTabId(existingTab.id);
@@ -73,7 +86,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTab.id);
     }
-  }, [tabs]);
+  }, [tabs, currentUserCid, peerCid]);
 
   const handleCreateDocument = useCallback(async (title: string, _initialContent: string) => {
     if (!currentUserCid) return;

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { eventEmitter } from '@/lib/event-emitter';
 import type * as Y from 'yjs';
 import { liveDocumentStore } from '@/lib/live-document-store';
 import { debugLog } from '@/lib/debug-config';
@@ -56,7 +57,15 @@ export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
       doc.off('update', persist);
       if (timer) clearTimeout(timer);
       // Flush on unmount so closing the tab does not drop the last edits.
-      void liveDocumentStore.updateDocumentState(documentId, doc).catch(() => undefined);
+      //
+      // This is the LAST chance — the debounced write above can retry on the
+      // next edit, and there are no more edits. A swallowed failure here is
+      // exactly the case where the user's work is gone, so it is announced
+      // rather than discarded.
+      void liveDocumentStore.updateDocumentState(documentId, doc).catch((error: unknown) => {
+        debugLog('CollaborativeEditor', 'Final flush failed for', documentId, error);
+        eventEmitter.emit('live-document:persist-failed', { documentId });
+      });
     };
   }, [documentId, doc]);
 }
