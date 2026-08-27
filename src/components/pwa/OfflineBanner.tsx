@@ -1,6 +1,7 @@
 import { WifiOff, Wifi } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import { useServiceHealth } from '@/hooks/use-service-health';
 
 /**
  * Tell the user when the device has lost connectivity.
@@ -16,8 +17,13 @@ import { useOnlineStatus } from '@/hooks/use-online-status';
  */
 export function OfflineBanner() {
   const { isOnline, justReconnected } = useOnlineStatus();
+  // The local agent can be unreachable while the DEVICE is online — it runs on
+  // localhost. That produced exactly the symptom this banner exists to explain,
+  // and was reported nowhere: the health poll ran every 10s to zero listeners.
+  const { isHealthy } = useServiceHealth();
   const ref = useRef<HTMLDivElement>(null);
-  const showing = !isOnline || justReconnected;
+  const agentDown = isOnline && !isHealthy;
+  const showing = !isOnline || justReconnected || agentDown;
 
   // Publish the banner's real height so the layout can make room for it. It is
   // `fixed`, so it took no space and covered the first ~36px of BOTH the sidebar
@@ -69,12 +75,20 @@ export function OfflineBanner() {
         'fixed inset-x-0 top-14 z-[110] flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
         // Not red: being offline is a condition to inform about, not an error
         // the user caused or can fix by retrying.
-        offline
+        offline || agentDown
           ? 'bg-muted text-foreground border-b border-surface'
           : 'bg-primary/15 text-primary-foreground border-b border-primary/30',
       ].join(' ')}
     >
-      {offline ? (
+      {agentDown ? (
+        <>
+          <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {/* Names the agent, not "the server": this is the local process the
+              user can actually restart, and telling them "connection lost"
+              would send them to check their wifi, which is fine. */}
+          <span>Can&rsquo;t reach the Citadel agent on this machine. Check that it is running.</span>
+        </>
+      ) : offline ? (
         <>
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
           {/* Says what actually happens. There is no outbox: a send while

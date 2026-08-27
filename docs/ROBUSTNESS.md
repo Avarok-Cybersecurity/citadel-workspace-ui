@@ -4899,6 +4899,50 @@ The cheap check that would have caught it is one command: enumerate the
 subscription call shapes actually present in the tree, rather than assuming the
 list. That took a single `grep` this round.
 
+## Round seventy — the app knew the agent was down and told nobody, 2026-08-28
+
+### 337. `service-health` polled every 10 seconds to zero listeners — FIXED
+
+`healthCheckService` has computed whether the local agent is reachable every ten
+seconds since it was written, and emitted `service-health` to **nobody**. The
+user met the outage as scattered, uncorrelated per-operation failures, or as
+silence.
+
+The offline banner did not cover it, and could not: `useOnlineStatus` reports the
+DEVICE's connectivity, while the agent runs on localhost and can be dead while
+the browser is perfectly online. That produces precisely the symptom the banner's
+own docstring exists to explain —
+
+> A PWA launched from the home screen has no browser chrome, so there is nothing
+> to reveal that the network dropped — the app simply stops working, and a
+> failure to reach the workspace looks identical to the app being broken.
+
+— for a cause the banner never mentioned.
+
+The banner now has a third state, wired to the existing poll. Three decisions
+worth keeping:
+
+- **It names the agent, not "the server".** This is a local process the user can
+  actually restart; "connection lost" would send them to check their wifi.
+- **It starts optimistic.** The first poll can be a full interval away, and
+  opening with a warning that resolves itself trains people to ignore the banner.
+- **It reuses the muted styling, not red.** An unreachable agent is a condition
+  to report, not an error the user caused.
+
+### 338. This was the third dead emit wire in three rounds
+
+`live-document:persist-failed`, `session:startup-error`, and now
+`service-health` — all emitted, none heard, each found by audit rather than by a
+guard. Round sixty-nine established that the reverse direction IS mechanisable
+once all six subscription facades are known; this round is the last of the three
+known instances, and the argument for finishing that check is now made of three
+real defects rather than a hypothesis.
+
+Twenty-two emitters with no listener remain. Most are harmless — an event
+published for a consumer that does not exist yet is not a defect — which is
+exactly why the reverse check needs the debt-marker treatment rather than a
+blanket failure.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
