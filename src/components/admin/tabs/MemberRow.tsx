@@ -82,7 +82,9 @@ export function MemberRow({
           unidentifiable person. A row per line gives the name its own width. */}
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <Avatar className="h-10 w-10 shrink-0">
-          <AvatarImage src={member.avatarUrl || ''} />
+          {/* Decorative: the name is rendered as text beside this, so a
+              meaningful alt would announce the person twice. */}
+          <AvatarImage src={member.avatarUrl || ''} alt="" />
           <AvatarFallback className="bg-card text-foreground">
             {getUserInitials(member.name || member.username)}
           </AvatarFallback>

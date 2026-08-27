@@ -54,7 +54,8 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
         aria-label={`View profile for ${member.displayName}`}
         className="flex items-center space-x-3 flex-1 min-w-0 text-left cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
         <Avatar className="h-10 w-10 relative">
-          <AvatarImage src={member.avatarUrl} />
+          {/* Decorative: displayName is rendered beside it. */}
+          <AvatarImage src={member.avatarUrl} alt="" />
           <AvatarFallback className="bg-primary">{member.displayName.charAt(0)}</AvatarFallback>
           {member.isOnline && (
             <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card" />

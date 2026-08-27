@@ -18,9 +18,29 @@ const Avatar = React.forwardRef<
 ))
 Avatar.displayName = AvatarPrimitive.Root.displayName
 
+/**
+ * `alt` is REQUIRED, and enforced by the type rather than by a lint rule.
+ *
+ * Radix unmounts AvatarFallback once the image loads, so the initials that were
+ * carrying the person's name disappear at exactly the moment a real picture
+ * exists. Every one of the seven call sites had no alt, so setting a profile
+ * picture silently removed the name from the accessibility tree — and in the
+ * TopBar account menu, whose button has no text, that left the only route to
+ * Profile, Settings and Sign out announced as "button".
+ *
+ * A required prop is the right mechanism here: a lint rule can be disabled per
+ * line and a new call site added without one, whereas this fails the build.
+ * Pass `alt=""` deliberately for a genuinely decorative avatar — one whose
+ * subject is already named in adjacent text — so the choice is visible in the
+ * diff rather than absent from it.
+ */
+type AvatarImageProps = React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image> & {
+  alt: string;
+};
+
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
+  AvatarImageProps
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}

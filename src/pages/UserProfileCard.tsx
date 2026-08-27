@@ -61,7 +61,8 @@ export function UserProfileCard({
         </Button>
         <div className="flex flex-col items-center">
           <Avatar className="h-20 w-20 mb-4 relative">
-            <AvatarImage src={selectedUser.avatarUrl} />
+            {/* Decorative: the card's heading is this person's name. */}
+            <AvatarImage src={selectedUser.avatarUrl} alt="" />
             <AvatarFallback className="bg-primary text-xl">{selectedUser.displayName.charAt(0)}</AvatarFallback>
             {selectedUser.isOnline && (
               <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-success ring-2 ring-card" />

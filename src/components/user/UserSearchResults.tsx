@@ -100,7 +100,8 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
                 >
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10 relative">
-                    <AvatarImage src={user.avatarUrl} />
+                    {/* Decorative: displayName is rendered below. */}
+                    <AvatarImage src={user.avatarUrl} alt="" />
                     <AvatarFallback className="bg-primary">{user.displayName.charAt(0)}</AvatarFallback>
                     {user.isOnline && (
                       <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card" />

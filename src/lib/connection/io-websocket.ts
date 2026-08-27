@@ -68,6 +68,11 @@ export class ConnectionIOWebSocket {
     return wsModule.websocketService.isConnected();
   }
 
+  /** Whether a request can reach the internal service — see core.canSendRequests. */
+  canSendRequests(): boolean {
+    return wsModule.websocketService.canSendRequests();
+  }
+
   async waitForWebSocketInit(): Promise<void> {
     await wsModule.websocketService.waitForInit();
   }

@@ -15,6 +15,19 @@ import type { WebSocketServiceCore } from './core';
  * - Leader: Sends directly via WebSocket
  * - Follower: Proxies through leader via BroadcastChannel
  */
+/**
+ * The `request_id` inside the request payload, if it has one.
+ *
+ * Requests are single-key objects — `{ GetSessions: { request_id, ... } }` — and
+ * the internal service echoes that id on the response.
+ */
+function embeddedRequestId(request: Record<string, unknown>): string | undefined {
+  const [payload] = Object.values(request);
+  if (payload === null || typeof payload !== 'object') return undefined;
+  const id = (payload as Record<string, unknown>).request_id;
+  return typeof id === 'string' ? id : undefined;
+}
+
 export async function sendRequest(
   service: WebSocketServiceCore,
   request: Record<string, unknown>,
@@ -34,7 +47,19 @@ export async function sendRequest(
     await service.client.sendDirectToInternalService(request as InternalServiceRequest);
   } else {
     debugLog('WebSocketService', `[Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);
-    const id = requestId || crypto.randomUUID();
+    // Key the leader's pending map on the id the RESPONSE will carry.
+    //
+    // A fresh UUID here is a DIFFERENT id from the `request_id` embedded in the
+    // payload, and the internal service echoes the embedded one. So the leader's
+    // routeByRequestId missed, routeByCid got null (GetSessions replies with
+    // cid 0, which is falsy), and the response was processed locally on the
+    // leader — a tab with no such pending request — while the follower waited
+    // out its timeout.
+    //
+    // Connect and Register work from followers precisely because they pass
+    // their embedded requestId through explicitly. Deriving it here fixes every
+    // sendMessage()-based flow at once rather than one more call site.
+    const id = requestId ?? embeddedRequestId(request) ?? crypto.randomUUID();
 
     instanceInboundRouter.registerPendingRequest(id, instanceManager.instanceId);
 

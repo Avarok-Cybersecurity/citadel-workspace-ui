@@ -5,6 +5,7 @@
  */
 
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
+import { instanceManager } from '../multi-instance/instance-manager';
 // Namespace import to break circular dependency:
 // THIS FILE → connection/index.ts → io.ts → io-websocket.ts → websocket-service (cycle)
 // Property access on the namespace object is a live binding, deferred to call time.
@@ -202,6 +203,26 @@ export class WebSocketServiceCore {
   // ============== State / Getters ==============
 
   isConnected(): boolean { return this.isInitialized && this.client !== null; }
+
+  /**
+   * Whether this tab can get a request to the internal service.
+   *
+   * NOT the same question as `isConnected`, which asks whether THIS tab owns a
+   * WASM client. A follower never owns one — `doInit` sets `client = null` for
+   * followers by design — and proxies through the leader instead.
+   *
+   * Callers that gate a *send* on `isConnected` therefore refuse forever in
+   * every follower tab. That is why a second tab in the same browser showed the
+   * logged-out landing page with no Active Sessions strip: `fetchActiveSessions`
+   * failed this gate and returned `[]` WITHOUT EVER SENDING GetSessions, then
+   * cached the empty answer. No amount of retrying could help.
+   *
+   * `isConnected` is deliberately left alone: its other callers want to know
+   * whether a client exists, which is a different and still-valid question.
+   */
+  canSendRequests(): boolean {
+    return this.isInitialized && (this.client !== null || !instanceManager.isLeader);
+  }
   getClient(): WorkspaceClient | null { return this.client; }
 
   async getWasmModule(): Promise<WorkspaceClient | null> {

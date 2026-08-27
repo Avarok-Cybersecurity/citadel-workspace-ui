@@ -145,7 +145,8 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
                   </div>
                   <div className="inline-flex items-center gap-3 bg-card rounded-full px-6 py-2">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={file.sender.avatar} />
+                      {/* Decorative: the sender's name is shown beside it. */}
+                      <AvatarImage src={file.sender.avatar} alt="" />
                       <AvatarFallback>{file.sender.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <span className="text-lg font-medium">{file.sender.name}</span>

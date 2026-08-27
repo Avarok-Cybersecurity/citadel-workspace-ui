@@ -48,7 +48,12 @@ async function fetchActiveSessions(
   io: ConnectionIO,
 ): Promise<ActiveSession[]> {
   try {
-    if (!io.isWebSocketConnected()) {
+    // canSendRequests, not isConnected. A FOLLOWER tab never owns a WASM client
+    // — that is by design — so `isConnected` is false forever there, and this
+    // returned [] WITHOUT ever sending GetSessions, then cached the empty
+    // answer. A second tab in the same browser therefore showed the logged-out
+    // landing page with no Active Sessions strip, permanently.
+    if (!io.canSendRequests()) {
       try {
         await Promise.race([
           io.waitForWebSocketInit(),
@@ -60,7 +65,7 @@ async function fetchActiveSessions(
         return [];
       }
 
-      if (!io.isWebSocketConnected()) {
+      if (!io.canSendRequests()) {
         return [];
       }
     }

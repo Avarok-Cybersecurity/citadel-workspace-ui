@@ -118,7 +118,8 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
         <div className="flex items-start space-x-3">
           {notification.senderId && (
             <Avatar className="h-8 w-8">
-              <AvatarImage src="" />
+              {/* Decorative: the notification title carries the sender. */}
+              <AvatarImage src="" alt="" />
               <AvatarFallback className="bg-surface text-foreground text-xs">
                 {String(notification.senderId).substring(0, 2).toUpperCase()}
               </AvatarFallback>

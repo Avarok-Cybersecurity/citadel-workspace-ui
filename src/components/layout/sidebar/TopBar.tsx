@@ -129,12 +129,31 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-primary-accent/15" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
+            {/* Named on the BUTTON, not left to the avatar inside it. The
+                initials fallback is unmounted by Radix the moment a real
+                picture loads, so a name that lives only in that fallback
+                disappears exactly when the user personalises their account.
+                `title` was admin-only, so non-admins had nothing at all. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="p-0 hover:bg-primary-accent/15"
+              aria-label={isAdmin ? `Account menu for ${username} (workspace administrator)` : `Account menu for ${username}`}
+              title={isAdmin ? "Workspace Administrator" : undefined}
+              data-testid="user-avatar-button"
+            >
               <Avatar className={cn(
                 "h-8 w-8",
                 isAdmin && "ring-2 ring-warning ring-offset-1 ring-offset-background"
               )}>
-                <AvatarImage src={avatarUrl || ""} />
+                {/* NOT decorative. This avatar is the entire content of the
+                    account-menu button, and Radix unmounts the initials
+                    fallback once a real picture loads — so setting a profile
+                    picture used to leave the only route to Profile, Settings
+                    and Sign out announced as "button". The button also carries
+                    its own aria-label, which is what survives if the image
+                    fails to load at all. */}
+                <AvatarImage src={avatarUrl || ""} alt="" />
                 <AvatarFallback className="bg-surface text-foreground">{userInitials}</AvatarFallback>
               </Avatar>
             </Button>

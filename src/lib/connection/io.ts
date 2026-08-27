@@ -52,6 +52,7 @@ export class ConnectionIO {
   setOrphanMode(enabled: boolean): void { this.ws.setOrphanMode(enabled); }
   async sendWebSocketMessage(message: unknown): Promise<void> { return this.ws.sendWebSocketMessage(message); }
   isWebSocketConnected(): boolean { return this.ws.isWebSocketConnected(); }
+  canSendRequests(): boolean { return this.ws.canSendRequests(); }
   async waitForWebSocketInit(): Promise<void> { return this.ws.waitForWebSocketInit(); }
   async connect(params: { requestId: string; username: string; password: string; sessionSecuritySettings?: SessionSecuritySettings }): Promise<void> { return this.ws.connect(params); }
   async disconnect(cid: bigint): Promise<void> { return this.ws.disconnect(cid); }
