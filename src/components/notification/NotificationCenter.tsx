@@ -83,7 +83,11 @@ const NotificationCenter = () => {
     let readTimeout: ReturnType<typeof setTimeout> | null = null;
     if (open) {
       readTimeout = setTimeout(() => {
-        notificationService.markAllAsRead();
+        // Scoped to THIS session. The service-wide sweep cleared every other
+        // session's badge in the navbar -- and on the landing page, where
+        // sessionCid is null and the panel shows "No notifications", it cleared
+        // all of them two seconds after opening an empty bell.
+        notificationService.markAllAsReadForCid(sessionCid);
       }, 2000);
     }
     

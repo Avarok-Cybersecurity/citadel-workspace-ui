@@ -7993,3 +7993,35 @@ The last-admin guard also earned its place here, by refusing the first version
 of this test: demoting the only administrator is correctly impossible, so the
 test promotes instead — which covers the half of the finding where a member
 handed Admin sees nothing new.
+
+### Round 126 — opening one bell cleared every other session's badges
+
+The notification panel is correctly CID-scoped — it renders only what belongs to
+the session it is showing — but its two-second auto-read called the
+service-wide `markAllAsRead`. So the OrphanSessionsNavbar's per-session unread
+badges, which are the only signal that something happened in a workspace you are
+not looking at, were zeroed by a bell opened somewhere else entirely.
+
+Worst on the logged-out landing page, where `sessionCid` is null: the panel
+renders "No notifications", and two seconds later every session's badge is gone.
+
+`markAllAsReadForCid` filters with `notificationBelongsTo` — the same predicate
+the panel renders with — so "what was shown" and "what was marked read" cannot
+disagree. The service-wide sweep survives for the case that genuinely wants it,
+with a comment saying it is almost never the right one.
+
+Splitting the file back under the line cap produced three modules that are
+better than the methods they replaced. `read-state.ts` turns three near-identical
+loops into named predicates — `everything`, `belongingTo(cid)`,
+`messagesFrom(sender)` — which is exactly the distinction the defect erased: a
+per-session panel calling the everything-everywhere sweep, and the two
+indistinguishable at the call site. `unread-counts.ts` gets to say why an
+unscoped notification is counted against no session. And extracting the
+peer-registration factory surfaced that it is the one notification whose payload
+is behaviour rather than text, since its buttons hold callbacks that send on the
+wire.
+
+One behaviour was preserved rather than unified, deliberately: the by-sender
+sweep never notified the per-notification handlers and the panel sweeps always
+did. Unifying them would re-render every subscriber on every read receipt, so
+the shared helper takes a flag and the comment says why.

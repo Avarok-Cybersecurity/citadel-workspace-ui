@@ -9,6 +9,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { debugLog } from '@/lib/debug-config';
 import type { Notification, NotificationHandler, UnreadCountChange } from './types';
 import { NotificationType, NotificationPriority, notificationBelongsTo } from './types';
+import { belongingTo, everything, messagesFrom, type ReadPredicate } from './read-state';
+import { unreadCountFor, unreadCountsByCid } from './unread-counts';
+import { peerRegistrationNotification } from './peer-registration-notification';
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -78,18 +81,11 @@ export class NotificationService {
     onAccept: () => void, onDecline: () => void, onCardClick: () => void,
     recipientCid?: string
   ): Notification {
-    return this.addNotification({
-      type: NotificationType.PEER_REGISTRATION,
-      title: `${peerUsername} wants to connect`,
-      content: `CID: ${peerCid.slice(0, 12)}...`,
-      senderId: peerCid, sourceId: requestId, recipientCid,
-      priority: NotificationPriority.HIGH,
-      actionButtons: [
-        { id: 'accept', label: 'Accept', variant: 'default', onClick: onAccept },
-        { id: 'decline', label: 'Decline', variant: 'destructive', onClick: onDecline }
-      ],
-      data: { requestId, peerCid, peerUsername, onCardClick }
-    });
+    return this.addNotification(
+      peerRegistrationNotification({
+        peerUsername, peerCid, requestId, onAccept, onDecline, onCardClick, recipientCid,
+      }),
+    );
   }
 
   public addSystemNotification(
@@ -112,30 +108,53 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Mark every notification read, across every session.
+   *
+   * Almost never what a caller wants. The panel is per-session, so use
+   * `markAllAsReadForCid`; this exists for a genuine sign-out-everything sweep.
+   */
   public markAllAsRead(): void {
+    this.markRead(everything);
+  }
+
+  /**
+   * Mark read only what the given session can see.
+   *
+   * The panel is correctly CID-scoped, but its two-second auto-read called the
+   * service-wide sweep — so opening the bell in one workspace cleared the unread
+   * badges of every OTHER session in the OrphanSessionsNavbar. Worst on the
+   * logged-out landing page, where `sessionCid` is null: the panel renders "No
+   * notifications" and two seconds later every session's badge is gone.
+   *
+   * Uses `notificationBelongsTo`, the same predicate the panel filters with, so
+   * "what was shown" and "what was marked read" cannot disagree.
+   */
+  public markAllAsReadForCid(cid: string | null): void {
+    this.markRead(belongingTo(cid));
+  }
+
+  private markRead(
+    shouldMark: ReadPredicate,
+    // The by-sender sweep never notified the per-notification handlers and the
+    // panel sweeps always did. Preserved rather than unified, because changing
+    // it would re-render every subscriber on every read receipt.
+    { notifyHandlers = true }: { notifyHandlers?: boolean } = {},
+  ): void {
     let anyChanged = false;
     for (const [id, notification] of this.notifications.entries()) {
-      if (!notification.read) {
+      if (!notification.read && shouldMark(notification)) {
         notification.read = true;
         this.notifications.set(id, notification);
         anyChanged = true;
       }
     }
-    this.notifyAllHandlers();
+    if (notifyHandlers) this.notifyAllHandlers();
     if (anyChanged) { this.notifyUnreadChange(); }
   }
 
   public markMessageNotificationsAsReadBySender(senderId: string): void {
-    let anyChanged = false;
-    for (const [id, notification] of this.notifications.entries()) {
-      if (notification.type === NotificationType.MESSAGE &&
-        notification.senderId === senderId && !notification.read) {
-        notification.read = true;
-        this.notifications.set(id, notification);
-        anyChanged = true;
-      }
-    }
-    if (anyChanged) { this.notifyUnreadChange(); }
+    this.markRead(messagesFrom(senderId), { notifyHandlers: false });
   }
 
   public removeNotification(notificationId: string): void {
@@ -179,19 +198,11 @@ export class NotificationService {
   }
 
   public getUnreadCountByCid(cid: string): number {
-    return Array.from(this.notifications.values())
-      .filter(n => !n.read && n.recipientCid === cid).length;
+    return unreadCountFor(this.notifications.values(), cid);
   }
 
   public getUnreadCountsByCid(): Map<string, number> {
-    const counts = new Map<string, number>();
-    for (const notification of this.notifications.values()) {
-      if (!notification.read && notification.recipientCid) {
-        const current = counts.get(notification.recipientCid) || 0;
-        counts.set(notification.recipientCid, current + 1);
-      }
-    }
-    return counts;
+    return unreadCountsByCid(this.notifications.values());
   }
 
   public notifyUnreadChange(): void {
