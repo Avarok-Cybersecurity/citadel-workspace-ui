@@ -4987,6 +4987,49 @@ distinguished the two.
 That distinction is the whole reason to run controls rather than reason about
 them: a green control is evidence of nothing until you know it *can* go red.
 
+## Round seventy-two — a stale CID no longer hangs the request for ever, 2026-08-28
+
+### 341. Five LocalDB handlers panicked on an unknown CID — FIXED
+
+`generate_remote` carried `.expect("Should not fail to find target")`. The
+expectation is wrong, and the SDK settles it in one line — `get_session_cid` does
+`.ok_or(RemoteUserDoesNotExist)?` on an `Option`, so any CID the node does not
+know locally yields `Err`.
+
+The `.expect` then panicked inside the per-request spawned task, so **no response
+was ever written**: the browser waited out its own timeout with nothing, which is
+indistinguishable from a network stall.
+
+Not a theoretical input. The dev backend drops every account on an
+internal-service restart while browsers keep their stored CIDs, so the first
+stale read afterwards hits it — and `LocalDBGetKV` is exempt from the ownership
+gate, so it arrives unfiltered. All five handlers now answer with their matching
+`LocalDB*Failure`.
+
+### 342. `check-handlers-cannot-panic.mjs` — GUARDED
+
+A panic in a handler is a request that hangs, which is the worst failure shape
+this project has: no error, no log the user can act on, no recovery but a reload.
+
+The guard rejects `.expect(`/`.unwrap()` anywhere under `requests/` and
+`responses/`. It came in at **one** allowlisted site, which is what made it
+practical — and that one carries the argument for why it is unreachable (the
+check and the take share a write lock with no await between them), so the
+allowlist is a claim to defend rather than a way to quiet the check.
+
+`#[cfg(test)]` modules are excluded by brace-matched stripping: a panic in a test
+is a failing test, which is the point of one. Both branches controlled —
+reinstating the exact `.expect` fails it, and a `.unwrap()` inside a test module
+does not.
+
+### 343. Two audits' contradiction, resolved in favour of the source
+
+Round sixty-eight recorded this as verified-and-unfixed after one audit reported
+it and an earlier one had explicitly **refuted** it. Reading the SDK settled it,
+and this round closes it — with a guard, so the class cannot come back the way
+this instance did: through a helper nobody re-examined after its callers grew to
+five.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
