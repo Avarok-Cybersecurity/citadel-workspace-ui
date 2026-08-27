@@ -67,6 +67,11 @@ async function doInit(service: WebSocketServiceCore): Promise<void> {
   debugLog('WebSocketService', 'Waiting for leader election to settle...');
   await service.initOps.waitForLeaderElection();
 
+  // Before the branch, so a tab that boots as LEADER is also wired for
+  // demotion. Registering it only on the follower path left a demoted
+  // boot-leader holding a live socket that dropped every frame it received.
+  service.initOps.registerLeadershipListener();
+
   const isLeader = instanceManager.isLeader;
   debugLog('WebSocketService', `Leader election complete. This tab is ${isLeader ? 'LEADER' : 'FOLLOWER'}`);
 

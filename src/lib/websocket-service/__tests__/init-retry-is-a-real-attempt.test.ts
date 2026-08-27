@@ -25,6 +25,9 @@ function coreWith(createWebSocketAsLeader: () => Promise<unknown>): WebSocketSer
     initializationPromise: null,
     client: null,
     initOps: {
+      // Part of the contract since the demotion listener moved out of the
+      // follower-only path; doInit calls it before the leader/follower branch.
+      registerLeadershipListener: () => {},
       waitForLeaderElection: async () => {},
       initializeAsFollower: () => {},
       createWebSocketAsLeader,

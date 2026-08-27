@@ -7,6 +7,7 @@
 
 import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
 import type { InternalServiceResponse, InternalServiceRequest, ResponseType } from 'citadel-workspace-client-ts';
+import { installLeadershipListener } from './leadership-listener';
 import { eventEmitter } from '../event-emitter';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog, errorLog } from '../debug-config';
@@ -46,6 +47,8 @@ export interface InitializationConfig {
 }
 
 export class WebSocketInitialization {
+  private leadershipListenerRegistered = false;
+
   private readonly config: InitializationConfig;
   /** Owned while leader, so demotion can close it; `creating` blocks doubles. */
   private leaderClient: WorkspaceClient | null = null;
@@ -106,35 +109,26 @@ export class WebSocketInitialization {
     });
   }
 
+  /**
+   * Watch for promotion and demotion. Idempotent — safe from either init path.
+   *
+   * This lived inside `initializeAsFollower`, so a tab that BOOTED as leader
+   * never registered it, and `closeLeaderClient` has no other caller: on
+   * demotion it kept a live socket that dropped every frame it received.
+   */
+  registerLeadershipListener(): void {
+    if (this.leadershipListenerRegistered) return;
+    this.leadershipListenerRegistered = true;
+
+    installLeadershipListener({
+      createWebSocketAsLeader: () => this.createWebSocketAsLeader(),
+      closeLeaderClient: () => this.closeLeaderClient(),
+    });
+  }
+
   /** Initialize as follower (no WebSocket). */
   initializeAsFollower(): void {
     debugLog('WebSocketInit', 'Follower tab: Skipping WebSocket creation, will proxy through leader');
-
-    // Both directions. Handling only promotion left a demoted leader holding a
-    // live socket forever — none of the ten 'leader-changed' subscribers closed
-    // one — so a reload of the older of two tabs left the browser with two.
-    // NOT async: `emit` invokes handlers synchronously, so an async handler's
-    // rejection escapes the emitter's try/catch and nothing observes it. A
-    // promotion whose socket failed left this tab isLeader with no send
-    // function, answering every request from every tab "WebSocket not ready".
-    eventEmitter.on('instance:leader-changed', ({ isLeader: newIsLeader }: { isLeader: boolean; leaderId: string }) => {
-      if (newIsLeader) {
-        debugLog('WebSocketInit', 'Became leader! Creating WebSocket connection...');
-        void this.createWebSocketAsLeader().catch((error: unknown) => {
-          debugLog('WebSocketInit', 'Promotion failed; handing leadership back', error);
-          // Lazily imported: instance-channel already reaches back into this
-          // module's world through the election path, and a static import here
-          // closes that cycle.
-          void import('../multi-instance/instance-channel').then(({ instanceChannel }) =>
-            instanceChannel.relinquishLeadership()
-          );
-        });
-      } else {
-        void this.closeLeaderClient().catch((error: unknown) => {
-          debugLog('WebSocketInit', 'Demotion teardown failed (ignored)', error);
-        });
-      }
-    });
 
     eventEmitter.emit('on-ws-connection-success');
     debugLog('WebSocketInit', 'Follower initialization complete');
@@ -153,7 +147,7 @@ export class WebSocketInitialization {
   }
 
   /** Tear down the socket this tab owned while it was leader. */
-  private async closeLeaderClient(): Promise<void> {
+  async closeLeaderClient(): Promise<void> {
     const client = this.leaderClient;
     if (!client) return;
     this.leaderClient = null;
@@ -242,6 +236,7 @@ export class WebSocketInitialization {
       releaseSession: (cid: bigint) => this.config.releaseSession(cid),
     });
   }
+
 
   private setupSessionReleaseHandler(): void {
     setupSessionRelease({ releaseSession: (cid: bigint) => this.config.releaseSession(cid) });

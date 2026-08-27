@@ -1,12 +1,13 @@
 // Instance Channel (Singleton): coordinates leader election + message handling.
 import { eventEmitter } from '../event-emitter';
+import { handleOutboundAck } from './channel-messaging';
+import { sendToLeader } from './send-to-leader';
 import { instanceManager } from './instance-manager';
 import { documentNonce, acceptInbound } from './instance-identity';
 import { dispatchChannelMessage } from './channel-message-dispatch';
-import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
+import { type AckResult } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
 import { describeForwarded } from '@/lib/p2p/message-fingerprint';
-import { TIMEOUT } from '../timeout-constants';
 import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
 import type { LeaderElectionState } from './channel-leader-election';
 import {
@@ -161,44 +162,34 @@ class InstanceChannel {
   }
 
   sendToLeader(payload: unknown, requestId?: string): Promise<AckResult> {
-    const id = requestId || crypto.randomUUID();
-
-    return new Promise((resolve) => {
-      outboundQueue.enqueue(payload, id);
-
-      const ackHandler = (event: { requestId: string; status: 'processed' | 'error'; error?: string; data?: ProxyResponseData }) => {
-        if (event.requestId === id) {
-          clearTimeout(timeout);
-          eventEmitter.off('outbound-ack', ackHandler);
-          resolve({ status: event.status, error: event.error, data: event.data });
-        }
-      };
-
-      eventEmitter.on('outbound-ack', ackHandler);
-
-      const timeout = setTimeout(() => {
-        eventEmitter.off('outbound-ack', ackHandler);
-        // Drop it from the queue. The ack path calls acknowledge(); this one did
-        // not, so a timed-out request stayed in the map forever — and
-        // `onLeaderChange` replays every queued entry. The caller had ALREADY
-        // been told the request failed and had surfaced that to the user, and
-        // then the identical payload was silently re-sent to the next leader,
-        // and again at every leader change after that. A Connect, a workspace
-        // mutation or a P2P message could be executed minutes later, repeatedly,
-        // with nothing in the UI to say so.
-        outboundQueue.acknowledge(id, {
-          status: 'error',
-          error: 'Timeout waiting for ACK from leader',
-        });
-        resolve({ status: 'error', error: 'Timeout waiting for ACK from leader' });
-      }, TIMEOUT.OUTBOUND_ACK_MS);
-
-      this.send({ type: 'outbound-request', targetInstanceId: 'leader', requestId: id, payload });
-    });
+    return sendToLeader(this, payload, requestId);
   }
 
   sendAck(targetInstanceId: string, requestId: string, result: AckResult): void {
-    this.send({ type: 'outbound-ack', targetInstanceId, requestId, status: result.status, error: result.error, data: result.data });
+    const message = {
+      type: 'outbound-ack' as const,
+      targetInstanceId,
+      requestId,
+      status: result.status,
+      error: result.error,
+      data: result.data,
+    };
+
+    // A tab can be the leader answering its OWN queued request: after a leader
+    // dies, a follower holding one wins the election and the replay executes
+    // locally. BroadcastChannel never delivers to the posting context, so that
+    // ack vanished — the entry survived, checkTimeouts re-fired it every 5s, and
+    // each retry re-executed the request, which then reported as failed.
+    if (targetInstanceId === instanceManager.instanceId) {
+      handleOutboundAck({
+        ...message,
+        senderInstanceId: instanceManager.instanceId,
+        timestamp: Date.now(),
+      } as ChannelMessage);
+      return;
+    }
+
+    this.send(message);
   }
 
   forwardToInstance(targetInstanceId: string, payload: unknown, requestId?: string): void {

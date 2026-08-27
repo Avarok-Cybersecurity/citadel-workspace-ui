@@ -18,9 +18,7 @@ import { MemberRow, ROLE_COLORS } from './MemberRow';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
   const { toast } = useToast();
-  // Per entity: two admin modals open on different nodes must not cancel
-  // each other's deadline.
-  const deadlineKey = `admin-members:${entityId}`;
+  const deadlineKey = `admin-members:${entityId}`; // per entity: modals must not clash
   const [members, setMembers] = useState<MemberData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -61,11 +59,8 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
 
   const loadMembers = async () => {
     setLoading(true);
-    // `listMembers` resolves on SEND, and this tab cleared `loading` only in the
-    // `members:loaded` handler — so a server refusal, which arrives as a generic
-    // `Error`, left the panel spinning with no way out but closing it. The
-    // sibling `useMemberEventSetup` has armed this deadline since it was
-    // written; this tab never received it.
+    // listMembers resolves on SEND and loading was cleared only by the success
+    // event, so a refusal left the panel spinning (useMemberEventSetup has had this).
     armLoadingDeadline(deadlineKey, () => setLoading(false));
     try {
       await WorkspaceService.listMembers(entityId);

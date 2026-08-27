@@ -4180,6 +4180,59 @@ cap and the stack-reachability guard). The pattern is not carelessness about any
 one gate; it is that the local loop runs `tsc`, `eslint`, `vitest` and the
 pointer guard, and nothing else, while CI runs eleven things.
 
+## Round fifty-five — two multi-tab defects that ran work four times, 2026-08-27
+
+### 296. A self-addressed ack vanished, so the request ran up to four times — FIXED
+
+A tab can be the leader answering **its own** queued request: when a leader dies,
+a follower holding a pending entry wins the election, and the replay executes
+locally rather than being posted.
+
+The ack for that execution went out over BroadcastChannel — which never delivers
+a message to the posting context, and which classifies same-nonce traffic
+`ignore-own` in any case. So it vanished. The queue entry survived, the retry
+timer re-fired it every 5s, and **each retry re-executed the request** — a
+Connect, a workspace mutation or a P2P message run up to four times — after
+which the caller's own 30s timer reported it as **failed**.
+
+Now delivered locally when the target is this tab.
+
+### 297. A tab that BOOTED as leader was never wired for demotion — FIXED
+
+The promotion/demotion listener was registered only inside
+`initializeAsFollower`. `closeLeaderClient` has no other caller, so a boot-leader
+that was later demoted kept a live socket whose handler discarded every inbound
+frame. The browser then held two sockets: the sessions on the old one went
+permanently deaf, while the tab proxied new requests to a leader that had never
+seen them. Reachable through split-brain resolution, a duplicate-tab identity
+reissue, or a background-throttled leader losing a heartbeat contest.
+
+Now registered before the leader/follower branch, idempotently.
+
+### 298. The line cap was red again, and two of the four were from earlier rounds
+
+Four files over 250: two from this round, and two — `useFileManagerHandlers` and
+`MembersTab` — pushed over in rounds fifty-two and fifty-three, committed
+without re-running the check.
+
+**This is the same gate, failed the same way, three rounds after recording that
+it fails this way.** The note in round forty-six said the local loop runs four
+checks while CI runs eleven; recording that did not change the loop. Fixed by two
+real extractions (`send-to-leader`, `leadership-listener`) and, for the two
+components, by removing lines rather than rewriting them at the same length —
+which the first two attempts did, to no effect.
+
+### 299. Method note — a full-suite failure my targeted run could not show
+
+`registerLeadershipListener` became part of the `initOps` contract, and an
+existing test's fake core did not implement it. The targeted runs I used while
+iterating all passed; only the full suite surfaced it, as
+`service.initOps.registerLeadershipListener is not a function`.
+
+The fake was incomplete, not wrong — but the signal is real: **adding a required
+method to an interface breaks every hand-written double of it**, and only a full
+run finds them.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

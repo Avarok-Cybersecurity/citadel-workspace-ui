@@ -86,9 +86,8 @@ export function useFileManagerHandlers({
   }, [rmdir, removeFile, confirm]);
 
   const handleDownload = useCallback((node: RevfsNode) => {
-    const isDownloadable = node.fileState === RevfsFileState.Remote
-      || node.fileState === RevfsFileState.Received
-      || node.fileState === RevfsFileState.ServerStored;
+    const { Remote, Received, ServerStored } = RevfsFileState;
+    const isDownloadable = [Remote, Received, ServerStored].some((s) => s === node.fileState);
 
     if (isDownloadable) {
       // No "initiated" branch: downloadFile now throws rather than resolving
@@ -222,18 +221,12 @@ export function useFileManagerHandlers({
         await revfsService.requestSync(myCid, selectedPeerCid);
 
         // Flush the queue before claiming a sync; see lib/revfs/revfs-retry.ts.
-        const { stillPending, discarded } = await revfsService.retryPendingOps(
-          peerPairKey(myCid, selectedPeerCid),
-          selectedPeerCid,
-        );
+        const { stillPending, discarded } = await revfsService.retryPendingOps(peerPairKey(myCid, selectedPeerCid), selectedPeerCid);
         await refresh();
-        // Discarded first: it is the only outcome the user cannot recover from,
-        // and it used to be reported as a successful sync.
+        // Discarded first: unrecoverable, and it used to read as a successful sync.
         if (discarded > 0) {
           toast.error('Some changes were not delivered', {
-            description:
-              `${discarded} change(s) were given up on after repeated failures and will not be sent. ` +
-              'The peer does not have them.',
+            description: `${discarded} change(s) were given up on after repeated failures. The peer does not have them.`,
           });
         } else if (stillPending > 0) {
           toast.error('Some changes could not be sent', {
