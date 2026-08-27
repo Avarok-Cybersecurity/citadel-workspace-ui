@@ -8406,3 +8406,61 @@ made one. Second time in two rounds that the exemption-honesty test caught a
 wrong exemption; it is worth writing every time.
 
 Control: reverting TopBar to its literal comparison fails the scan.
+
+## Round 138 — the backend audit, and preflight's own blind half
+
+A parallel audit of the Rust side (which had received far less scrutiny than
+the frontend's 137 rounds) produced three fixes worth the name.
+
+**Group edits and deletes bypassed the membership filter.**
+`broadcast_to_group` exists because a message in a private room used to be
+pushed to every connected session regardless of membership. Round 103 applied
+it to `SendGroupMessage` — and to nothing else. `EditGroupMessage`, which
+carries the full new content, and `DeleteGroupMessage` both kept the unscoped
+`kernel.broadcast`. The correct fix applied in one place, for eleven rounds.
+Impact is latent today (`is_member_of_domain` inherits `ViewContent` from the
+workspace everyone joins) but it is real for an orphaned channel, and it becomes
+a content leak the moment room-level privacy lands — which is the direction
+round 103 was heading. `tests/group_notifications_are_scoped.rs` now pins all
+three arms; control: reverting either fails it.
+
+**A debug log line could kill the WebSocket read loop.**
+`&text[..text.len().min(500)]` in the WASM client slices by byte. A frame
+containing `ListRegisteredPeersResponse` whose byte 500 falls mid-codepoint
+panics — a registered peer with an emoji or CJK username near that offset is
+enough — and the panic lands in the read loop, so the user loses their
+connection to their own agent. The correct helper already existed in the file
+upload path. The test asserts its fixture actually cuts a codepoint, so it
+cannot pass against the bug it names.
+
+**`is_child_allowed` failed open.** It returned true for a parent type no rule
+mentions, while its sibling `get_allowed_children` returned nothing for the same
+parent — the UI offered no child there and the validator accepted any. An
+unruled custom node type was a hole in an otherwise enforced schema. They now
+agree, on the closed answer; an empty schema still constrains nothing, which is
+what an unconfigured workspace boots as.
+
+**And preflight ran no cargo gates at all.** Its own header names workspace-wide
+clippy as one of three gates found red only by running it by hand — and then
+omitted it, invisibly: the derived list matches `node scripts/*.mjs` only, so
+the cargo steps never entered the list and so never reached the skip report
+either. A Rust-only edit passed preflight untouched and failed CI half an hour
+later. Both gates were red when this was written: an unformatted file in
+intersession-layer-messaging, an orphaned doc comment for a function that does
+not exist, four redundant field patterns, and a dead test helper. 24 → 28.
+
+The new gates run with `SKIP_WASM_BUILD=1`, and that is not a convenience.
+`citadel-workspace-internal-service` has a build script that runs wasm-pack and
+copies the result over the tracked artifacts in `citadel-workspace-client-ts/
+pkg/` and `citadel-workspaces/public/wasm/` — so a plain `cargo clippy` silently
+replaces the committed WASM the UI imports with a different build (2.4 MB → 3.4
+MB, and a `.d.ts` differing by twenty lines). A gate that mutates the tree it is
+checking is not one anybody can run before every commit.
+
+**Still open from the audit**, needing a decision rather than a patch: the ILM
+ownership gate is cid-blind (an exempt `LocalDBGetKV` naming another account's
+cid skips the check); `UpdateNode` broadcasts and returns Ok before the disk
+persist, so a disk failure tells the author it saved, shows peers the new text,
+and reverts on restart; `remove_workspace` can leave a dangling index entry if
+the password-key delete fails; `MoveNode`'s descendant depth recomputation can
+wrap on inconsistent stored depths.
