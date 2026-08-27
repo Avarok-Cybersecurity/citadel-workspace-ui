@@ -7734,3 +7734,54 @@ because it admits any account to that server rather than just this one, and both
 are written by plain `JSON.stringify` with no encryption. A user who declined to
 be remembered now has neither on disk, and still keeps the session itself:
 CIDs are permanent and the navbar claims by CID, not by password.
+
+### Round 120 — the password now reaches the party that can check it
+
+Correction to the previous round, from the person who knows the architecture:
+the SDK is what authenticates. The agent hands the username and password to the
+SDK, the SDK carries them to the server, and the server decides. That reframes
+the finding usefully — the bug is not "the agent fails to verify", it is that
+`Connect` has a branch where **the password never reaches the SDK at all**.
+
+When a session for the username is already live, the handler answered
+`SessionAlreadyActive` and re-pointed that session's message stream to the
+caller, before touching the credentials. So any client of the agent's socket
+could name a live username and take over its stream.
+
+Two apparent fixes are traps, and both are recorded because each would cost a
+day. `ClientNetworkAccount::validate_credentials` is documented as "used for the
+login process" and succeeds only for `ArgonContainerType::Server`; the agent is
+a *client*, so wiring it in would reject every correct password while looking
+like a security check. And re-running the SDK connect to authenticate is exactly
+the second-connect-against-a-live-session that resets the ratchet — which is why
+this branch exists in the first place.
+
+So the session records what opened it. `generate_connect_credentials` produces
+the client-side hash the protocol itself sends, derived from the CNAC's own
+Argon settings and therefore deterministic for a given password and account.
+Recorded at connect time, re-derived on a reuse request: proof of knowledge,
+with no server round trip and no ratchet.
+
+Stated precisely, because it is not authentication: it proves the caller knows
+the same password the *server* already accepted for this session. An absent or
+underivable fingerprint is a refusal, never a pass — including for transient
+(passwordless) accounts, where a fingerprint would be a constant every caller
+can produce. Refusal returns "Invalid username or password" with no CID, the
+same answer a wrong password on a fresh account gets, so the handler is not an
+oracle for who is signed in on this agent.
+
+**A known gap, recorded rather than implied.** The transient branch has no unit
+test — a transient CNAC cannot be built cheaply in one — and I verified that
+removing that guard compiles with no test failing. The two guards that *are*
+covered were confirmed by control: treating an absent recording as a pass fails
+three tests, and dropping the length check before the constant-time loop fails
+the prefix test.
+
+Also, and from the same correction: **the login form no longer asks for a server
+address.** It never needed one. `connect` takes no address, because the SDK
+pinned the account's server in its CNAC at registration and dials that. The
+field was collected, stored as session metadata, and used to reach nothing — so
+a user who typed the wrong address still signed in to wherever their account
+lives, and a user whose account was elsewhere waited out a 30s timeout with the
+box on screen implying it was the thing to correct. Registration still asks,
+because that is the one moment the address is genuinely needed.

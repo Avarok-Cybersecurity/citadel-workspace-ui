@@ -35,6 +35,8 @@ interface UseLoginHandlerParams {
 export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // Registration still needs one; signing in does not. Kept so the hook's
+  // shape is unchanged for the join flow that shares it.
   const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,12 +82,14 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       // frontend's independent copy of it, and puts the decision where it can
       // actually be made.
 
+      // Metadata only. `connect` takes no server address -- the SDK pinned the
+      // account's server in its CNAC at registration and dials that -- so this
+      // exists to label the stored session, not to reach anything. The login
+      // form no longer asks for it, because a field that cannot change where
+      // you connect should not look like it can.
       const storedSessions = connectionManager.getStoredSessions();
       const storedSession = storedSessions.sessions.find(s => s.username === username.trim());
-      const serverAddress = storedSession?.serverAddress || server.trim() || '';
-
-      if (!serverAddress) { debugLog('Login', 'No stored session and no server address provided'); }
-      else if (!storedSession) { debugLog('Login', 'Using form server address:', serverAddress); }
+      const serverAddress = storedSession?.serverAddress ?? '';
 
       const requestId = crypto.randomUUID();
       let responseReceived = false;

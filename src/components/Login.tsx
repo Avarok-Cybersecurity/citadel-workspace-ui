@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronDown, Settings, Loader2, Eye, EyeOff, User, Lock, Globe, LogIn } from "lucide-react";
+import { ChevronLeft, ChevronDown, Settings, Loader2, Eye, EyeOff, User, Lock, LogIn } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler } from "./useLoginHandler";
@@ -24,8 +24,6 @@ export function Login({ onNext, onCancel }: LoginProps) {
     setUsername,
     password,
     setPassword,
-    server,
-    setServer,
     error,
     loading,
     securitySettings,
@@ -147,22 +145,16 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 </div>
               </div>
 
-              {/* Server Address */}
-              <div className="space-y-1.5">
-                <label htmlFor="server" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
-                  Server Address
-                </label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="server"
-                    placeholder="workspace.example.com:12349"
-                    value={server}
-                    onChange={(e) => setServer(e.target.value)}
-                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
-                  />
-                </div>
-              </div>
+              {/* No Server Address field.
+                  Signing in does not need one and never did: the SDK pins the
+                  server in the account's CNAC at registration, and `connect`
+                  takes no address at all. The field was collected, stored as
+                  metadata, and never used to reach anything -- so a user who
+                  typed the wrong address still signed in to wherever their
+                  account lives, and a user whose account was somewhere else
+                  waited out a 30s timeout with the box on screen implying it
+                  was the thing to correct. Registration still asks, because
+                  that is the one moment the address is genuinely needed. */}
 
               {/* Advanced Options */}
               <button
