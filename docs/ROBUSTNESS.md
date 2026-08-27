@@ -3926,6 +3926,71 @@ emergency), plus a ring and `aria-current="step"` on the active dot and an
   thumb-sized miss switched workspace instead of disconnecting. The visible dot
   stays 16px; the hit area is grown to 24px with a pseudo-element.
 
+## Round fifty-one — auditing the tests, and four of mine could not fail, 2026-08-27
+
+An audit aimed at the test suite itself rather than the product. Every claim
+below was **reproduced before being acted on** — twice by deleting the
+production fix and watching the suite stay green.
+
+### 280. A test that performed the fix instead of testing it — FIXED
+
+`outbound-queue-replay.test.ts` documents a real bug: `sendToLeader`'s ACK-timeout
+path never removed the entry from the queue, so a request the user had already
+been told had failed was silently re-sent at every later leader change — a
+Connect, a workspace mutation, a P2P message, re-executed hours later.
+
+The test never imported `instance-channel`. It called `outboundQueue.acknowledge`
+**itself** and then asserted the queue had forgotten the entry — testing
+`acknowledge`, which was never broken.
+
+Reproduced: deleting the production fix left **all 41 tests in that directory
+green**. The test now drives the real `instanceChannel.sendToLeader` under fake
+timers, lets the ACK timeout expire with no ack, and then changes leader.
+Deleting the fix now fails it with *"a request the user was already told had
+failed was re-sent to the new leader"*.
+
+### 281. My reconnect-budget test matched the dependency array — FIXED
+
+`retry-budget-is-per-outage.test.ts` sliced 200 characters after
+`useEventListener(` and matched `/reset/i`. That matched
+`[onClose, resetAttempts]` — the **dependency array**. Deleting `resetAttempts()`
+from the callback body left all three tests passing while the retry budget went
+back to accumulating across the tab's whole lifetime.
+
+Reproduced exactly: three passes with the bug reinstated. It now binds the name
+from the `reset:` destructure and asserts that name is **called** inside the
+callback body only — from the arrow to the brace that precedes the dependency
+array.
+
+### 282. Two smaller ones — FIXED
+
+- **A conditional assertion that could run nothing.** `if (sent.kind ===
+  'CallInvite') expect(...)` in the call-manager suite ran **zero** assertions if
+  any other signal happened to go first. The kind is now asserted, as its sibling
+  test three lines above already did.
+- **`every-write-awaits-the-server` did not strip comments**, unlike the sibling
+  guards in the same suite — so commenting a gate out and calling
+  `sendProtocolRequest` beneath it would keep `toContain` satisfied.
+
+The comment-strip control initially "passed", and that was **my control, not the
+fix**: I commented out `UpdateWorkspace`, which was not in the guard's list. That
+turned out to be the more useful finding — the three writes gated in round
+forty-five were never added, so the guard did not cover them at all. Added; the
+control then fails correctly.
+
+### 283. Method note — what the audit found NOT to worry about
+
+Worth recording because it bounds the suspicion: the audit swept all 156 vitest
+files and named a long list as genuinely well constructed — including the
+repaired versions of the earlier cannot-fail instances, the tests that count
+attempts rather than asserting a rejection, the ones that render the real Sonner
+surface rather than a mocked `toast`, and the fixture-coverage meta-test that
+stops new routed-notification entries silently skipping extraction tests.
+
+The suite is not uniformly suspect. The defects clustered in exactly one place:
+**tests that assert on source text instead of behaviour** — which is also where
+three of this campaign's four cannot-fail guards lived.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

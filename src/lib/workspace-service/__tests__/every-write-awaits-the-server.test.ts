@@ -36,11 +36,25 @@ const MUTATING = [
   'CreateNode', 'UpdateNode', 'DeleteNode',
   'AddMember', 'RemoveMember', 'UpdateMemberRole', 'UpdateMemberPermissions',
   'UpdateWorkspaceTheme', 'EditGroupMessage', 'DeleteGroupMessage',
+  // Gated later than the rest and never added here, so the guard did not cover
+  // them: the workspace rename, workspace creation, and the profile save whose
+  // spinner disabled the entire settings form.
+  'UpdateWorkspace', 'CreateWorkspace', 'UpdateUserProfile',
 ];
+
+/**
+ * Comments stripped before matching, as the sibling guards in this suite already
+ * do. Without it, commenting a call site out — `// return awaitWriteResponse(...)`
+ * with a bare `sendProtocolRequest` beneath — keeps `toContain` satisfied while
+ * the write is ungated again. This campaign has already produced one source
+ * assertion that matched the comment explaining the code's removal.
+ */
+const stripComments = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const sources = readdirSync(DIR)
   .filter((f) => f.endsWith('.ts'))
-  .map((f) => readFileSync(join(DIR, f), 'utf8'))
+  .map((f) => stripComments(readFileSync(join(DIR, f), 'utf8')))
   .join('\n');
 
 describe('workspace writes', () => {

@@ -54,13 +54,33 @@ describe('the reconnect modal', () => {
     ).toContain(listened!);
   });
 
-  it('resets the attempt budget when the connection comes back', () => {
-    const listener = modal.slice(modal.indexOf('useEventListener('));
-    expect(listener.slice(0, 200)).toMatch(/reset/i);
-  });
-
   it('actually destructures reset from useRetry', () => {
     // It was omitted, so `reset` existed and could never be called.
     expect(modal).toMatch(/reset:\s*\w+,?\s*\n?\s*\} = useRetry/);
+  });
+
+  it('calls that reset inside the success listener, not merely near it', () => {
+    // The previous version of this test sliced 200 characters after
+    // `useEventListener(` and matched /reset/i. That matched the DEPENDENCY
+    // ARRAY — `[onClose, resetAttempts]` — so deleting `resetAttempts()` from
+    // the callback body left every test green while the budget went back to
+    // accumulating across the tab's whole lifetime. Verified by reinstating the
+    // bug: three passes.
+    const bound = /reset:\s*(\w+)/.exec(modal)?.[1];
+    expect(bound, 'reset is not destructured from useRetry at all').toBeDefined();
+
+    // The callback body only: from the arrow that opens it to its closing
+    // brace, which is where the dependency array starts.
+    const listenerStart = modal.indexOf("useEventListener('on-ws-connection-success'");
+    expect(listenerStart, 'the success listener is gone').toBeGreaterThan(-1);
+    const bodyStart = modal.indexOf('=> {', listenerStart);
+    const bodyEnd = modal.indexOf('}, [', bodyStart);
+    expect(bodyEnd).toBeGreaterThan(bodyStart);
+    const body = modal.slice(bodyStart, bodyEnd);
+
+    expect(
+      body,
+      `the listener does not call ${bound}(), so the retry budget is never reset`,
+    ).toContain(`${bound}()`);
   });
 });

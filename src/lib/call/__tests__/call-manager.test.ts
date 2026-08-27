@@ -145,6 +145,10 @@ describe('placing a call', () => {
     await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
 
     const sent = h.signalsTo(BOB)[0];
+    // Asserted, not branched on: `if (sent.kind === …)` ran ZERO assertions if
+    // any other signal happened to go first, so the property this test exists
+    // to pin was simply not checked.
+    expect(sent.kind).toBe('CallInvite');
     if (sent.kind === 'CallInvite') expect(sent.group).toBeUndefined();
   });
 });
