@@ -2876,6 +2876,52 @@ Reverted and re-cut at the real boundary. **A split is a refactor, and a refacto
 that compiles by accident is worse than one that fails** — this one failed
 loudly, which is the good case.
 
+## Round thirty-five — two states with no way out, 2026-08-27
+
+### 227. A failed group-message load spun forever — FIXED
+
+`getGroupMessages` resolves when the request is SENT, and `loading` is cleared
+only by the `messages_loaded` event, with no error branch. A refused or lost
+response left the chat spinning with **nothing to press** and no escape but
+navigating away or reloading.
+
+Pagination was worse: "Load older messages" is `disabled={loadingMore}`, so one
+lost response disabled it permanently for the rest of the session.
+
+Both now use the deadline helper built for this exact shape in an earlier round,
+rather than a second timeout — falling back to the empty state, which is at least
+a statement the user can act on.
+
+### 228. The reconnect budget was per-TAB-LIFETIME, not per outage — FIXED
+
+`reset` was never destructured from `useRetry`, so the attempt count accumulated
+across separate outages. After ten failures spread over hours, **every subsequent
+disconnection opened a modal reading "Failed to reconnect after 10 attempts" with
+Retry already disabled** and no recovery but a reload. Before exhaustion, each
+outage inherited the previous count and started at inflated backoff.
+
+Its close-on-success listener also waited for `connection-success` — which
+**nothing emits**. The socket layer emits `on-ws-connection-success`, so a
+connection recovered by any other path never closed the modal.
+
+### 229. Method note — testing a listener against its emitters
+
+The natural test for the dead listener — assert the component listens for
+`on-ws-connection-success` — would have **passed on the broken version too**, had
+the name been the other one. Asserting a string proves only that the string is
+there.
+
+So the test derives the set of events the websocket layer actually emits and
+asserts the listened-for name is in it. The control failure reads: *"the modal
+listens for 'connection-success', which the websocket layer never emits"* —
+which is the finding itself, produced mechanically.
+
+Worth generalising: **a listener and an emitter are two ends of one mechanism**,
+and this campaign has now found four cases where only one end existed
+(`group:message-received` vs `group:message:new`, `refresh()` with no caller,
+`GroupListGroupsSuccess` with no handler, and this). A test that reads both ends
+catches the whole class.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
