@@ -7339,3 +7339,38 @@ client either names itself in a leader-only list with the reason its path runs
 only there, or it is wrong. A second test fails any exemption whose file no
 longer touches the client, and a third flags any file that both consults
 `isConnected()` and sends requests. That third one found the dead predicate.
+
+### Round 112 — "Login successful" over messaging that never started
+
+From the error-surfacing audit, and its top finding. `wasmConnectionManager.start`
+opens the ILM messenger handle. The comment directly above one of its call sites
+states the stakes in capitals: without it, ACKs are never sent for inbound
+messages, so outbound messages block waiting for ACKs that will never come.
+Messaging is the product.
+
+All three call sites — login, orphan claim, and the shared session-startup
+sequence — caught its failure into a `debugLog`, one of them into a bare
+`catch (_) { }` with the comment "WASM start best-effort". `debugLog` is stripped
+from production builds, so a failure produced no toast, no notification, no
+console line and no record of any kind. The login path then announced **"Login
+successful — connected to workspace successfully"** and handed the user a
+workspace whose messaging was dead. The first thing they would learn was the
+silence where a reply should have been.
+
+The old catch's excuse was "P2P may still work without ILM". It might. But the
+person who should learn that their messages are not going anywhere is the user,
+and they should learn it when it happens.
+
+One helper now owns the decision, with its I/O injected so it is testable without
+standing up the WASM client or the notification service. Startup still continues
+on failure — that part was a reasonable call — but it returns whether messaging
+came up, and the login toast consults it instead of asserting success. A failure
+raises a HIGH system notification rather than a toast, deliberately: this is a
+standing condition, not an event, and a toast that has already faded cannot
+answer "why has nobody replied to me?" ten minutes later.
+
+The controls are the two ways this fix could have been fake. Swallow the failure
+into a `return true` and four tests fail. Keep reporting but replace the reason
+with "Something went wrong. Please try again." and two fail — because a generic
+apology in place of the precise error is the same defect one layer up, and it is
+the second-most-common finding in that audit.

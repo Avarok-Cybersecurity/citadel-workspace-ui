@@ -8,6 +8,7 @@ import type { DisconnectStatus } from "./LoadingModal";
 import { useToast, useEventListener } from "@/hooks";
 import { setSelectedUser, getSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
+import { startMessagingForSession } from "@/lib/start-messaging";
 import { instanceManager, instanceChannel } from "@/lib/multi-instance";
 import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
@@ -127,8 +128,10 @@ export function useOrphanSessions() {
       // applied uniformly.
       await postAuthSetup(session.cid);
 
-      try { await wasmConnectionManager.start(session.cid.toString()); }
-      catch (_) { /* WASM start best-effort */ }
+      // Was `catch (_) { }`. Best-effort is fine; invisible is not -- a claim
+      // that brought back a session with dead messaging looked exactly like one
+      // that worked.
+      await startMessagingForSession(session.cid.toString());
 
       eventEmitter.emit('session:activated', {
         cid: session.cid.toString(), username: session.username,

@@ -6,7 +6,7 @@ import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
 import { isResponseType } from 'citadel-workspace-client-ts';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
+import { startMessagingForSession } from "@/lib/start-messaging";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
@@ -160,8 +160,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       await setSelectedUser({ selectedUsername: username.trim(), selectedServerAddress: serverAddress, selectedCid: cid });
       await postAuthSetup(cid);
 
-      try { await wasmConnectionManager.start(cid.toString()); }
-      catch (err) { debugLog('Login', 'Failed to start WASM connection manager:', err); }
+      const messagingReady = await startMessagingForSession(cid.toString());
 
       eventEmitter.emit('session:activated', {
         cid: cid.toString(), username: username.trim(),
@@ -169,7 +168,19 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       });
 
       onNext(cid.toString());
-      toast({ title: "Login successful", description: "Connected to workspace successfully" });
+      // Not an unconditional "Connected to workspace successfully". The ILM
+      // messenger can fail to start while everything else succeeds, and this
+      // toast used to announce success over it -- the user was told they were
+      // connected and then found that nothing they sent arrived.
+      toast(
+        messagingReady
+          ? { title: 'Login successful', description: 'Connected to workspace successfully' }
+          : {
+              variant: 'destructive',
+              title: 'Signed in, but messaging is unavailable',
+              description: 'Your workspace loaded. Messages cannot be sent or received until you reload.',
+            },
+      );
     } catch (err: unknown) {
       const errArg = err instanceof Error ? err : String(err);
       setError(getUserFriendlyErrorMessage(errArg));
