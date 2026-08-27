@@ -6303,3 +6303,83 @@ below where it was missing, an exemption list wider than its argument, a fix
 comment-documented in one spec and never copied to its sibling, a fail-closed
 switch undone by the setup steps in the same file. Almost nothing here was
 unknown — it was known in one place and not another.
+
+## Round ninety-two — the exemption that was a variant, not a key, 2026-08-27
+
+### 402. `LocalDBGetKV` was exempt from the ownership gate as a whole variant
+
+The gate that stops a connection naming a session it does not own carried one
+exemption, and the comment beside it is unusually honest about why: enabling the
+gate produced refusals in ordinary two-peer messaging, every one of them was
+ILM's messenger backend reading key/value state, and refusing those would break
+messaging while every spec still passed. So the read was left allowed and
+recorded as an open question rather than hidden.
+
+But the exemption was written as `matches!(command, LocalDBGetKV { .. })` — the
+whole **variant**. Any connection could read **any key** of any account whose cid
+it could name, and a cid is a `u64` that travels in peer lists and notifications,
+not a secret. A malicious page reaching `localhost:12345` — the threat this gate
+was built for, and which its own comment describes — could read arbitrary
+persistent state.
+
+Every key ILM touches is one of seven fixed names suffixed with `-{cid}`. The
+exemption is now scoped to exactly those, which preserves precisely the access
+the evidence justified and withdraws the rest. The prefix list lives in the gate
+rather than being imported from the connector crate: this is a security boundary
+and should fail closed on a key it does not recognise, and if ILM gains a key the
+refusal appears in the log naming the variant — which is how the evidence for the
+exemption was gathered in the first place.
+
+### 403. LocalDB writes were let through for any account without a mapped session
+
+The gate deliberately lets an **unmapped** cid pass, on the stated grounds that
+"the handler owns that error and already reports it". That is true of `download`
+and `delete_virtual_file`, which look the cid up in the map and fail. It is not
+true of the LocalDB handlers: they resolve through `propose_target`, which by its
+own doc only checks that the cid names a locally-known account — not that the
+caller owns it.
+
+So for an account that is known but has no mapped session — after a `Disconnect`,
+for instance — any connection could set, delete or clear its persistent store, or
+read all of it. Those four requests now require the session to be **owned**, not
+merely unclaimed.
+
+### On the tests, and a control that proved nothing
+
+The first version tested only `is_ilm_key`. The negative control — widening the
+exemption back to the whole variant — left that predicate untouched, so every
+test still passed. A control that cannot fail is exactly as useless as a test
+that cannot fail, and it was failing silently in the same way.
+
+The decision is now its own function, `is_exempt_from_ownership_gate`, tested
+directly. Both controls bite: blanket-exempting the variant fails one test,
+dropping the ownership requirement for writes fails two.
+
+The key predicate also had a hole its own test caught: `inbound_messages-` with
+nothing after it passed, because `all()` over an empty tail is vacuously true.
+
+### Recorded from the client-library audit — all four old findings confirmed live
+
+An earlier round recorded four problems in `citadel-workspace-client-ts` and
+never revisited them. All four are still true in the current tree, verbatim:
+
+- **The caller's `errorHandler` is overwritten**, unconditionally, by
+  `WorkspaceSessionManager`'s constructor. The running app passes one and it is
+  silently discarded.
+- **"Reconnect" is a stub that clears the session.** It logs "Reconnection would
+  require stored credentials" and then clears the workspace session — while the
+  base class has a real `restart_ws_connection` it never calls. Combined with the
+  above, *any* WASM-layer error clears the user's session. This pair is the most
+  actively harmful, because it fires inside the one code path the app does use.
+- **Responses are matched by response TYPE, not `request_id`**, even though the
+  generated types carry one. `connect()` waits for `ConnectSuccess`/`Failure`, so
+  the service's routine `SessionAlreadyActive` matches neither and the call hangs
+  its full 30s timeout in a normal flow.
+- **`open_p2p_connection` / `send_p2p_message` are declared but not exported** by
+  the wasm glue, so all three methods that use them throw at runtime.
+
+The audit's most useful structural finding: the app survives because it routes
+*around* the broken half of the library — using it as transport only and
+reimplementing every correlation and auth flow itself with `request_id` matching.
+That is why none of this shows up in the product, and why it will bite the first
+consumer of the published surface.
