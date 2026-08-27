@@ -1,5 +1,6 @@
 import type { ReactNode, ErrorInfo } from 'react';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { reloadApplyingAnyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
 import { errorLog } from '@/lib/debug-config';
 
 /**
@@ -70,7 +71,17 @@ export function AppErrorBoundary({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary
       onError={handleError}
-      fallback={<FullPageError onReload={() => window.location.reload()} />}
+      // Not a plain reload: if a fixed build is sitting in `waiting`, a same-tab
+      // reload leaves the old worker serving the old, crashing shell, and this
+      // button loops on it for ever. PwaUpdatePrompt is the only other sender of
+      // SKIP_WAITING and it is unmounted whenever this fallback is showing.
+      fallback={
+        <FullPageError
+          onReload={() => {
+            void reloadApplyingAnyWaitingUpdate(() => window.location.reload());
+          }}
+        />
+      }
     >
       {children}
     </ErrorBoundary>

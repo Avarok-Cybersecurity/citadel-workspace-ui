@@ -42,6 +42,14 @@ export const TIMEOUT = {
   OUTBOUND_ACK_MS: 30000,
   /** Timeout for CheckState (peer readiness check) */
   CHECKSTATE_MS: 3000,
+
+  /**
+   * How long to wait for a waiting service worker to take control after being
+   * sent SKIP_WAITING, before reloading anyway. Short on purpose: the user has
+   * pressed a recovery button on a crashed screen, so a reload that misses the
+   * update beats a button that appears to hang.
+   */
+  SW_ACTIVATION_MS: 3000,
 } as const;
 
 export const INTERVAL = {

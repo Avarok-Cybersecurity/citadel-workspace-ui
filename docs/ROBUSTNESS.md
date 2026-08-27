@@ -3212,6 +3212,78 @@ the test drives it directly. Removing the branch again fails exactly the two
 tests that assert the new behaviour, while the three guarding the old behaviour
 keep passing — the discrimination a control is for.
 
+## Round forty — upgradability: two ways a build could not replace itself, 2026-08-27
+
+Both findings are about the product lifecycle rather than a feature: an app that
+cannot reliably install its own next version has a hole no amount of feature work
+closes.
+
+### 244. A crashed build could never apply the fix for itself — FIXED
+
+`AppErrorBoundary`'s recovery button was `onReload={() => window.location.reload()}`.
+A same-tab reload does **not** activate a service worker sitting in `waiting` —
+the old worker keeps controlling the page and keeps serving the old, crashing
+precached shell.
+
+The trap closes completely. When the boundary is showing, `PwaUpdatePrompt` is
+unmounted — and it is the **only** sender of `SKIP_WAITING` in the whole app. So
+a fixed build downloads (the hourly `registration.update()` poll works), installs,
+and then sits in `waiting` for ever while the user presses "Reload workspace"
+against the identical crash. Recovery required closing *every* tab on the origin,
+which nothing anywhere tells the user.
+
+The half of this mechanism that fetches the fix worked; the half that activates it
+did not exist — in the code whose own comment says the hourly poll was added
+"because users were stuck on the broken build".
+
+Recovery now hands control to any waiting worker first, then reloads **either
+way**: the user pressed a button and is owed an outcome, so a worker that never
+takes control is bounded, not waited on.
+
+Tested at both levels, because they fail independently: the helper against a fake
+`ServiceWorkerContainer`, and the real boundary rendered around a throwing child,
+whose button must actually post the message. Reinstating the plain reload leaves
+`tsc` and every helper test green — only the boundary test moves.
+
+### 245. Every WASM-changing update ran one broken session — FIXED
+
+The `.wasm` binary lives at a **stable** url while the wasm-bindgen glue JS is
+bundled into hashed chunks, so the caching strategy alone decides whether the two
+match. A previous round moved this from `CacheFirst` to `StaleWhileRevalidate`
+for exactly this reason — but SWR still serves the stale copy **first** and
+revalidates behind it.
+
+So the very reload that applies an update — the one the toast promises will
+reconnect your session — was guaranteed to pair the new glue with the previous
+binary. The symptom is not a clean failure: every internal-service call silently
+no-ops, so login and register do nothing at all, with no message and no
+server-side log line. The *following* start would be correct, with nothing telling
+the user to reload again.
+
+Now `NetworkFirst` with a bounded `networkTimeoutSeconds`: correct pairing
+whenever the network is reachable — which it must have been for an update to have
+arrived — while the cache still answers offline starts and captive networks.
+
+The test reads the real vite config and **strips comments before matching**. That
+is not incidental: the file names `StaleWhileRevalidate` twice in prose
+explaining why it was abandoned, and an earlier round of this campaign already
+produced one source assertion that matched its own comment.
+
+### 246. Recorded — the declared Node engine is not enforced
+
+`package.json` declares `"node": ">=20"` and CI uses 20, so the production build
+is fine there. On Node 18 it fails with `ReferenceError: crypto is not defined`
+raised from inside `@rollup/plugin-terser` — a message that names neither Node
+nor the version requirement.
+
+Not fixed unilaterally: `engine-strict` applies to transitive dependencies too and
+can fail installs for unrelated reasons, so turning it on is a decision with a
+blast radius rather than a one-line fix. Recorded so the next person who hits it
+does not spend the afternoon on it.
+
+**Verification note:** the caching change was verified by test and typecheck; a
+local production build could not be run for the reason above. CI builds it.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

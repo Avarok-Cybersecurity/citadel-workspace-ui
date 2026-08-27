@@ -203,13 +203,28 @@ export default defineConfig(({ mode }) => {
               // and did update — old WASM against new bindings, which surfaces
               // as undefined-function errors rather than anything obvious.
               //
-              // StaleWhileRevalidate keeps the offline guarantee and the instant
-              // load, and fetches a fresh copy in the background so the next
-              // start is current.
+              // StaleWhileRevalidate was the previous fix for CacheFirst, and it
+              // is still wrong here: it serves the stale copy FIRST and
+              // revalidates behind it. So the very reload that applies an update
+              // — the one the update toast promises will reconnect the session —
+              // is guaranteed to pair the new, hashed glue JS with the PREVIOUS
+              // binary. wasm-bindgen glue and binary are coupled through export
+              // tables and closure-shim indices, and the symptom is not a clean
+              // error: every internal-service call silently no-ops, so login and
+              // register do nothing at all with no message and no server log.
+              // The following start would be correct, with nothing telling the
+              // user to reload again.
+              //
+              // NetworkFirst pairs them correctly whenever the network is
+              // reachable — which it must be for an update to have arrived —
+              // while the cache still answers offline starts and slow networks.
               urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
-              handler: 'StaleWhileRevalidate',
+              handler: 'NetworkFirst',
               options: {
                 cacheName: 'citadel-wasm',
+                // Bounded so a slow or captive network degrades to the cached
+                // binary instead of blocking startup indefinitely.
+                networkTimeoutSeconds: 10,
                 expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 30 },
                 // 200 only. A 0 here would cache opaque responses, so a
                 // cross-origin error could be stored and served as if valid.
