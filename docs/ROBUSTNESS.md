@@ -6669,3 +6669,78 @@ And: any stray directory under `content_base_dir` without a `CONTENT.md` is a
 the server itself creates exactly that shape if it dies between `create_dir_all`
 and `write`. Under `restart: unless-stopped` that is a crash loop until an
 operator hand-deletes a directory the loader would never have used.
+
+## Round ninety-seven — a first boot that failed silently, stamped seeded forever, 2026-08-28
+
+### 410. A configured structure that could not be read left the workspace permanently empty
+
+The deprecated `workspace_structure` JSON path logged its load failure at INFO —
+"Warning: … Continuing without pre-configured structure" — and carried on. The
+recommended `content_base_dir` path was already fatal for the same failure; only
+this one swallowed it.
+
+Carrying on is not harmless, and the reason is two correct decisions meeting:
+
+- The seed-pending marker is armed **only** when a structure actually loaded.
+  That is deliberate and well argued at its call site: arming it unconditionally
+  would let a later deploy that adds a structure inject defaults into a workspace
+  that has been live for weeks.
+- A boot that finds neither marker takes the "established workspace predates the
+  seed markers" back-fill branch and stamps it seeded.
+
+So a first boot that swallowed the load error records neither marker; the next
+boot back-fills; the workspace has no offices, permanently, recoverable only by
+wiping the backend. The whole failure is announced by one info line containing
+the word "Warning".
+
+Now fatal, matching the other branch. A configured structure that cannot be read
+is a configuration error, and refusing to boot is the only outcome an operator
+can act on.
+
+The resolution moved out of `run_server_with_base_path` into
+`resolve_workspace_structure`, because the decision was untestable inside a
+function that starts a server. Three cases: unparseable file refuses, missing
+file refuses, and — the one that matters as much — **no structure configured
+still boots**, since a guard that turns the ordinary case into an error is worse
+than the bug.
+
+### Recorded from the document-editing audit — the standouts
+
+- **Office MDX saves are silent whole-document last-writer-wins.** `UpdateNode`
+  carries no baseline revision or hash, so the server cannot reject a stale
+  write: A opens the editor, B saves, A saves, and B's work is gone with a
+  success toast. `BaseOffice` already documents the other half of this ("telling
+  the user their view is now stale is recorded in ROBUSTNESS.md") — it is still
+  only recorded.
+- **`adoptDocument` treats a failed load as "does not exist"** and writes a fresh
+  empty document over the stored one. `loadDocumentFromDB` catches every error
+  and returns `null`, indistinguishable from absence — the same
+  "genuinely-absent vs could-not-read" distinction that was fixed for message
+  pages, unfixed here.
+- **Every outbound Yjs update carries a pre-batch hash**, because the coalescer
+  sends before rebuilding the merkle tree — so the receiver's post-apply
+  comparison mismatches on every keystroke batch, and since both peers believe
+  they are the creator (`creatorCid` is never threaded through), each mismatch
+  broadcasts the entire document. The integrity check can never signal real
+  divergence because it fires always.
+- **Yjs updates that arrive while the document tab is closed are dropped** — the
+  only handler reads the payload to flip an activity dot and discards the bytes.
+- **The ACK retry never retransmits**: the retry branch increments a counter and
+  sends nothing.
+
+### Recorded from the discovery audit — the standouts
+
+- **Decline never leaves the browser.** `declineRequest` only removes the local
+  entry; the backend's `PeerRegisterRespond { accept: false }` has **zero**
+  callers anywhere in the UI. The sender resends every five minutes forever, so a
+  declined request resurrects indefinitely while the sender sits on a disabled
+  "Awaiting Response…" with no cancel.
+- **`listAllPeers` still does `Object.values` on a wire Map**, so the Direct
+  Messages peer list is permanently empty and its 30s poll *clobbers* peers
+  learned from registration events. The normalizer for exactly this exists, is
+  used by the function directly below it, and was never propagated here.
+- **Receiving a request marks the sender as a registered peer before any accept**,
+  so `MessageSender` skips the registration it needs and the message fails.
+- **"Add a peer to start messaging" asks for a CID no screen ever displays** —
+  the discovery modal deliberately shows only a short handle, and there is no
+  copy-CID affordance anywhere.
