@@ -150,8 +150,9 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
       type: 'backend-delete-file',
       cid: myCid,
       peerCid: null,
-      // The file's PATH — the key upload writes, not the stored directory.
-      virtualDir: file.path,
+      // The upload-time key. See uploadFileToServer — a renamed file's bytes
+      // stay where they were written, so node.path is the wrong thing here.
+      virtualDir: file.fileMetadata.virtualDirectory,
     });
   }
 }

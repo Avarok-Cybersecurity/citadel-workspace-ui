@@ -62,7 +62,11 @@ export async function uploadFileToPeer(
     throw new Error(`"${fileName}" could not be sent to the peer. It has not been uploaded.`);
   }
 
-  const [newTree, op] = treePlaceFile(tree, filePath, metadata, myCid);
+  // The key the bytes were stored under, recorded at upload time — see
+  // uploadFileToServer for why this must not be re-derived from node.path.
+  const peerMetadata: RevfsFileMetadata = { ...metadata, virtualDirectory: filePath };
+
+  const [newTree, op] = treePlaceFile(tree, filePath, peerMetadata, myCid);
 
   ctx.state.setTree(key, newTree);
   await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
@@ -89,15 +93,9 @@ export async function removeFileFromPeer(
       type: 'backend-delete-file',
       cid: myCid,
       peerCid,
-      // The file's PATH, which is the key upload writes as `virtual_path`.
-      // This used to send `fileMetadata.virtualDirectory` — the containing
-      // DIRECTORY — so it addressed `/docs` for a file at `/docs/notes.txt`.
-      // Two different keys for the same object, one written and one read.
-      //
-      // Deriving from the path also ends a drift: rename and move rewrite
-      // `node.path` and never touch `virtualDirectory`, so the stored field
-      // grew staler with every rename while the path stayed correct.
-      virtualDir: filePath,
+      // The upload-time key, not the current path — the backend cannot
+      // re-path an object. See uploadFileToServer.
+      virtualDir: fileNode.fileMetadata.virtualDirectory,
     });
   }
 
@@ -122,8 +120,8 @@ export async function downloadFileFromPeer(
     type: 'backend-download-file',
     cid: myCid,
     peerCid,
-    // The file's PATH — the key upload writes. See removeFileFromPeer above.
-    virtualDir: filePath,
+    // The upload-time key. See uploadFileToServer.
+    virtualDir: fileNode.fileMetadata.virtualDirectory,
   });
 
   if (result.type === 'backend-download-file') {

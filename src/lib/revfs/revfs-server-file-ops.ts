@@ -69,6 +69,19 @@ export async function uploadFileToServer(
   const serverMetadata: RevfsFileMetadata = {
     ...metadata,
     uploadedByCid: myCid,
+    // The key the bytes were stored under, recorded at upload time.
+    //
+    // NOT re-derived from `node.path` later: the backend has send/download/delete
+    // and no way to re-path an object, so the server-side key is immutable. A
+    // rename or move rewrites `node.path` and CANNOT move the bytes — so a
+    // download that derived its key from the current path would miss every
+    // renamed file. This field is the upload-time SSOT for that key; anyone
+    // "fixing" it to track node.path will break exactly those files.
+    //
+    // What it must NOT be is what the UI passes in: `targetPath`, the containing
+    // DIRECTORY. That is what made downloads and deletes address `/docs` for a
+    // file stored at `/docs/notes.txt`.
+    virtualDirectory: filePath,
   };
 
   const [newTree] = treePlaceFile(tree, filePath, serverMetadata, myCid);
@@ -101,15 +114,10 @@ export async function removeFileFromServer(
       type: 'backend-delete-file',
       cid: myCid,
       peerCid: null,
-      // The file's PATH, which is the key upload writes as `virtual_path`.
-      // This used to send `fileMetadata.virtualDirectory` — the containing
-      // DIRECTORY — so it addressed `/docs` for a file at `/docs/notes.txt`.
-      // Two different keys for the same object, one written and one read.
-      //
-      // Deriving from the path also ends a drift: rename and move rewrite
-      // `node.path` and never touch `virtualDirectory`, so the stored field
-      // grew staler with every rename while the path stayed correct.
-      virtualDir: filePath,
+      // The upload-time key, not the current path. See uploadFileToServer:
+      // the backend cannot re-path an object, so a renamed file's bytes stay
+      // where they were written.
+      virtualDir: fileNode.fileMetadata.virtualDirectory,
     });
 
     if (deleted.type !== 'backend-delete-file' || !deleted.success) {
@@ -141,8 +149,8 @@ export async function downloadFileFromServer(
     type: 'backend-download-file',
     cid: myCid,
     peerCid: null,
-    // The file's PATH — the key upload writes. See removeFileFromServer above.
-    virtualDir: filePath,
+    // The upload-time key. See uploadFileToServer.
+    virtualDir: fileNode.fileMetadata.virtualDirectory,
   });
 
   if (result.type === 'backend-download-file') {

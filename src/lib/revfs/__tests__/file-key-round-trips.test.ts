@@ -78,4 +78,30 @@ describe('the key a file is addressed by', () => {
     expect(backendKeys.length, 'all three operations should reach the backend').toBe(3);
     for (const key of backendKeys) expect(key).toBe(FILE_PATH);
   });
+
+  it('keeps addressing the ORIGINAL key after a rename', async () => {
+    const metadata = {
+      fileId: 'f1',
+      fileName: 'notes.txt',
+      fileSize: 1,
+      fileType: 'text/plain',
+      virtualDirectory: '/',
+      uploadedByCid: ALICE,
+    };
+
+    const intents = await intentsFrom(async (service) => {
+      await service.uploadFileToServer(ALICE, '/', 'notes.txt', metadata, new Uint8Array([1]));
+      await service.serverRename(ALICE, FILE_PATH, 'renamed.txt');
+      await service.downloadFileFromServer(ALICE, '/renamed.txt');
+    });
+
+    const backendKeys = intents.filter((i) => i.type.startsWith('backend-')).map(keyOf);
+
+    // The backend has send/download/delete and NO way to re-path an object, so
+    // a rename cannot move the bytes. Deriving the key from the current
+    // node.path — which an earlier version of this fix did — would ask for
+    // '/renamed.txt' and miss every renamed file. The upload-time key is the
+    // one the bytes actually live under.
+    expect(backendKeys).toEqual([FILE_PATH, FILE_PATH]);
+  });
 });
