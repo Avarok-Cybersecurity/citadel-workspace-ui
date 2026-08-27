@@ -21,7 +21,7 @@ import {
 } from './tree-operations';
 import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
-import { retryPendingOps, sendAndAwaitAck } from './revfs-retry';
+import { retryPendingOps, sendAndAwaitAck, type RetryOutcome } from './revfs-retry';
 import { debugLog } from '@/lib/debug-config';
 import type { DirOpsContext } from './revfs-dir-ops';
 import * as dirOps from './revfs-dir-ops';
@@ -216,7 +216,7 @@ export class RevfsService {
 
 
 
-  async retryPendingOps(key: TreeKey, peerCid: bigint): Promise<number> {
+  async retryPendingOps(key: TreeKey, peerCid: bigint): Promise<RetryOutcome> {
     return retryPendingOps({ state: this.state, io: this.ensureIO(), sendOp: (p: bigint, op: RevfsOperation) => this.sendOp(p, op) }, key, peerCid);
   }
 

@@ -3832,6 +3832,59 @@ at both ends and never reaches a control outside. Deleting the trap fails
 **exactly those two tests**; the role, focus-in, Escape and focus-restore tests
 keep passing, because they are not the discriminating ones.
 
+## Round forty-nine — a fourth guard that could not fail, and a green toast over lost work, 2026-08-27
+
+### 274. The hover-only guard was blind to named groups and to every non-opacity reveal — FIXED
+
+`check-hover-only-controls` required the literal string `group-hover:opacity-100`.
+A **named** group — `group-hover/menu-item:opacity-100 … md:opacity-0`, which is
+exactly what the sidebar uses — sailed straight through, as would
+`invisible group-hover:visible`, `hidden group-hover:flex` or
+`scale-0 group-hover:scale-100`.
+
+Broadened to all four hide/reveal pairs and to named groups. It immediately
+found two live sites, and the underlying defect there is worth stating on its
+own: **`md:opacity-0` uses viewport width as a proxy for pointer type.** A tablet
+at desktop width hides the control with no hover to bring it back. Replaced with
+`[@media(hover:hover)_and_(pointer:fine)]:opacity-0`, which asks the question
+that actually matters, and the guard now accepts that form as the correct
+pattern.
+
+Measured without a pipe, because `exit=$?` after `| head` reports head's status
+and not the guard's: **new guard 1, old guard 0, on the same defect.**
+
+That is the fourth cannot-fail check in this campaign, and the fourth that was
+mine. All four share the shape already recorded in finding 269 — *when the check
+did not understand what it saw, it returned success* — with a fifth variant to
+add: **a check that recognises only one spelling of the thing it forbids.**
+
+### 275. "Tree synced with peer" was shown for changes that had just been thrown away — FIXED
+
+`retryPendingOps` removed an operation past `MAX_OP_RETRIES` and `continue`d.
+The drop never reached the count the caller checks, so `stillPending` came back
+0 and the file manager toasted a green **"Tree synced with peer"** — on the very
+click that discarded a rename permanently. The trees then diverge for good: the
+union merge cannot reconstruct a lost explicit operation.
+
+The code called that drop "deliberate and loud". The only trace was `debugLog`,
+which is a no-op in production, so it was neither.
+
+It now returns `{ stillPending, discarded }`, and the two are reported with
+different words on purpose: one will be retried, the other never will, and
+merging them would tell the user their lost change is coming back.
+
+### 276. Method note — a test failure that was the fake, not the code
+
+The first run failed with `deps.io.execute is not a function` — but the debug
+output showed the give-up branch had run correctly. The defect was in my stub:
+the flush persists the queue through `io.execute` at the end, and I had passed
+`io: {}`.
+
+Worth separating deliberately. A test that fails because the harness is
+incomplete looks identical, in the summary line, to one that fails because the
+code is wrong — and reading only the summary would have sent me to change
+working code.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

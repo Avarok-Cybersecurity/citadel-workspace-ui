@@ -222,9 +222,20 @@ export function useFileManagerHandlers({
         await revfsService.requestSync(myCid, selectedPeerCid);
 
         // Flush the queue before claiming a sync; see lib/revfs/revfs-retry.ts.
-        const stillPending = await revfsService.retryPendingOps(peerPairKey(myCid, selectedPeerCid), selectedPeerCid);
+        const { stillPending, discarded } = await revfsService.retryPendingOps(
+          peerPairKey(myCid, selectedPeerCid),
+          selectedPeerCid,
+        );
         await refresh();
-        if (stillPending > 0) {
+        // Discarded first: it is the only outcome the user cannot recover from,
+        // and it used to be reported as a successful sync.
+        if (discarded > 0) {
+          toast.error('Some changes were not delivered', {
+            description:
+              `${discarded} change(s) were given up on after repeated failures and will not be sent. ` +
+              'The peer does not have them.',
+          });
+        } else if (stillPending > 0) {
           toast.error('Some changes could not be sent', {
             description: `${stillPending} operation(s) still queued; they will be retried.`,
           });

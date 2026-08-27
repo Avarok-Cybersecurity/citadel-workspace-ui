@@ -42,20 +42,37 @@ const MAX_OP_RETRIES = 5;
  * "nothing to do" from "tried and still failing" — the distinction the
  * original silent queue made impossible.
  */
+/**
+ * What a flush actually did. `discarded` is separate from `stillPending`
+ * because they need different words to the user: one will be retried, the other
+ * is gone.
+ */
+export interface RetryOutcome {
+  /** Operations still queued; these will be attempted again. */
+  stillPending: number;
+  /** Operations abandoned after MAX_OP_RETRIES. These will never be sent. */
+  discarded: number;
+}
+
 export async function retryPendingOps(
   deps: RetryDeps,
   key: TreeKey,
   peerCid: bigint,
-): Promise<number> {
+): Promise<RetryOutcome> {
   const pending = deps.state.getPendingOps(key);
-  if (pending.length === 0) return 0;
+  if (pending.length === 0) return { stillPending: 0, discarded: 0 };
 
   debugLog('RevfsService', `Retrying ${pending.length} queued operation(s) for ${peerCid}`);
 
+  let discarded = 0;
+
   for (const entry of [...pending]) {
     if (entry.retryCount >= MAX_OP_RETRIES) {
-      // Dropped deliberately and loudly. Silently keeping it forever is how
-      // the local tree and the peer's diverged without anyone noticing.
+      // Counted, not just logged. `debugLog` is a no-op in production, so
+      // "dropped loudly" was silent — and because the drop never reached the
+      // caller's count, the very click that discarded a rename for good
+      // reported "Tree synced with peer".
+      discarded += 1;
       debugLog(
         'RevfsService',
         `Giving up on ${entry.operation.op_type} after ${entry.retryCount} attempts`,
@@ -79,7 +96,7 @@ export async function retryPendingOps(
   }
 
     await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
-  return deps.state.getPendingOps(key).length;
+  return { stillPending: deps.state.getPendingOps(key).length, discarded };
 }
 
 export async function sendAndAwaitAck(
