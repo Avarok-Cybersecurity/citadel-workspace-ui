@@ -14,6 +14,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
 import { PEER_LIST_TIMEOUT, CID_RESOLUTION_TIMEOUT_MS } from './constants';
+import { wireMapValues } from '@/lib/wire-map';
 
 /**
  * Get current CID with proper priority for multi-tab support:
@@ -98,8 +99,15 @@ export async function listAllPeers(
   await websocketService.sendMessage(request);
   const response = await responsePromise;
 
-  const peerInfo = response.peer_information || {};
-  return Object.values(peerInfo);
+  // `peer_information` is a Rust HashMap, which arrives as a JS Map — so
+  // `Object.values(...)` yielded `[]` with no error. This is the service that
+  // feeds the Direct Messages peer list, and its 30s poll then CLEARED the peer
+  // map and repopulated it from that empty answer, discarding peers learned from
+  // registration events. The header of `wire-map.ts` names this exact class, and
+  // `parsePeersResponse` fifty lines below already handles the Map shape: the
+  // normalizer existed, was used by the neighbouring function, and was never
+  // applied here.
+  return wireMapValues<PeerInfoResponse>(response.peer_information, 'peer_information');
 }
 
 /**

@@ -38,6 +38,7 @@ import {
   createNotificationWithCallbacks,
   processIncomingNotification,
   executeAcceptRequest,
+  executeDeclineRequest,
   processPollRequest,
 } from './lifecycle';
 import { setupEventListeners } from './event-handlers';
@@ -155,6 +156,10 @@ class PeerRegistrationStore {
   public async declineRequest(requestId: string): Promise<void> {
     const request = this.pendingRequests.find(r => r.id === requestId);
     if (!request) throw new Error('Request not found');
+    // Tell the sender. Removing the local entry was the whole of decline, so a
+    // declined request came back every five minutes forever — see
+    // executeDeclineRequest.
+    await executeDeclineRequest(request);
     await this.removeRequest(requestId);
     debugLog('PeerRegistrationStore', 'Declined request from', request.peer_username);
   }

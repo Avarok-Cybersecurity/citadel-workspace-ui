@@ -83,6 +83,48 @@ export function processIncomingNotification(
  * Execute the accept flow for a pending request.
  * Sends PeerRegister back to the peer and waits for response.
  */
+/**
+ * Tell the sender their request was refused.
+ *
+ * Declining used to remove the local entry and nothing else — the backend's
+ * `PeerRegisterRespond { accept: false }` had ZERO callers anywhere in the UI.
+ * Two consequences, both permanent:
+ *
+ * - The sender's outgoing store resends every five minutes forever, and the
+ *   recipient's dedup only checks LIVE pending requests, so a declined request
+ *   reappeared on their screen every five minutes indefinitely.
+ * - The sender sat on a disabled "Awaiting Response…" with no cancel, never
+ *   learning they had been declined.
+ *
+ * Neither side had a way forward except the recipient giving in.
+ *
+ * Best-effort by design: the local removal must happen whether or not the
+ * message goes out, because a decline the user performed and then saw
+ * reappear — for a second reason — would be worse than a decline the sender
+ * has not yet heard about. The sender's own resend is the backstop.
+ */
+export async function executeDeclineRequest(request: PendingPeerRequest): Promise<void> {
+  const currentCid = request.cid;
+  if (!currentCid) {
+    debugLog('PeerRegistrationStore', 'No active session; declining locally only');
+    return;
+  }
+
+  try {
+    await websocketService.sendMessage({
+      PeerRegisterRespond: {
+        request_id: crypto.randomUUID(),
+        cid: currentCid,
+        peer_cid: request.peer_cid,
+        accept: false,
+      },
+    });
+    debugLog('PeerRegistrationStore', 'Declined registration from', request.peer_cid);
+  } catch (error) {
+    debugLog('PeerRegistrationStore', 'Could not send the decline; removing locally anyway', error);
+  }
+}
+
 export async function executeAcceptRequest(request: PendingPeerRequest): Promise<void> {
   const currentCid = request.cid;
   if (!currentCid) throw new Error('No active session - cannot accept registration');

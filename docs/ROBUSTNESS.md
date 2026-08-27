@@ -6744,3 +6744,65 @@ than the bug.
 - **"Add a peer to start messaging" asks for a CID no screen ever displays** —
   the discovery modal deliberately shows only a short handle, and there is no
   copy-CID affordance anywhere.
+
+## Round ninety-eight — two closed loops in the path to a first conversation, 2026-08-28
+
+### 411. The Direct Messages peer list was permanently empty, and its poll erased what it did learn
+
+`listAllPeers` read `peer_information` with `Object.values`. It is a Rust
+`HashMap`, which `serde_wasm_bindgen` sends as a JS **Map** — so
+`Object.values(...)` yields `[]`: no error, no warning, an empty result that
+reads as "there are no peers".
+
+Worse than empty. The service polls every 30 seconds and `updatePeerMaps` clears
+the peer map before repopulating it from that answer — so peers learned from
+registration events were *discarded* on a timer, taking their preserved usernames
+with them. Two surfaces therefore disagreed about whether anyone existed: the
+discovery modal, whose fetcher had been fixed, found people; the sidebar, fed by
+this, showed zero.
+
+`wire-map.ts` documents this exact class in its header, and `parsePeersResponse`
+fifty lines below in the same file already handles the Map shape. The normalizer
+existed, the neighbouring function used it, and it was never applied here. Swept
+the rest of `src/lib` for the same shape: no others.
+
+### 412. Declining a peer request never left the browser
+
+`declineRequest` removed the local entry and nothing else. The backend has a
+purpose-built API for this — `PeerRegisterRespond { accept: false }` — with
+**zero callers anywhere in the UI**.
+
+Two permanent consequences, and they compound:
+
+- The sender's outgoing store resends every five minutes forever, and the
+  recipient's dedup only checks *live* pending requests — so the declined request
+  reappeared on their screen every five minutes, indefinitely.
+- The sender sat on a disabled "Awaiting Response…" with no cancel, never
+  learning they had been declined.
+
+Neither side had a way forward except the recipient giving in.
+
+The send is best-effort by design and the local removal happens either way: a
+decline the user performed and then watched reappear — for a *second* reason —
+would be worse than one the sender has not heard about yet, and the sender's own
+five-minute resend is the backstop.
+
+Both fixes carry a wiring assertion alongside the unit test, because in both
+cases the unit under test was already correct and would have stayed correct with
+the caller unchanged. That is exactly the state each of these was found in.
+
+### Still open on this path, from the discovery audit
+
+- **"Request Sent" is claimed before any response**, and a real
+  `PeerRegisterFailure` is routed only to `debugLog` — compiled out in
+  production. The pending state later vanishes with no explanation.
+- **Receiving a request marks the sender as a registered peer before any
+  accept**, so `MessageSender` skips the registration it needs and the message
+  fails — while the backend defines registered as mutual.
+- **"Add a peer to start messaging" asks for a CID no screen displays.** The
+  discovery modal deliberately shows a short handle instead, and there is no
+  copy-CID affordance anywhere; the error copy's other suggestion is the
+  directory, which is the known simulated loop.
+- **Accepting can be "confirmed" by an unrelated peer's connect notification**,
+  because the matcher accepts any notification naming our own CID.
+- The "Invite User" buttons in the empty search state have no `onClick`.
