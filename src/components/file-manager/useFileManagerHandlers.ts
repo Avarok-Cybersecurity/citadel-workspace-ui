@@ -13,7 +13,7 @@ interface HandlerDeps {
   rmdir: (path: string) => Promise<void>;
   removeFile: (path: string) => Promise<void>;
   downloadFile: (path: string) => Promise<string | undefined>;
-  uploadFile: (dir: string, name: string, metadata: RevfsFileMetadata) => Promise<void>;
+  uploadFile: (dir: string, name: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<void>;
   rename: (path: string, newName: string) => Promise<void>;
   move: (src: string, dest: string) => Promise<void>;
   copy: (src: string, dest: string) => Promise<void>;
@@ -183,13 +183,24 @@ export function useFileManagerHandlers({
     }
     for (const file of fileArray) {
       try {
-        await uploadFile(targetPath, file.name, {
-          fileId: crypto.randomUUID(), fileName: file.name, fileSize: file.size,
-          fileType: file.type || 'application/octet-stream',
-          virtualDirectory: targetPath, uploadedByCid: myCid,
-        });
+        // The file's CONTENTS, which this never read. Only name, size and type
+        // were passed on, so the upload described a file whose bytes never left
+        // the page — and the toast below still said "Uploaded".
+        const content = new Uint8Array(await file.arrayBuffer());
+        await uploadFile(
+          targetPath,
+          file.name,
+          {
+            fileId: crypto.randomUUID(), fileName: file.name, fileSize: file.size,
+            fileType: file.type || 'application/octet-stream',
+            virtualDirectory: targetPath, uploadedByCid: myCid,
+          },
+          content,
+        );
         toast.success(`Uploaded: ${file.name}`);
-      } catch (err) { toast.error(`Failed to upload ${file.name}: ${err}`); }
+      } catch (err) {
+        toast.error(`Failed to upload ${file.name}: ${err instanceof Error ? err.message : err}`);
+      }
     }
   }, [myCid, uploadFile, storageUsed, storageQuota, revfsEnabled, storageMode,
       setRevfsDisabledReason, setRevfsDisabledModalOpen, setAttemptedFileSize, setStorageLimitModalOpen]);

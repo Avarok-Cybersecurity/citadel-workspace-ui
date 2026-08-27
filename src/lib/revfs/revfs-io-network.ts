@@ -26,21 +26,39 @@ export async function backendSendFile(
   deps: NetworkIODeps,
   cid: bigint,
   peerCid: bigint | null,
-  source: string,
+  fileName: string,
+  content: Uint8Array,
   virtualDir: string,
 ): Promise<RevfsIntentResult> {
   const requestId = crypto.randomUUID();
   const isServerStorage = peerCid === null;
-  debugLog('RevfsIO', `backendSendFile: source=${source} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
+  debugLog('RevfsIO', `backendSendFile: name=${fileName} bytes=${content.byteLength} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
+
+  // ByteContents.data is a Rust Vec<u8>, which serialises as a number array —
+  // the same shape the working file-transfer upload sends.
+  const data = Array.from(content);
 
   const request = {
     SendFile: {
       request_id: requestId,
-      source,
+      // The externally-tagged FileSource enum. This used to be a bare string
+      // holding a tree directory path, which the WASM client's strict
+      // deserializer rejected — so the request never left the browser and the
+      // internal service never logged a thing.
+      source: { ByteContents: { file_name: fileName, data } },
       cid,
       peer_cid: peerCid,
       chunk_size: null,
-      transfer_type: 'FileTransfer',
+      // RemoteEncryptedVirtualFilesystem, not FileTransfer: this is what creates
+      // the virtual_path key that DownloadFile and DeleteVirtualFile address.
+      // With 'FileTransfer' the bytes would have gone somewhere unaddressable
+      // even once the source was right.
+      transfer_type: {
+        RemoteEncryptedVirtualFilesystem: {
+          virtual_path: virtualDir,
+          security_level: 'Standard',
+        },
+      },
     },
   };
 

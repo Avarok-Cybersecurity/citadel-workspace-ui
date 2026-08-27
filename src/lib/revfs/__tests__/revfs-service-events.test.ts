@@ -109,7 +109,7 @@ describe('RevfsService (events & sync)', () => {
         fileId: 'f1', fileName: 'file.pdf', fileSize: 512,
         fileType: 'application/pdf', virtualDirectory: '/vfs/f', uploadedByCid: ALICE,
       };
-      await service.uploadFileToPeer(ALICE, BOB, '/docs', 'file.pdf', meta);
+      await service.uploadFileToPeer(ALICE, BOB, '/docs', 'file.pdf', meta, new Uint8Array([1, 2, 3]));
 
       const removeOp: RevfsOperation = {
         op_id: 'rm-1', op_type: RevfsOpType.RemoveFile,

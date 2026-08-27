@@ -80,9 +80,9 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     await revfsService.rmdir(myCid, peerCid, path);
   }, [myCid, peerCid]);
 
-  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: RevfsFileMetadata) => {
+  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => {
     if (!myCid || !peerCid) return;
-    await revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata);
+    await revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata, content);
   }, [myCid, peerCid]);
 
   const downloadFile = useCallback(async (filePath: string) => {

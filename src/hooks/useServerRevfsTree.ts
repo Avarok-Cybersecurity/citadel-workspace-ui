@@ -104,9 +104,9 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     await revfsService.serverRmdir(myCid, path);
   }, [myCid]);
 
-  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3]) => {
+  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array) => {
     if (!myCid) return;
-    await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata);
+    await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata, content);
   }, [myCid]);
 
   const downloadFile = useCallback(async (filePath: string) => {

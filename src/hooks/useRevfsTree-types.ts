@@ -19,7 +19,7 @@ export interface UseRevfsTreeResult {
   revfsEnabled: boolean;
   mkdir: (path: string) => Promise<void>;
   rmdir: (path: string) => Promise<void>;
-  uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata) => Promise<void>;
+  uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<void>;
   downloadFile: (filePath: string) => Promise<string | undefined>;
   removeFile: (filePath: string) => Promise<void>;
   /** Rename a file or directory */
@@ -43,7 +43,7 @@ export interface UseServerRevfsTreeResult {
   revfsEnabled: boolean;
   mkdir: (path: string) => Promise<void>;
   rmdir: (path: string) => Promise<void>;
-  uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata) => Promise<void>;
+  uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<void>;
   downloadFile: (filePath: string) => Promise<string | undefined>;
   removeFile: (filePath: string) => Promise<void>;
   /** Rename a file or directory */

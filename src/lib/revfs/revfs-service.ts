@@ -27,6 +27,7 @@ import type { DirOpsContext } from './revfs-dir-ops';
 import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
 import * as fileOps from './revfs-file-ops';
+import * as serverFileOps from './revfs-server-file-ops';
 
 
 
@@ -138,7 +139,7 @@ export class RevfsService {
   rename(myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<void> { return dirOps.peerRename(this.dirCtx(), myCid, peerCid, path, newName); }
   move(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<void> { return dirOps.peerMove(this.dirCtx(), myCid, peerCid, src, dest); }
   copy(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<void> { return dirOps.peerCopy(this.dirCtx(), myCid, peerCid, src, dest); }
-  uploadFileToPeer(myCid: bigint, peerCid: bigint, dir: string, name: string, meta: RevfsFileMetadata): Promise<void> { return fileOps.uploadFileToPeer(this.fileCtx(), myCid, peerCid, dir, name, meta); }
+  uploadFileToPeer(myCid: bigint, peerCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<void> { return fileOps.uploadFileToPeer(this.fileCtx(), myCid, peerCid, dir, name, meta, content); }
   removeFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<void> { return fileOps.removeFileFromPeer(this.fileCtx(), myCid, peerCid, path); }
   downloadFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<string | undefined> { return fileOps.downloadFileFromPeer(this.fileCtx(), myCid, peerCid, path); }
   addSentFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string }): Promise<void> { return fileOps.addSentFile(this.fileCtx(), myCid, peerCid, t); }
@@ -151,9 +152,9 @@ export class RevfsService {
   serverRename(myCid: bigint, path: string, name: string): Promise<void> { return dirOps.serverRename(this.dirCtx(), myCid, path, name); }
   serverMove(myCid: bigint, src: string, dest: string): Promise<void> { return dirOps.serverMove(this.dirCtx(), myCid, src, dest); }
   serverCopy(myCid: bigint, src: string, dest: string): Promise<void> { return dirOps.serverCopy(this.dirCtx(), myCid, src, dest); }
-  uploadFileToServer(myCid: bigint, dir: string, name: string, meta: RevfsFileMetadata): Promise<void> { return fileOps.uploadFileToServer(this.fileCtx(), myCid, dir, name, meta); }
-  removeFileFromServer(myCid: bigint, path: string): Promise<void> { return fileOps.removeFileFromServer(this.fileCtx(), myCid, path); }
-  downloadFileFromServer(myCid: bigint, path: string): Promise<string | undefined> { return fileOps.downloadFileFromServer(this.fileCtx(), myCid, path); }
+  uploadFileToServer(myCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<void> { return serverFileOps.uploadFileToServer(this.fileCtx(), myCid, dir, name, meta, content); }
+  removeFileFromServer(myCid: bigint, path: string): Promise<void> { return serverFileOps.removeFileFromServer(this.fileCtx(), myCid, path); }
+  downloadFileFromServer(myCid: bigint, path: string): Promise<string | undefined> { return serverFileOps.downloadFileFromServer(this.fileCtx(), myCid, path); }
 
   // ── Incoming Operation Handler ────────────────────────────────────────
 

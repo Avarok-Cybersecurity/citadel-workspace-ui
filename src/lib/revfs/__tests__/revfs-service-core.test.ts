@@ -120,7 +120,7 @@ describe('RevfsService', () => {
         fileId: 'f1', fileName: 'doc.pdf', fileSize: 1024, fileType: 'application/pdf',
         virtualDirectory: '/vfs/doc', uploadedByCid: ALICE,
       };
-      await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta);
+      await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta, new Uint8Array([1, 2, 3]));
 
       const tree = await service.getTree(ALICE, BOB);
       const file = tree.children?.find(c => c.name === 'Sent Files')?.children?.find(c => c.name === 'doc.pdf');
@@ -140,7 +140,7 @@ describe('RevfsService', () => {
         fileId: 'f1', fileName: 'doc.pdf', fileSize: 1024, fileType: 'application/pdf',
         virtualDirectory: '/vfs/doc', uploadedByCid: ALICE,
       };
-      await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta);
+      await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta, new Uint8Array([1, 2, 3]));
       await service.removeFileFromPeer(ALICE, BOB, '/Sent Files/doc.pdf');
 
       const tree = await service.getTree(ALICE, BOB);
@@ -160,7 +160,7 @@ describe('RevfsService', () => {
         fileId: 'f1', fileName: 'doc.pdf', fileSize: 1024, fileType: 'application/pdf',
         virtualDirectory: '/vfs/doc', uploadedByCid: ALICE,
       };
-      await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta);
+      await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta, new Uint8Array([1, 2, 3]));
       const path = await service.downloadFileFromPeer(ALICE, BOB, '/Sent Files/doc.pdf');
       expect(path).toBe('/tmp/file');
     });

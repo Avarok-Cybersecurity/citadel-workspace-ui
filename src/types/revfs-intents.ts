@@ -24,7 +24,23 @@ export type RevfsIntent =
   | { type: 'persist-pending-ops'; treeKey: TreeKey; ops: RevfsPendingOp[] }
   | { type: 'load-pending-ops'; treeKey: TreeKey }
   // Backend file ops: peerCid is bigint for P2P, null for server storage
-  | { type: 'backend-send-file'; cid: bigint; peerCid: bigint | null; source: string; virtualDir: string }
+  /**
+   * `content` is the file's actual bytes.
+   *
+   * This used to carry `source: string` — and the string passed was a tree
+   * DIRECTORY PATH, not a filesystem path and not data. The backend field is
+   * `FileSource`, an externally-tagged enum, and the WASM client deserializes
+   * strictly, so the request was rejected in the browser before it was ever
+   * sent. Nothing reached the internal service and nothing was logged there.
+   */
+  | {
+      type: 'backend-send-file';
+      cid: bigint;
+      peerCid: bigint | null;
+      fileName: string;
+      content: Uint8Array;
+      virtualDir: string;
+    }
   | { type: 'backend-download-file'; cid: bigint; peerCid: bigint | null; virtualDir: string }
   | { type: 'backend-delete-file'; cid: bigint; peerCid: bigint | null; virtualDir: string };
 

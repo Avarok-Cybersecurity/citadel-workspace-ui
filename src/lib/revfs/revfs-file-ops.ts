@@ -9,7 +9,6 @@ import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { RevfsFileState } from '@/types/revfs-types';
 import {
   peerPairKey,
-  serverTreeKey,
   placeFile as treePlaceFile,
   removeFile as treeRemoveFile,
 } from './tree-operations';
@@ -35,14 +34,37 @@ export async function uploadFileToPeer(
   dirPath: string,
   fileName: string,
   metadata: RevfsFileMetadata,
+  content: Uint8Array,
 ): Promise<void> {
   const key = peerPairKey(myCid, peerCid);
   const tree = await ctx.getTree(myCid, peerCid);
   const filePath = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
+  const io = ctx.ensureIO();
+
+  // Send the BYTES, then record the file.
+  //
+  // This path never transmitted any: it placed the node, persisted the tree and
+  // sent the peer a tree op describing a file whose contents existed only in
+  // the uploader's page. Both peers then showed the file, and neither had it.
+  //
+  // Same ordering rationale as the server path — a node appears if and only if
+  // its bytes were accepted.
+  const result = await io.execute({
+    type: 'backend-send-file',
+    cid: myCid,
+    peerCid,
+    fileName,
+    content,
+    virtualDir: filePath,
+  });
+
+  if (result.type !== 'backend-send-file' || !result.success) {
+    throw new Error(`"${fileName}" could not be sent to the peer. It has not been uploaded.`);
+  }
+
   const [newTree, op] = treePlaceFile(tree, filePath, metadata, myCid);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
   await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
@@ -156,89 +178,4 @@ export async function addReceivedFile(
   ctx.state.setTree(key, newTree);
   const io = ctx.ensureIO();
   await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
-}
-
-// ── Server-Scoped File Operations ─────────────────────────────────────────
-
-export async function uploadFileToServer(
-  ctx: FileOpsContext,
-  myCid: bigint,
-  dirPath: string,
-  fileName: string,
-  metadata: RevfsFileMetadata,
-): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
-  const filePath = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
-
-  const serverMetadata: RevfsFileMetadata = {
-    ...metadata,
-    uploadedByCid: myCid,
-  };
-
-  const [newTree] = treePlaceFile(tree, filePath, serverMetadata, myCid);
-  const fileNode = ctx.findFileInTree(newTree, filePath);
-  if (fileNode) fileNode.fileState = RevfsFileState.ServerStored;
-
-  ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
-
-  await io.execute({
-    type: 'backend-send-file',
-    cid: myCid,
-    peerCid: null,
-    source: metadata.virtualDirectory,
-    virtualDir: filePath,
-  });
-}
-
-export async function removeFileFromServer(
-  ctx: FileOpsContext,
-  myCid: bigint,
-  filePath: string,
-): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
-  const [newTree] = treeRemoveFile(tree, filePath);
-
-  ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
-  await io.execute({ type: 'persist-tree', treeKey: key, tree: newTree });
-
-  const fileNode = ctx.findFileInTree(tree, filePath);
-  if (fileNode?.fileMetadata) {
-    await io.execute({
-      type: 'backend-delete-file',
-      cid: myCid,
-      peerCid: null,
-      virtualDir: fileNode.fileMetadata.virtualDirectory,
-    });
-  }
-}
-
-export async function downloadFileFromServer(
-  ctx: FileOpsContext,
-  myCid: bigint,
-  filePath: string,
-): Promise<string | undefined> {
-  const tree = await ctx.getServerTree(myCid);
-  const io = ctx.ensureIO();
-
-  const fileNode = ctx.findFileInTree(tree, filePath);
-  if (!fileNode?.fileMetadata) {
-    throw new Error(`File not found or has no metadata: ${filePath}`);
-  }
-
-  const result = await io.execute({
-    type: 'backend-download-file',
-    cid: myCid,
-    peerCid: null,
-    virtualDir: fileNode.fileMetadata.virtualDirectory,
-  });
-
-  if (result.type === 'backend-download-file') {
-    return result.downloadPath;
-  }
-  return undefined;
 }

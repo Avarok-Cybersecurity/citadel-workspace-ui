@@ -44,7 +44,7 @@ export class RevfsIO {
       case 'load-pending-ops':
         return this.loadPendingOps(intent.treeKey);
       case 'backend-send-file':
-        return backendSendFile(this.deps, intent.cid, intent.peerCid, intent.source, intent.virtualDir);
+        return backendSendFile(this.deps, intent.cid, intent.peerCid, intent.fileName, intent.content, intent.virtualDir);
       case 'backend-download-file':
         return backendDownloadFile(this.deps, intent.cid, intent.peerCid, intent.virtualDir);
       case 'backend-delete-file':

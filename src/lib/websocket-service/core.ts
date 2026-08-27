@@ -82,29 +82,21 @@ export class WebSocketServiceCore {
   async connect(
     requestId: string, username: string, password: string,
     sessionSecuritySettings?: SessionSecuritySettings
-  ): Promise<void> {
-    return this.modules.authOps.connect(requestId, username, password, sessionSecuritySettings);
-  }
+  ): Promise<void> { return this.modules.authOps.connect(requestId, username, password, sessionSecuritySettings) }
 
   async register(
     requestId: string, username: string, password: string,
     fullName: string, serverAddr: string, serverPassword?: string,
     sessionSecuritySettings?: SessionSecuritySettings
-  ): Promise<void> {
-    return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings);
-  }
+  ): Promise<void> { return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings) }
 
   // ============== Workspace ==============
 
-  async sendWorkspaceRequest(cid: bigint, request: unknown): Promise<void> {
-    return this.modules.workspaceOps.sendWorkspaceRequest(cid, request);
-  }
+  async sendWorkspaceRequest(cid: bigint, request: unknown): Promise<void> { return this.modules.workspaceOps.sendWorkspaceRequest(cid, request) }
 
   // ============== P2P ==============
 
-  async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> {
-    return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message);
-  }
+  async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> { return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message) }
 
   /**
    * Send a raw `Uint8Array` over the P2P channel without `stringToBytes`-
@@ -113,48 +105,30 @@ export class WebSocketServiceCore {
    * `sendP2PMessage` above would otherwise round-trip the bytes through
    * `stringToBytes` which assumes UTF-8 and corrupts binary payloads.
    */
-  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
-    return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message);
-  }
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> { return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message) }
 
-  async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> {
-    return this.modules.p2pOps.openP2PConnection(cid, targetCid);
-  }
+  async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> { return this.modules.p2pOps.openP2PConnection(cid, targetCid) }
 
-  async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> {
-    return this.modules.p2pOps.acceptPeerConnect(cid, peerCid, notification);
-  }
+  async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> { return this.modules.p2pOps.acceptPeerConnect(cid, peerCid, notification) }
 
-  async disconnectP2P(localCid: bigint, peerCid: bigint): Promise<void> {
-    return this.modules.p2pOps.disconnectP2P(localCid, peerCid);
-  }
+  async disconnectP2P(localCid: bigint, peerCid: bigint): Promise<void> { return this.modules.p2pOps.disconnectP2P(localCid, peerCid) }
 
   // ============== Messenger ==============
 
-  async openMessengerFor(cid: bigint): Promise<void> {
-    return this.modules.messengerOps.openMessengerFor(cid);
-  }
+  async openMessengerFor(cid: bigint): Promise<void> { return this.modules.messengerOps.openMessengerFor(cid) }
 
-  async ensureMessengerOpen(cid: bigint): Promise<boolean> {
-    return this.modules.messengerOps.ensureMessengerOpen(cid);
-  }
+  async ensureMessengerOpen(cid: bigint): Promise<boolean> { return this.modules.messengerOps.ensureMessengerOpen(cid) }
 
   async sendP2PMessageReliable(
     localCid: bigint, peerCid: bigint, message: Uint8Array,
     securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
-  ): Promise<void> {
-    return this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel);
-  }
+  ): Promise<void> { return this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel) }
 
   // ============== Disconnect ==============
 
-  async disconnect(cid: bigint): Promise<void> {
-    return this.modules.disconnectOps.disconnect(cid);
-  }
+  async disconnect(cid: bigint): Promise<void> { return this.modules.disconnectOps.disconnect(cid) }
 
-  async deregister(cid: bigint): Promise<void> {
-    return this.modules.disconnectOps.deregister(cid);
-  }
+  async deregister(cid: bigint): Promise<void> { return this.modules.disconnectOps.deregister(cid) }
 
   async disconnectAndClose(): Promise<void> {
     // Mirrors the disconnection handler in `websocket/initialization.ts`:
@@ -180,21 +154,15 @@ export class WebSocketServiceCore {
 
   // ============== Session Management ==============
 
-  async setOrphanMode(enabled: boolean): Promise<unknown> {
-    return this.modules.sessionMgmt.setOrphanMode(enabled);
-  }
+  async setOrphanMode(enabled: boolean): Promise<unknown> { return this.modules.sessionMgmt.setOrphanMode(enabled) }
 
   setOrphanModeNonBlocking(enabled: boolean): void {
     this.modules.sessionMgmt.setOrphanModeNonBlocking(enabled);
   }
 
-  async claimSession(sessionCid: string | bigint, onlyIfOrphaned?: boolean): Promise<unknown> {
-    return this.modules.sessionMgmt.claimSession(sessionCid, onlyIfOrphaned ?? false);
-  }
+  async claimSession(sessionCid: string | bigint, onlyIfOrphaned?: boolean): Promise<unknown> { return this.modules.sessionMgmt.claimSession(sessionCid, onlyIfOrphaned ?? false) }
 
-  async disconnectOrphan(sessionCid?: string | bigint | null): Promise<unknown> {
-    return this.modules.sessionMgmt.disconnectOrphan(sessionCid);
-  }
+  async disconnectOrphan(sessionCid?: string | bigint | null): Promise<unknown> { return this.modules.sessionMgmt.disconnectOrphan(sessionCid) }
 
   releaseSession(sessionCid: bigint): void {
     this.modules.sessionMgmt.releaseSession(sessionCid);
@@ -245,17 +213,11 @@ export class WebSocketServiceCore {
     return this.modules.localDB.get(cid, key);
   }
 
-  async sendLocalDBSet(cid: bigint, key: string, value: number[]): Promise<void> {
-    return this.modules.localDB.set(cid, key, value);
-  }
+  async sendLocalDBSet(cid: bigint, key: string, value: number[]): Promise<void> { return this.modules.localDB.set(cid, key, value) }
 
-  async sendLocalDBDelete(cid: bigint, key: string): Promise<void> {
-    return this.modules.localDB.delete(cid, key);
-  }
+  async sendLocalDBDelete(cid: bigint, key: string): Promise<void> { return this.modules.localDB.delete(cid, key) }
 
-  async sendLocalDBListKeys(cid: bigint, prefix?: string): Promise<string[]> {
-    return this.modules.localDB.listKeys(cid, prefix);
-  }
+  async sendLocalDBListKeys(cid: bigint, prefix?: string): Promise<string[]> { return this.modules.localDB.listKeys(cid, prefix) }
 
   // ============== File Picker ==============
 
