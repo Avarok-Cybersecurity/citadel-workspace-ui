@@ -2086,6 +2086,93 @@ Also reported in the same layer, not yet acted on:
 - **39 of 43 truncations carry no `title`**, including the DM list, workspace
   switcher, chat tabs and member rows — every identity-bearing one.
 
+## Round twenty-two — the multi-tab bug root-caused and fixed, 2026-08-26
+
+### 189. A second tab could not see the first tab's session — FIXED, two breaks
+
+Root-caused precisely, and both breaks proved from source.
+
+**Break 1 — the "can I send" gate was leader-only.** `fetchActiveSessions` gates
+on `isWebSocketConnected()`, which is `isInitialized && client !== null`. A
+FOLLOWER tab never owns a WASM client — `doInit` sets `client = null` for
+followers **by design** and proxies through the leader instead. So tab 2 failed
+the gate, returned `[]` **without ever sending GetSessions**, and cached the
+empty answer. This is why the bounded retry added in the previous round changed
+nothing: the request was never being made.
+
+**Break 2 — the follower proxy correlated on the wrong id.** It minted a fresh
+UUID as the key for the leader's pending map, but the internal service echoes
+the `request_id` embedded in the PAYLOAD. `routeByRequestId` missed,
+`routeByCid` got null (GetSessions replies with `cid: 0`, which is falsy), and
+the response was processed locally on the leader — a tab with no such pending
+request — while the follower waited out its timeout.
+
+Connect and Register work from followers precisely because they pass their
+embedded requestId through explicitly. **The mechanism was correct in one place
+and never propagated** — the campaign's most common shape, again. Deriving the id
+in the proxy fixes every `sendMessage()`-based flow at once.
+
+Negative-controlled end to end: restoring the leader-only gate reproduces the
+exact original failure.
+
+**The method note worth keeping:** this bug was found only because a test that
+could not fail was made able to fail. The assertion had `seesLandingButtons` in
+its disjunction — the not-detected state — so it passed precisely when the
+session was not detected. Nothing else in the suite covered it.
+
+**And the strengthened failover assertion was itself wrong**, which the run
+exposed: it navigated tab 2 to `/workspace`, but tab 2 never selected a session,
+so that legitimately redirects to `/connect`. Taking over leadership means being
+able to REACH the internal service, so it now asserts the session list survives.
+A strengthened assertion is still an assertion that has to be right.
+
+### 190. CONFIRMED by independent verification — RE-VFS uploads store no bytes
+
+The claim recorded last round was verified against source, and is **worse than
+reported**: the request dies client-side at the WASM serde boundary before ever
+reaching the internal service, so nothing is even logged.
+
+- `source` is sent as a bare string where the backend expects the externally-
+  tagged `FileSource` enum. `deserialize_request` uses strict
+  `serde_wasm_bindgen::from_value`, so the send rejects immediately — and
+  `backendSendFile`'s catch resolves `{ success: false }`, which the caller
+  awaits and **ignores**.
+- `transfer_type: 'FileTransfer'` rather than
+  `RemoteEncryptedVirtualFilesystem { virtual_path, security_level }`, and
+  `virtual_path` is never sent — so even with the source fixed, the key that
+  DownloadFile and DeleteVirtualFile address is never created.
+- The peer-scoped upload never calls the backend at all, and `handleDrop` reads
+  only name/size/type off the browser `File` — `arrayBuffer()` appears nowhere
+  in the file-manager or revfs paths.
+- The tree is mutated and persisted BEFORE the backend call, there is no
+  rollback, and the user is shown **"Uploaded: {name}"**. Phantom files count
+  against the quota and can trigger the storage-limit modal.
+- **Reachable and enabled by default** — sidebar → File Manager, no feature flag;
+  the only gate defaults to true on both server and client.
+- Unit tests cannot catch it: the test helper mocks the entire intent as
+  `{ type: 'backend-send-file', success: true }`.
+
+Not fixed in this round: the fix needs the `File` object plumbed through
+`handleDrop` → `uploadFile` → intent (currently metadata-only), a correct
+`FileSource` and `transfer_type`, the result checked instead of discarded, and
+the same treatment for the peer path. Recorded in full so it is done once,
+properly, rather than partially.
+
+### 191. Avatars had no `alt` — FIXED, at the type level
+
+All seven `AvatarImage` call sites lacked one. Radix unmounts `AvatarFallback`
+once the image loads, so the initials carrying the person's name disappear at
+exactly the moment a real picture exists — and in the TopBar account menu, whose
+button has no text, that left the only route to Profile, Settings and Sign out
+announced as "button". Its `title` was admin-only, so non-admins had nothing.
+
+`alt` is now **required by the prop type**, not by a lint rule: a rule can be
+disabled per line and a new call site added without one, whereas this fails the
+build. Six sites pass `alt=""` deliberately — their subject is named in adjacent
+text, so a meaningful alt would announce the person twice — and that choice is
+now visible in the diff rather than absent from it. The account-menu button
+carries its own `aria-label`, which is what survives the image failing to load.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
