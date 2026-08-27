@@ -4233,6 +4233,63 @@ The fake was incomplete, not wrong — but the signal is real: **adding a requir
 method to an interface breaks every hand-written double of it**, and only a full
 run finds them.
 
+## Round fifty-six — fixing the loop instead of the files, 2026-08-27
+
+### 300. The 250-line cap existed only as inline YAML — EXTRACTED
+
+The rule and its skip list lived nowhere but inside `validate.yml`, so running
+it locally meant hand-copying a bash loop. That is exactly what I had been
+doing, and forgetting: **the cap was pushed over and committed three times, twice
+after the failure had already been written down in this register.**
+
+Round forty-six recorded "the local loop runs four checks while CI runs eleven".
+Recording it changed nothing, because the gap was not knowledge — it was that
+four of those eleven had no runnable form.
+
+Now `scripts/check-file-length.mjs`, called by the workflow. Its failure message
+also says the thing I had to learn twice: *rewriting a comment at the same length
+does not reduce the count.*
+
+### 301. `npm run preflight` — every gate that does not need Docker, in one command
+
+Twelve checks: the file cap, six guard scripts, the event-pair guard, typecheck,
+lint and the unit suite. Deliberately excludes anything needing Docker or a live
+stack, and the integration suites, which share one backend.
+
+Negative-controlled, because a preflight that cannot fail would be the worst
+possible irony here: pushing one file over the cap and deleting one `aria-label`
+produced exactly two FAILED lines and ten `ok`s.
+
+### 302. An `assert…` helper returned true in the case it exists to reject — FIXED
+
+`assertSessionNotInOrphanNavbar` retries three times and then, with the session
+**still there**, logged "treating as soft pass" and returned `true`. Its only
+`false` path was an exception.
+
+Four reconnection suites record that return value as their verdict, so the
+"Session Already Connected" lifecycle family — which this project has fought
+repeatedly — was laundered into green.
+
+The justification given was a Disconnect/TCP-close race. The retries already
+answer that: three attempts with a 2s probe each is seconds of grace, and still
+present after all of them is not a race, it is a session that was never cleaned
+up.
+
+**This may turn those suites red, and that is the point.** A test that should
+fail, failing, is the fix working.
+
+### 303. Two more helpers that reported success without checking — FIXED
+
+- **`createLiveDoc` returned `true` unconditionally.** Create button never found,
+  modal never opened, name never entered — every branch fell through to success.
+  It would pass against an app with Live Docs removed entirely. It now verifies
+  the document appears.
+- **`connectP2P` returned `true` when the peer never appeared as connected** —
+  its entire verification — with the comment "Connection request sent
+  successfully". Request send is not response, and this helper is the documented
+  **retry fallback** for PeerConnect timeouts, so it reported the retry as having
+  worked in precisely the case where it had not.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

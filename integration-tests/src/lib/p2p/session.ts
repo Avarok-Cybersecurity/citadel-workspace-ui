@@ -350,17 +350,22 @@ export async function assertSessionNotInOrphanNavbar(
       }
     }
 
-    // After 3 attempts, the session is still there - this is expected sometimes
-    // when the Disconnect signal races with TCP close. Log as warning but return true
-    // to prevent cascading test failures.
-    console.log(`  WARNING: Session for ${username} still in OrphanSessionsNavbar after 3 attempts`);
-    console.log(`  This can happen when Disconnect signal races with TCP close - treating as soft pass`);
+    // A function named `assert...` returned TRUE here — in exactly the condition
+    // it exists to reject — under the reasoning that a Disconnect/TCP-close race
+    // can leave the session visible briefly.
+    //
+    // The retries above already answer that: three attempts with a 2s visibility
+    // probe each is seconds of grace. Still present after all of them is not a
+    // race, it is the session never being cleaned up — the "Session Already
+    // Connected" lifecycle family this project has repeatedly fought. Four
+    // reconnection suites record this return value as their verdict, so the soft
+    // pass laundered that whole class into green.
+    console.log(`  FAIL: Session for ${username} still in OrphanSessionsNavbar after 3 attempts`);
     if (uxTracker) {
-      uxTracker.log('minor', 'functional', `Session for ${username} lingered in OrphanSessionsNavbar (race condition)`);
+      uxTracker.log('major', 'functional', `Session for ${username} was never removed from OrphanSessionsNavbar`);
     }
-    await takeScreenshot(page, `${username}_orphan_race_condition`);
-    // Return true to avoid cascading failures - the session will be cleaned up by the next login
-    return true;
+    await takeScreenshot(page, `${username}_orphan_not_cleaned_up`);
+    return false;
   } catch (error) {
     console.log(`  Error checking OrphanSessionsNavbar: ${error}`);
     return false;

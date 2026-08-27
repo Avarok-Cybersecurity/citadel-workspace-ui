@@ -52,6 +52,17 @@ export async function createLiveDoc(
     }
   }
 
+  // Every branch above — create button never found, modal never opened, name
+  // never entered — used to fall through to `return true`, so this reported
+  // success against an app with Live Docs removed entirely. Same shape as the
+  // constant `createAccount` return this suite already fixed once.
+  const created = page.locator(`text="${docName}"`).first();
+  if (!(await isVisibleWithin(created, 5000))) {
+    console.log(`  FAIL: Live Doc "${docName}" was not created`);
+    await takeScreenshot(page, `${username}_live_doc_not_created`);
+    return false;
+  }
+
   await takeScreenshot(page, `${username}_live_doc_created`);
   console.log(`  Live Doc "${docName}" created`);
   return true;

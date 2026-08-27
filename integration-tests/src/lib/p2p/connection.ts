@@ -122,9 +122,14 @@ export async function connectP2P(
       return true;
     }
 
-    // Fallback: Check if connection succeeded even if UI hasn't updated yet
-    console.log(`  P2P connect sent but peer not visible in sidebar yet (may need UI refresh)`);
-    return true; // Connection request sent successfully
+    // Request send is not response. This returned TRUE here — the peer never
+    // appeared under CONNECTED PEERS, which is this function's entire
+    // verification — and it is the documented retry fallback for PeerConnect
+    // timeouts, so it reported the retry as having worked in exactly the case
+    // where it had not.
+    console.log(`  FAIL: P2P connect to ${peerUsername} sent, but the peer never appeared as connected`);
+    await takeScreenshot(page, `${username}_p2p_connect_unconfirmed`);
+    return false;
 
   } catch (error) {
     console.log(`  P2P connect error: ${error}`);
