@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,8 +20,22 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
   const [hasChanges, setHasChanges] = useState(false);
   const [originalName, setOriginalName] = useState('');
   const [originalDescription, setOriginalDescription] = useState('');
+  const seededKeyRef = useRef<string | null>(null);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
+    // `state.nodes` is re-minted by ANY node event in the workspace — including a
+    // teammate saving an unrelated document — so this effect re-runs constantly.
+    // Re-seeding then replaced whatever the admin was typing AND reset the
+    // originals, flipping hasChanges back to false so Save greyed out: the work
+    // was gone and the UI denied it had existed.
+    //
+    // An untouched form still follows the store, which is what makes a genuine
+    // remote rename visible. Only unsaved edits are protected.
+    const entityKey = `${entityType}:${entityId}`;
+    if (seededKeyRef.current === entityKey && dirtyRef.current) return;
+    seededKeyRef.current = entityKey;
+
     const loadData = () => {
       setLoading(true);
       try {
@@ -48,7 +62,9 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
   }, [entityType, entityId, state.workspace, state.nodes]);
 
   useEffect(() => {
-    setHasChanges(name !== originalName || description !== originalDescription);
+    const dirty = name !== originalName || description !== originalDescription;
+    setHasChanges(dirty);
+    dirtyRef.current = dirty;
   }, [name, description, originalName, originalDescription]);
 
   const handleSave = async () => {
