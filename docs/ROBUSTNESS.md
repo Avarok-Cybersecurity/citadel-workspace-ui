@@ -3003,6 +3003,72 @@ The success-path test **still passes** on the broken version, and that is
 correct: it is not the discriminating assertion, and a control in which every
 test fails proves less than one where only the right ones do.
 
+## Round thirty-seven — two unaudited surfaces, recorded not fixed, 2026-08-27
+
+Two areas that earlier passes never reached. Findings below are **recorded, not
+fixed**; the headline claim of each was re-verified against source before being
+written down, because an audit report is a lead, not a fact.
+
+### 234. The permission editor writes four role columns to one user — VERIFIED, NOT FIXED
+
+`PermissionManager` is opened for a single `userId`, but presents a
+Role × Permission matrix. `handleSave` loops `ROLE_HIERARCHY` and applies **each
+role column's** delta-from-defaults to that one user. Unchecking "View content"
+in the **Guest** column issues `Remove ViewContent` for a user who is an
+**Owner**. Checking a box in one column and clearing it in another sends both an
+Add and a Remove for the same user, and the surviving set depends on loop order.
+
+It also never shows real state: `getUserPermissions` is send-only, the awaited
+result is discarded, and the response — which does arrive, as
+`user:permissions:loaded` — has no subscriber. So the matrix always renders role
+defaults, existing overrides are invisible, and an untouched Save sends nothing
+while toasting "Permissions saved successfully."
+
+**Not fixed because the correct fix depends on intent**, and the two candidates
+disagree: if this is meant to edit one member, the matrix is wrong and it should
+be a single column fed by the loaded payload; if it is meant to edit role
+templates, the per-user write is wrong. Guessing would replace a visible bug with
+an invisible one in an authorization path. Flagged for a decision.
+
+### 235. Recorded, not fixed — file transfer never reaches a terminal state
+
+The protocol router defines `onProgress`, `onComplete` and `onStatusChange`, and
+the parsers for every `FileTransferTickNotification` variant exist. **Nothing
+subscribes to any of them** — the same class round thirty-six now gates for the
+event bus, in a callback registry the guard does not cover.
+
+Consequences: a receiver sits at "Downloading… 0%" **for ever, including on
+success**, because the only code that marks an incoming transfer complete waits
+on an in-band message whose sender throws `sendComplete not supported`. The
+sidebar's Downloads section filters for exactly that unreachable state. The
+sender learns nothing — not accept, decline, progress, completion or failure.
+
+The sender has no bubble at all: the announcement goes straight to the wire
+without a local echo, so "Waiting for acceptance…", "Sent successfully",
+"Transfer declined" and **Cancel** are all unreachable. A sender cannot cancel a
+transfer. Where cancel is reachable it is a local-map cleanup that tells the peer
+nothing. `expiresAt` is set, shipped, and never compared to a clock.
+
+The async mode — labelled "Recommended" — announces a `staged:` pseudo-ref that
+its own upload code documents as "NOT a server path", and its completion matcher
+resolves on **any** status notification for the same user, with no per-transfer
+correlation: a concurrent transfer completing stamps this one complete with
+someone else's download path.
+
+### 236. Recorded, not fixed — admin forms discard typed input on unrelated events
+
+`GeneralTab` re-seeds its name and description from the store on
+`[.., state.nodes]`, and `state.nodes` is re-minted by **any** node event in the
+workspace — including a teammate saving an unrelated document. Mid-edit text is
+replaced, and because the reset also overwrites `originalName`/`originalDescription`,
+`hasChanges` flips false and Save greys out: the work is gone and the UI denies
+it existed. `ChatSettingsTab` has the identical dependency.
+
+Adjacent: "Add member" sends an untrimmed typed username, and the server mints a
+`User` for any id it does not find. A typo does not fail — it fabricates a
+permanent roster entry for a person who does not exist, and toasts that they were
+added.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
