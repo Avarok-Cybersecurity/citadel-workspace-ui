@@ -7,6 +7,7 @@ import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import WorkspaceService from '@/lib/workspace-service';
 import { buildWorkspacePath, getWorkspacePath } from '@/lib/workspace-navigation';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
+import { MoveNodeDialog } from './MoveNodeDialog';
 import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
 import { NodeManagementModal } from '@/components/node/NodeManagementModal';
 import { AdminModal } from '@/components/admin';
@@ -30,6 +31,7 @@ export function HierarchySidebar() {
   // Modal state
   const [createModal, setCreateModal] = useState<{ parentId: string; entityType: string } | null>(null);
   const [editNode, setEditNode] = useState<DomainNode | null>(null);
+  const [moveNode, setMoveNode] = useState<DomainNode | null>(null);
   const [adminNode, setAdminNode] = useState<DomainNode | null>(null);
   // The app's dialog, not window.confirm — which is what `confirm` resolves to
   // if this line is missing, silently, with a `string` parameter.
@@ -150,6 +152,22 @@ export function HierarchySidebar() {
     }
   }, [toast]);
 
+  const handleMove = useCallback(async (nodeId: string, newParentId: string | null) => {
+    try {
+      await WorkspaceService.moveNode(nodeId, newParentId);
+      toastSuccess(toast, 'Moved', 'The change has been saved.');
+    } catch (error) {
+      debugLog('HierarchySidebar', 'Error moving node:', error);
+      toastError(
+        toast,
+        'Could not move it',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
+    } finally {
+      setMoveNode(null);
+    }
+  }, [toast]);
+
   const adminEntityType = adminNode
     ? getEntityTypeString(adminNode.entity_type).toLowerCase()
     : 'workspace';
@@ -168,8 +186,16 @@ export function HierarchySidebar() {
         onNodeCreate={handleNodeCreate}
         onAdminSettings={handleAdminSettings}
         onSetDefault={handleSetDefault}
+        onMoveNode={setMoveNode}
         title="HIERARCHY"
         isLoading={state.loading.nodes}
+      />
+
+      <MoveNodeDialog
+        node={moveNode}
+        nodes={state.nodes}
+        onMove={(nodeId, parentId) => void handleMove(nodeId, parentId)}
+        onClose={() => setMoveNode(null)}
       />
 
       {/* Create Node Modal */}

@@ -141,6 +141,7 @@ export class WorkspaceService implements ProtocolSender {
   public createNode(parentId: string | null, entityType: { Child: string } | 'Workspace', name: string, desc: string, opts?: { mdxContent?: string; metadata?: Uint8Array; isDefault?: boolean }) { return nodes.createNode(this, parentId, entityType, name, desc, opts); }
   public updateNode(nodeId: string, updates: { name?: string; description?: string; mdxContent?: string; rules?: string; chatEnabled?: boolean; isDefault?: boolean }) { return nodes.updateNode(this, nodeId, updates); }
   public deleteNode(nodeId: string, cascade?: boolean) { return nodes.deleteNode(this, nodeId, cascade); }
+  public moveNode(nodeId: string, newParentId: string | null) { return nodes.moveNode(this, nodeId, newParentId); }
   public listNodes(parentId?: string | null, entityTypes?: Array<{ Child: string } | 'Workspace'>) { return nodes.listNodes(this, parentId, entityTypes); }
   public getTreeStructure(rootId?: string, maxDepth?: number) { return nodes.getTreeStructure(this, rootId, maxDepth); }
   public getTreeSchema() { return nodes.getTreeSchema(this); }

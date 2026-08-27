@@ -33,6 +33,7 @@ export interface TreeNodesSectionProps {
   onNodeCreate?: (parentId: string | null) => void;
   onAdminSettings?: (node: DomainNode) => void;
   onSetDefault?: (node: DomainNode) => void;
+  onMoveNode?: (node: DomainNode) => void;
   title?: string;
   isLoading?: boolean;
   /**
@@ -57,6 +58,7 @@ export function TreeNodesSection({
   onNodeCreate,
   onAdminSettings,
   onSetDefault,
+  onMoveNode,
   title = "HIERARCHY",
   isLoading = false,
   canCreate = true,
@@ -308,6 +310,7 @@ export function TreeNodesSection({
                     onNodeCreate={onNodeCreate}
                     onAdminSettings={onAdminSettings}
                     onSetDefault={onSetDefault}
+                    onMoveNode={onMoveNode}
                   />
                 )
               )}

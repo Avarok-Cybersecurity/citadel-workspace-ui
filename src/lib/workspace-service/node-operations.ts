@@ -162,3 +162,33 @@ export async function getServerCapabilities(sender: ProtocolSender): Promise<voi
   };
   return sender.sendProtocolRequest(requestPart);
 }
+
+/**
+ * Move a node to a different parent.
+ *
+ * `MoveNode` has been fully plumbed on both sides for a long time: typed in the
+ * protocol, permission-gated in the kernel, broadcast to other members,
+ * gate-mapped in `SUCCESS_RESPONSES`, and handled by the client's node event
+ * setup. It had no client method and no UI, so reorganising a workspace was
+ * simply impossible — a whole capability built from both ends and never joined
+ * in the middle.
+ *
+ * `null` moves the node to the workspace root.
+ */
+export async function moveNode(
+  sender: ProtocolSender,
+  nodeId: string,
+  newParentId: string | null,
+): Promise<void> {
+  const requestPart: WorkspaceProtocolRequestTS = {
+    MoveNode: {
+      node_id: nodeId,
+      new_parent_id: newParentId,
+    },
+  };
+  return awaitWriteResponse(
+    'MoveNode',
+    () => sender.sendProtocolRequest(requestPart),
+    aboutNode(nodeId),
+  );
+}

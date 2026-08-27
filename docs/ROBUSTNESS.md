@@ -8025,3 +8025,41 @@ One behaviour was preserved rather than unified, deliberately: the by-sender
 sweep never notified the per-notification handlers and the panel sweeps always
 did. Unifying them would re-render every subscriber on every read receipt, so
 the shared helper takes a flag and the comment says why.
+
+### Round 127 — a whole capability built from both ends and never joined
+
+`MoveNode` was typed in the protocol, permission-gated in the kernel, broadcast
+to other members, mapped in `SUCCESS_RESPONSES`, and handled by the client's
+node event setup. It had no client method and no UI. Reorganising a workspace
+was simply impossible — the most complete instance yet of the shape this
+campaign keeps finding, with both ends finished and nothing in between.
+
+The entry point is a picker rather than drag-and-drop, deliberately. Dragging a
+tree row onto another is the obvious gesture and it is unreachable by keyboard,
+invisible to a screen reader and awkward on touch — and this is the *only* way
+to reorganise a workspace, so it has to work for everyone. A picker is also the
+only shape that can say why there is nowhere to move something, which a drop
+target cannot.
+
+`moveTargets` computes the legal destinations client-side so the picker never
+offers one the server will refuse: not itself, not any of its own descendants,
+not a parent whose `allowed_child_types` refuses it.
+
+**Two of the three negative controls did not discriminate, and finding that out
+was most of the round.**
+
+The descendant rule looked tested and was not: the fixture had no descendant
+that would *also* pass the schema rule, so allowing descendants changed nothing
+and the control passed. The tree now contains a nested node that accepts the
+moving node's own type, so only the descendant check can exclude it.
+
+The cycle guard was worse. Removing it does not throw — it hangs, and a
+synchronous loop never yields, so vitest's own timeout cannot fire and the whole
+suite stops instead of failing. A wall-clock assertion is equally useless,
+because the line never runs. This is the same lesson as round 75's
+`tokio::time::timeout` over a synchronous walk, met from the other side.
+
+The answer was to stop relying on a guard whose absence is untestable: the walk
+is now bounded by construction, at one iteration per node. With the bound in
+place, removing the visited set still terminates and the test still passes —
+which is the point. Remove *both* and the suite hangs, which is at least loud.

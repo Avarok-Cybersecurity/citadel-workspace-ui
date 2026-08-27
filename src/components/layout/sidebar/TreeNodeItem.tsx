@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Settings,
   Star,
+  FolderInput,
 } from 'lucide-react';
 import { getEntityMetadata, getEntityTypeString } from '@/lib/entity-type-registry';
 import {
@@ -42,6 +43,7 @@ export interface TreeNodeItemProps {
   onNodeCreate?: (parentId: string) => void;
   onAdminSettings?: (node: DomainNode) => void;
   onSetDefault?: (node: DomainNode) => void;
+  onMoveNode?: (node: DomainNode) => void;
 }
 
 export function TreeNodeItem({
@@ -56,6 +58,7 @@ export function TreeNodeItem({
   onNodeCreate,
   onAdminSettings,
   onSetDefault,
+  onMoveNode,
 }: TreeNodeItemProps) {
   const { node, children } = treeNode;
   const isSelected = selectedNodeId === node.id;
@@ -187,6 +190,15 @@ export function TreeNodeItem({
                 Add Child
               </DropdownMenuItem>
             )}
+            {onMoveNode && (
+              <DropdownMenuItem
+                onClick={() => onMoveNode(node)}
+                data-testid={`move-node-${node.id}`}
+              >
+                <FolderInput className="h-4 w-4 mr-2" />
+                Move…
+              </DropdownMenuItem>
+            )}
             {onSetDefault && !node.is_default && (
               <DropdownMenuItem
                 onClick={() => onSetDefault(node)}
@@ -229,6 +241,7 @@ export function TreeNodeItem({
             onNodeCreate={onNodeCreate}
             onAdminSettings={onAdminSettings}
             onSetDefault={onSetDefault}
+            onMoveNode={onMoveNode}
           />
         ))}
     </>
