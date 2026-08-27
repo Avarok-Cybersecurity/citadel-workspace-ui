@@ -14,7 +14,8 @@ import { P2PCommandType, serializeP2PCommand } from '@/types/p2p-types';
 import type { P2PCommand, P2PMessagingLayerPayload } from '@/types/p2p-types';
 import { RevfsOpfsStorage } from './opfs-storage';
 import { debugLog } from '@/lib/debug-config';
-import { backendSendFile, backendDownloadFile, backendDeleteFile } from './revfs-io-network';
+import { backendSendFile, backendDeleteFile } from './revfs-io-network';
+import { backendDownloadFile } from './revfs-io-download';
 
 export interface RevfsIODeps {
   sendP2PMessageReliable: (localCid: bigint, peerCid: bigint, message: Uint8Array) => Promise<void>;

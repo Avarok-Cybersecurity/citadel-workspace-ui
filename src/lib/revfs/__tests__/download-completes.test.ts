@@ -18,7 +18,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
-import { backendDownloadFile } from '../revfs-io-network';
+import { backendDownloadFile } from '../revfs-io-download';
 
 const CID = 7n;
 const PATH = '/docs/notes.txt';
@@ -83,7 +83,7 @@ describe('a RE-VFS download', () => {
     expect(settled).toBe(false);
 
     tick(requestId(), 'ReceptionComplete');
-    expect((await pending).success).toBe(true);
+    expect(await pending).toMatchObject({ success: true });
     vi.useRealTimers();
   });
 });
