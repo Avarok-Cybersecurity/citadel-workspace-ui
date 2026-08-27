@@ -22,12 +22,13 @@ export interface StoredServer {
  */
 export async function listKnownServers(options: { cid: string }): Promise<{ servers: StoredServer[] }> {
   try {
-    // Check if websocket service is already initialized
-    const client = websocketService.getClient();
-    
-    if (!client) {
+    // `canSendRequests`, not `getClient()`. A follower tab owns no client by
+    // design and would always have taken the localStorage fallback -- serving a
+    // possibly stale saved-workspace list with no indication, even though the
+    // LocalDB copy was perfectly reachable by proxy through the leader.
+    if (!websocketService.canSendRequests()) {
       // Don't try to initialize here - let ConnectionManager handle it
-      debugLog('ServerUtils', 'WebSocket client not available yet, falling back to localStorage');
+      debugLog('ServerUtils', 'Cannot reach the internal service yet, falling back to localStorage');
       return { servers: getRecentServers() };
     }
     
@@ -103,7 +104,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
         }
       };
 
-      client.sendDirectToInternalService(request)
+      websocketService.sendMessage(request as unknown as Record<string, unknown>)
         .catch(error => {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
@@ -124,10 +125,8 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
  */
 export async function storeKnownServer(server: StoredServer, cid: string = "0"): Promise<void> {
   try {
-    const client = websocketService.getClient();
-    
-    if (!client) {
-      throw new Error('WebSocket client not initialized');
+    if (!websocketService.canSendRequests()) {
+      throw new Error('Cannot reach the internal service');
     }
     
     const requestId = crypto.randomUUID();
@@ -187,7 +186,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
         }
       };
 
-      client.sendDirectToInternalService(request)
+      websocketService.sendMessage(request as unknown as Record<string, unknown>)
         .catch(error => {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);

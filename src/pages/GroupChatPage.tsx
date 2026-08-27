@@ -13,7 +13,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { groupIdToKey } from '@/lib/group-conversations/group-key';
 import { useRegisteredPeers } from '@/hooks/use-registered-peers';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
@@ -23,8 +22,7 @@ import { GroupChatView } from '@/components/chat/GroupChatView';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation, GroupSettings } from '@/types/group';
 import { connectionManager } from '@/lib/connection';
-import { websocketService } from '@/lib/websocket-service';
-import { toInternalServiceRequest } from '@/hooks/use-group-conversations.types';
+import { sendGroupEnd } from '@/lib/group-conversations/group-requests';
 import { debugLog } from '@/lib/debug-config';
 import { AppLayout } from '@/components/layout/AppLayout';
 
@@ -157,18 +155,11 @@ export function GroupChatPage() {
   const handleDeleteGroup = useCallback(async () => {
     if (!groupId || !currentUserId) return;
     try {
-      const request = {
-        GroupEnd: {
-          cid: BigInt(currentUserId),
-          group_key: groupIdToKey(groupId),
-          request_id: crypto.randomUUID(),
-        },
-      };
-
-      const client = websocketService.getClient();
-      if (client) {
-        await client.sendDirectToInternalService(toInternalServiceRequest(request));
-      }
+      // Was `const client = getClient(); if (client) { ...send... }` — and a
+      // follower tab owns no client, so the delete was skipped WITHOUT error
+      // and the user was navigated away as though it had worked. The group
+      // still existed, for everyone.
+      await sendGroupEnd(groupId);
       navigate('/workspace');
     } catch (error) {
       debugLog('GroupChatPage', 'Failed to delete group:', error);

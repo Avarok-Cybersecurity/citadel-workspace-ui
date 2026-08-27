@@ -64,9 +64,11 @@ export class ConnectionIOWebSocket {
     await wsModule.websocketService.sendMessage(message as Record<string, unknown>);
   }
 
-  isWebSocketConnected(): boolean {
-    return wsModule.websocketService.isConnected();
-  }
+  // `isWebSocketConnected` used to live here, forwarding `isConnected()` --
+  // which asks whether THIS tab owns a WASM client and is false in every
+  // follower for ever. It had no callers at all, so it was a trap rather than a
+  // bug: the next caller would have gated a send on it, exactly as four other
+  // call sites already had. `canSendRequests` below is the question to ask.
 
   /** Whether a request can reach the internal service — see core.canSendRequests. */
   canSendRequests(): boolean {

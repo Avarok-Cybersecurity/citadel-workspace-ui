@@ -7288,3 +7288,54 @@ re-offer replace rather than pile up. The toast wrapper gained `id` for it —
 the first thing it has ever needed beyond title/description/action, and worth it
 because "raise this again, don't duplicate it" is the general shape of a
 re-offer.
+
+### Round 111 — every group operation was leader-tab-only, and accepting an invite corrupted membership in silence
+
+From the multi-tab audit. `websocketService.getClient()` returns the WASM client,
+and a follower tab owns none — one WebSocket per browser, the leader holds it,
+followers proxy. All six group wire operations went through a `requireClient()`
+that threw "WebSocket client not initialized", so in every tab but one, creating
+a group, inviting, leaving, kicking, refreshing the list and answering an
+invitation all failed.
+
+The invitation case is the one that did damage. `applyGroupInvite` adds the group
+locally and then calls `sendGroupRespond`; in a follower that threw into a catch
+whose only action is a `debugLog`, which is nothing in production. The user saw
+the group in their sidebar and could be messaged over P2P, while the server never
+recorded their membership: the creator's roster stayed empty, group calls stayed
+disabled because a group's callable roster *is* its members, and the first
+outbound send failed on a membership error. No signal anywhere. And group
+invitations are CID-routed to the tab owning that session, which is frequently
+not the leader — so this is not a rare path.
+
+Deleting a group was worse in a different way. `const client = getClient(); if
+(client) { ...send... }` — in a follower the send was skipped **without error**
+and the user was navigated away as though it had worked. The group still existed,
+for everybody.
+
+Two more from the same family, both fixed here. Peer-registration persistence
+called `getClient()`, and on null **resolved successfully** after logging that it
+was skipping the write — so an incoming contact request that landed in a follower
+was never written to LocalDB and vanished on reload; nothing failed, the request
+simply ceased to exist. And `loadUserRegistration`'s fallback threw there, whose
+catch raises a HIGH-priority "User Profile Error" system notification: an
+alarming, permanent-looking failure produced entirely by asking the wrong
+question.
+
+`isWebSocketConnected` on the connection IORouter is deleted rather than fixed.
+It forwarded `isConnected()` and had no callers at all — a trap rather than a
+bug, waiting for the next person to gate a send on it exactly as four call sites
+already had.
+
+**Four times now.** `fetchActiveSessions` returned `[]` without sending, so a
+second tab showed no sessions. The health probe pinned a red "Can't reach the
+Citadel agent" banner in every follower. The group operations above. The
+peer-registration writes. Each was found separately, months apart, and each fix
+stopped at the file it was found in — while `core.ts` carried a comment
+explaining the whole class the entire time.
+
+So the guard matters more than any of the fixes: a file that reaches for the raw
+client either names itself in a leader-only list with the reason its path runs
+only there, or it is wrong. A second test fails any exemption whose file no
+longer touches the client, and a third flags any file that both consults
+`isConnected()` and sends requests. That third one found the dead predicate.

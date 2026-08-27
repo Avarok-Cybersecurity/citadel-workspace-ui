@@ -64,19 +64,19 @@ export class UserService {
         return userInfo;
       }
 
-      // If no matching selected session, try to get account info via request
-      const client = websocketService.getClient();
-      if (!client) {
-        throw new Error('WebSocket client not initialized');
-      }
-
-      // Send GetAccountInformation request
-      await client.sendDirectToInternalService({
+      // If no matching selected session, try to get account info via request.
+      //
+      // `sendMessage`, not `getClient()`: a follower tab owns no client, so
+      // this fallback threw there and the catch below raised a HIGH-priority
+      // "User Profile Error" notification -- an alarming, permanent-looking
+      // failure produced entirely by asking the wrong question. Nothing about
+      // GetAccountInformation needs the raw client.
+      await websocketService.sendMessage({
         GetAccountInformation: {
           request_id: crypto.randomUUID(),
           cid: BigInt(cid),
         },
-      });
+      } as unknown as Record<string, unknown>);
 
       // For now, return a placeholder until we get the response
       // The actual user info will be updated when we receive the response

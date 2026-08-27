@@ -93,7 +93,12 @@ export class P2PMessengerManager extends EventListenerManager {
         notificationService.addMessageNotification(title, body, senderId, messageId, recipientCid, options)
     });
     this.setupEventListeners();
-    if (websocketService.isConnected()) {
+    // `canSendRequests`, not `isConnected`: the latter is false in every follower
+    // tab for ever. This was correct today only by boot ordering -- main.tsx
+    // constructs the manager before init runs, so the connection-success
+    // listener below rescued followers. Any future caller constructing it later
+    // would have booted them with an empty conversation history.
+    if (websocketService.canSendRequests()) {
       this.initPromise = this.loadCachedMessages().then(() => { this.isReady = true; this.emit('p2p:messages-loaded'); })
         .catch(err => debugLog('P2PMessengerManager', 'Loading cached messages failed:', err));
     }

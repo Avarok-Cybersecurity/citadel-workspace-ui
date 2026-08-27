@@ -42,14 +42,13 @@ async function localDBSet(
 
   return new Promise<void>((resolve, reject) => {
     pendingKVRequests.set(requestId, { resolve: () => resolve(), reject });
-    const client = websocketService.getClient();
-    if (!client) {
-      pendingKVRequests.delete(requestId);
-      debugLog('PeerRegistrationStore', `No WebSocket client - skipping ${label} persist`);
-      resolve();
-      return;
-    }
-    client.sendDirectToInternalService(request).catch(error => {
+    // `sendMessage`, not `getClient()`. A follower tab owns no client by
+    // design, and the old branch RESOLVED SUCCESSFULLY on that path -- so an
+    // incoming contact request that landed in a follower (they are CID-routed
+    // to the tab owning the session, which is often not the leader) was never
+    // written to LocalDB, and vanished on reload. Nothing failed; the request
+    // simply ceased to exist.
+    websocketService.sendMessage(request as unknown as Record<string, unknown>).catch(error => {
       debugLog('PeerRegistrationStore', `Failed to persist ${label}:`, error);
       pendingKVRequests.delete(requestId);
       reject(error);
@@ -91,14 +90,9 @@ async function localDBGet<T>(
         resolve(undefined);
       }
     });
-    const client = websocketService.getClient();
-    if (!client) {
-      pendingKVRequests.delete(requestId);
-      debugLog('PeerRegistrationStore', `No WebSocket client - skipping ${label} load`);
-      resolve(undefined);
-      return;
-    }
-    client.sendDirectToInternalService(request).catch(error => {
+    // See the persist path above: skipping this in a follower silently loaded
+    // nothing, so a reload of the tab holding a pending request lost it.
+    websocketService.sendMessage(request as unknown as Record<string, unknown>).catch(error => {
       debugLog('PeerRegistrationStore', `Failed to send ${label} load request:`, error);
       pendingKVRequests.delete(requestId);
       resolve(undefined);

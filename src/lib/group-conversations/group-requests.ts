@@ -22,12 +22,30 @@ async function requireCid(): Promise<bigint> {
   return BigInt(cid);
 }
 
-function requireClient() {
-  const client = websocketService.getClient();
-  if (!client) {
-    throw new Error('WebSocket client not initialized');
-  }
-  return client;
+/**
+ * Send a group request the way every other subsystem sends one.
+ *
+ * This used to be `websocketService.getClient()`, which returns null in every
+ * FOLLOWER tab by design — there is one WebSocket per browser, the leader owns
+ * the client, and followers proxy through it. So all six group operations threw
+ * "WebSocket client not initialized" in any tab but one: creating a group,
+ * inviting, leaving, kicking, refreshing the list, and — worst — answering an
+ * invitation.
+ *
+ * The invite case corrupted state silently. `applyGroupInvite` adds the group
+ * locally first and then calls `sendGroupRespond`; in a follower that threw into
+ * a catch that only debugLogs, which is nothing in production. The user saw the
+ * group and could be messaged over P2P while the server never recorded their
+ * membership: the creator's roster stayed empty, group calls stayed disabled,
+ * and the first outbound send failed on a membership error with no UI signal
+ * anywhere. Group invitations are CID-routed to the tab owning that session, so
+ * the tab that receives one is frequently not the leader.
+ *
+ * Nothing here needs the raw client. `sendMessage` awaits init, sends directly
+ * on the leader and proxies on a follower.
+ */
+async function sendGroupRequest(request: Record<string, unknown>): Promise<void> {
+  await websocketService.sendMessage(toInternalServiceRequest(request) as unknown as Record<string, unknown>);
 }
 
 /** Returns the request_id so the caller can correlate the eventual response. */
@@ -49,7 +67,7 @@ export async function sendGroupCreate(
       initial_users_to_invite: initialMembers.map(m => ({ ID: BigInt(m.cid) })),
     },
   };
-  await requireClient().sendDirectToInternalService(toInternalServiceRequest(request));
+  await sendGroupRequest(request);
   return requestId;
 }
 
@@ -63,7 +81,7 @@ export async function sendGroupInvite(groupId: string, peerCid: string): Promise
       request_id: crypto.randomUUID(),
     },
   };
-  await requireClient().sendDirectToInternalService(toInternalServiceRequest(request));
+  await sendGroupRequest(request);
 }
 
 /**
@@ -92,7 +110,7 @@ export async function sendGroupRespond(
       request_id: crypto.randomUUID(),
     },
   };
-  await requireClient().sendDirectToInternalService(toInternalServiceRequest(request));
+  await sendGroupRequest(request);
 }
 
 export async function sendGroupLeave(groupId: string): Promise<void> {
@@ -104,7 +122,7 @@ export async function sendGroupLeave(groupId: string): Promise<void> {
       request_id: crypto.randomUUID(),
     },
   };
-  await requireClient().sendDirectToInternalService(toInternalServiceRequest(request));
+  await sendGroupRequest(request);
 }
 
 export async function sendGroupKick(groupId: string, memberCid: string): Promise<void> {
@@ -117,7 +135,7 @@ export async function sendGroupKick(groupId: string, memberCid: string): Promise
       request_id: crypto.randomUUID(),
     },
   };
-  await requireClient().sendDirectToInternalService(toInternalServiceRequest(request));
+  await sendGroupRequest(request);
 }
 
 export async function sendGroupListRequest(): Promise<void> {
@@ -129,5 +147,22 @@ export async function sendGroupListRequest(): Promise<void> {
       request_id: crypto.randomUUID(),
     },
   };
-  await requireClient().sendDirectToInternalService(toInternalServiceRequest(request));
+  await sendGroupRequest(request);
+}
+
+/**
+ * End (delete) a group. Lived inline in GroupChatPage, which is why it was the
+ * one group operation that never learned the follower-tab lesson the others
+ * eventually did — it is here now, beside its five siblings.
+ */
+export async function sendGroupEnd(groupId: string): Promise<void> {
+  const cid = await requireCid();
+  const request = {
+    GroupEnd: {
+      cid,
+      group_key: groupIdToKey(groupId),
+      request_id: crypto.randomUUID(),
+    },
+  };
+  await sendGroupRequest(request);
 }
