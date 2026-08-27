@@ -5,6 +5,8 @@
  */
 
 import React, { forwardRef } from 'react';
+import { groupMessagesByDate } from '@/components/chat/shared';
+import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble } from './bubbles';
 import type { P2PMessage } from '@/lib/p2p';
@@ -90,7 +92,10 @@ export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
               </p>
             </div>
           )}
-          {messages.map((message) => {
+          {Object.entries(groupMessagesByDate(messages)).map(([date, dayMessages]) => (
+            <div key={date}>
+              <DateSeparator date={date} />
+              {dayMessages.map((message) => {
             const isOwn = message.senderCid === currentUserCid;
             const messageSenderName = isOwn ? currentUserName : peerName;
 
@@ -114,6 +119,8 @@ export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
               />
             );
           })}
+            </div>
+          ))}
         </div>
       </ScrollArea>
     );

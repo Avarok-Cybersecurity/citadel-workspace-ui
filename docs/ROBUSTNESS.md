@@ -8118,3 +8118,35 @@ sitting in the map with nobody awaiting it, which is an unhandled rejection —
 but that is a different property, and the test was silently claiming to cover
 something it does not. Both facts are now written where they belong: the
 distinction at the code, the limit of the control in the test.
+
+### Round 130 — two chat grammars in one product
+
+From the visual audit, and the first round drawn from nothing but a UI/UX
+finding: group chat and P2P chat had drifted into visibly different designs for
+the same thing. Group showed date separators; P2P showed none, so a long DM was
+an undifferentiated run of messages with no way to tell yesterday from last
+month. And the two used different greys for a received bubble — `bg-muted`
+against `bg-surface`, 17% versus 22% lightness in dark mode. Anyone who used a
+room and a DM in one session saw two products.
+
+Both now use one `DateSeparator` and one grouping rule — the helper was already
+generic over `{ timestamp }` and only the group side had ever called it. The
+separator names the date to a screen reader and hides the rules either side of
+it, which the group view's inline markup did not.
+
+The bubble colour resolves toward P2P's, not group's, because P2P's is the one
+carrying a reason: its comment records a light-mode contrast failure at roughly
+1.08:1 that produced the current token choice. When two implementations
+disagree and only one of them knows why it is what it is, that is the one to
+keep.
+
+The tests pin the sharing rather than the appearance, because "looks the same"
+is exactly the property that decays with nothing asserting it — and a screenshot
+test would fail on every unrelated style change while missing the next
+divergence.
+
+Still divergent, recorded rather than swept in: the composer is an
+auto-growing textarea in group chat and a single-line input in P2P, and
+pagination is a visible "Load older messages" button in one and an invisible
+scroll-to-top gesture in the other. Both are behaviour rather than styling, and
+both deserve a decision about which is right rather than a coin toss.

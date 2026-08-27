@@ -82,9 +82,14 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
 
         <div className={cn(
           'rounded-lg px-3 py-2 text-sm',
+          // `bg-surface`, matching the P2P bubble, not `bg-muted`. The two
+          // surfaces used visibly different greys for the same thing -- 17% vs
+          // 22% lightness in dark mode -- and P2P's choice is the one carrying
+          // a documented reason (see p2p/bubbles/types.ts on the light-mode
+          // contrast failure that produced it).
           isOwnMessage
             ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-foreground'
+            : 'bg-surface text-foreground'
         )}>
           {message.reply_to && (
             <div className="text-xs text-muted-foreground mb-1 border-l-2 border-border pl-2">

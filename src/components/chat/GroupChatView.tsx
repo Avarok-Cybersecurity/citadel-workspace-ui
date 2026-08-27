@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { DateSeparator } from './shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,11 +70,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             {/* Messages grouped by date */}
             {Object.entries(chat.messagesByDate).map(([date, dateMessages]) => (
               <div key={date}>
-                <div className="flex items-center justify-center my-4">
-                  <div className="h-px bg-border flex-1" />
-                  <span className="px-3 text-xs text-muted-foreground">{date}</span>
-                  <div className="h-px bg-border flex-1" />
-                </div>
+                <DateSeparator date={date} />
                 {dateMessages.map((message) => (
                   <GroupMessageItem
                     key={message.id}
