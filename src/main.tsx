@@ -174,6 +174,28 @@ try {
   });
   void updateSW;
 
+  // Recover a window whose chunks were replaced underneath it.
+  //
+  // `skipWaiting` takes over EVERY client at once, so the moment one window
+  // accepts an update the new precache is active everywhere — and the old
+  // hashed chunks are gone from it and 404 from nginx, which serves only the
+  // current build. Every route in this app is lazy, so any other open window
+  // that then navigates somewhere it had not already visited fails its dynamic
+  // import.
+  //
+  // With nothing listening, that rejection reaches the top-level error boundary
+  // and replaces the whole app — for a user who did nothing but have a second
+  // tab open. Vite fires `vite:preloadError` for exactly this, and a reload is
+  // the correct answer: the new build is already the one installed.
+  //
+  // `preventDefault` stops the unhandled rejection so the boundary does not
+  // also fire while the reload is in flight.
+  window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
+    console.warn('A chunk went missing, which means this window is running a superseded build. Reloading.');
+    window.location.reload();
+  });
+
   // And keep checking, whatever the app is doing. PwaUpdatePrompt polls hourly
   // while it is mounted; this interval survives a crashed render, which is
   // exactly the case where a new build matters most.

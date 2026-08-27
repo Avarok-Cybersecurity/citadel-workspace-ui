@@ -1,0 +1,144 @@
+/**
+ * Responses that map directly to a generated protocol variant.
+ *
+ * Split from workspace-handlers so that file keeps the string and type-gap
+ * responses, whose shapes are hand-maintained, and these stay together as
+ * plain forwarding.
+ */
+
+import { eventEmitter } from '@/lib/event-emitter';
+import { debugLog } from '@/lib/debug-config';
+import { isVariant } from 'citadel-workspace-client-ts';
+import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import type { ConnectionInfo } from './workspace-handlers';
+import { mapWasmMember } from './member-mapping';
+
+export function handleGeneratedVariants(
+  response: WorkspaceProtocolResponse,
+  connectionInfo: ConnectionInfo,
+): boolean {
+  if (isVariant(response, 'Workspaces')) {
+    eventEmitter.emit('workspaces:listed', {
+      workspaces: response.Workspaces, connection: connectionInfo,
+    });
+    return true;
+  }
+
+  if (isVariant(response, 'Workspace')) {
+    eventEmitter.emit('workspace:loaded', {
+      workspace: {
+        id: response.Workspace.id,
+        name: response.Workspace.name,
+        description: response.Workspace.description,
+        metadata: response.Workspace.metadata || [],
+      },
+      connection: connectionInfo,
+    });
+    // Also raw, so a caller awaiting confirmation can see it.
+    //
+    // `Success` and `Error` emit this; the handled variants did not — they
+    // returned true and the response ended there. So every write gated on THIS
+    // variant waited out its 15s timeout and told the user "the change may not
+    // have been saved", after the same handler had already applied it. The
+    // action worked, and the app said it had not.
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'Members')) {
+    const mappedMembers = response.Members.map((m: Record<string, unknown>) => mapWasmMember(m));
+    eventEmitter.emit('members:loaded', {
+      members: mappedMembers, connection: connectionInfo,
+    });
+    return true;
+  }
+
+  if (isVariant(response, 'Member')) {
+    const mappedMember = mapWasmMember(response.Member as Record<string, unknown>);
+    eventEmitter.emit('member:loaded', {
+      member: mappedMember, connection: connectionInfo,
+    });
+    return true;
+  }
+
+  if (isVariant(response, 'Success')) {
+    eventEmitter.emit('operation:success', connectionInfo);
+    if (response.Success.includes('deleted')) {
+      eventEmitter.emit('operation:deleted', connectionInfo);
+    }
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'Error')) {
+    eventEmitter.emit('operation:error', { message: response.Error, connection: connectionInfo });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'ServerShutdown')) {
+    // Distinct from `Error` so the UI can show a reconnect notice rather
+    // than a red toast on a planned restart.
+    const { message, drain_seconds } = response.ServerShutdown;
+    debugLog('WorkspaceResponseHandler', 'ServerShutdown received', {
+      message,
+      drain_seconds: drain_seconds.toString(),
+    });
+    eventEmitter.emit('server:shutdown', {
+      message,
+      drainSeconds: Number(drain_seconds),
+      connection: connectionInfo,
+    });
+    return true;
+  }
+
+  if (isVariant(response, 'UserPermissions')) {
+    const { user_id, role, permissions, domain_id } = response.UserPermissions;
+    debugLog('WorkspaceResponseHandler', 'UserPermissions received', { user_id, role, domain_id });
+    eventEmitter.emit('user:permissions:loaded', {
+      userId: user_id, role, permissions, domainId: domain_id, connection: connectionInfo,
+    });
+    return true;
+  }
+
+  if (isVariant(response, 'MemberRoleUpdated')) {
+    const { user_id, new_role } = response.MemberRoleUpdated;
+    debugLog('WorkspaceResponseHandler', 'MemberRoleUpdated received', { user_id, new_role });
+    eventEmitter.emit('member:role-updated', {
+      userId: user_id, role: new_role, connection: connectionInfo,
+    });
+    // Also raw, so a caller awaiting confirmation can see it.
+    //
+    // `Success` and `Error` emit this; the handled variants did not — they
+    // returned true and the response ended there. So every write gated on THIS
+    // variant waited out its 15s timeout and told the user "the change may not
+    // have been saved", after the same handler had already applied it. The
+    // action worked, and the app said it had not.
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'UserProfileUpdated')) {
+    const user = response.UserProfileUpdated;
+    debugLog('WorkspaceResponseHandler', 'UserProfileUpdated received', {
+      userId: user.id, name: user.name,
+    });
+    eventEmitter.emit('user:profile-updated', { user, connection: connectionInfo });
+    return true;
+  }
+
+  if (isVariant(response, 'ServerCapabilities')) {
+    const caps = response.ServerCapabilities;
+    debugLog('WorkspaceResponseHandler', 'ServerCapabilities received', caps);
+    eventEmitter.emit('server:capabilities:loaded', {
+      allowServerFileTransfer: caps.allow_server_file_transfer,
+      allowServerRevfsStorage: caps.allow_server_revfs_storage,
+      maxFileTransferSizeMb: Number(caps.max_file_transfer_size_mb),
+      revfsStorageQuotaMb: Number(caps.revfs_storage_quota_mb),
+      connection: connectionInfo,
+    });
+    return true;
+  }
+
+  return false;
+}

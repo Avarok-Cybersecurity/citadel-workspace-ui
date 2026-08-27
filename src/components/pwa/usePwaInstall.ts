@@ -15,6 +15,16 @@ interface BeforeInstallPromptEvent extends Event {
 export interface PwaInstallState {
   /** True once the browser has offered an install prompt we can replay. */
   canInstall: boolean;
+  /**
+   * Installable, but only by hand.
+   *
+   * iOS Safari never fires `beforeinstallprompt` — there is no programmatic
+   * install on that platform at all — so `canInstall` is permanently false
+   * there and the button rendered nothing. That silently zeroed the install
+   * funnel for every iPhone and iPad user, on a product whose primary mobile
+   * surface is the installed PWA.
+   */
+  needsManualInstall: boolean;
   /** True when already running as an installed app, so installing is moot. */
   isInstalled: boolean;
   /** Shows the browser's install dialog. Resolves to whether the user accepted. */
@@ -83,5 +93,17 @@ export function usePwaInstall(): PwaInstallState {
     return outcome === 'accepted';
   }, [promptEvent]);
 
-  return { canInstall: promptEvent !== null && !isInstalled, isInstalled, install };
+  // Safari on iOS/iPadOS. Detected by the absence of a Chromium hook rather
+  // than by browser name: iPadOS reports a Mac user-agent, so a name check
+  // misses exactly the device most likely to install this.
+  const isIosSafari =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  return {
+    canInstall: promptEvent !== null && !isInstalled,
+    needsManualInstall: isIosSafari && promptEvent === null && !isInstalled,
+    isInstalled,
+    install,
+  };
 }

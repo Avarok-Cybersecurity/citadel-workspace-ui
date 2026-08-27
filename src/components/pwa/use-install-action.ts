@@ -11,8 +11,12 @@ import { useToast } from '@/hooks/use-toast';
  * accept, and what do we say", which is exactly the kind of duplication that
  * drifts — one of them ends up nagging on a decline.
  */
-export function useInstallAction(): { canInstall: boolean; installNow: () => void } {
-  const { canInstall, install } = usePwaInstall();
+export function useInstallAction(): {
+  canInstall: boolean;
+  needsManualInstall: boolean;
+  installNow: () => void;
+} {
+  const { canInstall, needsManualInstall, install } = usePwaInstall();
   const { toast } = useToast();
 
   const installNow = useCallback(() => {
@@ -29,5 +33,5 @@ export function useInstallAction(): { canInstall: boolean; installNow: () => voi
     })();
   }, [install, toast]);
 
-  return { canInstall, installNow };
+  return { canInstall, needsManualInstall, installNow };
 }

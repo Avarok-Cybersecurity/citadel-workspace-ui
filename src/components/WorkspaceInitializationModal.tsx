@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { WorkspaceInitializationDetails } from './WorkspaceInitializationDetails';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -166,30 +167,13 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                             do not have it, choose <span className="font-medium text-foreground">Not now</span>:
                             the workspace is already usable, and an administrator can complete this later.
                         </p>
-                        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
-                            <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-                            <div className="text-sm text-warning">
-                                <p className="font-semibold">You will become the Workspace Administrator</p>
-                                <p className="mt-1">By entering the workspace password, you will initialize this workspace and receive full administrator privileges including the ability to:</p>
-                                <ul className="mt-2 list-disc list-inside text-xs space-y-1">
-                                    <li>Create and manage offices and rooms</li>
-                                    <li>Add and remove users</li>
-                                    <li>Grant permissions to other users</li>
-                                    <li>Configure workspace settings</li>
-                                </ul>
-                                {(workspaceName || workspaceId || serverAddress || username) && (
-                                    <div className="mt-3 pt-2 border-t border-warning/30 space-y-1 text-xs">
-                                        {(workspaceId || workspaceName) && (
-                                            <p><span className="text-warning">Workspace:</span> {workspaceId || workspaceName}</p>
-                                        )}
-                                        {serverAddress && <p><span className="text-warning">Server:</span> {serverAddress}</p>}
-                                        {(fullName || username) && (
-                                            <p><span className="text-warning">User:</span> {fullName && username && fullName !== username ? `${fullName} (${username})` : (username || fullName)}</p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <WorkspaceInitializationDetails
+                            workspaceName={workspaceName}
+                            workspaceId={workspaceId}
+                            serverAddress={serverAddress}
+                            username={username}
+                            fullName={fullName}
+                        />
 
                         <div className="space-y-2">
                             <Label htmlFor="masterPassword" className="text-foreground/80">
