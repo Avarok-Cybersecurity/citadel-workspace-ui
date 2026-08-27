@@ -131,6 +131,13 @@ async function performAutoReconnect(
       debugLog('ConnectionService', 'Service health check failed, attempting anyway:', healthError);
     }
 
+    if (!session.password) {
+      // See lifecycle.ts: no stored password means no silent reconnect.
+      throw new Error(
+        `Cannot reconnect ${session.username} automatically: credentials were not saved. Please sign in again.`,
+      );
+    }
+
     const requestId = crypto.randomUUID();
     await io.connect({
       requestId,

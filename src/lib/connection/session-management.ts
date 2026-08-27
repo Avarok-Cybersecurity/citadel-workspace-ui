@@ -44,7 +44,9 @@ export async function handleAuthSuccess(
 
   const session: StoredSession = {
     username: params.username,
-    password: params.password,
+    // Honor the "Remember Credentials" switch. It reached component state and
+    // stopped there, so this line stored the password unconditionally.
+    password: params.storeCredentials ? params.password : undefined,
     serverAddress: params.serverAddress,
     serverPassword: params.serverPassword,
     fullName: params.fullName,

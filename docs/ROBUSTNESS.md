@@ -5296,3 +5296,53 @@ covering all four replacement patterns.
 - The line cap broke again, on comments again. The rule that keeps holding: when
   an explanation applies to a mechanism, it belongs at the mechanism, and the
   call sites get a pointer. That is shorter *and* the right place.
+
+## Round seventy-seven — the switch that decided nothing, 2026-08-27
+
+### 362. "Remember Credentials" was inert; the password was stored either way
+
+The login form has a "Remember Credentials" switch. It was read into the hook's
+component state and went no further: `handleAuthSuccess` wrote
+`password: params.password` into the stored session unconditionally, and
+`storeCredentials` appeared nowhere in the storage path. A user on a security
+product who declined credential storage had their password written to LocalDB
+anyway — and auto-reconnect then used it to sign them back in silently.
+
+This is the "controls that operate on nothing" pattern in its sharpest form: not
+a cosmetic preference, but the one control on the page that is about a secret.
+
+Fixed by threading the answer through as a required field on `AuthSuccessParams`
+— required, with no default, because a missing answer previously meant "yes" by
+omission. `StoredSession.password` becomes optional, and the type checker then
+named all five places that assumed it: the two call sites, the two direct
+reconnect paths, and the auto-reconnect loop. The reconnect paths now refuse with
+a message the user can act on ("credentials were not saved. Please sign in
+again.") instead of sending an empty password and surfacing an auth failure.
+
+The session record is still stored when credentials are declined — the user is
+signed in, and orphan reclaim and the server list both need it. Only the secret
+is withheld, and the test walks the whole persisted record to confirm the
+password was not copied into some other field.
+
+One note on the test: its first version asserted with `JSON.stringify`, which
+throws on the bigint `cid` — this repo's own rule, broken while writing the test
+for a different rule. It walks the object now.
+
+### Still open from this pass, recorded not fixed
+
+- **Every Privacy setting and every Appearance setting is inert.** Both tabs
+  persist to localStorage and dispatch a change event that nothing subscribes to;
+  no field is read anywhere outside the tab that writes it. The identical pattern
+  in `call-sound-preferences.ts` *is* consumed — the shape was copied, the wiring
+  was not.
+- **The Connect page bounce-loop.** It is the destination `WorkspaceLoader` sends
+  broken users to, but its only authenticated branch tests `session?.cid`, which
+  `ConnectionManager` init deliberately clears on every load. The fallthrough
+  navigates into the workspace with no session, the loader times out after 5s and
+  sends the user back — silently. The recovery route re-enters the failure.
+- **Per-peer file-transfer settings are read back with no default-merge**, so the
+  next field added arrives `undefined` for every existing user (`allowRevfsStorage`
+  would read as off; `revfsQuota` as `NaN` MB). One spread closes the class.
+- **`citadel:file-transfers` is write-only and unbounded** — appended on every
+  transfer state change, never read by anything, never pruned, and its write
+  failure is swallowed.

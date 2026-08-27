@@ -116,6 +116,15 @@ export async function switchAccount(
   if (state.isLeader) {
     await disconnectFn();
 
+    if (!session.password) {
+      // The user declined credential storage, so there is nothing to sign in
+      // with. Say so instead of sending an empty password and surfacing an
+      // authentication failure they cannot act on.
+      throw new Error(
+        `Cannot reconnect ${session.username} automatically: credentials were not saved. Please sign in again.`,
+      );
+    }
+
     const requestId = crypto.randomUUID();
     await io.connect({
       requestId,

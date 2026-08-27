@@ -110,6 +110,13 @@ export async function attemptReconnect(
   try {
     debugLog('ServerAutoConnectService', `Attempting reconnect for ${session.username} (attempt ${attempt.attempts + 1})`);
 
+    if (!session.password) {
+      // Already filtered above, but the guard is what makes that filter a fact
+      // rather than a comment: a password-less session must never reach connect.
+      debugLog('ServerAutoConnectService', `No stored credentials for ${session.username}; skipping`);
+      return;
+    }
+
     await websocketService.connect(
       uuidv4(),
       session.username,

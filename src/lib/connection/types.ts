@@ -45,6 +45,11 @@ export interface AuthSuccessParams {
   serverPassword: string;
   securitySettings: SessionSecuritySettings;
   cid?: bigint;
+  /**
+   * Whether the user agreed to have their password persisted. Required, with no
+   * default: a missing answer here used to mean "yes" by omission.
+   */
+  storeCredentials: boolean;
 }
 
 /**

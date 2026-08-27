@@ -9,7 +9,17 @@ import { SessionSecuritySettings } from "@/lib/p2p-registration-service";
  */
 export interface StoredSession {
   username: string;
-  password: string; // Note: This should be encrypted in production
+  /**
+   * Absent when the user declined "Remember Credentials".
+   *
+   * This was required, and every login wrote it regardless of the toggle — the
+   * switch was read into component state and never reached the storage path, so
+   * a user on a security product who declined credential storage had their
+   * password written to LocalDB anyway and silently reused to re-authenticate.
+   * Auto-reconnect already skips sessions with no password; the two direct
+   * reconnect paths now refuse rather than sending undefined.
+   */
+  password?: string;
   serverAddress: string;
   serverPassword: string;
   fullName: string;

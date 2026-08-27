@@ -96,7 +96,8 @@ export function useJoinRegistration(onBack: () => void, serverAddress: string, s
         fullName: formData.fullName, serverAddress: serverAddress,
         serverPassword: serverPassword || "",
         securitySettings: mapSecuritySettings(securitySettings),
-        cid: data.cid as bigint
+        cid: data.cid as bigint,
+        storeCredentials: securitySettings.storeCredentials ?? false,
       });
       resolve({ cid: String(data.cid) });
     } catch (err) {

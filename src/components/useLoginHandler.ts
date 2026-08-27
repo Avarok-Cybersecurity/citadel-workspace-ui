@@ -138,7 +138,10 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
 
       await connectionManager.handleAuthSuccess({
         username, password, fullName: username, serverAddress,
-        serverPassword: "", securitySettings: getDefaultSecuritySettings(), cid
+        serverPassword: "", securitySettings: getDefaultSecuritySettings(), cid,
+        // The switch the user actually toggled. It reached this hook's state and
+        // went no further, so the password was stored either way.
+        storeCredentials: securitySettings.storeCredentials,
       });
 
       await setSelectedUser({ selectedUsername: username.trim(), selectedServerAddress: serverAddress, selectedCid: cid });
