@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isMemberOnline } from '@/lib/presence';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
@@ -82,7 +83,11 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 username: member.username || id,
                 displayName: member.displayName || member.username || id,
                 role: member.role as import('@/types/workspace-entities').UserRole | undefined,
-                isOnline: false,
+                // Real presence rather than a constant. A member arriving from
+                // a member event was recorded as offline whatever the registry
+                // said, so anyone rendering this record showed a grey dot for a
+                // peer the sidebar was showing as online at the same moment.
+                isOnline: isMemberOnline(id),
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
               };

@@ -8544,3 +8544,46 @@ unlike the server's; an SDK serialization change turns a routine `docker compose
 pull` into an agent that cannot read its own accounts, with key loss the only
 recovery. A registration that times out at 30s while the server completes tells
 the user to "choose a different username" when the right action is Login.
+
+## Round 140 — the green dot had three sources and none of them worked
+
+**Presence was replaced with a better-looking lie.** The dot beside a user's
+name began as `Math.random() > 0.5` — a coin flip that contradicted the same
+user's status elsewhere on every render. An earlier round replaced it with
+`connectionService.canMessageUser(member.id)`, which reads a map keyed on the
+literal `'current-user'` whose only writer, `acceptConnectionRequest`, has no
+caller outside the demo simulation. So it answered **false for everyone,
+forever**, while naming a service that sounds authoritative.
+
+That is the harder version of this defect: a random lie is visibly wrong, a
+constant one just looks like nobody is ever online. The real source — the peer
+registry's `online_status`, polled and cached — is the same set the sidebar's
+peer list has always read. `lib/presence.ts` now consults it, and
+`useMemberEventSetup` no longer records every arriving member as offline
+regardless of the registry.
+
+The same store was in front of `messagingService.sendMessage` as a gate that
+could never pass. It has no callers today, which is the only reason that has
+not surfaced; a guard that cannot pass is a landmine for whoever wires it up
+next. It now asks the real connection state.
+`demo-state-is-not-consulted.test.ts` keeps the demo store out of production
+code, and found the leftover "Kathy McCooper" fixture on its first run.
+
+**Two screens told users to do developer things, or nothing at all.**
+`PeerDiscoveryModal`'s empty state read "Open another tab and connect as a
+different user to test P2P" — instructions for a developer, shipped as an end
+user's only guidance. `UserDirectory` rendered *literally nothing* when a tab
+had no members, and its Online tab is commonly empty, so the most likely first
+visit to that page was a blank panel. Both now use a shared `EmptyState`, and
+the directory distinguishes "everyone is offline" from "there is nobody here
+yet" — telling a lone user that everyone is offline is a lie about people who do
+not exist, and points them at waiting instead of inviting.
+
+**The registration modal greeted a brand-new account with "Welcome back!"**,
+said "Verifying your credentials" while creating them, and showed a "Loading
+Workspace" step set and replaced in the same tick — a progress bar for work that
+had already finished. `Join` is the config's only user, so the copy is now
+written for the flow it actually serves.
+
+Controls: reverting the empty state fails three of the four directory tests;
+reintroducing `canMessageUser` anywhere outside its module fails the demo guard.

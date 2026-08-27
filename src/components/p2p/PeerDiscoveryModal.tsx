@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Users, RefreshCw, Loader2, Signal } from 'lucide-react';
 import { usePeerDiscovery } from './usePeerDiscovery';
 import { PeerListItem } from './PeerListItem';
@@ -79,11 +80,14 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                 <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
               </div>
             ) : peers.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No other users found in the workspace</p>
-                <p className="text-sm mt-2">Open another tab and connect as a different user to test P2P</p>
-              </div>
+              /* The second line here used to read "Open another tab and connect
+                 as a different user to test P2P" -- developer instructions,
+                 shipped to end users as their only guidance on an empty screen. */
+              <EmptyState
+                icon={Users}
+                title="No other users in this workspace yet"
+                description="People who join this workspace appear here, and you can connect to them directly from this list."
+              />
             ) : (
               <div className="space-y-2">
                 {peers.map((peer) => (

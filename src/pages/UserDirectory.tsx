@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { DirectoryTabContent } from './DirectoryTabContent';
 import { describeFailure } from '@/lib/failure-message';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { UserSearch, UserData } from '@/components/user/UserSearch';
@@ -7,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLog } from '@/lib/debug-config';
-import { MemberListItem, type MemberDisplay } from './MemberListItem';
+import { type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
 import WorkspaceService from '@/lib/workspace-service';
@@ -203,18 +204,14 @@ export const UserDirectory = () => {
 
               {['all', 'online'].map(tabValue => (
                 <TabsContent key={tabValue} value={tabValue} className="m-0">
-                  <div className="divide-y divide-border" data-testid="directory-member-list">
-                    {filteredMembers.map((member) => (
-                      <MemberListItem
-                        key={member.id}
-                        member={member}
-                        variant={tabValue as 'all' | 'online'}
-                        onSendMessage={handleSendMessage}
-                        onInvite={handleInviteUser}
-                        onSelect={(userId) => setSelectedUser(allMembers.find((m) => m.id === userId) ?? null)}
-                      />
-                    ))}
-                  </div>
+                  <DirectoryTabContent
+                    tab={tabValue as 'all' | 'online'}
+                    members={filteredMembers}
+                    totalMembers={allMembers.length}
+                    onSendMessage={handleSendMessage}
+                    onInvite={handleInviteUser}
+                    onSelect={(userId) => setSelectedUser(allMembers.find((m) => m.id === userId) ?? null)}
+                  />
                 </TabsContent>
               ))}
             </Tabs>

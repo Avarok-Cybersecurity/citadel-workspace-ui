@@ -24,26 +24,33 @@ export const DISCONNECT_MODAL_CONFIG: LoadingModalConfig = {
   autoCloseDelay: 1500,
 };
 
+/**
+ * The modal a NEW account watches while it is created.
+ *
+ * `Join` is its only user, and the copy was written for a returning user: it
+ * greeted someone eight seconds into their first account with "Welcome back!",
+ * said "Verifying your credentials" while creating them, and showed a "Loading
+ * Workspace" step that was set and replaced in the same tick -- a progress bar
+ * for work that had already finished. The testId keeps its name because the
+ * integration specs address it by that.
+ */
 export const CONNECT_MODAL_CONFIG: LoadingModalConfig = {
   testId: "connect-loading-modal",
   steps: [
     { key: "connecting", label: "Connecting", shortLabel: "Connect" },
-    { key: "authenticating", label: "Authenticating", shortLabel: "Auth" },
-    { key: "loading", label: "Loading Workspace", shortLabel: "Load" },
+    { key: "authenticating", label: "Creating Account", shortLabel: "Create" },
   ],
   titles: {
     connecting: "Connecting",
-    authenticating: "Authenticating",
-    loading: "Loading Workspace",
-    ready: "Connected!",
-    error: "Connection Failed",
+    authenticating: "Creating Your Account",
+    ready: "Account Created",
+    error: "Registration Failed",
   },
   descriptions: {
     connecting: "Establishing secure connection to the server...",
-    authenticating: "Verifying your credentials...",
-    loading: "Fetching your workspace data...",
-    ready: "Welcome back! Redirecting to your workspace...",
-    error: "Unable to connect. Please try again.",
+    authenticating: "Registering your account and signing you in...",
+    ready: "Welcome. Taking you to your workspace...",
+    error: "Your account could not be created. Please try again.",
   },
   successMessage: "Entering workspace",
   autoCloseDelay: 1000,
@@ -78,7 +85,8 @@ export const DisconnectLoadingModal = ({
   />
 );
 
-export type ConnectStatus = "connecting" | "authenticating" | "loading" | "ready" | "error";
+/** No "loading": the step it named was set and replaced in the same tick. */
+export type ConnectStatus = "connecting" | "authenticating" | "ready" | "error";
 
 interface ConnectLoadingModalProps {
   open: boolean;

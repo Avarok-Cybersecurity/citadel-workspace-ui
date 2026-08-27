@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { isMemberOnline } from '@/lib/presence';
 import { matchesSearch } from '@/lib/fold-for-search';
 import { debugLog } from '@/lib/debug-config';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { ConnectionService } from '@/lib/connection-service';
 import type { UserData, UserSearchProps } from './user-search-types';
 import { UserSearchResults, RESULTS_LIST_ID } from './UserSearchResults';
 
@@ -24,7 +24,6 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const [results, setResults] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const connectionService = useMemo(() => ConnectionService.getInstance(), []);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const { state } = useWorkspace();
@@ -101,11 +100,11 @@ export const UserSearch: React.FC<UserSearchProps> = ({
             avatarUrl: member.avatarUrl,
             email: member.email,
             role: member.role,
-            // Real presence, from the service that knows. This was
-            // `Math.random() > 0.5`, so the green dot beside a user's name was a
-            // coin flip — it told the viewer nothing and contradicted the same
-            // user's status elsewhere in the app on every render.
-            isOnline: connectionService.canMessageUser(member.id),
+            // Real presence, from the polled peer registry -- the same set the
+            // sidebar's peer list uses. This was `Math.random() > 0.5`, then
+            // `connectionService.canMessageUser`, which reads a map written
+            // only by the demo simulation and so answered false for everyone.
+            isOnline: isMemberOnline(member.id),
             // Deliberately absent: nothing tracks last-seen time yet, and the
             // previous value was a random offset from now. Undefined lets the UI
             // say it does not know instead of stating a time that is made up.
@@ -125,7 +124,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     return () => {
       clearTimeout(debounceTimeout);
     };
-  }, [searchTerm, state.members, exclude, connectionService]);
+  }, [searchTerm, state.members, exclude]);
 
   const handleFocus = () => {
     setShowResults(true);
@@ -156,7 +155,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         avatarUrl: member.avatarUrl,
         email: member.email,
         role: member.role,
-        isOnline: connectionService.canMessageUser(member.id),
+        isOnline: isMemberOnline(member.id),
         lastActive: undefined,
       }));
   };

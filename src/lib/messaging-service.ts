@@ -1,4 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
+import { memberIdToCid } from './presence';
+import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { ConnectionService } from './connection-service';
 import NotificationService, { NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
@@ -92,9 +94,19 @@ export class MessagingService {
   }
 
   public async sendMessage(recipientId: string, content: string, _securityLevel: number = 0): Promise<Message> {
-    // Check if the current user is connected with the recipient
-    if (!this.getConnectionService().canMessageUser(recipientId)) {
-      throw new Error('Cannot send message to this user. Connection not established.');
+    // Real connectivity, not the demo map.
+    //
+    // This asked `connectionService.canMessageUser`, whose store is keyed on
+    // the literal 'current-user' and is written only by acceptConnectionRequest
+    // -- which has no caller outside the demo simulation. So the gate answered
+    // false for every recipient, and this method could never send anything. It
+    // has no callers today, which is the only reason that has not surfaced; a
+    // guard that cannot pass is a landmine for whoever wires it up next.
+    const cid = memberIdToCid(recipientId);
+    if (cid === null || !(await p2pAutoConnectService.isPeerConnected(cid))) {
+      throw new Error(
+        `Cannot send message to ${recipientId}: no peer connection is established.`,
+      );
     }
 
     // Create a pending message

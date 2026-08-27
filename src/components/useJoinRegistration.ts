@@ -171,7 +171,9 @@ export function useJoinRegistration(
       setConnectStatus("authenticating");
 
       const response = await responsePromise;
-      setConnectStatus("loading");
+      // No "loading" step: it was set here and replaced two statements later,
+      // so the "Fetching your workspace data..." bar described work that had
+      // already finished and was visible for a single frame.
       debugLog('Join', "Register Response:", response);
 
       toast({ title: "Registration Successful", description: "Your account has been registered. Connecting to workspace...", variant: "default" });
