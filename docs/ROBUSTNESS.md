@@ -3153,6 +3153,65 @@ told to reload.
 My own two-ends failure, in the round that named the pattern. Both toasts now
 share one `acceptUpdate` handler, so they cannot drift apart again.
 
+## Round thirty-nine — a fix that never propagated, and a failure reported as a timeout, 2026-08-27
+
+### 241. The initialisation write erased the workspace theme — FIXED (server)
+
+`Workspace::metadata` is one JSON object several features share: initialisation
+writes `{"initialized": true}`, theming writes a `theme` key. An earlier round
+fixed the theme handler to **merge** rather than assign, with a comment
+explaining that assigning erased the initialisation marker and reopened the setup
+modal over a working workspace.
+
+`update_workspace` — the path that writes the initialisation marker — never
+received that fix. It still did `workspace.metadata = meta_bytes`, so a theme
+configured before someone ran "Initialize & Become Admin" was erased for
+everyone. The exact mirror image of the bug the theme path was fixed for, one
+function away, for months.
+
+This is the *fix that was never propagated* pattern, and the reason it recurs is
+that the correct rule lived inside one call site. It now lives in
+`metadata_merge::merge_metadata_document`, and **both** writers call it, so a
+third writer inherits the rule instead of rediscovering the bug.
+
+The helper refuses a non-object payload rather than applying it: a bare array or
+string carries no keys, and writing it would erase every other feature's state.
+It tolerates an unparseable *existing* document, because refusing the write there
+would make a once-corrupted workspace permanently unconfigurable.
+
+**The test drives the real command, not the helper**, because the helper was
+never the broken part: it seeds a theme, runs the initialisation write, and
+asserts the theme survived. Reinstating the assignment fails it with *"the
+initialisation write erased a theme it never mentioned"*.
+
+### 242. A registration that SUCCEEDED was reported as a timeout — FIXED
+
+With `connect_after_register` the internal service re-dispatches a Connect under
+the **same request_id**, so its failure arrives as a top-level `ConnectFailure`.
+The handler matched top-level `ConnectSuccess` but only the `Response`-wrapped
+`ConnectFailure` — so the failure matched nothing, fell through to the 30s
+timeout, and reported **"Registration timed out after 30 seconds"** for an
+account that had been created.
+
+The user then retried and was told the username already exists, for an account
+they did not know they owned. Work silently done, failure wrongly reported, then
+a second error contradicting the first.
+
+The asymmetry is the tell: the same variant family, one direction matched at both
+nesting levels, the other at only one.
+
+### 243. Method note — the closure that could not be tested
+
+`createResponseHandler` was a closure inside `useJoinRegistration`, so the missing
+branch could not be reached without rendering the whole join flow — which is
+plausibly why it went unnoticed. The file was also 259 lines, over the limit, so
+extraction was owed regardless.
+
+It is now `registration-response-handler.ts` with its two closures injected, and
+the test drives it directly. Removing the branch again fails exactly the two
+tests that assert the new behaviour, while the three guarding the old behaviour
+keep passing — the discrimination a control is for.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

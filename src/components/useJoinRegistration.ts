@@ -12,7 +12,7 @@ import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { mapSecuritySettings } from "@/lib/security-utils";
 import type { ConnectStatus } from "./LoadingModal";
 import { debugLog } from '@/lib/debug-config';
-import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
+import { createRegistrationResponseHandler } from './registration-response-handler';
 
 interface JoinFormData {
   fullName: string;
@@ -104,50 +104,6 @@ export function useJoinRegistration(onBack: () => void, serverAddress: string, s
     }
   };
 
-  const createResponseHandler = (
-    requestId: string,
-    resolve: (value: { cid: string }) => void,
-    reject: (reason: Error) => void,
-    cleanup: () => void
-  ) => {
-    const matchId = (v: Record<string, unknown>) => v.request_id === requestId;
-    const rejectWith = (v: Record<string, unknown>, fallback: string) => {
-      cleanup(); reject(new Error((v.message as string) || fallback));
-    };
-    return (raw: unknown) => {
-      const message = narrowWebSocketMessage(raw);
-      if (!message) return;
-      debugLog('Join', 'Registration response received, expecting:', requestId);
-
-      const cs = getVariant(message, 'ConnectSuccess');
-      if (cs && matchId(cs)) { cleanup(); handleConnectSuccess(cs, resolve, reject).catch(reject); return; }
-
-      const rf = getVariant(message, 'RegisterFailure');
-      if (rf && matchId(rf)) { rejectWith(rf, 'Registration failed'); return; }
-
-      const we = getVariant(message, 'WorkspaceError');
-      if (we && matchId(we)) {
-        cleanup();
-        if (we.error === 'WorkspaceNotInitialized') { setShowNotInitializedModal(true); reject(new Error('Workspace not initialized')); }
-        else { reject(new Error((we.message as string) || 'Workspace error')); }
-        return;
-      }
-
-      const ise = getVariant(message, 'InternalServiceError');
-      if (ise && matchId(ise)) { rejectWith(ise, 'Internal service error'); return; }
-
-      if (hasVariant(message, 'Response')) {
-        const response = getVariant(message, 'Response')!;
-        const wcs = response.ConnectSuccess as Record<string, unknown> | undefined;
-        if (wcs && matchId(wcs)) { cleanup(); handleConnectSuccess(wcs, resolve, reject).catch(reject); return; }
-        const wrf = response.RegisterFailure as Record<string, unknown> | undefined;
-        if (wrf && matchId(wrf)) { rejectWith(wrf, 'Registration failed'); return; }
-        const wcf = response.ConnectFailure as Record<string, unknown> | undefined;
-        if (wcf && matchId(wcf)) { rejectWith(wcf, 'Connection after registration failed'); return; }
-      }
-    };
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -189,7 +145,10 @@ export function useJoinRegistration(onBack: () => void, serverAddress: string, s
           if (handler) eventEmitter.off('websocket-message', handler);
         };
 
-        handler = createResponseHandler(requestId, resolve, reject, cleanup);
+        handler = createRegistrationResponseHandler(requestId, resolve, reject, cleanup, {
+          handleConnectSuccess,
+          setShowNotInitializedModal,
+        });
         eventEmitter.on('websocket-message', handler);
         debugLog('Join', 'Join: Event listener registered');
       });
