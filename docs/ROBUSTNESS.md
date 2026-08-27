@@ -7066,3 +7066,34 @@ The pattern worth naming: both screens are *about* failure, which is exactly why
 nobody looked at them twice. A screen whose whole job is to appear when
 something went wrong is the last place a missing exit gets noticed, because
 seeing it at all already feels like the bug.
+
+### Round 105 — Enter meant "commit" in five places and "confirm this character" in one
+
+While an IME candidate window is open, Enter confirms the composition. It is not
+a commit. The chat composer knew this — it carried the `isComposing` check and a
+comment explaining it — and nowhere else did. The rename input, the path bar, the
+document-title modal and the hex field each handled Enter themselves and each
+went without, so a user typing Japanese, Chinese or Korean saved a half-composed
+filename, navigated to a half-composed path, or created a document titled with
+whatever they had typed so far.
+
+The rule now lives in one module, `isEnterCommit`, and `shouldSendOnKey` is
+defined in terms of it. The shift clause stays with the composer, deliberately:
+a multi-line composer treats Shift+Enter as a newline, and a single-line rename
+field has no newline to insert.
+
+What matters more than the four call sites is the scan that came with them. A
+new `key === 'Enter'` now either routes through the shared rule or names itself
+in an exemption list with the reason it cannot be composing — and a second test
+fails any exemption whose file no longer handles Enter, so the list cannot decay
+into a place where things go to be forgotten. Both halves have negative controls.
+
+This is the fourth or fifth time the campaign has found the same shape: a
+correct fix, applied once, in the place where the bug was first noticed. Grepping
+for the mechanism rather than the symptom is what finds the rest — and a scan is
+what keeps them found.
+
+Also fixed here, from the same audit: `handleCreate` in the live-document modal
+had no in-flight guard. The Create button was disabled while creating, but the
+Enter path bypassed the button entirely, so two Enters during a slow create made
+two documents.

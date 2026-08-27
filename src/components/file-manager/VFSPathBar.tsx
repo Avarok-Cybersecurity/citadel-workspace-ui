@@ -3,6 +3,7 @@ import { FolderOpen } from 'lucide-react';
 import type { RevfsNode } from '@/types/revfs-types';
 import { pathExists } from '@/lib/revfs/tree-operations';
 import { cn } from '@/lib/utils';
+import { isEnterCommit } from '@/lib/keyboard-commit';
 
 interface VFSPathBarProps {
   /** Current path being viewed */
@@ -57,7 +58,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
   }, [currentPath]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (isEnterCommit(e)) {
       e.preventDefault();
       const normalizedPath = inputValue.trim() || '/';
 

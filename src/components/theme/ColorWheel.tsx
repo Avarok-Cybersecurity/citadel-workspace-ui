@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { isEnterCommit } from '@/lib/keyboard-commit';
 import type { HslColor } from '@/lib/theme/theme-types';
 import { toCssColor, toHex, fromHex } from '@/lib/theme/hsl';
 
@@ -214,7 +215,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
             onChange={(e) => setHexDraft(e.target.value.replace(/^#/, ''))}
             onBlur={commitHex}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (isEnterCommit(e)) {
                 e.preventDefault();
                 commitHex();
               }

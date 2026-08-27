@@ -10,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
+import { isEnterCommit } from '@/lib/keyboard-commit';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 
@@ -32,6 +33,10 @@ export function LiveDocumentModal({
 
   const handleCreate = async () => {
     if (!title.trim()) return;
+    // The Create button is disabled while in flight, but the Enter path below
+    // bypassed the button entirely: two Enters during a slow create made two
+    // documents.
+    if (isCreating) return;
 
     setIsCreating(true);
     setCreateError(null);
@@ -50,7 +55,7 @@ export function LiveDocumentModal({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && title.trim()) {
+    if (isEnterCommit(e) && title.trim()) {
       runAsyncSetup(handleCreate);
     }
   };

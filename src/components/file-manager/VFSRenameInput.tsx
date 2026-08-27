@@ -7,6 +7,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
+import { isEnterCommit } from '@/lib/keyboard-commit';
 
 interface VFSRenameInputProps {
   currentName: string;
@@ -68,7 +69,7 @@ export function VFSRenameInput({
   }, [value, currentName, validate, onConfirm, onCancel]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (isEnterCommit(e)) {
       e.preventDefault();
       handleConfirm();
     } else if (e.key === 'Escape') {
