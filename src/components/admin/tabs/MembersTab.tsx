@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { isForDomain } from '@/lib/workspace-events/is-for-domain';
+import { useMemberAdminActions } from './use-member-admin-actions';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -24,7 +26,6 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberData | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<MemberData | null>(null);
-  const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     runAsyncSetup(loadMembers);
@@ -40,6 +41,10 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   useEffect(() => {
     const handleMembersLoaded = (payload: MembersPayload) => {
       if (!payload.members) return;
+      // Someone else's domain, arriving while this tab is open, used to render
+      // here -- and the role changes and removals below would then name THIS
+      // entity with users taken from that list.
+      if (!isForDomain(payload.domainId, entityId)) return;
       setMembers(
         payload.members.map((m) => ({
           userId: m.id,
@@ -55,7 +60,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     // Return the unsubscribe — see use-domain-members.ts for why the async
     // wrapper that used to swallow it leaked a listener per tab visit.
     return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
-  }, [deadlineKey]);
+  }, [deadlineKey, entityId]);
 
   const loadMembers = async () => {
     setLoading(true);
@@ -76,58 +81,14 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    setUpdatingRoles(prev => new Set(prev).add(userId));
-    try {
-      await WorkspaceService.updateMemberRole(userId, newRole);
+  const { updatingRoles, changeRole, removeMember } = useMemberAdminActions(entityId, setMembers);
 
-      setMembers(prev =>
-        prev.map(m =>
-          m.userId === userId ? { ...m, role: newRole } : m
-        )
-      );
-
-      toast({
-        title: 'Role Updated',
-        description: `Member role updated to ${newRole}`,
-        variant: 'success',
-      });
-    } catch (error) {
-      debugLog('MembersTab', 'Failed to update role:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update member role',
-        variant: 'destructive',
-      });
-    } finally {
-      setUpdatingRoles(prev => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-    }
-  };
+  const handleRoleChange = changeRole;
 
   const handleRemoveMember = async () => {
     if (!memberToRemove) return;
-
     try {
-      await WorkspaceService.removeMember(memberToRemove.userId, entityId);
-
-      setMembers(prev => prev.filter(m => m.userId !== memberToRemove.userId));
-
-      toast({
-        title: 'Member Removed',
-        description: `${memberToRemove.name || memberToRemove.username} has been removed`,
-        variant: 'success',
-      });
-    } catch (error) {
-      debugLog('MembersTab', 'Failed to remove member:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to remove member',
-        variant: 'destructive',
-      });
+      await removeMember(memberToRemove);
     } finally {
       setMemberToRemove(null);
     }

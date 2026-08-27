@@ -13,6 +13,7 @@
  * had members and was merely fetching them. That was KNOWN_ISSUES #6.
  */
 import { useEffect, useState } from 'react';
+import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import WorkspaceService from '@/lib/workspace-service';
 import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -60,6 +61,10 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
 
   useEffect(() => {
     const handleMembersLoaded = (payload: MembersPayload) => {
+      // See is-for-domain: a list fetched for another domain used to replace
+      // this one, and this hook's members are the corpus the user search
+      // searches.
+      if (!isForDomain(payload.domainId, activeDomainId ?? undefined)) return;
       if (payload.members) setMembers(payload.members);
       // The response is what ends the load.
       setIsLoadingMembers(false);
@@ -75,7 +80,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
     // returned its unsubscribe; the fix was simply never carried across.
     // MembersTab.tsx had the identical defect.
     return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
-  }, []);
+  }, [activeDomainId]);
 
   useEffect(() => {
     if (!isLoadingMembers) return;

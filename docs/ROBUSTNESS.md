@@ -8215,3 +8215,38 @@ Both are gone. Connect always goes to the server with the credentials, and the
 server's `SessionAlreadyActive` — which since round 120 verifies the password
 against the fingerprint that opened the session — is what the caller claims
 from.
+
+### Round 133 — a member list that did not say whose it was
+
+The workspace protocol carries no request id, and the `Members` response carried
+no domain either — so a response could not be attributed to the request that
+caused it. Four subscribers each accepted any member list that arrived and took
+last-writer-wins: the sidebar, the admin members tab, the user-search corpus,
+and the group-call roster.
+
+A list fetched for one domain therefore rendered inside another. The admin tab
+is the dangerous one: after any confirmed member write, `members:reload` re-lists
+whatever node the URL names — so another domain's members could render in an
+entity's admin tab, and the role changes and removals below would then name
+*that* entity with users taken from somebody else's list.
+
+The response says its domain now, echoed from the request and resolved exactly
+as the lookup resolved it. The filter lives in one module, because four copies
+of a filter is how three of them come to differ, and it accepts when either side
+is unknown: a client against a server predating the field would otherwise empty
+every member list in the app. A filter that silently discards everything is
+worse than the ambiguity it replaces.
+
+Splitting the admin tab back under the line cap fixed something else recorded in
+the onboarding audit. Both of its writes reported "Failed to update member role"
+and "Failed to remove member" while sending the server's actual refusal to
+`debugLog` — a no-op outside dev. `awaitWriteResponse` produces precise
+rejections ("Permission denied: EditTreeStructure required", "Cannot demote the
+only administrator") and every one was being discarded for a sentence that says
+only that something went wrong, so the user retries forever with nothing telling
+them retrying cannot work.
+
+Extracting the hook also surfaced that there are two different `UserRole` types
+in this tree, structurally similar and not interchangeable. The hook uses the
+tab's, and says so — a local re-declaration would have compiled until one of
+them gained a field.

@@ -32,6 +32,12 @@ export interface MemberPayload {
 export interface MembersPayload {
   members: User[];
   connection: ConnectionInfo;
+  /**
+   * Which domain this list is for, when the server said. Undefined against a
+   * server that predates the field -- a subscriber that cannot tell should keep
+   * its old behaviour rather than discard the list.
+   */
+  domainId?: string;
 }
 
 export interface WorkspacesPayload {

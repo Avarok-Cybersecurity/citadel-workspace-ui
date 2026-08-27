@@ -46,9 +46,25 @@ export function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'Members')) {
-    const mappedMembers = response.Members.map((m: Record<string, unknown>) => mapWasmMember(m));
+    // The response now says WHICH domain it is about, and the payload carries
+    // it through. Four subscribers each accepted any member list that arrived
+    // and took last-writer-wins -- the sidebar, the admin members tab, the
+    // user-search corpus and the group-call roster -- so a list fetched for one
+    // domain rendered inside another, and the admin tab then sent role changes
+    // naming ITS entity with users taken from somebody else's list.
+    //
+    // Tolerates the old shape (a bare array) so a client running against a
+    // server that predates the field still works, with the domain unknown.
+    const payload = response.Members as
+      | { domain_id?: string | null; members: Record<string, unknown>[] }
+      | Record<string, unknown>[];
+    const rawMembers = Array.isArray(payload) ? payload : payload.members;
+    const domainId = Array.isArray(payload) ? undefined : payload.domain_id ?? undefined;
+
     eventEmitter.emit('members:loaded', {
-      members: mappedMembers, connection: connectionInfo,
+      members: rawMembers.map((m) => mapWasmMember(m)),
+      domainId,
+      connection: connectionInfo,
     });
     return true;
   }
