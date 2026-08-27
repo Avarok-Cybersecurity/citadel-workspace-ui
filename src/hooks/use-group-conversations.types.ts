@@ -11,6 +11,12 @@ import type {
 // ============================================================================
 
 export interface UseGroupConversationsResult {
+  /**
+   * False until the persisted group restore has finished. A consumer that looks
+   * a group up before this is true has learned nothing about whether it exists —
+   * `getGroup` reads synchronously and the restore is asynchronous.
+   */
+  hydrated: boolean;
   /** All group conversations */
   groups: GroupConversation[];
   /** Loading state */

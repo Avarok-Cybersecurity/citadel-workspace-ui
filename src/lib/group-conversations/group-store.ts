@@ -31,6 +31,8 @@ let groups: GroupConversation[] = [];
 const listeners = new Set<() => void>();
 let bindingsStarted = false;
 
+let hydrated = false;
+
 export function getGroups(): GroupConversation[] {
   return groups;
 }
@@ -66,13 +68,40 @@ export function updateGroups(
  * the read must not be overwritten by a snapshot taken before it.
  */
 export async function restorePersistedGroups(): Promise<void> {
-  const stored = await loadPersistedGroups();
-  if (stored.length === 0) return;
-  updateGroups((prev) => {
-    const known = new Set(prev.map((g) => g.id));
-    const missing = stored.filter((g) => !known.has(g.id));
-    return missing.length === 0 ? prev : [...prev, ...missing];
-  });
+  try {
+    const stored = await loadPersistedGroups();
+    if (stored.length > 0) {
+      updateGroups((prev) => {
+        const known = new Set(prev.map((g) => g.id));
+        const missing = stored.filter((g) => !known.has(g.id));
+        return missing.length === 0 ? prev : [...prev, ...missing];
+      });
+    }
+  } finally {
+    // Marked even when the read finds nothing or fails. "Hydration finished"
+    // and "there are groups" are different facts, and a consumer waiting on the
+    // first would wait forever if only the second set it.
+    hydrated = true;
+    for (const listener of listeners) listener();
+  }
+}
+
+/**
+ * Whether the persisted restore has finished.
+ *
+ * The restore above is asynchronous, and `getGroups()` reads the store
+ * synchronously — so a page that mounts, looks up its group and finds nothing
+ * has learned only that IndexedDB has not answered yet. GroupChatPage did
+ * exactly that and concluded the group was deleted: every reload, bookmark and
+ * shared `/groups/:id` link bounced to the workspace with a destructive toast,
+ * deterministically, because all effects of a commit run before any microtask
+ * from that read can resolve.
+ *
+ * The persistence layer was added to fix precisely this — its own comment says
+ * so — but nothing ever waited for it.
+ */
+export function areGroupsHydrated(): boolean {
+  return hydrated;
 }
 
 /**

@@ -14,6 +14,7 @@ import type { GroupConversation } from '@/types/group';
 import {
   getGroups,
   subscribeToGroups,
+  areGroupsHydrated,
   updateGroups,
   startGroupEventBindings,
   restorePersistedGroups,
@@ -22,6 +23,8 @@ import {
 export interface GroupState {
   groups: GroupConversation[];
   setGroups: React.Dispatch<React.SetStateAction<GroupConversation[]>>;
+  /** False until the persisted restore has finished; see `areGroupsHydrated`. */
+  hydrated: boolean;
   loading: boolean;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   error: string | null;
@@ -34,6 +37,9 @@ export interface GroupState {
  */
 export function useGroupState(): GroupState {
   const groups = useSyncExternalStore(subscribeToGroups, getGroups);
+  // Whether the persisted restore has finished. A consumer that looks a group
+  // up before this is true has learned nothing about whether it exists.
+  const hydrated = useSyncExternalStore(subscribeToGroups, areGroupsHydrated, () => false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,7 +63,7 @@ export function useGroupState(): GroupState {
     [],
   );
 
-  return { groups, setGroups, loading, setLoading, error, setError };
+  return { groups, setGroups, hydrated, loading, setLoading, error, setError };
 }
 
 /**

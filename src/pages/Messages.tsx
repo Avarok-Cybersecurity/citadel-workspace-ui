@@ -7,12 +7,21 @@ import { useState, useEffect, useMemo } from "react";
 import { connectionManager } from "@/lib/connection";
 import { useRegisteredPeers } from "@/hooks";
 import { peerDisplayName } from "@/lib/peer-display";
+import { tryParseCid } from '@/lib/utils/cid-utils';
 
 const Messages = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const channel = new URLSearchParams(location.search).get("channel");
+  // Parsed, not trusted. `?channel=` comes straight from the URL and was handed
+  // to `BigInt(...)` during render — so `/messages?channel=abc` threw a
+  // SyntaxError mid-render and took the whole app to the error boundary, not a
+  // per-page fallback. `WorkspaceView` funnels this same param through
+  // `tryParseCid`, with a comment calling `params.get('channel')` "the
+  // historical crash surface"; the fix was applied there and not here.
+  const channelParam = new URLSearchParams(location.search).get("channel");
+  const channel = tryParseCid(channelParam) === undefined ? null : channelParam;
   const [selectedPeerCid, setSelectedPeerCid] = useState<string | null>(channel);
+  const parsedPeerCid = tryParseCid(selectedPeerCid);
   const { registeredPeers } = useRegisteredPeers();
 
   // Get current user info
@@ -77,7 +86,7 @@ const Messages = () => {
             selectedPeerCid ? 'flex' : 'hidden md:flex'
           }`}
         >
-          {selectedPeerCid && currentUserCid ? (
+          {selectedPeerCid && parsedPeerCid !== undefined && currentUserCid ? (
             <>
               {/* The way back, mobile only.
                   Lives here and not in P2PChat: that component also renders
@@ -105,7 +114,7 @@ const Messages = () => {
                   as if that peer had sent them. */}
               <P2PChat
                 key={selectedPeerCid}
-                peerCid={BigInt(selectedPeerCid)}
+                peerCid={parsedPeerCid}
                 peerName={selectedPeerName}
                 currentUserCid={currentUserCid}
                 currentUserName={currentUserName}

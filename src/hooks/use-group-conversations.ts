@@ -44,7 +44,7 @@ import {
 // ============================================================================
 
 export function useGroupConversations(): UseGroupConversationsResult {
-  const { groups, setGroups, loading, setLoading, error, setError } = useGroupState();
+  const { groups, setGroups, hydrated, loading, setLoading, error, setError } = useGroupState();
   const sortedGroups = useSortedGroups(groups);
 
   // Create a new group
@@ -153,6 +153,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
 
   return {
     groups: sortedGroups,
+    hydrated,
     loading,
     error,
     createGroup,

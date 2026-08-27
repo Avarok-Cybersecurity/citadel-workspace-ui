@@ -38,6 +38,7 @@ export function GroupChatPage() {
   const { toast } = useToast();
   const {
     getGroup,
+    hydrated,
     markAsRead,
     leaveGroup,
     kickMember,
@@ -62,6 +63,11 @@ export function GroupChatPage() {
       return;
     }
 
+    // Nothing is knowable about a group until the restore has finished — see
+    // `areGroupsHydrated`. Without this, every reload and shared link declared
+    // the group deleted.
+    if (!hydrated) return;
+
     const loadedGroup = getGroup(groupId);
     if (!loadedGroup) {
       toast({
@@ -78,7 +84,7 @@ export function GroupChatPage() {
     // zero callers anywhere, so a group's unread badge could only ever climb —
     // there was no path back to zero short of a reload.
     markAsRead(groupId);
-  }, [groupId, getGroup, markAsRead, navigate, toast]);
+  }, [groupId, getGroup, hydrated, markAsRead, navigate, toast]);
 
   // Handlers
   const handleLeaveGroup = useCallback(async () => {

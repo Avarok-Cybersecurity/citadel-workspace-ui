@@ -6452,3 +6452,77 @@ The structural point worth keeping: the app survives all of this by routing
 *around* the library — using it as transport and reimplementing every correlation
 and auth flow itself with `request_id` matching. That is why none of it shows up
 in the product, and why it will bite the first consumer of the published surface.
+
+## Round ninety-four — every group link was broken, and one URL crashed the app, 2026-08-27
+
+### 406. Every reload, bookmark and shared `/groups/:id` link bounced with "may have been deleted"
+
+`GroupChatPage` looked its group up on mount with `getGroup`, which reads the
+module store **synchronously** — while the restore from IndexedDB is
+asynchronous. On a cold load the lookup always ran first, so the page navigated
+away with a destructive toast claiming the group was deleted.
+
+Not a race: all effects of a commit run before any microtask from that read can
+resolve, so this failed every single time.
+
+The persistence layer was added specifically to fix this — its own comment says
+"a bookmarked /groups/:id reported 'This group may have been deleted' for a group
+that still existed". The store now rebuilds correctly; nothing ever waited for
+it. Half a fix, landed and then not finished.
+
+`areGroupsHydrated()` is set in a `finally`, so it is marked even when the read
+finds nothing or throws: "hydration finished" and "there are groups" are
+different facts, and a consumer waiting on the first would wait forever if only
+the second set it — which the original early `if (stored.length === 0) return;`
+did exactly.
+
+**My first negative control for this was wrong, not the code.** I reintroduced
+the early return *inside* the new `try`, so the `finally` still ran and nothing
+failed. The `finally` is the whole point. Restoring the original shape — early
+return with no `finally` — fails two tests.
+
+### 407. `/messages?channel=<anything-not-a-number>` took down the whole app
+
+`Messages.tsx` read the param raw and handed it to `BigInt(...)` **during
+render**, so a malformed URL threw a `SyntaxError` mid-render and landed in the
+app-wide error boundary — not a per-page fallback.
+
+`WorkspaceView` funnels this same `channel` param through `tryParseCid`, with a
+comment calling `params.get('channel')` "the historical crash surface". The fix
+existed, in the tree, next door, for the same parameter.
+
+### Recorded from the multi-tab audit — the standout
+
+**The outbound retry engine is never started.** `outbound-queue.ts` defines
+`start()`, and `checkTimeouts()` runs only from the poller that `start()` arms —
+and nothing in production calls it. So the header's stated contract ("If no ACK
+within ACK_TIMEOUT_MS, message is retried… Max 3 attempts") never executes;
+`handleTimeout`, `MAX_RETRIES` and the `outbound-failed` event are unreachable.
+A follower request dropped at the wrong moment waits the full 30s and fails, with
+no retry ever attempted. Sibling `BroadcastChannelService` calls its own
+`startPolling()` in `initialize()`; this one was never wired.
+
+And the one recovery path that *does* exist — leader-change replay — error-acks
+every pending request instead of recovering it, because module-eval order means
+the queue's replay listener runs before the outbound handler sets `isActive`, and
+a newly promoted tab's `websocketSendFn` is still null while its socket boots.
+
+Also recorded: a backgrounded leader flaps leadership every ~5s under Chrome's
+intensive timer throttling (heartbeat 2s, timeout 5s, clamp ~60s), opening and
+closing a WebSocket each cycle; a frozen tab on unfreeze steals leadership back
+from the tab holding the live socket, because the "older tab wins" rule assumes
+the older tab has the connection; and the legacy broadcast channel still fans
+most response types to every tab unfiltered, which is the cross-session bleed the
+CID-routing work was built to stop, for every type outside the eight-member set.
+
+### Also recorded from the routing audit, not fixed
+
+- **In-app navigation silently discards an unsaved document edit.** The guard
+  arms only `beforeunload`; there is no router blocker, and its own footer
+  comment says "any *future* navigation guard". One sidebar click throws the
+  buffer away.
+- **The auth redirect discards the intended destination**, so signing back in
+  from a deep link lands on bare `/workspace`.
+- A stale or foreign `nodeId` renders the default demo page titled "Welcome to
+  Your Workspace" — indistinguishable from a real page.
+- The file manager's location is unlinkable and resets to `/` on reload.
