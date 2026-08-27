@@ -4611,6 +4611,52 @@ roster the protocol does not currently carry.
 Recorded rather than glossed: this fix removes the catastrophic case (your own
 groups vanishing on refresh) and leaves the incomplete one.
 
+## Round sixty-four — guarding the docs' biggest rot class, 2026-08-28
+
+A docs audit returned 26 findings, all four existing doc guards passing. The
+single largest class — a doc pointing at a source file that no longer exists —
+was in every guard's blind spot: `check-doc-commands` validates COMMANDS, not
+paths, and **never opens CLAUDE.md at all**, which is the file a contributor
+reads as instructions.
+
+### 321. `check-doc-file-refs.mjs` — GUARDED, and it found fifteen
+
+Every `.ts`/`.rs`/`.toml` path in the operational docs must resolve. Getting it
+useful took three calibration passes, and each one is the finding:
+
+- **Full-path matching produced false positives.** CLAUDE.md writes
+  `messenger/mod.rs` — a real file six directories down. Requiring full paths
+  would have flagged correct prose, which is exactly how a guard earns its way
+  onto an ignore list. It now resolves by **suffix** against an index of every
+  tracked file.
+- **Roadmap and historical docs describe what WILL exist, or once did.**
+  `docs/plugins/`, `PLUGINS-ROADMAP`, `TODO_FUTURE` and `docs/review/` are
+  excluded by name rather than by loosening the rule for everyone.
+- **A path in a past-tense sentence is history, not a claim.** "was previously
+  in X" must not fire; the control confirms it does not.
+
+The fifteen real ones were almost all the same event seen from different docs:
+five modules split into directories during this campaign —
+`websocket-service`, `workspace-service`, `p2p-registration-service`,
+`connection-manager`, `p2p-messenger-manager` — with every doc still naming the
+old single file. The guard names that case specifically ("that module was split
+— the path is now a directory") because the fix differs from a plain rename.
+
+Two referenced components that were genuinely deleted, `MessagesSection.tsx` and
+`PeerTest.tsx`, are now pointed at what actually renders.
+
+### 322. One audit finding refuted: WARP.md is a symlink
+
+The audit reported WARP.md as a byte-identical copy of CLAUDE.md, "doubling all
+of this", and recommended de-duplication. `ls -la` shows
+`WARP.md -> CLAUDE.md` — a symlink. `diff` reporting zero lines is what a
+symlink looks like from `diff`. There is nothing to de-duplicate, and the guard
+needs no separate entry for it.
+
+Worth recording because the reasoning was sound and the conclusion was still
+wrong: **`diff` cannot distinguish a copy from a link, and the check that
+distinguishes them is one `ls` away.**
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
