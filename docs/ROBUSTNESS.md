@@ -7374,3 +7374,46 @@ into a `return true` and four tests fail. Keep reporting but replace the reason
 with "Something went wrong. Please try again." and two fail — because a generic
 apology in place of the precise error is the same defect one layer up, and it is
 the second-most-common finding in that audit.
+
+### Round 113 — opening a group chat was an infinite loop, and P2P badges never appeared
+
+Two findings from the notifications audit, both about unread counts, both worse
+than they look.
+
+**The loop.** `markAsRead` used `prev.map(...)`, which always allocates. The
+group store's only no-op guard is identity — `if (next === groups) return` — so
+every call, including one that changed nothing, notified every subscriber and
+fired an IndexedDB write. The group page calls it from an effect whose deps
+include `getGroup`, whose identity derives from `groups`. New array, new
+`getGroup`, effect re-runs, call again. Opening any group chat was a perpetual
+render-and-write loop, ending in a hot tab or in React's "Maximum update depth
+exceeded" depending on scheduling.
+
+Returning `prev` unchanged is therefore load-bearing, not a micro-optimisation,
+and the updater is extracted so the test exercises the real one — a restated copy
+would keep passing after the hook stopped using it. The test asserts identity
+rather than deep equality, because a fresh array with identical contents restarts
+the loop exactly as surely as a different one. It also asserts the store's half:
+`updateGroups(prev => prev)` must notify nobody and write nothing.
+
+**The badges.** Two unread counters exist: the persisted one on the page
+metadata, and the in-memory one on the conversation. Every badge in the app reads
+the in-memory one — `use-conversation-peers`, `P2PPeerList`, `MembersSection` —
+and *nothing incremented it*. The only writers were resets and decrements. So a
+message arriving in a conversation the user did not have open produced no badge
+at all, until the next reload copied the persisted count in from storage. The
+group store increments live; the P2P side is the half that was never wired.
+
+The predicate is deliberately identical to the persisted side — not the user's
+own message, and delivered rather than pending — because two counters that
+disagree would change the badge across a reload, which is a subtler and more
+confusing bug than the one being fixed. Both controls check that: remove the
+increment and two tests fail; count everything and the other two do.
+
+Recorded, not fixed, from the same audit: group messages produce no notification
+of any kind (`addMessageNotification` has two callers, one of them dev-only), so
+a user in another window learns of group traffic only by looking at the sidebar;
+group read receipts render sent/partial/all-read from a `read_by` field nothing
+in the tree ever writes; and opening the bell in one session calls the
+service-wide `markAllAsRead`, clearing every other session's badges — including
+from the logged-out landing page, where the panel shows nothing at all.

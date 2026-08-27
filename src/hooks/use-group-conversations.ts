@@ -29,6 +29,7 @@
  */
 
 import { useCallback } from 'react';
+import { markGroupRead } from '@/lib/group-conversations/mark-group-read';
 import type { UseGroupConversationsResult } from './use-group-conversations.types';
 import { useGroupState, useSortedGroups } from './use-group-state';
 import {
@@ -129,13 +130,18 @@ export function useGroupConversations(): UseGroupConversationsResult {
     [groups]
   );
 
-  // Mark messages as read
+  // Mark messages as read.
+  //
+  // Returning `prev` unchanged is load-bearing, not a micro-optimisation. The
+  // store's only no-op guard is identity (`if (next === groups) return`), and a
+  // `map` always allocates -- so this notified every subscriber and wrote to
+  // IndexedDB on every call, even when the count was already zero. The group
+  // page calls it from an effect whose deps include `getGroup`, whose identity
+  // is derived from `groups`: new array, new getGroup, effect re-runs, call
+  // again. Opening any group chat was a perpetual render-and-write loop that
+  // ended either in a hot tab or in React's "Maximum update depth exceeded".
   const markAsRead = useCallback((groupId: string): void => {
-    setGroups(prev =>
-      prev.map(group =>
-        group.id === groupId ? { ...group, unreadCount: 0 } : group
-      )
-    );
+    setGroups(prev => markGroupRead(prev, groupId));
   }, [setGroups]);
 
   // Refresh groups from server

@@ -105,6 +105,20 @@ export class ConversationManager {
       conversation.messages.splice(0, conversation.messages.length - this.cache.maxMessagesPerConversation);
     }
 
+    // The badge every sidebar reads lives on the in-memory conversation, and
+    // nothing incremented it -- only resets and decrements existed. So a message
+    // arriving in a conversation the user does not have open produced no badge
+    // at all until the next reload, when loadFromStorage copies the persisted
+    // metadata count in. The persisted side has always incremented (see
+    // message-page-append); this is the half that was never wired.
+    //
+    // Same predicate as the persisted side, deliberately: an own message is not
+    // unread, and a message that has not been delivered is not yet news.
+    const currentCid = await this.config.getCurrentCid();
+    if (message.senderCid !== currentCid && message.status === 'delivered') {
+      conversation.unreadCount += 1;
+    }
+
     this.updateMessageQueue(message);
     await messagePaginationStore.appendMessageToPage(
       peerCid,
