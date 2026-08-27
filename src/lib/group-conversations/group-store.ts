@@ -22,6 +22,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
+import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 
 let groups: GroupConversation[] = [];
@@ -99,12 +100,13 @@ export function startGroupEventBindings(): void {
   }) => {
     debugLog('GroupStore', 'Invite received:', data);
     // Auto-accept, locally and at the backend; applyGroupInvite owns both and
-    // swallows its own failures with a user-facing toast.
+    // reports its own failures. This catch covers a rejection that escapes it.
     applyGroupInvite(data, updateGroups).catch((err) => {
       debugLog('GroupStore', 'applyGroupInvite leaked a rejection:', err);
-      eventEmitter.emit('notification:show', {
+      toast({
         title: 'Group Invitation Failed',
         description: 'Could not process the group invitation. Please try again.',
+        variant: 'destructive',
       });
     });
   });

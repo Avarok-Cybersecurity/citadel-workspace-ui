@@ -3284,6 +3284,96 @@ does not spend the afternoon on it.
 **Verification note:** the caching change was verified by test and typecheck; a
 local production build could not be run for the reason above. CI builds it.
 
+## Round forty-one — the other direction, and two audits recorded, 2026-08-27
+
+### 247. Group invite notices were written to nobody — FIXED
+
+`notification:show` had **three emitters and no listener anywhere**. The arrival
+notice and both failure notices went nowhere. The call site's own comment claimed
+`applyGroupInvite` "swallows its own failures with a user-facing toast" — the
+toast did not exist, so a failed invite vanished exactly as silently as the
+comment says it must not.
+
+Now rendered through the same `toast()` every other surface uses.
+
+### 248. Its test asserted the emit, which is how it survived
+
+The existing test asserted `emit('notification:show', ...)`. That assertion
+**passes for precisely as long as the notice reaches nobody** — it measures the
+send, not the delivery, which is the same shape as every resolve-on-send defect
+in this register, one layer up.
+
+It now asserts the rendered surface, and a second test covers the failure branch
+that had no test at all. Restoring the emit fails both.
+
+### 249. The guard checks one direction, and the other resisted mechanisation
+
+Round thirty-six's guard catches listeners with no emitter. This finding is the
+mirror — an emitter with no listener — which the guard does not see, so I tried
+to extend it. **It does not work yet, and shipping it would have been worse than
+not having it.**
+
+Two reasons, both worth recording:
+
+- The emitter side must accept `name: 'x'` literals to see the group translator's
+  dynamically emitted events. In reverse that pattern matches every theme preset,
+  MDX template and column heading in the tree — "Tokyo Night" and "Meeting Room"
+  are not dead events.
+- More seriously, `workspaceEvents.onWorkspaceEvent('workspace:loaded', …)` is a
+  **third** subscription facade the guard does not know about. Scanning naively
+  reports 75 dead emitters, of which the great majority — every `workspace:*`,
+  `node:*` and `member:*` event — are consumed through it.
+
+That last point is not just a reverse-direction problem: **a listener registered
+through that facade is invisible to the guard in the direction it does check.**
+Recorded as a known limitation rather than papered over; the honest next step is
+to enumerate the subscription facades first, not to loosen the matcher.
+
+### 250. Recorded, not fixed — the calling stack
+
+The branch's headline feature, audited for the first time. Findings recorded in
+full; none fixed this round, because several interact and the top two need a
+decision about intended behaviour rather than a patch.
+
+- **Starting a call from another conversation destroys the one you are in.** No
+  busy guard on the 1:1 entry button — the group entry has one, so this is the
+  fix-in-one-place pattern again. The old stream's tracks are never stopped (the
+  camera stays lit) and the orphaned capture pump keeps feeding the shared
+  encoders, so the new peer receives two interleaved streams.
+- **Glare leaves the loser with a dead ringing card.** Adoption routes through a
+  terminal state on the live manager, which trips the provider's teardown and
+  nulls the manager ref — so Accept and Decline are both no-ops while the ring
+  plays out its full 45 seconds. The glare rule itself is correct; the layer
+  above defeats it.
+- **A call to a session in a follower tab rings audibly with no card and no way
+  to answer.** The card is leader-gated; the sound is not.
+- **The capability probe never checks `MediaStreamTrackProcessor`/`Generator`**,
+  which the audio path hard-depends on. Where they are missing the call rings,
+  connects, and the timer ticks — carrying no audio in either direction.
+- **`end()` awaits unbounded sends before releasing the camera**, so Leave can
+  wedge with the camera lit while `decline()`, which applies its state first, is
+  immune. The asymmetry is the bug.
+- **A fatal encoder error kills outbound media permanently and silently** — the
+  decoder path nulls its handle to force a rebuild; the encoder path only logs.
+- **The caller is never told why a call did not connect**: decline reasons are
+  recorded "for the UI to explain itself" and every one of them renders as the
+  panel silently disappearing.
+
+### 251. Recorded, not fixed — the user directory is wired to a demo simulation
+
+`sendRegistrationRequest` reaches `setTimeout(… "Simulate a response for demo
+purposes")` and touches no wire, while the UI reports "Request Sent" in green.
+The simulation is itself inert, so `userConnections` is never written and
+`canMessageUser` is permanently false — every member, including genuinely
+connected peers, gets "Connection Required", and the directory's Online tab can
+never populate.
+
+The real registration pipeline exists and works; the directory is simply
+connected to the fake one. Also recorded: a deleted P2P message returns on
+reload (delete never touches the page store, while edit does), and OS
+notification permission is only ever requested from a hidden tab, where browsers
+suppress the prompt.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

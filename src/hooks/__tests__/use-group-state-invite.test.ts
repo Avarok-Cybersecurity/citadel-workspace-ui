@@ -16,6 +16,7 @@ const spies = vi.hoisted(() => ({
   getConnectionInfo: vi.fn(() => null as unknown),
   getTabSelectedSession: vi.fn(async () => null),
   emit: vi.fn(),
+  toast: vi.fn(),
 }));
 
 vi.mock('@/lib/connection', () => ({
@@ -29,12 +30,15 @@ vi.mock('@/lib/event-emitter', () => ({
   eventEmitter: { emit: spies.emit },
 }));
 
+vi.mock('@/hooks/use-toast', () => ({ toast: spies.toast }));
+
 import { buildGroupFromInvite, applyGroupInvite } from '../use-group-state-invite';
 
 beforeEach(() => {
   spies.getConnectionInfo.mockReset();
   spies.getTabSelectedSession.mockReset();
   spies.emit.mockReset();
+  spies.toast.mockReset();
   spies.getConnectionInfo.mockReturnValue(null);
   spies.getTabSelectedSession.mockResolvedValue(null);
 });
@@ -131,9 +135,27 @@ describe('applyGroupInvite', () => {
       setGroups,
     );
     expect(setGroups).toHaveBeenCalledTimes(1);
-    expect(spies.emit).toHaveBeenCalledWith(
-      'notification:show',
+    // Asserts the RENDERED surface, not an emit. The previous version of this
+    // test asserted `emit('notification:show', ...)` — an event with three
+    // emitters and no listener anywhere — so it passed for as long as the
+    // notice reached nobody. That is how the dead path survived.
+    expect(spies.toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Group Invitation' }),
+    );
+  });
+
+  it('reports a failure to the user rather than dropping the invite silently', async () => {
+    const setGroups = vi.fn(() => {
+      throw new Error('store rejected the invite');
+    });
+
+    await applyGroupInvite(
+      { groupId: 'g-2', groupName: 'Y', inviterId: '5', inviterUsername: 'alice' },
+      setGroups,
+    );
+
+    expect(spies.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Group Invitation Failed', variant: 'destructive' }),
     );
   });
 

@@ -11,9 +11,14 @@
  * (historical circular-dependency concern).
  */
 
-import { eventEmitter } from '@/lib/event-emitter';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
+// Rendered directly rather than emitted as 'notification:show': that event had
+// three emitters and no listener anywhere, so every one of these notices — the
+// arrival notice AND both failure notices — was written to nobody. The comment
+// at the group-store call site claimed this path "swallows its own failures with
+// a user-facing toast"; the toast did not exist.
+import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 
 export interface GroupInvitePayload {
@@ -190,7 +195,7 @@ export async function applyGroupInvite(
       // path can re-establish. Losing the whole invite over it would be worse.
       debugLog('UseGroupConversations', 'Backend group acceptance failed:', e);
     }
-    eventEmitter.emit('notification:show', {
+    toast({
       title: 'Group Invitation',
       description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
     });
@@ -202,9 +207,10 @@ export async function applyGroupInvite(
     // (rather than letting it silently disappear) AND keep the debug
     // trace for the developer.
     debugLog('UseGroupConversations', 'applyGroupInvite failed:', e);
-    eventEmitter.emit('notification:show', {
+    toast({
       title: 'Group Invitation Failed',
       description: `Could not process invite from ${data.inviterUsername || 'a peer'}. Please try again.`,
+      variant: 'destructive',
     });
   }
 }
