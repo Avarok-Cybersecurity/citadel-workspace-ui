@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { UserSearch, UserData } from '@/components/user/UserSearch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -144,7 +145,7 @@ export const UserDirectory = () => {
       debugLog('UserDirectory', 'Failed to send connection request:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send connection request',
+        description: describeFailure(error, 'Failed to send connection request'),
         variant: 'destructive',
       });
     } finally {

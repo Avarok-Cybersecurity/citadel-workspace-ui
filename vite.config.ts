@@ -23,7 +23,7 @@ import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
  * match ANY host, which would let an XSS payload exfiltrate to an attacker's socket.
  */
 const PRODUCTION_CSP =
-  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 /**
  * Identical to production except for the two script-src sources Vite's dev transform
@@ -33,7 +33,7 @@ const PRODUCTION_CSP =
  * so a violation fails in dev, where someone will notice.
  */
 const DEV_CSP =
-  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 /**
  * Proxy the agent's WebSocket so a locally-served app reaches it at the same same-origin `/ws`
@@ -398,8 +398,10 @@ export default defineConfig(({ mode }) => {
       // The socket is now same-origin (`/ws`, proxied to the agent by Vite here and by nginx in
       // production), so `'self'` covers it in both. Keeping the two policies in lockstep means a
       // future CSP violation fails in dev, where someone will notice, rather than only in a
-      // shipped artifact. `script-src` still differs by necessity: Vite's dev transform needs
-      // 'unsafe-eval', production does not and must not have it.
+      // shipped artifact. `script-src` now agrees on 'unsafe-eval' too: workspace documents are
+      // MDX and rendering one executes it, so production needs what dev always had. That is a
+      // deliberate decision with a compensating control — see lib/mdx-integrity.ts. The remaining
+      // difference is 'unsafe-inline', which only Vite's dev transform needs.
       headers: {
         'Content-Security-Policy': mode === 'production' ? PRODUCTION_CSP : DEV_CSP
       },

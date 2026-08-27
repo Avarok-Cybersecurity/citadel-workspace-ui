@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { Button } from '@/components/ui/button';
 import { DialogContent, DialogHeader, DialogTitle, DialogDescription, Dialog } from '@/components/ui/dialog';
 import { Upload, X } from 'lucide-react';
@@ -80,7 +81,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
       debugLog('MediaUploader', 'Error handling file:', error);
       toast({
         title: 'Upload failed',
-        description: 'There was a problem uploading your image',
+        description: describeFailure(error, 'There was a problem uploading your image'),
         variant: 'destructive',
       });
       setUploading(false);

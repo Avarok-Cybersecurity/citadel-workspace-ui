@@ -8324,3 +8324,49 @@ The control caught my own carelessness. My first attempt to remove the folding
 did not match the source, so the "control" passed and would have let me claim a
 verified test that had never been run against the defect. Removing it properly
 fails two.
+
+## Round 136 — the generic failure message, scanned instead of fixed a fifth time
+
+"The catch shows a fixed sentence and sends the server's real reason to
+debugLog" had been the finding four separate times: the node delete path, the
+admin member writes, the entity create/edit modal, the add-peer form. Each was
+fixed where it was found. A fifth point fix would have been the wrong move.
+
+`src/__tests__/failures-say-what-failed.test.ts` scans every catch whose body
+reports a failure to the user and asks whether it consults the error it caught.
+It found **twenty** files.
+
+Two things about the scan are worth recording, because both were wrong first:
+
+**It passed its own negative control.** The first version asked only whether the
+catch mentioned its error anywhere in the body — and reintroducing the defect in
+`EntityManagementModal` left the test green, because every one of these defects
+does `debugLog('X', 'failed:', error)` beside the fixed sentence. Logging the
+reason and showing the user something else *is* the defect; a rule the logging
+call satisfies could never have caught any of the four. Fixed by stripping
+`debugLog`/`console.*` calls before testing for the reference, after which the
+count went from 0 to 20.
+
+**It over-reported.** The body was taken as "everything up to the next catch",
+which reads far past the closing brace. `WorkspaceInitializationModal`'s catch
+does nothing but log, and the *success* toast four lines below it was being
+counted as that catch's failure report. Brace matching fixed it — and the
+strengthened exemption test then showed four of the eleven recorded-debt entries
+had never been offenders at all. An over-reporting scan is not the safe kind: it
+fills the debt list with files that were never wrong.
+
+Fixed: twelve files now report what the server said, via a shared
+`describeFailure(error, fallback)` in `src/lib/failure-message.ts`. Seven remain
+in `RECORDED_DEBT`, each with the judgement it needs — listed rather than
+excused, so a *new* one cannot be added quietly.
+
+The exemption test asserts each exempted file still has an offending catch, so
+the list self-cleans. That is what caught the four false entries.
+
+Also: `useWorkspaceSwitcher` crossed the 250-line cap, and the extraction found
+untested logic — `pickCurrentWorkspace` decides that this tab's selection
+outranks the connection's CID, which is what stops one tab's label changing when
+another tab connects. Inline in the hook it was reachable only through a render
+with a connection manager and an IndexedDB read behind it, and had no test.
+Seven now, including that precedence rule (control: flipping the fallback order
+fails two).

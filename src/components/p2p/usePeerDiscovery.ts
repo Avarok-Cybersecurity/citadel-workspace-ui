@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
@@ -174,7 +175,7 @@ export function usePeerDiscovery(isOpen: boolean) {
       } catch (fallbackError) {
         debugLog('PeerDiscoveryModal', 'GetSessions fallback also failed:', fallbackError);
       }
-      toastError(toast, "Discovery Failed", "Could not discover peers in the workspace");
+      toastError(toast, "Discovery Failed", describeFailure(error, "Could not discover peers in the workspace"));
     } finally {
       setLoading(false);
     }
@@ -224,7 +225,7 @@ export function usePeerDiscovery(isOpen: boolean) {
       });
     } catch (error) {
       debugLog('PeerDiscoveryModal', 'Failed to send registration request:', error);
-      toastError(toast, "Request Failed", "Could not send registration request");
+      toastError(toast, "Request Failed", describeFailure(error, "Could not send registration request"));
     }
   };
 

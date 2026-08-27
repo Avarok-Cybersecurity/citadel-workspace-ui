@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { debugLog } from '@/lib/debug-config';
 import { Save, Loader2, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -81,7 +82,7 @@ export function GeneralSettingsTab() {
       debugLog('GeneralSettingsTab', 'Failed to update profile:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save profile. Please try again.',
+        description: describeFailure(error, 'Failed to save profile. Please try again.'),
         variant: 'destructive',
       });
       setIsSaving(false);

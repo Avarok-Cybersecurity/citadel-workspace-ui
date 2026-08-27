@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { describeFailure } from '@/lib/failure-message';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
 import { markLastAccessed, readLastAccessed } from '@/lib/sessions/last-accessed';
 import { useNavigate } from "react-router-dom";
@@ -141,7 +142,7 @@ export function useOrphanSessions() {
       debugLog('OrphanSessionsNavbar', 'Failed to navigate to workspace:', error);
       toast({
         title: "Connection Failed",
-        description: "Could not reconnect to workspace. Please try logging in again.",
+        description: describeFailure(error, "Could not reconnect to workspace. Please try logging in again."),
         variant: "destructive",
       });
     }

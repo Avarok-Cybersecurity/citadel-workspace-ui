@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import { useMemberAdminActions } from './use-member-admin-actions';
 import { Button } from '@/components/ui/button';
@@ -73,7 +74,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       debugLog('MembersTab', 'Failed to request members:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load members',
+        description: describeFailure(error, 'Failed to load members'),
         variant: 'destructive',
       });
       cancelLoadingDeadline(deadlineKey);

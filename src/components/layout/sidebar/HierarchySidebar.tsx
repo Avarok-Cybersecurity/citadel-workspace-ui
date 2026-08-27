@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -161,7 +162,7 @@ export function HierarchySidebar() {
       toastSuccess(toast, `Default ${typeName} Updated`, `${node.name} is now the default`);
     } catch (error) {
       debugLog('HierarchySidebar', 'Error setting default:', error);
-      toastError(toast, 'Error', 'Failed to set as default. Please try again.');
+      toastError(toast, 'Error', describeFailure(error, 'Failed to set as default. Please try again.'));
     }
   }, [toast]);
 

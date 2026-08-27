@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { useLoadedPermissions } from './use-loaded-permissions';
 import { PermissionMatrixNotice } from './PermissionMatrixNotice';
 import { Shield, Loader2 } from 'lucide-react';
@@ -108,7 +109,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
       if (onClose) onClose();
     } catch (error) {
       debugLog('PermissionManager', 'Error saving permissions:', error);
-      toastError(toast, "Error", "Failed to update permissions. Please try again.");
+      toastError(toast, "Error", describeFailure(error, "Failed to update permissions. Please try again."));
     } finally {
       setIsSaving(false);
     }

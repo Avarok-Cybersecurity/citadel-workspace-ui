@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { debugLog } from '@/lib/debug-config';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -48,12 +49,18 @@ export function ConnectionsSettingsTab() {
           ? 'Sessions will automatically reconnect when disconnected.'
           : 'You will need to manually enter credentials to reconnect.',
       });
-    } catch (_error) {
+    } catch (error) {
       // Revert on error
       setAutoReconnect(!enabled);
       toast({
         title: 'Failed to save setting',
-        description: 'Could not update auto-reconnect preference.',
+        // The reason, where there is one. A fixed sentence here leaves the user
+        // unable to tell "storage is full" from "the write was refused" from
+        // "the network blipped" -- and only one of those is worth retrying.
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : 'Could not update auto-reconnect preference.',
         variant: 'destructive',
       });
     } finally {
@@ -75,7 +82,7 @@ export function ConnectionsSettingsTab() {
       setAutoAcceptRegistrations(!checked);
       toast({
         title: 'Failed to save',
-        description: 'Could not save your preference',
+        description: describeFailure(error, 'Could not save your preference'),
         variant: 'destructive',
       });
     } finally {

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { toStoredWorkspaces, pickCurrentWorkspace } from './stored-workspace-list';
+import { describeFailure } from '@/lib/failure-message';
 import { useLocation, useNavigate } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from "@/lib/connection";
@@ -14,16 +16,8 @@ import { debugLog } from '@/lib/debug-config';
 import { yieldToEventLoop } from '@/lib/utils/scheduling';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 
-export interface StoredWorkspace {
-  id: string;
-  username: string;
-  serverAddress: string;
-  workspaceName?: string;
-  isActive: boolean;
-  cid?: bigint;
-  fullName?: string;
-  role?: string;
-}
+export type { StoredWorkspace } from './stored-workspace-list';
+import type { StoredWorkspace } from './stored-workspace-list';
 
 export type WorkflowStep = "connect" | "security" | "join";
 
@@ -62,19 +56,10 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       const currentCid: bigint | null = connInfo?.cid ?? null;
       if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
 
-      const workspaces: StoredWorkspace[] = storedSessions.sessions.map((session) => ({
-        id: `${session.serverAddress}-${session.username}`,
-        username: session.username, serverAddress: session.serverAddress,
-        workspaceName: state.workspace?.name || session.username,
-        isActive: session.cid === currentCid, cid: session.cid,
-        fullName: session.fullName, role: session.role || 'Member'
-      }));
+      const workspaces = toStoredWorkspaces(storedSessions.sessions, state.workspace?.name, currentCid);
       setAvailableWorkspaces(workspaces);
 
-      let active = tabSelectedUser?.selectedUsername
-        ? workspaces.find(w => w.username === tabSelectedUser.selectedUsername && w.serverAddress === tabSelectedUser.selectedServerAddress)
-        : undefined;
-      if (!active) active = workspaces.find(w => w.isActive);
+      const active = pickCurrentWorkspace(workspaces, tabSelectedUser);
       if (active) setCurrentWorkspace(active);
     };
     runAsyncSetup(loadStoredWorkspaces);
@@ -171,7 +156,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
 
     } catch (error) {
       debugLog('WorkspaceSwitcher', 'Failed to switch workspace:', error);
-      toastError(toast, "Switch Failed", "Could not switch to the selected workspace");
+      toastError(toast, "Switch Failed", describeFailure(error, "Could not switch to the selected workspace"));
     } finally {
       setIsSwitching(false);
       setIsOpen(false);

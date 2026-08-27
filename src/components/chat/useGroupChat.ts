@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { useToast } from '@/hooks/use-toast';
 import { shouldSendOnKey } from './should-send-on-key';
 import type { GroupMessage } from '@/types/workspace-entities';
@@ -45,7 +46,7 @@ export function useGroupChat(groupId: string) {
         debugLog('GroupChatView', 'Failed to load messages:', error);
         toast({
           title: 'Failed to load messages',
-          description: 'Please try again later.',
+          description: describeFailure(error, 'Please try again later.'),
           variant: 'destructive',
         });
       }
@@ -147,7 +148,7 @@ export function useGroupChat(groupId: string) {
       debugLog('GroupChatView', 'Failed to send message:', error);
       toast({
         title: 'Failed to send message',
-        description: 'Please try again.',
+        description: describeFailure(error, 'Please try again.'),
         variant: 'destructive',
       });
     } finally {
@@ -167,7 +168,7 @@ export function useGroupChat(groupId: string) {
       debugLog('GroupChatView', 'Failed to edit message:', error);
       toast({
         title: 'Failed to edit message',
-        description: 'Please try again.',
+        description: describeFailure(error, 'Please try again.'),
         variant: 'destructive',
       });
     }
@@ -181,7 +182,7 @@ export function useGroupChat(groupId: string) {
       debugLog('GroupChatView', 'Failed to delete message:', error);
       toast({
         title: 'Failed to delete message',
-        description: 'Please try again.',
+        description: describeFailure(error, 'Please try again.'),
         variant: 'destructive',
       });
     }

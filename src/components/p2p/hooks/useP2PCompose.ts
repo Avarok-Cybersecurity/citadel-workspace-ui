@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { describeFailure } from '@/lib/failure-message';
 import { P2PMessengerManager } from '@/lib/p2p/p2p-messenger-manager';
 import type { P2PMessage } from '@/lib/p2p/p2p-types';
 import { useToast } from '@/hooks/use-toast';
@@ -104,7 +105,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
       });
     } catch (error) {
       debugLog('P2PChat', 'Failed to send message:', error);
-      toast({ variant: 'destructive', title: 'Failed to send message', description: 'Check your connection and try again.' });
+      toast({ variant: 'destructive', title: 'Failed to send message', description: describeFailure(error, 'Check your connection and try again.') });
     } finally {
       setIsSending(false);
     }
