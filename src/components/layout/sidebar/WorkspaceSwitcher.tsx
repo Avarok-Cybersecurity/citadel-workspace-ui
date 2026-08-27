@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -77,7 +77,10 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
               )}
             </div>
             {isSwitching ? (
-              <div className="w-5 h-5 shrink-0 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              /* Loader2 like the other 33 spinners, and a token colour: this
+                 was the app's only hand-rolled border spinner, and `border-white`
+                 on the sidebar's 97%-lightness light surface was invisible. */
+              <Loader2 className="w-5 h-5 shrink-0 animate-spin text-foreground mr-2" aria-hidden="true" />
             ) : (
               <ChevronRight
                 className={cn(

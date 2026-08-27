@@ -194,7 +194,7 @@ export function CreateGroupDialog({
                               {peer.username}
                             </span>
                             {peer.isOnline && (
-                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                              <span className="w-2 h-2 rounded-full bg-success" />
                             )}
                           </button>
                         ))}

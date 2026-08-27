@@ -645,8 +645,11 @@ h1, h2, h3, h4, h5, h6 {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 6px #22c55e;
+  /* The --success token, not a second green. Two different greens meant
+     "there is activity here" was a different colour depending on which
+     component drew it, and this one could never follow a workspace theme. */
+  background: hsl(var(--success));
+  box-shadow: 0 0 6px hsl(var(--success));
   margin-left: 6px;
   flex-shrink: 0;
 }
@@ -672,8 +675,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .editor-context-menu {
   position: fixed;
-  background: #1a1b26;
-  border: 1px solid #3a3f5c;
+  /* Tokens, not the pre-migration palette. These were the old hex values --
+     including the retired brand purple below -- so in light mode right-clicking
+     in a live document produced a dark navy menu from a different design era,
+     and the theme editor could never touch it. The collaborator-cursor block
+     above IS deliberately literal, for the reason stated there; this sits on the
+     app surface and has no such excuse. */
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   padding: 4px;
   min-width: 160px;
@@ -689,14 +698,14 @@ h1, h2, h3, h4, h5, h6 {
   padding: 8px 12px;
   border-radius: 4px;
   font-size: 13px;
-  color: #e5e7eb;
+  color: hsl(var(--popover-foreground));
   cursor: pointer;
   transition: background 0.1s ease;
 }
 
 .editor-context-menu__item:hover {
-  background: #6E59A5;
-  color: white;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 .editor-context-menu__item svg {

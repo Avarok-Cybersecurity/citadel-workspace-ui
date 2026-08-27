@@ -5880,3 +5880,64 @@ palette, and the pending-requests badge is raw `bg-red-500 text-foreground`
 exists. Also recorded: Cancel buttons use three variants and eight class recipes;
 six independent timestamp formatters, two pinned to `en-US`; three modal scrim
 darknesses; and bubble max-width differing by content type within one thread.
+
+## Round eighty-six — the design-token guard with an eight-entry hole, 2026-08-27
+
+### 384. Four controls were invisible in light mode
+
+The token architecture here is genuinely good — light mode is real end to end and
+`index.css` documents measured contrast per surface. What was left was a thin
+layer of pre-migration stragglers, each chosen to look right on a dark surface,
+each landing on its own colour in light mode:
+
+- The selected role-colour swatch's ring was `ring-white` offset against
+  `ring-offset-background`, which is white in light mode. A white ring on white:
+  the only indicator of which colour is selected simply disappeared.
+- The workspace-switcher spinner was `border-white` on the sidebar's
+  97%-lightness light surface. It was also the app's only hand-rolled border
+  spinner among thirty-three `Loader2`s.
+- The collaborative-editor context menu was hardcoded `#1a1b26` / `#3a3f5c` /
+  `#6E59A5` — the retired brand purple included — so right-clicking in a live
+  document produced a dark navy menu from a different design era, which no
+  workspace theme could ever touch. (The collaborator-cursor block just above it
+  *is* deliberately literal and says why; this one sits on the app surface and
+  had no such excuse.)
+- The pending-requests badge was `bg-red-500 text-foreground`, about 3.9:1 in
+  dark mode — below AA at that size — while a `destructive` Badge variant
+  already existed and its sibling in `OrphanSessionIcon` already used it.
+
+### 385. The rule that should have caught them exempted eight paths
+
+`no-restricted-syntax` already bans Tailwind palette classes, with a comment
+recording the 647 hardcoded hexes across 130 files that motivated it. But a
+second ESLint config block listed eight paths — six files plus `src/lib/call/**`
+and `src/lib/group-conversations/**`, two whole trees — and **overrode**
+`no-restricted-syntax` for them with only the hex rules, dropping the palette
+rules entirely. `MembersSection.tsx` was on that list, which is why its raw red
+shipped through a guard designed to stop exactly it.
+
+Six of the eight entries turned out to be already clean; the one remaining
+violation was `CreateGroupDialog`'s `bg-green-500` — the same "two greens" the
+visual audit flagged, alongside `.notification-dot`'s `#22c55e`. Fixing that one
+class and the CSS hex let the **entire exemption block be deleted**, so the guard
+now covers the whole source tree. Verified by control: put the green back and
+ESLint reports it.
+
+An exemption list is the quiet failure mode of a guard. It is added to unblock
+one thing, and every path on it stops being protected without anything ever going
+red. Worth checking the others in this repo the same way.
+
+### On the test that reported on itself
+
+The first version of the accompanying test failed against its own fix: it grepped
+the source for `bg-red-500`, and the comment explaining what that value was
+replaced *with* necessarily quotes what it was replaced *from*. Comments are
+stripped before matching now — the repo already had `stripComments` for exactly
+this.
+
+The test then also tripped the ESLint rule, because its assertion literals *are*
+hardcoded colour classes. That settled the split cleanly: ESLint owns Tailwind
+palette classes across the tree, and the test owns the two things ESLint cannot
+see — raw hexes in CSS files, and the `ring-white` / `border-white` sites the
+rule deliberately exempts because the colour picker needs them against arbitrary
+user-chosen hues.

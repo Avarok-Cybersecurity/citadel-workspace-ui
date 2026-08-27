@@ -117,30 +117,5 @@ export default tseslint.config(
       "no-useless-escape": "off",
       // Keep rules-of-hooks as error but will fix the violations
     },
-  },
-  {
-    // Not yet migrated to design tokens: these files were checked out on a
-    // concurrent branch when the palette migration landed, so the palette-class
-    // guard is deferred for them (the hex guard still applies). Remove entries
-    // as each file is migrated; do not add new ones.
-    files: [
-      "src/components/WorkspaceApp.tsx",
-      "src/components/chat/CreateGroupDialog.tsx",
-      "src/components/layout/sidebar/GroupConversationRow.tsx",
-      "src/components/layout/sidebar/MembersSection.tsx",
-      "src/hooks/use-group-state.ts",
-      "src/hooks/use-group-state-invite.ts",
-      "src/lib/call/**",
-      "src/lib/group-conversations/**",
-    ],
-    rules: {
-      "no-restricted-syntax": ["error", {
-        selector: "JSXAttribute[name.name='className'] Literal[value=/\\[#[0-9A-Fa-f]{6}\\]/]",
-        message: "Hardcoded hex colour in className. Use a design token (bg-card, text-muted-foreground, border-border, bg-surface, text-primary-accent) — see src/index.css.",
-      }, {
-        selector: "JSXAttribute[name.name='className'] TemplateElement[value.raw=/\\[#[0-9A-Fa-f]{6}\\]/]",
-        message: "Hardcoded hex colour in className. Use a design token — see src/index.css.",
-      }],
-    },
   }
 );

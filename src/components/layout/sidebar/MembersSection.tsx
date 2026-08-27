@@ -124,16 +124,21 @@ export const MembersSection = () => {
                 aria-label={`Review ${pendingRequestCount} pending connection request${pendingRequestCount > 1 ? 's' : ''}`}
                 className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
+                {/* The destructive variant, not a raw red: `bg-red-500` with
+                    `text-foreground` is about 3.9:1 in dark mode — below AA at
+                    this size — and a raw hex is invisible to the workspace theme.
+                    OrphanSessionIcon's sibling badge already uses the token. */}
                 <Badge
+                  variant="destructive"
                   data-testid="pending-requests-badge"
-                  className="h-5 min-w-[20px] px-1.5 bg-red-500 text-foreground cursor-pointer hover:bg-red-600 transition-colors"
+                  className="h-5 min-w-[20px] px-1.5 transition-colors"
                 >
                   {pendingRequestCount}
                 </Badge>
               </button>
             )}
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-accent hover:bg-purple-500/15 hover:text-foreground" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
             <UserPlus className="h-4 w-4" />
           </Button>
         </div>
