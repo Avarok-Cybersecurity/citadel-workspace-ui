@@ -132,35 +132,71 @@ export async function backendDownloadFile(
       resolve({ type: 'backend-download-file', success: false });
     }, BACKEND_TIMEOUT_MS);
 
+    // Where the file lands, learned from ReceptionBeginning and reported when
+    // the transfer completes.
+    let receivedPath: string | undefined;
+
+    const settle = (result: RevfsIntentResult) => {
+      clearTimeout(timeout);
+      eventEmitter.off('websocket-message', handleMessage);
+      resolve(result);
+    };
+
     const handleMessage = (message: unknown) => {
       const msg = message as Record<string, unknown>;
 
-      const status = msg.FileTransferStatusNotification as {
-        cid?: bigint;
-        peer_cid?: bigint;
-        success?: boolean;
-        response?: { download_path?: string };
+      // A REVFS pull reports progress through FileTransferTickNotification.
+      //
+      // This used to wait on FileTransferStatusNotification, which the internal
+      // service emits from exactly one place — respond_file_transfer.rs, the
+      // accept/decline flow for STANDARD transfers. A REVFS pull auto-accepts
+      // and streams ticks instead, so the success branch was unreachable and
+      // every download timed out at 30s. It also read `status.response
+      // ?.download_path`, where `response` is a plain bool on the wire, so even
+      // an impossible match would have produced `undefined`.
+      //
+      // Correlated on request_id, like every sibling in this file. The previous
+      // `status.cid === cid` matched ANY transfer notification for the session,
+      // so a concurrent standard transfer settled an unrelated pending download.
+      const tick = msg.FileTransferTickNotification as {
+        request_id?: string;
+        status?: Record<string, unknown> | string;
       } | undefined;
 
-      if (status && status.cid === cid) {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        if (status.success) {
-          const downloadPath = status.response?.download_path;
-          debugLog('RevfsIO', 'backendDownloadFile success:', downloadPath);
-          resolve({ type: 'backend-download-file', success: true, downloadPath });
-        } else {
-          debugLog('RevfsIO', 'backendDownloadFile transfer failed');
-          resolve({ type: 'backend-download-file', success: false });
+      if (tick && tick.request_id === requestId) {
+        const status = tick.status;
+
+        // ReceptionBeginning carries the local path the bytes are written to.
+        if (status !== null && typeof status === 'object' && 'ReceptionBeginning' in status) {
+          const beginning = status.ReceptionBeginning as { path?: string } | [string, unknown];
+          receivedPath = Array.isArray(beginning)
+            ? String(beginning[0])
+            : beginning?.path;
+          return;
         }
+
+        // Unit variants serialise as the bare string; a newtype carries a payload.
+        const isComplete = status === 'ReceptionComplete' || status === 'TransferComplete';
+        const isFailure =
+          status === 'Fail' ||
+          (status !== null && typeof status === 'object' && 'Fail' in status);
+
+        if (isComplete) {
+          debugLog('RevfsIO', 'backendDownloadFile complete:', receivedPath);
+          settle({ type: 'backend-download-file', success: true, downloadPath: receivedPath });
+          return;
+        }
+        if (isFailure) {
+          debugLog('RevfsIO', 'backendDownloadFile transfer failed');
+          settle({ type: 'backend-download-file', success: false });
+        }
+        return;
       }
 
       const failure = msg.DownloadFileFailure as { request_id?: string; message?: string } | undefined;
       if (failure?.request_id === requestId) {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
         debugLog('RevfsIO', 'backendDownloadFile failed:', failure.message);
-        resolve({ type: 'backend-download-file', success: false });
+        settle({ type: 'backend-download-file', success: false });
       }
     };
 

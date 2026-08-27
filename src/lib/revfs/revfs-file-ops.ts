@@ -124,10 +124,14 @@ export async function downloadFileFromPeer(
     virtualDir: fileNode.fileMetadata.virtualDirectory,
   });
 
-  if (result.type === 'backend-download-file') {
-    return result.downloadPath;
+  if (result.type !== 'backend-download-file' || !result.success) {
+    // A failure used to fall through to `return undefined`, and the UI read
+    // that as "Download initiated" — so a download that timed out after 30s
+    // and never happened was reported as progress.
+    throw new Error(`"${filePath}" could not be downloaded.`);
   }
-  return undefined;
+
+  return result.downloadPath;
 }
 
 // ── Standard Transfer Auto-Population ─────────────────────────────────────

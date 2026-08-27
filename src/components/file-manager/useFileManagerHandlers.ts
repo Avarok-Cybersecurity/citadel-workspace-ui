@@ -91,12 +91,14 @@ export function useFileManagerHandlers({
       || node.fileState === RevfsFileState.ServerStored;
 
     if (isDownloadable) {
+      // No "initiated" branch: downloadFile now throws rather than resolving
+      // undefined on failure, so there is no longer a state where we know the
+      // download did not happen and say something encouraging about it.
       downloadFile(node.path)
-        .then(path => {
-          if (path) toast.success(`Downloaded: ${node.name}`);
-          else toast.info(`Download initiated for ${node.name}`);
-        })
-        .catch(err => toast.error(`Download failed: ${err}`));
+        .then(() => toast.success(`Downloaded: ${node.name}`))
+        .catch(err =>
+          toast.error(`Download failed: ${err instanceof Error ? err.message : err}`)
+        );
     } else {
       toast.info(`${node.name} — ${node.fileState === RevfsFileState.Hosted ? 'Hosted for peer (encrypted, cannot open)' : 'Info only'}`);
     }
