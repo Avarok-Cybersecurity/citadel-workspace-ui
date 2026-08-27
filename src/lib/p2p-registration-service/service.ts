@@ -49,6 +49,8 @@ export class P2PRegistrationService {
   private outgoingRegistrations = new Set<bigint>();
   private incomingRegistrations = new Set<bigint>();
   private isCheckingPeers = false;
+  /** The options start() was called with, replayed on every reconnect re-sync. */
+  private startOptions: PeerRegistrationOptions = {};
 
   private constructor() {
     this.setupEventListeners();
@@ -76,10 +78,15 @@ export class P2PRegistrationService {
       });
     });
 
-    eventEmitter.on('connection:status-changed', async ({ isConnected }: { isConnected: boolean }) => {
-      if (isConnected && this.isRunning) {
-        await this.checkAndRegisterPeers();
-      }
+    // Re-sync the peer roster as soon as the socket is back, rather than waiting
+    // out the remainder of the 30s poll with a stale list. This listened for
+    // 'connection:status-changed' — an event nothing has ever emitted — so the
+    // immediate re-sync never ran and reconnect always paid the full poll delay.
+    // The options are the ones start() was given: re-checking without them would
+    // silently drop autoRegisterAll on every reconnect.
+    eventEmitter.on('on-ws-connection-success', async () => {
+      if (!this.isRunning) return;
+      await this.checkAndRegisterPeers(this.startOptions);
     });
 
     eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
@@ -139,6 +146,7 @@ export class P2PRegistrationService {
       throw new Error('No active connection. Please connect first.');
     }
     this.isRunning = true;
+    this.startOptions = options;
     debugLog('P2PRegistrationService', 'Starting P2P Registration Service');
     await this.checkAndRegisterPeers(options);
     this.pollingInterval = setInterval(() => {

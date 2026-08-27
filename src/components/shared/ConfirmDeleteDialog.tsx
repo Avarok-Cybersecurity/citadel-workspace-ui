@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useCallback, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +14,11 @@ interface ConfirmDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  onConfirm: () => void;
+  /**
+   * May be async. The dialog stays open until it settles, so a caller can show
+   * the failure reason inside this dialog instead of losing it to a closed one.
+   */
+  onConfirm: () => void | Promise<void>;
   description?: ReactNode;
   confirmLabel?: string;
 }
@@ -27,6 +31,24 @@ export function ConfirmDeleteDialog({
   description,
   confirmLabel = 'Delete',
 }: ConfirmDeleteDialogProps) {
+  const [pending, setPending] = useState(false);
+
+  // AlertDialogAction IS a Radix Close: without preventDefault the dialog shuts
+  // on the click, before an async onConfirm settles. Every caller here already
+  // closes itself from its own state, and one of them renders its error message
+  // into this dialog's description — unreachable while Radix closed it first.
+  const handleConfirm = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      if (pending) return;
+      const result = onConfirm();
+      if (!(result instanceof Promise)) return;
+      setPending(true);
+      void result.finally(() => setPending(false));
+    },
+    [onConfirm, pending],
+  );
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-card border-border">
@@ -41,14 +63,18 @@ export function ConfirmDeleteDialog({
           )}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-transparent border-border text-foreground hover:bg-card">
+          <AlertDialogCancel
+            disabled={pending}
+            className="bg-transparent border-border text-foreground hover:bg-card"
+          >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={handleConfirm}
+            disabled={pending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {confirmLabel}
+            {pending ? 'Working…' : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

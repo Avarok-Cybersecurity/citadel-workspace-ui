@@ -2922,6 +2922,87 @@ and this campaign has now found four cases where only one end existed
 `GroupListGroupsSuccess` with no handler, and this). A test that reads both ends
 catches the whole class.
 
+## Round thirty-six — the listener/emitter class, gated mechanically, 2026-08-27
+
+Round thirty-five ended with the observation that a listener and an emitter are
+two ends of one mechanism, and that four had been found with only one end built.
+This round stopped finding them by hand.
+
+### 230. A whole-tree scan for subscribed events nothing emits — GUARDED
+
+`scripts/check-event-listeners-have-emitters.mjs` collects every emitter form in
+the tree (`emit('x')`, `emitEvent('x')`, and the `name: 'x'` literals the group
+translator later emits dynamically) and every subscription (`useEventListener`,
+`eventEmitter.on/once`, `useEventListeners([...])`), and fails on any subscribed
+name with no producer.
+
+Getting it to zero false positives was most of the work, and each false positive
+was informative:
+
+- A bare `.on(` also matches Yjs documents and sockets, whose names are not on
+  this bus — `change` and `update` are not dead, they are a different emitter.
+- `emitEvent(` is a second emitter form used by the whole connection layer;
+  without it, four live events read as dead.
+- The group events are emitted via `emit(event.name, ...)`, so the literal only
+  ever appears as `name: 'group:created'`. A scanner that reads only `.emit('` calls
+  seven working events dead.
+
+**Test files are excluded from both sides on purpose.** An event emitted only by
+its own test is precisely the failure being hunted, and counting the test as a
+producer would hide it. `group:message-received` is exactly that case.
+
+Of the four survivors, three were already recorded (round 206) and are carried
+in a `RECORDED_DEAD` map whose entries must name their finding — a debt marker,
+not an exemption. The map is checked in **both** directions: an entry whose event
+later gains an emitter fails as a STALE MARKER, so paying the debt is what
+removes it, rather than the marker silently outliving the bug.
+
+### 231. Reconnect never re-synced the peer roster — FIXED
+
+The fourth survivor. `P2PRegistrationService` subscribed to
+`connection:status-changed` to re-run `checkAndRegisterPeers()` as soon as the
+socket returned. **Nothing has ever emitted that name** — the socket layer emits
+`on-ws-connection-success`.
+
+Sized honestly: this is a latency bug, not a breakage. A 30s poll runs
+independently, so a reconnect paid up to a full poll interval with a stale peer
+list rather than losing it permanently. Rewired to the real event.
+
+One trap in the fix: the dead handler called `checkAndRegisterPeers()` with no
+arguments, so simply renaming the event would have re-synced **without** the
+options `start()` was given, silently dropping `autoRegisterAll` on every
+reconnect. The service now records its start options and replays them.
+
+### 232. The delete confirmation closed on the click, not the outcome — FIXED
+
+`AlertDialogAction` **is** a Radix `Close` — provable in the installed package,
+not just by reputation. `ConfirmDeleteDialog` wired `onClick={onConfirm}`
+directly, so the dialog shut on the click, before an async delete resolved.
+
+That made a whole error path dead code. `TreeNodesSection` catches a failed
+delete and renders the reason into the dialog's own description, under a comment
+reading *"Closed only on success. The dialog used to close in a `finally`, so a
+failed delete looked exactly like a successful one."* The comment described the
+intent; Radix closed it first, so the message was rendered into a dialog that no
+longer existed. The failure surfaced only because a caller two layers up happened
+to toast before rethrowing.
+
+Fixed in the shared component with `preventDefault`, plus in-flight state that
+disables both buttons — the double-click path had the same hole. All three
+callers already close themselves from their own state, which is what made the
+change safe to make once rather than three times.
+
+### 233. Method note — the control must fail for the stated reason
+
+The dialog test drives the real component; asserting the source contains
+`preventDefault` would pass on any version that merely mentions it. Reinstating
+the exact defect produces *"Unable to find role=alert"* — the error rendered into
+a closed dialog, which is the finding itself.
+
+The success-path test **still passes** on the broken version, and that is
+correct: it is not the discriminating assertion, and a control in which every
+test fails proves less than one where only the right ones do.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

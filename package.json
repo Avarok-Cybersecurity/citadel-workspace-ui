@@ -18,6 +18,7 @@
     "debug:ui": "node scripts/debug-ui.js",
     "capture:logs": "node scripts/capture-logs.js",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
+    "check:event-pairs": "node scripts/check-event-listeners-have-emitters.mjs",
     "check:pwa": "node scripts/check-pwa-installable.mjs",
     "check:lighthouse": "node scripts/check-lighthouse.mjs",
     "check:pwa-offline": "node scripts/check-pwa-offline.mjs",
