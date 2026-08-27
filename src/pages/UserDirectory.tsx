@@ -3,7 +3,6 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { UserSearch, UserData } from '@/components/user/UserSearch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ConnectionService } from '@/lib/connection-service';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLog } from '@/lib/debug-config';
@@ -13,6 +12,9 @@ import { ConnectionRequestDialog } from './ConnectionRequestDialog';
 import WorkspaceService from '@/lib/workspace-service';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useRegisteredPeers } from '@/hooks';
+import { usePeerDiscovery } from '@/components/p2p/usePeerDiscovery';
+import { sendPeerRegistration } from '@/lib/p2p/send-peer-registration';
+import { connectionManager } from '@/lib/connection';
 
 export const UserDirectory = () => {
   const { state } = useWorkspace();
@@ -20,10 +22,11 @@ export const UserDirectory = () => {
   const [tab, setTab] = useState('all');
   const [sendingRequest, setSendingRequest] = useState(false);
   const { registeredPeers } = useRegisteredPeers();
+  // The only source that carries a username AND a cid, which registration needs.
+  const { peers: discoveredPeers } = usePeerDiscovery(true);
   const [requestMessage, setRequestMessage] = useState('');
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const connectionService = ConnectionService.getInstance();
 
   // Request member list on mount
   const [searchParams] = useSearchParams();
@@ -42,7 +45,16 @@ export const UserDirectory = () => {
     avatarUrl: member.avatarUrl,
     email: member.email,
     role: member.role,
-    isOnline: connectionService.canMessageUser(member.id),
+    // Whether we can actually message them, from the store that knows.
+    //
+    // This read `connectionService.canMessageUser`, which can never return true
+    // in production: the map it consults is written only by the demo
+    // simulation's accept path, and real P2P registration goes through
+    // peerRegistrationStore and never touches it. So every dot was off, the
+    // Online tab was permanently empty, and the "Send Message" branch below was
+    // unreachable code. A previous fix had already replaced Math.random() here
+    // with something that looked authoritative and was constant false.
+    isOnline: registeredPeers.some((peer) => peer.username === member.id),
     // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
     lastActive: undefined,
   }));
@@ -52,9 +64,8 @@ export const UserDirectory = () => {
     return true;
   });
 
-  const isUserConnected = (userId: string): boolean => {
-    return connectionService.canMessageUser(userId);
-  };
+  const isUserConnected = (username: string): boolean =>
+    registeredPeers.some((peer) => peer.username === username);
 
   const handleSendMessage = (userId: string) => {
     if (isUserConnected(userId)) {
@@ -100,11 +111,31 @@ export const UserDirectory = () => {
 
     setSendingRequest(true);
     try {
-      await connectionService.sendRegistrationRequest(selectedUser.id, requestMessage);
+      // The real wire path. This called `connectionService.sendRegistrationRequest`,
+      // which pushed the request into an in-memory array and scheduled a demo
+      // simulation — nothing touched the socket, and the user was told "Request
+      // Sent" for a request that did not exist.
+      const ownCid = connectionManager.getConnectionInfo()?.cid;
+      if (ownCid === undefined || ownCid === null) {
+        throw new Error('Not connected to a workspace.');
+      }
+
+      // A member is identified by USERNAME; registration needs a CID. Only the
+      // peer list carries both, so a member who has never appeared there cannot
+      // be reached from here — and saying so is better than sending nothing and
+      // reporting success.
+      const peer = discoveredPeers.find((candidate) => candidate.username === selectedUser.id);
+      if (!peer) {
+        throw new Error(
+          `${selectedUser.displayName} is not reachable yet. They need to be online at least once before a request can be sent.`,
+        );
+      }
+
+      await sendPeerRegistration(BigInt(ownCid), BigInt(peer.cid), selectedUser.id);
 
       toast({
         title: 'Request Sent',
-        description: `Connection request sent to ${selectedUser.displayName}`,
+        description: `Connection request sent to ${selectedUser.displayName}. They will receive it when online.`,
         variant: 'success',
       });
 

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { websocketService } from '@/lib/websocket-service';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
@@ -8,7 +7,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser } from '@/lib/tab-context';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
-import { getDefaultSecuritySettings } from '@/lib/security-utils';
+import { sendPeerRegistration } from '@/lib/p2p/send-peer-registration';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
@@ -215,21 +214,9 @@ export function usePeerDiscovery(isOpen: boolean) {
     try {
       const requestId = crypto.randomUUID();
       broadcastChannelService.registerRequest(requestId, currentCid);
-      const request = {
-        PeerRegister: {
-          request_id: requestId, cid: currentCid,
-          peer_cid: BigInt(peerCid), session_security_settings: getDefaultSecuritySettings(),
-          connect_after_register: false, peer_session_password: null
-        }
-      };
-      const now = Date.now();
-      await peerRegistrationStore.addOutgoingRequest({
-        id: requestId, fromCid: currentCid, toCid: BigInt(peerCid),
-        peerUsername: peerUsername, timestamp: now, timeLastSent: now
-      });
       // Before the send: a failure can arrive before the await resolves.
       sentRequests.current.set(requestId, peerUsername);
-      await websocketService.sendMessage(request);
+      await sendPeerRegistration(currentCid, BigInt(peerCid), peerUsername, requestId);
       toast({
         title: "Request Sent",
         description: `Connection request sent to ${peerUsername}. They will receive it when online.`,

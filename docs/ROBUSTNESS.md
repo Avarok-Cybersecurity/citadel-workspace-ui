@@ -8150,3 +8150,68 @@ auto-growing textarea in group chat and a single-line input in P2P, and
 pagination is a visible "Load older messages" button in one and an invisible
 scroll-to-top gesture in the other. Both are behaviour rather than styling, and
 both deserve a decision about which is right rather than a coin toss.
+
+### Round 131 — the User Directory was a demo façade
+
+From the search audit, and the finding with the largest gap between what the UI
+said and what happened: pressing "Send Request" in the User Directory called
+`connectionService.sendRegistrationRequest`, which pushed the request into an
+**in-memory array** and scheduled a demo simulation. Nothing touched the socket.
+The user was shown "Request Sent — connection request sent to X". X never
+received anything, ever. The simulation could not even fire its own fake
+notification: it is guarded on `recipientId === 'current-user'`, which is never
+true for a real person.
+
+Three more findings turned out to be the same root cause. `canMessageUser`
+consults a map written only by that simulation's accept path, so it can never
+return true in production — which meant every presence dot was off, the Online
+tab was permanently empty, and the "Send Message" branch was unreachable code.
+That branch contains a carefully-fixed navigation whose own comment documents
+two prior defects; it has never once executed. A previous fix had already
+replaced `Math.random()` there with something that looked authoritative and was
+constant `false`.
+
+All of it now runs through the real stack: `sendPeerRegistration`, extracted
+from the discovery modal's hook so there is one wire path rather than two, and
+presence read from `peerRegistrationStore` — the store that actually knows.
+
+A member is identified by username and registration needs a CID, so a member who
+has never appeared in the peer list cannot be reached from here. That is now
+said plainly rather than answered with a success toast.
+
+Two dead ends removed and one label corrected. Both "Invite" buttons had no
+`onClick` and sat in no form — one of them rendered directly under "No users
+found", which is the exact moment someone needs it. Inviting a non-member is not
+a capability this app has, and a button-shaped dead end at the point of need is
+worse than its absence. And "Recent Users — people you've interacted with" was
+the first five entries of the member record; nothing tracks interaction or
+recency, and there is no last-seen data to sort by.
+
+### Round 132 — the same authentication bypass, one layer further down
+
+Round 119 removed a pre-emptive session claim from the login form: it matched
+active sessions on username alone and redirected into one without checking the
+password. Its replacement comment says the decision belongs where it can
+actually be made — the server.
+
+`websocketService.connect` did the same thing, and prevented exactly that. It
+looked up the agent's sessions by username, and when the local store held no
+matching CID it claimed the session and **returned without sending Connect**. So
+the password reached nobody: not that function, not the agent, not the server,
+which was never asked. Round 119 fixed the outer copy; this is the inner one,
+found only because a fresh audit walked the path from the other end.
+
+It also broke the login it silently completed. The claim carries its own request
+id, so the caller waiting for a `ConnectSuccess` / `ConnectFailure` /
+`SessionAlreadyActive` on *its* id waited out the full thirty seconds and told
+the user "Connection timeout — check your network", for a login that had
+succeeded.
+
+The other branch was worse in a different way: when the session was *not*
+orphaned it disconnected first — tearing down a live, working session on the
+strength of a request that had proved nothing beyond knowing a username.
+
+Both are gone. Connect always goes to the server with the credentials, and the
+server's `SessionAlreadyActive` — which since round 120 verifies the password
+against the fingerprint that opened the session — is what the caller claims
+from.

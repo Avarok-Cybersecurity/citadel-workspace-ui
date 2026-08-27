@@ -9,15 +9,13 @@
  */
 
 import React from 'react';
-import { User, UserPlus } from 'lucide-react';
+import { User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
@@ -48,7 +46,9 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
   loading,
   results,
   recentUsers,
-  enableInvite,
+  // `enableInvite` is still accepted so the call sites need not change, but
+  // there is nothing to enable: the two Invite buttons it gated had no onClick.
+  enableInvite: _enableInvite,
   onSelectUser,
 }) => (
   <Card
@@ -57,10 +57,18 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
   >
     <CardHeader className="p-3 border-b border-border">
       <CardTitle className="text-sm">
-        {searchTerm ? 'Search Results' : 'Recent Users'}
+        {/* Not "Recent Users". These are the first five members of the list,
+            in whatever order it arrived — nothing tracks interaction or
+            recency, and there is no last-seen data to sort by. Claiming
+            otherwise made an arbitrary five look like a considered five. */}
+        {searchTerm ? 'Search Results' : 'Workspace Members'}
       </CardTitle>
       <CardDescription className="text-muted-foreground">
-        {loading ? 'Searching...' : searchTerm ? `Found ${results.length} users` : "People you've interacted with"}
+        {loading
+          ? 'Searching...'
+          : searchTerm
+            ? `Found ${results.length} users`
+            : 'Start typing to search'}
       </CardDescription>
     </CardHeader>
     {/* The `[&_[data-radix-scroll-area-viewport]>div]:!block` is load-bearing.
@@ -131,25 +139,18 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
               <li className="p-6 text-center text-muted-foreground">
                 <User className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
                 <p>No users found</p>
-                {enableInvite && (
-                  <Button className="mt-3 bg-primary hover:bg-primary/90" size="sm">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite User
-                  </Button>
-                )}
+                {/* An "Invite User" button lived here, directly under "No
+                    users found" — the moment someone most needs it — with no
+                    onClick and inside no form. It was a button-shaped dead end
+                    at the exact point of need. Inviting someone who is not a
+                    member is not a capability this app has; pretending
+                    otherwise is worse than its absence. */}
               </li>
             )}
           </ul>
         )}
       </CardContent>
     </ScrollArea>
-    {enableInvite && (results.length > 0 || !searchTerm) && (
-      <CardFooter className="p-3 border-t border-border">
-        <Button className="w-full bg-primary hover:bg-primary/90" size="sm">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Invite New User
-        </Button>
-      </CardFooter>
-    )}
+    {/* The footer's "Invite New User" was the same dead end, twice. */}
   </Card>
 );

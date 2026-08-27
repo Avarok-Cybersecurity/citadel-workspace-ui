@@ -40,32 +40,28 @@ export class AuthOperations {
     // Server address is NOT needed for login - the Citadel protocol stores it from registration
     debugLog('AuthOperations', `[Connect] Connecting user: ${username}`);
 
-    // Check if session already exists
-    try {
-      const { connectionManager } = await import('../connection');
-      const activeSessions = await connectionManager.getActiveSessions();
-      const existingSession = activeSessions.find(s => s.username === username);
-
-      if (existingSession) {
-        debugLog('AuthOperations', `[Connect] Found existing session CID ${existingSession.cid}`);
-
-        // Check if session is orphaned
-        const { connectionManager: cm } = await import('../connection');
-        const storedSession = cm.getStoredSessions().sessions.find(s => s.username === username);
-        const isOrphaned = !storedSession?.cid || storedSession.cid !== existingSession.cid;
-
-        if (isOrphaned) {
-          debugLog('AuthOperations', `[Connect] Session is orphaned - claiming CID ${existingSession.cid}`);
-          await this.config.claimSession(existingSession.cid, false);
-          return;
-        } else {
-          debugLog('AuthOperations', '[Connect] Session exists but not orphaned - disconnecting first');
-          await this.config.disconnect(existingSession.cid);
-        }
-      }
-    } catch (error) {
-      debugLog('AuthOperations', '[Connect] Session check failed, proceeding with Connect:', error);
-    }
+    // No session lookup before authenticating. Connect goes to the server with
+    // the credentials, always.
+    //
+    // This used to match the agent's active sessions on USERNAME alone and, if
+    // the local store had no matching CID, claim the session and RETURN --
+    // without ever sending Connect. The password the user typed was never used
+    // by anything: not by this function, not by the agent (whose own reuse
+    // branch did not check it either), not by the server, which was never
+    // asked. It is the same defect removed from `useLoginHandler` one layer up,
+    // whose comment says the decision belongs where it can actually be made --
+    // and this is what stopped it being made at all.
+    //
+    // It also broke the login it silently completed: the claim carries its own
+    // request id, so the handler waiting for a ConnectSuccess / Connect-
+    // Failure / SessionAlreadyActive on ITS id waited out the full 30 seconds
+    // and reported "Connection timeout, check your network".
+    //
+    // The legitimate case is unaffected and better handled: the server answers
+    // SessionAlreadyActive (having verified the password), and the caller
+    // claims from there. Disconnecting a live session first, which the other
+    // branch did, was worse still -- tearing down a working session on the
+    // strength of an unauthenticated request naming its username.
 
     // Proceed with Connect request
     debugLog('AuthOperations', `[Connect] Proceeding with new connection for ${username}`);
