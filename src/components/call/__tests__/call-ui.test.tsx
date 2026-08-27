@@ -95,13 +95,18 @@ describe('ParticipantTile', () => {
 describe('CallControls', () => {
   const noop = () => {};
 
-  it('flips the microphone label with its state, so it says what it will do', async () => {
+  it('names the microphone once and lets aria-pressed carry the state', async () => {
+    // This test used to assert the opposite, and moved with the bug: it
+    // required the label to FLIP with the state, beside an aria-pressed that
+    // also flips. Paired, they contradict — "Mute microphone, pressed"
+    // announces as *muted* while the microphone is live, which on a privacy
+    // control is the worst possible direction to be wrong in.
     const onToggleMic = vi.fn();
     const { rerender } = render(
       <CallControls media={VIDEO} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
-    const mic = screen.getByRole('button', { name: 'Mute microphone' });
+    const mic = screen.getByRole('button', { name: 'Microphone' });
     expect(mic).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(mic);
     expect(onToggleMic).toHaveBeenCalled();
@@ -109,7 +114,12 @@ describe('CallControls', () => {
     rerender(
       <CallControls media={MUTED} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
-    expect(screen.getByRole('button', { name: 'Unmute microphone' })).toHaveAttribute('aria-pressed', 'false');
+
+    // Same name, different state. That is the whole contract.
+    expect(screen.getByRole('button', { name: 'Microphone' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 
   it('keeps Leave available even while connecting', () => {

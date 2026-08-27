@@ -81,7 +81,13 @@ export const OrphanSessionIcon = ({
           // switches workspaces instead of disconnecting.
           "before:absolute before:-inset-1 before:content-['']"
         )}
-        title="Disconnect from workspace"
+        // Named for THIS session. Every one of them said "Disconnect from
+        // workspace", so with three workspaces open a screen-reader user heard
+        // three identical destructive buttons and could drop the wrong one.
+        // The same fix, with the same reasoning, is already at the tab bar's
+        // close button and the member list's row actions.
+        aria-label={`Disconnect from ${workspaceName} as ${displayName}`}
+        title={`Disconnect from ${workspaceName}`}
         data-testid={`disconnect-button-${session.username}`}
       >
         <X className="w-2.5 h-2.5" />

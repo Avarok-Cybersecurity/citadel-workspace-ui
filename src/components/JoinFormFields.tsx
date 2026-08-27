@@ -72,7 +72,10 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
             // accessible name (a critical button-name violation), carried
             // tabIndex={-1} so no keyboard user could reach it at all, and was
             // a 16px target under the WCAG 2.2 24px floor.
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            // The name says what the control is; aria-pressed below says whether it
+                  // is on. Flipping both made them contradict -- "Hide password,
+                  // pressed" announces as hidden while the password is on screen.
+                  aria-label="Show password"
             aria-pressed={showPassword}
             className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >

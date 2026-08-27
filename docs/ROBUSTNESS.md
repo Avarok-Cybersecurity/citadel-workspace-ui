@@ -7785,3 +7785,53 @@ a user who typed the wrong address still signed in to wherever their account
 lives, and a user whose account was elsewhere waited out a 30s timeout with the
 box on screen implying it was the thing to correct. Registration still asks,
 because that is the one moment the address is genuinely needed.
+
+### Round 121 — four accessibility defects whose fix was already in the tree
+
+The accessibility audit's most useful output was not a finding but a lens: its
+four worst items were all cases where the correct fix exists in this repo,
+commented, a few files away. That is the same shape as rounds 106, 111 and 114.
+
+**The ongoing-call bar announced the clock every second.** `role="status"
+aria-live="polite"` on the container, with the call duration rendered inside it
+and re-rendered at 1 Hz. A polite live region re-announces on every content
+change, so a screen-reader user working anywhere else in the app heard "In call
+with Ana 00:41, 00:42, 00:43" for the entire call — the rest of the product
+unusable exactly while the mic was hot. `CallControls` hides its copy of the
+same value with a comment saying why. The fix stopped there.
+
+**The mute button announced the opposite of the truth.** `aria-pressed={audio}`
+paired with `aria-label={audio ? 'Mute microphone' : 'Unmute microphone'}`.
+Announced: "Mute microphone, toggle button, pressed" — which a listener reads as
+*muted*, while the microphone was live. On a privacy control that is the worst
+direction to be wrong in. The name now names the thing and `aria-pressed` names
+the state, which is what it is for; the visible tooltip still says what a click
+will do, because a sighted user reads it beside the icon rather than as a
+sentence. The same pattern was on both password toggles and is fixed there too.
+
+An existing test asserted the defect — *"flips the microphone label with its
+state, so it says what it will do"* — and would have moved with the bug forever.
+Rewritten to pin the real contract: same name, different state.
+
+**`LoadingModal` was a full-screen scrim with no dialog semantics**, sitting in
+the middle of the login and registration flows: no role, no focus move, no trap,
+no restore, so focus stayed on the submit control underneath and Tab walked
+invisible background controls. `use-dialog-overlay` was written for exactly this
+("Visually a modal; to assistive technology, nothing at all") and applied to six
+overlays; this one was skipped. Hoisted above the early return with `enabled`,
+because hooks cannot be called conditionally.
+
+**Every session's disconnect button was named identically.** Three workspaces
+open meant three identical destructive buttons; the same fix, with the same
+reasoning, is already at the tab bar's close button and the member list's row
+actions.
+
+Two scans came with it, and the first one took three attempts to become real —
+which is the part worth recording. Version one flagged `ConnectionRetryModal`,
+whose countdown sits *after* the status region closes: a correct file reported as
+a defect, and a scan that cries wolf gets relaxed until it catches nothing.
+Version two excluded it correctly but then **passed its own negative control**,
+because it accepted any `aria-hidden` anywhere in the region — including the
+decorative icon's. Only version three, which requires the marker on the element
+directly wrapping the value, fails when the fix is removed. A guard whose control
+cannot fail it is not a guard, and I nearly shipped one.

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, XCircle, X } from "lucide-react";
+import { X } from "lucide-react";
+import { statusAppearance } from "./loading-modal-appearance";
+import { LoadingModalSteps } from "./LoadingModalSteps";
 import { Button } from "@/components/ui/button";
+import { useDialogOverlay } from "@/hooks/use-dialog-overlay";
 
 export interface LoadingModalStep {
   key: string;
@@ -90,20 +93,29 @@ export const LoadingModal = ({
     return () => clearTimeout(timer);
   }, [open, status, timeoutMs]);
 
-  if (!shouldRender) return null;
-
-  const isLoading = status !== "ready" && status !== "error";
-  const isError = status === "error";
-  const isReady = status === "ready";
-
-  const Icon = isError ? XCircle : isReady ? CheckCircle2 : Loader2;
-  const iconClass = isError
-    ? "text-destructive"
-    : isReady
-      ? "text-success"
-      : "animate-spin text-primary-accent";
-
+  const { isLoading, isError, isReady, Icon, iconClass } = statusAppearance(status);
   const title = config.titles[status] || "Processing...";
+
+  // Visually a modal; to assistive technology it was nothing at all -- a
+  // fixed inset-0 scrim with a Cancel button, no role, no focus move, no trap,
+  // no restore. Focus stayed on whatever submitted the form underneath, and Tab
+  // walked invisible background controls. This hook was written for exactly
+  // that and applied to six other overlays; the one sitting in the middle of
+  // the login and registration flows was skipped.
+  //
+  // Dismissible only when there is something to dismiss to: Escape must not
+  // appear to cancel an operation that has no cancel path.
+  //
+  // Above the early return, because hooks cannot be called conditionally --
+  // `enabled` is what makes it inert while nothing is on screen, rather than
+  // skipping the call.
+  const { ref: dialogRef, dialogProps } = useDialogOverlay<HTMLDivElement>({
+    label: title,
+    onDismiss: onCancel && (isLoading || isError) ? onCancel : undefined,
+    enabled: shouldRender,
+  });
+
+  if (!shouldRender) return null;
   const description = errorMessage || config.descriptions[status] || "";
 
   // Find current step index for progress indicator
@@ -111,6 +123,8 @@ export const LoadingModal = ({
 
   return (
     <div
+      ref={dialogRef}
+      {...dialogProps}
       className={`fixed inset-0 z-[100] flex items-center justify-center transition-all duration-300 ${isVisible ? "opacity-100" : "opacity-0"
         }`}
       data-testid={config.testId}
@@ -164,36 +178,7 @@ export const LoadingModal = ({
 
         {/* Progress indicator */}
         {isLoading && config.steps.length > 0 && (
-          <div className="mt-6">
-            <div className="flex justify-center gap-2">
-              {config.steps.map((step, index) => (
-                <div
-                  key={step.key}
-                  // Progress was distinguishable ONLY by fill colour, which a
-                  // colour-blind user cannot read and a screen reader cannot see
-                  // at all. The ring and aria-current carry it independently.
-                  aria-current={index === currentStepIndex ? 'step' : undefined}
-                  className={`w-2 h-2 rounded-full transition-colors duration-300 ${index === currentStepIndex
-                    ? "bg-primary-accent ring-2 ring-primary-accent/50 ring-offset-1 ring-offset-background"
-                    : "bg-primary-accent/30"
-                    }`}
-                />
-              ))}
-              <div className="w-2 h-2 rounded-full bg-primary-accent/30" />
-            </div>
-            <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
-              {config.steps.map((step, index) => (
-                <span
-                  key={step.key}
-                  className={index === currentStepIndex ? "text-primary-accent font-semibold" : ""}
-                >
-                  {step.shortLabel}
-                  {index === currentStepIndex && <span className="sr-only"> (current step)</span>}
-                </span>
-              ))}
-              <span>Ready</span>
-            </div>
-          </div>
+          <LoadingModalSteps steps={config.steps} currentStepIndex={currentStepIndex} />
         )}
 
         {/* Success animation */}

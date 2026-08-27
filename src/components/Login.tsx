@@ -129,7 +129,10 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    // The name says what the control is; aria-pressed below says whether it
+                  // is on. Flipping both made them contradict -- "Hide password,
+                  // pressed" announces as hidden while the password is on screen.
+                  aria-label="Show password"
                     aria-pressed={showPassword}
                     // The icon stays 16px; the BUTTON is 24px, the WCAG 2.2
                     // target-size floor. Centring the icon inside keeps the

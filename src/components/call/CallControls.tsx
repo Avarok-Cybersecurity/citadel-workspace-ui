@@ -45,7 +45,7 @@ export function CallControls({
         active={media.audio}
         onClick={onToggleMic}
         testId="call-toggle-mic"
-        label={media.audio ? 'Mute microphone' : 'Unmute microphone'}
+        label="Microphone"
         OnIcon={Mic}
         OffIcon={MicOff}
       />
@@ -55,7 +55,7 @@ export function CallControls({
         onClick={onToggleCamera}
         disabled={!canToggleVideo}
         testId="call-toggle-camera"
-        label={media.video ? 'Turn camera off' : 'Turn camera on'}
+        label="Camera"
         OnIcon={Video}
         OffIcon={VideoOff}
       />
@@ -103,11 +103,17 @@ function ToggleButton({ active, onClick, disabled, testId, label, OnIcon, OffIco
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
-      // aria-pressed carries the state, and the label flips with it, so the
-      // control announces both what it is and what it will do.
+      // aria-pressed carries the state, so the label must NOT also flip with
+      // it. Paired, they contradict: "Mute microphone" + pressed announced as
+      // "Mute microphone, pressed", which a listener reads as *muted* -- while
+      // the mic was in fact live. On a privacy control that is the worst
+      // possible direction to be wrong in. The label now names the thing and
+      // the state names the state, which is what aria-pressed is for.
       aria-pressed={active}
       aria-label={label}
-      title={label}
+      // The visible tooltip can still say what the click will DO, because a
+      // sighted user reads it alongside the icon rather than as a sentence.
+      title={active ? `${label} on` : `${label} off`}
       className={cn(
         'h-10 w-10 rounded-full',
         active

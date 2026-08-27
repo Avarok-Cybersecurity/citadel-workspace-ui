@@ -55,7 +55,18 @@ export function OngoingCallBar() {
       <Radio className="h-4 w-4 shrink-0 text-primary-accent" aria-hidden="true" />
       <span className="min-w-0 truncate text-sm">
         In call with {who}
-        <span className="ml-2 tabular-nums text-muted-foreground">{duration}</span>
+        <span
+          className="ml-2 tabular-nums text-muted-foreground"
+          // Inside a polite live region that re-announces on every content
+          // change, and this changes once a second. A screen-reader user
+          // navigating anywhere else in the app heard "In call with Ana 00:41,
+          // 00:42, 00:43" for the whole call -- the rest of the product became
+          // unusable exactly while the mic was hot. CallControls hides its copy
+          // of the same value for the same reason; the fix stopped there.
+          aria-hidden="true"
+        >
+          {duration}
+        </span>
       </span>
       <Button size="sm" variant="secondary" onClick={returnToCall}>
         Return
