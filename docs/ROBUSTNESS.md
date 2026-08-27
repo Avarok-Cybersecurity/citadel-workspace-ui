@@ -8092,3 +8092,29 @@ The answer is matched on **both** user and domain. One editor can be open while
 another domain's response arrives, and the response is the only thing that says
 which is which — a control confirms that dropping either check lets the wrong
 answer populate the matrix.
+
+### Round 129 — bulk delete resurrected what it deleted
+
+Every RE-VFS tree mutation reads the tree, changes it in memory, and writes it
+back, with a backend round trip in between. Nothing serialised them. Bulk delete
+ran them under `Promise.all`, so every operation captured the same base tree and
+the last write resurrected everything the others had removed — locally, as nodes
+whose backend bytes were already gone, while the peer received each removal op
+separately and dropped them all. Two trees, both wrong, neither aware.
+
+The mechanism to fix it already existed one directory over. `p2p/peer-write-lock`
+guards exactly this shape for the message store, and its header describes a
+received message that disappeared the same way: delivered, acknowledged, cached,
+then written over. It is `lib/serial-queue` now, keyed by an arbitrary string,
+used by both — and every RE-VFS mutator is wrapped at the service, which is the
+one choke point all sixteen pass through.
+
+**One of the four controls did not discriminate, and chasing it was worth more
+than the test.** "Does not cancel the operations queued behind a failure" passed
+with the read-side `.catch` removed, and passed again with the write-side one
+removed. Each is sufficient on its own for queue continuation; only removing
+both fails it. The second catch is not redundant — it stops a rejected promise
+sitting in the map with nobody awaiting it, which is an unhandled rejection —
+but that is a different property, and the test was silently claiming to cover
+something it does not. Both facts are now written where they belong: the
+distinction at the code, the limit of the control in the test.

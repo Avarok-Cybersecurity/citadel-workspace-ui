@@ -15,13 +15,13 @@
  *
  * This is a lock on OUR writes, not a transaction: IndexedDB gives no
  * cross-await atomicity, and the operations here span several stores.
+ *
+ * The mechanism now lives in `lib/serial-queue`, because the RE-VFS tree had
+ * the identical read-modify-write shape and no lock at all — the same defect,
+ * one directory over.
  */
-const chains = new Map<string, Promise<unknown>>();
+import { withSerialLock } from '@/lib/serial-queue';
 
 export function withPeerLock<T>(peerCid: bigint, operation: () => Promise<T>): Promise<T> {
-  const key = peerCid.toString();
-  // `.catch` so one rejected operation does not cancel those queued behind it.
-  const run = (chains.get(key) ?? Promise.resolve()).catch(() => undefined).then(operation);
-  chains.set(key, run.catch(() => undefined));
-  return run;
+  return withSerialLock(`peer:${peerCid}`, operation);
 }

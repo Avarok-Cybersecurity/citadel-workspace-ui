@@ -12,6 +12,7 @@ import type {
   TreeKey,
 } from '@/types/revfs-types';
 import { RevfsOpType } from '@/types/revfs-types';
+import { withSerialLock } from '@/lib/serial-queue';
 import {
   peerPairKey,
   serverTreeKey,
@@ -135,26 +136,29 @@ export class RevfsService {
 
   // ── Peer-Scoped Operations (delegated) ────────────────────────────────
 
-  mkdir(myCid: bigint, peerCid: bigint, path: string): Promise<void> { return dirOps.peerMkdir(this.dirCtx(), myCid, peerCid, path); }
-  rmdir(myCid: bigint, peerCid: bigint, path: string): Promise<void> { return dirOps.peerRmdir(this.dirCtx(), myCid, peerCid, path); }
-  rename(myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<void> { return dirOps.peerRename(this.dirCtx(), myCid, peerCid, path, newName); }
-  move(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<void> { return dirOps.peerMove(this.dirCtx(), myCid, peerCid, src, dest); }
-  copy(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<void> { return dirOps.peerCopy(this.dirCtx(), myCid, peerCid, src, dest); }
-  uploadFileToPeer(myCid: bigint, peerCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<void> { return fileOps.uploadFileToPeer(this.fileCtx(), myCid, peerCid, dir, name, meta, content); }
-  removeFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<void> { return fileOps.removeFileFromPeer(this.fileCtx(), myCid, peerCid, path); }
+  // Every mutator below is serialised on its tree's key -- see the header of
+  // lib/serial-queue for the read-modify-write race this closes, and how bulk
+  // delete hit it.
+  mkdir(myCid: bigint, peerCid: bigint, path: string): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerMkdir(this.dirCtx(), myCid, peerCid, path)); }
+  rmdir(myCid: bigint, peerCid: bigint, path: string): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerRmdir(this.dirCtx(), myCid, peerCid, path)); }
+  rename(myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerRename(this.dirCtx(), myCid, peerCid, path, newName)); }
+  move(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerMove(this.dirCtx(), myCid, peerCid, src, dest)); }
+  copy(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerCopy(this.dirCtx(), myCid, peerCid, src, dest)); }
+  uploadFileToPeer(myCid: bigint, peerCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.uploadFileToPeer(this.fileCtx(), myCid, peerCid, dir, name, meta, content)); }
+  removeFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.removeFileFromPeer(this.fileCtx(), myCid, peerCid, path)); }
   downloadFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<string | undefined> { return fileOps.downloadFileFromPeer(this.fileCtx(), myCid, peerCid, path); }
-  addSentFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string }): Promise<void> { return fileOps.addSentFile(this.fileCtx(), myCid, peerCid, t); }
-  addReceivedFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string; downloadPath?: string }): Promise<void> { return fileOps.addReceivedFile(this.fileCtx(), myCid, peerCid, t); }
+  addSentFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string }): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.addSentFile(this.fileCtx(), myCid, peerCid, t)); }
+  addReceivedFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string; downloadPath?: string }): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.addReceivedFile(this.fileCtx(), myCid, peerCid, t)); }
 
   // ── Server-Scoped Operations (delegated) ──────────────────────────────
 
-  serverMkdir(myCid: bigint, path: string): Promise<void> { return dirOps.serverMkdir(this.dirCtx(), myCid, path); }
-  serverRmdir(myCid: bigint, path: string): Promise<void> { return dirOps.serverRmdir(this.dirCtx(), myCid, path); }
-  serverRename(myCid: bigint, path: string, name: string): Promise<void> { return dirOps.serverRename(this.dirCtx(), myCid, path, name); }
-  serverMove(myCid: bigint, src: string, dest: string): Promise<void> { return dirOps.serverMove(this.dirCtx(), myCid, src, dest); }
-  serverCopy(myCid: bigint, src: string, dest: string): Promise<void> { return dirOps.serverCopy(this.dirCtx(), myCid, src, dest); }
-  uploadFileToServer(myCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<void> { return serverFileOps.uploadFileToServer(this.fileCtx(), myCid, dir, name, meta, content); }
-  removeFileFromServer(myCid: bigint, path: string): Promise<void> { return serverFileOps.removeFileFromServer(this.fileCtx(), myCid, path); }
+  serverMkdir(myCid: bigint, path: string): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => dirOps.serverMkdir(this.dirCtx(), myCid, path)); }
+  serverRmdir(myCid: bigint, path: string): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => dirOps.serverRmdir(this.dirCtx(), myCid, path)); }
+  serverRename(myCid: bigint, path: string, name: string): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => dirOps.serverRename(this.dirCtx(), myCid, path, name)); }
+  serverMove(myCid: bigint, src: string, dest: string): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => dirOps.serverMove(this.dirCtx(), myCid, src, dest)); }
+  serverCopy(myCid: bigint, src: string, dest: string): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => dirOps.serverCopy(this.dirCtx(), myCid, src, dest)); }
+  uploadFileToServer(myCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => serverFileOps.uploadFileToServer(this.fileCtx(), myCid, dir, name, meta, content)); }
+  removeFileFromServer(myCid: bigint, path: string): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => serverFileOps.removeFileFromServer(this.fileCtx(), myCid, path)); }
   downloadFileFromServer(myCid: bigint, path: string): Promise<string | undefined> { return serverFileOps.downloadFileFromServer(this.fileCtx(), myCid, path); }
 
   // ── Incoming Operation Handler ────────────────────────────────────────
