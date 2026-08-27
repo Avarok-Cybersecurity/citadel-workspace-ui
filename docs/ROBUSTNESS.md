@@ -2542,6 +2542,82 @@ The same sweep that found the write gap found more of the shape:
   disconnect is best-effort and may have failed — a security claim that is false
   when the session lives on as an orphan.
 
+## Round twenty-nine — a recipient can save, and you own your own messages, 2026-08-27
+
+### 208. A peer who received a live document lost everything they typed — FIXED
+
+`updateDocumentState` returned early when the cache had no entry, resolving
+successfully while writing **nothing**. Only the CREATOR ever had an entry: the
+recipient's open path builds a tab and no store record. So every peer who
+received a shared document lost their work when the tab closed, with no error
+anywhere — and the unmount flush, added specifically *"so closing the tab does
+not drop the last edits"*, was the same no-op because it called the same
+early-returning function.
+
+`adoptDocument` keeps the id it was given — `createDocument` mints a NEW one,
+which would make it a second document the peer never sees. `updateDocumentState`
+now throws for an untracked document, and the final flush announces its failure
+rather than swallowing it: the debounced write can retry on the next edit, but
+the flush is the last chance.
+
+### 209. Edit and Delete never rendered on your own group message — FIXED
+
+The server sets `sender_id` from `get_username_by_cid` — a **username**. The
+client compared it against `String(connectionInfo.cid)` — a **CID**. Those can
+never be equal, so `isOwnMessage` was always false for every user on every
+message: Edit and Delete are gated on it, and your own messages rendered
+left-aligned as if someone else had sent them.
+
+The server would have accepted those edits — its own check compares
+`msg.sender_id != actor_user_id`, username against username. Only the UI was
+dead. Fixed in the component, because `currentUserId` is genuinely a CID at three
+other sites and would break if it became a username.
+
+### 210. Method note — two of my three assertions were vacuous
+
+They queried a `data-own-message` attribute that **does not exist**, so they
+passed by finding nothing. The replacements open the actions menu and read its
+items — because the trigger renders for every message (Reply is always
+available), and only Edit and Delete are gated.
+
+Related, third occurrence this campaign: a test file passed under vitest while
+`tsc` rejected it, because the props object was cast `as never` and the spread
+went untyped. **vitest passing is not evidence a test file is correct** — the
+type-check is a separate gate and catches a different class of error.
+
+And once more: removing the live-document adoption from the open path failed
+NOTHING, because those tests asserted on the store, one layer below the
+decision. There is now an assertion on the open path itself.
+
+### 211. Recorded, not fixed — the first-run cliff is social, not technical
+
+A deployment audit walked the quickstart as a reader would:
+
+- **The README's dev quickstart produces an unreachable stack on macOS/Windows**
+  and reports itself healthy. Every dev service uses `network_mode: host`, which
+  the repo's own `docker-compose.local.yml` explains cannot work off Linux — and
+  the healthchecks probe `127.0.0.1` from INSIDE the container, so `--wait` exits
+  green while the browser gets connection refused.
+- **The first user must type the operator's `WORKSPACE_MASTER_PASSWORD` into a
+  browser modal, and no doc says so.** Worse, every subsequent user gets the same
+  blocking modal until someone completes it, and its Cancel ejects them from the
+  workspace they just joined. The README's "the first account to register
+  initialises the workspace and becomes its administrator" is wrong in a
+  load-bearing way: admin is granted automatically at connect, while
+  "initialise" is a separate manual step requiring the secret.
+- **That password is a permanent, identity-blind admin-escalation and deletion
+  credential**, documented only as "first-time workspace initialization". Any
+  authenticated account presenting it becomes a global Admin, persisted — and
+  `delete_workspace` ignores identity entirely (`_user_id`).
+- **Two users connecting simultaneously to a fresh workspace both become Admin**,
+  and the second write erases the first's membership. `lock_workspaces()` exists
+  for exactly this and its only caller is the theme handler — the
+  fixed-in-one-place pattern, in the first-run path.
+- **Inviting a second user requires GHCR org access the docs never mention.**
+- **`.env.example` instructs a production UI build step the production compose
+  deliberately made impossible**, and there is **no upgrade procedure at all for
+  the local client stack** every non-operator user runs.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written
