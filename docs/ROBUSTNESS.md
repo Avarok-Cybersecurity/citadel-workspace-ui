@@ -4943,6 +4943,50 @@ published for a consumer that does not exist yet is not a defect — which is
 exactly why the reverse check needs the debt-marker treatment rather than a
 blanket failure.
 
+## Round seventy-one — the event guard now checks both directions, 2026-08-28
+
+### 339. An emitter nobody hears is now a build failure — GUARDED
+
+Round forty-one declared this direction unmechanisable. Round sixty-nine showed
+that was a wrong diagnosis from an incomplete scanner. This round closes it.
+
+The guard now fails on an **UNHEARD EMIT** — an event published with no
+subscriber — alongside the dead-listener check it has had since round thirty-six.
+The twenty-four existing ones are carried in `RECORDED_UNCONSUMED`, each with the
+reason it has no consumer, because most are genuinely harmless: an event
+published for a consumer that does not exist yet is not a defect, and a guard
+that treats it as one gets disabled.
+
+Three of them are labelled **REAL GAP** so they stay visible rather than
+quietly tolerated:
+
+- `revfs:persist-failed` — a failed tree persist announced to nobody, the exact
+  shape of the live-document bug fixed in round sixty-eight.
+- `outbound-failed` / `outbound-error` — the queue knows a proxied request is
+  dead roughly ten seconds before `sendToLeader`'s own timer gives up, and says
+  so to nobody.
+
+### 340. Four failure branches, four controls
+
+A guard with four ways to fail needs four negative controls, and running them
+found that one of mine was wrong rather than the guard:
+
+| branch | control | result |
+|---|---|---|
+| new unheard emit | add `emit('nobody:hears-this')` | exit 1 ✓ |
+| stale unheard marker | list an event that HAS a listener | exit 1 ✓ |
+| dead listener | subscribe to a name nothing emits | exit 1 ✓ |
+| stale dead marker | list an event that HAS an emitter | exit 1 ✓ |
+
+The dead-listener control first came back green. The cause was my control: I
+aliased the import (`e2.on(...)`), and the guard deliberately does not match a
+bare `.on` because Yjs documents and the editor use it too. **The control was
+wrong, not the guard** — and only re-running it with the real facade name
+distinguished the two.
+
+That distinction is the whole reason to run controls rather than reason about
+them: a green control is evidence of nothing until you know it *can* go red.
+
 ## Method notes worth keeping
 
 - **Grep the mechanism, not the symptom.** The last-admin guard was written

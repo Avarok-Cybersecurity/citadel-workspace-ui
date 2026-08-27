@@ -40,6 +40,48 @@ const RECORDED_DEAD = new Map([
   ['instance:registry-update', 'ROBUSTNESS.md #230 — knownInstances feeds one debugLog and is always empty'],
 ]);
 
+
+/**
+ * Events that are EMITTED and heard by nobody.
+ *
+ * The mirror of RECORDED_DEAD. Most are harmless — an event published for a
+ * consumer that does not exist yet is not a defect — which is why this is a
+ * debt-marker list rather than a blanket failure. The ones marked REAL GAP are
+ * findings with user-visible consequences, kept here so they are visible rather
+ * than quietly tolerated.
+ *
+ * Three emit wires with no listener have already cost real defects: a live
+ * document's final save, a failed session startup, and the local agent being
+ * unreachable. Each was found by an audit, months apart, because nothing checked
+ * this direction.
+ */
+const RECORDED_UNCONSUMED = new Map([
+  ['revfs:persist-failed', 'REAL GAP — a failed tree persist is announced to nobody, same shape as live-document:persist-failed'],
+  ['outbound-failed', 'REAL GAP — the queue knows a proxied request is dead ~10s before sendToLeader times out; nobody hears it'],
+  ['outbound-error', 'REAL GAP — as outbound-failed'],
+  ['group:message:new', 'published beside group:message-received, which is the one the store reads'],
+  ['group:message:edited', 'the edit path settles through awaitWriteResponse, not this event'],
+  ['group:message:deleted', 'as group:message:edited'],
+  ['group:message:single', 'no consumer; single-message fetch is unused by the UI'],
+  ['group:messages:loaded', 'useGroupChat reads the pagination result directly'],
+  ['instance:state-changed', 'diagnostic; the UI reads instanceManager directly'],
+  ['member:loaded', 'the members list is driven by members:loaded (plural)'],
+  ['node:types:loaded', 'node types are read synchronously from the store'],
+  ['operation:deleted', 'no consumer; deletions are reflected by the node:* events'],
+  ['server:shutdown', 'no consumer — a shutdown notice the UI never shows'],
+  ['workspace:created', 'the create flow awaits its response; this is a duplicate signal'],
+  ['workspace:error', 'errors surface through operation:error, which IS consumed'],
+  ['p2p:channel-ready', 'readiness is polled by the auto-connect service, not awaited'],
+  ['p2p:conversations-cleaned', 'diagnostic after a stale-conversation sweep'],
+  ['p2p:open-conversation', 'no consumer — deep-linking into a conversation is not wired'],
+  ['p2p:peer-registered-with-us', 'the peer list refreshes on its own poll'],
+  ['p2p:presence-updated', 'presence renders from the messenger callback registry'],
+  ['p2p:registration-declined', 'no consumer — a decline is not surfaced anywhere'],
+  ['p2p:raw-message', 'consumed by the Yjs provider through its own subscription path'],
+  ['broadcast-workspace-response', 'internal to the broadcast-channel service'],
+  ['yjs:document-update', 'the provider wires its own document listeners'],
+]);
+
 // Emitter forms: eventEmitter.emit('x'), io.emitEvent('x'), and the
 // `name: 'x'` literal used by the group-events translator, whose names are
 // emitted later through a dynamic `emit(event.name, ...)`.
@@ -106,9 +148,36 @@ for (const [name, sites] of listened) {
   }
 }
 
-if (dead.length === 0 && staleMarkers.length === 0) {
+// The reverse direction: an emitter nobody hears.
+const unconsumed = [];
+const staleUnconsumed = [];
+for (const name of emitted) {
+  // Only bus-shaped names. The `name: 'x'` emitter form also matches theme
+  // presets and MDX template titles, which are not events.
+  if (!name.includes(':') && !name.includes('-')) continue;
+  if (listened.has(name)) {
+    if (RECORDED_UNCONSUMED.has(name)) staleUnconsumed.push(name);
+  } else if (!RECORDED_UNCONSUMED.has(name)) {
+    unconsumed.push(name);
+  }
+}
+
+for (const name of unconsumed) {
+  console.error(`\nUNHEARD EMIT: '${name}' is emitted but nothing subscribes to it.`);
+  console.error(`  Either subscribe to it, stop emitting it, or add it to`);
+  console.error(`  RECORDED_UNCONSUMED with the reason it has no consumer yet.`);
+}
+for (const name of staleUnconsumed) {
+  console.error(`\nSTALE MARKER: '${name}' is in RECORDED_UNCONSUMED but now HAS a listener.`);
+  console.error(`  Remove the entry so a future regression fails.`);
+}
+
+if (dead.length === 0 && staleMarkers.length === 0 && unconsumed.length === 0 && staleUnconsumed.length === 0) {
   const n = listened.size - RECORDED_DEAD.size;
-  console.log(`Every one of ${n} subscribed events has an emitter (${RECORDED_DEAD.size} recorded-dead).`);
+  console.log(
+    `Every one of ${n} subscribed events has an emitter, and every emit has a ` +
+    `listener (${RECORDED_DEAD.size} recorded-dead, ${RECORDED_UNCONSUMED.size} recorded-unheard).`
+  );
   process.exit(0);
 }
 
