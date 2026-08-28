@@ -10426,3 +10426,41 @@ producing verdicts at a rate of roughly zero per hour while appearing busy.
 That is a process defect of exactly the kind this campaign keeps recording in
 code: a signal that looks live, costs money and CPU, and answers nothing.
 Pushes are held until a run completes.
+
+## Round 187 — "fully logged out" was not true of the device
+
+Signing out removes the stored session and the tab's selection, shows *"You have
+been fully logged out"*, and leaves behind, in localStorage:
+
+| key | contents |
+|---|---|
+| `peer-first-seen:<cid>` | one key per peer the account has ever spoken to |
+| `citadel:file-transfers` | file names, sizes and peer CIDs of every transfer, both directions |
+| `citadel:file-transfer-settings` | per-peer settings, keyed by peer CID |
+
+Readable afterwards by anyone who opens devtools on that machine. On a product
+whose premise is that conversations are private, telling someone they are fully
+logged out while the browser still holds a list of who they talked to and what
+they exchanged is a sentence the storage contradicts — the same class as a hedge
+offered where the answer is known, pointing the other way.
+
+The interesting half of the fix is what it **keeps**. Clearing everything would
+satisfy a "no residue" check and be its own bug: a user who signs out should not
+find their font size reset and their privacy switches back at the defaults.
+
+| kept | why |
+|---|---|
+| `citadel:appearance-settings` | a device preference, not an identity |
+| `citadel:privacy-settings` | as above, and its defaults are the safer values |
+| `citadel_recent_servers` | a list the user can see and manage; silently emptying a visible feature is a different bug |
+| `citadel:diagnostics` | a debugging opt-in the user set themselves |
+
+The split is the point: **residue the user cannot see goes, state the user chose
+stays.** A rule that cleared everything would pass the obvious test and lose that
+distinction, which is why the "kept" set is asserted rather than assumed.
+
+Three controls. Clearing nothing fails 3 of 5; clearing everything also fails 3
+of 5 — the same count, different tests, which is what makes the pair worth
+having. Matching by substring instead of prefix fails 1: `x-peer-first-seen:1`
+belongs to something else, and a sign-out that deletes another feature's keys is
+worse than one that leaves its own.

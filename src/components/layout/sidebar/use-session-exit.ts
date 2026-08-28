@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toastSuccess } from '@/lib/toast-helpers';
 import { connectionManager } from '@/lib/connection';
 import { clearSelectedUser, getSelectedUser } from '@/lib/tab-context';
+import { clearSignOutResidue } from '@/lib/sessions/sign-out-residue';
 import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import type { DisconnectStatus } from '@/components/LoadingModal';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -101,6 +102,12 @@ export function useSessionExit() {
     } catch (error) {
       debugLog('TopBar', 'Local sign-out cleanup raised, ignoring:', error);
     }
+
+    // "Fully logged out" has to be true of the device, not just the session.
+    // The transfer history and the per-peer first-seen keys named who this
+    // account talked to and what it exchanged, and survived sign-out in
+    // localStorage where anyone with devtools could read them.
+    clearSignOutResidue();
 
     setDisconnectStatus("ready");
   };
