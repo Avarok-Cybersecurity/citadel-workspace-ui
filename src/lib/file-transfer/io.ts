@@ -210,7 +210,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       transferId: intent.transferId,
     });
 
-    const ack = awaitSendFileAck(requestId);
+    const ack: Promise<void> = awaitSendFileAck(requestId);
     await websocketService.sendMessage(request);
     return ack;
   }

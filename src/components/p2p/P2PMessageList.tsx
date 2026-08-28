@@ -97,7 +97,7 @@ export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
               <DateSeparator date={date} />
               {dayMessages.map((message) => {
             const isOwn = message.senderCid === currentUserCid;
-            const messageSenderName = isOwn ? currentUserName : peerName;
+            const messageSenderName: string = isOwn ? currentUserName : peerName;
 
             return (
               <MessageBubble

@@ -30,7 +30,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         try {
           if (rawMetadata && typeof rawMetadata === 'object') {
             if (Array.isArray(rawMetadata) && rawMetadata.length > 0) {
-              const metadataString = bytesToString(rawMetadata as number[]);
+              const metadataString: string = bytesToString(rawMetadata as number[]);
               parsedMetadata = JSON.parse(metadataString);
               isInitialized = parsedMetadata?.initialized === true;
             } else if (!Array.isArray(rawMetadata)) {

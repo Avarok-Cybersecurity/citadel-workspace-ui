@@ -52,7 +52,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
 
   useEffect(() => {
     if (isOpen && peerCid) {
-      const currentSettings = fileTransferService.getSettings(peerCid);
+      const currentSettings: FileTransferSettings = fileTransferService.getSettings(peerCid);
       setSettings(currentSettings);
     }
   }, [isOpen, peerCid]);
@@ -63,7 +63,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
   // general formatter it is not.
   const formatSizeLimit = (bytes: number): string => {
     if (bytes === 0) return '0 MB';
-    const mb = bytes / (1024 * 1024);
+    const mb: number = bytes / (1024 * 1024);
     return `${Math.round(mb)} MB`;
   };
 
@@ -73,7 +73,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
   };
 
   const handleMaxFileSizeChange = async (values: number[]) => {
-    const bytes = values[0] * 1024 * 1024;
+    const bytes: number = values[0] * 1024 * 1024;
     setSettings(prev => ({ ...prev, maxFileSize: bytes }));
     await fileTransferService.setMaxFileSize(peerCid, bytes);
   };
@@ -89,14 +89,14 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
   };
 
   const handleRevfsQuotaChange = async (values: number[]) => {
-    const bytes = values[0] * 1024 * 1024;
+    const bytes: number = values[0] * 1024 * 1024;
     setSettings(prev => ({ ...prev, revfsQuota: bytes }));
     await fileTransferService.setRevfsQuota(peerCid, bytes);
   };
 
-  const maxFileSizeMb = Math.round(settings.maxFileSize / (1024 * 1024));
-  const revfsQuotaMb = Math.round(settings.revfsQuota / (1024 * 1024));
-  const defaultMaxMb = Math.round(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES / (1024 * 1024));
+  const maxFileSizeMb: number = Math.round(settings.maxFileSize / (1024 * 1024));
+  const revfsQuotaMb: number = Math.round(settings.revfsQuota / (1024 * 1024));
+  const defaultMaxMb: number = Math.round(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES / (1024 * 1024));
 
   return {
     stats,

@@ -97,7 +97,7 @@ export function toast(options: ToastOptions): ToastHandle {
 
   const message = headline(options);
 
-  const id =
+  const id: string | number =
     options.variant === 'destructive'
       ? sonnerToast.error(message, payload)
       : options.variant === 'success'

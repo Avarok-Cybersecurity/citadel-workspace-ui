@@ -36,7 +36,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   // returns what was typed. The chat is keyed by peer — that keying is the fix
   // for drafts LEAKING between conversations, and it is why the text has to
   // live outside the component to survive the remount.
-  const conversationKey = peerCid?.toString() ?? '';
+  const conversationKey: string = peerCid?.toString() ?? '';
   const [inputMessage, setInputMessage] = useState(() => loadDraft(conversationKey));
   // True between submit and the message appearing in the transcript. The group
   // composer has had this guard since it was written; the P2P one never did, so
@@ -50,7 +50,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
 
   const { toast } = useToast();
-  const messenger = P2PMessengerManager.getInstance();
+  const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
   const applyFormat = useMarkdownFormat(inputRef, setInputMessage, () => inputMessage);
 
   useEffect(() => { inputMessageRef.current = inputMessage; }, [inputMessage]);

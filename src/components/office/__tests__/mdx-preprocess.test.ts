@@ -19,14 +19,14 @@ describe('applyGfmStrikethrough', () => {
   });
 
   it('does NOT touch ~~text~~ inside a fenced code block', () => {
-    const input = [
+    const input: string = [
       'text before',
       '```',
       'console.log(~~"keep me literal"~~);',
       '```',
       'text after with ~~real~~ strikethrough',
     ].join('\n');
-    const out = applyGfmStrikethrough(input);
+    const out: string = applyGfmStrikethrough(input);
     // Fenced block content is preserved verbatim
     expect(out).toContain('console.log(~~"keep me literal"~~);');
     // Strikethrough outside the block IS applied
@@ -35,7 +35,7 @@ describe('applyGfmStrikethrough', () => {
 
   it('handles fenced blocks with a language tag', () => {
     const input = '```ts\nconst x = ~~y~~;\n```\n~~outside~~';
-    const out = applyGfmStrikethrough(input);
+    const out: string = applyGfmStrikethrough(input);
     expect(out).toContain('const x = ~~y~~;');
     expect(out).toContain('<del>outside</del>');
   });
@@ -55,7 +55,7 @@ describe('applyGfmStrikethrough', () => {
     // A lone backtick should not start an inline code span (the regex
     // requires `[^`\n]*\``). Strikethrough outside should still apply.
     const input = 'unbalanced ` here ~~strike~~ end';
-    const out = applyGfmStrikethrough(input);
+    const out: string = applyGfmStrikethrough(input);
     expect(out).toContain('<del>strike</del>');
   });
 
@@ -116,8 +116,8 @@ describe('applyGfmStrikethrough', () => {
 
 describe('transformOutsideCode', () => {
   it('passes a non-code-only string through `transform` once', () => {
-    let count = 0;
-    const out = transformOutsideCode('plain text', (s) => {
+    let count: number = 0;
+    const out: string = transformOutsideCode('plain text', (s) => {
       count++;
       return s.toUpperCase();
     });
@@ -126,7 +126,7 @@ describe('transformOutsideCode', () => {
   });
 
   it('preserves code regions verbatim and runs transform on each gap', () => {
-    const out = transformOutsideCode('a `b` c ```d``` e', (s) =>
+    const out: string = transformOutsideCode('a `b` c ```d``` e', (s) =>
       s.replace(/[a-z]/g, (ch) => ch.toUpperCase()),
     );
     expect(out).toBe('A `b` C ```d``` E');

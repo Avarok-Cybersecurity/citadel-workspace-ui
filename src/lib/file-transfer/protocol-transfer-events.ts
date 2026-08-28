@@ -59,8 +59,8 @@ export function resolveTransferForProtocolEvent(
     if (exact) return exact;
   }
 
-  const own = event.cid.toString();
-  const peer = event.peerCid.toString();
+  const own: string = event.cid.toString();
+  const peer: string = event.peerCid.toString();
   return state
     .getAllTransfers()
     .filter(

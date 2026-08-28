@@ -32,7 +32,7 @@ export class WebSocketServiceCore {
     // `window` is guarded rather than assumed: the guard is defensive (the only construction site
     // is the module-scope singleton in index.ts, and the import cycle above makes this module
     // unimportable in node regardless), and absent a browser the resolver throws by design.
-    const wsUrl = resolveWebsocketUrl(
+    const wsUrl: string = resolveWebsocketUrl(
       config.websocketUrl,
       import.meta.env.VITE_WS_URL,
       typeof window !== 'undefined' ? window.location : undefined,

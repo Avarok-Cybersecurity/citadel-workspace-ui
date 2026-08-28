@@ -60,7 +60,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (isEnterCommit(e)) {
       e.preventDefault();
-      const normalizedPath = inputValue.trim() || '/';
+      const normalizedPath: string = inputValue.trim() || '/';
 
       // Validate path exists in tree
       if (pathExists(tree, normalizedPath)) {

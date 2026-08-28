@@ -38,8 +38,8 @@ export function StorageLimitModal({
   attemptedFileSize,
   onManageStorage,
 }: StorageLimitModalProps) {
-  const availableBytes = Math.max(0, quotaBytes - usedBytes);
-  const percentage = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
+  const availableBytes: number = Math.max(0, quotaBytes - usedBytes);
+  const percentage: number = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
 
   // Determine bar color based on usage
   const barColor = percentage >= 95

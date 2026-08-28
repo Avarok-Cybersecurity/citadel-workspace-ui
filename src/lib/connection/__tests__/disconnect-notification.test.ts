@@ -21,13 +21,13 @@ const CURRENT = 111n;
 const OTHER = 222n;
 
 function harness(currentCid: bigint | undefined) {
-  const state = {
+  const state: ConnectionState = {
     currentConnectionInfo: currentCid === undefined ? null : { cid: currentCid },
     setCurrentConnectionInfo: vi.fn(),
     invalidateCache: vi.fn(),
     pendingRequests: new Map(),
   } as unknown as ConnectionState;
-  const io = {
+  const io: ConnectionIO = {
     updateConnectionService: vi.fn(),
     broadcastConnectionStatus: vi.fn(),
   } as unknown as ConnectionIO;

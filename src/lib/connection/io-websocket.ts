@@ -115,9 +115,9 @@ export class ConnectionIOWebSocket {
   }
 
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
-    const valueStr = persistJSON(sessions);
+    const valueStr: string = persistJSON(sessions);
     debugLog('ConnectionIO', 'Storing sessions, serialized:', formatForDebug(valueStr));
-    const valueBytes = stringToBytes(valueStr);
+    const valueBytes: number[] = stringToBytes(valueStr);
     await this.localDBSet(0n, SESSION_STORAGE_KEY, valueBytes);
   }
 
@@ -125,7 +125,7 @@ export class ConnectionIOWebSocket {
     const result = await this.localDBGet(0n, SESSION_STORAGE_KEY);
     if (result && result.value) {
       try {
-        const jsonStr = bytesToString(result.value);
+        const jsonStr: string = bytesToString(result.value);
         // StoredSession.cid is a bigint and exists specifically so an orphaned
         // session can be reclaimed; a bare JSON.parse gave it back as a string.
         return parsePersistedJSON<StoredSessions>(jsonStr, ['cid']);
@@ -148,7 +148,7 @@ export class ConnectionIOWebSocket {
   ): Promise<GetSessionsResponse> {
     const request: GetSessionsRequest = { request_id: requestId };
 
-    const responsePromise = new Promise<GetSessionsResponse>((resolve, reject) => {
+    const responsePromise: Promise<GetSessionsResponse> = new Promise<GetSessionsResponse>((resolve, reject) => {
       pendingRequests.set(requestId, { resolve: resolve as (value: unknown) => void, reject });
 
       setTimeout(() => {

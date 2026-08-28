@@ -85,7 +85,7 @@ export async function updateWorkspaceTheme(
   theme: Uint8Array,
   workspaceId?: string,
 ): Promise<void> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     UpdateWorkspaceTheme: {
       workspace_id: workspaceId,
       theme: Array.from(theme),
@@ -104,7 +104,7 @@ export async function updateWorkspace(
   masterPassword?: string,
   metadata?: Uint8Array
 ): Promise<void> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     UpdateWorkspace: {
       name,
       description,

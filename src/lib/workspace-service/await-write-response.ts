@@ -30,7 +30,7 @@ import { eventEmitter } from '../event-emitter';
 import { debugLog } from '@/lib/debug-config';
 
 /** How long to wait before treating silence as a failure. */
-export const WRITE_RESPONSE_TIMEOUT_MS = 15_000;
+export const WRITE_RESPONSE_TIMEOUT_MS: 15000 = 15_000;
 
 /** The response variants that mean a given request succeeded. */
 export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
@@ -111,7 +111,7 @@ export async function awaitWriteResponse(
    */
   matches?: (payload: unknown) => boolean
 ): Promise<void> {
-  const accepted = SUCCESS_RESPONSES[requestType];
+  const accepted: readonly string[] = SUCCESS_RESPONSES[requestType];
   if (!accepted) {
     // An unmapped write would wait for a response that never matches and then
     // fail a correct operation, which is worse than the original defect.
@@ -119,7 +119,7 @@ export async function awaitWriteResponse(
     return;
   }
 
-  const settled = new Promise<void>((resolve, reject) => {
+  const settled: Promise<void> = new Promise<void>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       eventEmitter.off('workspace:raw-response', handler);
       reject(
@@ -132,7 +132,7 @@ export async function awaitWriteResponse(
 
     const handler = (response: unknown) => {
       if (!response || typeof response !== 'object') return;
-      const responseType = Object.keys(response)[0];
+      const responseType: string = Object.keys(response)[0];
       if (responseType === undefined) return;
 
       if (responseType === 'Error') {

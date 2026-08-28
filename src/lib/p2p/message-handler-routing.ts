@@ -207,7 +207,7 @@ async function handleIncomingMessage(
 
     if (config.shouldShowNotification(peerCid)) {
       const conversation = config.getConversations().get(peerCid);
-      const peerUsername = conversation?.peerUsername || `Peer ${peerCid.toString().slice(0, 8)}`;
+      const peerUsername: string = conversation?.peerUsername || `Peer ${peerCid.toString().slice(0, 8)}`;
 
       config.addNotification(
         `New message from ${peerUsername}`,
@@ -225,7 +225,7 @@ async function handleIncomingMessage(
 
 /** Handle a typing indicator from a peer. */
 function handleTypingIndicator(config: MessageHandlerConfig, peerCid: bigint): void {
-  const timestamp = Date.now();
+  const timestamp: number = Date.now();
   const conversation = config.getOrCreateConversation(peerCid);
   conversation.typing = true;
   conversation.lastTypingUpdate = timestamp;

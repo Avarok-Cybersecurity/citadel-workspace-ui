@@ -31,8 +31,8 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
 
     setIsProcessing(true);
     try {
-      const base64 = await processAvatarImage(file);
-      const dataUrl = avatarToDataUrl(base64);
+      const base64: string = await processAvatarImage(file);
+      const dataUrl: string = avatarToDataUrl(base64);
       setPreview(dataUrl);
       onAvatarChange(base64);
     } catch (err) {
@@ -49,7 +49,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
 
     if (disabled) return;
 
-    const file = e.dataTransfer.files[0];
+    const file: File = e.dataTransfer.files[0];
     if (file) {
       runAsyncSetup(async () => {
         await handleFile(file);

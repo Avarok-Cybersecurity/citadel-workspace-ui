@@ -50,7 +50,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         // peer could take a poll cycle (or several) to appear in the sidebar.
         freshPeers = await p2pRegistrationService.listRegisteredPeersWithRetry();
       } catch (e: unknown) {
-        const errorMessage = e instanceof Error ? e.message : String(e);
+        const errorMessage: string = e instanceof Error ? e.message : String(e);
         debugLog('UseRegisteredPeers', `listRegisteredPeers failed after retries (${errorMessage}), using cached peers`);
       }
 
@@ -58,12 +58,12 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       const mergedPeersMap = new Map<string, { cid?: bigint; username?: string }>();
 
       for (const p of cachedPeers) {
-        const cidStr = p.cid?.toString() || '';
+        const cidStr: string = p.cid?.toString() || '';
         if (cidStr) mergedPeersMap.set(cidStr, p);
       }
 
       for (const p of freshPeers) {
-        const cidStr = p.cid?.toString() || '';
+        const cidStr: string = p.cid?.toString() || '';
         if (cidStr) {
           const existing = mergedPeersMap.get(cidStr);
           if (existing) {
@@ -85,16 +85,16 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       let peerList: RegisteredPeer[] = [];
       try {
         peerList = await Promise.all(peersToUse.map(async p => {
-          const cidStr = p.cid?.toString() || '';
-          const displayName = (p.username && p.username !== 'Unknown')
+          const cidStr: string = p.cid?.toString() || '';
+          const displayName: string = (p.username && p.username !== 'Unknown')
             ? p.username
             : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
-          const peerCidBigInt = p.cid ?? BigInt(0);
+          const peerCidBigInt: bigint = p.cid ?? BigInt(0);
           const isOnline = p2pAutoConnectService.isPeerOnline(peerCidBigInt);
           let isConnected = false;
           try {
-            const connectedPromise = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
-            const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000));
+            const connectedPromise: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
+            const timeoutPromise: Promise<boolean> = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000));
             isConnected = await Promise.race([connectedPromise, timeoutPromise]);
           } catch {
             isConnected = false;
@@ -104,8 +104,8 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       } catch (mapError) {
         debugLog('UseRegisteredPeers', 'Promise.all mapping failed:', mapError);
         peerList = peersToUse.map(p => {
-          const cidStr = p.cid?.toString() || '';
-          const displayName = (p.username && p.username !== 'Unknown')
+          const cidStr: string = p.cid?.toString() || '';
+          const displayName: string = (p.username && p.username !== 'Unknown')
             ? p.username
             : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
           return { cid: cidStr, username: displayName, isOnline: false, isConnected: false };
@@ -117,14 +117,14 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       // Clean up stale conversations
       const isStartupInProgress = sessionStartupService.isStartupInProgress();
       if (startupCompleteRef.current && !isStartupInProgress) {
-        const validPeerCids = new Set(peerList.filter(p => p.cid).map(p => BigInt(p.cid)));
-        const connectedPeerCids = await p2pAutoConnectService.getConnectedPeers();
+        const validPeerCids: Set<bigint> = new Set(peerList.filter(p => p.cid).map(p => BigInt(p.cid)));
+        const connectedPeerCids: bigint[] = await p2pAutoConnectService.getConnectedPeers();
         for (const cid of connectedPeerCids) {
           validPeerCids.add(cid);
         }
 
-        const messenger = P2PMessengerManager.getInstance();
-        const cleanedCount = await messenger.cleanupStaleConversations(validPeerCids);
+        const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
+        const cleanedCount: number = await messenger.cleanupStaleConversations(validPeerCids);
         if (cleanedCount > 0) {
           debugLog('UseRegisteredPeers', `[P2P] useRegisteredPeers: Cleaned up ${cleanedCount} stale conversation(s)`);
         }

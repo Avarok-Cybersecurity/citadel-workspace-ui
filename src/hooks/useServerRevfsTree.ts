@@ -27,7 +27,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   const key = myCid ? serverTreeKey(myCid) : null;
 
   // Calculate storage usage from tree (server-stored files)
-  const storageUsed = useMemo(() => {
+  const storageUsed: number = useMemo(() => {
     if (!tree) return 0;
     return calculateStorageUsage(tree, TreeScope.Server);
   }, [tree]);
@@ -79,7 +79,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     setLoading(true);
     setError(null);
     try {
-      const t = await revfsService.getServerTree(myCid);
+      const t: RevfsNode = await revfsService.getServerTree(myCid);
       setTree(t);
     } catch (err) {
       setError(String(err));
@@ -145,7 +145,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   }, [myCid]);
 
   // Convert MB quota to bytes
-  const storageQuota = serverCapabilities.revfsStorageQuotaMb * 1024 * 1024;
+  const storageQuota: number = serverCapabilities.revfsStorageQuotaMb * 1024 * 1024;
 
   return {
     tree,

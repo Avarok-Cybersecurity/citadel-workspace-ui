@@ -6,4 +6,4 @@ export { WebSocketServiceCore } from './core';
 import { WebSocketServiceCore } from './core';
 
 // Singleton instance - preserves original API
-export const websocketService = new WebSocketServiceCore();
+export const websocketService: WebSocketServiceCore = new WebSocketServiceCore();

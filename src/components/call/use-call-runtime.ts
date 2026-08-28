@@ -66,9 +66,9 @@ export function useCallRuntime({
   // on belongs to the old identity — but a peer left ringing on a call nobody
   // is in waits out their whole timeout, so it is worth attempting.
   useEffect(() => {
-    const builtFor = managerCidRef.current;
+    const builtFor: bigint | null = managerCidRef.current;
     if (builtFor === null || builtFor === selfCid) return;
-    const manager = managerRef.current;
+    const manager: CallManager | null = managerRef.current;
     const state = manager?.getState();
     if (manager && state && state.status !== 'ended' && state.status !== 'failed') {
       void manager.end('hangup');
@@ -87,18 +87,18 @@ export function useCallRuntime({
     // losing the invite the first one had already handled.
     if (managerPromiseRef.current) return managerPromiseRef.current;
 
-    const builtFor = selfCid;
+    const builtFor: bigint = selfCid;
     managerCidRef.current = builtFor;
-    const build = (async () => {
+    const build: Promise<CallManager | null> = (async () => {
       const { localCapabilities } = await import('@/lib/call/codec-support');
       const capabilities = await localCapabilities();
-      const manager = new CallManager({
+      const manager: CallManager = new CallManager({
         transport: new WebSocketCallTransport({ selfCid, senderConfig }),
         selfCid,
         capabilities,
         now: () => Date.now(),
         schedule: (fn, delayMs) => {
-          const id = window.setTimeout(fn, delayMs);
+          const id: number = window.setTimeout(fn, delayMs);
           return () => window.clearTimeout(id);
         },
         onStateChanged: (next) => {
@@ -190,7 +190,7 @@ export function useCallRuntime({
     // Re-checked after the await: two callers can race this import, and the
     // second must not replace a session the first already started capturing on.
     if (sessionRef.current) return sessionRef.current;
-    const session = new CallSession({
+    const session: CallSession = new CallSession({
       onFrame: (frame) => managerRef.current?.sendFrame(frame),
       onStreamsChanged: () => setStreamsVersion((v) => v + 1),
       onCaptureFailed: setCaptureFailure,

@@ -78,7 +78,7 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }) {
       className="w-full"
     >
       {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => {
-        const allowedCount = category.permissions.filter(p => hasPermission(domainId, p)).length;
+        const allowedCount: number = category.permissions.filter(p => hasPermission(domainId, p)).length;
         const totalCount = category.permissions.length;
 
         return (

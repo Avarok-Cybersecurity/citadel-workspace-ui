@@ -31,7 +31,7 @@ describe('wireMapEntries', () => {
 });
 
 describe('the peer discovery reader', () => {
-  const source = readFileSync(
+  const source: string = readFileSync(
     join(process.cwd(), 'src/components/p2p/peer-discovery-requests.ts'),
     'utf8',
   ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -61,14 +61,14 @@ describe('every wire HashMap read', () => {
   const strip = (s: string) =>
     s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-  const FILES = [
+  const FILES: string[] = [
     'src/lib/websocket/local-db-operations.ts',
     'src/lib/p2p-registration-service/connection.ts',
     'src/components/p2p/peer-discovery-requests.ts',
   ];
 
   it.each(FILES)('%s does not use Object.* on a wire map', (file) => {
-    const src = strip(readFileSync(join(process.cwd(), file), 'utf8'));
+    const src: string = strip(readFileSync(join(process.cwd(), file), 'utf8'));
 
     // The specific shapes that silently return nothing on a Map.
     expect(src).not.toMatch(/Object\.(keys|values|entries)\(\s*(response|r|map|peerConnections)\b/);
@@ -76,7 +76,7 @@ describe('every wire HashMap read', () => {
 
   it('routes them through the shared normalizer instead', () => {
     for (const file of FILES) {
-      const src = readFileSync(join(process.cwd(), file), 'utf8');
+      const src: string = readFileSync(join(process.cwd(), file), 'utf8');
       expect(src, `${file} should use wireMap*`).toMatch(/wireMap(Entries|Values)/);
     }
   });

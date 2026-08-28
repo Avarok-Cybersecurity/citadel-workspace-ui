@@ -37,7 +37,7 @@ function node(id: string, name: string, children: TreeNode[] = []): TreeNode {
   } as unknown as TreeNode;
 }
 
-const TREE = node('root', 'Workspace', [
+const TREE: TreeNode = node('root', 'Workspace', [
   node('office-a', 'Engineering', [node('room-1', 'Backend'), node('room-2', 'Frontend')]),
   node('office-b', 'Design', [node('room-3', 'Research')]),
 ]);

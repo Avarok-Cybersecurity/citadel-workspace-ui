@@ -19,7 +19,7 @@ import { useEffect, useRef } from 'react';
  * deliberately refuses to close would be a behaviour change, not an
  * accessibility fix.
  */
-const FOCUSABLE = [
+const FOCUSABLE: string = [
   'a[href]',
   'button:not([disabled])',
   'input:not([disabled])',

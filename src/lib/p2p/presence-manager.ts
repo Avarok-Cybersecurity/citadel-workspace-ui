@@ -82,7 +82,7 @@ export class PresenceManager {
    * Broadcast presence update to all connected peers
    */
   public async broadcastPresence(presence: MessagingLayer): Promise<void> {
-    const connectedPeers = this.config.getConnectedPeers();
+    const connectedPeers: bigint[] = this.config.getConnectedPeers();
 
     for (const peerCid of connectedPeers) {
       await this.sendPresenceUpdate(peerCid, presence);
@@ -149,7 +149,7 @@ export class PresenceManager {
     };
 
     state.intervalId = setInterval(() => {
-      const currentText = getCurrentText();
+      const currentText: string = getCurrentText();
       const textChanged = currentText !== state.lastText;
       state.lastText = currentText;
 
@@ -189,7 +189,7 @@ export class PresenceManager {
     // no one.
     if (!getPrivacySettings().showTypingIndicators) return;
     try {
-      const layer = createTyping();
+      const layer: MessagingLayer = createTyping();
       await this.config.sendCommand(recipientCid, layer);
     } catch (error) {
       debugLog('PresenceManager', 'Failed to send typing indicator:', error);

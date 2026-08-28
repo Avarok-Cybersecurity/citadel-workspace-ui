@@ -44,13 +44,13 @@ export function CallStage({
   // the user can already see and end the call from here.
   useEffect(() => registerCallStage(), []);
 
-  const visible = useMemo(
+  const visible: CallParticipant[] = useMemo(
     () => [...call.participants.values()].filter((p) => p.status !== 'declined' && p.status !== 'left'),
     [call.participants],
   );
 
   const anyVideo = call.selfMedia.video || visible.some((p) => p.media.video);
-  const tileCount = visible.length + 1;
+  const tileCount: number = visible.length + 1;
 
   return (
     <section
@@ -141,9 +141,9 @@ function OutgoingCallPanel({
   invitees: CallParticipant[];
   onCancel: () => void;
 }) {
-  const first = invitees[0];
-  const calleeName = first?.username ?? 'Unknown';
-  const title =
+  const first: CallParticipant = invitees[0];
+  const calleeName: string = first?.username ?? 'Unknown';
+  const title: string =
     invitees.length > 1 ? `Calling ${calleeName} and ${invitees.length - 1} more…` : `Calling ${calleeName}…`;
 
   return (

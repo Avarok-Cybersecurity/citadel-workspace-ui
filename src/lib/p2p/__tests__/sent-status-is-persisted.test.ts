@@ -43,7 +43,7 @@ const PEER = 42n;
 /** Captures exactly what would be written to storage. */
 function makeConfig() {
   const persisted: Array<{ id: string; updates: Partial<P2PMessage> }> = [];
-  const config = {
+  const config: MessageSenderConfig = {
     getCurrentCid: async () => 7n,
     getOrCreateConversation: () => ({ peerCid: PEER, messages: [] }),
     addMessageToConversation: async () => true,

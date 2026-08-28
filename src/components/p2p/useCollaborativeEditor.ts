@@ -14,7 +14,7 @@ interface AwarenessState {
 }
 
 function getRandomColor() {
-  const colors = [
+  const colors: string[] = [
     '#6E59A5', '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
     '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1'
   ];
@@ -49,8 +49,8 @@ export function useCollaborativeEditor({
 
   // Create provider on mount
   useEffect(() => {
-    const effectiveCreatorCid = creatorCid ?? currentUserCid;
-    const newProvider = createYjsP2PProvider(documentId, peerCid, currentUserCid, doc, effectiveCreatorCid);
+    const effectiveCreatorCid: string = creatorCid ?? currentUserCid;
+    const newProvider: YjsP2PProvider = createYjsP2PProvider(documentId, peerCid, currentUserCid, doc, effectiveCreatorCid);
 
     newProvider.setLocalState({
       user: { name: currentUserName, color: userColor },
@@ -77,15 +77,15 @@ export function useCollaborativeEditor({
   useEffect(() => {
     if (!provider) return;
 
-    let prevUsersKey = '';
+    let prevUsersKey: string = '';
 
     const updateUsers = () => {
       const states = provider.getStates();
       const users: { name: string; isActive: boolean }[] = [];
-      const now = Date.now();
+      const now: number = Date.now();
 
       states.forEach((rawState) => {
-        const state = rawState as AwarenessState;
+        const state: AwarenessState = rawState as AwarenessState;
         if (state.user?.name) {
           const hasCursor = state.cursor !== undefined && state.cursor !== null;
           const hasRecentActivity = state.lastUpdate && (now - state.lastUpdate) < 30000;
@@ -99,7 +99,7 @@ export function useCollaborativeEditor({
       }
 
       const finalUsers = users.length > 0 ? users : [{ name: currentUserName, isActive: true }];
-      const newUsersKey = finalUsers.map(u => `${u.name}:${u.isActive}`).join('|');
+      const newUsersKey: string = finalUsers.map(u => `${u.name}:${u.isActive}`).join('|');
       if (newUsersKey !== prevUsersKey) {
         prevUsersKey = newUsersKey;
         setConnectedUsers(finalUsers);
@@ -138,7 +138,7 @@ export function useCollaborativeEditor({
       }, 10000);
     };
 
-    let prevCommentsKey = '';
+    let prevCommentsKey: string = '';
 
     const handleAwarenessChange = () => {
       if (!provider) return;
@@ -147,7 +147,7 @@ export function useCollaborativeEditor({
       const newComments: FlashComment[] = [];
 
       states.forEach((rawState, _clientId) => {
-        const state = rawState as AwarenessState;
+        const state: AwarenessState = rawState as AwarenessState;
         if (state.flashComment && state.user?.name !== currentUserName) {
           newComments.push({
             ...state.flashComment,
@@ -157,7 +157,7 @@ export function useCollaborativeEditor({
         }
       });
 
-      const newCommentsKey = newComments.map(c => c.id).join('|');
+      const newCommentsKey: string = newComments.map(c => c.id).join('|');
       if (newCommentsKey !== prevCommentsKey) {
         prevCommentsKey = newCommentsKey;
         setFlashComments(newComments);

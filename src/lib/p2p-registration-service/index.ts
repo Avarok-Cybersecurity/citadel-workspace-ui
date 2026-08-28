@@ -62,4 +62,4 @@ export { P2PRegistrationService } from './service';
 import { P2PRegistrationService } from './service';
 
 /** Singleton instance */
-export const p2pRegistrationService = P2PRegistrationService.getInstance();
+export const p2pRegistrationService: P2PRegistrationService = P2PRegistrationService.getInstance();

@@ -109,17 +109,17 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       // you connect should not look like it can.
       const storedSessions = connectionManager.getStoredSessions();
       const storedSession = storedSessions.sessions.find(s => s.username === username.trim());
-      const serverAddress = storedSession?.serverAddress ?? '';
+      const serverAddress: string = storedSession?.serverAddress ?? '';
 
       const requestId = crypto.randomUUID();
       let responseReceived = false;
-      const responsePromise = new Promise<bigint>((resolve, reject) => {
+      const responsePromise: Promise<bigint> = new Promise<bigint>((resolve, reject) => {
         const timeout = setTimeout(() => {
           if (!responseReceived) { eventEmitter.off('websocket-message', handler); reject(new Error('Connection timeout')); }
         }, 30000);
 
         const handler = (message: InternalServiceResponse) => {
-          const response = (message as Record<string, unknown>).Response
+          const response: InternalServiceResponse = (message as Record<string, unknown>).Response
             ? ((message as Record<string, unknown>).Response as InternalServiceResponse) : message;
 
           if (isResponseType(response, 'ConnectSuccess') && response.ConnectSuccess.request_id === requestId) {
@@ -135,9 +135,9 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
             });
           } else if (isResponseType(response, 'ConnectFailure') && response.ConnectFailure.request_id === requestId) {
             responseReceived = true; clearTimeout(timeout); eventEmitter.off('websocket-message', handler);
-            const errorMessage = response.ConnectFailure.message || 'Connection failed';
+            const errorMessage: string = response.ConnectFailure.message || 'Connection failed';
             if (errorMessage.toLowerCase().includes('already connected')) {
-              const errorCid = response.ConnectFailure.cid;
+              const errorCid: bigint = response.ConnectFailure.cid;
               if (errorCid && errorCid !== 0n && errorCid !== BigInt(0)) {
                 runAsyncSetup(async () => {
                   try { await doRedirect({ cid: errorCid as bigint, username: username.trim(), server_address: serverAddress }); }
@@ -174,7 +174,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       // login flow read neither its own state nor the shared cache.
       const chosenSettings = mapSecuritySettings(securitySettings);
       await websocketService.connect(requestId, username, password, chosenSettings);
-      const cid = await responsePromise;
+      const cid: bigint = await responsePromise;
 
       await connectionManager.handleAuthSuccess({
         username, password, fullName: username, serverAddress,
@@ -212,7 +212,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
             },
       );
     } catch (err: unknown) {
-      const errArg = err instanceof Error ? err : String(err);
+      const errArg: string | Error = err instanceof Error ? err : String(err);
       setError(getUserFriendlyErrorMessage(errArg));
       toast({ variant: "destructive", title: getErrorTitle(errArg), description: getUserFriendlyErrorMessage(errArg) });
     } finally {

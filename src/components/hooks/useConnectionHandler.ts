@@ -70,9 +70,9 @@ export function useConnectionHandler() {
 
     runAsyncSetup(initializeServices);
 
-    const notificationService = NotificationService.getInstance();
-    const messagingService = MessagingService.getInstance();
-    const connectionService = ConnectionService.getInstance();
+    const notificationService: NotificationService = NotificationService.getInstance();
+    const messagingService: MessagingService = MessagingService.getInstance();
+    const connectionService: ConnectionService = ConnectionService.getInstance();
     const userService = UserService;
 
     revfsService.initialize({
@@ -93,7 +93,7 @@ export function useConnectionHandler() {
       debugLog('WorkspaceApp', `onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}`);
       const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
-        const cidString = connection.cid.toString();
+        const cidString: string = connection.cid.toString();
         if (lastProcessedCid === cidString) {
           debugLog('WorkspaceApp', 'Skipping redundant connection update for CID:', cidString);
           return;
@@ -105,7 +105,7 @@ export function useConnectionHandler() {
         } else {
           const maxRetries = 5;
           const retryDelayMs = 200;
-          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          for (let attempt: number = 1; attempt <= maxRetries; attempt++) {
             try {
               const timeoutPromise = new Promise<null>((_, reject) =>
                 setTimeout(() => reject(new Error('getSelectedUser timeout')), TIMEOUT.GET_SELECTED_USER_MS)
@@ -124,7 +124,7 @@ export function useConnectionHandler() {
         if (tabSelection.selectedCid.toString() !== cidString) return;
 
         lastProcessedCid = cidString;
-        const cidBigInt = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
+        const cidBigInt: bigint = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
 
         const allStoredSessions = connectionManager.getStoredSessionsArray();
         const storedSession = allStoredSessions.find(s => s.cid?.toString() === cidString);

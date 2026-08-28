@@ -42,8 +42,8 @@ export function announceWhenQuiet(
   options: { isBusy?: () => boolean; waitMs?: number; pollMs?: number } = {},
 ): () => void {
   const isBusy = options.isBusy ?? (() => anErrorIsShowing());
-  const waitMs = options.waitMs ?? QUIET_WAIT_MS;
-  const pollMs = options.pollMs ?? QUIET_POLL_MS;
+  const waitMs: number = options.waitMs ?? QUIET_WAIT_MS;
+  const pollMs: number = options.pollMs ?? QUIET_POLL_MS;
 
   if (!isBusy()) {
     announce();

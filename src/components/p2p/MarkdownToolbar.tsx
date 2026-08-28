@@ -204,19 +204,19 @@ export function useMarkdownFormat(
     const input = inputRef.current;
     if (!input) return;
 
-    const start = input.selectionStart || 0;
-    const end = input.selectionEnd || 0;
-    const text = getValue();
-    const selectedText = text.substring(start, end);
+    const start: number = input.selectionStart || 0;
+    const end: number = input.selectionEnd || 0;
+    const text: string = getValue();
+    const selectedText: string = text.substring(start, end);
 
     // Insert format around selection or at cursor
-    const newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
+    const newText: string = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
     setValue(newText);
 
     // Restore cursor position after the inserted text
     setTimeout(() => {
       input.focus();
-      const newCursorPos = selectedText
+      const newCursorPos: number = selectedText
         ? start + prefix.length + selectedText.length + suffix.length
         : start + prefix.length;
       input.setSelectionRange(newCursorPos, newCursorPos);

@@ -61,9 +61,9 @@ describe('buildContextMenuFlashComment', () => {
   });
 
   it('stamps a timestamp close to now', () => {
-    const before = Date.now();
+    const before: number = Date.now();
     const c = buildContextMenuFlashComment('hi', coords, user);
-    const after = Date.now();
+    const after: number = Date.now();
     expect(c?.timestamp).toBeGreaterThanOrEqual(before);
     expect(c?.timestamp).toBeLessThanOrEqual(after);
   });

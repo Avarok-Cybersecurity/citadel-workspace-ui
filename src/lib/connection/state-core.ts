@@ -138,7 +138,7 @@ export class ConnectionStateCore {
   }
 
   addOrUpdateSession(session: StoredSession): void {
-    const existingIndex = this.findSessionIndex(session.username, session.serverAddress);
+    const existingIndex: number = this.findSessionIndex(session.username, session.serverAddress);
     if (existingIndex >= 0) {
       this._storedSessions.sessions[existingIndex] = session;
     } else {

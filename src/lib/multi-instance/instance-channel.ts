@@ -99,7 +99,7 @@ class InstanceChannel {
     if (!this.channel) return;
 
     this.channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
-      const message = event.data;
+      const message: ChannelMessage = event.data;
 
       // Gated by DOCUMENT, not instance id — see instance-identity.ts.
       if (!acceptInbound(message, instanceManager.instanceId, this.identityRepair)) return;
@@ -113,7 +113,7 @@ class InstanceChannel {
   }
 
   private isMessageForUs(message: ChannelMessage): boolean {
-    const target = message.targetInstanceId;
+    const target: string = message.targetInstanceId;
     if (target === '*' || target === 'broadcast') return true;
     if (target === 'leader') return instanceManager.isLeader;
     return target === instanceManager.instanceId;
@@ -241,7 +241,7 @@ class InstanceChannel {
 }
 
 // Export singleton instance
-export const instanceChannel = InstanceChannel.getInstance();
+export const instanceChannel: InstanceChannel = InstanceChannel.getInstance();
 
 // Also export class for testing
 export { InstanceChannel };

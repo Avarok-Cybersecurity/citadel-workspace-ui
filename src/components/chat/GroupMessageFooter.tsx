@@ -29,8 +29,8 @@ interface GroupMessageFooterProps {
 type ReadStatus = 'sent' | 'partial' | 'all_read';
 
 function getReadStatus(message: GroupMessage, totalMembers: number): ReadStatus {
-  const readBy = message.read_by || [];
-  const readCount = readBy.length;
+  const readBy: GroupMessageReadBy[] = message.read_by || [];
+  const readCount: number = readBy.length;
 
   if (readCount === 0) {
     return 'sent';
@@ -78,7 +78,7 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
   }
 
   if (status === 'partial') {
-    const unreadCount = (totalMembers - 1) - readBy.length;
+    const unreadCount: number = (totalMembers - 1) - readBy.length;
     return (
       <div className="text-sm max-w-[200px]">
         <p className="text-warning-emphasis font-medium mb-2">
@@ -114,8 +114,8 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
 }
 
 export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessageFooterProps) {
-  const readBy = message.read_by || [];
-  const status = getReadStatus(message, totalMembers);
+  const readBy: GroupMessageReadBy[] = message.read_by || [];
+  const status: ReadStatus = getReadStatus(message, totalMembers);
   const statusIcon = getReadStatusIcon(status);
 
   return (

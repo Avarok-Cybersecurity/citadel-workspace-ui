@@ -109,7 +109,7 @@ describe('resolveWebsocketUrl', () => {
         'wss://user:hunter2@elsewhere.example/ws/token/PATHSECRET?access_token=QUERYSECRET',
         http,
       );
-      const logged = String(spy.mock.calls[0][0]);
+      const logged: string = String(spy.mock.calls[0][0]);
       expect(logged).not.toContain('QUERYSECRET');
       expect(logged).not.toContain('PATHSECRET');
       expect(logged).not.toContain('hunter2');
@@ -121,7 +121,7 @@ describe('resolveWebsocketUrl', () => {
       // `//elsewhere.example/ws` resolves against the page to `http://…`, but the browser will dial
       // `ws://…`. Logging the http form would name a URL nobody ever requested.
       resolveWebsocketUrl(undefined, '//elsewhere.example/ws', http);
-      const logged = String(spy.mock.calls[0][0]);
+      const logged: string = String(spy.mock.calls[0][0]);
       expect(logged).toContain('ws://elsewhere.example');
       expect(logged).not.toContain('http://elsewhere.example');
     });

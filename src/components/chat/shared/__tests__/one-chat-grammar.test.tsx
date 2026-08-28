@@ -17,7 +17,7 @@ import { render, screen } from '@testing-library/react';
 import { DateSeparator } from '../DateSeparator';
 import { groupMessagesByDate } from '../formatters';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 describe('the date separator', () => {
   it('names the date to a screen reader without reading the rules around it', () => {
@@ -33,14 +33,14 @@ describe('both chat surfaces', () => {
     // Not a copy each. The group view had its own inline markup, which is how
     // the P2P one came to have none at all.
     for (const file of ['components/chat/GroupChatView.tsx', 'components/p2p/P2PMessageList.tsx']) {
-      const source = readFileSync(join(SRC, file), 'utf-8');
+      const source: string = readFileSync(join(SRC, file), 'utf-8');
       expect(source, `${file} should render the shared DateSeparator`).toContain('<DateSeparator');
     }
   });
 
   it('use the same received-bubble surface', () => {
-    const group = readFileSync(join(SRC, 'components/chat/GroupMessageItem.tsx'), 'utf-8');
-    const p2p = readFileSync(join(SRC, 'components/p2p/bubbles/types.ts'), 'utf-8');
+    const group: string = readFileSync(join(SRC, 'components/chat/GroupMessageItem.tsx'), 'utf-8');
+    const p2p: string = readFileSync(join(SRC, 'components/p2p/bubbles/types.ts'), 'utf-8');
 
     // `bg-muted` in one and `bg-surface` in the other is what the drift looked
     // like. P2P's is the one with a documented contrast reason behind it.

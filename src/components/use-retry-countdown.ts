@@ -32,15 +32,15 @@ export function useRetryCountdown({
   useEffect(() => {
     if (!isOpen || isLoading || attempt === 0 || attempt >= maxRetries) return;
 
-    const retryDelayMs = getRetryDelay(attempt, maxBackoffSeconds);
-    const startTime = Date.now();
+    const retryDelayMs: number = getRetryDelay(attempt, maxBackoffSeconds);
+    const startTime: number = Date.now();
     setCountdown(Math.ceil(retryDelayMs / 1000));
 
     let hasTriggeredRetry = false;
 
     const updateProgress = () => {
-      const elapsed = Date.now() - startTime;
-      const remainingSeconds = Math.ceil((retryDelayMs - elapsed) / 1000);
+      const elapsed: number = Date.now() - startTime;
+      const remainingSeconds: number = Math.ceil((retryDelayMs - elapsed) / 1000);
       setCountdown(Math.max(remainingSeconds, 0));
 
       if (elapsed >= retryDelayMs && attempt < maxRetries && !hasTriggeredRetry && !retryInProgressRef.current) {

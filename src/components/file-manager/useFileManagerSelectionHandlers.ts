@@ -41,8 +41,8 @@ export function useFileManagerSelectionHandlers({
     if (!currentNode?.children) return;
     // Filtered, matching the grid: reading children directly let Ctrl+A under
     // a filter select hidden files, which Delete then removed.
-    const needle = filterText.toLowerCase();
-    const visible = needle ? currentNode.children.filter((n) => n.name.toLowerCase().includes(needle)) : currentNode.children;
+    const needle: string = filterText.toLowerCase();
+    const visible: RevfsNode[] = needle ? currentNode.children.filter((n) => n.name.toLowerCase().includes(needle)) : currentNode.children;
     visible.forEach((n, i) => {
       selectItem(n.path, i === 0 ? 'replace' : 'toggle');
     });

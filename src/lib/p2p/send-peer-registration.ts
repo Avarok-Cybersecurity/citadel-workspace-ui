@@ -28,8 +28,8 @@ export async function sendPeerRegistration(
    */
   existingRequestId?: string,
 ): Promise<string> {
-  const requestId = existingRequestId ?? crypto.randomUUID();
-  const now = Date.now();
+  const requestId: string = existingRequestId ?? crypto.randomUUID();
+  const now: number = Date.now();
 
   // Recorded BEFORE the send. A failure notification can arrive before the
   // send's own promise resolves, and a request that failed is still a request

@@ -61,7 +61,7 @@ export class FileTransferMessageHandler {
       virtual_path: layer.virtual_path
     };
 
-    const conversation = this.config.getOrCreateConversation(peerCid);
+    const conversation: P2PConversation = this.config.getOrCreateConversation(peerCid);
     conversation.messages.push(message);
     conversation.lastMessageIndex = Math.max(conversation.lastMessageIndex, payload.index);
 

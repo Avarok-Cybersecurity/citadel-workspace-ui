@@ -74,7 +74,7 @@ export function useGroupPermissions(
   }, [myRole, isOwner]);
 
   // Get permissions object (with owner override)
-  const permissions = useMemo((): GroupPermissions => {
+  const permissions: GroupPermissions = useMemo((): GroupPermissions => {
     if (isOwner) {
       // Owner has all permissions
       return {

@@ -56,10 +56,10 @@ export function applyDelete(
   messageId: string,
   deleterCid: bigint,
 ): RevisionOutcome {
-  const index = conversation.messages.findIndex((m) => m.id === messageId);
+  const index: number = conversation.messages.findIndex((m) => m.id === messageId);
   if (index === -1) return { applied: false, reason: 'unknown-message' };
 
-  const message = conversation.messages[index];
+  const message: P2PMessage = conversation.messages[index];
   if (message.senderCid !== deleterCid) return { applied: false, reason: 'not-sender' };
 
   conversation.messages.splice(index, 1);

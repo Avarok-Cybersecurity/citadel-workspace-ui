@@ -10,7 +10,7 @@ const FILE = { name: 'report.pdf', size: 8192 };
 describe('ProtocolOfferCorrelator', () => {
   it('joins when the bytes are announced first', () => {
     const register = vi.fn();
-    const c = new ProtocolOfferCorrelator(register);
+    const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     c.noteProtocolOffer('90210', SENDER, FILE.name, FILE.size);
     expect(c.noteMessageOffer('uuid-1', SENDER, FILE.name, FILE.size)).toBe(true);
@@ -20,7 +20,7 @@ describe('ProtocolOfferCorrelator', () => {
 
   it('joins when the bubble arrives first', () => {
     const register = vi.fn();
-    const c = new ProtocolOfferCorrelator(register);
+    const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     // On a slow link the protocol notification can trail the message. Dropping
     // the message half here would leave a transfer that can never be accepted —
@@ -34,7 +34,7 @@ describe('ProtocolOfferCorrelator', () => {
 
   it('does not join across senders', () => {
     const register = vi.fn();
-    const c = new ProtocolOfferCorrelator(register);
+    const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     c.noteProtocolOffer('90212', SENDER, FILE.name, FILE.size);
     // Same file name and size from a different peer must not be joined — that
@@ -46,7 +46,7 @@ describe('ProtocolOfferCorrelator', () => {
 
   it('keeps concurrent transfers from the same sender distinct', () => {
     const register = vi.fn();
-    const c = new ProtocolOfferCorrelator(register);
+    const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     c.noteProtocolOffer('100', SENDER, 'a.bin', 10);
     c.noteProtocolOffer('200', SENDER, 'b.bin', 20);

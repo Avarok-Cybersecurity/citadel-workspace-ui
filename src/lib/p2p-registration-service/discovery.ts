@@ -143,7 +143,7 @@ export function updatePeerMaps(
   allPeers: PeerInfoResponse[],
   registeredPeers: PeerInfoResponse[]
 ): void {
-  const preservedUsernames = new Map<bigint, string>();
+  const preservedUsernames: Map<bigint, string> = new Map<bigint, string>();
   for (const [cid, peer] of allPeersMap) {
     if (peer.username && peer.username !== 'Unknown' && !peer.username.startsWith('User ')) {
       preservedUsernames.set(cid, peer.username);
@@ -159,7 +159,7 @@ export function updatePeerMaps(
   for (const peer of allPeers) {
     const cid = peer.cid;
     if (cid !== undefined) {
-      const username = preservedUsernames.get(cid) || peer.username || 'Unknown';
+      const username: string = preservedUsernames.get(cid) || peer.username || 'Unknown';
       allPeersMap.set(cid, {
         cid,
         username,
@@ -171,14 +171,14 @@ export function updatePeerMaps(
   }
 
   registeredPeersMap.clear();
-  const registeredCids = new Set<bigint>();
+  const registeredCids: Set<bigint> = new Set<bigint>();
 
   for (const peer of registeredPeers) {
     const cid = peer.cid;
     if (cid !== undefined) {
       registeredCids.add(cid);
-      const username = preservedUsernames.get(cid) || peer.username || 'Unknown';
-      const peerInfo = allPeersMap.get(cid) || {
+      const username: string = preservedUsernames.get(cid) || peer.username || 'Unknown';
+      const peerInfo: Peer = allPeersMap.get(cid) || {
         cid,
         username,
         fullName: peer.name || username || 'Unknown User',

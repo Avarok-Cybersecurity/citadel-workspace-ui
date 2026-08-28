@@ -38,7 +38,7 @@ export const OrphanSessionsNavbar = () => {
     if (foundSessions) return;
 
     let cancelled = false;
-    let attempts = 0;
+    let attempts: number = 0;
     const MAX_ATTEMPTS = 8;
     const RETRY_MS = 1_500;
 
@@ -55,7 +55,7 @@ export const OrphanSessionsNavbar = () => {
         });
     };
 
-    let timer = window.setTimeout(load, 0);
+    let timer: number = window.setTimeout(load, 0);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);

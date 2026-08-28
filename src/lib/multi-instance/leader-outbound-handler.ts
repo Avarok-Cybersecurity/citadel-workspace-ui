@@ -34,12 +34,12 @@ interface OutboundRequest {
 }
 
 // Types of messages that should use ILM (reliability layer)
-const ILM_REQUIRED_TYPES = [
+const ILM_REQUIRED_TYPES: string[] = [
   'Message', // P2P messages need ILM
 ];
 
 // Types that can bypass ILM
-const BYPASS_ILM_TYPES = [
+const BYPASS_ILM_TYPES: string[] = [
   'GetSessions',
   'LocalDBSetKV',
   'LocalDBGetKV',
@@ -178,7 +178,7 @@ class LeaderOutboundHandler {
       this.sendAck(request.senderInstanceId, request.requestId, 'processed');
       debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage: string = error instanceof Error ? error.message : 'Unknown error';
       debugLog('LeaderOutboundHandler', `Failed to process ${request.requestId}:`, error);
       this.sendAck(request.senderInstanceId, request.requestId, 'error', errorMessage);
     } finally {
@@ -202,7 +202,7 @@ class LeaderOutboundHandler {
   }
 
   private requiresILM(payload: Record<string, unknown>): boolean {
-    const messageType = Object.keys(payload)[0];
+    const messageType: string = Object.keys(payload)[0];
 
     if (!messageType) {
       return false;
@@ -240,7 +240,7 @@ class LeaderOutboundHandler {
 }
 
 // Export singleton instance
-export const leaderOutboundHandler = LeaderOutboundHandler.getInstance();
+export const leaderOutboundHandler: LeaderOutboundHandler = LeaderOutboundHandler.getInstance();
 
 // Also export class for testing
 export { LeaderOutboundHandler };

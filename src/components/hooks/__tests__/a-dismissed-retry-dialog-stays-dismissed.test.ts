@@ -28,7 +28,7 @@ describe('the connection retry dialog', () => {
     // The defect, stated directly: with the agent down this loop ran every
     // couple of seconds and each turn put the dialog back.
     let state = onDismiss(onFailure(NOT_FAILING));
-    for (let i = 0; i < 20; i += 1) state = onFailure(state);
+    for (let i: number = 0; i < 20; i += 1) state = onFailure(state);
     expect(isRetryDialogOpen(state)).toBe(false);
   });
 

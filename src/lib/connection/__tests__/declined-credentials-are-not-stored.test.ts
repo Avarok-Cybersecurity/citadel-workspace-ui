@@ -20,7 +20,7 @@ import type { StoredSessions } from '@/types/session-types';
 function setup() {
   const stored: StoredSessions = { sessions: [] };
   const written: StoredSessions[] = [];
-  const io = {
+  const io: ConnectionIO = {
     storeSessionsToLocalDB: vi.fn((s: StoredSessions) => {
       written.push(structuredClone(s));
       return Promise.resolve();
@@ -30,12 +30,12 @@ function setup() {
     setWorkspaceConnectionId: vi.fn(),
     updateConnectionService: vi.fn(),
   } as unknown as ConnectionIO;
-  const state = {
+  const state: ConnectionState = {
     storedSessions: stored,
     setStoredSessions: vi.fn(),
     setCurrentConnectionInfo: vi.fn(),
     addOrUpdateSession: vi.fn((session: StoredSessions['sessions'][number]) => {
-      const i = stored.sessions.findIndex(s => s.username === session.username);
+      const i: number = stored.sessions.findIndex(s => s.username === session.username);
       if (i === -1) stored.sessions.push(session);
       else stored.sessions[i] = session;
     }),

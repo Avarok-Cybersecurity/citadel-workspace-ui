@@ -69,9 +69,9 @@ describe('the leader outbound handler', () => {
     becomeLeaderTab();
     leaderOutboundHandler.setWebSocketSendFunction(undefined as never);
 
-    const started = Date.now();
+    const started: number = Date.now();
     await leaderOutboundHandler.handleOutboundRequest(request('r-never'));
-    const elapsed = Date.now() - started;
+    const elapsed: number = Date.now() - started;
 
     const errorAcks = sendAck.mock.calls.filter((call) => JSON.stringify(call).includes('error'));
     expect(errorAcks.length, 'a genuine absence must be reported').toBeGreaterThan(0);
@@ -79,8 +79,8 @@ describe('the leader outbound handler', () => {
   });
 
   it('runs a duplicate delivery once', async () => {
-    let running = 0;
-    let peak = 0;
+    let running: number = 0;
+    let peak: number = 0;
 
     becomeLeaderTab();
     leaderOutboundHandler.setWebSocketSendFunction(async () => {
@@ -104,7 +104,7 @@ describe('the leader outbound handler', () => {
   it('accepts the same id again once the first has finished', async () => {
     // The set is an in-flight guard, not a permanent ledger: a genuinely new
     // request that reuses an id after completion must still run.
-    let runs = 0;
+    let runs: number = 0;
     becomeLeaderTab();
     leaderOutboundHandler.setWebSocketSendFunction(async () => {
       runs += 1;

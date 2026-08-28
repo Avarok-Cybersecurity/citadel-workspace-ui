@@ -234,7 +234,7 @@ describe('an update accepted elsewhere does not reload this window', () => {
     // Reading the source, because the behaviour lives in the library's
     // callback and the option's PRESENCE is the whole fix: without it the
     // library reloads unconditionally.
-    const source = readFileSync(
+    const source: string = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), '..', 'PwaUpdatePrompt.tsx'),
       'utf8',
     );
@@ -247,14 +247,14 @@ describe('an update accepted elsewhere does not reload this window', () => {
   });
 
   it('marks this window as the initiator before skipping waiting', () => {
-    const source = readFileSync(
+    const source: string = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), '..', 'PwaUpdatePrompt.tsx'),
       'utf8',
     );
     // The flag must be set BEFORE the skip-waiting message, or the controlling
     // event can arrive first and this window declines its own reload.
-    const setIndex = source.indexOf('weInitiatedUpdate.current = true');
-    const callIndex = source.indexOf('applyWaitingUpdate()');
+    const setIndex: number = source.indexOf('weInitiatedUpdate.current = true');
+    const callIndex: number = source.indexOf('applyWaitingUpdate()');
     expect(setIndex).toBeGreaterThan(-1);
     expect(callIndex).toBeGreaterThan(setIndex);
   });
@@ -262,7 +262,7 @@ describe('an update accepted elsewhere does not reload this window', () => {
   it('main.tsx does not arm a second, unowned reload', () => {
     // There are two registrations; main.tsx's exists so a crashed render still
     // receives updates. It must not also reload, since it owns no prompt.
-    const main = readFileSync(
+    const main: string = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'main.tsx'),
       'utf8',
     );

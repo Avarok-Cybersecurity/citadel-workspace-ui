@@ -65,10 +65,10 @@ export function TreeNodeItem({
   const isExpanded = expandedNodes.has(node.id);
   const hasChildren = children.length > 0;
   const Icon = getEntityIcon(node.entity_type);
-  const typeName = getEntityTypeName(node.entity_type);
+  const typeName: string = getEntityTypeName(node.entity_type);
 
   // Cap at 5 levels of indentation to keep deep hierarchies navigable
-  const indentPx = Math.min(Math.max(0, depth - 1), 5) * 12;
+  const indentPx: number = Math.min(Math.max(0, depth - 1), 5) * 12;
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();

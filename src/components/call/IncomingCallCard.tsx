@@ -34,7 +34,7 @@ export function IncomingCallCard({
   onDecline,
 }: IncomingCallCardProps) {
   const kind = media.video ? 'video' : 'audio';
-  const description = roomName
+  const description: string = roomName
     ? `Incoming ${kind} call in ${roomName}`
     : `Incoming ${kind} call`;
 
@@ -48,8 +48,8 @@ export function IncomingCallCard({
   // assistive technology watches it for changes.
   const [announcement, setAnnouncement] = useState('');
   useEffect(() => {
-    const message = `${description} from ${callerName}. Press Tab to reach Decline and Accept.`;
-    const id = window.setTimeout(() => setAnnouncement(message), 100);
+    const message: string = `${description} from ${callerName}. Press Tab to reach Decline and Accept.`;
+    const id: number = window.setTimeout(() => setAnnouncement(message), 100);
     return () => window.clearTimeout(id);
   }, [description, callerName]);
 

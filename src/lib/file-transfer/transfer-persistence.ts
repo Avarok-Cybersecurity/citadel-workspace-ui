@@ -32,7 +32,7 @@ export async function loadPersistedTransfers(state: TransferStore): Promise<void
   try {
     const settingsRaw = localStorage.getItem(SETTINGS_KEY);
     if (settingsRaw) {
-      const parsed = JSON.parse(settingsRaw) as Record<string, FileTransferSettings>;
+      const parsed: Record<string, FileTransferSettings> = JSON.parse(settingsRaw) as Record<string, FileTransferSettings>;
       for (const [peerCid, settings] of Object.entries(parsed)) {
         state.setSettings(peerCid, settings);
       }

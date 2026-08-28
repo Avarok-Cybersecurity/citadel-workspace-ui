@@ -160,7 +160,7 @@ export class ConnectionManager {
 
   public async triggerAutoConnect(): Promise<void> {
     debugLog('ConnectionService', 'ConnectionManager: Manually triggering auto-connect');
-    const active = await this.getActiveSessions();
+    const active: ActiveSession[] = await this.getActiveSessions();
     await loadStoredSessions(this.state, this.io);
     if (this.state.storedSessions.sessions.length > 0) {
       this.state.resetReconnectAttempts();
@@ -203,7 +203,7 @@ export class ConnectionManager {
   public async getTabSelectedSession(): Promise<StoredSession | null> {
     const tab = await this.io.getSelectedUser();
     if (!tab?.selectedUsername || !tab?.selectedServerAddress) {
-      const idx = await getTabActiveSessionIndex(this.state, this.io);
+      const idx: number = await getTabActiveSessionIndex(this.state, this.io);
       return this.state.storedSessions.sessions[idx] || null;
     }
     return this.state.findSession(tab.selectedUsername, tab.selectedServerAddress) || null;
@@ -247,4 +247,4 @@ export class ConnectionManager {
 }
 
 // Export singleton instance
-export const connectionManager = ConnectionManager.getInstance();
+export const connectionManager: ConnectionManager = ConnectionManager.getInstance();

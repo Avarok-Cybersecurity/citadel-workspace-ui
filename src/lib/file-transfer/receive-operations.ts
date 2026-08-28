@@ -91,7 +91,7 @@ export async function executeDownloadFile(params: DownloadFileParams): Promise<v
       if (failure?.request_id === requestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        const errorMsg = failure.message || 'DownloadFile failed';
+        const errorMsg: string = failure.message || 'DownloadFile failed';
         debugLog('receive-operations', 'DownloadFile failed', errorMsg);
         reject(new Error(errorMsg));
       }
@@ -200,7 +200,7 @@ export function createStatusChangeHandler(
       | undefined;
     if (!notification) return;
 
-    const objectId = notification.object_id.toString();
+    const objectId: string = notification.object_id.toString();
     const transferId = correlation.objectIdToTransferId.get(objectId);
     // The status notification is the one recipient-side message that carries
     // BOTH the object_id and the accept request's request_id, so it is a

@@ -155,7 +155,7 @@ export class CheckStateManager {
       return existing;
     }
 
-    const handshake = this.runCheckState(peerCid);
+    const handshake: Promise<void> = this.runCheckState(peerCid);
     this.inFlightChecks.set(peerCid, handshake);
     try {
       return await handshake;
@@ -183,7 +183,7 @@ export class CheckStateManager {
     );
 
     // Create promise that resolves when CheckStateResponse received
-    const readyPromise = new Promise<void>((resolve, reject) => {
+    const readyPromise: Promise<void> = new Promise<void>((resolve, reject) => {
       this.pendingCheckStates.set(peerCid, { resolve, reject });
 
       // Timeout handling

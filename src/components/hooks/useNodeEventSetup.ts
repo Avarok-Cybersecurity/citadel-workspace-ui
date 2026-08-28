@@ -80,7 +80,7 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
       // watching it would see the change until they navigated away and back.
       await workspaceEvents.onNodeEvent('node:content-updated', (payload: { nodeId: string; mdxContent: string; mdxContentHash?: string; updatedBy: string; timestamp: number; connection: ConnectionInfo }) => {
         setState(prev => {
-          const node = prev.nodes[payload.nodeId];
+          const node: DomainNode = prev.nodes[payload.nodeId];
           // Not a node this client knows about; nothing to refresh.
           if (!node) return prev;
           return {
@@ -106,7 +106,7 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
       // Node moved (reparented)
       await workspaceEvents.onNodeEvent('node:moved', (payload: { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo }) => {
         setState(prev => {
-          const node = prev.nodes[payload.nodeId];
+          const node: DomainNode = prev.nodes[payload.nodeId];
           if (!node) return prev;
           return {
             ...prev,
@@ -120,7 +120,7 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
 
       // Full tree structure loaded — flatten into the nodes map
       await workspaceEvents.onNodeEvent('tree:structure:loaded', (payload: { root: TreeNode; connection: ConnectionInfo }) => {
-        const flatNodes = flattenTree(payload.root);
+        const flatNodes: DomainNode[] = flattenTree(payload.root);
         setState(prev => {
           const updatedNodes: Record<string, DomainNode> = {};
           for (const node of flatNodes) {

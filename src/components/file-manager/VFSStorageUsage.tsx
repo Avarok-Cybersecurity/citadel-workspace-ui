@@ -21,7 +21,7 @@ interface VFSStorageUsageProps {
  * - Critical (>= 95%): red
  */
 export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsageProps) {
-  const percentage = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
+  const percentage: number = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
   const isWarning = percentage >= 80 && percentage < 95;
   const isCritical = percentage >= 95;
 

@@ -22,10 +22,10 @@ export function moveTargets(
   nodes: Record<string, DomainNode>,
   nodeId: string,
 ): DomainNode[] {
-  const node = nodes[nodeId];
+  const node: DomainNode = nodes[nodeId];
   if (!node) return [];
 
-  const forbidden = descendantsOf(nodes, nodeId);
+  const forbidden: Set<string> = descendantsOf(nodes, nodeId);
   forbidden.add(nodeId);
 
   const childType = childTypeOf(node);
@@ -48,8 +48,8 @@ function childTypeOf(node: DomainNode): string | null {
 }
 
 function descendantsOf(nodes: Record<string, DomainNode>, rootId: string): Set<string> {
-  const found = new Set<string>();
-  const queue = [rootId];
+  const found: Set<string> = new Set<string>();
+  const queue: string[] = [rootId];
 
   // Bounded by construction, not only by the visited set below.
   //
@@ -61,9 +61,9 @@ function descendantsOf(nodes: Record<string, DomainNode>, rootId: string): Set<s
   //
   // Every node can be visited at most once, so this many iterations is more
   // than any acyclic tree needs and a cycle cannot outlast it.
-  const limit = Object.keys(nodes).length + 1;
+  const limit: number = Object.keys(nodes).length + 1;
 
-  for (let step = 0; queue.length > 0 && step < limit; step += 1) {
+  for (let step: number = 0; queue.length > 0 && step < limit; step += 1) {
     const current = queue.pop();
     if (current === undefined) continue;
     for (const child of nodes[current]?.children ?? []) {

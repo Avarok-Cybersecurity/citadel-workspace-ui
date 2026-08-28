@@ -30,7 +30,7 @@ import { TIMEOUT } from '../timeout-constants';
  * Keep the two in lockstep. Files above this must use the native PickFile flow,
  * which streams from disk and bypasses both this cap and the JSON expansion.
  */
-export const MAX_BYTE_CONTENTS_BYTES = 16 * 1024 * 1024; // 16 MiB
+export const MAX_BYTE_CONTENTS_BYTES: number = 16 * 1024 * 1024; // 16 MiB
 
 /**
  * Resolve once the internal service acknowledges a `SendFile` request, or reject
@@ -70,7 +70,7 @@ export function awaitSendFileAck(requestId: string): Promise<void> {
         | undefined;
       if (failure?.request_id === requestId) {
         settle(() => {
-          const errorMsg = failure.message || 'SendFile failed';
+          const errorMsg: string = failure.message || 'SendFile failed';
           debugLog('FileTransferIO', 'SendFile failed', { requestId, errorMsg });
           reject(new Error(errorMsg));
         });
@@ -124,7 +124,7 @@ export async function uploadFileToServer(
   });
 
   // ByteContents.data is a Rust Vec<u8>, which serialises as a JSON number array.
-  const data = Array.from(new Uint8Array(await file.arrayBuffer()));
+  const data: number[] = Array.from(new Uint8Array(await file.arrayBuffer()));
 
   const requestId = crypto.randomUUID();
   const request = {
@@ -143,7 +143,7 @@ export async function uploadFileToServer(
     },
   };
 
-  const ack = awaitSendFileAck(requestId);
+  const ack: Promise<void> = awaitSendFileAck(requestId);
   await websocketService.sendMessage(request as unknown as Record<string, unknown>);
   await ack;
 

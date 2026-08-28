@@ -51,7 +51,7 @@ function dispatch(variant: string): { events: string[]; handled: boolean } {
     // The shape extractWorkspaceResponse actually accepts: msg.Response IS the
     // WorkspaceProtocolResponse.
     eventEmitter.emit('websocket-message', { Response: { [variant]: PAYLOADS[variant] } });
-    const events = spy.mock.calls
+    const events: string[] = spy.mock.calls
       .map((c) => String(c[0]))
       .filter((n) => n !== 'websocket-message');
     return {
@@ -68,7 +68,7 @@ function dispatch(variant: string): { events: string[]; handled: boolean } {
 describe('every gated write is observable', () => {
   beforeEach(() => { WorkspaceResponseHandler.getInstance(); });
 
-  const entries = Object.entries(SUCCESS_RESPONSES);
+  const entries: [string, readonly string[]][] = Object.entries(SUCCESS_RESPONSES);
 
   it('covers a non-trivial number of writes', () => {
     // Guards the loop below against silently iterating nothing.

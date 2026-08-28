@@ -219,7 +219,7 @@ describe('CallStage', () => {
   });
 
   it('omits participants who declined or left', () => {
-    const call = callState({
+    const call: CallState = callState({
       participants: new Map([
         [2n, participant()],
         [3n, participant({ cid: 3n, username: 'Carol', status: 'declined' })],
@@ -232,7 +232,7 @@ describe('CallStage', () => {
   });
 
   it('describes the call for assistive technology', () => {
-    const call = callState({
+    const call: CallState = callState({
       participants: new Map([
         [2n, participant()],
         [3n, participant({ cid: 3n, username: 'Carol' })],

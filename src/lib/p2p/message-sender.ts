@@ -70,18 +70,18 @@ export class MessageSender {
       debugLog('MessageSender', `[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
     }
 
-    const conversation = this.config.getOrCreateConversation(recipientCid);
-    const index = conversation.lastMessageIndex + 1;
+    const conversation: P2PConversation = this.config.getOrCreateConversation(recipientCid);
+    const index: number = conversation.lastMessageIndex + 1;
 
     const currentCid = await this.config.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
 
-    const timestamp = Date.now();
+    const timestamp: number = Date.now();
     const messageId = crypto.randomUUID();
 
-    const layer = createMessage(content, timestamp);
+    const layer: MessagingLayer = createMessage(content, timestamp);
 
     const command = createMessagingLayerCommand(
       layer,
@@ -128,7 +128,7 @@ export class MessageSender {
     options?.onOptimisticAppend?.();
 
     debugLog('MessageSender', `[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}...`);
-    const sendStartTime = Date.now();
+    const sendStartTime: number = Date.now();
     try {
       await this.sendP2PCommand(recipientCid, command);
       message.status = 'sent';

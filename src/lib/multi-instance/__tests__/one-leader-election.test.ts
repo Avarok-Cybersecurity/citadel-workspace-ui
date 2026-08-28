@@ -23,7 +23,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** The one module allowed to decide who leads. */
 const ELECTION_HOME = 'lib/multi-instance/channel-leader-election.ts';
@@ -36,8 +36,8 @@ const ELECTION_HOME = 'lib/multi-instance/channel-leader-election.ts';
  * `channel-message-dispatch` and `channel-messaging` both do exactly that.
  * What must not exist twice is the decision itself.
  */
-const NAMES = String.raw`becomeLeader|tryBecomeLeader|broadcastLeaderClaim|handleLeaderElection`;
-const DEFINES_A_DECISION = new RegExp(
+const NAMES: string = String.raw`becomeLeader|tryBecomeLeader|broadcastLeaderClaim|handleLeaderElection`;
+const DEFINES_A_DECISION: RegExp = new RegExp(
   // A free function...
   String.raw`(?:export\s+)?(?:async\s+)?function\s+(?:${NAMES})\b` +
     // ...or a class method, which is how the dead copy was written. My first
@@ -55,12 +55,12 @@ const DEFINES_A_DECISION = new RegExp(
 
 describe('leader election', () => {
   it('is decided in one module', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
 
-    const offenders = files
+    const offenders: string[] = files
       .filter((rel) => rel !== ELECTION_HOME)
       .filter((rel) =>
         DEFINES_A_DECISION.test(stripComments(readFileSync(join(SRC, rel), 'utf-8'))),
@@ -76,7 +76,7 @@ describe('leader election', () => {
 
   it('still has an election to be the one', () => {
     // A home that stopped deciding would make the rule above vacuous.
-    const source = stripComments(readFileSync(join(SRC, ELECTION_HOME), 'utf-8'));
+    const source: string = stripComments(readFileSync(join(SRC, ELECTION_HOME), 'utf-8'));
     expect(
       DEFINES_A_DECISION.test(source),
       `${ELECTION_HOME} no longer defines the decision`,

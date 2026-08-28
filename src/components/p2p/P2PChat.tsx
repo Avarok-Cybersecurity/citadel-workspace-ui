@@ -129,7 +129,7 @@ export function P2PChat({
       return;
     }
 
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const distanceFromBottom: number = el.scrollHeight - el.scrollTop - el.clientHeight;
     if (distanceFromBottom <= FOLLOW_THRESHOLD_PX) {
       el.scrollTop = el.scrollHeight;
     }

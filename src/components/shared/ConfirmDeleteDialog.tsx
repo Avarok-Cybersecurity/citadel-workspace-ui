@@ -41,7 +41,7 @@ export function ConfirmDeleteDialog({
     (event: React.MouseEvent) => {
       event.preventDefault();
       if (pending) return;
-      const result = onConfirm();
+      const result: void | Promise<void> = onConfirm();
       if (!(result instanceof Promise)) return;
       setPending(true);
       void result.finally(() => setPending(false));

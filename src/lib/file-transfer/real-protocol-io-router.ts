@@ -49,7 +49,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   async respondToTransfer(params: RespondTransferParams): Promise<void> {
-    const requestId = await executeRespondToTransfer(params);
+    const requestId: string = await executeRespondToTransfer(params);
     // An accept spawns the reception tick stream under this request UUID.
     // Register the join BEFORE any tick can arrive (the WebSocket is ordered,
     // so nothing for this stream precedes the request we just sent).
@@ -106,8 +106,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
         img.onload = () => {
           const canvas = document.createElement('canvas');
           const MAX_SIZE = 100;
-          let width = img.width;
-          let height = img.height;
+          let width: number = img.width;
+          let height: number = img.height;
 
           if (width > height) {
             if (width > MAX_SIZE) {
@@ -152,7 +152,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   notifyStateChange(transfer: FileTransfer): void {
-    const peerCid = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
+    const peerCid: string = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
     p2pMessengerManager.updateFileTransferState(BigInt(peerCid), transfer.id, {
       transfer_state: transfer.state,
       transfer_progress: transfer.progress,

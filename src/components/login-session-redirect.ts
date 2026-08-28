@@ -49,7 +49,7 @@ export async function redirectToExistingSession(
     }
 
     const storedSessions = connectionManager.getStoredSessions();
-    const storedIndex = storedSessions.sessions.findIndex(
+    const storedIndex: number = storedSessions.sessions.findIndex(
       (stored) =>
         stored.username === session.username &&
         stored.serverAddress === session.server_address

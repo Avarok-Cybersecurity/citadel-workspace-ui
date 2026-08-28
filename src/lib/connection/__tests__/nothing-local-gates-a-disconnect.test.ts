@@ -22,11 +22,11 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const DIR = resolve(__dirname, '..');
+const DIR: string = resolve(__dirname, '..');
 
 /** Calls that reach the agent's LocalDB, directly or through the IO seam. */
-const LOCAL_WRITE = /await\s+[\w.]*\.(storeSessionsToLocalDB|markUserDisconnected|sendLocalDBSet|setSelectedUser)\s*\(/;
-const DISCONNECT = /await\s+[\w.]*\.disconnect\s*\(/;
+const LOCAL_WRITE: RegExp = /await\s+[\w.]*\.(storeSessionsToLocalDB|markUserDisconnected|sendLocalDBSet|setSelectedUser)\s*\(/;
+const DISCONNECT: RegExp = /await\s+[\w.]*\.disconnect\s*\(/;
 
 function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
@@ -37,12 +37,12 @@ function functionBodies(): Array<{ file: string; name: string; body: string }> {
   const out: Array<{ file: string; name: string; body: string }> = [];
   for (const entry of readdirSync(DIR)) {
     if (!entry.endsWith('.ts') || entry.endsWith('.test.ts')) continue;
-    const source = withoutComments(readFileSync(join(DIR, entry), 'utf-8'));
-    const pattern = /export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/g;
+    const source: string = withoutComments(readFileSync(join(DIR, entry), 'utf-8'));
+    const pattern: RegExp = /export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/g;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(source)) !== null) {
-      const rest = source.slice(match.index);
-      const next = rest.slice(1).search(/\nexport\s/);
+      const rest: string = source.slice(match.index);
+      const next: number = rest.slice(1).search(/\nexport\s/);
       out.push({ file: entry, name: match[1], body: next === -1 ? rest : rest.slice(0, next + 1) });
     }
   }
@@ -58,7 +58,7 @@ describe('in lib/connection', () => {
   });
 
   it('nothing writes to LocalDB before it disconnects', () => {
-    const offenders = bodies
+    const offenders: string[] = bodies
       .filter((b) => DISCONNECT.test(b.body) && LOCAL_WRITE.test(b.body))
       .filter((b) => (b.body.search(LOCAL_WRITE) < b.body.search(DISCONNECT)))
       .map((b) => `${b.file}:${b.name}`);

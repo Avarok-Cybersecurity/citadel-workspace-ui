@@ -102,7 +102,7 @@ export const FilesSection = () => {
    * Load completed incoming transfers from FileTransferService
    */
   const loadFiles = useCallback(() => {
-    const downloads = fileTransferService.getAllTransfers()
+    const downloads: FileTransfer[] = fileTransferService.getAllTransfers()
       .filter(t => t.state === 'complete' && t.isIncoming)
       .sort((a, b) => b.updatedAt - a.updatedAt); // Most recent first
 

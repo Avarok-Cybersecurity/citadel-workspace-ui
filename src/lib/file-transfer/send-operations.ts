@@ -28,7 +28,7 @@ import { TIMEOUT } from '../timeout-constants';
  * from disk. This constant is intentionally conservative; raise it only
  * alongside memory-usage measurements.
  */
-export const MAX_BYTE_CONTENTS_SIZE_BYTES = 2 * 1024 * 1024; // 2 MiB
+export const MAX_BYTE_CONTENTS_SIZE_BYTES: number = 2 * 1024 * 1024; // 2 MiB
 
 
 interface SendFileSuccessResponse {
@@ -67,7 +67,7 @@ export async function executeSendFile(
     }
 
     // Read browser File as bytes and send as ByteContents
-    const buffer = await params.source.arrayBuffer();
+    const buffer: ArrayBuffer = await params.source.arrayBuffer();
     source = {
       ByteContents: {
         file_name: params.source.name,
@@ -139,7 +139,7 @@ export async function executeSendFile(
       if (failure?.request_id === requestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        const errorMsg = failure.message || 'SendFile failed';
+        const errorMsg: string = failure.message || 'SendFile failed';
         debugLog('send-operations', 'SendFile failed', errorMsg);
         reject(new Error(errorMsg));
       }

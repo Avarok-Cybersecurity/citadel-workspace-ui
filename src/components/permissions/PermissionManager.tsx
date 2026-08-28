@@ -67,7 +67,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   const togglePermission = useCallback((role: string, permissionId: string) => {
     setRolePermissions(prev => {
       const next = { ...prev };
-      const perms = new Set(next[role]);
+      const perms: Set<string> = new Set(next[role]);
       if (perms.has(permissionId)) {
         perms.delete(permissionId);
       } else {
@@ -90,9 +90,9 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
       // DEFAULTS and apply all four to this one user — so an admin who changed
       // nothing still sent writes, and every write was relative to a baseline
       // the server had never agreed to.
-      const edited = rolePermissions[load.role] ?? new Set<string>();
-      const addedPermissions = [...edited].filter((p) => !serverPermissions.has(p));
-      const removedPermissions = [...serverPermissions].filter((p) => !edited.has(p));
+      const edited: Set<string> = rolePermissions[load.role] ?? new Set<string>();
+      const addedPermissions: string[] = [...edited].filter((p) => !serverPermissions.has(p));
+      const removedPermissions: string[] = [...serverPermissions].filter((p) => !edited.has(p));
 
       if (addedPermissions.length > 0) {
         await WorkspaceService.updateMemberPermissions(

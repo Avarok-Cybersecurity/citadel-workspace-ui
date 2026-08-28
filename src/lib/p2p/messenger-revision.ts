@@ -40,7 +40,7 @@ export async function editMessage(
   const conversation = conversationManager.getConversation(peerCid);
   if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
 
-  const editedAt = Date.now();
+  const editedAt: number = Date.now();
   const outcome = applyEdit(conversation, messageId, contents, editedAt, ownCid);
   if (!outcome.applied) {
     // 'not-sender' here means the UI offered edit on someone else's message.
@@ -70,7 +70,7 @@ export async function deleteMessage(
   const conversation = conversationManager.getConversation(peerCid);
   if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
 
-  const deletedAt = Date.now();
+  const deletedAt: number = Date.now();
   const outcome = applyDelete(conversation, messageId, ownCid);
   if (!outcome.applied) {
     throw new Error(`Cannot delete message ${messageId}: ${outcome.reason}`);

@@ -67,7 +67,7 @@ export class AuthOperations {
     debugLog('AuthOperations', `[Connect] Proceeding with new connection for ${username}`);
 
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
-    const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();
+    const settings: SessionSecuritySettings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
     const connectOptions = {
       request_id: requestId,
@@ -110,11 +110,11 @@ export class AuthOperations {
     await this.config.init();
 
     // Resolve hostname to IP if needed (DNS resolution)
-    const resolvedAddr = await resolveServerAddress(serverAddr);
+    const resolvedAddr: string = await resolveServerAddress(serverAddr);
     debugLog('AuthOperations', `[Register] Resolved address: ${serverAddr} -> ${resolvedAddr}`);
 
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
-    const settings = sessionSecuritySettings ?? getDefaultSecuritySettings();
+    const settings: SessionSecuritySettings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
     const registerOptions = {
       request_id: requestId,

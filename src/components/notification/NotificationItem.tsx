@@ -22,7 +22,7 @@ interface NotificationItemProps {
 
 const NotificationItem = ({ notification }: NotificationItemProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const notificationService = NotificationService.getInstance();
+  const notificationService: NotificationService = NotificationService.getInstance();
   
   // Mark as read when rendered
   if (!notification.read) {
@@ -34,8 +34,8 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
   };
   
   // Format the timestamp
-  const formattedTime = formatDistanceToNow(notification.timestamp, { addSuffix: true });
-  const exactTime = format(notification.timestamp, 'PPpp');
+  const formattedTime: string = formatDistanceToNow(notification.timestamp, { addSuffix: true });
+  const exactTime: string = format(notification.timestamp, 'PPpp');
   
   // Get the appropriate icon based on notification type
   const getNotificationIcon = () => {

@@ -47,7 +47,7 @@ export class SessionManagement {
   private connectionManagementMatcher(requestId: string) {
     return {
       matchSuccess: (message: Record<string, unknown>): SessionManagementResult | undefined => {
-        const response = SessionManagement.unwrapResponse(message);
+        const response: ConnectionManagementResponse = SessionManagement.unwrapResponse(message);
         if (response.ConnectionManagementSuccess?.request_id === requestId) {
           return {
             success: true,
@@ -58,7 +58,7 @@ export class SessionManagement {
         return undefined;
       },
       matchFailure: (message: Record<string, unknown>): string | undefined => {
-        const response = SessionManagement.unwrapResponse(message);
+        const response: ConnectionManagementResponse = SessionManagement.unwrapResponse(message);
         if (response.ConnectionManagementFailure?.request_id === requestId) {
           return response.ConnectionManagementFailure.error || 'Connection management operation failed';
         }
@@ -98,7 +98,7 @@ export class SessionManagement {
     await this.config.init();
 
     const requestId = crypto.randomUUID();
-    const sessionCidBigInt = typeof sessionCid === 'string' ? BigInt(sessionCid) : sessionCid;
+    const sessionCidBigInt: bigint = typeof sessionCid === 'string' ? BigInt(sessionCid) : sessionCid;
 
     const request = {
       ConnectionManagement: {

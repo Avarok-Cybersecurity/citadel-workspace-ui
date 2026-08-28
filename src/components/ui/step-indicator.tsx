@@ -28,7 +28,7 @@ export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicator
       aria-label={`Step ${currentStep} of ${totalSteps}`}
     >
       {Array.from({ length: totalSteps }, (_, i) => {
-        const step = i + 1;
+        const step: number = i + 1;
         const isCompleted = step < currentStep;
         const isActive = step === currentStep;
         return (

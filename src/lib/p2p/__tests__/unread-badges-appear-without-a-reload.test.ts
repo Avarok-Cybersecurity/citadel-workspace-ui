@@ -32,7 +32,7 @@ function manager() {
   });
 }
 
-let counter = 0;
+let counter: number = 0;
 function message(overrides: Partial<P2PMessage> = {}): P2PMessage {
   counter += 1;
   return {
@@ -51,7 +51,7 @@ describe('the in-memory unread count', () => {
   beforeEach(() => { counter = 0; });
 
   it('rises when a delivered message arrives from the peer', async () => {
-    const m = manager();
+    const m: ConversationManager = manager();
 
     await m.addMessageToConversation(PEER, message());
     await m.addMessageToConversation(PEER, message());
@@ -60,7 +60,7 @@ describe('the in-memory unread count', () => {
   });
 
   it('does not count the user\'s own messages', async () => {
-    const m = manager();
+    const m: ConversationManager = manager();
 
     await m.addMessageToConversation(PEER, message({ senderCid: ME, recipientCid: PEER }));
 
@@ -71,7 +71,7 @@ describe('the in-memory unread count', () => {
     // A pending inbound message is not yet news; the persisted side applies the
     // same predicate, and the two must not disagree or the badge would change
     // across a reload.
-    const m = manager();
+    const m: ConversationManager = manager();
 
     await m.addMessageToConversation(PEER, message({ status: 'pending' }));
 
@@ -79,8 +79,8 @@ describe('the in-memory unread count', () => {
   });
 
   it('does not double-count a redelivered message', async () => {
-    const m = manager();
-    const redelivered = message();
+    const m: ConversationManager = manager();
+    const redelivered: P2PMessage = message();
 
     await m.addMessageToConversation(PEER, redelivered);
     await m.addMessageToConversation(PEER, redelivered);

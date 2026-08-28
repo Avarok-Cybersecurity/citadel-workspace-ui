@@ -18,8 +18,8 @@ function renderAt(path: string) {
 
 describe('titleForPath', () => {
   it('names each route distinctly', () => {
-    const paths = ['/', '/connect', '/workspace', '/messages', '/directory', '/groups/abc'];
-    const titles = paths.map(titleForPath);
+    const paths: string[] = ['/', '/connect', '/workspace', '/messages', '/directory', '/groups/abc'];
+    const titles: string[] = paths.map(titleForPath);
     // The whole point: no two routes may share a title, or the tab, the history
     // entry and the screen reader all say the same thing everywhere.
     expect(new Set(titles).size).toBe(paths.length);

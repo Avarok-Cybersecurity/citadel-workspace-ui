@@ -66,7 +66,7 @@ describe('CallStage outgoing-call panel', () => {
   });
 
   it('counts the others in a group ring', () => {
-    const call = callState({
+    const call: CallState = callState({
       participants: new Map([
         [2n, participant()],
         [3n, participant({ cid: 3n, username: 'Carol' })],

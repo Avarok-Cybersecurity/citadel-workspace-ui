@@ -37,7 +37,7 @@ export function FileTransferBubble({
   onOpen
 }: FileTransferBubbleProps) {
   const isFailed = message.status === 'failed' || message.transfer_state === 'error';
-  const bubbleStyles = getBubbleStyles(isOwn, isFailed);
+  const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 
   const state = message.transfer_state || 'pending';
 
@@ -50,10 +50,10 @@ export function FileTransferBubble({
     transfer_id: message.transfer_id,
     fileName: message.file_name
   });
-  const progress = message.transfer_progress || 0;
-  const fileName = message.file_name || 'Unknown file';
-  const fileSize = message.file_size || 0;
-  const fileType = message.file_type || 'application/octet-stream';
+  const progress: number = message.transfer_progress || 0;
+  const fileName: string = message.file_name || 'Unknown file';
+  const fileSize: number = message.file_size || 0;
+  const fileType: string = message.file_type || 'application/octet-stream';
   const transferMode = message.transfer_mode || 'async';
 
   const status = getStatusContent(state, isOwn, message);

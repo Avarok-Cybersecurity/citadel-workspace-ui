@@ -71,7 +71,7 @@ export class AutoConnectState {
   addOnlinePeer(peerCid: bigint): void {
     // Directly add a single peer to the online set (used by event handlers)
     // This leverages setOnlinePeers internally by building the full list
-    const current = this.core.getOnlinePeers();
+    const current: bigint[] = this.core.getOnlinePeers();
     if (!current.includes(peerCid)) {
       current.push(peerCid);
       this.core.setOnlinePeers(current);

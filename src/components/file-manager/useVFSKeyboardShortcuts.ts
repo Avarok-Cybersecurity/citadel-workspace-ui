@@ -37,7 +37,7 @@ export function useVFSKeyboardShortcuts({
       if (renamingPath || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       const isMod = e.ctrlKey || e.metaKey;
-      const selected = getSelectedNodes();
+      const selected: RevfsNode[] = getSelectedNodes();
 
       switch (e.key) {
         case 'F2':
@@ -50,7 +50,7 @@ export function useVFSKeyboardShortcuts({
         case 'Backspace': {
           if (selected.length > 0) {
             e.preventDefault();
-            const deletable = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
+            const deletable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
             if (deletable.length > 1 && onDeleteMultiple) onDeleteMultiple(deletable);
             else if (deletable.length === 1) onDelete(deletable[0]);
           }
@@ -59,7 +59,7 @@ export function useVFSKeyboardShortcuts({
         case 'c':
           if (isMod && selected.length > 0) {
             e.preventDefault();
-            const copyable = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
+            const copyable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
             if (copyable.length > 1 && onCopyMultiple) onCopyMultiple(copyable);
             else if (copyable.length === 1) onCopy(copyable[0]);
           }
@@ -67,7 +67,7 @@ export function useVFSKeyboardShortcuts({
         case 'x':
           if (isMod && selected.length > 0) {
             e.preventDefault();
-            const cutable = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
+            const cutable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
             if (cutable.length > 1 && onCutMultiple) onCutMultiple(cutable);
             else if (cutable.length === 1) onCut(cutable[0]);
           }

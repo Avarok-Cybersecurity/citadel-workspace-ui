@@ -35,7 +35,7 @@ export async function sendRequest(
 ): Promise<void> {
   await service.init();
 
-  const messageType = Object.keys(request)[0] || 'unknown';
+  const messageType: string = Object.keys(request)[0] || 'unknown';
   debugLog('WebSocketService', `_sendRequest: isLeader=${instanceManager.isLeader}, leaderId=${instanceManager.leaderId}, instanceId=${instanceManager.instanceId}, msgType=${messageType}`);
 
   if (instanceManager.isLeader) {
@@ -59,7 +59,7 @@ export async function sendRequest(
     // Connect and Register work from followers precisely because they pass
     // their embedded requestId through explicitly. Deriving it here fixes every
     // sendMessage()-based flow at once rather than one more call site.
-    const id = requestId ?? embeddedRequestId(request) ?? crypto.randomUUID();
+    const id: string = requestId ?? embeddedRequestId(request) ?? crypto.randomUUID();
 
     instanceInboundRouter.registerPendingRequest(id, instanceManager.instanceId);
 

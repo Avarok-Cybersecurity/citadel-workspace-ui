@@ -110,7 +110,7 @@ export class ConnectionService {
   }
 
   public async acceptConnectionRequest(requestId: string): Promise<void> {
-    const request = findPendingRequest(this.connectionRequests, requestId);
+    const request: ConnectionRequest = findPendingRequest(this.connectionRequests, requestId);
     try {
       debugLog('ConnectionService', `Accepting connection request ${requestId}`);
       markAccepted(request);
@@ -128,7 +128,7 @@ export class ConnectionService {
   }
 
   public async rejectConnectionRequest(requestId: string): Promise<void> {
-    const request = findPendingRequest(this.connectionRequests, requestId);
+    const request: ConnectionRequest = findPendingRequest(this.connectionRequests, requestId);
     try {
       debugLog('ConnectionService', `Rejecting connection request ${requestId}`);
       markRejected(request);
@@ -140,7 +140,7 @@ export class ConnectionService {
   }
 
   public async cancelConnectionRequest(requestId: string): Promise<void> {
-    const request = findPendingRequest(this.connectionRequests, requestId);
+    const request: ConnectionRequest = findPendingRequest(this.connectionRequests, requestId);
     try {
       debugLog('ConnectionService', `Canceling connection request ${requestId}`);
       markCanceled(request);

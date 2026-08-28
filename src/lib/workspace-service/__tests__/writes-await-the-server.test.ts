@@ -61,8 +61,8 @@ describe('a write', () => {
     vi.useFakeTimers();
     const send = vi.fn(async () => undefined);
 
-    const pending = awaitWriteResponse('DeleteNode', send);
-    const assertion = expect(pending).rejects.toThrow(/did not answer/);
+    const pending: Promise<void> = awaitWriteResponse('DeleteNode', send);
+    const assertion: Promise<void> = expect(pending).rejects.toThrow(/did not answer/);
     await vi.advanceTimersByTimeAsync(WRITE_RESPONSE_TIMEOUT_MS + 1);
     await assertion;
   });

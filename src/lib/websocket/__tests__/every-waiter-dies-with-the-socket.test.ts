@@ -17,15 +17,15 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const LIB = resolve(__dirname, '../..');
+const LIB: string = resolve(__dirname, '../..');
 
 /** The module that DEFINES the handling, and the copy that only names it. */
-const EXEMPT = ['websocket/request-response.ts', 'error-messages.ts'];
+const EXEMPT: string[] = ['websocket/request-response.ts', 'error-messages.ts'];
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) {
       if (entry === '__tests__') continue;
       out.push(...sourceFiles(path));
@@ -37,14 +37,14 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('a hand-rolled wait for a response', () => {
-  const files = sourceFiles(LIB);
+  const files: string[] = sourceFiles(LIB);
 
   it('scans the library, so the rule is not passing over nothing', () => {
     expect(files.length).toBeGreaterThan(60);
   });
 
   it('finds the waiters it is written about', () => {
-    const waiters = files.filter((f) => /reject\(\s*new Error\([^)]*timed out/.test(readFileSync(f, 'utf-8')));
+    const waiters: string[] = files.filter((f) => /reject\(\s*new Error\([^)]*timed out/.test(readFileSync(f, 'utf-8')));
     // Ten of them, and the count is asserted so a refactor that hides the
     // pattern behind a different phrasing shows up here rather than silently
     // emptying the rule below.
@@ -54,9 +54,9 @@ describe('a hand-rolled wait for a response', () => {
   it('always fails when the socket drops', () => {
     const unguarded: string[] = [];
     for (const file of files) {
-      const relative = file.slice(LIB.length + 1);
+      const relative: string = file.slice(LIB.length + 1);
       if (EXEMPT.includes(relative)) continue;
-      const source = readFileSync(file, 'utf-8');
+      const source: string = readFileSync(file, 'utf-8');
       if (!/reject\(\s*new Error\([^)]*timed out/.test(source)) continue;
       if (source.includes('failOnSocketLoss') || source.includes('requestResponse')) continue;
       unguarded.push(relative);

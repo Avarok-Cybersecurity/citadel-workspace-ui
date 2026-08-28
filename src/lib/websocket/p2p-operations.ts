@@ -85,7 +85,7 @@ export class P2POperations {
         matchFailure: (msg) => {
           const r = msg as { PeerConnectFailure?: { request_id: string; message?: string } };
           if (r.PeerConnectFailure?.request_id === requestId) {
-            const error = r.PeerConnectFailure.message || 'PeerConnect failed';
+            const error: string = r.PeerConnectFailure.message || 'PeerConnect failed';
             errorLog('P2P connection failed:', error);
             return error;
           }
@@ -197,7 +197,7 @@ export class P2POperations {
         matchFailure: (msg) => {
           const r = msg as { PeerDisconnectFailure?: { request_id: string; message?: string } };
           if (r.PeerDisconnectFailure?.request_id === requestId) {
-            const error = r.PeerDisconnectFailure.message || 'PeerDisconnect failed';
+            const error: string = r.PeerDisconnectFailure.message || 'PeerDisconnect failed';
             errorLog('P2P disconnect failed:', error);
             return error;
           }

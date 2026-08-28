@@ -71,7 +71,7 @@ export class MessageHandler {
           debugLog('P2PMessageHandler', 'Unexpected PeerMessage format (expected array or Uint8Array):', typeof message);
           return;
         }
-        const command = deserializeP2PCommand(messageBytes);
+        const command: P2PCommand = deserializeP2PCommand(messageBytes);
         const peerCidBigint = ensureBigIntOrNull(peer_cid);
         if (peerCidBigint !== null) {
           await this.handleP2PCommand(command, peerCidBigint);

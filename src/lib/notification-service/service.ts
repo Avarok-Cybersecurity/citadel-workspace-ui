@@ -193,8 +193,8 @@ export class NotificationService {
   }
 
   public notifyUnreadChange(): void {
-    const notifications = Array.from(this.notifications.values());
-    const unread = notifications.filter(n => !n.read);
+    const notifications: Notification[] = Array.from(this.notifications.values());
+    const unread: Notification[] = notifications.filter(n => !n.read);
     const change: UnreadCountChange = {
       total: unread.length,
       messages: unread.filter(n => n.type === NotificationType.MESSAGE).length,
@@ -230,7 +230,7 @@ export class NotificationService {
   }
 }
 
-export const notificationService = NotificationService.getInstance();
+export const notificationService: NotificationService = NotificationService.getInstance();
 
 if (typeof window !== 'undefined' && import.meta.env.DEV) {
   window.notificationService = notificationService;

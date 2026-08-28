@@ -43,9 +43,9 @@ export function LiveDocumentView({
 
   const handleDownload = useCallback(() => {
     // Get the editor content via the DOM (simple approach)
-    const editorContent = document.querySelector('.ProseMirror')?.innerHTML || '';
-    const blob = new Blob([editorContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
+    const editorContent: string = document.querySelector('.ProseMirror')?.innerHTML || '';
+    const blob: Blob = new Blob([editorContent], { type: 'text/html' });
+    const url: string = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${documentTitle}.html`;

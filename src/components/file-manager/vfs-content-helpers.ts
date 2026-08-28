@@ -16,9 +16,9 @@ export type SortDirection = 'asc' | 'desc';
 export { findNodeByPath } from '@/lib/revfs/tree-operations';
 
 export function getFileIcon(fileName: string) {
-  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
-  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
-  const codeExts = ['ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'css', 'html', 'json', 'yaml', 'yml', 'toml'];
+  const ext: string = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const imageExts: string[] = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
+  const codeExts: string[] = ['ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'css', 'html', 'json', 'yaml', 'yml', 'toml'];
   if (imageExts.includes(ext)) return FileImage;
   if (codeExts.includes(ext)) return FileCode;
   return FileText;

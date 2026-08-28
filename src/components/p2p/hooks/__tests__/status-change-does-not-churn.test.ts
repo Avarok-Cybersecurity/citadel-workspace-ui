@@ -21,7 +21,7 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
 import { subscribeToConversationEvents } from '../useP2PMessages-subscriptions';
 import type { P2PMessage } from '@/lib/p2p';
 
-const CONVERSATION = [
+const CONVERSATION: P2PMessage[] = [
   { id: 'a', status: 'sent' },
   { id: 'b', status: 'sent' },
 ] as unknown as P2PMessage[];
@@ -78,7 +78,7 @@ describe('a status change', () => {
 
     statusHandler('b', 'delivered');
 
-    const next = updates[0]!(CONVERSATION);
+    const next: P2PMessage[] = updates[0]!(CONVERSATION);
     expect(next).not.toBe(CONVERSATION);
     expect(next.find((m) => m.id === 'b')?.status).toBe('delivered');
     expect(next.find((m) => m.id === 'a')?.status).toBe('sent');

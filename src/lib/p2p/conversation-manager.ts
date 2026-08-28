@@ -55,9 +55,9 @@ export class ConversationManager {
     let conversation = this.cache.conversations.get(peerCid);
     if (!conversation) {
       const isConnectedLocal = this.connections.get(peerCid) === true;
-      const isConnectedAutoConnect = p2pAutoConnectService.isPeerConnected(peerCid);
+      const isConnectedAutoConnect: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCid);
       const isOnlineRegistration = p2pAutoConnectService.isPeerOnline(peerCid);
-      const isOnline = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
+      const isOnline: true | Promise<boolean> = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
 
       conversation = {
         peerCid,
@@ -80,7 +80,7 @@ export class ConversationManager {
   }
 
   public async addMessageToConversation(peerCid: bigint, message: P2PMessage): Promise<boolean> {
-    const conversation = this.getOrCreateConversation(peerCid);
+    const conversation: P2PConversation = this.getOrCreateConversation(peerCid);
 
     if (conversation.messages.find(m => m.id === message.id)) {
       debugLog('ConversationManager', '[P2P] Duplicate message detected, skipping add:', message.id);

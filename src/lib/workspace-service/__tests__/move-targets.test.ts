@@ -93,7 +93,7 @@ describe('where a node may be moved', () => {
     //
     // So the walk is bounded by construction as well, and THAT is what this
     // asserts: it returns, and it returns the right answer.
-    const targets = moveTargets(cyclic, 'a');
+    const targets: DomainNode[] = moveTargets(cyclic, 'a');
     expect(targets.map((n) => n.id)).not.toContain('b');
   });
 });

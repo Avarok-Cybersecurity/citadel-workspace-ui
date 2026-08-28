@@ -28,7 +28,7 @@ export function useVFSSelection(): UseVFSSelectionResult {
 
   const select = useCallback((path: string, mode: SelectMode, allPaths?: string[]) => {
     setSelectedPaths(prev => {
-      const next = new Set(prev);
+      const next: Set<string> = new Set(prev);
 
       switch (mode) {
         case 'replace':
@@ -46,11 +46,11 @@ export function useVFSSelection(): UseVFSSelectionResult {
 
         case 'range':
           if (lastSelectedPath && allPaths) {
-            const startIdx = allPaths.indexOf(lastSelectedPath);
-            const endIdx = allPaths.indexOf(path);
+            const startIdx: number = allPaths.indexOf(lastSelectedPath);
+            const endIdx: number = allPaths.indexOf(path);
             if (startIdx !== -1 && endIdx !== -1) {
               const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-              for (let i = from; i <= to; i++) {
+              for (let i: number = from; i <= to; i++) {
                 next.add(allPaths[i]);
               }
             }
@@ -84,7 +84,7 @@ export function useVFSSelection(): UseVFSSelectionResult {
     return selectedPaths.has(path);
   }, [selectedPaths]);
 
-  const selectionCount = useMemo(() => selectedPaths.size, [selectedPaths]);
+  const selectionCount: number = useMemo(() => selectedPaths.size, [selectedPaths]);
 
   const getSelectedNodes = useCallback((tree: RevfsNode): RevfsNode[] => {
     const nodes: RevfsNode[] = [];

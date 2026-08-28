@@ -40,7 +40,7 @@ const RUN_COMMAND =
   './citadel-workspace-internal-service --bind 127.0.0.1:12345 --backend filesystem';
 
 export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navigatorRef }) => {
-  const candidates = agentPlatformCandidates(navigatorRef ?? navigator);
+  const candidates: AgentPlatform[] = agentPlatformCandidates(navigatorRef ?? navigator);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {

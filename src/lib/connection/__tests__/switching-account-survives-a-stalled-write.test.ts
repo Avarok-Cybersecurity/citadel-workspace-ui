@@ -36,7 +36,7 @@ describe('switching account while tab context is stalled', () => {
   it('still connects to the new account', async () => {
     vi.useFakeTimers();
     const { state, io, session } = harness(true);
-    const done = switchAccount(
+    const done: Promise<void> = switchAccount(
       'alice', '127.0.0.1:12349', state as never, io as never,
       vi.fn(async () => {}), vi.fn(async () => { void session; }),
     );
@@ -51,7 +51,7 @@ describe('selectUserWithoutBlocking', () => {
   it('reports false when the write does not land', async () => {
     vi.useFakeTimers();
     const io = { setSelectedUser: vi.fn(() => new Promise<void>(() => {})) };
-    const result = selectUserWithoutBlocking(io as never, {
+    const result: Promise<boolean> = selectUserWithoutBlocking(io as never, {
       selectedUsername: 'alice', selectedServerAddress: 'x',
     });
     await vi.advanceTimersByTimeAsync(60_000);

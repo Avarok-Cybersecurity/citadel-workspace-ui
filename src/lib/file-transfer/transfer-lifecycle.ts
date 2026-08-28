@@ -32,7 +32,7 @@ export async function sendFile(
     throw new Error('No active session');
   }
 
-  const settings = deps.state.getSettings(scopedSettingsKey(recipientCid));
+  const settings: FileTransferSettings = deps.state.getSettings(scopedSettingsKey(recipientCid));
   if (file.size > settings.maxFileSize) {
     throw new Error(
       `File size ${formatBytes(file.size)} exceeds max ${formatBytes(settings.maxFileSize)}`
@@ -45,7 +45,7 @@ export async function sendFile(
   }
 
   const transferId = crypto.randomUUID();
-  const expiresAt = Date.now() + FILE_TRANSFER_REQUEST_TTL_MS;
+  const expiresAt: number = Date.now() + FILE_TRANSFER_REQUEST_TTL_MS;
 
   const transfer: FileTransfer = {
     id: transferId,
@@ -191,7 +191,7 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
 
   // Labelled "Max file size to accept" but read only on the SEND path above,
   // so lowering the slider never limited what arrived. Size is on the offer.
-  const settings = deps.state.getSettings(scopedSettingsKey(transfer.senderCid));
+  const settings: FileTransferSettings = deps.state.getSettings(scopedSettingsKey(transfer.senderCid));
   if (transfer.fileSize > settings.maxFileSize) {
     throw new Error(
       `File size ${formatBytes(transfer.fileSize)} exceeds your limit of ` +

@@ -47,7 +47,7 @@ export function GroupMemberManagement({
   const [isKicking, setIsKicking] = useState(false);
 
   // Get members with resolved roles, sorted by hierarchy
-  const sortedMembers = useMemo(() => {
+  const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
     return [...group.members]
       .flatMap(member => {
         const role = group.settings.roles.find(r => r.id === member.roleId);

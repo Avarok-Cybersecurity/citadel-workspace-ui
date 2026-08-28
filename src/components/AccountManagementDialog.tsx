@@ -40,7 +40,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     if (isOpen) {
       const loadActiveSessions = async () => {
         try {
-          const active = await connectionManager.getActiveSessions();
+          const active: ActiveSession[] = await connectionManager.getActiveSessions();
           setActiveSessions(active);
         } catch (error) {
           debugLog('AccountManagementDialog', 'Failed to load active sessions:', error);
@@ -88,9 +88,9 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
 
   const formatLastConnected = (timestamp?: number) => {
     if (!timestamp) return 'Never';
-    const diff = Date.now() - timestamp;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(hours / 24);
+    const diff: number = Date.now() - timestamp;
+    const hours: number = Math.floor(diff / (1000 * 60 * 60));
+    const days: number = Math.floor(hours / 24);
     if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
     if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     return 'Recently';

@@ -48,7 +48,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   useEffect(() => {
     if (isDevMode) return;
 
-    const connectionService = ConnectionService.getInstance();
+    const connectionService: ConnectionService = ConnectionService.getInstance();
     let mounted = true;
 
     // `mounted` made stale handlers inert but never removed them. See onConnectionChange.

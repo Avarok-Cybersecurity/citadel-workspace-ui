@@ -42,7 +42,7 @@ export function MessageBubble({
   onDelete,
   onReply,
 }: MessageBubbleProps) {
-  const containerStyles = getBubbleContainerStyles(isOwn);
+  const containerStyles: string = getBubbleContainerStyles(isOwn);
 
   // Common props for all bubble types
   const commonProps = {

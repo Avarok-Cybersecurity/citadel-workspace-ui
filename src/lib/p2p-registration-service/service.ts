@@ -88,14 +88,14 @@ export class P2PRegistrationService {
     });
 
     eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
-      const data = raw as BroadcastStateSyncData;
+      const data: BroadcastStateSyncData = raw as BroadcastStateSyncData;
       if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
         const peerCid = data.peerCid as string | undefined;
         const peerUsername = data.peerUsername as string | undefined;
         const isOutgoing = data.isOutgoing as boolean | undefined;
         const isIncoming = data.isIncoming as boolean | undefined;
         if (peerCid !== undefined) {
-          const peerCidBigInt = BigInt(peerCid);
+          const peerCidBigInt: bigint = BigInt(peerCid);
           debugLog('P2PRegistrationService', `[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername ?? ''})`);
           this.setPeerRegisteredLocal(peerCidBigInt, peerUsername || '', isOutgoing, isIncoming);
           const peer: Peer = {
@@ -171,8 +171,8 @@ export class P2PRegistrationService {
     }
     this.isCheckingPeers = true;
     try {
-      const allPeers = await doListAllPeers(this.pendingRequests);
-      const registeredPeers = await doListRegisteredPeersWithRetry(this.pendingRequests);
+      const allPeers: PeerInfoResponse[] = await doListAllPeers(this.pendingRequests);
+      const registeredPeers: PeerInfoResponse[] = await doListRegisteredPeersWithRetry(this.pendingRequests);
       updatePeerMaps(this.allPeers, this.registeredPeers, allPeers, registeredPeers);
       if (options.autoRegisterAll) {
         await doRegisterUnregisteredPeers(this.allPeers, options, this.pendingRequests);
@@ -182,7 +182,7 @@ export class P2PRegistrationService {
         registeredPeers: Array.from(this.registeredPeers.values())
       });
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) return;
       debugLog('P2PRegistrationService', 'Error checking and registering peers:', error);
     } finally {

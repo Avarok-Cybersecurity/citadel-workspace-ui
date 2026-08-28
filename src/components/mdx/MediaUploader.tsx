@@ -93,7 +93,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     
     // In a full implementation, this would be a URL to the uploaded image
     // on your server or storage service
-    const mdxCode = `![${altText || 'Image'}](${uploadedImage})`;
+    const mdxCode: string = `![${altText || 'Image'}](${uploadedImage})`;
     onMediaInsert(mdxCode);
     handleCancel();
   };

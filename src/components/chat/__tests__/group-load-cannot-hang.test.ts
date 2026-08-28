@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** The hook's code, without prose — a source assertion must read code. */
-const hook = readFileSync(join(process.cwd(), 'src/components/chat/useGroupChat.ts'), 'utf8')
+const hook: string = readFileSync(join(process.cwd(), 'src/components/chat/useGroupChat.ts'), 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .filter((line) => !line.trim().startsWith('//'))
@@ -34,7 +34,7 @@ describe('a group-message load', () => {
   });
 
   it('cancels both when the response arrives', () => {
-    const onLoaded = hook.slice(hook.indexOf("case 'messages_loaded'"));
+    const onLoaded: string = hook.slice(hook.indexOf("case 'messages_loaded'"));
     expect(onLoaded).toMatch(/cancelLoadingDeadline\(`group-messages:/);
     expect(onLoaded).toMatch(/cancelLoadingDeadline\(`group-messages-more:/);
   });
@@ -42,7 +42,7 @@ describe('a group-message load', () => {
   it('clears the flag from the deadline, not just from the event', () => {
     // The point of the deadline is that it clears the SAME flag the event
     // clears. Arming one that did nothing would satisfy the assertions above.
-    const armed = hook.slice(hook.indexOf('armLoadingDeadline(`group-messages:'));
+    const armed: string = hook.slice(hook.indexOf('armLoadingDeadline(`group-messages:'));
     expect(armed.slice(0, 120)).toMatch(/setLoading\(false\)/);
   });
 });

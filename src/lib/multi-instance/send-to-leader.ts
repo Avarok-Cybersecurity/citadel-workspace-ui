@@ -16,7 +16,7 @@ export function sendToLeader(
   payload: unknown,
   requestId?: string,
 ): Promise<AckResult> {
-  const id = requestId || crypto.randomUUID();
+  const id: string = requestId || crypto.randomUUID();
 
   return new Promise((resolve) => {
     outboundQueue.enqueue(payload, id);

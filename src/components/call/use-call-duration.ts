@@ -24,14 +24,14 @@ export function useCallDuration(running: boolean): string {
     const tick = () => {
       const started = startedAt.current;
       if (started === null) return;
-      const seconds = Math.floor((Date.now() - started) / 1000);
-      const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-      const ss = String(seconds % 60).padStart(2, '0');
+      const seconds: number = Math.floor((Date.now() - started) / 1000);
+      const mm: string = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const ss: string = String(seconds % 60).padStart(2, '0');
       setText(`${mm}:${ss}`);
     };
 
     tick();
-    const timer = window.setInterval(tick, 1000);
+    const timer: number = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, [running]);
 

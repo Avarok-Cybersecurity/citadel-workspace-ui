@@ -45,9 +45,9 @@ describe('IncomingCallCard', () => {
       <IncomingCallCard callerName="Ada" media={media} onAccept={vi.fn()} onDecline={vi.fn()} />,
     );
 
-    const buttons = screen.getAllByRole('button').map((b) => b.textContent ?? '');
-    const decline = buttons.findIndex((t) => /decline/i.test(t));
-    const accept = buttons.findIndex((t) => /accept|answer/i.test(t));
+    const buttons: string[] = screen.getAllByRole('button').map((b) => b.textContent ?? '');
+    const decline: number = buttons.findIndex((t) => /decline/i.test(t));
+    const accept: number = buttons.findIndex((t) => /accept|answer/i.test(t));
     expect(decline).toBeGreaterThanOrEqual(0);
     expect(decline).toBeLessThan(accept === -1 ? Infinity : accept);
   });

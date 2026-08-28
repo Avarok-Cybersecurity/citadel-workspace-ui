@@ -60,7 +60,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   }, [node, isLeafNode]);
 
   // Determine entity details
-  const entityTitle = node?.name || "Welcome to Your Workspace";
+  const entityTitle: string = node?.name || "Welcome to Your Workspace";
 
   // When P2P chat is active, show the chat view
   if (showP2P && peerCid) {
@@ -72,7 +72,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     const connectionInfo = connectionManager.getConnectionInfo();
     const rawCid = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
     const currentUserCid = rawCid !== undefined ? String(rawCid) : undefined;
-    const currentUserName = tabSession?.fullName || connectionInfo?.fullName || 'You';
+    const currentUserName: string = tabSession?.fullName || connectionInfo?.fullName || 'You';
 
     // Both `BigInt(...)` calls below are funnelled through
     // `tryParseCid` so the parsing contract (and its boundary cases:

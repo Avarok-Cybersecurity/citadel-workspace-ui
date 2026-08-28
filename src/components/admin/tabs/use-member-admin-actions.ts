@@ -50,7 +50,7 @@ export function useMemberAdminActions(
         });
       } finally {
         setUpdatingRoles((prev) => {
-          const next = new Set(prev);
+          const next: Set<string> = new Set(prev);
           next.delete(userId);
           return next;
         });

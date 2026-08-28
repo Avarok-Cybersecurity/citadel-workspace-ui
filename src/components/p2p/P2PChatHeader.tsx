@@ -88,7 +88,7 @@ export function P2PChatHeader({
   onSettingsClick,
   call,
 }: P2PChatHeaderProps) {
-  const statusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
+  const statusDisplay: StatusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
 
   return (
     <div className="border-b border-surface/50 p-4 bg-background">

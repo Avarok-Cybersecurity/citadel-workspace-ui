@@ -26,7 +26,7 @@ const matcher = (payload: unknown) => {
 
 describe('a gated group send', () => {
   it('resolves on its own answer', async () => {
-    const pending = awaitWriteResponse('SendGroupMessage', async () => {}, matcher);
+    const pending: Promise<void> = awaitWriteResponse('SendGroupMessage', async () => {}, matcher);
     await Promise.resolve();
     eventEmitter.emit('workspace:raw-response', ownAnswer);
     await expect(pending).resolves.toBeUndefined();
@@ -35,7 +35,7 @@ describe('a gated group send', () => {
   it('is NOT resolved by another member\'s message', async () => {
     vi.useFakeTimers();
     try {
-      const pending = awaitWriteResponse('SendGroupMessage', async () => {}, matcher);
+      const pending: Promise<void> = awaitWriteResponse('SendGroupMessage', async () => {}, matcher);
       const settled = vi.fn();
       void pending.then(settled, settled);
 
@@ -58,7 +58,7 @@ describe('a gated group send', () => {
   });
 
   it('rejects on a server refusal, so the composer can keep the text', async () => {
-    const pending = awaitWriteResponse('SendGroupMessage', async () => {}, matcher);
+    const pending: Promise<void> = awaitWriteResponse('SendGroupMessage', async () => {}, matcher);
     await Promise.resolve();
     eventEmitter.emit('workspace:raw-response', { Error: 'Rate limit exceeded. Please slow down.' });
     await expect(pending).rejects.toThrow(/slow down/i);

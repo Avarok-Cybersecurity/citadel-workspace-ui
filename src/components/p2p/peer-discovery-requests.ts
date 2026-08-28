@@ -117,7 +117,7 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
 
   // Same HashMap-as-Map hazard: an empty set here meant peers who were ALREADY
   // registered were offered for registration again.
-  const registered = new Set<string>();
+  const registered: Set<string> = new Set<string>();
   for (const [peerCid] of wireMapEntries(response.peers, 'peers')) registered.add(peerCid);
   return registered;
 }
@@ -169,7 +169,7 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
   // and Object.values() on a Map returns [] — so this path found no peers at all
   // and fell through to the GetSessions fallback, which only sees peers on the
   // same internal service.
-  const peerList = wireMapValues<PeerEntry>(response.peer_information, 'peer_information');
+  const peerList: PeerEntry[] = wireMapValues<PeerEntry>(response.peer_information, 'peer_information');
   return peerList
     .filter((p) => p.cid !== currentCid)
     .map((p) => ({

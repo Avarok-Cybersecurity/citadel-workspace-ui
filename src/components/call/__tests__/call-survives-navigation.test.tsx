@@ -38,7 +38,7 @@ function callState(status: CallState['status']): CallState {
 
 function harness(overrides: Partial<CallContextValue>) {
   const leave = vi.fn(() => Promise.resolve());
-  const value = {
+  const value: CallContextValue = {
     call: callState('active'),
     localStream: null,
     remoteStreams: new Map(),

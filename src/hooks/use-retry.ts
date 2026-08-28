@@ -75,7 +75,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
         
         return result;
       } catch (error) {
-        const errorObj = error instanceof Error ? error : new Error(String(error));
+        const errorObj: Error = error instanceof Error ? error : new Error(String(error));
         
         setState(prev => ({
           ...prev,
@@ -109,7 +109,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     }
 
     // Add exponential backoff delay
-    const delay = retryDelay * Math.pow(2, state.attempt - 1);
+    const delay: number = retryDelay * Math.pow(2, state.attempt - 1);
     await new Promise(resolve => setTimeout(resolve, delay));
 
     try {
@@ -127,7 +127,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
       
       return result;
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj: Error = error instanceof Error ? error : new Error(String(error));
       
       setState(prev => ({
         ...prev,

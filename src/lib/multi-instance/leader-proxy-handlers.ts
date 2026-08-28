@@ -42,7 +42,7 @@ export async function handleWorkspaceRequestProxy(
     return;
   }
 
-  const cid = BigInt(request.payload.cid as string | number | bigint | boolean);
+  const cid: bigint = BigInt(request.payload.cid as string | number | bigint | boolean);
   await client.sendWorkspaceRequest(cid, request.payload.request as WorkspaceProtocolRequest);
 
   sendAck(request.senderInstanceId, request.requestId, 'processed');
@@ -100,7 +100,7 @@ export async function handleSendP2PMessageProxy(
     return;
   }
 
-  const messageBytes = new Uint8Array(request.payload.message as ArrayLike<number>);
+  const messageBytes: Uint8Array<ArrayBuffer> = new Uint8Array(request.payload.message as ArrayLike<number>);
   await client.sendP2PMessageReliable(
     request.payload.localCid as string,
     request.payload.peerCid as string,

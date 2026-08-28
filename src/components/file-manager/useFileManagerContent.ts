@@ -32,7 +32,7 @@ export function useFileManagerContent() {
 
   useEffect(() => {
     if (storageMode === TreeScope.Peer && !selectedPeerCid && registeredPeers.length > 0) {
-      const firstPeer = registeredPeers[0];
+      const firstPeer: Peer = registeredPeers[0];
       if (firstPeer?.cid) setSelectedPeerCid(firstPeer.cid);
     }
   }, [storageMode, selectedPeerCid, registeredPeers]);
@@ -54,12 +54,12 @@ export function useFileManagerContent() {
     return null;
   }, [storageMode, myCid, selectedPeerCid]);
 
-  const cutItemPaths = useMemo(() => {
+  const cutItemPaths: Set<string> = useMemo(() => {
     if (!isCut || !currentTreeKey || clipboard.sourceTreeKey !== currentTreeKey) return new Set<string>();
     return new Set(clipboard.items.map(item => item.path));
   }, [isCut, currentTreeKey, clipboard.sourceTreeKey, clipboard.items]);
 
-  const storageLabel = storageMode === TreeScope.Server
+  const storageLabel: string = storageMode === TreeScope.Server
     ? 'Server'
     : registeredPeers.find(p => p.cid === selectedPeerCid)?.username ?? 'Peer';
 

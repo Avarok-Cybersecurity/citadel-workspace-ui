@@ -39,8 +39,8 @@ export const documentNonce: string = `${Date.now().toString(36)}-${Math.random()
  * highest-id-wins election deterministic.
  */
 export function mintInstanceId(): string {
-  const timestamp = BigInt(Date.now());
-  const random = BigInt(Math.floor(Math.random() * 1_000_000));
+  const timestamp: bigint = BigInt(Date.now());
+  const random: bigint = BigInt(Math.floor(Math.random() * 1_000_000));
   return (timestamp * 1_000_000n + random).toString();
 }
 
@@ -110,7 +110,7 @@ export function acceptInbound(
   myInstanceId: string,
   repair: { reissue: () => void; announce: () => void }
 ): boolean {
-  const disposition = classifyInbound(message, myInstanceId);
+  const disposition: InboundDisposition = classifyInbound(message, myInstanceId);
   if (disposition === 'reissue-identity') {
     // Take a new id and tell everyone, so the twin pair converges immediately
     // rather than at the next heartbeat.

@@ -107,7 +107,7 @@ export function CollaborativeEditor({
     // in-app dialog does not: the dialog takes focus, and the position the
     // comment belongs to is the one under the cursor when the menu was opened,
     // not wherever the selection sits once the dialog closes.
-    const cursorPos = editor.view.state.selection.from;
+    const cursorPos: number = editor.view.state.selection.from;
     const coords = editor.view.coordsAtPos(cursorPos);
     setContextMenu(null);
 

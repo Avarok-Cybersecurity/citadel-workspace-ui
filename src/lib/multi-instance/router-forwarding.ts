@@ -92,7 +92,7 @@ export function startPendingRequestCleanup(
   intervalMs: number,
 ): ReturnType<typeof setInterval> {
   return setInterval(() => {
-    const now = Date.now();
+    const now: number = Date.now();
     for (const [requestId, entry] of pending) {
       if (now - entry.timestamp > timeoutMs) pending.delete(requestId);
     }

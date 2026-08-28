@@ -209,7 +209,7 @@ export function useJoinRegistration(
     } catch (error: unknown) {
       debugLog('Join', 'Registration Error:', error);
       setShowConnectModal(false);
-      const errorArg = error instanceof Error ? error : String(error);
+      const errorArg: string | Error = error instanceof Error ? error : String(error);
       toast({ title: getErrorTitle(errorArg), description: getUserFriendlyErrorMessage(errorArg), variant: "destructive" });
     } finally {
       debugLog('Join', "Setting isRegistering to false in finally block.");

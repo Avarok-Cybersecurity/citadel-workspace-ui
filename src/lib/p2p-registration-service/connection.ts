@@ -25,7 +25,7 @@ export async function listRegisteredPeersWithRetry(
   maxRetries = DEFAULT_LIST_RETRIES
 ): Promise<PeerInfoResponse[]> {
   let lastError: Error | null = null;
-  for (let i = 0; i < maxRetries; i++) {
+  for (let i: number = 0; i < maxRetries; i++) {
     try {
       return await listRegisteredPeers(pendingRequests);
     } catch (error: unknown) {
@@ -62,12 +62,12 @@ export async function syncPeerConnectionsFromSession(
   const peerEntries = wireMapEntries<{ cid: bigint; peer_cid: bigint; peer_username: string }>(
     peerConnections, 'peer_connections',
   );
-  const peerCids = peerEntries.map(([cid]) => cid);
+  const peerCids: string[] = peerEntries.map(([cid]) => cid);
   debugLog('P2PRegistrationService', '[P2P Registration] Syncing peer connections from session:', peerCids);
 
   let serverPeerCids: Set<bigint> | null = null;
   try {
-    const serverPeers = await listRegisteredPeers(pendingRequests);
+    const serverPeers: PeerInfoResponse[] = await listRegisteredPeers(pendingRequests);
     serverPeerCids = new Set(
       serverPeers.map(p => p.cid as bigint).filter((c): c is bigint => c !== undefined)
     );
@@ -76,7 +76,7 @@ export async function syncPeerConnectionsFromSession(
       Array.from(serverPeerCids).map(c => c.toString())
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
       debugLog('P2PRegistrationService', '[P2P Registration] No active session, skipping sync of cached peer data');
       return;
@@ -86,7 +86,7 @@ export async function syncPeerConnectionsFromSession(
   }
 
   for (const [peerCidStr, peerInfo] of peerEntries) {
-    const peerCid = BigInt(peerCidStr);
+    const peerCid: bigint = BigInt(peerCidStr);
 
     if (serverPeerCids && !serverPeerCids.has(peerCid)) {
       debugLog('P2PRegistrationService', `[P2P Registration] Skipping stale peer ${peerCid.toString()} (not in server registry)`);
@@ -125,11 +125,11 @@ export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolea
 
     const result = await websocketService.sendLocalDBGet(currentCid, AUTO_ACCEPT_KEY);
     if (result?.value) {
-      const decoded = bytesToString(result.value);
+      const decoded: string = bytesToString(result.value);
       return decoded === 'true';
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes('Key not found')) {
       debugLog('P2PRegistrationService', '[P2P] Auto-accept setting not found, using default: false');
     } else {
@@ -207,7 +207,7 @@ export async function acceptRegistrationRequest(
   await peerRegistrationStore.removeRequestByPeerCid(peerCid);
 
   if (registeredPeers) {
-    const peer = registeredPeers.get(peerCid) || {
+    const peer: Peer = registeredPeers.get(peerCid) || {
       cid: peerCid,
       username: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
       fullName: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,

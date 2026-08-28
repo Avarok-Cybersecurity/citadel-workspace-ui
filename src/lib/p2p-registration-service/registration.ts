@@ -64,8 +64,8 @@ function rejectRequest(pending: Map<string, PendingRequestEntry>, requestId: str
 
 /** Ensure a peer exists in context maps and mark as registered. Returns the peer. */
 function ensurePeerRegistered(ctx: RegistrationContext, peerCid: bigint, peerUsername?: string): Peer {
-  const fallbackName = peerUsername || `User ${peerCid.toString().slice(0, 8)}`;
-  const peer = ctx.allPeers.get(peerCid) || {
+  const fallbackName: string = peerUsername || `User ${peerCid.toString().slice(0, 8)}`;
+  const peer: Peer = ctx.allPeers.get(peerCid) || {
     cid: peerCid, username: fallbackName, fullName: fallbackName, isOnline: true, isRegistered: true
   };
   peer.isRegistered = true;
@@ -93,22 +93,22 @@ function handlePeerRegisterSuccess(data: Record<string, unknown>, ctx: Registrat
   const peerUsername = data.peer_username as string | undefined;
   if (peerCid !== undefined) {
     ctx.outgoingRegistrations.add(peerCid);
-    const peer = ensurePeerRegistered(ctx, peerCid, peerUsername);
+    const peer: Peer = ensurePeerRegistered(ctx, peerCid, peerUsername);
     eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true });
     broadcastPeerUpdate(peerCid, peer.username, { isOutgoing: true });
   }
 }
 
 function handlePeerRegisterFailure(data: Record<string, unknown>, ctx: RegistrationContext): void {
-  const requestId = data.request_id as string;
-  const errorMsg = (data.message as string) || 'Failed to register peer';
+  const requestId: string = data.request_id as string;
+  const errorMsg: string = (data.message as string) || 'Failed to register peer';
   const peerCid = data.peer_cid as bigint | undefined;
 
   if (errorMsg.includes('already registered')) {
     debugLog('P2PRegistrationService', `[P2P] Peer ${peerCid?.toString()} already registered - treating as success`);
     if (peerCid !== undefined) {
       ctx.outgoingRegistrations.add(peerCid);
-      const peer = ensurePeerRegistered(ctx, peerCid);
+      const peer: Peer = ensurePeerRegistered(ctx, peerCid);
       eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true, wasAlreadyRegistered: true });
       broadcastPeerUpdate(peerCid, peer.username, { isOutgoing: true });
     }
@@ -128,8 +128,8 @@ function handlePeerRegisterNotification(data: Record<string, unknown>, ctx: Regi
   });
 
   if (peerCid !== undefined && notificationCid !== undefined) {
-    const fallbackName = peerUsername || 'Unknown';
-    const peer = ctx.allPeers.get(peerCid) || {
+    const fallbackName: string = peerUsername || 'Unknown';
+    const peer: Peer = ctx.allPeers.get(peerCid) || {
       cid: peerCid, username: fallbackName, fullName: peerUsername || 'Unknown User',
       isOnline: true, isRegistered: false
     };
@@ -198,11 +198,11 @@ export async function registerUnregisteredPeers(
   allPeers: Map<bigint, Peer>, options: PeerRegistrationOptions,
   pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<void> {
-  const unregistered = Array.from(allPeers.values()).filter(p => !p.isRegistered);
+  const unregistered: Peer[] = Array.from(allPeers.values()).filter(p => !p.isRegistered);
   if (unregistered.length === 0) return;
   debugLog('P2PRegistrationService', `Found ${unregistered.length} unregistered peers, registering...`);
-  for (let i = 0; i < unregistered.length; i += CONCURRENT_REGISTRATIONS) {
-    const batch = unregistered.slice(i, i + CONCURRENT_REGISTRATIONS);
+  for (let i: number = 0; i < unregistered.length; i += CONCURRENT_REGISTRATIONS) {
+    const batch: Peer[] = unregistered.slice(i, i + CONCURRENT_REGISTRATIONS);
     await Promise.all(batch.map(peer =>
       registerPeer(peer.cid, options, pendingRequests).catch(error => {
         debugLog('P2PRegistrationService', `Failed to register peer ${peer.cid}:`, error);

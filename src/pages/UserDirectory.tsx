@@ -39,7 +39,7 @@ export const UserDirectory = () => {
       .catch(err => debugLog('UserDirectory', 'Failed to load members:', err));
   }, [domainIdParam]);
 
-  const currentUserId = state.currentUser?.id || state.currentUser?.username || '';
+  const currentUserId: string = state.currentUser?.id || state.currentUser?.username || '';
 
   const allMembers: MemberDisplay[] = Object.values(state.members || {}).map(member => ({
     id: member.id,
@@ -64,7 +64,7 @@ export const UserDirectory = () => {
     lastActive: undefined,
   }));
 
-  const filteredMembers = allMembers.filter(member => {
+  const filteredMembers: MemberDisplay[] = allMembers.filter(member => {
     if (tab === 'online') return member.isOnline;
     return true;
   });

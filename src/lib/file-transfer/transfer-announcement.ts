@@ -52,7 +52,7 @@ export function buildLayerPayload(
  * produce a bubble that can never be matched to its transfer.
  */
 export function buildTransferAnnouncement(transfer: FileTransfer): P2PMessagingLayerPayload {
-  const layer = createFileTransferRequest(
+  const layer: MessagingLayer = createFileTransferRequest(
     transfer.fileName,
     transfer.fileSize,
     transfer.fileType,

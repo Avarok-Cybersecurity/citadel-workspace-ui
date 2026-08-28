@@ -7,7 +7,7 @@
  */
 
 export function getMimeType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  const ext: string = fileName.split('.').pop()?.toLowerCase() || '';
   const mimeTypes: Record<string, string> = {
     pdf: 'application/pdf', txt: 'text/plain',
     jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',

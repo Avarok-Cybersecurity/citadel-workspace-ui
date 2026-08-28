@@ -25,13 +25,13 @@ const NotificationCenter = () => {
   const [activeTab, setActiveTab] = useState<'all' | NotificationType>('all');
   const [sessionCid, setSessionCid] = useState<string | null>(null);
   
-  const notificationService = NotificationService.getInstance();
+  const notificationService: NotificationService = NotificationService.getInstance();
   
   // Get counts of different notification types
-  const unreadCount = notifications.filter(n => !n.read).length;
-  const messageCount = notifications.filter(n => n.type === NotificationType.MESSAGE && !n.read).length;
-  const requestCount = notifications.filter(n => n.type === NotificationType.PEER_REGISTRATION && !n.read).length;
-  const systemCount = notifications.filter(n => n.type === NotificationType.SYSTEM && !n.read).length;
+  const unreadCount: number = notifications.filter(n => !n.read).length;
+  const messageCount: number = notifications.filter(n => n.type === NotificationType.MESSAGE && !n.read).length;
+  const requestCount: number = notifications.filter(n => n.type === NotificationType.PEER_REGISTRATION && !n.read).length;
+  const systemCount: number = notifications.filter(n => n.type === NotificationType.SYSTEM && !n.read).length;
   
   useEffect(() => {
     // Polled, matching CallLayer: connection identity settles asynchronously
@@ -39,7 +39,7 @@ const NotificationCenter = () => {
     // would be empty rather than wrong.
     const read = () => setSessionCid(connectionManager.getConnectionInfo()?.cid?.toString() ?? null);
     read();
-    const timer = window.setInterval(read, 2000);
+    const timer: number = window.setInterval(read, 2000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -55,7 +55,7 @@ const NotificationCenter = () => {
     const unregister = notificationService.registerNotificationHandler((notification) => {
       // Check if this is a removed notification
       if (notification.id.startsWith('removed:')) {
-        const actualId = notification.id.replace('removed:', '');
+        const actualId: string = notification.id.replace('removed:', '');
         setNotifications(prev => prev.filter(n => n.id !== actualId));
         return;
       }
@@ -66,10 +66,10 @@ const NotificationCenter = () => {
 
       setNotifications(prev => {
         // Check if we already have this notification
-        const existingIndex = prev.findIndex(n => n.id === notification.id);
+        const existingIndex: number = prev.findIndex(n => n.id === notification.id);
         if (existingIndex >= 0) {
           // Update existing notification
-          const updated = [...prev];
+          const updated: Notification[] = [...prev];
           updated[existingIndex] = notification;
           return updated;
         } else {
@@ -98,12 +98,12 @@ const NotificationCenter = () => {
   }, [open, notificationService, sessionCid]);
   
   // Filter notifications based on the active tab
-  const filteredNotifications = activeTab === 'all' 
+  const filteredNotifications: Notification[] = activeTab === 'all' 
     ? notifications 
     : notifications.filter(n => n.type === activeTab);
   
   const handleClearAll = () => {
-    const notificationIds = filteredNotifications.map(n => n.id);
+    const notificationIds: string[] = filteredNotifications.map(n => n.id);
     notificationIds.forEach(id => notificationService.removeNotification(id));
   };
   

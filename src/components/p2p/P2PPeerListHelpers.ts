@@ -12,10 +12,10 @@ export interface PeerInfo {
 }
 
 export function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const date: Date = new Date(timestamp);
+  const now: Date = new Date();
+  const diff: number = now.getTime() - date.getTime();
+  const days: number = Math.floor(diff / (1000 * 60 * 60 * 24));
 
   if (days === 0) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

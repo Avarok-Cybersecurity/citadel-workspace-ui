@@ -12,7 +12,7 @@
  */
 import { useSyncExternalStore } from 'react';
 
-let mounted = 0;
+let mounted: number = 0;
 const listeners = new Set<() => void>();
 
 function emit(): void {

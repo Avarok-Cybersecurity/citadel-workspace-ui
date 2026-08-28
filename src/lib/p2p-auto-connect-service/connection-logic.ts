@@ -64,8 +64,8 @@ export async function connectToPeer(
   // shared WS. The internal service routes the request to the right session
   // by `cid`. Both same-browser sessions are owned by this WS, so reversing is
   // safe there; across browsers we initiate from our own side.
-  let initiatorCid = currentCid;
-  let targetCid = peerCid;
+  let initiatorCid: bigint = currentCid;
+  let targetCid: bigint = peerCid;
   if (shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
   } else if (currentCid < peerCid && (await ownsSession(peerCid))) {
@@ -88,7 +88,7 @@ export async function connectToPeer(
 
   if (state.isPeerConnectedForSession(currentCid, peerCid)) {
     const peerInfo = state.getPeerConnectionInfo(currentCid, peerCid);
-    const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
+    const connectionAge: number = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Already connected to ${peerCid.toString().slice(0, 8)}... (${connectionAge}ms old), skipping`);
     state.removePendingConnection(peerCid);
     return;
@@ -111,7 +111,7 @@ export async function connectToPeer(
     await websocketService.openP2PConnection(initiatorCid, targetCid);
     debugLog('P2PAutoConnectService', 'connectToPeer: openP2PConnection SUCCESS');
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
 
     if (errorMessage.includes('Already connected') || errorMessage.includes('already connected')) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... already connected (treating as success)`);
@@ -125,9 +125,9 @@ export async function connectToPeer(
     }
 
     state.removePendingConnection(peerCid);
-    const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt.attempts), MAX_DELAY_MS);
+    const delay: number = Math.min(BASE_DELAY_MS * Math.pow(2, attempt.attempts), MAX_DELAY_MS);
     attempt.attempts++;
-    const nextDelay = delay >= MAX_DELAY_MS ? POLL_INTERVAL_MS : delay;
+    const nextDelay: number = delay >= MAX_DELAY_MS ? POLL_INTERVAL_MS : delay;
 
     attempt.timeout = setTimeout(() => connectToPeer(state, peerCid), nextDelay);
     state.setConnectionAttempt(peerCid, attempt);
@@ -158,7 +158,7 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
     registeredPeers = await p2pRegistrationService.listRegisteredPeers();
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Found ${registeredPeers.length} registered peers via ListRegisteredPeers`);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
       return;
     }

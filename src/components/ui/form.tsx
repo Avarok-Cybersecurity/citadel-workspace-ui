@@ -40,8 +40,8 @@ const FormField = <
 }
 
 const useFormField = () => {
-  const fieldContext = React.useContext(FormFieldContext)
-  const itemContext = React.useContext(FormItemContext)
+  const fieldContext: FormFieldContextValue<FieldValues, string> = React.useContext(FormFieldContext)
+  const itemContext: FormItemContextValue = React.useContext(FormItemContext)
   const { getFieldState, formState } = useFormContext()
 
   const fieldState = getFieldState(fieldContext.name, formState)
@@ -74,7 +74,7 @@ const FormItem = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
-  const id = React.useId()
+  const id: string = React.useId()
 
   return (
     <FormItemContext.Provider value={{ id }}>

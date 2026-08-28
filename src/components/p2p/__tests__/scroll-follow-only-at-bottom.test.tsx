@@ -20,7 +20,7 @@ import { join } from 'node:path';
 
 describe('the chat scroll', () => {
   it('measures distance from the bottom before following', () => {
-    const src = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
+    const src: string = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
 
     // The unconditional form was:
     //   scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -29,7 +29,7 @@ describe('the chat scroll', () => {
   });
 
   it('still lands on the newest message when a conversation is first opened', () => {
-    const src = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
+    const src: string = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
 
     // scrollTop is 0 on first paint, so a pure near-the-bottom test would open
     // every conversation at the TOP of its history — a worse bug than the one

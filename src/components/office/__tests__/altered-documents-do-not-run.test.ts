@@ -34,7 +34,7 @@ describe('a document whose hash does not match', () => {
 
   it('renders normally when the hash matches', async () => {
     const content = '# Fine';
-    const hash = await hashDocument(content);
+    const hash: string = await hashDocument(content);
 
     const { result } = renderHook(() => useCompiledMdx(content, components, hash));
 

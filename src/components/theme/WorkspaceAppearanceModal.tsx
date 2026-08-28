@@ -136,7 +136,7 @@ export function WorkspaceAppearanceModal({
                   onChange={(e) => {
                     // One emoji, taken by code point so a multi-byte glyph is not
                     // sliced in half into an unrenderable fragment.
-                    const first = [...e.target.value.trim()][0];
+                    const first: string = [...e.target.value.trim()][0];
                     editDraft((t) => ({
                       ...t,
                       icon: { ...t.icon, emoji: first || undefined },

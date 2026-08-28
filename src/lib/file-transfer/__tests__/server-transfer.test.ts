@@ -44,7 +44,7 @@ describe('uploadFileToServer', () => {
     // Deliberately no `arrayBuffer` implementation: if the guard did not fire
     // first, this would throw a TypeError instead of the size error, so the test
     // also pins that the check happens *before* the file is read into memory.
-    const oversized = {
+    const oversized: File = {
       name: 'huge.bin',
       size: MAX_BYTE_CONTENTS_BYTES + 1,
     } as unknown as File;
@@ -55,7 +55,7 @@ describe('uploadFileToServer', () => {
   });
 
   it('names the offending file and the limit so the message is actionable', async () => {
-    const oversized = { name: 'huge.bin', size: 32 * 1024 * 1024 } as unknown as File;
+    const oversized: File = { name: 'huge.bin', size: 32 * 1024 * 1024 } as unknown as File;
     await expect(uploadFileToServer(oversized, 'transfer-1', '123', 7n)).rejects.toThrow(
       /"huge\.bin" is 32\.0 MiB, above the 16\.0 MiB limit/
     );

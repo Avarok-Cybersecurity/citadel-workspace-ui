@@ -13,7 +13,7 @@ import type { LifecycleDeps } from '../transfer-lifecycle';
 import type { FileTransfer } from '../types';
 
 const PEER = '42';
-const ONE_MB = 1024 * 1024;
+const ONE_MB: number = 1024 * 1024;
 
 function offered(fileSize: number): FileTransfer {
   return {
@@ -48,7 +48,7 @@ function deps(transfer: FileTransfer, maxFileSize: number) {
 
 describe('the receiver-side size limit', () => {
   it('refuses a file larger than the limit, and sends no acceptance', async () => {
-    const t = offered(50 * ONE_MB);
+    const t: FileTransfer = offered(50 * ONE_MB);
     const { d, executeIntent } = deps(t, 10 * ONE_MB);
 
     await expect(acceptTransfer(d, 't1')).rejects.toThrow(/exceeds your limit/);
@@ -62,7 +62,7 @@ describe('the receiver-side size limit', () => {
   it('accepts a file within the limit', async () => {
     // Negative control for the check itself — a limit that refuses everything
     // would pass the test above while breaking the feature.
-    const t = offered(5 * ONE_MB);
+    const t: FileTransfer = offered(5 * ONE_MB);
     const { d, executeIntent } = deps(t, 10 * ONE_MB);
 
     await acceptTransfer(d, 't1');
@@ -75,7 +75,7 @@ describe('the receiver-side size limit', () => {
 
   it('accepts a file exactly at the limit', async () => {
     // The boundary belongs to the user: a 10MB limit accepts a 10MB file.
-    const t = offered(10 * ONE_MB);
+    const t: FileTransfer = offered(10 * ONE_MB);
     const { d, executeIntent } = deps(t, 10 * ONE_MB);
 
     await acceptTransfer(d, 't1');

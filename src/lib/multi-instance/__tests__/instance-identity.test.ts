@@ -46,7 +46,7 @@ describe('identity conflict resolution', () => {
   });
 
   it('exactly one of the pair yields', () => {
-    const theirs = `${documentNonce}~higher`;
+    const theirs: string = `${documentNonce}~higher`;
     const weYield = shouldReissueIdentity(MY_ID, theirs, MY_ID);
     // The twin computes the mirror case from the same two values. Both sides
     // must not yield (churn) and must not both keep it (the original bug).
@@ -65,7 +65,7 @@ describe('identity conflict resolution', () => {
 
 describe('minted ids', () => {
   it('are BigInt-parseable and time-ordered, so election stays deterministic', () => {
-    const ids = Array.from({ length: 200 }, () => mintInstanceId());
+    const ids: string[] = Array.from({ length: 200 }, () => mintInstanceId());
 
     for (const id of ids) expect(() => BigInt(id)).not.toThrow();
 
@@ -74,8 +74,8 @@ describe('minted ids', () => {
     // guarantee — within a single millisecond the random low digits make the
     // order arbitrary, which is fine (election needs a deterministic total
     // order, not a temporal one) and is why asserting on the full id fails.
-    const timestamps = ids.map((id) => BigInt(id) / 1_000_000n);
-    for (let i = 1; i < timestamps.length; i++) {
+    const timestamps: bigint[] = ids.map((id) => BigInt(id) / 1_000_000n);
+    for (let i: number = 1; i < timestamps.length; i++) {
       expect(timestamps[i]! >= timestamps[i - 1]!).toBe(true);
     }
   });

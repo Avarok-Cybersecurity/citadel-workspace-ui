@@ -45,7 +45,7 @@ const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => {
-  const labelledBy = useLabelledBy(props.id);
+  const labelledBy: string | undefined = useLabelledBy(props.id);
   return (
   <SelectPrimitive.Trigger
     ref={ref}

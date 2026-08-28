@@ -35,15 +35,15 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
   tooltip.textContent = user.name;
   tooltip.setAttribute('data-expanded', 'false');
 
-  let lastLeft = 0;
-  let lastTop = 0;
+  let lastLeft: number = 0;
+  let lastTop: number = 0;
   let rafId: number | null = null;
 
   const updateTooltipPosition = () => {
     rafId = null;
     const cursorRect = cursor.getBoundingClientRect();
-    const newLeft = cursorRect.left;
-    const newTop = cursorRect.top - tooltip.offsetHeight - 4;
+    const newLeft: number = cursorRect.left;
+    const newTop: number = cursorRect.top - tooltip.offsetHeight - 4;
 
     if (newLeft !== lastLeft || newTop !== lastTop) {
       lastLeft = newLeft;
@@ -124,8 +124,8 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
       inputContainer.appendChild(wordCount);
 
       input.addEventListener('input', () => {
-        const words = input.value.trim().split(/\s+/).filter(w => w.length > 0);
-        const count = words.length;
+        const words: string[] = input.value.trim().split(/\s+/).filter(w => w.length > 0);
+        const count: number = words.length;
         wordCount.textContent = `${count}/100 words`;
         wordCount.style.color = count > 100 ? '#ef4444' : '#9ca3af';
       });
@@ -138,8 +138,8 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
       sendBtn.textContent = 'Send';
       sendBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const text = input.value.trim();
-        const words = text.split(/\s+/).filter(w => w.length > 0);
+        const text: string = input.value.trim();
+        const words: string[] = text.split(/\s+/).filter(w => w.length > 0);
 
         if (text && words.length <= 100) {
           const cursorRect = cursor.getBoundingClientRect();

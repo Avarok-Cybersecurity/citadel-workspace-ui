@@ -94,7 +94,7 @@ export const LoadingModal = ({
   }, [open, status, timeoutMs]);
 
   const { isLoading, isError, isReady, Icon, iconClass } = statusAppearance(status);
-  const title = config.titles[status] || "Processing...";
+  const title: string = config.titles[status] || "Processing...";
 
   // Visually a modal; to assistive technology it was nothing at all -- a
   // fixed inset-0 scrim with a Cancel button, no role, no focus move, no trap,
@@ -116,10 +116,10 @@ export const LoadingModal = ({
   });
 
   if (!shouldRender) return null;
-  const description = errorMessage || config.descriptions[status] || "";
+  const description: string = errorMessage || config.descriptions[status] || "";
 
   // Find current step index for progress indicator
-  const currentStepIndex = config.steps.findIndex((step) => step.key === status);
+  const currentStepIndex: number = config.steps.findIndex((step) => step.key === status);
 
   return (
     <div

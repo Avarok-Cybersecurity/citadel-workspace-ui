@@ -48,20 +48,20 @@ export async function deleteConversationPages(peerCid: bigint, scope: DeleteScop
   }
 
   const deletePromises: Promise<void>[] = [];
-  for (let pageNum = 0; pageNum <= metadata.latestPage; pageNum++) {
-    const key = `${conversationPrefix(peerCid)}_${pageNum}`;
+  for (let pageNum: number = 0; pageNum <= metadata.latestPage; pageNum++) {
+    const key: string = `${conversationPrefix(peerCid)}_${pageNum}`;
     deletePromises.push(websocketService.sendLocalDBDelete(0n, key));
   }
 
-  const metadataKey = `${conversationPrefix(peerCid)}_metadata`;
+  const metadataKey: string = `${conversationPrefix(peerCid)}_metadata`;
   deletePromises.push(websocketService.sendLocalDBDelete(0n, metadataKey));
 
   // The legacy peer-only records too, or the read fallback resurrects the
   // conversation the user was told could not be undone. The ownership check
   // above has already run, so this only removes records that are ours.
   if (hasLegacyFallback(peerCid)) {
-    const legacy = legacyConversationPrefix(peerCid);
-    for (let pageNum = 0; pageNum <= metadata.latestPage; pageNum++) {
+    const legacy: string = legacyConversationPrefix(peerCid);
+    for (let pageNum: number = 0; pageNum <= metadata.latestPage; pageNum++) {
       deletePromises.push(websocketService.sendLocalDBDelete(0n, `${legacy}_${pageNum}`));
     }
     deletePromises.push(websocketService.sendLocalDBDelete(0n, `${legacy}_metadata`));

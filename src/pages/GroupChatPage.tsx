@@ -55,8 +55,8 @@ export function GroupChatPage() {
 
   // Get current user info
   const connectionInfo = connectionManager.getConnectionInfo();
-  const currentUserId = connectionInfo?.cid ? String(connectionInfo.cid) : '';
-  const currentUserName = connectionInfo?.username || 'You';
+  const currentUserId: string = connectionInfo?.cid ? String(connectionInfo.cid) : '';
+  const currentUserName: string = connectionInfo?.username || 'You';
 
   // Load group on mount
   useEffect(() => {
@@ -120,7 +120,7 @@ export function GroupChatPage() {
   // out rather than offered and silently rejected by the backend.
   const invitablePeers = useMemo(() => {
     if (!group) return [];
-    const existing = new Set(group.members.map((m) => m.cid.toString()));
+    const existing: Set<string> = new Set(group.members.map((m) => m.cid.toString()));
     return registeredPeers.filter((p) => !existing.has(p.cid));
   }, [group, registeredPeers]);
 

@@ -84,7 +84,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
 
   useEffect(() => {
     if (!isLoadingMembers) return;
-    const timer = window.setTimeout(() => setIsLoadingMembers(false), MEMBER_LOAD_TIMEOUT_MS);
+    const timer: number = window.setTimeout(() => setIsLoadingMembers(false), MEMBER_LOAD_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, [isLoadingMembers]);
 

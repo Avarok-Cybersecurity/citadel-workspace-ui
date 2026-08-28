@@ -22,7 +22,7 @@ export function ThemeColorSync(): null {
     // After paint: next-themes flips the `.dark` class in its own effect, and
     // reading the computed variable before that lands returns the outgoing
     // colour — the titlebar would then trail one toggle behind.
-    const frame = requestAnimationFrame(() => syncThemeColorMeta());
+    const frame: number = requestAnimationFrame(() => syncThemeColorMeta());
     return () => cancelAnimationFrame(frame);
   }, [resolvedTheme]);
 

@@ -32,7 +32,7 @@ describe('a write waiting for its answer', () => {
     const send = vi.fn().mockResolvedValue(undefined);
     let settled = false;
 
-    const pending = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE))
+    const pending: Promise<void> = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE))
       .then(() => { settled = true; })
       .catch(() => { settled = true; });
 
@@ -48,7 +48,7 @@ describe('a write waiting for its answer', () => {
 
   it('is resolved by its own answer', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
-    const pending = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE));
+    const pending: Promise<void> = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE));
 
     emitLater({ Node: { id: MINE, name: 'saved' } });
 
@@ -57,7 +57,7 @@ describe('a write waiting for its answer', () => {
 
   it('still rejects on a refusal, which carries no node id at all', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
-    const pending = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE));
+    const pending: Promise<void> = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE));
 
     // An Error has to settle the write whatever the matcher says, or a refusal
     // would time out at 15s instead of reporting the reason.
@@ -70,7 +70,7 @@ describe('a write waiting for its answer', () => {
     const send = vi.fn().mockResolvedValue(undefined);
     let settled = false;
 
-    const pending = awaitWriteResponse('DeleteNode', send, aboutNode(MINE))
+    const pending: Promise<void> = awaitWriteResponse('DeleteNode', send, aboutNode(MINE))
       .then(() => { settled = true; })
       .catch(() => { settled = true; });
 

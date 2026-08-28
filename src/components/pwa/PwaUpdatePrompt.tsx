@@ -28,7 +28,7 @@ import { applyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
  * enough that a deploy reaches people the same working day, and far too
  * infrequent to matter as traffic.
  */
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS: number = 60 * 60 * 1000;
 
 /** One identity for the update offer, so re-offering replaces rather than stacks. */
 const UPDATE_TOAST_ID = 'pwa-update-available';

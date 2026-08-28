@@ -86,6 +86,24 @@ for (const result of results) {
 const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
 
 if (WRITE) {
+  // `--write` may LOWER a file's number and may not raise one.
+  //
+  // The first version wrote whatever it measured, and that is a ratchet with a
+  // release lever on it: a pass that improved the total by 500 while quietly
+  // regressing five files was accepted, because only the total was looked at.
+  // Raising a number now needs `--allow-regressions`, which exists so that
+  // doing it is a decision somebody made rather than a side effect of a bulk
+  // edit.
+  const previous = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf-8')) : {};
+  const raised = Object.entries(counts).filter(([file, n]) => n > (previous[file] ?? 0));
+  if (raised.length > 0 && !process.argv.includes('--allow-regressions')) {
+    console.error(`\n  Refusing to write: ${raised.length} file(s) would go UP.\n`);
+    for (const [file, n] of raised.slice(0, 10)) {
+      console.error(`    ${file}: ${previous[file] ?? 0} → ${n}`);
+    }
+    console.error('\n  Fix them, or pass --allow-regressions if the increase is intended.\n');
+    process.exit(1);
+  }
   writeFileSync(BASELINE, `${JSON.stringify(counts, null, 2)}\n`);
   console.log(`  Baseline written: ${Object.keys(counts).length} file(s), ${total} finding(s).`);
   process.exit(0);

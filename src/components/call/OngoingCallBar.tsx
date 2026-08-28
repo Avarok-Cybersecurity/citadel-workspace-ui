@@ -17,7 +17,7 @@ export function OngoingCallBar() {
   const { call, leave } = useCall();
   const stageVisible = useCallStageVisible();
   const navigate = useNavigate();
-  const duration = useCallDuration(call?.status === 'active');
+  const duration: string = useCallDuration(call?.status === 'active');
 
   if (!call) return null;
   if (stageVisible) return null;
@@ -30,7 +30,7 @@ export function OngoingCallBar() {
   const others = [...call.participants.values()].filter(
     (p) => p.status !== 'declined' && p.status !== 'left',
   );
-  const who = others.length === 1 ? others[0].username : `${others.length} people`;
+  const who: string = others.length === 1 ? others[0].username : `${others.length} people`;
 
   const returnToCall = () => {
     if (call.roomId) {

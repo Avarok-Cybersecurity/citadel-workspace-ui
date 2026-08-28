@@ -31,7 +31,7 @@ export function startExpirySweep(
   emitStateChange: (transfer: FileTransfer) => void,
 ): void {
   const sweep = () => {
-    const now = Date.now();
+    const now: number = Date.now();
     for (const id of expiredTransferIds(state.getAllTransfers(), now)) {
       const transfer = state.getTransfer(id);
       if (!transfer) continue;

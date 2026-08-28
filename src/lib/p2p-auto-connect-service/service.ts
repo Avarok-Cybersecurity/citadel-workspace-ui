@@ -160,7 +160,7 @@ export class P2PAutoConnectService {
 
   public async resetConnectionState(): Promise<void> {
     const currentCid = await getCurrentCid();
-    const peerCount = currentCid ? (this.state.getPeersForSession(currentCid).length) : 0;
+    const peerCount: number = currentCid ? (this.state.getPeersForSession(currentCid).length) : 0;
 
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Resetting connection state for reconnection`);
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Clearing ${peerCount} connected, ${this.state.pendingConnectionCount} pending`);
@@ -211,7 +211,7 @@ export class P2PAutoConnectService {
     await this.ensurePeerConnectedInBackground(peerCid);
 
     return new Promise((resolve) => {
-      const startTime = Date.now();
+      const startTime: number = Date.now();
 
       const checkInterval = setInterval(() => {
         if (this.isPeerConnectedForSession(currentCid, peerCid)) {

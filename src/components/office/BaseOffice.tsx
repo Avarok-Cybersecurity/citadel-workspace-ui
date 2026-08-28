@@ -161,8 +161,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   // Get current user info from workspace state OR connection manager
   // The workspace state currentUser may not be populated yet during initial render
   // tabSession is loaded asynchronously via useEffect
-  const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
-  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
+  const currentUserId: string = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
+  const currentUserName: string = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
   // Content view (MDX editor or rendered content)
   const contentView = isEditing ? (

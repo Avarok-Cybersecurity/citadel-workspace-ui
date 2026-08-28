@@ -82,7 +82,7 @@ export async function updateMemberRole(
   role: string,
   metadata?: Uint8Array
 ): Promise<unknown> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     UpdateMemberRole: {
       user_id: userId,
       role,
@@ -169,7 +169,7 @@ export async function getUserPermissions(
   userId: string,
   domainId: string
 ): Promise<void> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     GetUserPermissions: {
       user_id: userId,
       domain_id: domainId

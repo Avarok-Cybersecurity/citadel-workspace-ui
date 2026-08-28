@@ -73,7 +73,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           if (payload.members) {
             for (const m of payload.members) {
               const member = m as { id?: string; username?: string; displayName?: string; role?: string };
-              const id = member.id || member.username;
+              const id: string | undefined = member.id || member.username;
               if (!id) {
                 debugLog('UseMemberEventSetup', 'Dropping member with no stable id/username', member);
                 continue;
@@ -146,7 +146,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
 
           // Check against currentUser username/id OR the stored session username
           const storedSession = connectionManager.getStoredSessionsArray()[0];
-          const isCurrentUser = prev.currentUser && (
+          const isCurrentUser: boolean | undefined = prev.currentUser && (
             prev.currentUser.username === payload.userId ||
             prev.currentUser.id === payload.userId ||
             // Also match if currentUser has placeholder "Loading..." but payload matches stored session

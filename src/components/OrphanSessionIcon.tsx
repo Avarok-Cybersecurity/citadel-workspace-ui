@@ -20,8 +20,8 @@ export const OrphanSessionIcon = ({
   shouldGlow = false,
   unreadCount = 0,
 }: OrphanSessionIconProps) => {
-  const initials = getWorkspaceInitials(workspaceName || session.username);
-  const displayName = session.full_name || session.username;
+  const initials: string = getWorkspaceInitials(workspaceName || session.username);
+  const displayName: string = session.full_name || session.username;
 
   return (
     <div

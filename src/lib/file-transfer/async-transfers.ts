@@ -37,7 +37,7 @@ export async function handleAsyncSend(
   file: File
 ): Promise<void> {
   try {
-    const virtualPath = (await deps.io.executeIntent({
+    const virtualPath: string = (await deps.io.executeIntent({
       type: 'upload-to-server',
       file,
       transferId: transfer.id,

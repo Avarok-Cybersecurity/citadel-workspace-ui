@@ -26,7 +26,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
   const activeTabIdRef = useRef(activeTabId);
   const tabsRef = useRef(tabs);
 
-  const messenger = P2PMessengerManager.getInstance();
+  const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
 
   useEffect(() => { activeTabIdRef.current = activeTabId; }, [activeTabId]);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
@@ -83,7 +83,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     if (existingTab) {
       setActiveTabId(existingTab.id);
     } else {
-      const newTab = createLiveDocumentTab(docId, title);
+      const newTab: ChatTab = createLiveDocumentTab(docId, title);
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTab.id);
     }

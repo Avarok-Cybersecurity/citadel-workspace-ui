@@ -80,7 +80,7 @@ export function useAsyncData<T>(
       return;
     }
 
-    const currentFetchId = ++fetchIdRef.current;
+    const currentFetchId: number = ++fetchIdRef.current;
 
     setLoading(true);
     setError(null);
@@ -96,7 +96,7 @@ export function useAsyncData<T>(
         onSuccess?.(result);
       }
     } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error(String(err));
+      const errorObj: Error = err instanceof Error ? err : new Error(String(err));
 
       if (mountedRef.current && currentFetchId === fetchIdRef.current) {
         setError(errorObj);
@@ -109,7 +109,7 @@ export function useAsyncData<T>(
 
   // Initial fetch and refetch on dependency change
   useEffect(() => {
-    const _ = fetchData();
+    const _: Promise<void> = fetchData();
   }, [fetchData]);
 
   const refetch = useCallback(async () => {
@@ -183,7 +183,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 
       return result;
     } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error(String(err));
+      const errorObj: Error = err instanceof Error ? err : new Error(String(err));
 
       if (mountedRef.current) {
         setError(errorObj);

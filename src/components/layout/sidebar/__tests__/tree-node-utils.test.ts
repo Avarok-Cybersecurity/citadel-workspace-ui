@@ -46,7 +46,7 @@ describe('buildTreeFromNodes', () => {
       node('office-b', 'workspace-root', 'Engineering'),
     ]);
 
-    const ids = idsInTree(tree);
+    const ids: string[] = idsInTree(tree);
     expect(ids).toHaveLength(new Set(ids).size);
     expect(tree?.node.id).toBe('workspace-root');
     expect(tree?.children.map((c) => c.node.id).sort()).toEqual(['office-a', 'office-b']);
@@ -72,7 +72,7 @@ describe('buildTreeFromNodes', () => {
     ]);
 
     expect(tree?.node.id).toBe('workspace-root');
-    const ids = idsInTree(tree);
+    const ids: string[] = idsInTree(tree);
     expect(ids).toHaveLength(new Set(ids).size);
     expect(tree?.children.map((c) => c.node.id).sort()).toEqual(['office-a', 'office-b']);
   });

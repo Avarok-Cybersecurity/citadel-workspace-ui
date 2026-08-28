@@ -94,7 +94,7 @@ export async function buildGroupFromInvite(
     const info = connectionManager.getConnectionInfo();
     if (info) {
       const session = await connectionManager.getTabSelectedSession();
-      const selfUsername = info.username || session?.username || 'me';
+      const selfUsername: string = info.username || session?.username || 'me';
       selfMember = {
         cid: info.cid,
         username: selfUsername,

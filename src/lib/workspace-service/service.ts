@@ -62,7 +62,7 @@ export class WorkspaceService implements ProtocolSender {
       debugLog('WorkspaceService', '[WorkspaceService] Sending payload:', payload);
       let request: WorkspaceProtocolRequest;
       if (isVariant(payload as Record<string, unknown>, 'Request') && payload.Request) {
-        const tsRequest = payload.Request;
+        const tsRequest: WorkspaceProtocolRequestTS = payload.Request;
         if (isVariant(tsRequest as Record<string, unknown>, 'GetWorkspace')) {
           const wsReq = tsRequest.GetWorkspace;
           request = {
@@ -157,8 +157,8 @@ export class WorkspaceService implements ProtocolSender {
       throw new Error('No active connection available. Please connect first.');
     }
     debugLog('WorkspaceService', '[WorkspaceService] sendRequest (raw):', JSON.stringify(request).substring(0, 200));
-    const requestType = typeof request === 'string' ? request : Object.keys(request)[0];
-    const expectedResponseTypes = this.getExpectedResponseTypes(requestType);
+    const requestType: string = typeof request === 'string' ? request : Object.keys(request)[0];
+    const expectedResponseTypes: string[] = this.getExpectedResponseTypes(requestType);
 
     const responsePromise = new Promise<unknown>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
@@ -168,7 +168,7 @@ export class WorkspaceService implements ProtocolSender {
 
       const handler = (response: unknown) => {
         if (response && typeof response === 'object') {
-          const responseType = Object.keys(response)[0];
+          const responseType: string = Object.keys(response)[0];
           if (expectedResponseTypes.includes(responseType) || responseType === 'Error') {
             clearTimeout(timeoutId);
             eventEmitter.off('workspace:raw-response', handler);

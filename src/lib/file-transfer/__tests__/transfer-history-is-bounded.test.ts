@@ -21,7 +21,7 @@ import {
 } from '../prune-transfers';
 import type { FileTransfer } from '../types';
 
-const NOW = 1_700_000_000_000;
+const NOW: 1700000000000 = 1_700_000_000_000;
 
 function record(id: string, state: string, updatedAt: number): Partial<FileTransfer> {
   return { id, state: state as FileTransfer['state'], updatedAt };
@@ -35,7 +35,7 @@ describe('pruning the transfer history', () => {
   it('keeps an unfinished transfer however old it is', () => {
     // Dropping one drops the only record Accept, Decline and Cancel work from
     // -- which is the bug the persistence layer was written to fix.
-    const ancient = NOW - TRANSFER_HISTORY_MS * 10;
+    const ancient: number = NOW - TRANSFER_HISTORY_MS * 10;
     const kept = pruneTransfers(
       mapOf(
         record('a', 'pending', ancient),
@@ -80,7 +80,7 @@ describe('pruning the transfer history', () => {
   });
 
   it('treats every terminal state as history, not just complete', () => {
-    const stale = NOW - TRANSFER_HISTORY_MS - 1;
+    const stale: number = NOW - TRANSFER_HISTORY_MS - 1;
     const kept = pruneTransfers(
       mapOf(
         record('a', 'declined', stale),

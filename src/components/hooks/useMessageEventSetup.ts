@@ -36,11 +36,11 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
       await workspaceEvents.onMessageEvent('message:received', (payload: MessagePayload) => {
         debugLog('WorkspaceEventHandler', `Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
         if (!payload.contents) return;
-        const peerCidStr = (payload.peerCid ?? 0n).toString();
+        const peerCidStr: string = (payload.peerCid ?? 0n).toString();
 
         setState(prev => {
           const peerMessages = prev.messages.byPeer[peerCidStr] || [];
-          const updatedTypingPeerIds = prev.typing.peerIds.filter(id => id !== peerCidStr);
+          const updatedTypingPeerIds: string[] = prev.typing.peerIds.filter(id => id !== peerCidStr);
           return {
             ...prev,
             messages: {
@@ -57,7 +57,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
       });
 
       await workspaceEvents.onMessageEvent('typing:started', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
-        const peerCidStr = payload.peerCid.toString();
+        const peerCidStr: string = payload.peerCid.toString();
         setState(prev => {
           if (!prev.typing.peerIds.includes(peerCidStr)) {
             return { ...prev, typing: { peerIds: [...prev.typing.peerIds, peerCidStr], lastUpdated: Date.now() } };
@@ -67,7 +67,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
       });
 
       await workspaceEvents.onMessageEvent('typing:stopped', (payload: { peerCid: bigint, connection: ConnectionInfo }) => {
-        const peerCidStr = payload.peerCid.toString();
+        const peerCidStr: string = payload.peerCid.toString();
         setState(prev => ({
           ...prev,
           typing: { peerIds: prev.typing.peerIds.filter(id => id !== peerCidStr), lastUpdated: Date.now() },

@@ -133,8 +133,8 @@ export class FileTransferService {
   private async updateSetting<K extends keyof FileTransferSettings>(
     peerCid: string, key: K, value: FileTransferSettings[K]
   ): Promise<void> {
-    const key_ = this.scopedKey(peerCid);
-    const settings = this.state.getSettings(key_);
+    const key_: string = this.scopedKey(peerCid);
+    const settings: FileTransferSettings = this.state.getSettings(key_);
     settings[key] = value;
     this.state.setSettings(key_, settings);
     await this.saveSettings(key_, settings);
@@ -225,7 +225,7 @@ export class FileTransferService {
 
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
     const { layer: rawLayer, senderCid } = message;
-    const layer = rawLayer as MessagingLayer;
+    const layer: MessagingLayer = rawLayer as MessagingLayer;
     const deps = this.deps;
 
     if (isFileTransferRequest(layer)) {
@@ -274,7 +274,7 @@ export class FileTransferService {
 }
 
 // Export singleton instance
-export const fileTransferService = FileTransferService.getInstance();
+export const fileTransferService: FileTransferService = FileTransferService.getInstance();
 
 // Auto-initialize
 fileTransferService.initialize().catch(err => {

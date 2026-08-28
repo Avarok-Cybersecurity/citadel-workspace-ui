@@ -119,9 +119,9 @@ export const components: MDXComponents = {
   },
   pre: ({ children }: React.DetailedHTMLProps<React.HTMLAttributes<HTMLPreElement>, HTMLPreElement>) => children,
   code: ({ children, className }: { children?: React.ReactNode; className?: string }) => {
-    const language = className ? className.replace(/language-/, '') : 'typescript';
+    const language: string = className ? className.replace(/language-/, '') : 'typescript';
     // Convert ReactNode to string for the Highlight component
-    const codeString = typeof children === 'string' ? children : String(children ?? '');
+    const codeString: string = typeof children === 'string' ? children : String(children ?? '');
 
     return (
       <Highlight

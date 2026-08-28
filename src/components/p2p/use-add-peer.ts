@@ -22,7 +22,7 @@ export function useAddPeer(
   const [adding, setAdding] = useState(false);
 
   const submit = async () => {
-    const entered = value.trim();
+    const entered: string = value.trim();
     if (!entered) return;
 
     // Before BigInt, which throws on anything else — see peer-cid-input.

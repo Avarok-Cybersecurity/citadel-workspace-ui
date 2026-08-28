@@ -36,7 +36,7 @@ export function PermissionsSettingsTab() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const workspaceId = state.workspace?.id;
-  const workspaceName = state.workspace?.name || 'Workspace';
+  const workspaceName: string = state.workspace?.name || 'Workspace';
   const workspaceRole = workspaceId ? getRole(workspaceId) : null;
 
   // Fetch workspace permissions on mount

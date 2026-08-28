@@ -43,7 +43,7 @@ export function usePeerDiscovery(isOpen: boolean) {
       const tabSelection = await getSelectedUser();
       const tabSession = await connectionManager.getTabSelectedSession();
       const cid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
-      const username = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
+      const username: string = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
       setCurrentCid(cid);
       setCurrentUsername(username);
     };
@@ -53,7 +53,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   // Listen for outgoing request updates
   useEffect(() => {
     const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<bigint> }) => {
-      const stringCids = new Set<string>();
+      const stringCids: Set<string> = new Set<string>();
       data.cids.forEach(cid => stringCids.add(cid.toString()));
       setOutgoingRequests(stringCids);
     };
@@ -64,8 +64,8 @@ export function usePeerDiscovery(isOpen: boolean) {
   // Listen for incoming pending requests
   useEffect(() => {
     const updateIncomingRequests = async () => {
-      const pending = await peerRegistrationStore.getPendingRequests();
-      const incomingMap = new Map<string, PendingPeerRequest>();
+      const pending: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
+      const incomingMap: Map<string, PendingPeerRequest> = new Map<string, PendingPeerRequest>();
       pending.forEach(req => { incomingMap.set(req.peer_cid.toString(), req); });
       setIncomingRequests(incomingMap);
     };
@@ -129,7 +129,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   const loadRegisteredPeers = useCallback(async () => {
     if (!currentCid) return;
     try {
-      const registered = await fetchRegisteredPeers(currentCid);
+      const registered: Set<string> = await fetchRegisteredPeers(currentCid);
       setRegisteredPeers(registered);
     } catch (error) {
       debugLog('PeerDiscoveryModal', 'Failed to load registered peers:', error);
@@ -153,7 +153,7 @@ export function usePeerDiscovery(isOpen: boolean) {
     }
     setLoading(true);
     try {
-      const processedPeers = await fetchAllPeers(currentCid);
+      const processedPeers: Peer[] = await fetchAllPeers(currentCid);
       setPeers(processedPeers);
       loadRegisteredPeers().catch(err => {
         debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err);
@@ -161,7 +161,7 @@ export function usePeerDiscovery(isOpen: boolean) {
 
       if (processedPeers.length === 0) {
         debugLog('PeerDiscoveryModal', 'ListAllPeers returned empty, trying GetSessions fallback...');
-        const sessionPeers = await discoverPeersViaGetSessions(currentCid);
+        const sessionPeers: Peer[] = await discoverPeersViaGetSessions(currentCid);
         if (sessionPeers.length > 0) {
           setPeers(sessionPeers);
           loadRegisteredPeers().catch(err => { debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err); });
@@ -175,7 +175,7 @@ export function usePeerDiscovery(isOpen: boolean) {
     } catch (error) {
       debugLog('PeerDiscoveryModal', 'Failed to discover peers via ListAllPeers:', error);
       try {
-        const sessionPeers = await discoverPeersViaGetSessions(currentCid);
+        const sessionPeers: Peer[] = await discoverPeersViaGetSessions(currentCid);
         if (sessionPeers.length > 0) {
           setPeers(sessionPeers);
           loadRegisteredPeers().catch(err => { debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err); });
@@ -196,8 +196,8 @@ export function usePeerDiscovery(isOpen: boolean) {
     if (isOpen) {
       runAsyncSetup(() => discoverPeers(false));
       const loadOutgoing = async () => {
-        const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
-        const stringCids = new Set<string>();
+        const bigintCids: Set<bigint> = await peerRegistrationStore.getOutgoingRequestCids();
+        const stringCids: Set<string> = new Set<string>();
         bigintCids.forEach(cid => stringCids.add(cid.toString()));
         setOutgoingRequests(stringCids);
       };

@@ -55,7 +55,7 @@ describe('saveOfficeContent', () => {
   });
 
   it('logs the failure rather than swallowing it', async () => {
-    const error = new Error('offline');
+    const error: Error = new Error('offline');
     const d = deps({ write: vi.fn().mockRejectedValue(error) });
 
     await saveOfficeContent(d);

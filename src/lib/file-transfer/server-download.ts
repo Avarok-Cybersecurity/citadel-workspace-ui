@@ -54,8 +54,8 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
   }
 
   // We are the recipient pulling from the sender: our own CID is `cid`, theirs is `peer_cid`.
-  const cid = BigInt(transfer.recipientCid);
-  const peerCid = BigInt(transfer.senderCid);
+  const cid: bigint = BigInt(transfer.recipientCid);
+  const peerCid: bigint = BigInt(transfer.senderCid);
   const requestId = crypto.randomUUID();
 
   const request = {

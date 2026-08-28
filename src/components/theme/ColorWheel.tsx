@@ -12,8 +12,8 @@ interface ColorWheelProps {
 
 const SIZE = 168;
 const RING_THICKNESS = 22;
-const CENTER = SIZE / 2;
-const RING_RADIUS = CENTER - RING_THICKNESS / 2;
+const CENTER: number = SIZE / 2;
+const RING_RADIUS: number = CENTER - RING_THICKNESS / 2;
 
 /**
  * Hue ring with a saturation/lightness square inside it.
@@ -54,11 +54,11 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const rect = ringRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const x = event.clientX - rect.left - rect.width / 2;
-      const y = event.clientY - rect.top - rect.height / 2;
+      const x: number = event.clientX - rect.left - rect.width / 2;
+      const y: number = event.clientY - rect.top - rect.height / 2;
       // atan2 gives -180..180 from the positive x axis; shift so 0deg is up,
       // matching where the handle is drawn.
-      const degrees = (Math.atan2(y, x) * 180) / Math.PI + 90;
+      const degrees: number = (Math.atan2(y, x) * 180) / Math.PI + 90;
       onChange({ ...value, h: (degrees + 360) % 360 });
     },
     [onChange, value],
@@ -68,8 +68,8 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const rect = squareRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const x = clamp01((event.clientX - rect.left) / rect.width);
-      const y = clamp01((event.clientY - rect.top) / rect.height);
+      const x: number = clamp01((event.clientX - rect.left) / rect.width);
+      const y: number = clamp01((event.clientY - rect.top) / rect.height);
       onChange({ ...value, s: x * 100, l: (1 - y) * 100 });
     },
     [onChange, value],
@@ -88,9 +88,9 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
     },
   });
 
-  const handleAngle = (value.h - 90) * (Math.PI / 180);
-  const handleX = CENTER + RING_RADIUS * Math.cos(handleAngle);
-  const handleY = CENTER + RING_RADIUS * Math.sin(handleAngle);
+  const handleAngle: number = (value.h - 90) * (Math.PI / 180);
+  const handleX: number = CENTER + RING_RADIUS * Math.cos(handleAngle);
+  const handleY: number = CENTER + RING_RADIUS * Math.sin(handleAngle);
 
   return (
     <div className="flex flex-col items-center gap-3" data-testid="color-wheel">

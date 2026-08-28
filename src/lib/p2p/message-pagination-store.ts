@@ -45,11 +45,11 @@ export class MessagePaginationStore {
 
   public async deleteOldFormat(): Promise<void> {
     try {
-      const key = `${this.dbPrefix}_conversations`;
+      const key: string = `${this.dbPrefix}_conversations`;
       await websocketService.sendLocalDBDelete(0n, key);
       debugLog('MessagePaginationStore', '[P2P] Deleted old monolithic format');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       if (!errorMessage.includes('Key not found')) {
         debugLog('MessagePaginationStore', 'Failed to delete old format:', error);
       }
@@ -60,14 +60,14 @@ export class MessagePaginationStore {
     const results: ConversationMetadata[] = [];
 
     try {
-      const allKeys = await websocketService.sendLocalDBListKeys(0n, `${PAGINATED_PREFIX}`);
+      const allKeys: string[] = await websocketService.sendLocalDBListKeys(0n, `${PAGINATED_PREFIX}`);
 
       if (!allKeys || allKeys.length === 0) {
         debugLog('MessagePaginationStore', '[P2P] No paginated conversations found (fresh install)');
         return results;
       }
 
-      const metadataKeys = allKeys.filter((key: string) => key.endsWith('_metadata'));
+      const metadataKeys: string[] = allKeys.filter((key: string) => key.endsWith('_metadata'));
       debugLog('MessagePaginationStore', `[P2P] Found ${metadataKeys.length} conversation metadata keys`);
 
       for (const key of metadataKeys) {
@@ -83,7 +83,7 @@ export class MessagePaginationStore {
 
       debugLog('MessagePaginationStore', `[P2P] Loaded ${results.length} conversation(s) from paginated storage`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Key not found') || errorMessage.includes('No keys found')) {
         debugLog('MessagePaginationStore', '[P2P] No paginated conversations found');
       } else {
@@ -235,4 +235,4 @@ export class MessagePaginationStore {
 }
 
 // Singleton export
-export const messagePaginationStore = new MessagePaginationStore();
+export const messagePaginationStore: MessagePaginationStore = new MessagePaginationStore();

@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DIR = join(process.cwd(), 'src/lib/workspace-service');
+const DIR: string = join(process.cwd(), 'src/lib/workspace-service');
 
 /**
  * Mutating request variants the client can actually issue.
@@ -32,7 +32,7 @@ const DIR = join(process.cwd(), 'src/lib/workspace-service');
  * covered by the map test below instead, so the gate is ready when someone
  * wires the caller.
  */
-const MUTATING = [
+const MUTATING: string[] = [
   'CreateNode', 'UpdateNode', 'DeleteNode',
   'AddMember', 'RemoveMember', 'UpdateMemberRole', 'UpdateMemberPermissions',
   'UpdateWorkspaceTheme', 'EditGroupMessage', 'DeleteGroupMessage',
@@ -55,7 +55,7 @@ const MUTATING = [
 const stripComments = (source: string) =>
   source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const sources = readdirSync(DIR)
+const sources: string = readdirSync(DIR)
   .filter((f) => f.endsWith('.ts'))
   .map((f) => stripComments(readFileSync(join(DIR, f), 'utf8')))
   .join('\n');
@@ -71,7 +71,7 @@ describe('workspace writes', () => {
   });
 
   it('names every gated variant in the success-response map', () => {
-    const map = readFileSync(join(DIR, 'await-write-response.ts'), 'utf8');
+    const map: string = readFileSync(join(DIR, 'await-write-response.ts'), 'utf8');
     // A variant wired at the call site but missing from the map falls through
     // the `if (!accepted)` early return and silently sends without waiting —
     // the same defect wearing the fix's clothes.

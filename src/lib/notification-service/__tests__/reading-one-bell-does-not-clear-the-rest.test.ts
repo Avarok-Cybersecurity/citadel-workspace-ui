@@ -19,7 +19,7 @@ const ALICE = '111';
 const BOB = '222';
 
 function service() {
-  const instance = NotificationService.getInstance();
+  const instance: NotificationService = NotificationService.getInstance();
   // A singleton shared across the suite, and there is no clear-all on the
   // public API, so each test removes what it added rather than assuming a
   // fresh instance.
@@ -59,11 +59,11 @@ describe('the bell auto-read', () => {
   it('marks read exactly what the panel showed, and nothing else', () => {
     // The panel filters with notificationBelongsTo and so does this, so "what
     // was shown" and "what was marked read" cannot disagree.
-    const shown = notifications.getNotificationsForCid(ALICE).map((n) => n.id);
+    const shown: string[] = notifications.getNotificationsForCid(ALICE).map((n) => n.id);
 
     notifications.markAllAsReadForCid(ALICE);
 
-    const stillUnread = notifications
+    const stillUnread: string[] = notifications
       .getNotifications()
       .filter((n) => !n.read)
       .map((n) => n.id);

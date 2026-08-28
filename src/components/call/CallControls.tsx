@@ -38,7 +38,7 @@ export function CallControls({
   onLeave,
   running,
 }: CallControlsProps) {
-  const duration = useCallDuration(running);
+  const duration: string = useCallDuration(running);
   return (
     <div className="flex flex-wrap items-center justify-center gap-2" data-testid="call-controls">
       <ToggleButton

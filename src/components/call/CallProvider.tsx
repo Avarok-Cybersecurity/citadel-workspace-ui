@@ -212,11 +212,11 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       setQualities((prev) => (sameQualities(prev, next) ? prev : next));
     };
     tick();
-    const id = window.setInterval(tick, 2_000);
+    const id: number = window.setInterval(tick, 2_000);
     return () => window.clearInterval(id);
   }, [call, sessionRef]);
 
-  const value = useMemo<CallContextValue>(() => {
+  const value: CallContextValue = useMemo<CallContextValue>(() => {
     debugLog('Call', 'context updated', { status: call?.status, streamsVersion });
     return {
       call,

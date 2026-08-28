@@ -18,7 +18,7 @@ import { stripComments } from '@/test-utils/strip-comments';
 const read = (p: string) => stripComments(readFileSync(join(process.cwd(), p), 'utf8'));
 
 describe('the storage bar', () => {
-  const source = read('src/components/file-manager/FileManagerStorageBar.tsx');
+  const source: string = read('src/components/file-manager/FileManagerStorageBar.tsx');
 
   it('wraps instead of clipping its peer list', () => {
     expect(source).toMatch(/flex flex-wrap items-center/);
@@ -31,13 +31,13 @@ describe('the storage bar', () => {
 
 describe('the tree pane', () => {
   it('is hidden below md so the grid gets the whole phone', () => {
-    const source = read('src/components/file-manager/VFSTreeView.tsx');
+    const source: string = read('src/components/file-manager/VFSTreeView.tsx');
     expect(source).toMatch(/hidden w-52 shrink-0 [^"]*md:flex/);
   });
 });
 
 describe('the toolbar', () => {
-  const source = read('src/components/file-manager/VFSToolbar.tsx');
+  const source: string = read('src/components/file-manager/VFSToolbar.tsx');
 
   it('has a shrinkable filter, so breadcrumbs keep room', () => {
     expect(source).toMatch(/w-full min-w-0 max-w-32/);
@@ -51,7 +51,7 @@ describe('the toolbar', () => {
 
 describe('the P2P chat header', () => {
   it('can actually truncate a long peer name', () => {
-    const source = read('src/components/p2p/P2PChatHeader.tsx');
+    const source: string = read('src/components/p2p/P2PChatHeader.tsx');
     // The truncate was inert without this: a flex item defaults to
     // min-width:auto and never narrows below max-content.
     expect(source).toMatch(/<div className="min-w-0">\s*<h3 className="truncate/);

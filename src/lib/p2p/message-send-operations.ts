@@ -32,7 +32,7 @@ export async function sendRawMessage(
   await p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
 
   const conversation = config.getOrCreateConversation(recipientCid);
-  const command = createMessagingLayerCommand(
+  const command: P2PCommand = createMessagingLayerCommand(
     layer,
     currentCid,
     recipientCid,
@@ -58,7 +58,7 @@ export async function sendMessageAck(
     message_id: messageId.slice(0, 8),
     to_peer: peerCid.toString().slice(0, 10),
   });
-  const command = createMessageAckCommand(messageId, ackType);
+  const command: P2PCommand = createMessageAckCommand(messageId, ackType);
   await sendP2PCommand(config, peerCid, command, senderCid);
 }
 

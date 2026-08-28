@@ -69,7 +69,7 @@ export class WebSocketInitialization {
       return;
     }
 
-    const ELECTION_TIMEOUT_MS = INTERVAL.LEADER_ELECTION_MS;
+    const ELECTION_TIMEOUT_MS: 3000 = INTERVAL.LEADER_ELECTION_MS;
     debugLog('WebSocketInit', `waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
 
     return new Promise<void>((resolve) => {
@@ -165,7 +165,7 @@ export class WebSocketInitialization {
     const clientConfig: WorkspaceClientConfig = {
       websocketUrl: this.config.websocketUrl,
       messageHandler: (rawMessage: InternalServiceResponse) => {
-        const message = rawMessage;
+        const message: InternalServiceResponse = rawMessage;
         debugLog('WebSocketInit', 'Message received from WASM client', message);
 
         if (instanceManager.isLeader) {
@@ -199,7 +199,7 @@ export class WebSocketInitialization {
 
     try {
       debugLog('WebSocketInit', 'Creating WorkspaceClient with config', clientConfig);
-      const client = new WorkspaceClient(clientConfig);
+      const client: WorkspaceClient = new WorkspaceClient(clientConfig);
       await client.init();
       this.leaderClient = client;
 
@@ -224,7 +224,7 @@ export class WebSocketInitialization {
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
 
-      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
+      const errorMessage: string = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
       eventEmitter.emit('connection-failure', { error: errorMessage });
 
       throw error;

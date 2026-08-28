@@ -58,8 +58,8 @@ export function VFSContentGrid({
   });
 
   const currentNode = findNodeByPath(tree, currentPath);
-  const allChildren = currentNode?.children ?? [];
-  const children = filterText
+  const allChildren: RevfsNode[] = currentNode?.children ?? [];
+  const children: RevfsNode[] = filterText
     ? allChildren.filter(n => matchesSearch(n.name, filterText))
     : allChildren;
 
@@ -71,16 +71,16 @@ export function VFSContentGrid({
   const handleRenameCancel = useCallback(() => { setRenamingPath(null); }, []);
   const handlePasteItem = useCallback(async (node: RevfsNode) => { await onPaste(node.path); }, [onPaste]);
 
-  const sorted = [...children].sort((a, b) => {
+  const sorted: RevfsNode[] = [...children].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-    let cmp = 0;
+    let cmp: number = 0;
     switch (sortField) {
       case 'name': cmp = a.name.localeCompare(b.name); break;
       case 'date': cmp = a.updatedAt - b.updatedAt; break;
       case 'size': cmp = (a.fileMetadata?.fileSize ?? 0) - (b.fileMetadata?.fileSize ?? 0); break;
       case 'type': {
-        const eA = a.type === 'file' ? (a.name.split('.').pop()?.toLowerCase() ?? '') : '';
-        const eB = b.type === 'file' ? (b.name.split('.').pop()?.toLowerCase() ?? '') : '';
+        const eA: string = a.type === 'file' ? (a.name.split('.').pop()?.toLowerCase() ?? '') : '';
+        const eB: string = b.type === 'file' ? (b.name.split('.').pop()?.toLowerCase() ?? '') : '';
         cmp = eA.localeCompare(eB); break;
       }
     }

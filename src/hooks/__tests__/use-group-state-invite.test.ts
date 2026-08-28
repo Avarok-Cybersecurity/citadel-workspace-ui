@@ -205,7 +205,7 @@ describe('applyGroupInvite', () => {
     // to chain failure handling (analytics, retry queues, etc.)
     // without re-implementing the IIFE wrapper at every call site.
     const setGroups = vi.fn();
-    const result = applyGroupInvite(
+    const result: Promise<void> = applyGroupInvite(
       { groupId: 'g-promise', groupName: 'X', inviterId: '7', inviterUsername: 'd' },
       setGroups,
     );

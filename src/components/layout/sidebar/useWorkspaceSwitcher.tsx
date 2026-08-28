@@ -59,7 +59,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       const currentCid: bigint | null = connInfo?.cid ?? null;
       if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
 
-      const workspaces = toStoredWorkspaces(storedSessions.sessions, state.workspace?.name, currentCid);
+      const workspaces: StoredWorkspace[] = toStoredWorkspaces(storedSessions.sessions, state.workspace?.name, currentCid);
       setAvailableWorkspaces(workspaces);
 
       const active = pickCurrentWorkspace(workspaces, tabSelectedUser);
@@ -131,7 +131,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
         return;
       }
 
-      const index = storedSessions.sessions.indexOf(targetSession);
+      const index: number = storedSessions.sessions.indexOf(targetSession);
       if (index >= 0) {
         await connectionManager.setActiveSessionIndex(index);
       }
@@ -151,7 +151,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
         </div>
       ));
 
-      const savedRoute = workspaceRoutes[workspace.id];
+      const savedRoute: string = workspaceRoutes[workspace.id];
       if (savedRoute && savedRoute !== location.pathname + location.search) {
         navigate(savedRoute);
       }

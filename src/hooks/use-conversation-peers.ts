@@ -36,7 +36,7 @@ export function useConversationPeers({
   const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
 
   const loadConversations = useCallback(async () => {
-    const messenger = P2PMessengerManager.getInstance();
+    const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
     const conversations = messenger.getAllConversations();
 
     // Get current user's CID to filter out self-conversations
@@ -48,11 +48,11 @@ export function useConversationPeers({
       .filter(c => c.peerCid.toString() !== currentCid);
 
     const convPeers = await Promise.all(filteredConversations.map(async c => {
-      const peerCidStr = c.peerCid.toString();
+      const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
       const registeredPeer = registeredPeers.find(p => p.cid === peerCidStr);
       // Prefer registered peer username, then a friendly "Peer" label
-      const displayName = registeredPeer?.username ||
+      const displayName: string = registeredPeer?.username ||
         (peerCidStr ? `Peer ${peerCidStr.slice(-6)}` : 'Unknown Peer');
       return {
         peerCid: peerCidStr,

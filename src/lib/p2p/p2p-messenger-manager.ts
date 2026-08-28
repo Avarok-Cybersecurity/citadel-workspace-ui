@@ -231,7 +231,7 @@ export function getP2PMessengerManager(): P2PMessengerManager {
 // Both `get` and `set` delegate to the real singleton so external callers that
 // assign to exposed fields write through to the real instance rather than
 // silently landing on the empty placeholder target.
-export const p2pMessengerManager = new Proxy({} as P2PMessengerManager, {
+export const p2pMessengerManager: P2PMessengerManager = new Proxy({} as P2PMessengerManager, {
   get(_target, prop, receiver) {
     return Reflect.get(getP2PMessengerManager(), prop, receiver);
   },

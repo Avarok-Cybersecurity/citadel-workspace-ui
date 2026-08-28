@@ -12653,3 +12653,65 @@ The gate then caught its own author immediately. Splitting the notification
 chime into a new file produced `chime.ts: 4 declaration(s) without a type, in a
 file that had none` — a new file, so the policy applies in full. Annotated:
 7,826 → **7,822**, and the burn-down starts there.
+
+## Round 241 — the compiler writes the annotations, and refuses two kinds
+
+7,822 findings is not a hand-editing job, and hand-editing is also where a wrong
+annotation would come from: the compiler already knows each type, so it should be
+the one to write it down. `scripts/annotate-types.mjs` walks the program, asks
+the checker, and inserts `: T` where the answer is unambiguous.
+
+**6,775 remaining**, down from 7,822 — 1,047 declarations annotated across the
+library, the components, the hooks and the pages, with `tsc`, ESLint and all
+2,163 unit tests green after each pass.
+
+The interesting part is the two things it now refuses, both learned from its own
+output.
+
+### A literal is not a type
+
+```
+export const DEFAULT_LIST_RETRIES: 2 = 2;
+```
+
+`const x = 2` infers the literal type `2`. Writing that down narrows the constant
+from "a number" to "this number", and every caller passing a different one stops
+compiling:
+
+```
+Argument of type 'number' is not assignable to parameter of type '2'
+```
+
+`tsc` caught it, and so, independently, did ESLint's `prefer-as-const` — ten
+files. Numbers and booleans are refused outright now, next to the existing rule
+that a codemod must never add an import.
+
+### `: boolean` costs a narrowing
+
+```
+const isEditing = !!role;      // `if (isEditing)` treats `role` as non-null
+const isEditing: boolean = !!role;   // it no longer does
+```
+
+Since TypeScript 4.4 a `const` holding a condition narrows what it tested — but
+only while it has no annotation. Annotating 118 of them produced:
+
+```
+'role' is possibly 'null'
+Type 'number | undefined' is not assignable to type 'number'
+```
+
+An annotation that is correct and still breaks the build is worth refusing: the
+type was never in doubt there, and stating it costs a narrowing that was doing
+real work. All 118 reverted; `boolean` is now refused.
+
+### The ratchet had a release lever
+
+Banking those improvements exposed a hole in round 240's gate: `--write` wrote
+whatever it measured. A pass that improved the total by 500 while quietly
+regressing five files was accepted, because only the total was being looked at.
+
+`--write` now refuses to raise any file's number without `--allow-regressions`,
+so loosening the ratchet is a decision somebody makes rather than a side effect
+of a bulk edit. Control: an edit that improves the total and regresses one file
+is refused, naming the file and both numbers.

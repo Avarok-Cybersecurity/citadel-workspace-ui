@@ -30,7 +30,7 @@ function conversation(): P2PConversation {
 
 describe('applyEdit', () => {
   it('replaces the contents and stamps edited_at', () => {
-    const c = conversation();
+    const c: P2PConversation = conversation();
 
     const outcome = applyEdit(c, 'm1', 'hello there', 555, ALICE);
 
@@ -40,7 +40,7 @@ describe('applyEdit', () => {
   });
 
   it('refuses to edit a message the editor did not send', () => {
-    const c = conversation();
+    const c: P2PConversation = conversation();
 
     const outcome = applyEdit(c, 'm2', 'tampered', 555, ALICE);
 
@@ -55,7 +55,7 @@ describe('applyEdit', () => {
   });
 
   it('leaves other messages untouched', () => {
-    const c = conversation();
+    const c: P2PConversation = conversation();
 
     applyEdit(c, 'm1', 'changed', 1, ALICE);
 
@@ -66,7 +66,7 @@ describe('applyEdit', () => {
 
 describe('applyDelete', () => {
   it('removes the message from the conversation', () => {
-    const c = conversation();
+    const c: P2PConversation = conversation();
 
     const outcome = applyDelete(c, 'm1', ALICE);
 
@@ -75,7 +75,7 @@ describe('applyDelete', () => {
   });
 
   it('refuses to delete a message the deleter did not send', () => {
-    const c = conversation();
+    const c: P2PConversation = conversation();
 
     const outcome = applyDelete(c, 'm2', ALICE);
 

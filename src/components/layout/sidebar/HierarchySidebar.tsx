@@ -38,7 +38,7 @@ export function HierarchySidebar() {
   const confirm = useConfirm();
 
   // Build flat node list from state
-  const nodes = useMemo(() => Object.values(state.nodes), [state.nodes]);
+  const nodes: DomainNode[] = useMemo(() => Object.values(state.nodes), [state.nodes]);
 
   const handleNodeSelect = useCallback(async (nodeId: string) => {
     if (!(await mayLeaveEditor(confirm))) return;
@@ -66,7 +66,7 @@ export function HierarchySidebar() {
         navigate(getWorkspacePath());
       }
 
-      const typeName = getEntityTypeString(node.entity_type);
+      const typeName: string = getEntityTypeString(node.entity_type);
       toastSuccess(toast, `${typeName} Deleted`, `${node.name} has been deleted successfully`);
     } catch (error) {
       debugLog('HierarchySidebar', 'Error deleting node:', error);
@@ -111,7 +111,7 @@ export function HierarchySidebar() {
       const workspaceRule = state.treeSchema.rules?.find(
         r => r.parent_type === 'Workspace'
       );
-      const allowedTypes = workspaceRule?.allowed_child_types ?? [];
+      const allowedTypes: string[] = workspaceRule?.allowed_child_types ?? [];
       if (allowedTypes.length === 0) {
         // "Initialize the workspace to become an admin" was true once and is
         // not now: since the first-connect-admin change, initialization
@@ -133,7 +133,7 @@ export function HierarchySidebar() {
       return;
     }
 
-    const parentNode = state.nodes[parentId];
+    const parentNode: DomainNode = state.nodes[parentId];
     if (!parentNode) return;
 
     const allowedTypes = parentNode.allowed_child_types;
@@ -154,7 +154,7 @@ export function HierarchySidebar() {
   const handleSetDefault = useCallback(async (node: DomainNode) => {
     try {
       await WorkspaceService.updateNode(node.id, { isDefault: true });
-      const typeName = getEntityTypeString(node.entity_type);
+      const typeName: string = getEntityTypeString(node.entity_type);
       toastSuccess(toast, `Default ${typeName} Updated`, `${node.name} is now the default`);
     } catch (error) {
       debugLog('HierarchySidebar', 'Error setting default:', error);
@@ -178,7 +178,7 @@ export function HierarchySidebar() {
     }
   }, [toast]);
 
-  const adminEntityType = adminNode
+  const adminEntityType: string = adminNode
     ? getEntityTypeString(adminNode.entity_type).toLowerCase()
     : 'workspace';
 

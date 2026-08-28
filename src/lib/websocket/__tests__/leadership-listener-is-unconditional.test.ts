@@ -17,10 +17,10 @@ import { join } from 'node:path';
 const strip = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const initService = strip(
+const initService: string = strip(
   readFileSync(join(process.cwd(), 'src/lib/websocket-service/initialization.ts'), 'utf8'),
 );
-const initOps = strip(
+const initOps: string = strip(
   readFileSync(join(process.cwd(), 'src/lib/websocket/initialization.ts'), 'utf8'),
 );
 
@@ -31,8 +31,8 @@ describe('the leadership listener', () => {
   });
 
   it('is registered BEFORE the leader/follower branch', () => {
-    const call = initService.indexOf('registerLeadershipListener()');
-    const branch = initService.indexOf('if (!isLeader)');
+    const call: number = initService.indexOf('registerLeadershipListener()');
+    const branch: number = initService.indexOf('if (!isLeader)');
 
     expect(call, 'doInit never registers the leadership listener').toBeGreaterThan(-1);
     expect(branch).toBeGreaterThan(-1);
@@ -44,8 +44,8 @@ describe('the leadership listener', () => {
   });
 
   it('still closes the socket on demotion', () => {
-    const method = initOps.slice(initOps.indexOf('registerLeadershipListener()'));
-    const body = method.slice(0, method.indexOf('\n  initializeAsFollower'));
+    const method: string = initOps.slice(initOps.indexOf('registerLeadershipListener()'));
+    const body: string = method.slice(0, method.indexOf('\n  initializeAsFollower'));
     expect(body).toContain('closeLeaderClient');
   });
 });

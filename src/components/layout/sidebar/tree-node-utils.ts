@@ -10,13 +10,13 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
   if (nodes.length === 0) return null;
 
   // Build lookup maps
-  const nodeMap = new Map<string, DomainNode>();
+  const nodeMap: Map<string, DomainNode> = new Map<string, DomainNode>();
   const childrenMap = new Map<string | null, DomainNode[]>();
 
   for (const node of nodes) {
     nodeMap.set(node.id, node);
     const parentId = node.parent_id;
-    const siblings = childrenMap.get(parentId) ?? [];
+    const siblings: DomainNode[] = childrenMap.get(parentId) ?? [];
     siblings.push(node);
     childrenMap.set(parentId, siblings);
   }
@@ -34,7 +34,7 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
   // Deriving it from the data answers both cases with one rule: when the root
   // node is present its children have a resolvable parent and are not roots;
   // when it is absent they have a dangling 'workspace-root' parent and are.
-  const roots = nodes.filter(
+  const roots: DomainNode[] = nodes.filter(
     (node) => node.parent_id === null || !nodeMap.has(node.parent_id)
   );
   if (roots.length === 0) return null;
@@ -44,7 +44,7 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
 
   // Recursive function to build tree
   function buildNode(node: DomainNode): TreeNode {
-    const nodeChildren = childrenMap.get(node.id) ?? [];
+    const nodeChildren: DomainNode[] = childrenMap.get(node.id) ?? [];
     // Sort children by name
     nodeChildren.sort((a, b) => a.name.localeCompare(b.name));
 

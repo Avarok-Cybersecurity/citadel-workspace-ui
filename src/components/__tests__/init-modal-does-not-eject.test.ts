@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const handler = readFileSync(
+const handler: string = readFileSync(
   join(process.cwd(), 'src/components/WorkspaceEventHandler.tsx'),
   'utf8'
 );
@@ -33,7 +33,7 @@ const handler = readFileSync(
  * assertion has to read code, not prose about code; the same trap in the other
  * direction is a `toContain` that passes because the word appears in a comment.
  */
-const dismissBody = handler
+const dismissBody: string = handler
   .slice(
     handler.indexOf('const handleInitCancelled'),
     handler.indexOf('};', handler.indexOf('const handleInitCancelled'))
@@ -54,7 +54,7 @@ describe('dismissing the initialization prompt', () => {
   });
 
   it('tells the user what the password is and that they can skip', () => {
-    const modal = readFileSync(
+    const modal: string = readFileSync(
       join(process.cwd(), 'src/components/WorkspaceInitializationModal.tsx'),
       'utf8'
     );

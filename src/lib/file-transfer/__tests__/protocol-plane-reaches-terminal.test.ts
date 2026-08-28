@@ -74,7 +74,7 @@ describe('parseTickNotification against the canonical wire shapes', () => {
   });
 
   it('joins ReceptionBeginning to the transfer via object_id, then resolves the id-less stream by request_id', () => {
-    const ctx = correlation();
+    const ctx: TickCorrelation = correlation();
     ctx.objectIdToTransferId.set('90210', 'uuid-1');
 
     const begin = parseTickNotification(
@@ -97,7 +97,7 @@ describe('parseTickNotification against the canonical wire shapes', () => {
   });
 
   it('marks a revfs stream foreign at ReceptionBeginning and drops its later events', () => {
-    const ctx = correlation();
+    const ctx: TickCorrelation = correlation();
     const begin = parseTickNotification(
       tick({
         ReceptionBeginning: [
@@ -143,7 +143,7 @@ function depsFor(t: FileTransfer) {
 
 describe('applyTransferOutcome', () => {
   it('moves a transferring file to complete and persists it', async () => {
-    const t = transfer();
+    const t: FileTransfer = transfer();
     const { deps, saveTransfer, emitStateChange } = depsFor(t);
 
     await applyTransferOutcome(deps, 't1', { success: true, downloadPath: '/dl/a.pdf' });
@@ -155,7 +155,7 @@ describe('applyTransferOutcome', () => {
   });
 
   it('is a no-op once terminal, so two planes cannot double-report one transfer', async () => {
-    const t = transfer({ state: 'complete', downloadPath: '/dl/a.pdf' });
+    const t: FileTransfer = transfer({ state: 'complete', downloadPath: '/dl/a.pdf' });
     const { deps, saveTransfer, emitStateChange } = depsFor(t);
 
     await applyTransferOutcome(deps, 't1', { success: false, errorMessage: 'late failure' });
@@ -167,7 +167,7 @@ describe('applyTransferOutcome', () => {
   });
 
   it('treats declined as terminal — a stray success tick must not resurrect a declined offer', async () => {
-    const t = transfer({ state: 'declined' });
+    const t: FileTransfer = transfer({ state: 'declined' });
     const { deps, saveTransfer } = depsFor(t);
 
     await applyTransferOutcome(deps, 't1', { success: true });

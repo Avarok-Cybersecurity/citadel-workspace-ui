@@ -38,7 +38,7 @@ export async function syncConnectionsFromBackend(
       mySession?.peer_connections,
       'peer_connections',
     )) {
-      const peerCid = BigInt(peerCidStr);
+      const peerCid: bigint = BigInt(peerCidStr);
       if (!conversationManager.isConnected(peerCid)) {
         conversationManager.setConnection(peerCid, true);
         onConnect(peerCid);
@@ -94,7 +94,7 @@ export async function markMessagesAsRead(
   // unread count computed from the same empty array came out 0 and was
   // persisted. The badge cleared without the receipts that justify it, and the
   // sender's bubbles stayed on 'delivered' for ever.
-  let messagesToMark = messageIds
+  let messagesToMark: P2PMessage[] = messageIds
     ? conversation.messages.filter(m => messageIds.includes(m.id))
     : conversation.messages.filter(m => m.senderCid === peerCid && m.status === 'delivered');
 
@@ -118,10 +118,10 @@ export async function markMessagesAsRead(
 
   // Derived from what was actually marked when memory is empty, rather than
   // from the empty array — which reported 0 unread whatever the truth was.
-  const remainingInMemory = conversation.messages.filter(
+  const remainingInMemory: number = conversation.messages.filter(
     m => m.senderCid === peerCid && m.status === 'delivered',
   ).length;
-  const newUnreadCount = conversation.messages.length === 0
+  const newUnreadCount: number = conversation.messages.length === 0
     ? Math.max(0, conversation.unreadCount - markedMessageIds.length)
     : remainingInMemory;
   conversation.unreadCount = newUnreadCount;

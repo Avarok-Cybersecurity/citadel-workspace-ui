@@ -26,7 +26,7 @@ export function useGroupRoles(
   const { settings } = group;
   const { roles } = settings;
 
-  const sortedRoles = useMemo(() => {
+  const sortedRoles: GroupRole[] = useMemo(() => {
     return [...roles].sort((a, b) => b.position - a.position);
   }, [roles]);
 
@@ -70,11 +70,11 @@ export function useGroupRoles(
   );
 
   const suggestPosition = useCallback((): number => {
-    const nonOwnerRoles = roles.filter(r => !r.isBuiltIn);
+    const nonOwnerRoles: GroupRole[] = roles.filter(r => !r.isBuiltIn);
     if (nonOwnerRoles.length === 0) return 50;
 
-    const lowestPosition = Math.min(...nonOwnerRoles.map(r => r.position));
-    const suggested = Math.floor(lowestPosition / 2);
+    const lowestPosition: number = Math.min(...nonOwnerRoles.map(r => r.position));
+    const suggested: number = Math.floor(lowestPosition / 2);
 
     return suggested > 0 ? suggested : 5;
   }, [roles]);
@@ -112,7 +112,7 @@ export function useGroupRoles(
       roleId: string,
       updates: Partial<Omit<GroupRole, 'id' | 'isBuiltIn'>>
     ): GroupSettings => {
-      const updatedRoles = roles.map(role => {
+      const updatedRoles: GroupRole[] = roles.map(role => {
         if (role.id !== roleId) return role;
 
         if (role.isBuiltIn) {
@@ -155,7 +155,7 @@ export function useGroupRoles(
         return settings;
       }
 
-      const updatedRoles = roles.filter(r => r.id !== roleId);
+      const updatedRoles: GroupRole[] = roles.filter(r => r.id !== roleId);
 
       const updatedSettings: GroupSettings = {
         ...settings,

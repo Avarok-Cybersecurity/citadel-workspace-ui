@@ -46,7 +46,7 @@ export function groupMessagesByDate<T extends { timestamp: number | bigint }>(
   messages: T[]
 ): Record<string, T[]> {
   return messages.reduce((acc, message) => {
-    const dateKey = formatDate(message.timestamp);
+    const dateKey: string = formatDate(message.timestamp);
     if (!acc[dateKey]) {
       acc[dateKey] = [];
     }

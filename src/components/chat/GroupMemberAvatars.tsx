@@ -14,7 +14,7 @@ const MAX_VISIBLE_AVATARS = 5;
 
 export function GroupMemberAvatars({ group }: { group: GroupConversation }) {
   // Get members sorted by role position
-  const sortedMembers = useMemo(() => {
+  const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
     return [...group.members]
       .flatMap(member => {
         const role = group.settings.roles.find(r => r.id === member.roleId);
@@ -29,8 +29,8 @@ export function GroupMemberAvatars({ group }: { group: GroupConversation }) {
       });
   }, [group.members, group.settings.roles]);
 
-  const visibleMembers = sortedMembers.slice(0, MAX_VISIBLE_AVATARS);
-  const overflowCount = Math.max(0, sortedMembers.length - MAX_VISIBLE_AVATARS);
+  const visibleMembers: GroupMemberWithRole[] = sortedMembers.slice(0, MAX_VISIBLE_AVATARS);
+  const overflowCount: number = Math.max(0, sortedMembers.length - MAX_VISIBLE_AVATARS);
 
   // Get avatar color
 

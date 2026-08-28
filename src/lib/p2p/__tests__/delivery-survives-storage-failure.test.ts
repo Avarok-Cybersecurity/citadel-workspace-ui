@@ -34,7 +34,7 @@ function harness(addBehaviour: () => Promise<boolean>) {
   const acked: string[] = [];
   const notified: string[] = [];
 
-  const config = {
+  const config: MessageHandlerConfig = {
     getCurrentCid: async () => ME,
     isConnected: () => true,
     getOrCreateConversation: () => ({ peerCid: PEER, messages: [], peerUsername: 'alice' }),
@@ -64,7 +64,7 @@ function harness(addBehaviour: () => Promise<boolean>) {
     recipient_cid: ME.toString(),
   } as never;
 
-  const noFileTransfers = {} as FileTransferMessageHandler;
+  const noFileTransfers: FileTransferMessageHandler = {} as FileTransferMessageHandler;
 
   return {
     rendered,

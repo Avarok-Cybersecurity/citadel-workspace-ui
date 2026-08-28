@@ -82,7 +82,7 @@ describe('the MDX editor buffer', () => {
   });
 
   it('the caller passes a stable callback and keys the editor per node', () => {
-    const view = readFileSync(
+    const view: string = readFileSync(
       join(process.cwd(), 'src/components/workspace/WorkspaceView.tsx'),
       'utf8'
     );

@@ -36,8 +36,8 @@ export async function handleSuccessfulConnection(
   // Update stored session with CID
   let sessionUsername: string | undefined;
   if (state.storedSessions.sessions.length > 0) {
-    const activeIndex = state.getActiveSessionIndex();
-    const session = state.storedSessions.sessions[activeIndex];
+    const activeIndex: number = state.getActiveSessionIndex();
+    const session: StoredSession = state.storedSessions.sessions[activeIndex];
     if (session) {
       session.cid = cid;
       session.lastConnected = Date.now();

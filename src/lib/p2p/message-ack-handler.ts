@@ -42,7 +42,7 @@ export class MessageAckHandler {
     let newStatus: P2PMessage['status'] = 'sent';
     const updatedMessages: Array<{ peerCid: bigint; messageId: string; status: P2PMessage['status']; error?: string }> = [];
 
-    const conversations = this.config.getConversations();
+    const conversations: Map<bigint, P2PConversation> = this.config.getConversations();
 
     conversations.forEach((conversation, peerCid) => {
       const message = conversation.messages.find(m => m.id === payload.message_id);
@@ -109,8 +109,8 @@ export class MessageAckHandler {
     peerCid: bigint,
     updatedMessages: Array<{ peerCid: bigint; messageId: string; status: P2PMessage['status']; error?: string }>
   ): void {
-    const ackedMessageTimestamp = ackedMessage.timestamp;
-    const ackedMessageSender = ackedMessage.senderCid;
+    const ackedMessageTimestamp: number = ackedMessage.timestamp;
+    const ackedMessageSender: bigint = ackedMessage.senderCid;
 
     conversation.messages.forEach(earlierMsg => {
       if (

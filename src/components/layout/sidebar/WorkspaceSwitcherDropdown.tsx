@@ -25,11 +25,11 @@ export function WorkspaceSwitcherDropdown({
   onAddWorkspace,
   onManageAccounts,
 }: WorkspaceSwitcherDropdownProps) {
-  const groupedWorkspaces = Object.entries(
+  const groupedWorkspaces: [string, StoredWorkspace[]][] = Object.entries(
     availableWorkspaces
       .filter(workspace => workspace.id !== currentWorkspace?.id)
       .reduce((acc, workspace) => {
-        const key = `${workspace.workspaceName || workspace.serverAddress}`;
+        const key: string = `${workspace.workspaceName || workspace.serverAddress}`;
         if (!acc[key]) acc[key] = [];
         acc[key].push(workspace);
         return acc;

@@ -34,7 +34,7 @@ describe('the retry engine', () => {
     );
 
     outboundQueue.start();
-    const id = outboundQueue.enqueue({ kind: 'test' });
+    const id: string = outboundQueue.enqueue({ kind: 'test' });
 
     // Nothing yet: the request has not been waiting long enough.
     vi.advanceTimersByTime(TIMEOUT.SERVER_REQUEST_MS / 2);
@@ -54,10 +54,10 @@ describe('the retry engine', () => {
     );
 
     outboundQueue.start();
-    const id = outboundQueue.enqueue({ kind: 'test' });
+    const id: string = outboundQueue.enqueue({ kind: 'test' });
 
     // Four windows: three retries, then the give-up.
-    for (let i = 0; i < 5; i++) {
+    for (let i: number = 0; i < 5; i++) {
       vi.advanceTimersByTime(TIMEOUT.SERVER_REQUEST_MS + 1000);
     }
 
@@ -75,7 +75,7 @@ describe('the retry engine', () => {
     );
 
     outboundQueue.start();
-    const id = outboundQueue.enqueue({ kind: 'test' });
+    const id: string = outboundQueue.enqueue({ kind: 'test' });
     outboundQueue.acknowledge(id, { status: 'processed' });
 
     vi.advanceTimersByTime(TIMEOUT.SERVER_REQUEST_MS * 3);
@@ -92,14 +92,14 @@ describe('it arms itself', () => {
     // call site someone has to remember.
     expect(outboundQueue.isPolling).toBe(false);
 
-    const id = outboundQueue.enqueue({ kind: 'test' });
+    const id: string = outboundQueue.enqueue({ kind: 'test' });
     expect(outboundQueue.isPolling).toBe(true);
 
     outboundQueue.acknowledge(id, { status: 'processed' });
   });
 
   it('stops when the queue drains, so an idle app carries no timer', () => {
-    const id = outboundQueue.enqueue({ kind: 'test' });
+    const id: string = outboundQueue.enqueue({ kind: 'test' });
     expect(outboundQueue.isPolling).toBe(true);
 
     outboundQueue.acknowledge(id, { status: 'processed' });

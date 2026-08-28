@@ -37,7 +37,7 @@ export interface GroupState {
  * remain per-consumer: they describe a consumer's own refresh, not the list.
  */
 export function useGroupState(): GroupState {
-  const groups = useSyncExternalStore(subscribeToGroups, getGroups);
+  const groups: GroupConversation[] = useSyncExternalStore(subscribeToGroups, getGroups);
   // Whether the persisted restore has finished. A consumer that looks a group
   // up before this is true has learned nothing about whether it exists.
   const hydrated = useSyncExternalStore(subscribeToGroups, areGroupsHydrated, () => false);
@@ -77,8 +77,8 @@ export function useGroupState(): GroupState {
 export function useSortedGroups(groups: GroupConversation[]): GroupConversation[] {
   return useMemo(() => {
     return [...groups].sort((a, b) => {
-      const aTime = a.lastMessageTime || 0;
-      const bTime = b.lastMessageTime || 0;
+      const aTime: number = a.lastMessageTime || 0;
+      const bTime: number = b.lastMessageTime || 0;
       return bTime - aTime;
     });
   }, [groups]);

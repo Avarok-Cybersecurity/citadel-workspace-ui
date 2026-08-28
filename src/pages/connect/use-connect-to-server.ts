@@ -37,12 +37,12 @@ export type ConnectOutcome =
 
 async function findSessionForServer(serverAddress: string): Promise<ActiveSession | null> {
   connectionManager.invalidateSessionCache();
-  const sessions = await connectionManager.getActiveSessions();
+  const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
   return sessions.find((s) => s.server_address === serverAddress) ?? null;
 }
 
 async function waitForSession(serverAddress: string): Promise<ActiveSession | null> {
-  const deadline = Date.now() + RECONNECT_WAIT_MS;
+  const deadline: number = Date.now() + RECONNECT_WAIT_MS;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, RECONNECT_POLL_MS));
     const found = await findSessionForServer(serverAddress);
@@ -67,7 +67,7 @@ async function adoptSession(session: ActiveSession): Promise<void> {
   }
 
   const stored = connectionManager.getStoredSessionsArray();
-  const index = stored.findIndex(
+  const index: number = stored.findIndex(
     (s) => s.username === session.username && s.serverAddress === session.server_address,
   );
   if (index >= 0) await connectionManager.setActiveSessionIndex(index);

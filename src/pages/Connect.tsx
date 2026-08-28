@@ -28,7 +28,7 @@ export const Connect = () => {
         setSelectedServer(response.servers[0].serverAddress);
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       debugLog('Connect', 'Error fetching known servers:', error);
       debugLog('Connect', 'Error details:', errorMessage);
 
@@ -40,7 +40,7 @@ export const Connect = () => {
       // this one, and until now a user whose protocol call failed was told
       // "Failed to load saved workspaces" while their servers sat in
       // localStorage untouched.
-      const cached = getRecentServers();
+      const cached: StoredServer[] = getRecentServers();
       if (cached.length > 0) {
         setServers(cached);
         setSelectedServer(cached[0].serverAddress);
@@ -104,7 +104,7 @@ export const Connect = () => {
 
       navigate(getWorkspacePath());
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       debugLog('Connect', 'Error connecting to server:', error);
       debugLog('Connect', 'Connection error details:', errorMessage);
       toast({

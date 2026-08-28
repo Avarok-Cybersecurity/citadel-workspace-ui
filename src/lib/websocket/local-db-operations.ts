@@ -123,7 +123,7 @@ export class LocalDBOperations {
           // []. So this returned NO keys — and message-pagination-store reads
           // its persisted page index through here, meaning a reload found no
           // stored history and silently started from empty.
-          let keys = wireMapEntries<unknown>(r.LocalDBGetAllKVSuccess.map, 'LocalDBGetAllKV.map')
+          let keys: string[] = wireMapEntries<unknown>(r.LocalDBGetAllKVSuccess.map, 'LocalDBGetAllKV.map')
             .map(([key]) => key);
           if (prefix) {
             keys = keys.filter(k => k.startsWith(prefix));

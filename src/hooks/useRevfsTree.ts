@@ -24,7 +24,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
 
   const key = myCid && peerCid ? peerPairKey(myCid, peerCid) : null;
 
-  const storageUsed = useMemo(() => {
+  const storageUsed: number = useMemo(() => {
     if (!tree) return 0;
     return calculateStorageUsage(tree, TreeScope.Peer);
   }, [tree]);
@@ -47,7 +47,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     setLoading(true);
     setError(null);
     try {
-      const t = await revfsService.getTree(myCid, peerCid);
+      const t: RevfsNode = await revfsService.getTree(myCid, peerCid);
       setTree(t);
     } catch (err) {
       setError(String(err));

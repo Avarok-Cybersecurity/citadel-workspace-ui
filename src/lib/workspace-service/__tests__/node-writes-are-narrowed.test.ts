@@ -24,7 +24,7 @@ import { stripComments } from '@/test-utils/strip-comments';
  * than derived, because the fact lives in the Rust command processor and a
  * derived list would silently shrink if the grep stopped matching.
  */
-const BROADCAST_WRITES = new Set([
+const BROADCAST_WRITES: Set<string> = new Set([
   'CreateNode',
   'UpdateNode',
   'DeleteNode',
@@ -37,15 +37,15 @@ const BROADCAST_WRITES = new Set([
   'UpdateMemberRole',
 ]);
 
-const DIR = join(process.cwd(), 'src/lib/workspace-service');
+const DIR: string = join(process.cwd(), 'src/lib/workspace-service');
 
 describe('writes whose answer is also broadcast', () => {
   it('all narrow on the payload', async () => {
-    const files = await fg(['**/*.ts'], { cwd: DIR, ignore: ['__tests__/**'] });
+    const files: string[] = await fg(['**/*.ts'], { cwd: DIR, ignore: ['__tests__/**'] });
 
     const offenders: string[] = [];
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(DIR, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(DIR, rel), 'utf-8'));
       for (const match of source.matchAll(/awaitWriteResponse\(\s*'(\w+)'([\s\S]*?)\)\s*;/g)) {
         const [, requestType, rest] = match;
         if (!BROADCAST_WRITES.has(requestType)) continue;
@@ -65,7 +65,7 @@ describe('writes whose answer is also broadcast', () => {
   });
 
   it('names request types that actually exist', async () => {
-    const gate = readFileSync(join(DIR, 'await-write-response.ts'), 'utf-8');
+    const gate: string = readFileSync(join(DIR, 'await-write-response.ts'), 'utf-8');
     for (const requestType of BROADCAST_WRITES) {
       expect(gate, `${requestType} is not a mapped write`).toContain(`${requestType}:`);
     }

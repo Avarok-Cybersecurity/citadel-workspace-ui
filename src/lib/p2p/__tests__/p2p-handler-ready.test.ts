@@ -83,7 +83,7 @@ describe('holding messages until the P2P handler attaches', () => {
     const delivered: unknown[] = [];
     setP2PReplay((m) => delivered.push(m));
 
-    for (let i = 0; i < 70; i += 1) holdUntilP2PHandlerAttached({ id: i });
+    for (let i: number = 0; i < 70; i += 1) holdUntilP2PHandlerAttached({ id: i });
     markP2PMessageHandlerAttached();
 
     // Capped at 64; if this many piled up the handler is not coming soon and

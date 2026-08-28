@@ -59,7 +59,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
    * Sync state with service cache
    */
   const syncWithService = useCallback(() => {
-    const cached = permissionsService.getAllCachedPermissions();
+    const cached: Map<string, DomainPermissions> = permissionsService.getAllCachedPermissions();
     setPermissions(new Map(cached));
   }, []);
 
@@ -77,7 +77,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       return result;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
+      const message: string = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
       debugLog('PermissionsContext', 'Error fetching permissions:', err);
       return null;
@@ -94,7 +94,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       await fetchPermissionsForDomain(domainId);
     } else {
       // Refresh all cached domains
-      const cached = permissionsService.getAllCachedPermissions();
+      const cached: Map<string, DomainPermissions> = permissionsService.getAllCachedPermissions();
       setLoading(true);
       try {
         await Promise.all(
@@ -102,7 +102,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         );
         syncWithService();
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to refresh permissions';
+        const message: string = err instanceof Error ? err.message : 'Failed to refresh permissions';
         setError(message);
       } finally {
         setLoading(false);
@@ -185,7 +185,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Context value (memoized to prevent unnecessary re-renders)
    */
-  const value = useMemo<PermissionsContextType>(() => ({
+  const value: PermissionsContextType = useMemo<PermissionsContextType>(() => ({
     permissions,
     loading,
     error,

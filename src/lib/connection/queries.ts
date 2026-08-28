@@ -57,11 +57,11 @@ export async function getActiveSessionsResult(
     return pending;
   }
 
-  const fetchPromise = fetchActiveSessions(state, io);
+  const fetchPromise: Promise<ActiveSessionsResult> = fetchActiveSessions(state, io);
   state.setPendingGetSessions(fetchPromise);
 
   try {
-    const result = await fetchPromise;
+    const result: ActiveSessionsResult = await fetchPromise;
     // A failure is not an answer, so it is not cached. It used to be: one
     // timeout produced an empty list that every later call returned instantly
     // for the whole cache window, without re-asking. That is what turned a
@@ -132,7 +132,7 @@ export async function getTabActiveSessionIndex(
 ): Promise<number> {
   const tabSelection = await io.getSelectedUser();
   if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {
-    const index = state.findSessionIndex(
+    const index: number = state.findSessionIndex(
       tabSelection.selectedUsername,
       tabSelection.selectedServerAddress
     );
@@ -153,7 +153,7 @@ export async function handleConnectFailure(
   getActiveSessionsFn: () => Promise<ActiveSession[]>,
 ): Promise<void> {
   debugLog('ConnectionService', 'ConnectionManager: Received ConnectFailure:', failure);
-  const errorMessage = failure.message || '';
+  const errorMessage: string = failure.message || '';
 
   if (!errorMessage.toLowerCase().includes('session already connected')) {
     return;
@@ -170,10 +170,10 @@ export async function handleConnectFailure(
 
   debugLog('ConnectionService', 'ConnectionManager: No CID in error message, fetching active sessions...');
   try {
-    const activeSessions = await getActiveSessionsFn();
+    const activeSessions: ActiveSession[] = await getActiveSessionsFn();
     debugLog('ConnectionService', 'ConnectionManager: Active sessions after error:', activeSessions);
 
-    const activeIndex = state.getActiveSessionIndex();
+    const activeIndex: number = state.getActiveSessionIndex();
     const currentSession = state.storedSessions.sessions[activeIndex];
 
     const matchingSession = activeSessions.find(

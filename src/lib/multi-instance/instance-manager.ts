@@ -64,7 +64,7 @@ class InstanceManager {
     const stored = sessionGet(INSTANCE_ID_KEY);
     if (stored) return stored;
 
-    const minted = mintInstanceId();
+    const minted: string = mintInstanceId();
     if (!sessionSet(INSTANCE_ID_KEY, minted)) {
       // Storage refused. The id still has to be stable for this document, or
       // leader election re-rolls it on every read and no tab ever wins.
@@ -90,7 +90,7 @@ class InstanceManager {
    * makes them distinguishable so exactly one wins.
    */
   reissueInstanceId(): string {
-    const replacement = mintInstanceId();
+    const replacement: string = mintInstanceId();
     if (!sessionSet(INSTANCE_ID_KEY, replacement)) {
       // Storage refused; the reissue must still take effect for this document.
       this.inMemoryInstanceId = replacement;
@@ -237,7 +237,7 @@ class InstanceManager {
 }
 
 // Export singleton instance
-export const instanceManager = InstanceManager.getInstance();
+export const instanceManager: InstanceManager = InstanceManager.getInstance();
 
 // Also export class for testing
 export { InstanceManager };

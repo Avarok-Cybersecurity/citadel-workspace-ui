@@ -30,7 +30,7 @@ export function VFSRenameInput({
     if (inputRef.current) {
       inputRef.current.focus();
       if (!isDirectory && currentName.includes('.')) {
-        const dotIndex = currentName.lastIndexOf('.');
+        const dotIndex: number = currentName.lastIndexOf('.');
         inputRef.current.setSelectionRange(0, dotIndex);
       } else {
         inputRef.current.select();
@@ -55,7 +55,7 @@ export function VFSRenameInput({
   }, []);
 
   const handleConfirm = useCallback(() => {
-    const trimmed = value.trim();
+    const trimmed: string = value.trim();
     const validationError = validate(trimmed);
     if (validationError) {
       setError(validationError);

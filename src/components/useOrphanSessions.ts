@@ -63,7 +63,7 @@ export function useOrphanSessions() {
       if (!ok) return;
       const storedSessions = connectionManager.getStoredSessions();
 
-      const sessionsWithWorkspace = withWorkspaceNames(
+      const sessionsWithWorkspace: OrphanSessionWithWorkspace[] = withWorkspaceNames(
         activeSessions,
         storedSessions.sessions,
         readLastAccessed,
@@ -163,10 +163,10 @@ export function useOrphanSessions() {
   const handleConfirmDisconnect = async (action: DisconnectAction) => {
     if (!disconnectTarget) return;
 
-    const workspaceName = disconnectTarget.workspaceName;
-    const cid = disconnectTarget.session.cid;
-    const username = disconnectTarget.session.username;
-    const serverAddress = disconnectTarget.session.server_address;
+    const workspaceName: string = disconnectTarget.workspaceName;
+    const cid: bigint = disconnectTarget.session.cid;
+    const username: string = disconnectTarget.session.username;
+    const serverAddress: string = disconnectTarget.session.server_address;
 
     setDisconnectTarget(null);
     setLoadingModal({ open: true, status: "disconnecting", workspaceName });

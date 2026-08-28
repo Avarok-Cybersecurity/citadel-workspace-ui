@@ -45,7 +45,7 @@ export function VFSToolbar({
   onSortChange,
   selectionCount = 0,
 }: VFSToolbarProps) {
-  const segments = currentPath.split('/').filter(Boolean);
+  const segments: string[] = currentPath.split('/').filter(Boolean);
 
   const handleSortClick = (field: SortField) => {
     if (!onSortChange) return;
@@ -68,7 +68,7 @@ export function VFSToolbar({
           <span>Root</span>
         </button>
         {segments.map((seg, i) => {
-          const path = '/' + segments.slice(0, i + 1).join('/');
+          const path: string = '/' + segments.slice(0, i + 1).join('/');
           return (
             <span key={path} className="flex items-center gap-1 shrink-0">
               <ChevronRight className="h-3 w-3 text-muted-foreground" />

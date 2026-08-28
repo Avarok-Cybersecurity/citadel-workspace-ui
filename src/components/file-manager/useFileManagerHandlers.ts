@@ -67,7 +67,7 @@ export function useFileManagerHandlers({
     // usePrompt resolves null on cancel or an empty name, exactly as the native
     // prompt did, so this guard is unchanged.
     if (!name?.trim()) return;
-    const path = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
+    const path: string = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
     mkdir(path).catch(err => toast.error(`Failed to create folder: ${err}`));
   }, [mkdir, prompt]);
 
@@ -81,7 +81,7 @@ export function useFileManagerHandlers({
     });
     if (!ok) return;
 
-    const removal = isDirectory ? rmdir(node.path) : removeFile(node.path);
+    const removal: Promise<void> = isDirectory ? rmdir(node.path) : removeFile(node.path);
     removal.catch(err => toast.error(`Failed to delete: ${err}`));
   }, [rmdir, removeFile, confirm]);
 
@@ -149,7 +149,7 @@ export function useFileManagerHandlers({
   }, [hasPasteItems, currentTreeKey, clipboard, isCut, move, copy, clearClipboard]);
 
   const handleDeleteMultiple = useCallback(async (nodes: RevfsNode[]) => {
-    const count = nodes.length;
+    const count: number = nodes.length;
     const ok = await confirm({
       title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
       description: 'Any folders in the selection are deleted with their contents. This cannot be undone.',
@@ -172,8 +172,8 @@ export function useFileManagerHandlers({
       setRevfsDisabledModalOpen(true);
       return;
     }
-    const fileArray = Array.from(files);
-    const totalSize = fileArray.reduce((sum, file) => sum + file.size, 0);
+    const fileArray: File[] = Array.from(files);
+    const totalSize: number = fileArray.reduce((sum, file) => sum + file.size, 0);
     if (totalSize > storageQuota - storageUsed) {
       setAttemptedFileSize(totalSize);
       setStorageLimitModalOpen(true);
@@ -184,7 +184,7 @@ export function useFileManagerHandlers({
         // The file's CONTENTS, which this never read. Only name, size and type
         // were passed on, so the upload described a file whose bytes never left
         // the page — and the toast below still said "Uploaded".
-        const content = new Uint8Array(await file.arrayBuffer());
+        const content: Uint8Array<ArrayBuffer> = new Uint8Array(await file.arrayBuffer());
         await uploadFile(
           targetPath,
           file.name,

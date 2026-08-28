@@ -22,7 +22,7 @@ import { MemberRow, ROLE_COLORS } from './MemberRow';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
   const { toast } = useToast();
-  const deadlineKey = `admin-members:${entityId}`; // per entity: modals must not clash
+  const deadlineKey: string = `admin-members:${entityId}`; // per entity: modals must not clash
   const [members, setMembers] = useState<MemberData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);

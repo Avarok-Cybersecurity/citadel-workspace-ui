@@ -44,7 +44,7 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
     };
   }, [stream]);
 
-  const label = isSelf ? 'You' : participant.username;
+  const label: string = isSelf ? 'You' : participant.username;
 
   return (
     <div

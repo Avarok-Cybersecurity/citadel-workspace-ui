@@ -46,8 +46,8 @@ export function mergeMessages(existing: P2PMessage[], incoming: P2PMessage[]): P
  * Returns the previous array reference if no new messages were added.
  */
 export function prependMessages(existing: P2PMessage[], older: P2PMessage[]): P2PMessage[] {
-  const existingIds = new Set(existing.map(m => m.id));
-  const newMessages = older.filter(m => !existingIds.has(m.id));
+  const existingIds: Set<string> = new Set(existing.map(m => m.id));
+  const newMessages: P2PMessage[] = older.filter(m => !existingIds.has(m.id));
   if (newMessages.length === 0) return existing;
   return [...newMessages, ...existing].sort((a, b) => a.timestamp - b.timestamp);
 }

@@ -26,7 +26,7 @@ export function MoveNodeDialog({
   onClose: () => void;
 }) {
   const [moving, setMoving] = useState(false);
-  const targets = useMemo(
+  const targets: DomainNode[] = useMemo(
     () => (node ? moveTargets(nodes, node.id) : []),
     [node, nodes],
   );

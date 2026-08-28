@@ -33,10 +33,10 @@ describe('withPeerLock', () => {
   it('reads the shared value each operation actually wrote, not a stale copy', async () => {
     // A direct model of the bug: load, await, mutate, save. Unserialised, both
     // read 0 and the total ends at 1 instead of 2.
-    let stored = 0;
+    let stored: number = 0;
     const increment = () =>
       withPeerLock(7n, async () => {
-        const seen = stored;
+        const seen: number = stored;
         await tick(5);
         stored = seen + 1;
       });
@@ -48,12 +48,12 @@ describe('withPeerLock', () => {
 
   it('lets different peers proceed concurrently', async () => {
     const events: string[] = [];
-    const slow = withPeerLock(1n, async () => {
+    const slow: Promise<void> = withPeerLock(1n, async () => {
       events.push('slow:start');
       await tick(20);
       events.push('slow:end');
     });
-    const fast = withPeerLock(2n, async () => {
+    const fast: Promise<void> = withPeerLock(2n, async () => {
       events.push('fast:start');
       events.push('fast:end');
     });

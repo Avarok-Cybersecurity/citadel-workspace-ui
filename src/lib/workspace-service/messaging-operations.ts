@@ -17,7 +17,7 @@ import { awaitWriteResponse } from './await-write-response';
  * Send a message via workspace protocol
  */
 export async function sendMessage(sender: ProtocolSender, contents: Uint8Array): Promise<void> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     Message: { contents: new Uint8Array(contents) }
   } as WorkspaceProtocolRequestTS;
   return sender.sendProtocolRequest(requestPart);

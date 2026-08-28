@@ -59,11 +59,11 @@ export const MembersSection = () => {
   const { registeredPeers } = useRegisteredPeers();
   const { peersWithConversations } = useConversationPeers({ registeredPeers });
 
-  const conversationPeerCids = new Set(peersWithConversations.map(c => c.peerCid));
+  const conversationPeerCids: Set<string> = new Set(peersWithConversations.map(c => c.peerCid));
   const filteredRegisteredPeers = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
 
   const updatePendingCount = useCallback(async () => {
-    const count = await peerRegistrationStore.getPendingCount();
+    const count: number = await peerRegistrationStore.getPendingCount();
     setPendingRequestCount(count);
   }, []);
 
@@ -83,8 +83,8 @@ export const MembersSection = () => {
   const handleEditMember = (m: WorkspaceMember) => { setSelectedMember(m); setShowEditModal(true); };
   const handleRemoveMember = (m: WorkspaceMember) => { setSelectedMember(m); setShowRemoveModal(true); };
   const handleManagePermissions = (member: WorkspaceMember) => {
-    let domainId = WORKSPACE_ROOT_ID;
-    let domainType = 'workspace';
+    let domainId: string = WORKSPACE_ROOT_ID;
+    let domainType: string = 'workspace';
     if (currentNodeId) {
       domainId = currentNodeId;
       const node = state.nodes[currentNodeId];

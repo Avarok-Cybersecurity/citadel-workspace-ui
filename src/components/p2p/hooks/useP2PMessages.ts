@@ -38,7 +38,7 @@ export function useP2PMessages({
   const [hasMorePages, setHasMorePages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const messenger = P2PMessengerManager.getInstance();
+  const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
   const confirm = useConfirm();
 
   // Main effect for conversation loading and subscriptions
@@ -54,7 +54,7 @@ export function useP2PMessages({
 
       const metadata = await messenger.getConversationMetadata(peerCid);
       if (metadata) {
-        const latestMessages = await messenger.loadLatestMessages(peerCid);
+        const latestMessages: P2PMessage[] = await messenger.loadLatestMessages(peerCid);
         if (latestMessages.length > 0) {
           setMessages(prev => mergeMessages(prev, latestMessages));
         }
@@ -129,13 +129,13 @@ export function useP2PMessages({
       const olderPage = await messenger.loadMessagePage(peerCid, currentPage - 1);
       if (olderPage && olderPage.messages.length > 0) {
         const scrollElement = scrollRef.current;
-        const previousScrollHeight = scrollElement?.scrollHeight || 0;
+        const previousScrollHeight: number = scrollElement?.scrollHeight || 0;
 
         setMessages(prev => prependMessages(prev, olderPage.messages));
 
         requestAnimationFrame(() => {
           if (scrollElement) {
-            const newScrollHeight = scrollElement.scrollHeight;
+            const newScrollHeight: number = scrollElement.scrollHeight;
             scrollElement.scrollTop = newScrollHeight - previousScrollHeight;
           }
         });

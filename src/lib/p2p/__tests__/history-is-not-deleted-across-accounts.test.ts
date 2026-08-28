@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const deleted: string[] = [];
-const stored = new Map<string, string>();
+const stored: Map<string, string> = new Map<string, string>();
 
 vi.mock('../../websocket-service', () => ({
   websocketService: {

@@ -25,26 +25,26 @@ function zIndex(className: string): number {
   return plain ? Number(plain[1]) : 0;
 }
 
-const banner = src('components/pwa/OfflineBanner.tsx');
+const banner: string = src('components/pwa/OfflineBanner.tsx');
 // Matched on `fixed inset-x-0`, not on the offset. The offset is now
 // `top-[var(--app-header-height,0px)]` so the banner sits below the header where
 // there is one and at the top of the header-less landing page — and pinning this
 // regex to `top-14` meant a correct change to the offset silently zeroed the
 // z-index it extracts, which is the failure mode this whole file guards against.
-const bannerZ = zIndex(banner.match(/'fixed inset-x-0 [^']*'/)?.[0] ?? '');
+const bannerZ: number = zIndex(banner.match(/'fixed inset-x-0 [^']*'/)?.[0] ?? '');
 
 describe('offline banner layering', () => {
   it('outranks the opaque workspace loader', () => {
-    const loader = src('components/ui/workspace-loader-ui.tsx');
-    const loaderZ = zIndex(loader.match(/fixed inset-0[^"]*/)?.[0] ?? '');
+    const loader: string = src('components/ui/workspace-loader-ui.tsx');
+    const loaderZ: number = zIndex(loader.match(/fixed inset-0[^"]*/)?.[0] ?? '');
 
     expect(loaderZ).toBeGreaterThan(0);
     expect(bannerZ).toBeGreaterThan(loaderZ);
   });
 
   it('outranks the blocking LoadingModal', () => {
-    const modal = src('components/LoadingModal.tsx');
-    const modalZ = zIndex(modal.match(/fixed inset-0 z-\[?\d+\]?/)?.[0] ?? '');
+    const modal: string = src('components/LoadingModal.tsx');
+    const modalZ: number = zIndex(modal.match(/fixed inset-0 z-\[?\d+\]?/)?.[0] ?? '');
 
     expect(modalZ).toBeGreaterThan(0);
     expect(bannerZ).toBeGreaterThan(modalZ);
@@ -61,7 +61,7 @@ describe('offline banner layering', () => {
     expect(banner).toContain('--offline-banner-height');
 
     // Both panes: the banner spans the full width, so the sidebar is covered too.
-    const layout = src('components/layout/AppLayout.tsx');
+    const layout: string = src('components/layout/AppLayout.tsx');
     const reserving = layout.match(/pt-\[calc\(3\.5rem\+var\(--offline-banner-height[^\]]*\]/g) ?? [];
     expect(reserving.length).toBe(2);
   });

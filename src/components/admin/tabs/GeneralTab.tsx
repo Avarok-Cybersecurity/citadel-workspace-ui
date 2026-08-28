@@ -32,7 +32,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
     //
     // An untouched form still follows the store, which is what makes a genuine
     // remote rename visible. Only unsaved edits are protected.
-    const entityKey = `${entityType}:${entityId}`;
+    const entityKey: string = `${entityType}:${entityId}`;
     if (seededKeyRef.current === entityKey && dirtyRef.current) return;
     seededKeyRef.current = entityKey;
 

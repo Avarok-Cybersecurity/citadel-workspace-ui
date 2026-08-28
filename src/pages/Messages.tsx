@@ -27,10 +27,10 @@ const Messages = () => {
   // Get current user info
   const connectionInfo = connectionManager.getConnectionInfo();
   const currentUserCid = connectionInfo?.cid;
-  const currentUserName = connectionInfo?.username || 'You';
+  const currentUserName: string = connectionInfo?.username || 'You';
 
   // Resolve peer CID to username
-  const selectedPeerName = useMemo(() => {
+  const selectedPeerName: string = useMemo(() => {
     if (!selectedPeerCid) return '';
     const peer = registeredPeers.find(p => p.cid === selectedPeerCid);
     const username = peer && peer.username !== 'Unknown' ? peer.username : undefined;

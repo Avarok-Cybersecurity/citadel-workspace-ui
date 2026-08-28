@@ -34,7 +34,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     //
     // An untouched form still follows the store, which is what makes a genuine
     // remote rename visible. Only unsaved edits are protected.
-    const entityKey = `${entityType}:${entityId}`;
+    const entityKey: string = `${entityType}:${entityId}`;
     if (seededKeyRef.current === entityKey && dirtyRef.current) return;
     seededKeyRef.current = entityKey;
 
@@ -45,7 +45,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
         // disagree with what the rest of the app shows.
         const node = state.nodes[entityId];
         const enabled = node ? node.chat_enabled : true;
-        const rules = node?.rules ?? '';
+        const rules: string = node?.rules ?? '';
 
         setChatEnabled(enabled);
         setChatRules(rules);

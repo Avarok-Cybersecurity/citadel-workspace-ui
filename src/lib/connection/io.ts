@@ -83,4 +83,4 @@ export class ConnectionIO {
 }
 
 // Export singleton instance
-export const connectionIO = new ConnectionIO();
+export const connectionIO: ConnectionIO = new ConnectionIO();

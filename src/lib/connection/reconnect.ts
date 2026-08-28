@@ -33,7 +33,7 @@ export async function attemptLeaderConnection(
     return;
   }
 
-  const activeSessions = await getActiveSessions();
+  const activeSessions: ActiveSession[] = await getActiveSessions();
   await doAutoReconnect(activeSessions);
 }
 
@@ -67,14 +67,14 @@ export async function autoReconnect(
 
   if (!session) return;
 
-  const connectionKey = state.createConnectionKey(session.username, session.serverAddress);
+  const connectionKey: string = state.createConnectionKey(session.username, session.serverAddress);
   if (state.hasConnectionAttempt(connectionKey)) {
     debugLog('ConnectionService', `ConnectionManager: Connection already in progress for ${connectionKey}`);
     return;
   }
 
   // Check if session is already active
-  const freshActiveSessions = await getActiveSessions();
+  const freshActiveSessions: ActiveSession[] = await getActiveSessions();
   const alreadyActive = freshActiveSessions.find(
     (s) => s.username === session!.username && s.server_address === session!.serverAddress
   );
@@ -167,7 +167,7 @@ async function handleAutoReconnectError(
   io.updateConnectionService({ cid: null, isConnected: false });
   io.broadcastConnectionStatus({ isConnected: false });
 
-  const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const errorMessage: string = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (
     errorMessage.includes('session already connected') ||
     errorMessage.includes('localhost is already trying to connect')
@@ -178,8 +178,8 @@ async function handleAutoReconnectError(
   }
 
   if (!state.hasReachedMaxReconnectAttempts()) {
-    const attempts = state.incrementReconnectAttempts();
-    const delay = state.calculateBackoffDelay(attempts, MAX_RECONNECT_DELAY_MS);
+    const attempts: number = state.incrementReconnectAttempts();
+    const delay: number = state.calculateBackoffDelay(attempts, MAX_RECONNECT_DELAY_MS);
     debugLog('ConnectionService', `ConnectionManager: Will retry in ${delay}ms (attempt ${attempts}/${state.maxReconnectAttempts})`);
 
     setTimeout(async () => {
@@ -199,7 +199,7 @@ async function handleSessionAlreadyConnectedError(
 ): Promise<void> {
   debugLog('ConnectionService', 'ConnectionManager: Session already connected error - likely stale session');
 
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage: string = error instanceof Error ? error.message : String(error);
   const extractedCid = state.extractCidFromErrorMessage(errorMessage);
   if (extractedCid) {
     io.emitEvent('session-already-connected', { cid: extractedCid, message: errorMessage });
@@ -207,7 +207,7 @@ async function handleSessionAlreadyConnectedError(
   }
 
   try {
-    const sessions = await getActiveSessions();
+    const sessions: ActiveSession[] = await getActiveSessions();
     const match = sessions.find(
       (s) => s.username === session.username && s.server_address === session.serverAddress
     );

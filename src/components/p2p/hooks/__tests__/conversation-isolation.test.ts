@@ -28,10 +28,10 @@ describe('mergeMessages offers no peer isolation', () => {
   it('interleaves two peers by timestamp when handed a stale array', () => {
     // Documents the hazard rather than endorsing it: this is exactly what
     // happened on every conversation switch before the components were keyed.
-    const stale = [msg('a1', ALICE, 100), msg('a2', ALICE, 300)];
-    const incoming = [msg('b1', BOB, 200)];
+    const stale: P2PMessage[] = [msg('a1', ALICE, 100), msg('a2', ALICE, 300)];
+    const incoming: P2PMessage[] = [msg('b1', BOB, 200)];
 
-    const merged = mergeMessages(stale, incoming);
+    const merged: P2PMessage[] = mergeMessages(stale, incoming);
 
     expect(merged.map((m) => m.id)).toEqual(['a1', 'b1', 'a2']);
     expect(merged.some((m) => m.senderCid === ALICE)).toBe(true);
@@ -40,14 +40,14 @@ describe('mergeMessages offers no peer isolation', () => {
   it('starts clean when the previous conversation left nothing behind', () => {
     // The keyed-component case: a fresh mount has an empty array, so the new
     // peer's thread contains only the new peer's messages.
-    const merged = mergeMessages([], [msg('b1', BOB, 200)]);
+    const merged: P2PMessage[] = mergeMessages([], [msg('b1', BOB, 200)]);
 
     expect(merged.map((m) => m.id)).toEqual(['b1']);
     expect(merged.every((m) => m.senderCid === BOB)).toBe(true);
   });
 
   it('deduplicates by id, so a resend of the same message is not doubled', () => {
-    const merged = mergeMessages([msg('b1', BOB, 200)], [msg('b1', BOB, 200)]);
+    const merged: P2PMessage[] = mergeMessages([msg('b1', BOB, 200)], [msg('b1', BOB, 200)]);
     expect(merged).toHaveLength(1);
   });
 });

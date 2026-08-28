@@ -20,7 +20,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   maxRetries = 10,
   maxBackoffSeconds = 300
 }) => {
-  const userFriendlyError = errorMessage ? getUserFriendlyErrorMessage(errorMessage) : "Unable to connect to the workspace server.";
+  const userFriendlyError: string = errorMessage ? getUserFriendlyErrorMessage(errorMessage) : "Unable to connect to the workspace server.";
   const [hasInitialized, setHasInitialized] = useState(false);
   const { toast } = useToast();
 

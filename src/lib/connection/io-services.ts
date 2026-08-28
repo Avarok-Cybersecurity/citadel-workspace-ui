@@ -31,7 +31,7 @@ export class ConnectionIOServices {
     isConnected: boolean;
     userContext?: TabSelectionContext;
   }): void {
-    const connectionService = ConnectionService.getInstance();
+    const connectionService: ConnectionService = ConnectionService.getInstance();
     connectionService.updateConnectionStatus(status);
   }
 

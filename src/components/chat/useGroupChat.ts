@@ -198,7 +198,7 @@ export function useGroupChat(groupId: string) {
   // `inputValue` lives in this hook, so without the memo the entire thread was
   // regrouped on every keystroke — and `formatDate` builds three Date objects
   // per message. A long thread made typing visibly lag.
-  const messagesByDate = useMemo(() => groupMessagesByDate(messages), [messages]);
+  const messagesByDate: Record<string, GroupMessage[]> = useMemo(() => groupMessagesByDate(messages), [messages]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (shouldSendOnKey(e)) {

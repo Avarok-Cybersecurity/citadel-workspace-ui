@@ -45,7 +45,7 @@ export const Landing = () => {
     const checkOrphanSessions = async () => {
       try {
         // Get the connection manager instance
-        const connectionManager = ConnectionManager.getInstance();
+        const connectionManager: ConnectionManager = ConnectionManager.getInstance();
 
         // Wait for connection manager to be ready before getting sessions
         // This prevents race conditions during component initialization
@@ -91,7 +91,7 @@ export const Landing = () => {
     } catch (error: unknown) {
       // Silently ignore initialization errors on the landing page
       // The WebSocket service will be initialized when needed
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       if (errorMessage?.includes('WASM client not initialized')) {
         debugLog('Landing', 'WebSocket not yet initialized, skipping known servers check');
       } else {

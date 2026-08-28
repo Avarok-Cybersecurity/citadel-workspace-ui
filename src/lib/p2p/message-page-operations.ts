@@ -34,7 +34,7 @@ import { debugLog } from '@/lib/debug-config';
  * was never applied to the two functions where getting it wrong loses data.
  */
 function isGenuinelyAbsent(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
+  const message: string = error instanceof Error ? error.message : String(error);
   return message.includes('Key not found') || message.includes('No keys found');
 }
 
@@ -42,7 +42,7 @@ export async function loadMetadataByKey(key: string): Promise<ConversationMetada
   try {
     const response = await websocketService.sendLocalDBGet(0n, key);
     if (response?.value) {
-      const rawValue = response.value;
+      const rawValue: number[] = response.value;
       let valueStr: string;
       if (Array.isArray(rawValue)) {
         valueStr = bytesToString(rawValue);
@@ -103,15 +103,15 @@ async function loadLegacyMessagePage(peerCid: bigint, pageNumber: number): Promi
  * Save metadata for a peer.
  */
 export async function saveMetadata(peerCid: bigint, metadata: ConversationMetadata): Promise<void> {
-  const key = `${conversationPrefix(peerCid)}_metadata`;
+  const key: string = `${conversationPrefix(peerCid)}_metadata`;
   const serializableMetadata = {
     ...metadata,
     peerCid: metadata.peerCid.toString(),
     // Stamped so this record can later be proved ours — see ConversationMetadata.
     ownerCid: metadata.ownerCid === undefined ? undefined : metadata.ownerCid.toString(),
   };
-  const valueStr = JSON.stringify(serializableMetadata);
-  const valueBytes = stringToBytes(valueStr);
+  const valueStr: string = JSON.stringify(serializableMetadata);
+  const valueBytes: number[] = stringToBytes(valueStr);
   await websocketService.sendLocalDBSet(0n, key, valueBytes);
 }
 
@@ -130,7 +130,7 @@ async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
   try {
     const response = await websocketService.sendLocalDBGet(0n, key);
     if (response?.value) {
-      const rawValue = response.value;
+      const rawValue: number[] = response.value;
       let valueStr: string;
       if (Array.isArray(rawValue)) {
         valueStr = bytesToString(rawValue);
@@ -166,7 +166,7 @@ async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
  * Save a page of messages for a peer.
  */
 export async function saveMessagePage(peerCid: bigint, pageNumber: number, page: MessagePage): Promise<void> {
-  const key = `${conversationPrefix(peerCid)}_${pageNumber}`;
+  const key: string = `${conversationPrefix(peerCid)}_${pageNumber}`;
   const serializablePage = {
     ...page,
     peerCid: page.peerCid.toString(),
@@ -176,8 +176,8 @@ export async function saveMessagePage(peerCid: bigint, pageNumber: number, page:
       recipientCid: m.recipientCid.toString()
     }))
   };
-  const valueStr = JSON.stringify(serializablePage);
-  const valueBytes = stringToBytes(valueStr);
+  const valueStr: string = JSON.stringify(serializablePage);
+  const valueBytes: number[] = stringToBytes(valueStr);
   await websocketService.sendLocalDBSet(0n, key, valueBytes);
 }
 

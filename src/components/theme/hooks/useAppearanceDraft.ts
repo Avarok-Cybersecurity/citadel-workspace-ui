@@ -78,10 +78,10 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
     return () => previewTheme(null);
   }, [open, draft, previewTheme]);
 
-  const allThemes = useMemo(() => {
+  const allThemes: WorkspaceTheme[] = useMemo(() => {
     // A custom draft is offered alongside the presets so it can be switched back
     // to after trying another one.
-    const customs = draft.isPreset ? [] : [draft];
+    const customs: WorkspaceTheme[] = draft.isPreset ? [] : [draft];
     return [...PRESET_THEMES, ...customs];
   }, [draft]);
 
@@ -95,7 +95,7 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
       setDraft((current) => {
         // Editing a preset copies it first, so presets stay pristine and
         // "put it back" is always available.
-        const editable = beginEdit(current, allThemes.map((t) => t.name));
+        const editable: WorkspaceTheme = beginEdit(current, allThemes.map((t) => t.name));
         return change(editable);
       });
     },

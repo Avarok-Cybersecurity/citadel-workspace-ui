@@ -149,7 +149,7 @@ export function VFSTreeView({
 
   const toggleExpand = useCallback((path: string) => {
     setExpanded(prev => {
-      const next = new Set(prev);
+      const next: Set<string> = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
@@ -180,7 +180,7 @@ export function VFSTreeView({
     }
 
     if (expanded.has(node.path) && node.children) {
-      const dirs = node.children
+      const dirs: RevfsNode[] = node.children
         .filter(c => c.type === 'directory')
         .sort((a, b) => a.name.localeCompare(b.name));
       for (const child of dirs) {

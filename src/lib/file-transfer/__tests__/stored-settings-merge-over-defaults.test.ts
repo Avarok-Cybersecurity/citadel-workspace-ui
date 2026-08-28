@@ -15,14 +15,14 @@ import type { FileTransferSettings } from '../types';
 
 describe('FileTransferState.getSettings', () => {
   it('fills in fields a previous version never saved', () => {
-    const state = new FileTransferState();
+    const state: FileTransferState = new FileTransferState();
 
     // What a user who saved settings before `allowRevfsStorage` and
     // `revfsQuota` existed has sitting in localStorage today.
     const legacy = { autoAccept: true, maxFileSize: 1234, transferMode: 'browser' };
     state.setSettings('42', legacy as unknown as FileTransferSettings);
 
-    const settings = state.getSettings('42');
+    const settings: FileTransferSettings = state.getSettings('42');
 
     // Their own choices survive.
     expect(settings.autoAccept).toBe(true);
@@ -36,12 +36,12 @@ describe('FileTransferState.getSettings', () => {
   });
 
   it('still returns pure defaults for a peer with nothing saved', () => {
-    const state = new FileTransferState();
+    const state: FileTransferState = new FileTransferState();
     expect(state.getSettings('99')).toEqual(FileTransferState.DEFAULT_SETTINGS);
   });
 
   it('does not let a stored value be overridden by its default', () => {
-    const state = new FileTransferState();
+    const state: FileTransferState = new FileTransferState();
     state.setSettings('7', {
       ...FileTransferState.DEFAULT_SETTINGS,
       allowRevfsStorage: false,

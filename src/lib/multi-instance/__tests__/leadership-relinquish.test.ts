@@ -93,7 +93,7 @@ describe('relinquishing leadership', () => {
     // tryBecomeLeader refuses to challenge within LEADER_TIMEOUT_MS of this
     // stamp. Without it the tab that just failed would re-claim, fail again,
     // and spin. Other tabs keep their own clocks and are unaffected.
-    const sinceStamp = Date.now() - (state as { lastLeaderHeartbeat: number }).lastLeaderHeartbeat;
+    const sinceStamp: number = Date.now() - (state as { lastLeaderHeartbeat: number }).lastLeaderHeartbeat;
     expect(sinceStamp).toBeLessThan(INTERVAL.LEADER_TIMEOUT_MS);
   });
 

@@ -48,7 +48,7 @@ describe('initService', () => {
       .fn()
       .mockRejectedValueOnce(new Error('internal service unreachable'))
       .mockResolvedValueOnce({ ok: true });
-    const service = coreWith(create);
+    const service: WebSocketServiceCore = coreWith(create);
 
     await expect(initService(service)).rejects.toThrow('internal service unreachable');
     expect(create).toHaveBeenCalledTimes(1);
@@ -64,10 +64,10 @@ describe('initService', () => {
     let release!: (v: unknown) => void;
     const pending = new Promise((r) => { release = r; });
     const create = vi.fn(() => pending);
-    const service = coreWith(create);
+    const service: WebSocketServiceCore = coreWith(create);
 
-    const a = initService(service);
-    const b = initService(service);
+    const a: Promise<void> = initService(service);
+    const b: Promise<void> = initService(service);
     await Promise.resolve();
     release({ ok: true });
     await Promise.all([a, b]);

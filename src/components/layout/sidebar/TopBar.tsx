@@ -53,7 +53,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   } = useSessionExit();
 
   // Get workspace name from context or fallback to prop
-  const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
+  const workspaceName: string = state.workspace?.name || currentWorkspace || "Citadel Workspace";
 
   // Fallback identity from tab-context — the orphan-claim path doesn't
   // persist a stored-session row, so without this fallback the TopBar
@@ -71,9 +71,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
     return () => { cancelled = true; };
   }, [state.currentUser?.username]);
 
-  const username = state.currentUser?.username || sessionFallback?.username || "User";
-  const name = state.currentUser?.name || sessionFallback?.fullName || username;
-  const userInitials = getUserInitials(name);
+  const username: string = state.currentUser?.username || sessionFallback?.username || "User";
+  const name: string = state.currentUser?.name || sessionFallback?.fullName || username;
+  const userInitials: string = getUserInitials(name);
   const avatarUrl = state.currentUser?.avatarUrl;
 
 

@@ -28,7 +28,7 @@ import { UserRoleTS } from '@/types/workspace-types';
 const sender = { sendProtocolRequest: vi.fn(() => Promise.resolve()) } as never;
 
 function countReloads(run: () => Promise<unknown>) {
-  let count = 0;
+  let count: number = 0;
   const off = eventEmitter.on('members:reload', () => { count += 1; });
   return run()
     .catch(() => undefined)

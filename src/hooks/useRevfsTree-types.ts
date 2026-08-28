@@ -5,7 +5,7 @@
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 
 /** Default storage quota: 100 MB */
-export const DEFAULT_QUOTA_BYTES = 100 * 1024 * 1024;
+export const DEFAULT_QUOTA_BYTES: number = 100 * 1024 * 1024;
 
 export interface UseRevfsTreeResult {
   tree: RevfsNode | null;

@@ -91,7 +91,7 @@ export function EntityManagementModal<TMode extends string>({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const visibleFields = fields.filter(
+    const visibleFields: FieldConfig[] = fields.filter(
       f => !f.showInModes || f.showInModes.includes(mode)
     );
     for (const field of visibleFields) {
@@ -121,7 +121,7 @@ export function EntityManagementModal<TMode extends string>({
       // try again, and again. The delete path was given this fix; create and
       // edit never were.
       debugLog('EntityManagementModal', `Error managing ${entityName}:`, error);
-      const reason =
+      const reason: string =
         error instanceof Error && error.message
           ? error.message
           : `The server did not accept the change.`;
@@ -135,7 +135,7 @@ export function EntityManagementModal<TMode extends string>({
     }
   };
 
-  const visibleFields = fields.filter(
+  const visibleFields: FieldConfig[] = fields.filter(
     f => !f.showInModes || f.showInModes.includes(mode)
   );
 

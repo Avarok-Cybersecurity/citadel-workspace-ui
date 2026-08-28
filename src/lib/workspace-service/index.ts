@@ -10,7 +10,7 @@ export { WorkspaceService } from './service';
 
 // Singleton default export for backward compatibility
 import { WorkspaceService } from './service';
-const workspaceService = WorkspaceService.getInstance();
+const workspaceService: WorkspaceService = WorkspaceService.getInstance();
 export default workspaceService;
 
 // Expose for testing - allows protocol-level integration tests

@@ -58,7 +58,7 @@ export function useCompiledMdx(
           return;
         }
 
-        const processedContent = applyGfmStrikethrough(content);
+        const processedContent: string = applyGfmStrikethrough(content);
         const result = await evaluate(processedContent, {
           ...runtime,
           remarkPlugins: [remarkGfm],

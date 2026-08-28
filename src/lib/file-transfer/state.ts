@@ -111,7 +111,7 @@ export class FileTransferState {
     return () => {
       const callbacks = this.progressCallbacks.get(transferId);
       if (callbacks) {
-        const index = callbacks.indexOf(callback);
+        const index: number = callbacks.indexOf(callback);
         if (index !== -1) {
           callbacks.splice(index, 1);
         }

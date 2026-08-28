@@ -50,10 +50,10 @@ export function CreateGroupDialog({
   const [createError, setCreateError] = useState<string | null>(null);
   const [showPeerSelector, setShowPeerSelector] = useState(false);
 
-  const displayName = groupName.trim() || `${currentUsername}'s Group`;
+  const displayName: string = groupName.trim() || `${currentUsername}'s Group`;
 
-  const unselectedPeers = useMemo(() => {
-    const selectedCids = new Set(selectedMembers.map(m => m.cid));
+  const unselectedPeers: AvailablePeer[] = useMemo(() => {
+    const selectedCids: Set<string> = new Set(selectedMembers.map(m => m.cid));
     return availablePeers.filter(p => !selectedCids.has(p.cid));
   }, [availablePeers, selectedMembers]);
 

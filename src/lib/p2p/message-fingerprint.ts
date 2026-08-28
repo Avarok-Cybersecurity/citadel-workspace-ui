@@ -12,7 +12,7 @@
  */
 export function fnv1a64(bytes: Uint8Array): string {
   const M = 0xffffffffffffffffn;
-  let fp = 0xcbf29ce484222325n;
+  let fp: bigint = 0xcbf29ce484222325n;
   for (const b of bytes) fp = ((fp ^ BigInt(b)) * 0x100000001b3n) & M;
   return fp.toString(16).padStart(16, '0');
 }
@@ -28,7 +28,7 @@ export function describeForwarded(payload: unknown): string {
   try {
     if (!payload || typeof payload !== 'object') return 'type=<non-object>';
     const record = payload as Record<string, unknown>;
-    const variant = Object.keys(record)[0] ?? '<empty>';
+    const variant: string = Object.keys(record)[0] ?? '<empty>';
     const body = record[variant] as Record<string, unknown> | undefined;
     const raw = body?.message;
     if (Array.isArray(raw)) return `type=${variant} fp=${fnv1a64(new Uint8Array(raw))}`;

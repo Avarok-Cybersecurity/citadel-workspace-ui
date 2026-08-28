@@ -13,7 +13,7 @@ import type { Notification } from './types';
  * one would make its badge wrong for every other.
  */
 export function unreadCountFor(notifications: Iterable<Notification>, cid: string): number {
-  let count = 0;
+  let count: number = 0;
   for (const notification of notifications) {
     if (!notification.read && notification.recipientCid === cid) count += 1;
   }
@@ -21,7 +21,7 @@ export function unreadCountFor(notifications: Iterable<Notification>, cid: strin
 }
 
 export function unreadCountsByCid(notifications: Iterable<Notification>): Map<string, number> {
-  const counts = new Map<string, number>();
+  const counts: Map<string, number> = new Map<string, number>();
   for (const notification of notifications) {
     if (!notification.read && notification.recipientCid) {
       counts.set(notification.recipientCid, (counts.get(notification.recipientCid) ?? 0) + 1);

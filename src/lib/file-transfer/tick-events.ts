@@ -116,7 +116,7 @@ export function parseTickNotification(
       if (requestId) ctx.foreignRequestIds.add(requestId);
       return null;
     }
-    const objectId = metadata.object_id.toString();
+    const objectId: string = metadata.object_id.toString();
     const transferId = ctx.objectIdToTransferId.get(objectId) ?? resolved;
     if (requestId) {
       if (transferId) ctx.requestIdToTransferId.set(requestId, transferId);

@@ -67,7 +67,7 @@ export function NodeManagementModal({
   const { toast } = useToast();
   const meta = getEntityMetadata(entityType);
   const modes = buildModes(meta.label);
-  const fields = buildFields(meta);
+  const fields: FieldConfig[] = buildFields(meta);
 
   const handleSubmit = async (formData: Record<string, string>) => {
     if (mode === 'create') {

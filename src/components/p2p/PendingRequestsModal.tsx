@@ -37,7 +37,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   // Load pending requests
   const loadRequests = useCallback(async () => {
-    const requests = await peerRegistrationStore.getPendingRequests();
+    const requests: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
     setPendingRequests(requests);
   }, []);
 
@@ -89,8 +89,8 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   const formatTimestamp = (timestamp: number): string => {
     // Sanity check: Flag stale timestamps
-    const MAX_RELATIVE_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
-    const age = Date.now() - timestamp;
+    const MAX_RELATIVE_AGE_MS: number = 24 * 60 * 60 * 1000; // 24 hours
+    const age: number = Date.now() - timestamp;
 
     if (age > MAX_RELATIVE_AGE_MS) {
       // Show absolute date for old requests

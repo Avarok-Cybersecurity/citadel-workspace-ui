@@ -56,8 +56,8 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
         try {
             const metadata = { initialized: true };
-            const metadataBytes = new TextEncoder().encode(JSON.stringify(metadata));
-            const metadataArray = Array.from(metadataBytes);
+            const metadataBytes: Uint8Array<ArrayBuffer> = new TextEncoder().encode(JSON.stringify(metadata));
+            const metadataArray: number[] = Array.from(metadataBytes);
 
             const request: WorkspaceProtocolRequestTS = {
                 UpdateWorkspace: {
@@ -70,7 +70,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
             const payload: WorkspaceProtocolPayloadTS = { Request: request };
 
-            const responsePromise = new Promise<void>((resolve, reject) => {
+            const responsePromise: Promise<void> = new Promise<void>((resolve, reject) => {
                 let unsubscribeWorkspace: (() => void) | null = null;
                 let unsubscribeError: (() => void) | null = null;
                 let timeoutId: NodeJS.Timeout | null = null;
@@ -124,8 +124,8 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             onSuccess();
         } catch (err: unknown) {
             debugLog('WorkspaceInitializationModal', 'Failed to initialize workspace:', err);
-            const errArg = err instanceof Error ? err : String(err);
-            const userFriendlyMessage = getUserFriendlyErrorMessage(errArg);
+            const errArg: string | Error = err instanceof Error ? err : String(err);
+            const userFriendlyMessage: string = getUserFriendlyErrorMessage(errArg);
             setError(userFriendlyMessage);
 
             toast({

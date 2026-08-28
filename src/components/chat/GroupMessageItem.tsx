@@ -57,7 +57,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   const isOwnMessage = Boolean(currentUserName) && currentUserName !== 'You'
     ? message.sender_id === currentUserName
     : false;
-  const initials = getInitials(message.sender_name);
+  const initials: string = getInitials(message.sender_name);
 
   return (
     <div className={cn(

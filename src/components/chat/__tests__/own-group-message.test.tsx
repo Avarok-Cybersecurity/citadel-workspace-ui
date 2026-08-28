@@ -55,7 +55,7 @@ describe('a group message', () => {
   it('offers Edit and Delete on your OWN message', async () => {
     render(<GroupMessageItem {...props} message={message(ALICE)} currentUserName={ALICE} />);
 
-    const items = await menuItems();
+    const items: string[] = await menuItems();
     expect(items.join(' ')).toMatch(/Edit/);
     expect(items.join(' ')).toMatch(/Delete/);
   });
@@ -63,7 +63,7 @@ describe('a group message', () => {
   it("does not offer them on someone else's message", async () => {
     render(<GroupMessageItem {...props} message={message('bob_citadel')} currentUserName={ALICE} />);
 
-    const items = await menuItems();
+    const items: string[] = await menuItems();
     expect(items.join(' ')).toMatch(/Reply/);
     expect(items.join(' ')).not.toMatch(/Edit|Delete/);
   });
@@ -74,7 +74,7 @@ describe('a group message', () => {
     // user called "You" look like the reader's own.
     render(<GroupMessageItem {...props} message={message('You')} currentUserName="You" />);
 
-    const items = await menuItems();
+    const items: string[] = await menuItems();
     expect(items.join(' ')).not.toMatch(/Edit|Delete/);
   });
 });

@@ -73,7 +73,7 @@ function renderControls(value: CallContextValue, roster: GroupCallMember[]) {
 
 describe('GroupCallControls — starting', () => {
   it('starts a video call with the full roster and the room id', async () => {
-    const value = ctx();
+    const value: CallContextValue = ctx();
     renderControls(value, members(3));
 
     await userEvent.click(screen.getByTestId('group-call-start-video'));
@@ -82,7 +82,7 @@ describe('GroupCallControls — starting', () => {
   });
 
   it('starts an audio call with the room id', async () => {
-    const value = ctx();
+    const value: CallContextValue = ctx();
     renderControls(value, members(3));
 
     await userEvent.click(screen.getByTestId('group-call-start-audio'));
@@ -122,7 +122,7 @@ describe('GroupCallControls — joining a call in progress', () => {
   });
 
   it('joins with audio via accept, so both people land in ONE call', async () => {
-    const value = ctx({ call: callState({ status: 'ringing-in' }) });
+    const value: CallContextValue = ctx({ call: callState({ status: 'ringing-in' }) });
     renderControls(value, members(4));
 
     await userEvent.click(screen.getByTestId('group-call-join-audio'));
@@ -132,7 +132,7 @@ describe('GroupCallControls — joining a call in progress', () => {
   });
 
   it('joins with video via the video join button', async () => {
-    const value = ctx({ call: callState({ status: 'ringing-in' }) });
+    const value: CallContextValue = ctx({ call: callState({ status: 'ringing-in' }) });
     renderControls(value, members(4));
 
     await userEvent.click(screen.getByTestId('group-call-join-video'));
@@ -141,9 +141,9 @@ describe('GroupCallControls — joining a call in progress', () => {
   });
 
   it('closes video join when the call is already at the video cap', () => {
-    const participants = new Map<bigint, CallParticipant>();
-    for (let i = 0; i < MAX_VIDEO_PARTICIPANTS; i++) {
-      const cid = BigInt(i + 2);
+    const participants: Map<bigint, CallParticipant> = new Map<bigint, CallParticipant>();
+    for (let i: number = 0; i < MAX_VIDEO_PARTICIPANTS; i++) {
+      const cid: bigint = BigInt(i + 2);
       participants.set(cid, participant(cid));
     }
     renderControls(ctx({ call: callState({ status: 'ringing-in', participants }) }), members(4));
@@ -155,7 +155,7 @@ describe('GroupCallControls — joining a call in progress', () => {
 
 describe('GroupCallControls — in call', () => {
   it('offers only Leave while in this room’s call', async () => {
-    const value = ctx({ call: callState() });
+    const value: CallContextValue = ctx({ call: callState() });
     renderControls(value, members(2));
 
     expect(screen.queryByTestId('group-call-start-audio')).not.toBeInTheDocument();

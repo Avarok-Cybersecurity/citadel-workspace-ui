@@ -23,7 +23,7 @@ afterEach(() => vi.useRealTimers());
 describe('forward retention and ack', () => {
   it('an ack cancels the fallback, so the message is not also processed locally', () => {
     const fallback = vi.fn();
-    const buffer = new OrphanBuffer(fallback, 2000);
+    const buffer: OrphanBuffer = new OrphanBuffer(fallback, 2000);
 
     buffer.push('cid-1', MSG, 'MessageNotification', {
       requestId: 'req-1',
@@ -39,7 +39,7 @@ describe('forward retention and ack', () => {
 
   it('no ack means the leader falls back and names the unresponsive tab', () => {
     const fallback = vi.fn();
-    const buffer = new OrphanBuffer(fallback, 2000);
+    const buffer: OrphanBuffer = new OrphanBuffer(fallback, 2000);
 
     buffer.push('cid-1', MSG, 'MessageNotification', {
       requestId: 'req-1',
@@ -54,7 +54,7 @@ describe('forward retention and ack', () => {
 
   it('an unknown or repeated ack is a harmless no-op', () => {
     const fallback = vi.fn();
-    const buffer = new OrphanBuffer(fallback, 2000);
+    const buffer: OrphanBuffer = new OrphanBuffer(fallback, 2000);
 
     buffer.push('cid-1', MSG, 'MessageNotification', {
       requestId: 'req-1',
@@ -70,7 +70,7 @@ describe('forward retention and ack', () => {
 
   it('acking one forward leaves another for the same CID pending', () => {
     const fallback = vi.fn();
-    const buffer = new OrphanBuffer(fallback, 2000);
+    const buffer: OrphanBuffer = new OrphanBuffer(fallback, 2000);
 
     buffer.push('cid-1', MSG, 'A', { requestId: 'req-1', targetInstanceId: 'tab-b' });
     buffer.push('cid-1', MSG, 'B', { requestId: 'req-2', targetInstanceId: 'tab-b' });
@@ -86,7 +86,7 @@ describe('forward retention and ack', () => {
 
   it('orphan pushes with no forward context still work unchanged', () => {
     const fallback = vi.fn();
-    const buffer = new OrphanBuffer(fallback, 2000);
+    const buffer: OrphanBuffer = new OrphanBuffer(fallback, 2000);
 
     buffer.push('cid-1', MSG, 'MessageNotification');
     vi.advanceTimersByTime(2001);

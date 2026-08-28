@@ -13,7 +13,7 @@ import { useInstallAction } from './use-install-action';
 export function InstallAppButton({ className }: { className?: string }) {
   const { canInstall, needsManualInstall, installNow } = useInstallAction();
 
-  const style =
+  const style: string =
     className ??
     'inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 

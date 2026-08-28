@@ -29,7 +29,7 @@ export { isEnsureMessengerOpenResponse } from './outbound-queue-types';
 // Deliberately shorter than sendToLeader's 30s: this deadline also bounds
 // giving up, so matching it turns a dead leader into a 90s hang. Duplicate
 // execution is prevented at the leader (inFlight). ROBUSTNESS round 153.
-const ACK_TIMEOUT_MS = TIMEOUT.SERVER_REQUEST_MS;
+const ACK_TIMEOUT_MS: 5000 = TIMEOUT.SERVER_REQUEST_MS;
 const MAX_RETRIES = 3;
 const CHECK_INTERVAL_MS = 1000;
 
@@ -89,7 +89,7 @@ class OutboundQueue extends PollingService {
   }
 
   enqueue(payload: unknown, requestId?: string): string {
-    const id = requestId || crypto.randomUUID();
+    const id: string = requestId || crypto.randomUUID();
 
     const message: QueuedMessage = {
       requestId: id,
@@ -122,7 +122,7 @@ class OutboundQueue extends PollingService {
     this.queue.delete(requestId);
     this.stopIfIdle();
 
-    const latency = Date.now() - message.timestamp;
+    const latency: number = Date.now() - message.timestamp;
     debugLog('OutboundQueue', `[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
 
     if (result.status === 'error') {
@@ -153,17 +153,17 @@ class OutboundQueue extends PollingService {
   }
 
   getTimedOut(): QueuedMessage[] {
-    const now = Date.now();
+    const now: number = Date.now();
     return Array.from(this.queue.values()).filter(
       (msg) => now - msg.timestamp > ACK_TIMEOUT_MS
     );
   }
 
   private checkTimeouts(): void {
-    const now = Date.now();
+    const now: number = Date.now();
 
     for (const [requestId, message] of this.queue) {
-      const elapsed = now - message.timestamp;
+      const elapsed: number = now - message.timestamp;
 
       if (elapsed > ACK_TIMEOUT_MS) {
         this.handleTimeout(requestId, message);
@@ -217,11 +217,11 @@ class OutboundQueue extends PollingService {
   }
 
   getStats(): { size: number; oldestMs: number | null } {
-    const now = Date.now();
+    const now: number = Date.now();
     let oldestMs: number | null = null;
 
     for (const message of this.queue.values()) {
-      const age = now - message.timestamp;
+      const age: number = now - message.timestamp;
       if (oldestMs === null || age > oldestMs) {
         oldestMs = age;
       }
@@ -246,5 +246,5 @@ class OutboundQueue extends PollingService {
   }
 }
 
-export const outboundQueue = OutboundQueue.getInstance();
+export const outboundQueue: OutboundQueue = OutboundQueue.getInstance();
 export { OutboundQueue };

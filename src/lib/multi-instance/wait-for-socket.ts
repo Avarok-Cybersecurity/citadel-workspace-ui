@@ -24,7 +24,7 @@ const SOCKET_READY_WINDOW_MS = 1500;
 const POLL_MS = 50;
 
 export async function waitForSocket(read: () => unknown): Promise<boolean> {
-  const deadline = Date.now() + SOCKET_READY_WINDOW_MS;
+  const deadline: number = Date.now() + SOCKET_READY_WINDOW_MS;
 
   while (!read() && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));

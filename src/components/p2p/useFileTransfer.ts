@@ -33,7 +33,7 @@ export function useFileTransfer({
   // regardless of the configured `maxFileSizeMb`. Cap the selection at the
   // lower of the two so the user is told at selection time instead of hitting
   // a late send failure; larger files must go through the native file picker.
-  const maxFileSizeBytes = Math.min(
+  const maxFileSizeBytes: number = Math.min(
     maxFileSizeMb * 1024 * 1024,
     MAX_BYTE_CONTENTS_SIZE_BYTES
   );
@@ -108,7 +108,7 @@ export function useFileTransfer({
     setIsPickingFile(true);
 
     try {
-      const transferId = await fileTransferService.sendFileWithNativePicker(
+      const transferId: string = await fileTransferService.sendFileWithNativePicker(
         peerCid,
         'Select a file to send',
         undefined
@@ -118,7 +118,7 @@ export function useFileTransfer({
       handleRemoveFile();
       onClose();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to pick file';
+      const errorMessage: string = err instanceof Error ? err.message : 'Failed to pick file';
 
       if (errorMessage.includes('native-dialogs feature is disabled') ||
           errorMessage.includes('File picker not available')) {

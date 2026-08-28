@@ -24,7 +24,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const source = readFileSync(
+const source: string = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'initialization.ts'),
   'utf8',
 );
@@ -38,11 +38,11 @@ const source = readFileSync(
  * reason.
  */
 function methodBody(name: string): string {
-  const definition = new RegExp(`\\n  (?:private |public |protected )?(?:async )?${name}\\(`);
+  const definition: RegExp = new RegExp(`\\n  (?:private |public |protected )?(?:async )?${name}\\(`);
   const match = definition.exec(source);
   expect(match, `${name} should be defined`).not.toBeNull();
-  const rest = source.slice(match!.index);
-  const end = rest.indexOf('\n  }\n');
+  const rest: string = source.slice(match!.index);
+  const end: number = rest.indexOf('\n  }\n');
   return rest.slice(0, end === -1 ? rest.length : end);
 }
 

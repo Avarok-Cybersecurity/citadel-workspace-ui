@@ -49,7 +49,7 @@ export function mergeById<T extends HasId>(
   if (winner === 'existing') {
     if (existing.length === 0) return [...incoming];
 
-    const seen = new Set(existing.map((m) => m.id));
+    const seen: Set<string> = new Set(existing.map((m) => m.id));
     const fresh = incoming.filter((m) => !seen.has(m.id));
     if (fresh.length === 0) return existing;
 

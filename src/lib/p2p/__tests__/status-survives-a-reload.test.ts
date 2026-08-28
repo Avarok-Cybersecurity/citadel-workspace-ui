@@ -13,7 +13,7 @@ const PEER = 42n;
 
 function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>) {
   const notifyMessageStatusListeners = vi.fn();
-  const handler = new MessageAckHandler({
+  const handler: MessageAckHandler = new MessageAckHandler({
     // Empty, exactly as it is after a reload.
     getConversations: () => new Map<bigint, P2PConversation>(),
     updateMessageInPages,
@@ -52,9 +52,9 @@ describe('retrying a failed message after a reload', () => {
   it('finds it in storage rather than throwing', async () => {
     const stored = { id: 'm2', status: 'failed', contents: 'hi' };
     const findStoredMessage = vi.fn(async () => stored);
-    const conversation = { messages: [] } as unknown as P2PConversation;
+    const conversation: P2PConversation = { messages: [] } as unknown as P2PConversation;
 
-    const sender = new MessageSender({
+    const sender: MessageSender = new MessageSender({
       findStoredMessage,
       updateMessageInPages: vi.fn(async () => true),
       notifyMessageStatusListeners: vi.fn(),
@@ -76,8 +76,8 @@ describe('retrying a failed message after a reload', () => {
   });
 
   it('still reports a genuinely unknown message', async () => {
-    const conversation = { messages: [] } as unknown as P2PConversation;
-    const sender = new MessageSender({
+    const conversation: P2PConversation = { messages: [] } as unknown as P2PConversation;
+    const sender: MessageSender = new MessageSender({
       findStoredMessage: vi.fn(async () => null),
       getOrCreateConversation: () => conversation,
     } as unknown as ConstructorParameters<typeof MessageSender>[0]);

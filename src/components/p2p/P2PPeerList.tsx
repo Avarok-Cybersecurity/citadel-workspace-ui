@@ -24,13 +24,13 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   const [availablePeers, setAvailablePeers] = useState<Peer[]>([]);
   const [showAvailablePeers, setShowAvailablePeers] = useState(false);
 
-  const messenger = P2PMessengerManager.getInstance();
+  const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
 
   const loadPeers = useCallback(() => {
     const conversations = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
       const lastMessage = conv.messages[conv.messages.length - 1];
-      const peerCidStr = conv.peerCid.toString();
+      const peerCidStr: string = conv.peerCid.toString();
       return {
         cid: peerCidStr,
         name: peerDisplayName({ cid: conv.peerCid, username: conv.peerUsername }),
@@ -157,7 +157,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                 </div>
                 <div className="space-y-1">
                   {availablePeers.map((peer) => {
-                    const peerCidStr = peer.cid.toString();
+                    const peerCidStr: string = peer.cid.toString();
                     return (
                     <Button
                       key={peerCidStr}

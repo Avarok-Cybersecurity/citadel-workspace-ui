@@ -20,7 +20,7 @@
  *
  * The `g` flag is required so `RegExp.exec` advances past each match.
  */
-const CODE_REGION_REGEX = /```[\s\S]*?```|`[^`\n]*`/g;
+const CODE_REGION_REGEX: RegExp = /```[\s\S]*?```|`[^`\n]*`/g;
 
 /**
  * Apply `transform` to every span of text that is NOT inside a code
@@ -33,8 +33,8 @@ export function transformOutsideCode(
   // Reset lastIndex defensively in case the shared regex has state.
   CODE_REGION_REGEX.lastIndex = 0;
 
-  let out = '';
-  let cursor = 0;
+  let out: string = '';
+  let cursor: number = 0;
   let match: RegExpExecArray | null;
   while ((match = CODE_REGION_REGEX.exec(content)) !== null) {
     out += transform(content.slice(cursor, match.index));
@@ -61,7 +61,7 @@ export function transformOutsideCode(
  *
  * Only applied to non-code regions — see `transformOutsideCode`.
  */
-const GFM_STRIKETHROUGH_REGEX = /~~(?=\S)((?:[^\n]|\n(?!\n))*?\S)~~/g;
+const GFM_STRIKETHROUGH_REGEX: RegExp = /~~(?=\S)((?:[^\n]|\n(?!\n))*?\S)~~/g;
 
 /**
  * Escape characters that have JSX/MDX syntactic meaning when they

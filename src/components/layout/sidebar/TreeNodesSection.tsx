@@ -85,11 +85,11 @@ export function TreeNodesSection({
     // Folded, not merely lower-cased: "jose" has to find "José". The sort
     // beside this already uses localeCompare, so without folding a list could
     // show two neighbours one of which the obvious query could not reach.
-    const query = searchQuery;
+    const query: string = searchQuery;
 
     function filterNode(tn: TreeNode): TreeNode | null {
       const nameMatches = matchesSearch(tn.node.name, query);
-      const filteredChildren = tn.children
+      const filteredChildren: TreeNode[] = tn.children
         .map(filterNode)
         .filter((c): c is TreeNode => c !== null);
 
@@ -103,7 +103,7 @@ export function TreeNodesSection({
   }, [treeData, searchQuery]);
 
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
-    const initial = new Set<string>(initialExpandedIds);
+    const initial: Set<string> = new Set<string>(initialExpandedIds);
     if (treeData) {
       initial.add(treeData.node.id);
     }
@@ -126,7 +126,7 @@ export function TreeNodesSection({
     if (hasAutoExpanded.current || !treeData) return;
     hasAutoExpanded.current = true;
     setExpandedNodes((prev) => {
-      const next = new Set(prev);
+      const next: Set<string> = new Set(prev);
       next.add(treeData.node.id);
       for (const child of treeData.children) {
         if (child.children.length > 0) next.add(child.node.id);
@@ -143,9 +143,9 @@ export function TreeNodesSection({
    * made, so it is derived rather than written into `expandedNodes`. Clearing
    * the box therefore restores exactly the shape the user had.
    */
-  const effectiveExpanded = useMemo(() => {
+  const effectiveExpanded: Set<string> = useMemo(() => {
     if (!searchQuery.trim() || !filteredTreeData) return expandedNodes;
-    const withMatches = new Set(expandedNodes);
+    const withMatches: Set<string> = new Set(expandedNodes);
     function openAncestors(tn: TreeNode) {
       if (tn.children.length > 0) {
         withMatches.add(tn.node.id);
@@ -162,7 +162,7 @@ export function TreeNodesSection({
 
   const handleToggleExpand = useCallback((nodeId: string) => {
     setExpandedNodes((prev) => {
-      const next = new Set(prev);
+      const next: Set<string> = new Set(prev);
       if (next.has(nodeId)) {
         next.delete(nodeId);
       } else {

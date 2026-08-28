@@ -57,7 +57,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       try {
         return await sendGroupCreate(initialMembers);
       } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : 'Failed to create group';
+        const errorMsg: string = e instanceof Error ? e.message : 'Failed to create group';
         setError(errorMsg);
         throw e;
       }
@@ -71,7 +71,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       try {
         await sendGroupInvite(groupId, peerCid);
       } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : 'Failed to invite peer';
+        const errorMsg: string = e instanceof Error ? e.message : 'Failed to invite peer';
         setError(errorMsg);
         throw e;
       }
@@ -85,7 +85,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       await sendGroupLeave(groupId);
       setGroups(prev => prev.filter(g => g.id !== groupId));
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : 'Failed to leave group';
+      const errorMsg: string = e instanceof Error ? e.message : 'Failed to leave group';
       setError(errorMsg);
       throw e;
     }
@@ -97,7 +97,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       try {
         await sendGroupKick(groupId, memberCid);
       } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : 'Failed to kick member';
+        const errorMsg: string = e instanceof Error ? e.message : 'Failed to kick member';
         setError(errorMsg);
         throw e;
       }
@@ -108,7 +108,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   // Update a member's role (local only for now - role data is stored locally)
   const updateMemberRole = useCallback(
     async (groupId: string, memberCid: string, roleId: string): Promise<void> => {
-      const memberCidBigint = BigInt(memberCid);
+      const memberCidBigint: bigint = BigInt(memberCid);
       setGroups(prev =>
         prev.map(group => {
           if (group.id !== groupId) return group;
@@ -150,7 +150,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
       setLoading(true);
       await sendGroupListRequest();
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : 'Failed to refresh groups';
+      const errorMsg: string = e instanceof Error ? e.message : 'Failed to refresh groups';
       setError(errorMsg);
     } finally {
       setLoading(false);

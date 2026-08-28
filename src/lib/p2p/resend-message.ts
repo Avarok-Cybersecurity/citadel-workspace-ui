@@ -64,7 +64,7 @@ export async function resendMessage(
 
   const currentCid = await config.getCurrentCid();
   if (!currentCid) {
-    const reason = new Error('Not connected to server');
+    const reason: Error = new Error('Not connected to server');
     markSendFailed(config, message, messageId, reason, 'Not connected to server');
     throw reason;
   }

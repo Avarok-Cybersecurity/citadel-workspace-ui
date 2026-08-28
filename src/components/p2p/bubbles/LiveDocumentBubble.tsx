@@ -5,7 +5,7 @@ import type { LiveDocumentBubbleProps } from './types';
 
 export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: LiveDocumentBubbleProps) {
   const isFailed = message.status === 'failed';
-  const bubbleStyles = getBubbleStyles(isOwn, isFailed);
+  const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 
   const handleClick = () => {
     if (message.document_id && onOpenDocument) {

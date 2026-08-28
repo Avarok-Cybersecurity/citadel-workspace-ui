@@ -38,7 +38,7 @@ export async function findMessageInPages(
   const metadata = await tryLoadMetadata(peerCid);
   if (!metadata) return null;
 
-  for (let pageNum = metadata.latestPage; pageNum >= 0; pageNum--) {
+  for (let pageNum: number = metadata.latestPage; pageNum >= 0; pageNum--) {
     const page = await tryLoadMessagePage(peerCid, pageNum);
     const found = page?.messages.find((m) => m.id === messageId);
     if (found) return found;
@@ -60,11 +60,11 @@ export async function findUnreadFromPeer(peerCid: bigint): Promise<P2PMessage[]>
   if (!metadata || metadata.unreadCount <= 0) return [];
 
   const found: P2PMessage[] = [];
-  for (let pageNum = metadata.latestPage; pageNum >= 0 && found.length < metadata.unreadCount; pageNum--) {
+  for (let pageNum: number = metadata.latestPage; pageNum >= 0 && found.length < metadata.unreadCount; pageNum--) {
     const page = await tryLoadMessagePage(peerCid, pageNum);
     if (!page) continue;
-    for (let i = page.messages.length - 1; i >= 0 && found.length < metadata.unreadCount; i--) {
-      const m = page.messages[i];
+    for (let i: number = page.messages.length - 1; i >= 0 && found.length < metadata.unreadCount; i--) {
+      const m: P2PMessage = page.messages[i];
       if (m.senderCid === peerCid && m.status === 'delivered') found.push(m);
     }
   }
@@ -79,11 +79,11 @@ export async function updateMessageInPages(
   const metadata = await tryLoadMetadata(peerCid);
   if (!metadata) return false;
 
-  for (let pageNum = metadata.latestPage; pageNum >= 0; pageNum--) {
+  for (let pageNum: number = metadata.latestPage; pageNum >= 0; pageNum--) {
     const page = await tryLoadMessagePage(peerCid, pageNum);
     if (!page) continue;
 
-    const msgIndex = page.messages.findIndex((m) => m.id === messageId);
+    const msgIndex: number = page.messages.findIndex((m) => m.id === messageId);
     if (msgIndex !== -1) {
       page.messages[msgIndex] = { ...page.messages[msgIndex], ...updates };
       await saveMessagePage(peerCid, pageNum, page);

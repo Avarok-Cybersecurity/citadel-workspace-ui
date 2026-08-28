@@ -17,7 +17,7 @@ import { Permission, ROLE_DEFAULT_PERMISSIONS } from '@/lib/permissions-service/
 describe('permission-constants', () => {
   describe('PERMISSION_CATEGORIES', () => {
     it('covers every permission exactly once', () => {
-      const ids = Object.values(PERMISSION_CATEGORIES).flat().map((p) => p.id);
+      const ids: string[] = Object.values(PERMISSION_CATEGORIES).flat().map((p) => p.id);
       expect(new Set(ids).size).toBe(ids.length);
       expect([...ids].sort()).toEqual([...Object.values(Permission)].sort());
     });
@@ -38,8 +38,8 @@ describe('permission-constants', () => {
 
   describe('ROLE_HIERARCHY', () => {
     it('offers every role the model defines a default for, except Banned', () => {
-      const offered = ROLE_HIERARCHY.map((r) => r.value).sort();
-      const defined = Object.keys(ROLE_DEFAULT_PERMISSIONS)
+      const offered: string[] = ROLE_HIERARCHY.map((r) => r.value).sort();
+      const defined: string[] = Object.keys(ROLE_DEFAULT_PERMISSIONS)
         .filter((r) => r !== 'Banned')
         .sort();
       expect(offered).toEqual(defined);
@@ -62,23 +62,23 @@ describe('permission-constants', () => {
     });
 
     it('withholds content editing from Member, as the server does', () => {
-      const member = getRoleDefaultPermissions('Member');
+      const member: string[] = getRoleDefaultPermissions('Member');
       expect(member).toContain(Permission.ViewContent);
       expect(member).not.toContain(Permission.EditContent);
       expect(member).not.toContain(Permission.EditMdx);
     });
 
     it('gives Owner the editing rights Member lacks', () => {
-      const owner = getRoleDefaultPermissions('Owner');
+      const owner: string[] = getRoleDefaultPermissions('Owner');
       expect(owner).toContain(Permission.EditContent);
       expect(owner).toContain(Permission.EditMdx);
       expect(owner).not.toContain(Permission.ConfigureSystem);
     });
 
     it('is a hierarchy: each role contains the one below it', () => {
-      const chain = ['Admin', 'Owner', 'Member', 'Guest'];
-      for (let i = 0; i < chain.length - 1; i++) {
-        const higher = new Set(getRoleDefaultPermissions(chain[i]));
+      const chain: string[] = ['Admin', 'Owner', 'Member', 'Guest'];
+      for (let i: number = 0; i < chain.length - 1; i++) {
+        const higher: Set<string> = new Set(getRoleDefaultPermissions(chain[i]));
         for (const perm of getRoleDefaultPermissions(chain[i + 1])) {
           expect(higher.has(perm), `${chain[i]} is missing ${perm}, which ${chain[i + 1]} has`).toBe(true);
         }

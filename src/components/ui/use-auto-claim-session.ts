@@ -54,7 +54,7 @@ useEffect(() => {
   const autoClaimSession = async () => {
     debugLog('WorkspaceLoader', ' Starting auto-claim session process');
 
-    const connectionManager = ConnectionManager.getInstance();
+    const connectionManager: ConnectionManager = ConnectionManager.getInstance();
 
     const currentConnection = connectionManager.getConnectionInfo();
     debugLog('WorkspaceLoader', ' getConnectionInfo() returned:', {
@@ -108,7 +108,7 @@ useEffect(() => {
 
     try {
       debugLog('WorkspaceLoader', ' Waiting for ConnectionManager to be ready...');
-      const timeoutPromise = new Promise<void>((_, reject) =>
+      const timeoutPromise: Promise<void> = new Promise<void>((_, reject) =>
         setTimeout(() => reject(new Error('ConnectionManager ready timeout')), TIMEOUT.CLAIM_SESSION_MS)
       );
       await Promise.race([connectionManager.waitForReady(), timeoutPromise]);

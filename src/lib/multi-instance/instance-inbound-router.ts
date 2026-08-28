@@ -246,5 +246,5 @@ class InstanceInboundRouter {
 }
 
 // Export singleton instance + class (the latter for testing).
-export const instanceInboundRouter = InstanceInboundRouter.getInstance();
+export const instanceInboundRouter: InstanceInboundRouter = InstanceInboundRouter.getInstance();
 export { InstanceInboundRouter };

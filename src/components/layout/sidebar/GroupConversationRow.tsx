@@ -57,7 +57,7 @@ export function GroupConversationRow({
   const [maxAvatars, setMaxAvatars] = useState(MAX_AVATARS);
 
   // Get members with their roles, sorted by position
-  const sortedMembers = useMemo(() => {
+  const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
     return [...group.members]
       .flatMap(member => {
         const role = group.settings.roles.find(r => r.id === member.roleId);
@@ -80,12 +80,12 @@ export function GroupConversationRow({
       if (!containerRef.current) return;
 
       // Approximate available width for avatars (container width - padding - name space)
-      const containerWidth = containerRef.current.offsetWidth;
-      const availableForAvatars = Math.min(80, containerWidth * 0.35);
+      const containerWidth: number = containerRef.current.offsetWidth;
+      const availableForAvatars: number = Math.min(80, containerWidth * 0.35);
 
       // Each avatar takes AVATAR_SIZE - AVATAR_OVERLAP pixels (except the last one)
-      const effectiveAvatarWidth = AVATAR_SIZE - AVATAR_OVERLAP;
-      const count = Math.floor(
+      const effectiveAvatarWidth: number = AVATAR_SIZE - AVATAR_OVERLAP;
+      const count: number = Math.floor(
         (availableForAvatars - AVATAR_SIZE) / effectiveAvatarWidth + 1
       );
 

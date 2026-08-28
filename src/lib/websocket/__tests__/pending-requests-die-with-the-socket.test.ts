@@ -29,7 +29,7 @@ function pending(timeoutMs = 60_000) {
 
 describe('a pending request', () => {
   it('fails as soon as the socket drops, not when its budget runs out', async () => {
-    const promise = pending();
+    const promise: Promise<string> = pending();
     // Let `sendRequest` settle so the listener is certainly registered.
     await Promise.resolve();
     eventEmitter.emit('websocket-disconnected', { reason: 'closed' });
@@ -37,14 +37,14 @@ describe('a pending request', () => {
   });
 
   it('names the operation, so the message says what was lost', async () => {
-    const promise = pending();
+    const promise: Promise<string> = pending();
     await Promise.resolve();
     eventEmitter.emit('websocket-disconnected', { reason: 'closed' });
     await expect(promise).rejects.toThrow(/FileDownload/);
   });
 
   it('still resolves normally when the response arrives', async () => {
-    const promise = requestResponse<string>({
+    const promise: Promise<string> = requestResponse<string>({
       request: { Whatever: { request_id: 'r2' } },
       requestId: 'r2',
       sendRequest: async () => {},
@@ -61,8 +61,8 @@ describe('a pending request', () => {
   });
 
   it('leaves no listener behind once it has settled', async () => {
-    const before = eventEmitter.listenerCount('websocket-disconnected');
-    const promise = pending();
+    const before: number = eventEmitter.listenerCount('websocket-disconnected');
+    const promise: Promise<string> = pending();
     await Promise.resolve();
     expect(eventEmitter.listenerCount('websocket-disconnected')).toBe(before + 1);
     eventEmitter.emit('websocket-disconnected', { reason: 'closed' });
@@ -74,7 +74,7 @@ describe('a pending request', () => {
 
   it('is not left waiting by the soft variant either', async () => {
     const onFailure = vi.fn();
-    const promise = requestResponseSoft({
+    const promise: Promise<void> = requestResponseSoft({
       request: { Whatever: { request_id: 'r3' } },
       requestId: 'r3',
       sendRequest: async () => {},

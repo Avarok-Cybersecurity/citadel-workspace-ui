@@ -100,8 +100,8 @@ export function MarkdownBubble({
   onReply,
 }: BaseBubbleProps) {
   const isFailed = message.status === 'failed';
-  const bubbleStyles = getBubbleStyles(isOwn, isFailed);
-  const displayName = senderName || 'Unknown';
+  const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
+  const displayName: string = senderName || 'Unknown';
   const hasActions = onEdit || onDelete || onReply;
 
   // Show avatar only for non-own messages in group mode

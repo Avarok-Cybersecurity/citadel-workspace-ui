@@ -55,7 +55,7 @@ const TemplateSelector = ({
   // Fetch templates by category when opened
   useEffect(() => {
     if (open) {
-      const categoryTemplates = getTemplatesByCategory(category);
+      const categoryTemplates: MdxTemplate[] = getTemplatesByCategory(category);
       setTemplates(categoryTemplates);
       setSelectedTemplate(null);
     }
@@ -69,10 +69,10 @@ const TemplateSelector = ({
   };
 
   // Derive icon and label from entity-type-registry (SSOT)
-  const entityType = categoryToEntityType(category);
+  const entityType: string = categoryToEntityType(category);
   const metadata = getEntityMetadata(entityType);
   const CategoryIcon = metadata.icon;
-  const categoryLabel = metadata.label;
+  const categoryLabel: string = metadata.label;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

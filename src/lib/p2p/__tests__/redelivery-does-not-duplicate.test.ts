@@ -38,7 +38,7 @@ function emptyMetadata(): ConversationMetadata {
 
 describe('placeInPage', () => {
   it('keeps the page in timestamp order and re-derives its bounds', () => {
-    const page = emptyPage();
+    const page: MessagePage = emptyPage();
     placeInPage(page, message('b', 20));
     placeInPage(page, message('a', 10));
 
@@ -50,20 +50,20 @@ describe('placeInPage', () => {
 
 describe('recordAppend', () => {
   it('counts a peer message as unread', () => {
-    const metadata = emptyMetadata();
+    const metadata: ConversationMetadata = emptyMetadata();
     recordAppend(metadata, message('a', 10), true, 99n);
     expect(metadata.unreadCount).toBe(1);
     expect(metadata.totalMessageCount).toBe(1);
   });
 
   it('does not count the user\'s own message as unread', () => {
-    const metadata = emptyMetadata();
+    const metadata: ConversationMetadata = emptyMetadata();
     recordAppend(metadata, message('a', 10), true, 7n);
     expect(metadata.unreadCount).toBe(0);
   });
 
   it('never moves the oldest timestamp forward on a later message', () => {
-    const metadata = emptyMetadata();
+    const metadata: ConversationMetadata = emptyMetadata();
     recordAppend(metadata, message('a', 10), true, 99n);
     recordAppend(metadata, message('b', 20), false, 99n);
     expect(metadata.oldestMessageTimestamp).toBe(10);
@@ -80,7 +80,7 @@ describe('appendMessageToPage', () => {
   it('writes a redelivered message once', async () => {
     vi.resetModules();
 
-    const pages = new Map<string, MessagePage>();
+    const pages: Map<string, MessagePage> = new Map<string, MessagePage>();
     let metadata: ConversationMetadata | undefined;
 
     vi.doMock('../message-page-operations', () => ({
@@ -100,12 +100,12 @@ describe('appendMessageToPage', () => {
     }));
 
     const { messagePaginationStore } = await import('../message-pagination-store');
-    const inbound = message('redelivered-1', 10);
+    const inbound: P2PMessage = message('redelivered-1', 10);
 
     await messagePaginationStore.appendMessageToPage(7n, inbound, async () => 99n, () => 'peer');
     await messagePaginationStore.appendMessageToPage(7n, inbound, async () => 99n, () => 'peer');
 
-    const stored = [...pages.values()].flatMap((p) => p.messages);
+    const stored: P2PMessage[] = [...pages.values()].flatMap((p) => p.messages);
     expect(stored.filter((m) => m.id === 'redelivered-1')).toHaveLength(1);
     // And the unread badge must not count it twice either.
     expect(metadata?.unreadCount).toBe(1);

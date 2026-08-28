@@ -110,7 +110,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
 function PasswordStrength({ password }: { password: string }) {
   const strength = useMemo(() => {
     if (!password) return { level: 0, label: '', color: '' };
-    let score = 0;
+    let score: number = 0;
     if (password.length >= 8) score++;
     if (password.length >= 12) score++;
     if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;

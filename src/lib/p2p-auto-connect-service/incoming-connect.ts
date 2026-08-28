@@ -29,7 +29,7 @@ export async function handleIncomingPeerConnect(
 ): Promise<void> {
   const targetCid: bigint | undefined = notification.cid;
   const initiatorCid: bigint | undefined = notification.peer_cid;
-  const peerUsername = notification.peer_username || '';
+  const peerUsername: string = notification.peer_username || '';
 
   if (initiatorCid === undefined || targetCid === undefined) {
     debugLog('P2PAutoConnectService', 'Invalid PeerConnectNotification - missing cid or peer_cid');
@@ -51,7 +51,7 @@ export async function handleIncomingPeerConnect(
   // Check existing connection - distinguish fresh vs stale
   if (state.isPeerConnectedForSession(currentCid, initiatorCid)) {
     const peerInfo = state.getPeerConnectionInfo(currentCid, initiatorCid);
-    const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
+    const connectionAge: number = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
     if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Connection to ${initiatorCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping`);
     } else {
@@ -78,7 +78,7 @@ export async function handleIncomingPeerConnect(
     debugLog('P2PAutoConnectService', `P2PAutoConnect: PeerConnectAccept sent for ${initiatorCid.toString().slice(0, 8)}...`);
     eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });
   } catch (error) {
-    const errMsg = String(error);
+    const errMsg: string = String(error);
     if (errMsg.includes('already connected') || errMsg.includes('Already connected')) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Channel already exists for ${initiatorCid.toString().slice(0, 8)}...`);
       eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });

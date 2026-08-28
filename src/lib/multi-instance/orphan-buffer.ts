@@ -132,7 +132,7 @@ export class OrphanBuffer {
       const entry = buffered.find(e => e.requestId === requestId);
       if (!entry) continue;
       clearTimeout(entry.fallbackTimer);
-      const remaining = buffered.filter(e => e !== entry);
+      const remaining: OrphanedMessage[] = buffered.filter(e => e !== entry);
       if (remaining.length === 0) this.entries.delete(cid);
       else this.entries.set(cid, remaining);
       return true;
@@ -143,7 +143,7 @@ export class OrphanBuffer {
   private removeByTimer(cid: string, timer: ReturnType<typeof setTimeout>): void {
     const buffered = this.entries.get(cid);
     if (!buffered) return;
-    const remaining = buffered.filter(e => e.fallbackTimer !== timer);
+    const remaining: OrphanedMessage[] = buffered.filter(e => e.fallbackTimer !== timer);
     if (remaining.length === 0) {
       this.entries.delete(cid);
     } else {

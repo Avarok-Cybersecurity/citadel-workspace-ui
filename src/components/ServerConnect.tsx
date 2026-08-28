@@ -43,7 +43,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
     }
 
     // Basic server address validation — must look like a hostname or IP
-    const trimmed = serverAddress.trim();
+    const trimmed: string = serverAddress.trim();
     if (!trimmed.includes('.') && !trimmed.includes(':')) {
       toast({
         title: "Invalid server address",

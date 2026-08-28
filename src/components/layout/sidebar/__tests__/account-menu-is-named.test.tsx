@@ -15,14 +15,14 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const topBar = readFileSync(
+const topBar: string = readFileSync(
   join(process.cwd(), 'src/components/layout/sidebar/TopBar.tsx'),
   'utf8'
 );
 
 describe('the account-menu button', () => {
   it('carries an aria-label', () => {
-    const button = topBar.slice(topBar.indexOf('data-testid="user-avatar-button"') - 600);
+    const button: string = topBar.slice(topBar.indexOf('data-testid="user-avatar-button"') - 600);
     expect(button).toMatch(/aria-label=/);
   });
 

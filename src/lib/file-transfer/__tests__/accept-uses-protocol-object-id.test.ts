@@ -59,19 +59,19 @@ describe('accepting a transfer', () => {
   beforeEach(() => sendRequest.mockClear());
 
   it('sends the protocol object_id, not the announcement UUID', async () => {
-    const io = new FileTransferIO();
+    const io: FileTransferIO = new FileTransferIO();
     io.registerTransferMapping(UUID, OBJECT_ID);
 
     await accept(io, UUID);
 
     expect(sendRequest).toHaveBeenCalledTimes(1);
-    const sent = sendRequest.mock.calls[0]?.[0] as SentRequest;
+    const sent: SentRequest = sendRequest.mock.calls[0]?.[0] as SentRequest;
     expect(sent.RespondFileTransfer.object_id).toBe(BigInt(OBJECT_ID));
     expect(sent.RespondFileTransfer.accept).toBe(true);
   });
 
   it('refuses with a readable message when the two halves are not joined yet', async () => {
-    const io = new FileTransferIO();
+    const io: FileTransferIO = new FileTransferIO();
 
     // No mapping registered — the bubble arrived, the bytes have not.
     await expect(accept(io, UUID)).rejects.toThrow(/not been announced over the protocol/);
@@ -92,12 +92,12 @@ describe('the accept it sends', () => {
     // "Downloading... 0%" and the sender's at "Waiting for acceptance" for
     // ever, and no chat transfer ever moved a byte.
     sendRequest.mockClear();
-    const io = new FileTransferIO();
+    const io: FileTransferIO = new FileTransferIO();
     io.registerTransferMapping(UUID, OBJECT_ID);
 
     await accept(io, UUID);
 
-    const sent = sendRequest.mock.calls[0][0] as SentRequest;
+    const sent: SentRequest = sendRequest.mock.calls[0][0] as SentRequest;
     expect(sent.RespondFileTransfer.cid).not.toBe(0n);
     expect(sent.RespondFileTransfer.cid).toBe(7n);
   });

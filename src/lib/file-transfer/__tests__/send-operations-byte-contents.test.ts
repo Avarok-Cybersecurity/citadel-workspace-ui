@@ -35,7 +35,7 @@ import type { SendFileParams } from '../io-router-types';
 // `source instanceof File` succeeds AND `size` / `arrayBuffer()` return
 // the test bytes faithfully.
 function makeFakeFile(name: string, bytes: Uint8Array, size = bytes.byteLength): File {
-  const file = new File([new Uint8Array(0)], name);
+  const file: File = new File([new Uint8Array(0)], name);
   Object.defineProperty(file, 'size', { value: size, configurable: true });
   Object.defineProperty(file, 'arrayBuffer', {
     value: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
@@ -95,7 +95,7 @@ describe('executeSendFile — source discrimination', () => {
   it('encodes a pickFileRequestId source as { PickFileRef: { pick_file_request_id } }', async () => {
     // PickFileRef is only reached when `source` is NOT a string. Real callers
     // pass a placeholder File alongside the pickFileRequestId.
-    const placeholder = new File([new Uint8Array(0)], 'placeholder');
+    const placeholder: File = new File([new Uint8Array(0)], 'placeholder');
     void executeSendFile(buildParams({
       source: placeholder,
       pickFileRequestId: 'pick-42',
@@ -110,8 +110,8 @@ describe('executeSendFile — source discrimination', () => {
   });
 
   it('encodes a browser File source as { ByteContents: { file_name, data: number[] } } with the file bytes', async () => {
-    const expectedBytes = new Uint8Array([0xCA, 0xFE, 0xBA, 0xBE]);
-    const file = makeFakeFile('hello.bin', expectedBytes);
+    const expectedBytes: Uint8Array<ArrayBuffer> = new Uint8Array([0xCA, 0xFE, 0xBA, 0xBE]);
+    const file: File = makeFakeFile('hello.bin', expectedBytes);
 
     void executeSendFile(buildParams({
       source: file,
@@ -140,9 +140,9 @@ describe('executeSendFile — ByteContents size guard', () => {
     // `arrayBuffer()` is wrapped in a spy that fails the test loudly if
     // the production code reaches it — that would mean the size check
     // ran *after* the allocation, defeating the OOM protection.
-    const sizeBytes = 3 * 1024 * 1024;
+    const sizeBytes: number = 3 * 1024 * 1024;
     const allocSpy = vi.fn(async () => new ArrayBuffer(sizeBytes));
-    const oversized = new File([new Uint8Array(0)], 'too-big.bin');
+    const oversized: File = new File([new Uint8Array(0)], 'too-big.bin');
     Object.defineProperty(oversized, 'size', { value: sizeBytes, configurable: true });
     Object.defineProperty(oversized, 'arrayBuffer', { value: allocSpy, configurable: true });
 

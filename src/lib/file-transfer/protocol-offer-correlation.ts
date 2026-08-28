@@ -40,7 +40,7 @@ interface PendingProtocolOffer {
  * Beyond this we drop it rather than let an unbounded map accumulate one entry
  * per transfer for the lifetime of the tab.
  */
-const OFFER_TTL_MS = 5 * 60 * 1000;
+const OFFER_TTL_MS: number = 5 * 60 * 1000;
 
 /** Same sender, same name, same exact size. */
 function matches(
@@ -73,10 +73,10 @@ export class ProtocolOfferCorrelator {
 
   /** The protocol half arrived. */
   noteProtocolOffer(objectId: string, senderCid: string, fileName: string, fileSize: number): void {
-    const now = Date.now();
+    const now: number = Date.now();
     this.prune(now);
 
-    const waitingIndex = this.awaitingBytes.findIndex((a) =>
+    const waitingIndex: number = this.awaitingBytes.findIndex((a) =>
       matches({ objectId, senderCid, fileName, fileSize, seenAt: now }, a.senderCid, a.fileName, a.fileSize)
     );
     if (waitingIndex !== -1) {
@@ -99,10 +99,10 @@ export class ProtocolOfferCorrelator {
     fileName: string,
     fileSize: number
   ): boolean {
-    const now = Date.now();
+    const now: number = Date.now();
     this.prune(now);
 
-    const index = this.pending.findIndex((o) => matches(o, senderCid, fileName, fileSize));
+    const index: number = this.pending.findIndex((o) => matches(o, senderCid, fileName, fileSize));
     if (index !== -1) {
       const [offer] = this.pending.splice(index, 1);
       this.register(transferId, offer.objectId);

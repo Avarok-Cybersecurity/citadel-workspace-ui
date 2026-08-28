@@ -30,16 +30,16 @@ describe('conversation storage keys', () => {
 
   it('gives two accounts different keys for the same peer', () => {
     cidRef.current = 111n;
-    const a = conversationPrefix(PEER);
+    const a: string = conversationPrefix(PEER);
     cidRef.current = 222n;
-    const b = conversationPrefix(PEER);
+    const b: string = conversationPrefix(PEER);
 
     expect(a, 'both accounts wrote to the same conversation record').not.toBe(b);
   });
 
   it('includes both the owner and the peer, so neither collides', () => {
     cidRef.current = 111n;
-    const key = conversationPrefix(PEER);
+    const key: string = conversationPrefix(PEER);
     expect(key).toContain('111');
     expect(key).toContain('999');
   });

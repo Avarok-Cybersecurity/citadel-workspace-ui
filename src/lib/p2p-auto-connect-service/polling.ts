@@ -62,7 +62,7 @@ export function stopBackendPolling(state: AutoConnectState): void {
  */
 export async function refreshFromBackend(state: AutoConnectState, localCid: bigint): Promise<void> {
   try {
-    const localCidBigInt = ensureBigInt(localCid);
+    const localCidBigInt: bigint = ensureBigInt(localCid);
     const sessions = await connectionManager.getActiveSessions();
     const mySession = sessions.find(s => s.cid === localCidBigInt);
 
@@ -72,7 +72,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
       return; // Preserve existing event-based connections
     }
 
-    const now = Date.now();
+    const now: number = Date.now();
     // wireMapEntries, not Object.entries. peer_connections is a Rust HashMap,
     // which serde-wasm-bindgen delivers as a JS Map (maps-as-objects is not
     // enabled) while ts-rs declares Record<string, T> -- so Object.entries
@@ -83,7 +83,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
       mySession.peer_connections,
       'peer_connections',
     )) {
-      const peerCidBigInt = BigInt(peerCidStr);
+      const peerCidBigInt: bigint = BigInt(peerCidStr);
       const existingInfo = existingPeerMap.get(peerCidBigInt);
 
       existingPeerMap.set(peerCidBigInt, {
@@ -94,7 +94,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
       });
     }
   } catch (error) {
-    const errMsg = String(error);
+    const errMsg: string = String(error);
     if (!errMsg.includes('CID 0') && !errMsg.includes('No active')) {
       debugLog('P2PAutoConnectService', 'Backend poll failed:', error);
     }
@@ -126,7 +126,7 @@ export async function refreshOnlineStatus(state: AutoConnectState, force = false
     state.setOnlinePeers(onlineCids);
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Refreshed online status, ${onlineCids.length} peers online`);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
       return;
     }

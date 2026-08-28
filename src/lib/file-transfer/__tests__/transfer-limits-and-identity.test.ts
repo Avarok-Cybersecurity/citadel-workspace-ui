@@ -32,9 +32,9 @@ describe('file-transfer settings scoping', () => {
 
   it('scopes a peer\'s settings to the account that set them', () => {
     cidRef.current = 111n;
-    const a = scopedSettingsKey('999');
+    const a: string = scopedSettingsKey('999');
     cidRef.current = 222n;
-    const b = scopedSettingsKey('999');
+    const b: string = scopedSettingsKey('999');
 
     expect(a, 'two accounts shared one peer\'s transfer settings').not.toBe(b);
   });
@@ -66,20 +66,20 @@ describe('every settings read', () => {
     const fg = (await import('fast-glob')).default;
     const { stripComments } = await import('@/test-utils/strip-comments');
 
-    const dir = join(process.cwd(), 'src/lib/file-transfer');
+    const dir: string = join(process.cwd(), 'src/lib/file-transfer');
     // `state.ts` defines getSettings and `service.ts` owns the scoping itself;
     // everything else is a consumer, and a consumer reading unscoped is the
     // defect.
-    const files = await fg(['**/*.ts'], {
+    const files: string[] = await fg(['**/*.ts'], {
       cwd: dir,
       ignore: ['__tests__/**', 'state.ts', 'service.ts'],
     });
 
     const offenders: string[] = [];
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(dir, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(dir, rel), 'utf-8'));
       for (const match of source.matchAll(/getSettings\(([^)]*)\)/g)) {
-        const arg = match[1].trim();
+        const arg: string = match[1].trim();
         if (arg === '' || arg.startsWith('scopedSettingsKey') || arg.startsWith('this.scopedKey')) {
           continue;
         }

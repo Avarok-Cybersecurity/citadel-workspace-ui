@@ -9,24 +9,24 @@ import { INTERVAL } from '../timeout-constants';
 import type { ResponseType } from 'citadel-workspace-client-ts';
 
 // Message types that should be broadcast to all instances
-export const BROADCAST_MESSAGE_TYPES = [
+export const BROADCAST_MESSAGE_TYPES: string[] = [
   'ServerResponse', // Generic server responses
   'DisconnectNotification', // Session disconnected
   'DeregisterSuccess', // Account deleted
 ];
 
 // Fields that commonly contain the target CID
-export const CID_FIELDS = ['cid', 'peer_cid', 'session_cid'];
+export const CID_FIELDS: string[] = ['cid', 'peer_cid', 'session_cid'];
 
 // Timeout for request tracking (5 minutes)
-export const REQUEST_TRACKING_TIMEOUT_MS = INTERVAL.REQUEST_TRACKING_MS;
+export const REQUEST_TRACKING_TIMEOUT_MS: 300000 = INTERVAL.REQUEST_TRACKING_MS;
 
 /**
  * Notification message types that should be routed by CID, NOT by request_id.
  * These messages have a request_id that belongs to the SENDER, but the message
  * should be delivered to the RECIPIENT (identified by the 'cid' field).
  */
-export const CID_ROUTED_NOTIFICATIONS = new Set<ResponseType>([
+export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType> = new Set<ResponseType>([
   'PeerRegisterNotification',         // cid = recipient, request_id = sender's
   'PeerConnectNotification',          // cid = recipient, request_id = sender's
   'MessageNotification',              // cid = recipient, request_id = sender's (from SendMessage)
@@ -48,7 +48,7 @@ export const CID_ROUTED_NOTIFICATIONS = new Set<ResponseType>([
  * connectedPeers Map must have entries for ALL sessions (not just the leader's own).
  * TYPE-GAP: 'PeerDisconnect' exists at runtime but not in generated ResponseType
  */
-export const LEADER_MUST_PROCESS_LOCALLY = new Set<ResponseType | string>([
+export const LEADER_MUST_PROCESS_LOCALLY: Set<string> = new Set<ResponseType | string>([
   'PeerConnectNotification',  // Affects connectedPeers[targetCid]
   'PeerConnectSuccess',       // Affects connectedPeers[initiatorCid]
   'PeerDisconnect',           // Removes from connectedPeers
@@ -62,7 +62,7 @@ export function getMessageType(message: unknown): ResponseType {
   if (!message || typeof message !== 'object') {
     return 'unknown' as ResponseType;
   }
-  const keys = Object.keys(message);
+  const keys: string[] = Object.keys(message);
   return (keys[0] || 'unknown') as ResponseType;
 }
 

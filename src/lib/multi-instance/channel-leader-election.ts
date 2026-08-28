@@ -11,8 +11,8 @@ import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
 import type { ChannelMessage } from './channel-types';
 
-const HEARTBEAT_INTERVAL_MS = INTERVAL.HEARTBEAT_MS;
-const LEADER_TIMEOUT_MS = INTERVAL.LEADER_TIMEOUT_MS;
+const HEARTBEAT_INTERVAL_MS: 2000 = INTERVAL.HEARTBEAT_MS;
+const LEADER_TIMEOUT_MS: 5000 = INTERVAL.LEADER_TIMEOUT_MS;
 
 export interface LeaderElectionState {
   lastLeaderHeartbeat: number;
@@ -25,8 +25,8 @@ export interface LeaderElectionState {
 export function handleLeaderElection(state: LeaderElectionState, message: ChannelMessage): void {
   const payload = message.payload as Record<string, unknown> | undefined;
   if (payload?.isLeader) {
-    const theirId = BigInt((payload.instanceIdBigInt as string) || '0');
-    const myId = instanceManager.instanceIdAsBigInt;
+    const theirId: bigint = BigInt((payload.instanceIdBigInt as string) || '0');
+    const myId: bigint = instanceManager.instanceIdAsBigInt;
 
     // STICKY LEADERSHIP RULE 1: If we're already the leader, stay leader
     if (instanceManager.isLeader) {
@@ -56,7 +56,7 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
     // STICKY LEADERSHIP RULE 3: If there's already an established leader, ignore new claims
     const currentLeaderId = instanceManager.leaderId;
     if (currentLeaderId && currentLeaderId !== message.senderInstanceId) {
-      const timeSinceHeartbeat = Date.now() - state.lastLeaderHeartbeat;
+      const timeSinceHeartbeat: number = Date.now() - state.lastLeaderHeartbeat;
       if (timeSinceHeartbeat < LEADER_TIMEOUT_MS) {
         debugLog('InstanceChannel', `[InstanceChannel] Ignoring leader claim from ${message.senderInstanceId} - already following ${currentLeaderId}`);
         return;
@@ -92,7 +92,7 @@ export function handleLeaderHeartbeat(state: LeaderElectionState, message: Chann
   // does so via tryBecomeLeader after LEADER_TIMEOUT_MS of no heartbeat —
   // that path is unaffected.
   if (instanceManager.isLeader) {
-    const myId = instanceManager.instanceIdAsBigInt;
+    const myId: bigint = instanceManager.instanceIdAsBigInt;
     let theirId: bigint;
     try { theirId = BigInt(message.senderInstanceId); } catch { theirId = 0n; }
     if (myId <= theirId) {
@@ -116,11 +116,11 @@ export function handleLeaderHeartbeat(state: LeaderElectionState, message: Chann
 }
 
 export function startLeaderElection(state: LeaderElectionState): void {
-  const INITIAL_WAIT_MS = HEARTBEAT_INTERVAL_MS + 500;
+  const INITIAL_WAIT_MS: number = HEARTBEAT_INTERVAL_MS + 500;
 
   state.leaderCheckInterval = setInterval(() => {
-    const now = Date.now();
-    const timeSinceInit = now - state.initTime;
+    const now: number = Date.now();
+    const timeSinceInit: number = now - state.initTime;
 
     if (instanceManager.isLeader) {
       sendHeartbeat(state);
@@ -144,7 +144,7 @@ export function startLeaderElection(state: LeaderElectionState): void {
 }
 
 export function tryBecomeLeader(state: LeaderElectionState): void {
-  const myId = instanceManager.instanceIdAsBigInt;
+  const myId: bigint = instanceManager.instanceIdAsBigInt;
 
   if (instanceManager.isLeader) {
     debugLog('InstanceChannel', '[InstanceChannel] Already leader, staying leader');
@@ -153,7 +153,7 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
   }
 
   if (state.lastLeaderHeartbeat > 0) {
-    const timeSinceHeartbeat = Date.now() - state.lastLeaderHeartbeat;
+    const timeSinceHeartbeat: number = Date.now() - state.lastLeaderHeartbeat;
     if (timeSinceHeartbeat < LEADER_TIMEOUT_MS) {
       debugLog('InstanceChannel', `[InstanceChannel] Recent heartbeat ${timeSinceHeartbeat}ms ago, not challenging (timeout: ${LEADER_TIMEOUT_MS}ms)`);
       return;

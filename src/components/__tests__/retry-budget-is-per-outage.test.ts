@@ -28,16 +28,16 @@ const stripComments = (text: string) =>
     .filter((line) => !line.trim().startsWith('//'))
     .join('\n');
 
-const modal = stripComments(
+const modal: string = stripComments(
   readFileSync(join(process.cwd(), 'src/components/ConnectionRetryModal.tsx'), 'utf8')
 );
 
 /** Every event name the websocket layer actually emits. */
 function emittedEvents(): Set<string> {
-  const dir = join(process.cwd(), 'src/lib/websocket');
-  const names = new Set<string>();
+  const dir: string = join(process.cwd(), 'src/lib/websocket');
+  const names: Set<string> = new Set<string>();
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.ts'))) {
-    const src = readFileSync(join(dir, file), 'utf8');
+    const src: string = readFileSync(join(dir, file), 'utf8');
     for (const m of src.matchAll(/emit\('([\w:-]+)'/g)) names.add(m[1]!);
   }
   return names;
@@ -71,12 +71,12 @@ describe('the reconnect modal', () => {
 
     // The callback body only: from the arrow that opens it to its closing
     // brace, which is where the dependency array starts.
-    const listenerStart = modal.indexOf("useEventListener('on-ws-connection-success'");
+    const listenerStart: number = modal.indexOf("useEventListener('on-ws-connection-success'");
     expect(listenerStart, 'the success listener is gone').toBeGreaterThan(-1);
-    const bodyStart = modal.indexOf('=> {', listenerStart);
-    const bodyEnd = modal.indexOf('}, [', bodyStart);
+    const bodyStart: number = modal.indexOf('=> {', listenerStart);
+    const bodyEnd: number = modal.indexOf('}, [', bodyStart);
     expect(bodyEnd).toBeGreaterThan(bodyStart);
-    const body = modal.slice(bodyStart, bodyEnd);
+    const body: string = modal.slice(bodyStart, bodyEnd);
 
     expect(
       body,

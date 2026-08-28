@@ -20,7 +20,7 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
     // asynchronously during login, and calling is unavailable until it has.
     const read = () => setSelfCid(connectionManager.getConnectionInfo()?.cid ?? null);
     read();
-    const timer = window.setInterval(read, 2000);
+    const timer: number = window.setInterval(read, 2000);
     return () => window.clearInterval(timer);
   }, []);
 
