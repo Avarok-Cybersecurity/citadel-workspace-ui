@@ -13840,3 +13840,36 @@ be on either side.
 
 The next run answers the 375px question by itself instead of costing another
 three minutes of retries and a guess.
+
+## Round 268 — a locator that works by coincidence, and a hypothesis that did not
+
+`multi-tab-sync` carries a KNOWN PRODUCT BUG annotation — a second tab in the
+same browser context shows the logged-out landing page instead of the existing
+session — and its whole verdict rests on one line:
+
+```ts
+tab2.locator(`button[title*="${USERNAME}"]`)
+```
+
+The session chip's title is `${full_name || username} - ${workspaceName}`. So
+the username appears in it only when the two happen to be the same string.
+
+The obvious next thought was that they are not, and that the "known bug" is a
+locator that cannot match. **That thought was wrong, and checking it was one
+grep**: `createAccount` fills the Full Name field *with the username*, so for
+every account this suite makes, `full_name === username` and the title does
+contain it. The annotation stands.
+
+What is still true is that a spec's central conclusion was resting on a
+coincidence in a test helper. Change the helper to fill a realistic name and
+three specs silently start reporting "no session strip" for a strip that is
+right there. All three now use `session-button-${username}`, which is exact and
+is what the component has always exposed.
+
+The unit test states the mechanism as a fact rather than a suspicion: with a
+full name of "Ada Lovelace" the title is `Ada Lovelace - Design` and does not
+contain the username at all.
+
+*Recorded because the first draft of this entry claimed the coincidence
+explained the failing leg. It does not, and a diagnosis that fits the shape of a
+bug is not the same as a diagnosis.*

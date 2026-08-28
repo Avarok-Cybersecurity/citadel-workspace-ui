@@ -41,7 +41,10 @@ async function loginWithCredentials(
 ): Promise<boolean> {
     // Check for existing session to claim
     await sleep(1000);
-    const existingSession = page.locator(`button[title*="${username}"]`).first();
+    // The session chip's title is `${full_name || username} - ${workspace}`,
+    // which omits the username for anybody named like a person. It matches here
+    // only because the suite fills the full name with the username.
+    const existingSession = page.getByTestId(`session-button-${username}`).first();
     if (await isVisibleWithin(existingSession, 3000)) {
         await existingSession.click();
         await sleep(3000);
@@ -92,7 +95,7 @@ async function loginWithCredentials(
         if (errorText?.includes('already exists') || errorText?.includes('Session')) {
             await page.keyboard.press('Escape');
             await sleep(500);
-            const sessionIcon = page.locator(`button[title*="${username}"]`).first();
+            const sessionIcon = page.getByTestId(`session-button-${username}`).first();
             if (await isVisibleWithin(sessionIcon, 3000)) {
                 await sessionIcon.click();
                 await sleep(3000);

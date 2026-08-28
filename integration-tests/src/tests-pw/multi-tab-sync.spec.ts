@@ -117,7 +117,21 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         // Check if tab2 sees the session or is on workspace
         const url = tab2.url();
         const onWorkspace = url.includes('/workspace') || url.includes('/office');
-        const seesSession = await isVisibleWithin(tab2.locator(`button[title*="${USERNAME}"]`), 5000);
+        // By testid, not by the button's title. The title is
+        // `${full_name || username} - ${workspaceName}`, and it contains the
+        // username here only because `createAccount` happens to fill the full
+        // name WITH the username. Any account named like a person -- which is
+        // every real one -- would not match, and this test's entire conclusion
+        // rests on this read. That is a coincidence to depend on, not a
+        // locator.
+        //
+        // It does NOT explain the failure below: full name and username are
+        // the same string for this account, so the old locator would have
+        // matched. The known bug stands.
+        const seesSession = await isVisibleWithin(
+            tab2.getByTestId(`session-button-${USERNAME}`),
+            5000,
+        );
         // `seesLandingButtons` used to be part of this disjunction — and it IS
         // the not-detected state, so a test named "should detect existing
         // session" passed precisely when the session was NOT detected. It now
