@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { mayLeaveEditor } from '@/lib/leave-editor';
 import { describeFailure } from '@/lib/failure-message';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -12,8 +13,6 @@ import { MoveNodeDialog } from './MoveNodeDialog';
 import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
 import { NodeManagementModal } from '@/components/node/NodeManagementModal';
 import { AdminModal } from '@/components/admin';
-import { hasUnsavedEdits } from '@/lib/unsaved-edits';
-import { DISCARD_EDIT_PROMPT } from '@/components/office/use-unsaved-mdx-guard';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 
 /**
@@ -42,10 +41,7 @@ export function HierarchySidebar() {
   const nodes = useMemo(() => Object.values(state.nodes), [state.nodes]);
 
   const handleNodeSelect = useCallback(async (nodeId: string) => {
-    // Ask before discarding an edit. `beforeunload` covers closing the tab and
-    // nothing else, and this is the click that loses the most work: selecting a
-    // node unmounts the editor, because BaseOffice is keyed by node.
-    if (hasUnsavedEdits() && !(await confirm(DISCARD_EDIT_PROMPT))) return;
+    if (!(await mayLeaveEditor(confirm))) return;
 
     const newParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);

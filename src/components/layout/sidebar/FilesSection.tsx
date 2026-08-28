@@ -1,4 +1,6 @@
 import { FileSpreadsheet, FileText, FileType, FileCode, Folder, FileX } from "lucide-react";
+import { mayLeaveEditor } from '@/lib/leave-editor';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { formatBytes } from '@/lib/format-bytes';
 import { peerDisplayName } from '@/lib/peer-display';
 import { useRegisteredPeers } from '@/hooks';
@@ -92,6 +94,7 @@ export const FilesSection = () => {
   const [selectedFile, setSelectedFile] = useState<FileDisplay | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const { registeredPeers } = useRegisteredPeers();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -146,7 +149,10 @@ export const FilesSection = () => {
   const params = new URLSearchParams(location.search);
   const isFileManagerActive = params.get('section') === 'files';
 
-  const handleFileManagerClick = () => {
+  const handleFileManagerClick = async () => {
+    // Deletes nodeId from the URL, which unmounts the editor.
+    if (!(await mayLeaveEditor(confirm))) return;
+
     const newParams = new URLSearchParams(location.search);
     newParams.set('section', 'files');
     newParams.delete('nodeId');
@@ -195,7 +201,7 @@ export const FilesSection = () => {
                   className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors ${
                     isFileManagerActive ? "bg-primary-accent/20 text-primary-accent" : ""
                   }`}
-                  onClick={handleFileManagerClick}
+                  onClick={() => void handleFileManagerClick()}
                   data-testid="file-manager-button"
                 >
                   <Folder className="h-4 w-4" />

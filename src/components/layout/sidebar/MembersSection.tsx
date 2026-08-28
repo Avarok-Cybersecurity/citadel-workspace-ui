@@ -1,6 +1,8 @@
 /** Sidebar section displaying workspace members, P2P peers, and conversations. */
 
 import { UserPlus, Plus } from "lucide-react";
+import { mayLeaveEditor } from '@/lib/leave-editor';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { useLocation, useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -29,6 +31,7 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 export const MembersSection = () => {
   const location = useLocation();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const { state } = useWorkspace();
   const params = new URLSearchParams(location.search);
@@ -87,7 +90,11 @@ export const MembersSection = () => {
     setShowPermissionModal(true);
   };
 
-  const handlePeerClick = (cid: string, username: string) => {
+  const handlePeerClick = async (cid: string, username: string) => {
+    // The workspace view renders P2P chat instead of the editor, so this
+    // unmounts the buffer as completely as selecting another node does.
+    if (!(await mayLeaveEditor(confirm))) return;
+
     const searchParams = new URLSearchParams(location.search);
     searchParams.set('showP2P', 'true');
     searchParams.set('p2pUser', username);
@@ -170,7 +177,7 @@ export const MembersSection = () => {
             <div className="mt-2 border-t border-card pt-2">
               <SidebarMenu>
                 {filteredRegisteredPeers.map((peer) => (
-                  <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} isOnline={peer.isOnline} isConnected={peer.isConnected} onClick={() => handlePeerClick(peer.cid, peer.username)} />
+                  <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} isOnline={peer.isOnline} isConnected={peer.isConnected} onClick={() => void handlePeerClick(peer.cid, peer.username)} />
                 ))}
               </SidebarMenu>
             </div>
@@ -194,7 +201,7 @@ export const MembersSection = () => {
           <SidebarGroupContent>
             <SidebarMenu>
               {peersWithConversations.map((conv) => (
-                <PeerListRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} isOnline={conv.isOnline} isConnected={conv.isConnected} unreadCount={conv.unreadCount} onClick={() => handlePeerClick(conv.peerCid, conv.peerUsername)} />
+                <PeerListRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} isOnline={conv.isOnline} isConnected={conv.isConnected} unreadCount={conv.unreadCount} onClick={() => void handlePeerClick(conv.peerCid, conv.peerUsername)} />
               ))}
               {groupConversations.map((group) => (
                 <GroupConversationRow key={group.id} group={group} onClick={(g) => navigate(`/groups/${g.id}`)} />

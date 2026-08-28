@@ -61,6 +61,12 @@ describe('the sidebar asks before discarding', () => {
   it('consults the shared answer before navigating', async () => {
     // The store above is correct and would stay correct with nothing consulting
     // it — which is the state this fix found. This is the wiring.
+    //
+    // The three lines this used to look for now live in `mayLeaveEditor`, so
+    // that every navigation which unmounts the editor asks the same question:
+    // the check had been applied at this one source and four others discarded
+    // the buffer silently. `leaving-the-editor-asks-first` covers all five;
+    // this keeps the sidebar's own wiring pinned.
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const { stripComments } = await import('@/test-utils/strip-comments');
@@ -70,7 +76,6 @@ describe('the sidebar asks before discarding', () => {
         'utf8',
       ),
     );
-    expect(source).toContain('hasUnsavedEdits()');
-    expect(source).toContain('DISCARD_EDIT_PROMPT');
+    expect(source).toContain('mayLeaveEditor(confirm)');
   });
 });

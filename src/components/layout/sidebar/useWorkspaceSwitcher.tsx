@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { mayLeaveEditor } from '@/lib/leave-editor';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { toStoredWorkspaces, pickCurrentWorkspace } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
@@ -43,6 +45,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   const [serverAddress, setServerAddress] = useState<string>("");
   const [serverPassword, setServerPassword] = useState<string>("");
   const location = useLocation();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const { state } = useWorkspace();
   const { theme } = useWorkspaceTheme();
@@ -94,6 +97,9 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   }, [location.pathname, location.search, currentWorkspace]);
 
   const handleWorkspaceChange = async (workspace: StoredWorkspace) => {
+    // Switching session tears the whole workspace down, editor included.
+    if (!(await mayLeaveEditor(confirm))) return;
+
     if (isSwitching || workspace.id === currentWorkspace?.id) return;
 
     debugLog('WorkspaceSwitcher', 'Switching to workspace:', workspace.username, 'on', workspace.serverAddress);

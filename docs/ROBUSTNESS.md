@@ -9371,3 +9371,36 @@ hardest kind to notice, because it reads as considered. Now 35 s, with a parity
 gate that reads both sides as text.
 
 Preflight is 32 checks.
+
+## Round 159 — four ways out of the editor that took your work with them
+
+`use-unsaved-mdx-guard` arms `beforeunload`, which covers closing the tab and
+nothing else. In-app navigation unmounts the editor — `BaseOffice` is keyed by
+node — so the buffer goes with it, silently.
+
+`unsaved-edits.ts` exists precisely for this, and its header says so: "Twenty
+minutes of writing could go with one stray click." Its `hasUnsavedEdits()` had
+exactly one consumer. Four other navigations leave the editor just as
+completely:
+
+| what the user clicked | why the buffer goes |
+|---|---|
+| a member in the sidebar | the workspace view renders P2P chat instead |
+| a group | same |
+| the file manager | deletes `nodeId` from the URL |
+| another session | tears down the whole workspace |
+
+Each is an ordinary thing to do while writing — answering a DM is the obvious
+one — and each discarded the document with no prompt.
+
+The fix is `mayLeaveEditor(confirm)`, once, rather than a fifth copy of the same
+three lines: five copies is how four of them come to differ, and the one that
+differs is the one nobody tests. It returns true immediately when nothing is
+dirty, so the common case costs nothing — a prompt on every navigation would be
+trained away within a day, and the one that matters would go with it. There is a
+test for exactly that.
+
+The list of navigations is written out rather than derived, because "does this
+unmount BaseOffice" is not a textual property: a scan that guessed would either
+miss one or flag every `navigate()` in the app. Control: removing the call from
+any of the four fails the guard by name.
