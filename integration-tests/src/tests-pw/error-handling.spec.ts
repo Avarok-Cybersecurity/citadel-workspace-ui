@@ -51,8 +51,13 @@ function errorSurface(page: Page) {
  * docs/KNOWN_ISSUES.md; forcing here keeps that one problem from failing every
  * unrelated assertion.
  */
-async function clickThroughRenderChurn(page: Page, name: RegExp | string) {
-  const button = page.getByRole('button', { name }).first();
+async function clickThroughRenderChurn(page: Page, testId: string) {
+  // By testid, not by accessible name. Every press below used to name the
+  // button's words; "Connect" had read "Sign In" for weeks, so this file spent
+  // ten seconds waiting for nothing and failed before reaching a single
+  // assertion about error handling. A test that cannot find the button is not
+  // testing the thing it says it tests, and nothing about the failure says so.
+  const button = page.getByTestId(testId).first();
   await expect(button).toBeVisible();
   await button.click({ force: true });
 }
@@ -63,18 +68,18 @@ test.describe('Error Handling', () => {
   });
 
   test('mismatched profile passwords are rejected before any account is created', async ({ page }) => {
-    await clickThroughRenderChurn(page, 'Create Account');
+    await clickThroughRenderChurn(page, 'create-account-button');
 
     // Step 1 — workspace address.
     const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
     await expect(serverInput).toBeVisible();
     await serverInput.fill(config.WORKSPACE_SERVER);
-    await clickThroughRenderChurn(page, 'NEXT');
+    await clickThroughRenderChurn(page, 'wizard-next');
 
     // Step 2 — security settings are pre-filled; accept the defaults. Matched on
     // the heading because the body copy below it also contains the phrase.
     await expect(page.getByRole('heading', { name: 'Security Settings' })).toBeVisible({ timeout: 15_000 });
-    await clickThroughRenderChurn(page, 'NEXT');
+    await clickThroughRenderChurn(page, 'wizard-next');
 
     // Step 3 — profile, with deliberately mismatched passwords.
     const fullName = page.getByRole('textbox', { name: 'Full Name' });
@@ -84,7 +89,7 @@ test.describe('Error Handling', () => {
     await page.getByRole('textbox', { name: 'Profile Password', exact: true }).fill('correct-horse');
     await page.getByRole('textbox', { name: 'Confirm Profile Password' }).fill('battery-staple');
 
-    await clickThroughRenderChurn(page, /^Join$/);
+    await clickThroughRenderChurn(page, 'join-submit');
 
     await expect(errorSurface(page)).toBeVisible({ timeout: 15_000 });
 
@@ -95,7 +100,7 @@ test.describe('Error Handling', () => {
   });
 
   test('logging in as a non-existent user reports the failure', async ({ page }) => {
-    await clickThroughRenderChurn(page, 'Sign In');
+    await clickThroughRenderChurn(page, 'sign-in-button');
 
     await page.getByRole('textbox', { name: 'Username' }).fill(`ghost_${Date.now()}`);
     await page.getByRole('textbox', { name: 'Password', exact: true }).fill('wrong-password');
@@ -110,7 +115,10 @@ test.describe('Error Handling', () => {
     // assertion inside it was unconditional, so the removal turned into three
     // CI failures for a form that is now correct.
 
-    await clickThroughRenderChurn(page, /^Connect$/);
+    // By testid. The button said "Connect" when this was written and says
+    // "Sign In" now; the spec then waited ten seconds for a button that does
+    // not exist and failed before it could test anything about error handling.
+    await page.getByTestId('login-submit').click();
 
     // The server has to reject the unknown account, so this allows for a round
     // trip rather than expecting an immediate client-side answer.

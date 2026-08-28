@@ -28,9 +28,22 @@ const SPECS = join(APP, 'integration-tests', 'src');
 const BASELINE = join(APP, 'scripts', 'copy-addressed-controls.baseline.json');
 const WRITE = process.argv.includes('--write');
 
-/** A locator that finds a control by what it says. */
+/**
+ * A locator that finds a control by what it says.
+ *
+ * `getByRole` used to be matched as `{ name:` on a `'button'` only. Two things
+ * slipped through, and both cost a CI leg:
+ *
+ *  - **`{ name }` shorthand.** `getByRole('button', { name })` inside a helper
+ *    has no colon, so the check did not see it. `error-handling.spec.ts` waited
+ *    ten seconds for a button reading "Connect" that had said "Sign In" for
+ *    weeks, failed there, and never reached the error handling it was written
+ *    to test.
+ *  - **Roles other than button.** A link, tab or menuitem addressed by its
+ *    words breaks in exactly the same way.
+ */
 const COPY_LOCATOR =
-  /(has-text\(|getByText\(|getByRole\(\s*['"]button['"]\s*,\s*\{\s*name:|filter\(\s*\{\s*hasText:)/;
+  /(has-text\(|getByText\(|getByRole\(\s*['"][a-z]+['"]\s*,\s*\{\s*name\b|filter\(\s*\{\s*hasText:)/;
 /** Something done TO a control, as opposed to asserted about it. */
 const ACTION = /\.(click|fill|press|check|selectOption)\(/;
 

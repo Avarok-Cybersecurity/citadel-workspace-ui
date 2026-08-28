@@ -82,7 +82,7 @@ async function loginWithCredentials(
     }
 
     // Submit
-    await page.locator('button[type="submit"]:has-text("Connect")').click();
+    await page.getByTestId('login-submit').click();
     await sleep(3000);
 
     // Check for errors

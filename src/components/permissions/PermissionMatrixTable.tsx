@@ -81,7 +81,17 @@ export function PermissionMatrixTable({
                     back to say WHICH permission a checkbox belongs to. As a
                     td the matrix announced dozens of identical "checkbox,
                     not checked" with nothing to tell them apart. */}
-                <th scope="row" className="sticky left-0 z-10 bg-background px-3 sm:px-6 py-2 text-left font-normal">
+                <th
+                  scope="row"
+                  className="sticky left-0 z-10 bg-background px-3 sm:px-6 py-2 text-left font-normal"
+                  // Addressed by id, not by its words. A spec that hunted for
+                  // the string "Edit MDX Content" stopped finding anything the
+                  // day the label became "Can edit MDX documents", and what it
+                  // was actually guarding -- that this column stays on screen
+                  // at 375px -- went unchecked for every run since, while the
+                  // failure read as a broken test rather than a lost guard.
+                  data-testid={`permission-row-${permission.id}`}
+                >
                   <span className="text-sm text-foreground/80">{permission.label}</span>
                 </th>
                 {ROLE_HIERARCHY.map(role => {

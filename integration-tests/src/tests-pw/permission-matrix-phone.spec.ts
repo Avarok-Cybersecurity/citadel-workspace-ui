@@ -120,10 +120,16 @@ adminMemberTest('the permission matrix stays inside a 375px viewport', async ({ 
     // sitting off the left edge of the screen; where a given row falls
     // vertically is ordinary scrolling and none of this test's business. The
     // first version asserted full viewport intersection and passed locally by a
-    // few pixels — "Edit MDX Content" was the last row above the fold — then
-    // failed in CI where font metrics put it just below. It was measuring the
-    // layout's vertical luck, not the thing that broke.
-    const permissionLabel = page.getByText('Edit MDX Content').first();
+    // few pixels — the MDX row was the last one above the fold — then failed in
+    // CI where font metrics put it just below. It was measuring the layout's
+    // vertical luck, not the thing that broke.
+    //
+    // By testid, not by words. The second version looked for the literal string
+    // "Edit MDX Content"; the label became "Can edit MDX documents" and this
+    // found nothing for thirty seconds, every run, while the 375px guard below
+    // never executed at all. The failure read as a broken test rather than as a
+    // guard that had stopped guarding.
+    const permissionLabel = page.getByTestId('permission-row-EditMdx').first();
     await expect(permissionLabel, 'the permission label should render').toBeAttached({
         timeout: 30_000,
     });

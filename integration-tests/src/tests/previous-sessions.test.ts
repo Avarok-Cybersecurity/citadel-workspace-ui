@@ -106,7 +106,7 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
       }
     }
 
-    await page.locator('button[type="submit"]:has-text("Connect")').click({ force: true });
+    await page.getByTestId('login-submit').click();
     return await waitForWorkspaceLoaded(page, 45000);
   } catch {
     return false;

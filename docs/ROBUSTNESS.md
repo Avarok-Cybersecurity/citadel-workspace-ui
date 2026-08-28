@@ -13444,3 +13444,49 @@ empty when they are simply not in it. Fixing that needs a response variant the
 protocol does not have, which means regenerating the TypeScript bindings and
 rebuilding the stack. It is now a named decision with a comment on it rather
 than a coincidence of wording.
+
+## Round 258 — three CI legs, one root cause: buttons found by their words
+
+The Playwright shards finally reported, and their failures were not the modal
+cohort. They were the defect class this campaign named in round 248, caught
+red-handed in production CI.
+
+| Failing leg | Looked for | The button says |
+|---|---|---|
+| `error-handling` | `getByRole('button', {name: /^Connect$/})` | Sign In |
+| `login-flow` Step 3 | `button[type=submit]:has-text("Connect")` | Sign In |
+| `prev-sessions` | `button[type=submit]:has-text("Connect")` | Sign In |
+| `permission-matrix-phone` | `getByText('Edit MDX Content')` | Can edit MDX documents |
+
+All four have had a `data-testid` available the whole time — `login-submit`
+existed before any of these specs were written.
+
+The permission-matrix one is the clearest illustration of why this matters. That
+spec guards one thing: at 375px the permission label column must stay on screen
+instead of sliding off the left edge, where the names become unreachable. To
+measure that it first has to find a row. It waited thirty seconds for text that
+no longer existed, failed there, and **the assertion it exists to make has not
+run once since the label was improved** — while the failure read as a broken
+test rather than as a guard that had quietly stopped guarding.
+
+### The gate could not see two of them
+
+`check-controls-are-addressed-by-testid` matched `getByRole` only as
+`'button'` followed by `{ name:`. Two things walked straight past it:
+
+- **`{ name }` shorthand** — no colon, no match. That is exactly the line in
+  `error-handling.spec.ts`.
+- **Roles other than button** — a link, tab or menuitem addressed by its words
+  breaks identically.
+
+Widened to any role and `name` with or without a colon. The count went from
+**100 to 140**, and that rise is the check learning to see, not the code getting
+worse — 40 sites were always there. Re-baselined deliberately with
+`--allow-regressions`, which is what that flag exists for.
+
+Then fixed: the four legs above, plus `error-handling`'s helper now takes a
+testid rather than an accessible name, so all five of its presses are addressed
+by identity. 140 → **139** on the widened measure.
+
+*A check that cannot see the thing it was written to catch reports zero and
+reads as safe.*
