@@ -13324,3 +13324,20 @@ This does not explain the CI failure on its own — the request may never have
 reached that browser at all, which is the peer-registry lead still open from the
 last round. It removes one of the two ways the badge can be missing, and the
 next run distinguishes them.
+
+## Round 254 — one submit for every entity modal
+
+Continuing the burn-down. Creating an office, creating a room, adding a member
+and updating a role all submit through the same component,
+`EntityManagementModal`, and each spells its own button: "Create Office",
+"Create Room", "Add Member", "Update Role". Two shared helpers found it with
+`has-text("Create")`, which matches the first three words of one of those and
+none of the others.
+
+One `entity-modal-submit` now covers all of them, so a spec presses *the submit*
+rather than *the word Create* — which is one rename away from finding nothing,
+with no way to tell that it has.
+
+102 → **100**, and the baseline banked it. That is 10 of the original 110 gone,
+all of them in the libraries every spec runs through, which is where the leverage
+was.

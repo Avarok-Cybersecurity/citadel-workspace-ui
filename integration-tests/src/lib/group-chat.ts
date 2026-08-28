@@ -544,8 +544,8 @@ export async function createOffice(
       }
     }
 
-    // Click Create button
-    const createBtn = page.locator('button:has-text("Create")').first();
+    // The entity modal's submit, by testid; see tree-helpers.
+    const createBtn = page.getByTestId('entity-modal-submit').first();
     if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(3000);

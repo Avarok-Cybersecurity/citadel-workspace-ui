@@ -497,8 +497,10 @@ export async function createOfficeViaUI(
 
     await sleep(300);
 
-    // Submit - NodeManagementModal uses "Create {EntityType}" as button text
-    const createBtn = page.locator('button:has-text("Create")').first();
+    // The entity modal's submit, by testid. It used to be matched on the word
+    // "Create", which every entity modal spells differently -- "Create Office",
+    // "Create Room" -- and which changes whenever the copy does.
+    const createBtn = page.getByTestId('entity-modal-submit').first();
     if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(2000);

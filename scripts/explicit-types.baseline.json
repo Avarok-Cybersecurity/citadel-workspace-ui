@@ -698,7 +698,7 @@
   "src/lib/peer-registration-store/event-handlers.ts": 9,
   "src/lib/peer-registration-store/lifecycle.ts": 4,
   "src/lib/peer-registration-store/persistence.ts": 9,
-  "src/lib/peer-registration-store/service.ts": 10,
+  "src/lib/peer-registration-store/service.ts": 9,
   "src/lib/peer-registration-store/state.ts": 7,
   "src/lib/peer-registration-store/storage-keys.ts": 4,
   "src/lib/permissions-service/await-permissions-loaded.ts": 3,

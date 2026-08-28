@@ -1,9 +1,9 @@
 {
-  "integration-tests/src/lib/group-chat.ts": 4,
+  "integration-tests/src/lib/group-chat.ts": 3,
   "integration-tests/src/lib/live-docs.ts": 3,
   "integration-tests/src/lib/p2p/conversation.ts": 2,
   "integration-tests/src/lib/p2p/session.ts": 2,
-  "integration-tests/src/lib/tree-helpers.ts": 3,
+  "integration-tests/src/lib/tree-helpers.ts": 2,
   "integration-tests/src/tests/account-management.test.ts": 2,
   "integration-tests/src/tests/admin-modal.test.ts": 1,
   "integration-tests/src/tests/file-manager-extended.test.ts": 1,

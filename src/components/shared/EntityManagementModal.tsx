@@ -175,6 +175,11 @@ export function EntityManagementModal<TMode extends string>({
             </Button>
             <Button
               type="submit"
+              // Every entity modal submits through here -- create a node, add a
+              // member, update a role -- and each spells its own label. One
+              // testid means a spec presses "the submit", not "the word Create",
+              // which is one rename away from finding nothing.
+              data-testid="entity-modal-submit"
               disabled={isSubmitting}
               className={
                 modeConfig.submitVariant === 'destructive'
