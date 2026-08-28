@@ -13133,3 +13133,48 @@ instant it appears: closed, 824ms, no throw.
 `check-helpers-survive-a-vanishing-target.mjs` keeps the third one honest. Specs
 are deliberately exempt: a spec's click IS its assertion, and one that cannot
 land is a failure worth reporting. A helper's click is housekeeping.
+
+## Round 250 — auto-reconnect could never be turned off
+
+`test:settings-controls` printed every line as a pass and failed anyway:
+
+```
+Auto-Reconnect Switch:     CHECK
+...
+No UX issues detected!
+OVERALL: TEST FAILED
+```
+
+The detail underneath is the whole story:
+
+```
+Initial state: data-state="checked", aria-checked="true"
+[ServerAutoConnectService] Failed to save enabled setting:
+    Error: Session unavailable to this connection
+After toggle:  data-state="checked", aria-checked="true"
+```
+
+The switch does not move, because the save is refused, because the setting is
+written under **CID 0** — a deliberate "global" key for a preference that
+belongs to the machine rather than to any one account.
+
+The ownership gate looked up CID 0 in the connection map, found nothing, and
+refused the write as if it named somebody else's session. The **reads** already
+worked: `LocalDBGetKV` requires no ownership, so it reached the handler and
+answered "Key not found" like any other missing key. Only the writes were
+refused — so this preference has never once been stored.
+
+Round 224 is what made it visible. Before it, a refusal sent nothing and the
+browser waited out a five-second timeout before reverting the switch; after it,
+the same refusal arrives immediately, carrying a sentence about a session the
+user has never heard of. Neither of those is the setting being saved, and the
+five-second version is why nobody noticed for so long.
+
+CID 0 names no account. It is the local agent's own scratch space, which is what
+"global" means for a service that runs on your machine, and the gate now treats
+it as unscoped rather than as a session with an absent owner. A real session is
+still refused to a connection that does not own it, with its own test beside the
+new one; the control that removes the exemption fails only the new test.
+
+The UI, for once, was already right: it reverts the switch and shows the reason
+rather than a fixed sentence, which is exactly why the log said what was wrong.
