@@ -139,7 +139,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     // position identical while the thumb gets something to aim
                     // at. `right-3` becomes right-2 to keep the visual inset
                     // once the box grew.
-                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
+                    className="tap-target absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                   >
                     {showPassword
                       ? <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -162,7 +162,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
               {/* Advanced Options */}
               <button
                 type="button"
-                className="flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-primary-accent py-1"
+                className="tap-target flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-primary-accent py-1"
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
               >
                 <Settings className="h-3.5 w-3.5" />

@@ -79,16 +79,31 @@ async function main() {
     });
     const page = await context.newPage();
 
+    // Testids, not button copy.
+    //
+    // These read `getByRole('button', { name: /Join Workspace/i })` and
+    // `/Login Workspace/i`, which is what those buttons said before they were
+    // renamed to "Sign In" and "Create Account" -- because neither old label was
+    // English and "Join" meant *create an account*. The integration suite was
+    // migrated to testids when that happened and this script was not, so it has
+    // been failing on a thirty-second locator timeout ever since, invisibly:
+    // it needs a browser and a served build, so it never runs in preflight, and
+    // the job it lives in was already failing earlier for other reasons.
+    //
+    // Fixing those earlier gates is what surfaced this one. A dead check behind
+    // a failing check is indistinguishable from a passing one.
     const screens = [
-      ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'networkidle' }); }],
-      ['join', async () => { await page.getByRole('button', { name: /Join Workspace/i }).click({ force: true }); }],
-      ['login', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'networkidle' });
-        await page.getByRole('button', { name: /Login Workspace/i }).click({ force: true });
+      ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' }); }],
+      ['create-account', async () => {
+        await page.getByTestId('create-account-button').click({ force: true });
+      }],
+      ['sign-in', async () => {
+        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.getByTestId('sign-in-button').click({ force: true });
       }],
       ['manage-accounts', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'networkidle' });
-        await page.getByRole('button', { name: /Manage Accounts/i }).click({ force: true });
+        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.getByTestId('manage-accounts-button').click({ force: true });
       }],
     ];
 

@@ -849,3 +849,26 @@ h1, h2, h3, h4, h5, h6 {
 .reveal-on-hover:focus-within {
   opacity: 1;
 }
+
+/**
+ * The WCAG 2.2 minimum target size, in pixels because it is a floor.
+ *
+ * Icon buttons were given `h-6 w-6` with comments stating "the BUTTON is 24px,
+ * the WCAG 2.2 target-size floor". Tailwind's `6` is 1.5rem, and the appearance
+ * default sets the document root to 14px — so those buttons render at **21px**,
+ * and the comment asserting otherwise had been wrong since the day it was
+ * written. check-mobile-layout measured 21x21 on both password toggles and the
+ * dialog close button.
+ *
+ * This is the same root cause as the illegible `text-xs`: every rem-based size
+ * in the app is 87.5% of its nominal value, so any rule expressed in rem that
+ * is meant as a MINIMUM silently is not one. A floor belongs in the unit the
+ * standard is written in.
+ *
+ * `min-*` rather than fixed size, so a control that is legitimately larger
+ * stays larger, and so a user who raises the font size still grows the target.
+ */
+.tap-target {
+  min-width: 24px;
+  min-height: 24px;
+}

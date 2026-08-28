@@ -177,6 +177,9 @@ async function main() {
 
     // The user-visible half. A detected update nobody is told about is the same
     // as no update at all.
+    // copy-under-test: the sentence IS what this check verifies reaches the
+    // user. Addressing it by testid would test that a container exists while
+    // saying nothing about whether it says anything.
     const prompt = page.getByText(/A new version of Citadel is ready/i);
     const shown = await prompt
       .waitFor({ state: 'visible', timeout: 30_000 })
@@ -184,6 +187,10 @@ async function main() {
       .catch(() => false);
     record('the user is offered the update', shown);
 
+    // copy-under-test: a Sonner toast action, rendered by the toast library
+    // from a label we pass. There is no testid to address it by, and the label
+    // is part of the offer being verified -- "the offer carries a Reload
+    // action" is a claim about what the user is shown.
     const reload = page.getByRole('button', { name: /^reload$/i });
     const actionable = shown && (await reload.count()) > 0;
     record('the offer carries a Reload action', actionable);

@@ -51,7 +51,7 @@ const DialogContent = React.forwardRef<
       // dvh, not vh: vh ignores mobile browser chrome and still overflows.
       // Consumers that manage their own scrolling override this through cn().
       //
-      // [&>*]:min-w-0 — this is a grid, and a grid item's min-width defaults to
+      // [&>*:not(.absolute)]:min-w-0 — this is a grid, and a grid item's min-width defaults to
       // `auto`, meaning it refuses to become narrower than its own content. The
       // width above is then decorative: a wide child (the permission matrix is a
       // table roughly 620px at its narrowest) pushes past it, and because the
@@ -60,17 +60,23 @@ const DialogContent = React.forwardRef<
       // label column off screen to the left, leaving a grid of checkmarks with
       // nothing to say which permission each row was. Letting items shrink hands
       // scrolling back to whichever child owns it.
-      "fixed left-[50%] top-[50%] z-50 grid [&>*]:min-w-0 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg",
+      "fixed left-[50%] top-[50%] z-50 grid [&>*:not(.absolute)]:min-w-0 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg",
         className
       )}
       {...props}
     >
       {children}
-      {/* h-6 w-6 with the icon centred: the icon is 16px, which is under the
-          WCAG 2.2 target-size floor of 24px, and this one close button is on
-          every dialog in the app. axe does not measure target size, so it took
-          a viewport probe to see it. */}
-      <DialogPrimitive.Close className="absolute right-4 top-4 inline-flex h-6 w-6 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+      {/* The icon is 16px, under the WCAG 2.2 target-size floor of 24px, and
+          this one close button is on every dialog in the app. axe does not
+          measure target size, so it took a viewport probe to see it.
+          
+          `h-6 w-6` was the first fix and the comment claimed it made the button
+          24px. It did not: Tailwind's 6 is 1.5rem and the app's root font size
+          is 14px, so it rendered 21x21. `.tap-target` states the floor in the
+          unit the standard is written in — and the grid's `min-w-0` had to stop
+          applying to absolutely positioned children, because it was overriding
+          that floor on this very button. */}
+      <DialogPrimitive.Close className="tap-target absolute right-4 top-4 inline-flex h-6 w-6 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

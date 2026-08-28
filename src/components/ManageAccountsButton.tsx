@@ -11,6 +11,7 @@ export function ManageAccountsButton() {
       <Button
         variant="outline"
         size="sm"
+        data-testid="manage-accounts-button"
         className="gap-2 border-primary-accent text-primary-accent hover:bg-primary-accent/20"
         onClick={() => setDialogOpen(true)}
       >

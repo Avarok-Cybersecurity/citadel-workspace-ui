@@ -97,7 +97,11 @@ async function main() {
     );
 
     // The one that catches `animation: none`.
-    await page.getByRole('button', { name: /Manage Accounts/i }).click({ force: true });
+    // By testid, not by label. The landing buttons were renamed once already
+    // and every browser script that addressed them by copy broke silently --
+    // see check-mobile-layout.mjs, which spent weeks timing out on a button
+    // called "Join Workspace" that no longer existed.
+    await page.getByTestId('manage-accounts-button').click({ force: true });
     const dialog = page.locator('[role="dialog"]').first();
     const opened = await dialog.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true).catch(() => false);
     await page.keyboard.press('Escape');

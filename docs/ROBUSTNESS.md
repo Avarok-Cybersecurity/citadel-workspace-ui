@@ -10464,3 +10464,63 @@ of 5 — the same count, different tests, which is what makes the pair worth
 having. Matching by substring instead of prefix fails 1: `x-peer-first-seen:1`
 belongs to something else, and a sign-out that deletes another feature's keys is
 worse than one that leaves its own.
+
+## Round 188 — a dead check behind a failing check, and three tap targets it had stopped measuring
+
+With the offline and Lighthouse gates fixed, the Production Docker job failed one
+step further along: `check-mobile-layout.mjs`, timing out for thirty seconds on
+
+```
+waiting for getByRole('button', { name: /Join Workspace/i })
+```
+
+Those buttons were renamed to "Sign In" and "Create Account" in round 168 —
+because neither old label was English and "Join" meant *create an account*. That
+round migrated seventeen integration-test files to testids and added a guard so
+the readiness probe could not regress. The guard covers `integration-tests/`. It
+does not cover `scripts/`, and this script has been failing ever since.
+
+Invisibly, for two compounding reasons: it needs a browser and a served build,
+so it never runs in preflight; and the job it lives in was already failing
+earlier, first on the offline check and then on Lighthouse. **A dead check behind
+a failing check is indistinguishable from a passing one.** Fixing those two is
+what surfaced this.
+
+Same fix as round 168, applied to the directory it missed — the fifth
+never-propagated fix this campaign has found, and the second where the
+uncorrected copy was mine.
+
+### What the check found once it could run
+
+| screen | control | measured |
+|---|---|---|
+| sign-in | Show password | 21 × 21 |
+| sign-in | Advanced Options | 303 × 23.5 |
+| manage-accounts | Close | 21 × 21 |
+
+All three under the WCAG 2.2 floor of 24 × 24. And the password toggle carries a
+comment reading *"the BUTTON is 24px, the WCAG 2.2 target-size floor"*.
+
+It is not. `h-6` is `1.5rem`, and the app's root font size is 14px, so it renders
+at 21px. **This is round 185's defect again, in a different guise**: every
+rem-based size in the app is 87.5% of nominal, so any rule expressed in rem that
+is meant as a MINIMUM silently is not one. Round 185 caught it for text because
+Lighthouse measures text. Nothing measures tap targets except this script, which
+was dead.
+
+`.tap-target` states the floor in the unit the standard is written in — `min-`
+rather than fixed, so a larger control stays larger and a user who raises the
+font size still grows the target.
+
+One more layer underneath: setting it was not enough, because `DialogContent`
+carries `[&>*]:min-w-0` so its grid children can shrink, and that was overriding
+the floor on the close button — width 21, height 24, the half-fix that proves
+the rule was being applied and beaten. Narrowed to `[&>*:not(.absolute)]:min-w-0`:
+the close button is absolutely positioned and was never a grid item that needed
+to shrink.
+
+All four screens pass now. The guard added here forbids copy-based locators in
+every browser-driving script, with exemptions that must **state themselves
+immediately above the line they cover** — `check-pwa-update.mjs` legitimately
+reads the update prompt's sentence, because that sentence is the thing under
+test. An exemption listed elsewhere is a claim nobody re-reads.
