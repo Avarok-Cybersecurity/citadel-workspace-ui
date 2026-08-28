@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
+import { ancestorIds, type AncestorWalkable } from './ancestor-chain';
 
 /**
  * Reveal what somebody just created.
@@ -16,19 +17,41 @@ import { eventEmitter } from '@/lib/event-emitter';
  *
  * which reads as a broken write and is a hidden one.
  *
- * The parent only, never the new node: expanding the thing you just created
- * would move whatever is below it, which nobody asked for.
+ * Never the new node itself: expanding the thing you just created would move
+ * whatever is below it, which nobody asked for.
+ *
+ * But the whole chain ABOVE it, not only its parent. Opening the parent is
+ * enough while the parent is already on screen, and stops being enough the
+ * moment something is created two levels below a collapsed node -- the parent
+ * opens inside a grandparent that is still shut, and the result is invisible
+ * again. CI measured exactly that boundary in a five-deep tree: the fourth
+ * level was reachable and the fifth was not, reported as "node not found",
+ * which reads as a write that never happened.
  */
 export function useRevealCreatedNodes(
   setExpandedNodes: Dispatch<SetStateAction<Set<string>>>,
+  /**
+   * The tree as it stands, for walking up from the new node's parent. Read
+   * through a ref so a tree that changes on every keystroke does not
+   * resubscribe this listener.
+   */
+  treeRef: MutableRefObject<AncestorWalkable | null>,
 ): void {
   useEffect(() => {
     const reveal = (payload: { node: { parent_id: string | null } }): void => {
       const parentId: string | null = payload.node.parent_id;
       if (!parentId) return;
-      setExpandedNodes((prev) => (prev.has(parentId) ? prev : new Set(prev).add(parentId)));
+      // The parent, and everything it is inside. A parent opened within a shut
+      // grandparent is still not on screen.
+      const toOpen: string[] = [...ancestorIds(treeRef.current, parentId), parentId];
+      setExpandedNodes((prev) => {
+        if (toOpen.every((id) => prev.has(id))) return prev;
+        const next: Set<string> = new Set(prev);
+        for (const id of toOpen) next.add(id);
+        return next;
+      });
     };
     eventEmitter.on('node:loaded', reveal);
     return (): void => eventEmitter.off('node:loaded', reveal);
-  }, [setExpandedNodes]);
+  }, [setExpandedNodes, treeRef]);
 }

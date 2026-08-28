@@ -1,6 +1,5 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { matchesSearch } from '@/lib/fold-for-search';
-import { useRevealCreatedNodes } from './use-reveal-created-nodes';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
@@ -24,6 +23,7 @@ import { buildTreeFromNodes } from "./tree-node-utils";
 // Re-export all types for backward compatibility
 export type { NodeEntityType, DomainPermissions, DomainNode, TreeNode, TreeSchema, NestingRule, EntityTypeConfig } from "./tree-node-types";
 import type { DomainNode, TreeNode } from "./tree-node-types";
+import { useTreeExpansion } from './use-tree-expansion';
 
 export interface TreeNodesSectionProps {
   tree?: TreeNode;
@@ -103,73 +103,16 @@ export function TreeNodesSection({
     return filterNode(treeData);
   }, [treeData, searchQuery]);
 
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
-    const initial: Set<string> = new Set<string>(initialExpandedIds);
-    if (treeData) initial.add(treeData.node.id);
-    return initial;
+  const { effectiveExpanded, toggleExpand } = useTreeExpansion({
+    treeData,
+    filteredTreeData,
+    searchQuery,
+    initialExpandedIds,
   });
-
-  // Expand the first level ONCE, when the tree first arrives.
-  //
-  // This used to run on every change of `treeData` OR `filteredTreeData`
-  // identity, and both change constantly: a fresh object per keystroke, and
-  // `state.nodes` re-minted on node:loaded / nodes:loaded / node:deleted /
-  // node:content-updated / node:moved. So every collapse the user made was
-  // undone by typing one character and deleting it, or by anyone saving a
-  // document anywhere in the workspace -- and a large workspace opened fully
-  // expanded into a 50vh unvirtualised scroll area, three tab stops per row.
-  const hasAutoExpanded = useRef(false);
-  useEffect(() => {
-    if (hasAutoExpanded.current || !treeData) return;
-    hasAutoExpanded.current = true;
-    setExpandedNodes((prev) => {
-      const next: Set<string> = new Set(prev);
-      next.add(treeData.node.id);
-      for (const child of treeData.children) {
-        if (child.children.length > 0) next.add(child.node.id);
-      }
-      return next;
-    });
-  }, [treeData]);
-
-  useRevealCreatedNodes(setExpandedNodes);
-
-  /**
-   * What is actually rendered as expanded.
-   *
-   * While filtering, every ancestor of a match must be open or the match is
-   * invisible — but that is a property of the QUERY, not a decision the user
-   * made, so it is derived rather than written into `expandedNodes`. Clearing
-   * the box therefore restores exactly the shape the user had.
-   */
-  const effectiveExpanded: Set<string> = useMemo(() => {
-    if (!searchQuery.trim() || !filteredTreeData) return expandedNodes;
-    const withMatches: Set<string> = new Set(expandedNodes);
-    function openAncestors(tn: TreeNode) {
-      if (tn.children.length > 0) {
-        withMatches.add(tn.node.id);
-        tn.children.forEach(openAncestors);
-      }
-    }
-    openAncestors(filteredTreeData);
-    return withMatches;
-  }, [expandedNodes, filteredTreeData, searchQuery]);
 
   const [nodeToDelete, setNodeToDelete] = useState<DomainNode | null>(null);
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const handleToggleExpand = useCallback((nodeId: string) => {
-    setExpandedNodes((prev) => {
-      const next: Set<string> = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  }, []);
 
   const handleNodeSelect = useCallback(
     (nodeId: string) => {
@@ -306,7 +249,7 @@ export function TreeNodesSection({
                     depth={0}
                     selectedNodeId={selectedNodeId}
                     expandedNodes={effectiveExpanded}
-                    onToggleExpand={handleToggleExpand}
+                    onToggleExpand={toggleExpand}
                     onNodeSelect={handleNodeSelect}
                     onNodeEdit={onNodeEdit}
                     onNodeDelete={handleNodeDelete}

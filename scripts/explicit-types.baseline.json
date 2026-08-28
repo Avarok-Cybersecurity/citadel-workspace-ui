@@ -182,7 +182,7 @@
   "src/components/layout/sidebar/PendingRequestsBadge.tsx": 2,
   "src/components/layout/sidebar/TopBar.tsx": 11,
   "src/components/layout/sidebar/TreeNodeItem.tsx": 8,
-  "src/components/layout/sidebar/TreeNodesSection.tsx": 16,
+  "src/components/layout/sidebar/TreeNodesSection.tsx": 13,
   "src/components/layout/sidebar/WorkspaceSwitcher.tsx": 2,
   "src/components/layout/sidebar/WorkspaceSwitcherDropdown.tsx": 2,
   "src/components/layout/sidebar/__tests__/TreeNodeItem.test.tsx": 6,

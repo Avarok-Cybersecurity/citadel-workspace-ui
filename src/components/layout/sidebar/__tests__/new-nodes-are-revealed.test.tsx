@@ -96,4 +96,59 @@ describe('a node that has just arrived', () => {
 
     expect(screen.getByText('Standup')).toBeInTheDocument();
   });
+
+  it('opens every level above it, not only its parent', async () => {
+    // The case CI measured: a five-deep chain where the fourth level was
+    // reachable and the fifth was not. Opening the parent is enough while the
+    // parent is on screen; a node created two levels below something collapsed
+    // gets its parent opened INSIDE a shut grandparent, and is invisible just
+    // the same. Reported as "node not found", which reads as a failed write.
+    const l1: DomainNode = node('l1', 'Alpha', 'root', ['l2']);
+    const l2: DomainNode = node('l2', 'Beta', 'l1', ['l3']);
+    const l3: DomainNode = node('l3', 'Charlie', 'l2', ['l4']);
+    const l4: DomainNode = node('l4', 'Delta', 'l3');
+    const deepRoot: DomainNode = node('root', 'Workspace', null, ['l1']);
+
+    const chain = (withDeepest: boolean): TreeNode => ({
+      node: deepRoot,
+      children: [
+        {
+          node: l1,
+          children: [
+            {
+              node: l2,
+              children: [
+                {
+                  node: withDeepest ? l3 : { ...l3, children: [] },
+                  children: withDeepest ? [{ node: l4, children: [] }] : [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const view: ReturnType<typeof render> = render(
+      <MemoryRouter>
+        <SidebarProvider>
+          <TreeNodesSection tree={chain(false)} nodes={[deepRoot, l1, l2, l3]} canCreate />
+        </SidebarProvider>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('Delta')).toBeNull();
+
+    view.rerender(
+      <MemoryRouter>
+        <SidebarProvider>
+          <TreeNodesSection tree={chain(true)} nodes={[deepRoot, l1, l2, l3, l4]} canCreate />
+        </SidebarProvider>
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      eventEmitter.emit('node:loaded', { node: l4, connection: {} });
+    });
+
+    expect(screen.getByText('Delta')).toBeInTheDocument();
+  });
 });

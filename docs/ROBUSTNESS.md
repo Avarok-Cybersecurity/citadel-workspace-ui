@@ -13601,3 +13601,64 @@ and how many of them are on the page, so "the modal is up but its accept control
 is not addressable" cannot be mistaken again for "nothing arrived". A diagnostic
 that names the wrong layer costs more than no diagnostic: it is confidently
 wrong, and it is believed.
+
+## Round 262 — eighteen of twenty legs, one missing attribute
+
+Round 261 named the defect. This round measured it. Every failing leg of the
+completed run, grepped for the string the helper prints when it cannot find the
+accept control:
+
+| Leg | `Accept button not found in modal` |
+|---|---|
+| Playwright shard 1/3 | **120** |
+| Playwright shard 2/3 | 36 |
+| Playwright shard 3/3 | 60 |
+| peer-group | 80 |
+| chat-settings, native-file-picker, live-doc, revfs:peer, offline, p2p-types, hard-disconnect, file-transfer, file-manager, p2p, and all four reconnect legs | 20 each |
+| prev-sessions | 0 |
+| hierarchy-nav | 0 |
+
+**Eighteen of the twenty.** One `data-testid` that was on the peer list's accept
+button and not on the modal the badge actually opens.
+
+This also corrects something I recorded earlier in the same session. The
+`call-audio-video` "the two peers connect (4.7m)" and `p2p-messaging` "(2.0m)"
+failures were written down as P2P-layer timeouts needing a running stack. They
+were not. Twenty retries at roughly ten seconds is two hundred seconds — which
+is where those "2.0m" and "4.7m" figures come from. The suite was not timing out
+on a handshake; it was patiently looking, twenty times, for a button that had no
+name. A plausible explanation that fits the shape of a failure is not a
+diagnosis.
+
+## Round 263 — revealed one level, not the chain
+
+`hierarchy-nav` is one of the two legs with a different cause, and its report is
+unusually precise:
+
+```
+Epsilon Type:   PASS     Epsilon Node:   PASS     Epsilon Depth:  PASS
+Epsilon Nav:    FAIL
+```
+
+The node exists, at the right depth, with the right type. Only its *sidebar
+visibility* fails — and only at the fifth level; the four above it passed.
+
+`useRevealCreatedNodes` opens the parent of a node that has just arrived. That
+is enough while the parent is itself on screen, and stops being enough the
+moment something is created two levels below anything collapsed: the parent
+opens **inside a grandparent that is still shut**, and the result is invisible
+exactly as before. The hook's own doc comment describes the defect it was
+written to fix — "the write succeeded, a success toast appeared, and the sidebar
+showed nothing" — and that defect is still there one level deeper.
+
+Now it opens the whole chain. `ancestorIds` is a plain walk over the tree with
+five tests of its own, including a node down the second branch, a node the tree
+does not contain, and no tree at all. The component test renders the real
+`TreeNodesSection` with a five-deep chain; reverting to parent-only fails the
+new test and leaves the original green, which is what says the new test is about
+the new thing.
+
+`TreeNodesSection` crossed its length ceiling on the way, so everything about
+what is open — the once-only auto-expand, the reveal, the derived search
+expansion and the toggle — moved into `use-tree-expansion`. 360 → **298** lines,
+and the types ratchet fell 5,578 → 5,575 in passing.
