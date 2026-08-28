@@ -15,8 +15,12 @@ export const AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';
 export const POLLING_INTERVAL = POLLING.P2P_REGISTRATION_INTERVAL_MS;
 
 /**
- * Timeout for peer listing operations - must be longer than backend SDK timeout (5s)
- * to avoid frontend timing out while backend is still processing
+ * Timeout for peer listing operations.
+ *
+ * Must be longer than the AGENT's PEER_LIST_TIMEOUT, which is 30s. This comment
+ * used to say 5s — a statement about a Rust constant that had since changed,
+ * which is why the value beneath it (6s) had been below the real bound for as
+ * long as it had been wrong. See check-peer-list-timeout-parity.
  */
 export const PEER_LIST_TIMEOUT = TIMEOUT.PEER_LIST_MS;
 

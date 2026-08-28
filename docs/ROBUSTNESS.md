@@ -9320,3 +9320,54 @@ Two smaller things fell out of the same edit. The response handler destructured
 it arrives as a number — now coerced rather than cast, so the value matches its
 type either way. And the tests use Node's real `webcrypto` rather than a stub,
 so the digest under test is the one the browser computes.
+
+## Round 158 — a delete button, a lying settings tab, a Map read as an object
+
+**"Clear Sessions" destroyed every reclaimable session on the agent.** The
+"Session Already Connected" toast offered it, and it called
+`disconnectOrphan(null)` — whose bulk branch removes every session whose socket
+is not currently live, which is exactly the set the architecture calls intact
+and reclaimable and the orphan navbar exists to restore. One click, no
+confirmation, no enumeration, and a success toast that said only "Please try
+logging in again". Other workspaces' sessions, gone.
+
+The state the message describes has a correct remedy and it is claiming, not
+deleting: the session is already live, so take it. The action is now "Use That
+Session", and it reports honestly when another tab has it.
+
+**The chat panel's privacy switches operated on nothing.** Notifications, Read
+Receipts and Typing Indicators were uncontrolled `Switch defaultChecked` with no
+handler and no store — so turning read receipts off there changed nothing and
+both kept flowing. On a product whose subject is privacy, a switch that lies
+about what you are broadcasting is the worst kind to fake. They are now bound to
+the same store the Privacy settings tab writes, with a line saying they apply
+everywhere; Notifications, which has no backing setting anywhere, is gone rather
+than mocked.
+
+**A Rust `HashMap` was read as a plain object in three places.**
+serde-wasm-bindgen is configured without `serialize_maps_as_objects`, so a Rust
+`HashMap` arrives as a JS `Map` — while ts-rs declares `Record<string, T>`. Both
+are correct and together they mean `Object.keys` returns nothing, silently, with
+the compiler agreeing. The fix was found once and its comment spells it out;
+`refreshFromBackend` merged nothing, auto-connect always took the "no
+peer_connections in session" fallback, and the conversation list never marked
+anything connected after a reconnect. A guard now covers the field, and found
+the third site itself.
+
+**"Set as default" sent a field the protocol did not have.** `UpdateNode` had no
+`is_default`, serde ignores unknown keys, the write succeeded,
+`awaitWriteResponse` resolved and the toast said "X is now the default" — while
+`is_default` never changed and the old default returned on reload. The field now
+exists and is honoured, with the part that is easy to get wrong pinned:
+exclusivity. Setting one clears the others in the same lock and the same save;
+`Some(false)` clears without promoting a replacement, because choosing one on
+the user's behalf is the app deciding where their workspace opens.
+
+**The browser gave up on peer discovery before the agent did.** 6 s against the
+agent's 30 s — and the comment justifying the 6 s cited "the backend SDK timeout
+(5s)", a statement about a Rust constant that had since been changed, with the
+comment left behind. A number justified by a fact that stopped being true is the
+hardest kind to notice, because it reads as considered. Now 35 s, with a parity
+gate that reads both sides as text.
+
+Preflight is 32 checks.

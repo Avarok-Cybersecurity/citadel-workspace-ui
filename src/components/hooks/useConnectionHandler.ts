@@ -9,6 +9,8 @@
  */
 
 import { useEffect, useState } from 'react';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
+import { describeFailure } from '@/lib/failure-message';
 import NotificationService, { NotificationPriority } from '@/lib/notification-service';
 import { MessagingService } from '@/lib/messaging-service';
 import { ConnectionService } from '@/lib/connection-service';
@@ -174,22 +176,39 @@ export function useConnectionHandler() {
         description: "You are already connected in another window or tab.",
         variant: "destructive",
         action: {
-          label: "Clear Sessions",
+          // "Use that session", not "Clear Sessions".
+          //
+          // The action here called disconnectOrphan(null), whose bulk branch
+          // removes EVERY session on the agent whose socket is not currently
+          // live — which is precisely the set the architecture describes as
+          // intact and reclaimable, and which the orphan-sessions navbar exists
+          // to restore. One click destroyed other workspaces' sessions
+          // agent-wide, with no confirmation, no enumeration, and a success
+          // toast that said only "Please try logging in again".
+          //
+          // The state the message describes has a correct remedy, and it is
+          // claiming: this session is already live, so take it.
+          label: "Use That Session",
           onClick: () => {
             void (async () => {
               try {
-                await websocketService.setOrphanMode(true);
-                await websocketService.disconnectOrphan(null);
+                const outcome = await claimSessionForThisTab(BigInt(event.cid));
+                if (outcome.status === 'owned-by-another-tab') {
+                  toast(SESSION_OWNED_ELSEWHERE);
+                  return;
+                }
                 toast({
-                  title: "Orphaned sessions cleared",
-                  description: "Please try logging in again",
+                  title: "Session restored",
+                  description: "You are now using the session that was already open.",
                   variant: "success",
                 });
               } catch (error) {
-                debugLog('WorkspaceApp', 'Failed to disconnect orphan sessions:', error);
                 toast({
-                  title: "Could not clear sessions",
-                  description: error instanceof Error ? error.message : "Unknown error",
+                  title: "Could not use that session",
+                  description: describeFailure(
+                    error,
+                    "The session could not be taken over. Close the other tab and try again.",
+                  ),
                   variant: "destructive",
                 });
               }

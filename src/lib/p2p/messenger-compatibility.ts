@@ -6,6 +6,7 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { wireMapEntries } from '@/lib/wire-map';
 import { connectionManager } from '../connection';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { getDefaultSecuritySettings } from '../security-utils';
@@ -30,8 +31,13 @@ export async function syncConnectionsFromBackend(
     const currentCid = await getCurrentCid();
     if (!currentCid) return;
     const mySession = activeSessions.find(s => s.cid === currentCid);
-    if (!mySession?.peer_connections) return;
-    for (const peerCidStr of Object.keys(mySession.peer_connections)) {
+    // A third site reading the wire HashMap as an object, and the one that
+    // decides which conversations are marked connected -- so after a reconnect
+    // every conversation stayed grey until something else noticed.
+    for (const [peerCidStr] of wireMapEntries<unknown>(
+      mySession?.peer_connections,
+      'peer_connections',
+    )) {
       const peerCid = BigInt(peerCidStr);
       if (!conversationManager.isConnected(peerCid)) {
         conversationManager.setConnection(peerCid, true);

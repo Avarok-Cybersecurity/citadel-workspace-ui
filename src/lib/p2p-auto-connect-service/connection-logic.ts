@@ -5,6 +5,7 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { wireMapEntries } from '@/lib/wire-map';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { ownsSession } from './session-ownership';
 import { connectionManager } from '../connection';
@@ -194,17 +195,18 @@ async function getRegisteredPeersViaGetSessions(currentCid: bigint): Promise<Arr
     const sessions = await connectionManager.getActiveSessions();
     const mySession = sessions.find(s => s.cid === currentCid);
 
-    if (!mySession?.peer_connections || Object.keys(mySession.peer_connections).length === 0) {
+    // Object.keys on a Map is always [], so this branch was always taken.
+    const wirePeers = wireMapEntries<{ peer_username?: string }>(mySession?.peer_connections, 'peer_connections');
+    if (wirePeers.length === 0) {
       debugLog('P2PAutoConnectService', 'P2PAutoConnect: No peer_connections in session, using local peer registry...');
       const { registeredPeers } = p2pRegistrationService.getPeers();
       return registeredPeers.map(p => ({ cid: p.cid, username: p.username }));
     }
 
-    const peers: Array<{ cid: bigint; username: string }> = [];
-    for (const [peerCidStr, peerInfo] of Object.entries(mySession.peer_connections)) {
-      peers.push({ cid: BigInt(peerCidStr), username: peerInfo.peer_username || '' });
-    }
-    return peers;
+    return wirePeers.map(([peerCidStr, peerInfo]) => ({
+      cid: BigInt(peerCidStr),
+      username: peerInfo.peer_username || '',
+    }));
   } catch (error) {
     debugLog('P2PAutoConnectService', 'GetSessions fallback failed:', error);
     return [];

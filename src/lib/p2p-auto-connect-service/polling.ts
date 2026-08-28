@@ -5,6 +5,7 @@
  */
 
 import { connectionManager } from '../connection';
+import { wireMapEntries } from '@/lib/wire-map';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { instanceManager } from '../multi-instance';
 import { POLLING } from '../timeout-constants';
@@ -72,7 +73,16 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
     }
 
     const now = Date.now();
-    for (const [peerCidStr, info] of Object.entries(mySession.peer_connections)) {
+    // wireMapEntries, not Object.entries. peer_connections is a Rust HashMap,
+    // which serde-wasm-bindgen delivers as a JS Map (maps-as-objects is not
+    // enabled) while ts-rs declares Record<string, T> -- so Object.entries
+    // returns [] and this loop body never ran. The fix was found and applied in
+    // p2p-registration-service/connection.ts and not carried here, so
+    // refreshFromBackend silently merged nothing.
+    for (const [peerCidStr, info] of wireMapEntries<{ peer_username?: string }>(
+      mySession.peer_connections,
+      'peer_connections',
+    )) {
       const peerCidBigInt = BigInt(peerCidStr);
       const existingInfo = existingPeerMap.get(peerCidBigInt);
 

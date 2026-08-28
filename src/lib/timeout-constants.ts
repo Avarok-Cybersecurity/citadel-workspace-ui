@@ -32,8 +32,19 @@ export const TIMEOUT = {
   PEER_REGISTER_MS: 10000,
   /** Timeout for permission fetch operations */
   PERMISSION_FETCH_MS: 10000,
-  /** Timeout for peer list operations */
-  PEER_LIST_MS: 6000,
+  /**
+   * Timeout for peer list operations.
+   *
+   * Must exceed the agent's own PEER_LIST_TIMEOUT, which is 30s
+   * (citadel-internal-service .../requests/peer/mod.rs). It was 6000, chosen
+   * against a 5s wrapper that no longer exists — so under load the browser
+   * declared discovery failed while the service was still legitimately working,
+   * and the late answer arrived with no listener.
+   *
+   * Longer than the thing it waits on, not shorter: giving up first turns a
+   * slow answer into a wrong one.
+   */
+  PEER_LIST_MS: 35000,
   /** Timeout for file send requests */
   FILE_SEND_MS: 30000,
   /** Timeout for file download requests */
