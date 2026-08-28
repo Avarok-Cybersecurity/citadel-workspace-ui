@@ -12715,3 +12715,25 @@ regressing five files was accepted, because only the total was being looked at.
 so loosening the ratchet is a decision somebody makes rather than a side effect
 of a bulk edit. Control: an edit that improves the total and regresses one file
 is refused, naming the file and both numbers.
+
+### And two gates that read declarations by regex
+
+The annotation pass broke `check-transfer-cap-parity`, and it broke it in the
+right direction:
+
+```
+no MAX_BYTE_CONTENTS_BYTES declaration found in server-upload.ts.
+It was renamed or reshaped — this comparison cannot be trusted, so it fails
+rather than reporting agreement it did not check.
+```
+
+The constant had become `export const MAX_BYTE_CONTENTS_BYTES: number = …`,
+which is exactly what the new policy asks for, and the pattern predated the
+policy. Two gates match declarations that way; both now treat the annotation as
+optional. `check-storage-keys` is the one that mattered more quietly — a key it
+cannot see is a key it reports as **never written**, which is a false positive
+pointed at working code.
+
+That is the shape to watch for as the remaining 6,775 annotations land: every
+tool in this repository that recognises a declaration by its text has an opinion
+about what a declaration looks like, and the policy is changing that shape.
