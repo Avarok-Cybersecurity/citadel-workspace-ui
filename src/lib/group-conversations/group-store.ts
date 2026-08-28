@@ -20,6 +20,7 @@
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { bindGroupFailureToasts } from './group-failure-toasts';
+import { bindGroupListReconcile } from './reconcile-groups';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
@@ -237,6 +238,8 @@ export function startGroupEventBindings(): void {
     debugLog('GroupStore', 'Group deleted:', data);
     updateGroups(prev => prev.filter(g => g.id !== data.groupId));
   });
+
+  bindGroupListReconcile();
 
   debugLog('GroupStore', 'Group event bindings started');
 }

@@ -9783,3 +9783,92 @@ That is the third time this campaign has found a documented mechanism that does
 not exist — after the second leader election (round 150) and the "(SSOT)" label
 on a copy nobody imported (round 149). A comment asserting a property is the
 most effective way to stop the next person checking it.
+
+## Round 170 — the guard was right, and nothing ran it
+
+CI run 33142186680: **73 jobs failed**, including `Cargo Fmt`, which cannot fail
+for any reason a compiler knows about. That uniformity was the signal. The cause
+was in every job's checkout step:
+
+```
+fatal: remote error: upload-pack: not our ref 3144727c…
+fatal: Fetched in submodule path 'citadel-internal-service',
+       but it did not contain 3144727c…
+```
+
+Two commits in `citadel-internal-service` were never pushed, so the pointer the
+parent recorded did not exist on the submodule's remote. Every job died before
+compiling a line. The run reported nothing about the code — and I had held eight
+commits back for an hour waiting on its verdict.
+
+`scripts/check-submodule-pointers-pushed.mjs` exists. It is correct. Run by hand
+it names the offending pointer and the order to push in. It has never once run,
+because `preflight` excluded it by name, with a reason:
+
+> the submodule-pointer check (that one is about pushing, not about the code
+> being correct)
+
+The reasoning is wrong, and it is the same wrong shape this campaign keeps
+finding: **a control that operates on nothing.** Whether a push will produce a
+meaningful CI run is precisely what a pre-push gate is for. The distinction the
+comment drew — pushing versus correctness — does not exist when a bad pointer
+means no correctness signal at all.
+
+It is now check 33. It failed on its first run, on a real outstanding pointer
+(`citadel-workspaces @ ca893b5b`), which is the negative control: the gate was
+added and immediately caught the thing it was written for, unprompted.
+
+Three of these now: the second leader election (150), the "(SSOT)" label on a
+copy nobody imported (149), the `GetSessions` reconciliation whose every branch
+returned `false` (169). This one is worse than all three, because the code was
+*right*. Writing the guard was the hard part and it was already done.
+
+## Round 171 — nothing could ever remove a group
+
+Every group event the UI handles is additive or self-inflicted: a create you
+performed, an invite you received, a deletion you were online to be told about.
+The restore path is a union merge, deliberately. So there was no operation
+anywhere in the client that could take a group *out* of the list on the
+strength of the server's opinion.
+
+A group deleted while you were offline therefore stayed in the sidebar
+permanently — as did one you were kicked from, since both arrive as the same
+`GroupDisconnectNotification` and neither is replayed on reconnect. Reloading
+did not clear it; reloading is what preserved it, because restore read it back
+out of IndexedDB and merged it in again. Clicking it opened a chat whose sends
+the server silently dropped.
+
+The server can answer this, and three separate pieces were missing at once:
+
+| piece | state |
+|---|---|
+| `GroupListGroupsFor` request | existed, `sendGroupListRequest` sends it |
+| `refresh()` that calls it | existed, **no caller in any component** |
+| `GroupListGroupsSuccess` handler | **mapped by nothing** |
+| an operation that removes | **did not exist** |
+
+Two of those had been noticed before — `group-persistence.ts` and
+`groups-survive-a-reload.test.ts` both say in comments that `refresh()` has no
+caller and the response is handled nowhere. It was written down twice and fixed
+neither time.
+
+Two rules make the reconcile safe, and each has a test that fails without it:
+
+- **`group_list: null` is not "no groups".** It is `Option<Vec<..>>` on the
+  wire; null is no answer. Reconciling against it deletes every group the
+  account has. Only a real array — including an empty one — is a statement.
+- **Only ids known when the request went out can be judged by the answer.** A
+  group created while the request was in flight is absent from a snapshot that
+  predates it, and its absence proves nothing. Without this, making a group at
+  the wrong moment deletes it.
+
+A list nobody asked for is ignored for the same reason, and that has a positive
+control beside it: the same call with the same list, after a request, removes
+the group. Otherwise "ignored" is indistinguishable from an inert code path.
+
+The store binds this at startup, so the wire module is imported lazily rather
+than statically — a static import put the whole socket stack in the store's
+import graph, and a unit test of an unread badge started constructing a
+BroadcastChannel and dying inside multi-tab identity code. That failure is worth
+naming: **an import graph is an interface.** The store gained a dependency on
+the WebSocket by adding one line that mentioned it.

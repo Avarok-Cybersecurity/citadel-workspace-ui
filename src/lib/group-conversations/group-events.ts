@@ -26,6 +26,13 @@ export interface GroupEvent {
     | 'group:member-left'
     | 'group:deleted'
     /**
+     * The server's answer to `GroupListGroupsFor` — the only message that can
+     * establish a group is GONE. Every other event is additive or arrives only
+     * while you are online to see it, so without this a group deleted while
+     * offline is in the sidebar forever. See reconcile-groups.ts.
+     */
+    | 'group:list-received'
+    /**
      * The server refused a group operation.
      *
      * `GroupCreateFailure` and its siblings carry a message and a request_id
@@ -197,6 +204,23 @@ export function toGroupEvents(
     return [{
       name: 'group:deleted',
       payload: { groupId: groupKeyToId(parseGroupKey(disconnected.group_key)) },
+    }];
+  }
+
+  // Both spellings: the internal service declares GroupListGroupsSuccess and
+  // GroupListGroupsResponse with the same `group_list` field, and which one a
+  // given build sends is not something the UI should have to know.
+  const listed = variant(message, 'GroupListGroupsSuccess') ?? variant(message, 'GroupListGroupsResponse');
+  if (listed) {
+    // `group_list` is Option<Vec<..>> on the wire. Null is NOT "you are in no
+    // groups" — it is no answer, and reconciling against it would delete every
+    // group the account has. Only a real array is a statement about membership.
+    if (!Array.isArray(listed.group_list)) return [];
+    return [{
+      name: 'group:list-received',
+      payload: {
+        groupIds: listed.group_list.map((key) => groupKeyToId(parseGroupKey(key))),
+      },
     }];
   }
 
