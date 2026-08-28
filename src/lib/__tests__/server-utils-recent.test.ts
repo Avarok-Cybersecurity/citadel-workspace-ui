@@ -47,7 +47,7 @@ describe('recent servers', () => {
   });
 
   it('keeps the list bounded', () => {
-    for (let i = 0; i < 15; i++) {
+    for (let i: number = 0; i < 15; i++) {
       saveRecentServer({ serverAddress: `server-${i}.example` });
     }
 

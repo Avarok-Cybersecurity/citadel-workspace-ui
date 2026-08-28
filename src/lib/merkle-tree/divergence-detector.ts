@@ -38,7 +38,7 @@ export class MerkleDivergenceDetector {
     }
 
     // Find diverged chunks
-    const diverged = local.findDivergedChunks(remoteProof);
+    const diverged: number[] = local.findDivergedChunks(remoteProof);
 
     if (diverged.length === 0) {
       // Hash mismatch but no specific divergence found
@@ -51,8 +51,8 @@ export class MerkleDivergenceDetector {
     }
 
     // Determine direction of divergence if possible
-    const localCount = local.getLeafCount();
-    const remoteCount = remoteProof.leafCount;
+    const localCount: number = local.getLeafCount();
+    const remoteCount: number = remoteProof.leafCount;
 
     if (localCount > remoteCount) {
       return {
@@ -81,7 +81,7 @@ export class MerkleDivergenceDetector {
     local: MerkleTree<T, C>,
     divergedIndices: number[]
   ): SerializedChunk[] {
-    const proof = local.getProofForChunks(divergedIndices);
+    const proof: MerkleProof = local.getProofForChunks(divergedIndices);
     return proof.chunks || [];
   }
 }

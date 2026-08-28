@@ -42,7 +42,7 @@ function makeMeta(uploadedByCid: bigint): RevfsFileMetadata {
 
 describe('peer storage round trip', () => {
   it('leaves the file retrievable by the uploader and not by the holder', () => {
-    const meta = makeMeta(UPLOADER);
+    const meta: RevfsFileMetadata = makeMeta(UPLOADER);
 
     // The uploader's own tree, right after sending the bytes away.
     let mine = createDefaultTree();
@@ -75,7 +75,7 @@ describe('peer storage round trip', () => {
   });
 
   it('bills the upload to the uploader, not to whoever stores it', () => {
-    const meta = makeMeta(UPLOADER);
+    const meta: RevfsFileMetadata = makeMeta(UPLOADER);
 
     let mine = createDefaultTree();
     [mine] = mkdir(mine, '/docs');

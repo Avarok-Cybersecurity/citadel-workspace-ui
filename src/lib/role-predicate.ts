@@ -34,7 +34,7 @@
  */
 export function normalizeRole(role: unknown): string | null {
   if (typeof role === 'string') {
-    const trimmed = role.trim().toLowerCase();
+    const trimmed: string = role.trim().toLowerCase();
     return trimmed === '' ? null : trimmed;
   }
 

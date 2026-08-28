@@ -24,8 +24,8 @@ export interface AckCheckerContext extends SendingContext {
  * Check pending ACKs for timeouts and trigger resync if needed
  */
 export function checkPendingAcks(ctx: AckCheckerContext): void {
-  const now = Date.now();
-  let timedOutCount = 0;
+  const now: number = Date.now();
+  let timedOutCount: number = 0;
 
   for (const [messageId, pending] of ctx.pendingAcks.entries()) {
     if (now - pending.sentAt > YJS_ACK_TIMEOUT_MS) {

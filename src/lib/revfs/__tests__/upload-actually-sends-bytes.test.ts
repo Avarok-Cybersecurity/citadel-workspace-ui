@@ -31,7 +31,7 @@ const deps = {
 };
 
 const CID = 7n;
-const CONTENT = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+const CONTENT: Uint8Array<ArrayBuffer> = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
 
 /** The SendFile payload from the most recent send. */
 function lastSendFile(): Record<string, unknown> {

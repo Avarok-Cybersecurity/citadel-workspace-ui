@@ -25,7 +25,7 @@ export async function applyWaitingUpdate(): Promise<boolean> {
   const waiting = registration?.waiting;
   if (!waiting) return false;
 
-  const tookControl = new Promise<boolean>((resolve) => {
+  const tookControl: Promise<boolean> = new Promise<boolean>((resolve) => {
     const onControllerChange = () => {
       clearTimeout(timer);
       resolve(true);

@@ -110,10 +110,10 @@ class HealthCheckService extends PollingService {
    * Wait for service to be healthy with timeout
    */
   public async waitForHealthy(timeoutMs: number = 30000): Promise<void> {
-    const startTime = Date.now();
+    const startTime: number = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-      const health = await this.checkHealth();
+      const health: ServiceHealth = await this.checkHealth();
 
       if (health.isHealthy) {
         return;
@@ -129,4 +129,4 @@ class HealthCheckService extends PollingService {
   }
 }
 
-export const healthCheckService = HealthCheckService.getInstance();
+export const healthCheckService: HealthCheckService = HealthCheckService.getInstance();

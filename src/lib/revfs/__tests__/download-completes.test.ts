@@ -37,10 +37,10 @@ const PATH = '/docs/notes.txt';
 
 /** Capture the request_id the download used, so ticks can be addressed to it. */
 function startDownload() {
-  let requestId = '';
+  let requestId: string = '';
   const deps = {
     sendInternalServiceRequest: async (request: unknown) => {
-      const payload = (request as Record<string, Record<string, string>>).DownloadFile;
+      const payload: Record<string, string> = (request as Record<string, Record<string, string>>).DownloadFile;
       requestId = payload.request_id;
     },
   };

@@ -40,7 +40,7 @@ class WorkspaceNavigation {
    */
   public getWorkspacePath(additionalParams?: Record<string, string>): string {
     const params = new URLSearchParams(additionalParams);
-    const query = params.toString();
+    const query: string = params.toString();
     return query ? `/workspace?${query}` : '/workspace';
   }
 
@@ -52,13 +52,13 @@ class WorkspaceNavigation {
     // A stale `id` from a link someone shared before this was removed would
     // otherwise ride along forever.
     params.delete('id');
-    const query = params.toString();
+    const query: string = params.toString();
     return query ? `/workspace?${query}` : '/workspace';
   }
 }
 
 // Export singleton instance
-export const workspaceNavigation = WorkspaceNavigation.getInstance();
+export const workspaceNavigation: WorkspaceNavigation = WorkspaceNavigation.getInstance();
 
 // Export helper function for convenience
 export function getWorkspacePath(additionalParams?: Record<string, string>): string {

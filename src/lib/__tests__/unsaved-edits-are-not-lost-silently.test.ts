@@ -70,7 +70,7 @@ describe('the sidebar asks before discarding', () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const { stripComments } = await import('@/test-utils/strip-comments');
-    const source = stripComments(
+    const source: string = stripComments(
       readFileSync(
         join(process.cwd(), 'src/components/layout/sidebar/HierarchySidebar.tsx'),
         'utf8',

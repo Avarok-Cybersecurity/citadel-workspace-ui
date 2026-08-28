@@ -21,7 +21,7 @@ export function waitForAcceptResponse(
   targetPeerCid: bigint,
   currentCid: bigint
 ): Promise<void> {
-  const targetKey = toCidKey(targetPeerCid);
+  const targetKey: string = toCidKey(targetPeerCid);
 
   return failOnSocketLoss('AcceptPeerRegister', new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -48,7 +48,7 @@ export function waitForAcceptResponse(
       const matchesByPeerCid = !!targetKey && toCidKey(responsePeerCid as CidLike) === targetKey;
       const matchesByCid = !!targetKey && toCidKey(responseCid as CidLike) === targetKey;
 
-      const currentKey = toCidKey(currentCid);
+      const currentKey: string = toCidKey(currentCid);
       const isOurNotification = !!msg.PeerConnectNotification && !!currentKey &&
         (toCidKey(msg.PeerConnectNotification.cid as CidLike) === currentKey ||
          toCidKey(msg.PeerConnectNotification.peer_cid as CidLike) === currentKey);
@@ -70,7 +70,7 @@ export function waitForAcceptResponse(
                  msg.PeerConnectFailure?.request_id === registerRequestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        const errorMsg = (msg.PeerRegisterFailure?.message as string) ||
+        const errorMsg: string = (msg.PeerRegisterFailure?.message as string) ||
                         (msg.PeerConnectFailure?.message as string) || 'Registration failed';
         reject(new Error(errorMsg));
       }

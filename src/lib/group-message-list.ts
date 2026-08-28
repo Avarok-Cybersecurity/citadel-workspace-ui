@@ -17,7 +17,7 @@ export function sortByTime(messages: GroupMessage[]): GroupMessage[] {
  * flight, a blind concat would render it twice.
  */
 export function mergeOlder(current: GroupMessage[], older: GroupMessage[]): GroupMessage[] {
-  const byId = new Map(current.map((m) => [m.id, m]));
+  const byId: Map<string, GroupMessage> = new Map(current.map((m) => [m.id, m]));
   for (const message of older) byId.set(message.id, message);
   return sortByTime([...byId.values()]);
 }

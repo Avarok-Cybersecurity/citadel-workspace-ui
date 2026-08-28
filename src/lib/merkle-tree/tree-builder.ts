@@ -27,15 +27,15 @@ export function buildTree(leafHashes: string[]): MerkleNode {
     level: Math.ceil(Math.log2(leafHashes.length)) || 1,
   }));
 
-  let level = currentLevel[0].level - 1;
+  let level: number = currentLevel[0].level - 1;
 
   // Build tree bottom-up
   while (currentLevel.length > 1) {
     const nextLevel: MerkleNode[] = [];
 
-    for (let i = 0; i < currentLevel.length; i += 2) {
-      const left = currentLevel[i];
-      const right = currentLevel[i + 1] || left; // Duplicate last if odd
+    for (let i: number = 0; i < currentLevel.length; i += 2) {
+      const left: MerkleNode = currentLevel[i];
+      const right: MerkleNode = currentLevel[i + 1] || left; // Duplicate last if odd
 
       nextLevel.push({
         hash: hashPair(left.hash, right.hash),

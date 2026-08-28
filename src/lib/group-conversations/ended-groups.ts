@@ -14,7 +14,7 @@ import { eventEmitter } from '@/lib/event-emitter';
  * what it says.
  */
 const MAX_REMEMBERED = 50;
-const ended = new Set<string>();
+const ended: Set<string> = new Set<string>();
 
 export function bindEndedGroups(): void {
   eventEmitter.on('group:deleted', (data: { groupId: string }) => {

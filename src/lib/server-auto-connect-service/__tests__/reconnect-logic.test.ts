@@ -17,7 +17,7 @@ const key = 'alice@wss://example.test';
 
 describe('cancelRetry', () => {
   it('removes an entry that never scheduled a retry (the happy path)', () => {
-    const attempts = new Map<string, ConnectionAttempt>([
+    const attempts: Map<string, ConnectionAttempt> = new Map<string, ConnectionAttempt>([
       [key, { sessionKey: key, attempts: 0, timeout: null }],
     ]);
 
@@ -31,7 +31,7 @@ describe('cancelRetry', () => {
   it('clears the timer and removes the entry when a retry was pending', () => {
     const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
     const timer = setTimeout(() => {}, 10_000) as unknown as ReturnType<typeof setTimeout>;
-    const attempts = new Map<string, ConnectionAttempt>([
+    const attempts: Map<string, ConnectionAttempt> = new Map<string, ConnectionAttempt>([
       [key, { sessionKey: key, attempts: 3, timeout: timer }],
     ]);
 
@@ -43,7 +43,7 @@ describe('cancelRetry', () => {
   });
 
   it('is a no-op for a session it does not know about', () => {
-    const attempts = new Map<string, ConnectionAttempt>();
+    const attempts: Map<string, ConnectionAttempt> = new Map<string, ConnectionAttempt>();
     expect(() => cancelRetry(attempts, 'nobody@nowhere')).not.toThrow();
     expect(attempts.size).toBe(0);
   });

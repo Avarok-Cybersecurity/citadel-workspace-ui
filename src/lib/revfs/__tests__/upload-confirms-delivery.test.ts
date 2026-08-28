@@ -26,14 +26,14 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { backendSendFile } from '../revfs-io-network';
 
 const CID = 7n;
-const CONTENT = new Uint8Array([1, 2, 3]);
+const CONTENT: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3]);
 
 /** Capture the request_id the upload used, so events can be addressed to it. */
 function startUpload(peerCid: bigint | null = 42n) {
-  let requestId = '';
+  let requestId: string = '';
   const deps = {
     sendInternalServiceRequest: async (request: unknown) => {
-      const payload = (request as Record<string, Record<string, string>>).SendFile;
+      const payload: Record<string, string> = (request as Record<string, Record<string, string>>).SendFile;
       requestId = payload.request_id;
     },
   };
@@ -129,7 +129,7 @@ describe('a RE-VFS upload', () => {
 
     // A large transfer legitimately outlives the fixed 30s window; each
     // progress tick proves it is still moving and re-arms the timer.
-    for (let i = 0; i < 3; i++) {
+    for (let i: number = 0; i < 3; i++) {
       await vi.advanceTimersByTimeAsync(20_000);
       tick(requestId(), { TransferTick: [i, 10, 1.5] });
     }

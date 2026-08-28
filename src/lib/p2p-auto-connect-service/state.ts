@@ -146,7 +146,7 @@ export class AutoConnectState {
     this.core.setOnlinePeers([]);
   }
 
-  getPeerMapForSession(localCid: bigint) {
+  getPeerMapForSession(localCid: bigint): Map<bigint, PeerConnectionInfo> {
     return this.core.getPeerMapForSession(localCid);
   }
 }

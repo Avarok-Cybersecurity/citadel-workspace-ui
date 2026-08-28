@@ -28,7 +28,7 @@ const MAX_RECENT_SERVERS = 10;
  */
 export function saveRecentServer(server: StoredServer): void {
   try {
-    const existing = getRecentServers().filter(
+    const existing: StoredServer[] = getRecentServers().filter(
       s => s.serverAddress !== server.serverAddress
     );
 
@@ -36,7 +36,7 @@ export function saveRecentServer(server: StoredServer): void {
     // the user in order, but entries used to be appended in first-seen order and
     // never removed — so the oldest server sat at the top forever and the list
     // grew without limit.
-    const updated = [{ ...server, lastConnected: Date.now() }, ...existing].slice(
+    const updated: StoredServer[] = [{ ...server, lastConnected: Date.now() }, ...existing].slice(
       0,
       MAX_RECENT_SERVERS
     );

@@ -182,7 +182,7 @@ async function handleInvite(
   const others: Array<{ cid: bigint; username: string }> = [];
   for (const raw of signal.group?.members ?? []) {
     try {
-      const cid = BigInt(raw);
+      const cid: bigint = BigInt(raw);
       if (cid !== m.selfCid && cid !== from) others.push({ cid, username: m.resolvePeerName(cid) });
     } catch {
       // An unparseable cid names nobody we could signal; skip it rather than

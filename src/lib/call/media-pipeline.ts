@@ -64,7 +64,7 @@ export function createVideoEncoder(
 ): VideoEncoderHandle {
   const profile: VideoProfile = thumbnail ? VIDEO_PROFILE_THUMBNAIL : VIDEO_PROFILE_MAIN;
   const hardwareAcceleration: HardwareAcceleration = hardware ? 'prefer-hardware' : 'no-preference';
-  let lastKeyframeAt = -Infinity;
+  let lastKeyframeAt: number = -Infinity;
   let forceKeyframe = true;
 
   const encoder = new VideoEncoder({
@@ -85,7 +85,7 @@ export function createVideoEncoder(
     hardwareAcceleration,
   });
 
-  let appliedRung = -1;
+  let appliedRung: number = -1;
 
   return {
     encode(frame, congestion) {

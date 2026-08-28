@@ -29,11 +29,11 @@ export function decodeValue(value: unknown): string {
  */
 export async function loadDocumentFromDB(docId: string): Promise<StoredDocument | null> {
   try {
-    const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
+    const key: string = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
     const response = await websocketService.sendLocalDBGet(0n, key);
 
     if (response?.value) {
-      const valueStr = decodeValue(response.value);
+      const valueStr: string = decodeValue(response.value);
       return JSON.parse(valueStr) as StoredDocument;
     }
   } catch (error) {
@@ -47,9 +47,9 @@ export async function loadDocumentFromDB(docId: string): Promise<StoredDocument 
  * Save a single document to LocalDB.
  */
 export async function saveDocumentToDB(docId: string, doc: StoredDocument): Promise<void> {
-  const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
-  const valueStr = JSON.stringify(doc);
-  const valueBytes = stringToBytes(valueStr);
+  const key: string = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
+  const valueStr: string = JSON.stringify(doc);
+  const valueBytes: number[] = stringToBytes(valueStr);
 
   await websocketService.sendLocalDBSet(0n, key, valueBytes);
 }
@@ -60,7 +60,7 @@ export async function saveDocumentToDB(docId: string, doc: StoredDocument): Prom
 export async function loadIndexFromDB(): Promise<string[]> {
   const response = await websocketService.sendLocalDBGet(0n, DOCUMENTS_INDEX_KEY);
   if (response?.value) {
-    const indexData = decodeValue(response.value);
+    const indexData: string = decodeValue(response.value);
     return JSON.parse(indexData) as string[];
   }
   return [];
@@ -70,8 +70,8 @@ export async function loadIndexFromDB(): Promise<string[]> {
  * Save the document index to LocalDB.
  */
 export async function saveIndexToDB(docIds: string[]): Promise<void> {
-  const valueStr = JSON.stringify(docIds);
-  const valueBytes = stringToBytes(valueStr);
+  const valueStr: string = JSON.stringify(docIds);
+  const valueBytes: number[] = stringToBytes(valueStr);
   await websocketService.sendLocalDBSet(0n, DOCUMENTS_INDEX_KEY, valueBytes);
 }
 
@@ -79,6 +79,6 @@ export async function saveIndexToDB(docIds: string[]): Promise<void> {
  * Delete a document from LocalDB (sets value to empty array).
  */
 export async function deleteDocumentFromDB(docId: string): Promise<void> {
-  const key = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
+  const key: string = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
   await websocketService.sendLocalDBSet(0n, key, []);
 }

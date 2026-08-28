@@ -89,7 +89,7 @@ export class CapturePump {
     // element only exists to source frames.
     void Promise.resolve(video.play()).catch(() => undefined);
 
-    let raf = 0;
+    let raf: number = 0;
     const draw = () => {
       if (this.stopped) return;
       if (video.videoWidth > 0) {

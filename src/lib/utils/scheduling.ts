@@ -60,7 +60,7 @@ export async function waitFor(
   options: WaitForOptions
 ): Promise<boolean> {
   const { timeoutMs, intervalMs = 50, description, resolveOnTimeout = false } = options;
-  const deadline = Date.now() + timeoutMs;
+  const deadline: number = Date.now() + timeoutMs;
 
   // Test before waiting at all: the condition is very often already true, and a
   // helper that always costs one interval would just be a slower sleep.

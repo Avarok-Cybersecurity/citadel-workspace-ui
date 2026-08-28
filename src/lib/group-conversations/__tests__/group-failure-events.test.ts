@@ -31,7 +31,7 @@ describe('a refused group operation', () => {
   it('covers every failure variant the group plane can produce', () => {
     // Mapping them one at a time is how the next one comes to be forgotten,
     // which is the state this replaced.
-    const variants = [
+    const variants: string[] = [
       'GroupCreateFailure',
       'GroupChannelCreateFailure',
       'GroupInviteFailure',

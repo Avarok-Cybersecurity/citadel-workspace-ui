@@ -65,7 +65,7 @@ describe('the key a file is addressed by', () => {
       uploadedByCid: ALICE,
     };
 
-    const intents = await intentsFrom(async (service) => {
+    const intents: RevfsIntent[] = await intentsFrom(async (service) => {
       await service.uploadFileToServer(ALICE, '/', 'notes.txt', metadata, new Uint8Array([1]));
       await service.downloadFileFromServer(ALICE, FILE_PATH);
       await service.removeFileFromServer(ALICE, FILE_PATH);
@@ -89,7 +89,7 @@ describe('the key a file is addressed by', () => {
       uploadedByCid: ALICE,
     };
 
-    const intents = await intentsFrom(async (service) => {
+    const intents: RevfsIntent[] = await intentsFrom(async (service) => {
       await service.uploadFileToServer(ALICE, '/', 'notes.txt', metadata, new Uint8Array([1]));
       await service.serverRename(ALICE, FILE_PATH, 'renamed.txt');
       await service.downloadFileFromServer(ALICE, '/renamed.txt');

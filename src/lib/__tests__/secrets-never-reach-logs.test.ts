@@ -26,7 +26,7 @@ describe('debug formatting', () => {
   });
 
   it('redacts a password that is a byte array', () => {
-    const bytes = [...new TextEncoder().encode(SECRET)];
+    const bytes: number[] = [...new TextEncoder().encode(SECRET)];
     expect(rendered({ password: bytes })).not.toContain(SECRET);
   });
 
@@ -45,12 +45,12 @@ describe('debug formatting', () => {
 
   it('redacts secrets inside a JSON STRING, which is how sessions are logged', () => {
     // storeSessionsToLocalDB serializes first and formats the string.
-    const serialized = JSON.stringify({ sessions: [{ password: SECRET }] });
+    const serialized: string = JSON.stringify({ sessions: [{ password: SECRET }] });
     expect(rendered(serialized)).not.toContain(SECRET);
   });
 
   it('still prints the non-secret fields, or the log is useless', () => {
-    const out = rendered({ username: 'alice', password: SECRET, serverAddress: 'ws://x' });
+    const out: string = rendered({ username: 'alice', password: SECRET, serverAddress: 'ws://x' });
     expect(out).toContain('alice');
     expect(out).toContain('ws://x');
   });

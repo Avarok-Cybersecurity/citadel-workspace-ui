@@ -54,7 +54,7 @@ function handleWebSocketMessage(raw: unknown, callbacks: StoreCallbacks): void {
   const message = narrowWebSocketMessage(raw);
   if (!message) return;
 
-  const kv = callbacks.getPendingKVRequests();
+  const kv: Map<string, KVPendingEntry> = callbacks.getPendingKVRequests();
 
   if (hasVariant(message, 'LocalDBSetKVSuccess')) {
     const { request_id } = getVariant(message, 'LocalDBSetKVSuccess')!;

@@ -12,4 +12,4 @@ export type { BroadcastMessage } from './types';
 export { BroadcastChannelService } from './service';
 
 import { BroadcastChannelService } from './service';
-export const broadcastChannelService = BroadcastChannelService.getInstance();
+export const broadcastChannelService: BroadcastChannelService = BroadcastChannelService.getInstance();

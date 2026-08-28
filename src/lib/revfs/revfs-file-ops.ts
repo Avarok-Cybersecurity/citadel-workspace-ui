@@ -39,10 +39,10 @@ export async function uploadFileToPeer(
   metadata: RevfsFileMetadata,
   content: Uint8Array,
 ): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
-  const filePath = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
-  const io = ctx.ensureIO();
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
+  const filePath: string = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
+  const io: RevfsIO = ctx.ensureIO();
 
   // Send the BYTES, then record the file.
   //
@@ -82,9 +82,9 @@ export async function removeFileFromPeer(
   peerCid: bigint,
   filePath: string,
 ): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
-  const io = ctx.ensureIO();
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
+  const io: RevfsIO = ctx.ensureIO();
 
   // Bytes first, node second — the same ordering as the server path. Removing
   // the node first and then discarding the delete result left the bytes with
@@ -127,8 +127,8 @@ export async function downloadFileFromPeer(
   peerCid: bigint,
   filePath: string,
 ): Promise<string | undefined> {
-  const tree = await ctx.getTree(myCid, peerCid);
-  const io = ctx.ensureIO();
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
+  const io: RevfsIO = ctx.ensureIO();
 
   const fileNode = ctx.findFileInTree(tree, filePath);
   if (!fileNode?.fileMetadata) {
@@ -161,9 +161,9 @@ export async function addSentFile(
   peerCid: bigint,
   transfer: { fileName: string; fileSize: number; fileType: string; transferId: string },
 ): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
-  const filePath = `/Sent Files/${transfer.fileName}`;
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
+  const filePath: string = `/Sent Files/${transfer.fileName}`;
   const metadata: RevfsFileMetadata = {
     fileId: transfer.transferId,
     fileName: transfer.fileName,
@@ -178,7 +178,7 @@ export async function addSentFile(
   if (fileNode) fileNode.fileState = RevfsFileState.Sent;
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
   void ctx.sendOp(peerCid, op);
 }
@@ -189,9 +189,9 @@ export async function addReceivedFile(
   peerCid: bigint,
   transfer: { fileName: string; fileSize: number; fileType: string; transferId: string; downloadPath?: string },
 ): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
-  const filePath = `/Received Files/${transfer.fileName}`;
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
+  const filePath: string = `/Received Files/${transfer.fileName}`;
   const metadata: RevfsFileMetadata = {
     fileId: transfer.transferId,
     fileName: transfer.fileName,
@@ -206,6 +206,6 @@ export async function addReceivedFile(
   if (fileNode) fileNode.fileState = RevfsFileState.Received;
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
 }

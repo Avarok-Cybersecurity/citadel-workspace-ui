@@ -52,12 +52,12 @@ export async function getFilteredPendingCount(
   pendingRequests: PendingPeerRequest[]
 ): Promise<number> {
   const currentCid = await getCurrentSessionCid();
-  const allCount = pendingRequests.length;
+  const allCount: number = pendingRequests.length;
   if (!currentCid) {
     debugLog('PeerRegistrationStore', `[P2P] getPendingCount: no currentCid, returning allCount=${allCount}`);
     return allCount;
   }
-  const filteredCount = pendingRequests.filter(r => r.cid === currentCid).length;
+  const filteredCount: number = pendingRequests.filter(r => r.cid === currentCid).length;
   debugLog('PeerRegistrationStore', `[P2P] getPendingCount: currentCid=${currentCid.toString()}, allCount=${allCount}, filteredCount=${filteredCount}`);
   return filteredCount;
 }
@@ -109,7 +109,7 @@ export async function getFilteredOutgoingRequests(
 export async function getOutgoingRequestCidSet(
   outgoingRequests: OutgoingPeerRequest[]
 ): Promise<Set<bigint>> {
-  const requests = await getFilteredOutgoingRequests(outgoingRequests);
+  const requests: OutgoingPeerRequest[] = await getFilteredOutgoingRequests(outgoingRequests);
   return new Set(requests.map(r => r.toCid));
 }
 

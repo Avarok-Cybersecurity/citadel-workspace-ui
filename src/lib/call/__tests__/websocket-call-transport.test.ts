@@ -29,15 +29,15 @@ beforeEach(() => {
 
 describe('WebSocketCallTransport.sendSignal', () => {
   it('sends signals one at a time even when dispatched together', async () => {
-    let inFlight = 0;
-    let maxInFlight = 0;
+    let inFlight: number = 0;
+    let maxInFlight: number = 0;
     sendP2PCommand.mockImplementation(async () => {
       inFlight += 1;
       maxInFlight = Math.max(maxInFlight, inFlight);
       await new Promise((r) => setTimeout(r, 5));
       inFlight -= 1;
     });
-    const t = transport();
+    const t: WebSocketCallTransport = transport();
 
     await Promise.all([t.sendSignal(2n, signal), t.sendSignal(3n, signal)]);
 
@@ -49,10 +49,10 @@ describe('WebSocketCallTransport.sendSignal', () => {
     sendP2PCommand
       .mockRejectedValueOnce(new Error('peer refused'))
       .mockResolvedValueOnce(undefined);
-    const t = transport();
+    const t: WebSocketCallTransport = transport();
 
-    const first = t.sendSignal(2n, signal);
-    const second = t.sendSignal(3n, signal);
+    const first: Promise<void> = t.sendSignal(2n, signal);
+    const second: Promise<void> = t.sendSignal(3n, signal);
 
     await expect(first).rejects.toThrow('peer refused');
     // The failure belongs to the first send alone; the chain carries on.
@@ -74,9 +74,9 @@ describe('WebSocketCallTransport signal queue bound', () => {
       .mockImplementationOnce(() => new Promise<void>((resolve) => { releaseFirst = resolve; }))
       .mockImplementationOnce(() => Promise.resolve());
 
-    const t = transport();
-    const stalled = t.sendSignal(2n, signal);
-    const behind = t.sendSignal(3n, signal);
+    const t: WebSocketCallTransport = transport();
+    const stalled: Promise<void> = t.sendSignal(2n, signal);
+    const behind: Promise<void> = t.sendSignal(3n, signal);
 
     // Before the bound elapses the second send is still queued.
     await vi.advanceTimersByTimeAsync(0);

@@ -47,8 +47,8 @@ describe('wrapTimestamp', () => {
   });
 
   it('keeps the result inside u32 for very long calls', () => {
-    const eightHours = 8 * 60 * 60 * 1_000_000;
-    const wrapped = wrapTimestamp(eightHours);
+    const eightHours: number = 8 * 60 * 60 * 1_000_000;
+    const wrapped: number = wrapTimestamp(eightHours);
 
     expect(wrapped).toBeGreaterThanOrEqual(0);
     expect(wrapped).toBeLessThan(0x1_0000_0000);
@@ -63,14 +63,14 @@ describe('video frames', () => {
   it('marks a keyframe and never marks it discardable', () => {
     // Both matter: the receiver needs the flag to start decoding, and congestion
     // control must never drop this frame.
-    const frame = videoChunkToFrame(chunk('key', 500, [1, 2, 3]), false);
+    const frame: WireFrame = videoChunkToFrame(chunk('key', 500, [1, 2, 3]), false);
 
     expect(frame.flags & CALL_FLAG_KEYFRAME).toBeTruthy();
     expect(frame.flags & CALL_FLAG_DISCARDABLE).toBeFalsy();
   });
 
   it('marks a delta frame discardable', () => {
-    const frame = videoChunkToFrame(chunk('delta', 600, [4, 5]), false);
+    const frame: WireFrame = videoChunkToFrame(chunk('delta', 600, [4, 5]), false);
 
     expect(frame.flags & CALL_FLAG_KEYFRAME).toBeFalsy();
     expect(frame.flags & CALL_FLAG_DISCARDABLE).toBeTruthy();
@@ -85,7 +85,7 @@ describe('video frames', () => {
   });
 
   it('copies the payload rather than aliasing the chunk', () => {
-    const frame = videoChunkToFrame(chunk('key', 0, [9, 8, 7]), false);
+    const frame: WireFrame = videoChunkToFrame(chunk('key', 0, [9, 8, 7]), false);
 
     expect(Array.from(frame.payload)).toEqual([9, 8, 7]);
   });
@@ -99,7 +99,7 @@ describe('audio frames', () => {
   it('is always a keyframe and never discardable', () => {
     // Opus frames decode independently, and audio is the stream the call exists
     // for — marking it discardable would let congestion control drop it.
-    const frame = audioChunkToFrame(chunk('delta', 100, [1, 2]));
+    const frame: WireFrame = audioChunkToFrame(chunk('delta', 100, [1, 2]));
 
     expect(frame.flags & CALL_FLAG_KEYFRAME).toBeTruthy();
     expect(frame.flags & CALL_FLAG_DISCARDABLE).toBeFalsy();

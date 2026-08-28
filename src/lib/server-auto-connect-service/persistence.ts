@@ -17,7 +17,7 @@ export async function loadEnabledSetting(): Promise<boolean> {
   try {
     const result = await websocketService.sendLocalDBGet(GLOBAL_CID, LOCALDB_KEY);
     if (result?.value) {
-      const decoded = bytesToString(result.value);
+      const decoded: string = bytesToString(result.value);
       return decoded === 'true';
     }
   } catch (error) {
@@ -30,7 +30,7 @@ export async function loadEnabledSetting(): Promise<boolean> {
  * Save the enabled setting to LocalDB.
  */
 export async function saveEnabledSetting(enabled: boolean): Promise<void> {
-  const value = stringToBytes(String(enabled));
+  const value: number[] = stringToBytes(String(enabled));
   await websocketService.sendLocalDBSet(GLOBAL_CID, LOCALDB_KEY, value);
   debugLog('ServerAutoConnectService', `Setting saved (enabled: ${enabled})`);
 }
@@ -43,7 +43,7 @@ export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
   try {
     const result = await websocketService.sendLocalDBGet(GLOBAL_CID, USER_DISCONNECTED_KEY);
     if (result?.value) {
-      const decoded = bytesToString(result.value);
+      const decoded: string = bytesToString(result.value);
       const sessions = JSON.parse(decoded);
       if (Array.isArray(sessions)) {
         debugLog('ServerAutoConnectService', `Loaded ${sessions.length} user-disconnected sessions from LocalDB`);
@@ -61,7 +61,7 @@ export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
  */
 export async function persistUserDisconnectedSessions(sessions: Set<string>): Promise<void> {
   try {
-    const value = stringToBytes(JSON.stringify(Array.from(sessions)));
+    const value: number[] = stringToBytes(JSON.stringify(Array.from(sessions)));
     await websocketService.sendLocalDBSet(GLOBAL_CID, USER_DISCONNECTED_KEY, value);
   } catch (error) {
     debugLog('ServerAutoConnectService', 'Failed to persist user disconnected sessions:', error);

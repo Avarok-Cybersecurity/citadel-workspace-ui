@@ -37,7 +37,7 @@ describe('applyWaitingUpdate', () => {
     const postMessage = vi.fn();
     const { fire } = installContainer({ waiting: { postMessage } });
 
-    const result = applyWaitingUpdate();
+    const result: Promise<boolean> = applyWaitingUpdate();
     // Flush the awaited getRegistration() before asserting on what it sent.
     await vi.advanceTimersByTimeAsync(0);
 
@@ -51,7 +51,7 @@ describe('applyWaitingUpdate', () => {
   it('gives up rather than hanging when the worker never takes control', async () => {
     installContainer({ waiting: { postMessage: vi.fn() } });
 
-    const result = applyWaitingUpdate();
+    const result: Promise<boolean> = applyWaitingUpdate();
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(5000);
 
@@ -67,7 +67,7 @@ describe('applyWaitingUpdate', () => {
     installContainer({ waiting: { postMessage: vi.fn() } });
     const reload = vi.fn();
 
-    const done = reloadApplyingAnyWaitingUpdate(reload);
+    const done: Promise<void> = reloadApplyingAnyWaitingUpdate(reload);
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(5000);
     await done;

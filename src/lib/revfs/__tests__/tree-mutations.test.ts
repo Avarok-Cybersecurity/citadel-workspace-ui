@@ -55,7 +55,7 @@ describe('mkdir', () => {
 
   it('does not mutate original tree', () => {
     const tree = createDefaultTree();
-    const childCount = tree.children!.length;
+    const childCount: number = tree.children!.length;
     mkdir(tree, '/new');
     expect(tree.children!.length).toBe(childCount);
   });

@@ -9,4 +9,4 @@
 export { ServerAutoConnectService } from './service';
 
 import { ServerAutoConnectService } from './service';
-export const serverAutoConnectService = ServerAutoConnectService.getInstance();
+export const serverAutoConnectService: ServerAutoConnectService = ServerAutoConnectService.getInstance();

@@ -49,12 +49,12 @@ export function getRoleIcon(role: string) {
 
 /** Role badge classes. Defined once in lib/role-badge so the sidebar and user
  *  search cannot drift apart again — they already had, and only one was fixed. */
-export function getRoleColor(role: string) {
+export function getRoleColor(role: string): string {
   return roleBadgeClass(role);
 }
 
 
-export function capitalizeRole(role: string) {
+export function capitalizeRole(role: string): string {
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 

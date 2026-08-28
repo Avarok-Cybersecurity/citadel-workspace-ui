@@ -59,7 +59,7 @@ describe('mapSecuritySettings', () => {
 });
 
 describe('the login flow uses it', () => {
-  const source = stripComments(
+  const source: string = stripComments(
     readFileSync(join(process.cwd(), 'src/components/useLoginHandler.ts'), 'utf8'),
   );
 

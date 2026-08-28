@@ -41,7 +41,7 @@ const MAX_FONT_SIZE = 18;
 
 function coerce(stored: unknown): AppearanceSettings {
   const merged = { ...defaultAppearanceSettings, ...(stored as Partial<AppearanceSettings>) };
-  const fontSize = Number(merged.fontSize);
+  const fontSize: number = Number(merged.fontSize);
   return {
     fontSize:
       Number.isFinite(fontSize) && fontSize >= MIN_FONT_SIZE && fontSize <= MAX_FONT_SIZE

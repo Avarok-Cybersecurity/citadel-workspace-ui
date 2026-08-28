@@ -2,7 +2,7 @@
  * Transforms technical error messages into user-friendly messages
  */
 export function getUserFriendlyErrorMessage(error: string | Error): string {
-  const errorMessage = typeof error === 'string' ? error : error.message;
+  const errorMessage: string = typeof error === 'string' ? error : error.message;
   
   // Connection-related errors
   if (errorMessage.includes('WebSocket connection failed') || 
@@ -116,7 +116,7 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
   // clue anybody has. What it must NOT pass through is protocol vocabulary: the
   // words below are the transport's, and to a user they read as the app
   // speaking a language it never taught them.
-  const cleanedMessage = errorMessage
+  const cleanedMessage: string = errorMessage
     .replace(/Error:\s*/i, '')
     .replace(/^\s+|\s+$/g, '');
 
@@ -135,7 +135,7 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
  * Gets a user-friendly title for an error
  */
 export function getErrorTitle(error: string | Error): string {
-  const errorMessage = typeof error === 'string' ? error : error.message;
+  const errorMessage: string = typeof error === 'string' ? error : error.message;
   
   if (errorMessage.includes('connection') || errorMessage.includes('WebSocket') ||
       errorMessage.includes('Connection') || errorMessage.includes('ECONNREFUSED')) {

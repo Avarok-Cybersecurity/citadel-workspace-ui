@@ -51,7 +51,7 @@ describe('callPeerName', () => {
     getPeers.mockReturnValue({ registeredPeers: [], allPeers: [] });
     const cid = 13961676296247425873n;
 
-    const name = callPeerName(cid);
+    const name: string = callPeerName(cid);
     expect(name).not.toBe(cid.toString());
     expect(name).toMatch(/^Peer /);
   });

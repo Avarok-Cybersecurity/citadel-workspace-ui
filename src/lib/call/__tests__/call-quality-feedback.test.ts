@@ -29,7 +29,7 @@ function harness(observed?: (cid: bigint) => Link | undefined) {
     sendFrame: vi.fn(),
     sendSignal: vi.fn().mockResolvedValue(undefined),
   };
-  const manager = new CallManager({
+  const manager: CallManager = new CallManager({
     transport: transport as unknown as CallTransport,
     selfCid: 1n,
     capabilities: CAPS,

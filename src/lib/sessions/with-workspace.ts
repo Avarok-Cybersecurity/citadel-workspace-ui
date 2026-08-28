@@ -23,12 +23,12 @@ export function withWorkspaceNames(
   readLastAccessed: (cid: ActiveSession['cid']) => number,
 ): OrphanSessionWithWorkspace[] {
   const paired = activeSessions.map((activeSession) => {
-    const storedIndex = storedSessions.findIndex(
+    const storedIndex: number = storedSessions.findIndex(
       (stored) =>
         stored.username === activeSession.username &&
         stored.serverAddress === activeSession.server_address,
     );
-    const storedSession = storedSessions[storedIndex];
+    const storedSession: StoredLike = storedSessions[storedIndex];
 
     return {
       ...activeSession,

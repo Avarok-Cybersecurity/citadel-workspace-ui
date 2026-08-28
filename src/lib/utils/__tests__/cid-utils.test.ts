@@ -116,8 +116,8 @@ describe('toCidKey', () => {
     // The regression this function exists to prevent. The previous `normalizeCid`
     // compared only the last 10 digits, so these two distinct peers compared EQUAL
     // and a registration response could be matched to the wrong peer.
-    const a = toCidKey(11111111111234567890n);
-    const b = toCidKey(99999999991234567890n);
+    const a: string = toCidKey(11111111111234567890n);
+    const b: string = toCidKey(99999999991234567890n);
     expect(a).not.toBe(b);
     expect(a.slice(-10)).toBe(b.slice(-10)); // the collision the old code accepted
   });

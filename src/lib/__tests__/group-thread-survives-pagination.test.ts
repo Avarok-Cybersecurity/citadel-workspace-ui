@@ -16,10 +16,10 @@ const msg = (id: string, t: number, content = id): GroupMessage =>
 
 describe('mergeOlder', () => {
   it('keeps the newer messages that are already on screen', () => {
-    const onScreen = [msg('c', 30), msg('d', 40)];
-    const older = [msg('a', 10), msg('b', 20)];
+    const onScreen: GroupMessage[] = [msg('c', 30), msg('d', 40)];
+    const older: GroupMessage[] = [msg('a', 10), msg('b', 20)];
 
-    const merged = mergeOlder(onScreen, older);
+    const merged: GroupMessage[] = mergeOlder(onScreen, older);
 
     expect(merged.map((m) => m.id)).toEqual(['a', 'b', 'c', 'd']);
   });
@@ -28,25 +28,25 @@ describe('mergeOlder', () => {
     // A live message can land in the window while the older page is in flight,
     // and a non-paginated response can arrive while the flag is set. A blind
     // concat would show both copies.
-    const onScreen = [msg('b', 20), msg('c', 30)];
-    const older = [msg('a', 10), msg('b', 20)];
+    const onScreen: GroupMessage[] = [msg('b', 20), msg('c', 30)];
+    const older: GroupMessage[] = [msg('a', 10), msg('b', 20)];
 
-    const merged = mergeOlder(onScreen, older);
+    const merged: GroupMessage[] = mergeOlder(onScreen, older);
 
     expect(merged.map((m) => m.id)).toEqual(['a', 'b', 'c']);
   });
 
   it('lets the newly-fetched copy win, so an edit made server-side lands', () => {
-    const onScreen = [msg('a', 10, 'stale')];
-    const merged = mergeOlder(onScreen, [msg('a', 10, 'fresh')]);
+    const onScreen: GroupMessage[] = [msg('a', 10, 'stale')];
+    const merged: GroupMessage[] = mergeOlder(onScreen, [msg('a', 10, 'fresh')]);
     expect(merged[0].content).toBe('fresh');
   });
 });
 
 describe('sortByTime', () => {
   it('orders oldest first without mutating its input', () => {
-    const input = [msg('b', 20), msg('a', 10)];
-    const sorted = sortByTime(input);
+    const input: GroupMessage[] = [msg('b', 20), msg('a', 10)];
+    const sorted: GroupMessage[] = sortByTime(input);
     expect(sorted.map((m) => m.id)).toEqual(['a', 'b']);
     expect(input.map((m) => m.id)).toEqual(['b', 'a']);
   });
@@ -54,7 +54,7 @@ describe('sortByTime', () => {
 
 describe('applyEdit / removeMessage', () => {
   it('edits only the named message', () => {
-    const edited = applyEdit([msg('a', 10), msg('b', 20)], 'b', 'new', 99n);
+    const edited: GroupMessage[] = applyEdit([msg('a', 10), msg('b', 20)], 'b', 'new', 99n);
     expect(edited.map((m) => m.content)).toEqual(['a', 'new']);
     expect(edited[1].edited_at).toBe(99n);
   });

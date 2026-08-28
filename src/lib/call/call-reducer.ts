@@ -32,7 +32,7 @@ function withParticipant(
 ): CallState {
   const existing = state.participants.get(cid);
   if (!existing) return state;
-  const participants = new Map(state.participants);
+  const participants: Map<bigint, CallParticipant> = new Map(state.participants);
   participants.set(cid, update(existing));
   return { ...state, participants };
 }
@@ -57,7 +57,7 @@ function everyoneGone(participants: Map<bigint, CallParticipant>): boolean {
 export function reduce(state: CallState | null, event: CallEvent): CallState | null {
   switch (event.type) {
     case 'invite-sent': {
-      const participants = new Map<bigint, CallParticipant>();
+      const participants: Map<bigint, CallParticipant> = new Map<bigint, CallParticipant>();
       for (const invitee of event.invitees) {
         participants.set(invitee.cid, newParticipant(invitee.cid, invitee.username, 'invited', NO_MEDIA));
       }
@@ -80,7 +80,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
       // The caller is already in the call they dialled — 'connecting', which is
       // what lets accept() open their session while co-invitees wait for their
       // own accepts. First into the map: the ringing card reads values()[0].
-      const participants = new Map<bigint, CallParticipant>([
+      const participants: Map<bigint, CallParticipant> = new Map<bigint, CallParticipant>([
         [event.from.cid, newParticipant(event.from.cid, event.from.username, 'connecting', event.media)],
       ]);
       // Co-invitees: every invitee holds the caller's roster, so the mesh can
@@ -116,7 +116,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
       return { ...state, status: 'ended', reason: event.reason };
 
     case 'peer-accepted': {
-      const next = withParticipant(state, event.cid, (p) => ({
+      const next: CallState = withParticipant(state, event.cid, (p) => ({
         ...p,
         status: 'connecting',
         media: event.media,
@@ -126,14 +126,14 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
     }
 
     case 'peer-connected': {
-      const next = withParticipant(state, event.cid, (p) => ({ ...p, status: 'active' }));
+      const next: CallState = withParticipant(state, event.cid, (p) => ({ ...p, status: 'active' }));
       return next.status === 'connecting' || next.status === 'ringing-out'
         ? { ...next, status: 'active' }
         : next;
     }
 
     case 'peer-declined': {
-      const next = withParticipant(state, event.cid, (p) => ({ ...p, status: 'declined' }));
+      const next: CallState = withParticipant(state, event.cid, (p) => ({ ...p, status: 'declined' }));
       // A 1:1 call where the one person said no is over. A group call carries on
       // — one person declining must not hang up on everybody else.
       return everyoneGone(next.participants)
@@ -142,7 +142,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
     }
 
     case 'peer-left': {
-      const next = withParticipant(state, event.cid, (p) => ({ ...p, status: 'left' }));
+      const next: CallState = withParticipant(state, event.cid, (p) => ({ ...p, status: 'left' }));
       // The caller cancelling ends a still-ringing call outright — the seeded
       // co-invitees never answered, so "everyone gone" would never come true.
       if (next.status === 'ringing-in' && event.cid === next.caller) {

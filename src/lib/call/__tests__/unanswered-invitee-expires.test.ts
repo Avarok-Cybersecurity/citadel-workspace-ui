@@ -29,7 +29,7 @@ const CAROL = 3n;
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function harness() {
-  let now = 0;
+  let now: number = 0;
   const timers: Array<{ fn: () => void; cancelled: boolean; fired: boolean }> = [];
   const transport = {
     openSession: vi.fn().mockResolvedValue(undefined),
@@ -37,7 +37,7 @@ function harness() {
     sendFrame: vi.fn(),
     sendSignal: vi.fn().mockResolvedValue(undefined),
   };
-  const manager = new CallManager({
+  const manager: CallManager = new CallManager({
     transport: transport as unknown as CallTransport,
     selfCid: 1n,
     capabilities: CAPS,
@@ -87,7 +87,7 @@ function harness() {
 type Harness = ReturnType<typeof harness>;
 
 /** Bob and Carol invited; Bob answers, Carol's tab is closed and never will. */
-async function groupCallWithOneStraggler(h: Harness) {
+async function groupCallWithOneStraggler(h: Harness): Promise<void> {
   await h.manager.start(
     'c1',
     [

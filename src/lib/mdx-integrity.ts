@@ -42,8 +42,8 @@ export type IntegrityVerdict =
 
 /** Hex-encoded SHA-256 of the UTF-8 bytes. Mirrors the Rust helper exactly. */
 export async function hashDocument(content: string): Promise<string> {
-  const bytes = new TextEncoder().encode(content);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const bytes: Uint8Array<ArrayBuffer> = new TextEncoder().encode(content);
+  const digest: ArrayBuffer = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -53,7 +53,7 @@ export async function verifyDocument(
 ): Promise<IntegrityVerdict> {
   if (!expected) return { status: 'unhashed' };
 
-  const actual = await hashDocument(content);
+  const actual: string = await hashDocument(content);
   // Not a constant-time comparison, deliberately: both values are public
   // properties of a document the caller already holds, so there is no secret
   // for a timing difference to leak.

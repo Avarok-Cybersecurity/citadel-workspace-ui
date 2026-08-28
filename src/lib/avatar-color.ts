@@ -33,7 +33,7 @@ export const AVATAR_COLORS = [
 export function avatarColor(index: number): string {
   // Guards a negative or fractional index, where `%` alone would return NaN
   // and hand the caller `undefined`.
-  const safe = Number.isFinite(index) ? Math.abs(Math.trunc(index)) : 0;
+  const safe: number = Number.isFinite(index) ? Math.abs(Math.trunc(index)) : 0;
   return AVATAR_COLORS[safe % AVATAR_COLORS.length];
 }
 

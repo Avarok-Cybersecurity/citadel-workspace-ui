@@ -42,8 +42,8 @@ export const RELEASES_PAGE =
  */
 export function agentPlatformCandidates(nav: Navigator = navigator): AgentPlatform[] {
   const uaData = (nav as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
-  const platform = (uaData?.platform ?? nav.platform ?? '').toLowerCase();
-  const ua = (nav.userAgent ?? '').toLowerCase();
+  const platform: string = (uaData?.platform ?? nav.platform ?? '').toLowerCase();
+  const ua: string = (nav.userAgent ?? '').toLowerCase();
 
   if (platform.includes('win') || ua.includes('windows')) return ['windows-x64'];
 

@@ -35,7 +35,7 @@ describe('credential rules mirror the SDK contract', () => {
   it('measures UTF-8 bytes, as Rust String::len does', () => {
     // 19 'é' = 38 UTF-8 bytes but only 19 UTF-16 units. A mirror using
     // .length would accept this and the server would then reject it.
-    const nineteenAccents = 'é'.repeat(19);
+    const nineteenAccents: string = 'é'.repeat(19);
     expect(nineteenAccents.length).toBe(19); // under the limit by JS counting
     expect(validateUsername(nineteenAccents)).toMatch(/37 characters or fewer/);
 

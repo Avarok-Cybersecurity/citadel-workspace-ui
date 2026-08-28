@@ -17,7 +17,7 @@ import { CallSession } from '../call-session';
 const g = globalThis as unknown as Record<string, unknown>;
 const savedMedia = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
 const savedKeys: Record<string, unknown> = {};
-const KEYS = ['AudioEncoder', 'AudioDecoder', 'VideoEncoder', 'VideoDecoder',
+const KEYS: string[] = ['AudioEncoder', 'AudioDecoder', 'VideoEncoder', 'VideoDecoder',
   'MediaStreamTrackProcessor', 'MediaStreamTrackGenerator'];
 
 function makeTrack() {
@@ -83,7 +83,7 @@ afterEach(() => {
   release = null;
 });
 
-function makeSession() {
+function makeSession(): CallSession {
   return new CallSession({
     onFrame: vi.fn(),
     onStreamsChanged: vi.fn(),
@@ -94,7 +94,7 @@ function makeSession() {
 
 describe('CallSession.start re-entrancy', () => {
   it('captures once when pressed twice during the permission prompt', async () => {
-    const session = makeSession();
+    const session: CallSession = makeSession();
 
     const first = session.start({ audio: true, video: false, screen: false });
     const second = session.start({ audio: true, video: false, screen: false });
@@ -118,7 +118,7 @@ describe('CallSession.start re-entrancy', () => {
   });
 
   it('allows a genuine second attempt after the first finishes', async () => {
-    const session = makeSession();
+    const session: CallSession = makeSession();
 
     const first = session.start({ audio: true, video: false, screen: false });
     release?.();

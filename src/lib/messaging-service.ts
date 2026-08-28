@@ -110,8 +110,8 @@ export class MessagingService {
     }
 
     // Create a pending message
-    const messageId = uuidv4();
-    const timestamp = Date.now();
+    const messageId: string = uuidv4();
+    const timestamp: number = Date.now();
 
     const pendingMessage: Message = {
       id: messageId,

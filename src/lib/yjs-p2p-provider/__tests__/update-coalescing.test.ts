@@ -31,7 +31,7 @@ vi.mock('@/lib/event-emitter', () => ({
 
 import { YjsP2PProvider } from '../provider';
 
-function makeProvider(doc: Y.Doc) {
+function makeProvider(doc: Y.Doc): YjsP2PProvider {
   return new YjsP2PProvider('doc-1', '2', doc, '1', '1');
 }
 
@@ -46,7 +46,7 @@ afterEach(() => {
 describe('yjs update coalescing', () => {
   it('sends one message for a burst of edits, not one per keystroke', () => {
     const doc = new Y.Doc();
-    const provider = makeProvider(doc);
+    const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
     const text = doc.getText('t');
@@ -64,7 +64,7 @@ describe('yjs update coalescing', () => {
 
   it('the merged update reconstructs the document exactly', () => {
     const doc = new Y.Doc();
-    const provider = makeProvider(doc);
+    const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
     const text = doc.getText('t');
@@ -85,7 +85,7 @@ describe('yjs update coalescing', () => {
 
   it('flushes buffered edits on destroy rather than dropping them', () => {
     const doc = new Y.Doc();
-    const provider = makeProvider(doc);
+    const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
     doc.getText('t').insert(0, 'unsaved');
@@ -103,7 +103,7 @@ describe('yjs update coalescing', () => {
 
   it('ignores remote-origin updates, which must not be echoed back', () => {
     const doc = new Y.Doc();
-    const provider = makeProvider(doc);
+    const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
     const other = new Y.Doc();

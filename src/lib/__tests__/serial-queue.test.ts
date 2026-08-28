@@ -17,7 +17,7 @@ import { withSerialLock } from '../serial-queue';
 
 /** A store with the exact hazard: a gap between reading and writing. */
 function racyStore(initial: string[]) {
-  let value = initial;
+  let value: string[] = initial;
   return {
     read: () => value,
     write: async (next: string[]) => {
@@ -34,7 +34,7 @@ describe('withSerialLock', () => {
   it('does not lose a concurrent write to the same key', async () => {
     const store = racyStore(['a', 'b', 'c']);
     const remove = (item: string) => async () => {
-      const current = store.read();
+      const current: string[] = store.read();
       await Promise.resolve();
       await store.write(current.filter((x) => x !== item));
     };
@@ -76,7 +76,7 @@ describe('withSerialLock', () => {
     const after = vi.fn();
 
     const failed = withSerialLock('tree', () => Promise.reject(new Error('nope')));
-    const queued = withSerialLock('tree', async () => { after(); });
+    const queued: Promise<void> = withSerialLock('tree', async () => { after(); });
 
     await expect(failed).rejects.toThrow('nope');
     await queued;
@@ -84,9 +84,9 @@ describe('withSerialLock', () => {
   });
 
   it('reports each operation\'s own outcome to its own caller', async () => {
-    const first = withSerialLock('tree', async () => 'first');
+    const first: Promise<string> = withSerialLock('tree', async () => 'first');
     const second = withSerialLock('tree', () => Promise.reject(new Error('second')));
-    const third = withSerialLock('tree', async () => 'third');
+    const third: Promise<string> = withSerialLock('tree', async () => 'third');
 
     await expect(first).resolves.toBe('first');
     await expect(second).rejects.toThrow('second');

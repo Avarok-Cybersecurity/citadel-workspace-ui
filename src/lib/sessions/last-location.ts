@@ -23,7 +23,7 @@ function keyFor(cid: bigint | string): string {
 }
 
 /** Paths that are somewhere in the app, as opposed to a way into it. */
-const RESTORABLE = [/^\/workspace\b/, /^\/messages\b/, /^\/files\b/, /^\/directory\b/];
+const RESTORABLE: RegExp[] = [/^\/workspace\b/, /^\/messages\b/, /^\/files\b/, /^\/directory\b/];
 
 export function isRestorableLocation(path: string): boolean {
   return RESTORABLE.some((pattern) => pattern.test(path));

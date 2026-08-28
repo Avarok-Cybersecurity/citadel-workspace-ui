@@ -21,7 +21,7 @@ describe('a workspace path', () => {
   });
 
   it('keeps the parameters that are actually read', () => {
-    const path = getWorkspacePath({ nodeId: 'n1', section: 'files' });
+    const path: string = getWorkspacePath({ nodeId: 'n1', section: 'files' });
 
     expect(path).toMatch(/nodeId=n1/);
     expect(path).toMatch(/section=files/);
@@ -30,7 +30,7 @@ describe('a workspace path', () => {
   it('strips a stale id from a link shared before this was removed', () => {
     const shared = new URLSearchParams('id=root&nodeId=n1');
 
-    const path = buildWorkspacePath(shared);
+    const path: string = buildWorkspacePath(shared);
 
     expect(path).not.toMatch(/[?&]id=/);
     expect(path).toMatch(/nodeId=n1/);

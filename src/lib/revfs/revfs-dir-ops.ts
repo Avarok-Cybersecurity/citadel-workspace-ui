@@ -34,19 +34,19 @@ export interface DirOpsContext {
 // ── Peer-Scoped Directory Operations ──────────────────────────────────────
 
 export async function peerMkdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeMkdir(tree, path);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
 export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
 
   // Collect BEFORE the removal — rmdir takes the list of what was inside with
   // it. `serverRmdir` has done this since the orphaned-bytes fix; the peer twin
@@ -55,12 +55,12 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
   // tree entry left to reach it from. `removeFileFromPeer` deletes with the
   // peer's cid for exactly this reason.
   const target = findNode(tree, path);
-  const orphaned = target ? collectFiles(target) : [];
+  const orphaned: RevfsNode[] = target ? collectFiles(target) : [];
 
   const [newTree, op] = treeRmdir(tree, path);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 
@@ -68,34 +68,34 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
 }
 
 export async function peerRename(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeRename(tree, path, newName);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
 export async function peerMove(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, sourcePath: string, destParentPath: string): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeMove(tree, sourcePath, destParentPath);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
 export async function peerCopy(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, sourcePath: string, destParentPath: string): Promise<void> {
-  const key = peerPairKey(myCid, peerCid);
-  const tree = await ctx.getTree(myCid, peerCid);
+  const key: string = peerPairKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeCopy(tree, sourcePath, destParentPath, () => crypto.randomUUID());
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
   await ctx.sendAndAwaitAck(peerCid, op, key);
 }
@@ -123,12 +123,12 @@ export async function peerCopy(ctx: DirOpsContext, myCid: bigint, peerCid: bigin
 // ── Server-Scoped Directory Operations (No P2P Sync) ──────────────────────
 
 export async function serverMkdir(ctx: DirOpsContext, myCid: bigint, path: string): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
+  const key: string = serverTreeKey(myCid);
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
   const [newTree] = treeMkdir(tree, path);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
 }
 
@@ -154,7 +154,7 @@ async function sweepOrphanedBytes(
   // referenced OUTSIDE the removed folder must survive the sweep — rmdir of a
   // folder holding only a copy used to destroy the original's bytes — and two
   // copies INSIDE it are one blob, one delete.
-  const sweptKeys = new Set<string>();
+  const sweptKeys: Set<string> = new Set<string>();
   for (const file of orphaned) {
     if (!file.fileMetadata) {
       // Nothing identifies this file to the backend, so it cannot be deleted
@@ -162,7 +162,7 @@ async function sweepOrphanedBytes(
       debugLog('RevfsDirOps', `rmdir: no metadata for ${file.path}, cannot delete remotely`);
       continue;
     }
-    const byteKey = file.fileMetadata.virtualDirectory;
+    const byteKey: string = file.fileMetadata.virtualDirectory;
     if (byteKey !== '') {
       if (sweptKeys.has(byteKey)) continue;
       sweptKeys.add(byteKey);
@@ -194,8 +194,8 @@ async function sweepOrphanedBytes(
 }
 
 export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: string): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
+  const key: string = serverTreeKey(myCid);
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
 
   // Collect the files BEFORE the removal — rmdir drops the whole subtree, taking
   // the list of what was inside it with it.
@@ -206,43 +206,43 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
   // deleting each file that lived under it, or the bytes stay on the server and
   // the user's quota never comes back.
   const target = findNode(tree, path);
-  const orphaned = target ? collectFiles(target) : [];
+  const orphaned: RevfsNode[] = target ? collectFiles(target) : [];
 
   const [newTree] = treeRmdir(tree, path);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
 
   await sweepOrphanedBytes(io, myCid, null, orphaned, newTree, 'server storage');
 }
 
 export async function serverRename(ctx: DirOpsContext, myCid: bigint, path: string, newName: string): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
+  const key: string = serverTreeKey(myCid);
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
   const [newTree] = treeRename(tree, path, newName);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
 }
 
 export async function serverMove(ctx: DirOpsContext, myCid: bigint, sourcePath: string, destParentPath: string): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
+  const key: string = serverTreeKey(myCid);
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
   const [newTree] = treeMove(tree, sourcePath, destParentPath);
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
 }
 
 export async function serverCopy(ctx: DirOpsContext, myCid: bigint, sourcePath: string, destParentPath: string): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
+  const key: string = serverTreeKey(myCid);
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
   const [newTree] = treeCopy(tree, sourcePath, destParentPath, () => crypto.randomUUID());
 
   ctx.state.setTree(key, newTree);
-  const io = ctx.ensureIO();
+  const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
 }

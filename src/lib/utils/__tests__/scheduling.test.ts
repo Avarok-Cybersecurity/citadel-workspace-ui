@@ -8,7 +8,7 @@ describe('yieldToEventLoop', () => {
     // macrotask lets rendering in. Ordering proves which one we got.
     const order: string[] = [];
     void Promise.resolve().then(() => order.push('microtask'));
-    const macro = new Promise<void>(r => setTimeout(() => { order.push('macrotask'); r(); }, 0));
+    const macro: Promise<void> = new Promise<void>(r => setTimeout(() => { order.push('macrotask'); r(); }, 0));
     await yieldToEventLoop();
     await macro;
     expect(order).toEqual(['microtask', 'macrotask']);
@@ -38,7 +38,7 @@ describe('yieldToEventLoop', () => {
 
 describe('waitFor', () => {
   it('returns immediately when the condition already holds', async () => {
-    const start = Date.now();
+    const start: number = Date.now();
     await expect(waitFor(() => true, { timeoutMs: 1000, description: 'always true' }))
       .resolves.toBe(true);
     // The whole point: a helper that always cost one poll interval would just be
@@ -49,15 +49,15 @@ describe('waitFor', () => {
   it('returns as soon as the condition flips, not when the timeout elapses', async () => {
     let ready = false;
     setTimeout(() => { ready = true; }, 30);
-    const start = Date.now();
+    const start: number = Date.now();
     await waitFor(() => ready, { timeoutMs: 5000, intervalMs: 5, description: 'ready flag' });
-    const elapsed = Date.now() - start;
+    const elapsed: number = Date.now() - start;
     expect(elapsed).toBeGreaterThanOrEqual(25);
     expect(elapsed).toBeLessThan(500); // nowhere near the 5s ceiling
   });
 
   it('accepts an async condition', async () => {
-    let calls = 0;
+    let calls: number = 0;
     await expect(
       waitFor(async () => ++calls >= 3, { timeoutMs: 1000, intervalMs: 1, description: 'third call' })
     ).resolves.toBe(true);
@@ -78,7 +78,7 @@ describe('waitFor', () => {
   });
 
   it('does not overshoot its own deadline while polling', async () => {
-    const start = Date.now();
+    const start: number = Date.now();
     await waitFor(() => false, {
       timeoutMs: 30,
       intervalMs: 100, // deliberately longer than the timeout
@@ -94,7 +94,7 @@ describe('waitFor', () => {
 describe('waitForEvent', () => {
   it('resolves with the emitted value and unsubscribes', async () => {
     const unsubscribe = vi.fn();
-    const promise = waitForEvent<string>(resolve => {
+    const promise: Promise<string> = waitForEvent<string>(resolve => {
       setTimeout(() => resolve('connected'), 10);
       return unsubscribe;
     }, { timeoutMs: 1000, description: 'peer connect' });
@@ -105,7 +105,7 @@ describe('waitForEvent', () => {
 
   it('unsubscribes on timeout too, so a listener cannot leak', async () => {
     const unsubscribe = vi.fn();
-    const promise = waitForEvent(() => unsubscribe, { timeoutMs: 20, description: 'never fires' });
+    const promise: Promise<void> = waitForEvent(() => unsubscribe, { timeoutMs: 20, description: 'never fires' });
 
     await expect(promise).rejects.toThrow(/waiting for: never fires/);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
@@ -114,7 +114,7 @@ describe('waitForEvent', () => {
   it('ignores a second emission rather than settling twice', async () => {
     const unsubscribe = vi.fn();
     let emit!: (v: string) => void;
-    const promise = waitForEvent<string>(resolve => { emit = resolve; return unsubscribe; },
+    const promise: Promise<string> = waitForEvent<string>(resolve => { emit = resolve; return unsubscribe; },
       { timeoutMs: 1000, description: 'double emit' });
 
     emit('first');

@@ -185,7 +185,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     const serverAddress = connectSuccess.server_addr;
 
     if (username) {
-      const sessionKey = `${username}@${serverAddress}`;
+      const sessionKey: string = `${username}@${serverAddress}`;
       this.cancelRetry(sessionKey);
       this.activeSessionKeys.add(sessionKey);
       if (this.userDisconnectedSessions.has(sessionKey)) {
@@ -213,7 +213,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
    * below: they have different deadlines — see lib/connection/lifecycle.ts.
    */
   public markUserDisconnectedNow(username: string, serverAddress: string): void {
-    const sessionKey = `${username}@${serverAddress}`;
+    const sessionKey: string = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.add(sessionKey);
     this.cancelRetry(sessionKey);
   }
@@ -230,7 +230,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   }
 
   public async clearUserDisconnected(username: string, serverAddress: string): Promise<void> {
-    const sessionKey = `${username}@${serverAddress}`;
+    const sessionKey: string = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.delete(sessionKey);
     await persistUserDisconnectedSessions(this.userDisconnectedSessions);
     debugLog('ServerAutoConnectService', `Cleared user-disconnected status for ${username} (persisted to LocalDB)`);

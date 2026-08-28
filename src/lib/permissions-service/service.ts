@@ -161,7 +161,7 @@ export class PermissionsService extends EventListenerManager {
       return null;
     }
 
-    const requestPromise = (async () => {
+    const requestPromise: Promise<DomainPermissions> = (async () => {
       try {
         await WorkspaceService.getUserPermissions(userId, domainId);
 

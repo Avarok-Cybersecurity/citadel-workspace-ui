@@ -45,7 +45,7 @@ export function getTabId(): string {
   const stored = sessionGet(TAB_ID_KEY);
   if (stored) return stored;
 
-  const minted = mintTabId();
+  const minted: string = mintTabId();
   if (!sessionSet(TAB_ID_KEY, minted)) {
     if (!inMemoryTabId) inMemoryTabId = mintTabId();
     return inMemoryTabId;
@@ -66,7 +66,7 @@ export function getTabId(): string {
  * INSTANCE id only. The tab id is the one the storage keys use.
  */
 export function reissueTabId(): string {
-  const replacement = mintTabId();
+  const replacement: string = mintTabId();
   if (!sessionSet(TAB_ID_KEY, replacement)) {
     // Same reasoning as getTabId: without storage the id lives in memory, and
     // a reissue must still take effect for this tab.
@@ -95,7 +95,7 @@ export function getTabSpecificKey(key: string): string {
  * BigInt values are preserved via Structured Clone.
  */
 export async function setTabData<T>(key: string, value: T): Promise<void> {
-  const storageKey = getTabSpecificKey(key);
+  const storageKey: string = getTabSpecificKey(key);
   await dbPut('tabContext', storageKey, value);
 }
 
@@ -104,7 +104,7 @@ export async function setTabData<T>(key: string, value: T): Promise<void> {
  * BigInt values are automatically restored.
  */
 export async function getTabData<T>(key: string): Promise<T | null> {
-  const storageKey = getTabSpecificKey(key);
+  const storageKey: string = getTabSpecificKey(key);
   const data = await dbGet<T>('tabContext', storageKey);
   return data ?? null;
 }
@@ -113,7 +113,7 @@ export async function getTabData<T>(key: string): Promise<T | null> {
  * Remove tab-specific data from IndexedDB.
  */
 export async function removeTabData(key: string): Promise<void> {
-  const storageKey = getTabSpecificKey(key);
+  const storageKey: string = getTabSpecificKey(key);
   await dbDelete('tabContext', storageKey);
 }
 

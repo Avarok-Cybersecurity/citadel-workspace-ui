@@ -50,7 +50,7 @@ export class BroadcastChannelService extends PollingService {
   }
 
   protected async poll(): Promise<void> {
-    const now = Date.now();
+    const now: number = Date.now();
     for (const [requestId, entry] of this.pendingRequests) {
       if (now - entry.insertTime > REQUEST_EXPIRY_MS) {
         this.pendingRequests.delete(requestId);
@@ -94,7 +94,7 @@ export class BroadcastChannelService extends PollingService {
     if (!this.channel) return;
 
     this.channel.onmessage = (event: MessageEvent<BroadcastMessage>) => {
-      const message = event.data;
+      const message: BroadcastMessage = event.data;
       if (message.tabId === this.tabId) return;
 
       debugLog('BroadcastChannelService', `Received message from ${message.tabId}:`, message.type);

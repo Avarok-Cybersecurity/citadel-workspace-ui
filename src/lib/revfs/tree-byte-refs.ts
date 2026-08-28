@@ -29,7 +29,7 @@ import type { RevfsNode } from '@/types/revfs-types';
 export function countByteKeyRefs(tree: RevfsNode, virtualDirectory: string): number {
   if (virtualDirectory === '') return 0;
 
-  let count = 0;
+  let count: number = 0;
   const walk = (node: RevfsNode): void => {
     if (node.type === 'file' && node.fileMetadata?.virtualDirectory === virtualDirectory) {
       count++;

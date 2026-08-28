@@ -7,7 +7,7 @@ import type { WebSocketMessage } from '@/types/ws-message-types';
  */
 export function narrowWebSocketMessage(raw: unknown): WebSocketMessage | null {
   if (raw === null || raw === undefined || typeof raw !== 'object') return null;
-  const keys = Object.keys(raw as Record<string, unknown>);
+  const keys: string[] = Object.keys(raw as Record<string, unknown>);
   if (keys.length === 0) return null;
   return raw as WebSocketMessage;
 }

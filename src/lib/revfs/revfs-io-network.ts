@@ -36,7 +36,7 @@ export async function backendSendFile(
 
   // ByteContents.data is a Rust Vec<u8>, which serialises as a number array —
   // the same shape the working file-transfer upload sends.
-  const data = Array.from(content);
+  const data: number[] = Array.from(content);
 
   const request = {
     SendFile: {

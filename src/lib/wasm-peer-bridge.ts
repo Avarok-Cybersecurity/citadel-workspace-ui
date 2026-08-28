@@ -50,9 +50,9 @@ import { debugLog } from '@/lib/debug-config';
  * @returns BigUint64Array of peer CIDs that are currently connected
  */
 // DEBUG: Rate-limited logging for diagnostic purposes
-let lastLogTime = 0;
+let lastLogTime: number = 0;
 const LOG_INTERVAL_MS = 3000; // Log once every 3 seconds
-let callCount = 0;
+let callCount: number = 0;
 
 function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
   callCount++;
@@ -63,10 +63,10 @@ function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {
       return new BigUint64Array(0);
     }
 
-    const peers = p2pAutoConnectService.getPeersForSession(localCid);
+    const peers: bigint[] = p2pAutoConnectService.getPeersForSession(localCid);
 
     // DEBUG: Rate-limited logging to trace peer lookups
-    const now = Date.now();
+    const now: number = Date.now();
     if (now - lastLogTime > LOG_INTERVAL_MS || peers.length > 0) {
       lastLogTime = now;
       // ILM-DIAG: Log full CID for comparison with setPeerConnected logs

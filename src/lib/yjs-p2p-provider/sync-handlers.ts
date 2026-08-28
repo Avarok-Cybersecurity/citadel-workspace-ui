@@ -114,7 +114,7 @@ export function handleUpdate(
 
   // Verify hash matches if provided
   if (message.doc_hash && ctx.merkleTree) {
-    const localHash = ctx.merkleTree.getRootHash();
+    const localHash: string = ctx.merkleTree.getRootHash();
     if (localHash !== message.doc_hash) {
       debugLog('YjsP2PProvider', `Hash mismatch after update! Local: ${localHash}, Remote: ${message.doc_hash}`);
       ctx.handleHashMismatch(message.doc_hash);
@@ -178,7 +178,7 @@ export function handleHashCheck(
 ): void {
   if (!ctx.merkleTree) return;
 
-  const localHash = ctx.merkleTree.getRootHash();
+  const localHash: string = ctx.merkleTree.getRootHash();
 
   if (message.doc_hash && localHash !== message.doc_hash) {
     ctx.handleHashMismatch(message.doc_hash);

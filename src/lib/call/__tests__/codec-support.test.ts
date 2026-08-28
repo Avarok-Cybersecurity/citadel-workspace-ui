@@ -102,9 +102,9 @@ describe('encoding profiles', () => {
   });
 
   it('prefers royalty-free codecs over H.264', () => {
-    const av1 = VIDEO_CODEC_PREFERENCE.indexOf(AV1);
-    const vp9 = VIDEO_CODEC_PREFERENCE.indexOf(VP9);
-    const h264 = VIDEO_CODEC_PREFERENCE.indexOf(H264);
+    const av1: number = VIDEO_CODEC_PREFERENCE.indexOf(AV1);
+    const vp9: number = VIDEO_CODEC_PREFERENCE.indexOf(VP9);
+    const h264: number = VIDEO_CODEC_PREFERENCE.indexOf(H264);
 
     expect(av1).toBeLessThan(vp9);
     expect(vp9).toBeLessThan(h264);

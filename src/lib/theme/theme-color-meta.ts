@@ -27,7 +27,7 @@ export function syncThemeColorMeta(
   const meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) return;
 
-  const raw = getComputedStyle(root).getPropertyValue('--background').trim();
+  const raw: string = getComputedStyle(root).getPropertyValue('--background').trim();
   const color = fromCssValue(raw);
   // Leave the markup's value alone rather than writing something unparseable:
   // a wrong titlebar is worse than a stale one.

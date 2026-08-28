@@ -102,7 +102,7 @@ describe('starting a call', () => {
       value: { getUserMedia: vi.fn().mockResolvedValue(fakeStream(false)) },
       configurable: true,
     });
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
 
     const got = await session.start({ audio: true, video: true, screen: false });
 
@@ -115,7 +115,7 @@ describe('starting a call', () => {
       configurable: true,
     });
     const cbs = callbacks();
-    const session = new CallSession(cbs);
+    const session: CallSession = new CallSession(cbs);
 
     const got = await session.start({ audio: true, video: false, screen: false });
 
@@ -126,7 +126,7 @@ describe('starting a call', () => {
 
 describe('teardown', () => {
   it('stops every local track, so the camera light goes out', async () => {
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
 
     session.close();
@@ -136,7 +136,7 @@ describe('teardown', () => {
   });
 
   it('closes every codec it opened', async () => {
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
     session.acceptFrame(2n, { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) });
 
@@ -147,7 +147,7 @@ describe('teardown', () => {
   });
 
   it('is safe to close twice', async () => {
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
 
     session.close();
@@ -158,7 +158,7 @@ describe('teardown', () => {
 
   it('ignores frames arriving after close', async () => {
     const cbs = callbacks();
-    const session = new CallSession(cbs);
+    const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
     session.close();
     cbs.onStreamsChanged.mockClear();
@@ -174,7 +174,7 @@ describe('peers', () => {
     // A notify per frame would re-render the whole call surface sixty times a
     // second.
     const cbs = callbacks();
-    const session = new CallSession(cbs);
+    const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
 
     const frame = { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) };
@@ -186,10 +186,10 @@ describe('peers', () => {
   });
 
   it('releases a peer’s decoders when they leave', async () => {
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
     session.acceptFrame(2n, { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) });
-    const opened = codecInstances.length;
+    const opened: number = codecInstances.length;
 
     session.removePeer(2n);
 
@@ -201,7 +201,7 @@ describe('peers', () => {
     // A decoder handed delta frames first emits garbage; the request must reach
     // the peer's encoder, not sit in a buffer nothing drains.
     const cbs = callbacks();
-    const session = new CallSession(cbs);
+    const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
 
     // flags: 2 is discardable-not-keyframe — undecodable as a first frame.
@@ -212,7 +212,7 @@ describe('peers', () => {
 
   it('rebuilds a peer’s decoder when they announce a different send codec', async () => {
     const cbs = callbacks();
-    const session = new CallSession(cbs);
+    const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
     session.acceptFrame(2n, { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) });
     cbs.onStreamsChanged.mockClear();
@@ -227,7 +227,7 @@ describe('peers', () => {
 
 describe('codec negotiation', () => {
   it('re-picks the send codec from what peers can actually decode', async () => {
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
     // The stub supports every encoder, so the provisional pick is our best
     // (AV1); a peer that only decodes VP9 must pull us down to VP9.
@@ -242,7 +242,7 @@ describe('codec negotiation', () => {
   });
 
   it('reports no change when peers already decode our choice', async () => {
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
 
     const changed = session.renegotiateSendCodec([
@@ -264,7 +264,7 @@ describe('closing during capture', () => {
       },
       configurable: true,
     });
-    const session = new CallSession(callbacks());
+    const session: CallSession = new CallSession(callbacks());
     const lateStream = fakeStream(true);
 
     const pending = session.start({ audio: true, video: true, screen: false });

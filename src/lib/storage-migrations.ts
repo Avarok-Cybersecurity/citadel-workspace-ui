@@ -128,7 +128,7 @@ export function runMigrations<DBTypes>(
   newVersion: number | null,
   tx: IDBPTransaction<DBTypes, StoreNames<DBTypes>[], 'versionchange'>
 ): void {
-  const target = newVersion ?? DB_VERSION;
+  const target: number = newVersion ?? DB_VERSION;
   const pending = MIGRATIONS.filter(m => m.version > oldVersion && m.version <= target).sort(
     (a, b) => a.version - b.version
   );
@@ -164,6 +164,6 @@ export function runMigrations<DBTypes>(
  * `NotFoundError` from an unrelated read.
  */
 export function missingStores(existing: DOMStringList | string[]): StoreName[] {
-  const have = new Set(Array.from(existing as Iterable<string>));
+  const have: Set<string> = new Set(Array.from(existing as Iterable<string>));
   return STORE_NAMES.filter(name => !have.has(name));
 }

@@ -27,7 +27,7 @@ export async function processAvatarImage(
     }
 
     // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize: number = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       reject(new Error('Image must be smaller than 5MB'));
       return;
@@ -40,8 +40,8 @@ export async function processAvatarImage(
       img.onload = () => {
         try {
           // Calculate new dimensions while maintaining aspect ratio
-          let width = img.width;
-          let height = img.height;
+          let width: number = img.width;
+          let height: number = img.height;
 
           if (width > height) {
             if (width > maxDimension) {
@@ -83,7 +83,7 @@ export async function processAvatarImage(
           }
 
           // Extract base64 portion (remove data URL prefix)
-          const base64 = dataUrl.split(',')[1];
+          const base64: string = dataUrl.split(',')[1];
           resolve(base64);
         } catch (error) {
           reject(error);
@@ -124,8 +124,8 @@ export function avatarToDataUrl(base64: string): string {
  * @returns Object with isValid boolean and optional error message
  */
 export function validateAvatarFile(file: File): { isValid: boolean; error?: string } {
-  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  const maxSize = 5 * 1024 * 1024; // 5MB
+  const validTypes: string[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const maxSize: number = 5 * 1024 * 1024; // 5MB
 
   if (!validTypes.includes(file.type)) {
     return {

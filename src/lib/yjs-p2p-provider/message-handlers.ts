@@ -32,7 +32,7 @@ export function handleAwarenessMessage(
   ctx: MessageHandlerContext,
   message: YjsAwarenessMessage
 ): void {
-  const update = new Uint8Array(message.awareness);
+  const update: Uint8Array<ArrayBuffer> = new Uint8Array(message.awareness);
   applyAwarenessUpdate(ctx.awareness, update, 'remote');
 }
 
@@ -50,7 +50,7 @@ export function handleAckMessage(
 
     // Verify hash if we have it
     if (ctx.merkleTree && message.local_hash) {
-      const localHash = ctx.merkleTree.getRootHash();
+      const localHash: string = ctx.merkleTree.getRootHash();
       if (localHash !== message.local_hash) {
         debugLog('YjsP2PProvider', `Hash mismatch in ACK! Local: ${localHash}, Remote: ${message.local_hash}`);
         ctx.handleHashMismatch(message.local_hash);

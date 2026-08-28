@@ -16,7 +16,7 @@ import { eventEmitter } from '../../event-emitter';
 const never = { matchSuccess: () => undefined, matchFailure: () => undefined };
 
 /** A request that has been sent and is waiting. */
-function pending(timeoutMs = 60_000) {
+function pending(timeoutMs = 60_000): Promise<string> {
   return requestResponse<string>({
     request: { Whatever: { request_id: 'r1' } },
     requestId: 'r1',

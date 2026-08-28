@@ -112,7 +112,7 @@ export class YjsP2PProvider {
     this.awarenessHandler = ({ added, updated, removed }, origin) => {
       if (this.destroyed) return;
       if (origin === 'remote') return;
-      const changedClients = added.concat(updated).concat(removed);
+      const changedClients: number[] = added.concat(updated).concat(removed);
       if (changedClients.length > 0) {
         const update = encodeAwarenessUpdate(this.awareness, changedClients);
         broadcastAwareness(this.ctx, update);
@@ -143,7 +143,7 @@ export class YjsP2PProvider {
   }
 
   private initiateSync() {
-    const now = Date.now();
+    const now: number = Date.now();
     if (this.syncInProgress || (now - this.lastSyncInitiated < YJS_SYNC_COOLDOWN_MS)) {
       debugLog('YjsP2PProvider', `[Yjs] Sync throttled (cooldown: ${Math.ceil((YJS_SYNC_COOLDOWN_MS - (now - this.lastSyncInitiated)) / 1000)}s remaining)`);
       return;
@@ -177,7 +177,7 @@ export class YjsP2PProvider {
   }
 
   private handleSyncMessage(message: YjsSyncMessage) {
-    const data = new Uint8Array(message.data);
+    const data: Uint8Array<ArrayBuffer> = new Uint8Array(message.data);
     switch (message.sub_type) {
       case 'sync_step1': handleSyncStep1(this.ctx, data, message); break;
       case 'sync_step2': handleSyncStep2(this.ctx, data, message); break;

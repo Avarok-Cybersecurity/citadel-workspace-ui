@@ -17,7 +17,7 @@
  * `beforeunload` nor a call-site check can intercept. That one needs the data
  * router.
  */
-const dirty = new Set<string>();
+const dirty: Set<string> = new Set<string>();
 
 /** Mark an editor dirty. Returns a function that clears it. */
 export function registerUnsavedEdits(ownerId: string): () => void {

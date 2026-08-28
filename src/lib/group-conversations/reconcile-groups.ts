@@ -67,8 +67,8 @@ export function reconcileGroups(
   serverIds: readonly string[],
   knownWhenAsked: ReadonlySet<string>,
 ): GroupConversation[] {
-  const live = new Set(serverIds);
-  const next = current.filter((g) => live.has(g.id) || !knownWhenAsked.has(g.id));
+  const live: Set<string> = new Set(serverIds);
+  const next: GroupConversation[] = current.filter((g) => live.has(g.id) || !knownWhenAsked.has(g.id));
   return next.length === current.length ? current : next;
 }
 

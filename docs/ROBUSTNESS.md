@@ -12737,3 +12737,33 @@ pointed at working code.
 That is the shape to watch for as the remaining 6,775 annotations land: every
 tool in this repository that recognises a declaration by its text has an opinion
 about what a declaration looks like, and the policy is changing that shape.
+
+## Round 242 — return types, which is where inference reaches furthest
+
+The remaining debt after round 241 broke down as 5,139 declarations, 1,346
+missing return types and 290 unstated module boundaries. Return types were the
+next pass, and they are worth more than their count suggests: a return type is
+the contract every caller reads, and it is the one place inference travels
+furthest — change a function's body and its type changes three modules away with
+nothing anywhere saying so. Round 239 was that, exactly.
+
+They are also the safer pass. None of round 241's hazards apply: a return type
+cannot narrow a constant and cannot alias a condition.
+
+**5,601 remaining**, down from 6,775. 1,115 signatures annotated, with `tsc`,
+ESLint, 2,163 unit tests, a production build and the accessibility gate green
+afterwards.
+
+What is left is the part a codemod cannot do without adding imports:
+
+| what | count |
+|---|---|
+| declarations whose type is not named in the file | ~5,100 |
+| return types that would need an import | ~230 |
+| module boundaries | 290 |
+
+The top of that list is `tree`, `state`, `result`, `requestId`, `request`,
+`currentCid` — locals holding types that live one module away. Adding imports is
+the next capability, and it is the one with a real failure mode (a cycle), so it
+gets built with the same treatment: refuse anything it cannot prove safe, and
+let `tsc` be the judge on every pass.

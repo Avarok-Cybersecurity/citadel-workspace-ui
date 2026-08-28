@@ -83,7 +83,7 @@ function constraintsFor(request: CaptureRequest): MediaStreamConstraints {
  * opposite responses from the user.
  */
 export function classifyCaptureError(error: unknown): CaptureFailure {
-  const name = error instanceof DOMException ? error.name : '';
+  const name: string = error instanceof DOMException ? error.name : '';
 
   switch (name) {
     case 'NotAllowedError':
@@ -150,7 +150,7 @@ export async function captureLocalMedia(request: CaptureRequest): Promise<Captur
     const stream = await navigator.mediaDevices.getUserMedia(constraintsFor(request));
     return { ok: true, stream };
   } catch (error) {
-    const failure = classifyCaptureError(error);
+    const failure: CaptureFailure = classifyCaptureError(error);
 
     // A camera failure must not cost the user the whole call. Falling back to
     // audio is almost always what they want, and it is the difference between

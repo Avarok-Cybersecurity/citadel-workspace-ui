@@ -15,7 +15,7 @@
  * effect of fixing this.
  */
 
-const drafts = new Map<string, string>();
+const drafts: Map<string, string> = new Map<string, string>();
 
 /** Remember what is typed but unsent for a conversation. */
 export function saveDraft(conversationKey: string, text: string): void {

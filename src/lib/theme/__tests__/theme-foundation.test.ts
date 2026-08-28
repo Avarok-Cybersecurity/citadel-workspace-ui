@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __dirname: string = dirname(fileURLToPath(import.meta.url));
 import { PRESET_THEMES, defaultTheme, findPreset, DEFAULT_THEME_ID } from '../presets';
 import { AVAROK_LIGHT, AVAROK_DARK } from '../preset-avarok';
 import { paletteToCssVars, cssVarName, applyTheme, clearTheme } from '../apply-theme';
@@ -24,7 +24,7 @@ describe('Avarok Purple, the default', () => {
   });
 
   it('reproduces the shipped light tokens exactly', () => {
-    const vars = paletteToCssVars(defaultTheme().light);
+    const vars: Record<string, string> = paletteToCssVars(defaultTheme().light);
 
     // Spot-check the values index.css actually carries, including the ones with
     // documented contrast reasoning.
@@ -35,7 +35,7 @@ describe('Avarok Purple, the default', () => {
   });
 
   it('reproduces the shipped dark tokens exactly', () => {
-    const vars = paletteToCssVars(defaultTheme().dark);
+    const vars: Record<string, string> = paletteToCssVars(defaultTheme().dark);
 
     expect(vars['--background']).toBe('235 18% 13%');
     expect(vars['--primary']).toBe('257 30% 50%');
@@ -62,16 +62,16 @@ describe('index.css and the default preset agree', () => {
   //
   // Comparing every variable the palette emits closes that gap for all tokens
   // at once, rather than adding a fifth spot-check after each incident.
-  const css = readFileSync(resolve(__dirname, '../../../index.css'), 'utf8');
+  const css: string = readFileSync(resolve(__dirname, '../../../index.css'), 'utf8');
 
   /** Pull one selector's custom properties, by brace depth rather than by a
    *  substring search — which is the bug this test exists to prevent. */
   function blockVars(selector: string): Record<string, string> {
-    const start = css.indexOf(selector + ' {');
+    const start: number = css.indexOf(selector + ' {');
     if (start === -1) throw new Error(`no ${selector} block in index.css`);
-    let depth = 0;
-    let end = start;
-    for (let i = css.indexOf('{', start); i < css.length; i += 1) {
+    let depth: number = 0;
+    let end: number = start;
+    for (let i: number = css.indexOf('{', start); i < css.length; i += 1) {
       if (css[i] === '{') depth += 1;
       else if (css[i] === '}') {
         depth -= 1;
@@ -89,17 +89,17 @@ describe('index.css and the default preset agree', () => {
     ['light', ':root'] as const,
     ['dark', '.dark'] as const,
   ])('%s matches the %s block', (mode, selector) => {
-    const emitted = paletteToCssVars(defaultTheme()[mode]);
-    const declared = blockVars(selector);
-    const drift = Object.entries(emitted)
+    const emitted: Record<string, string> = paletteToCssVars(defaultTheme()[mode]);
+    const declared: Record<string, string> = blockVars(selector);
+    const drift: string[] = Object.entries(emitted)
       .filter(([name, value]) => declared[name] !== undefined && declared[name] !== value)
       .map(([name, value]) => `${name}: preset ${value} vs css ${declared[name]}`);
     expect(drift).toEqual([]);
   });
 
   it('declares every token the palette emits', () => {
-    const emitted = Object.keys(paletteToCssVars(defaultTheme().light));
-    const declared = blockVars(':root');
+    const emitted: string[] = Object.keys(paletteToCssVars(defaultTheme().light));
+    const declared: Record<string, string> = blockVars(':root');
     // A token the palette emits but index.css never declares is one the app
     // falls back to nothing for until a workspace theme loads.
     expect(emitted.filter((name) => declared[name] === undefined)).toEqual([]);
@@ -108,7 +108,7 @@ describe('index.css and the default preset agree', () => {
 
 describe('presets', () => {
   it('includes the requested well-known themes', () => {
-    const names = PRESET_THEMES.map((t) => t.name);
+    const names: string[] = PRESET_THEMES.map((t) => t.name);
     expect(names).toContain('Avarok Purple');
     expect(names).toContain('Material Lighter');
     expect(names).toContain('Material Darker');
@@ -247,7 +247,7 @@ describe('css variable mapping', () => {
 
   it('emits the bare "H S% L%" form Tailwind composes alpha onto', () => {
     // `hsl(var(--primary) / 0.06)` only works if the variable has no hsl() wrapper.
-    const value = paletteToCssVars(defaultTheme().light)['--primary'];
+    const value: string = paletteToCssVars(defaultTheme().light)['--primary'];
     expect(value).toMatch(/^[\d.]+ [\d.]+% [\d.]+%$/);
   });
 
@@ -294,7 +294,7 @@ describe('hsl conversions', () => {
 
 describe('light to dark derivation', () => {
   it('produces a dark background from a light one', () => {
-    const dark = deriveDarkPalette(defaultTheme().light);
+    const dark: ThemePalette = deriveDarkPalette(defaultTheme().light);
 
     expect(dark.background.l).toBeLessThan(50);
   });
@@ -302,14 +302,14 @@ describe('light to dark derivation', () => {
   it('keeps the brand hue rather than inverting it', () => {
     // Inverting hue turns a purple theme green, which is not what "dark mode"
     // means to anyone.
-    const light = defaultTheme().light;
-    const dark = deriveDarkPalette(light);
+    const light: ThemePalette = defaultTheme().light;
+    const dark: ThemePalette = deriveDarkPalette(light);
 
     expect(Math.abs(dark.primary.h - light.primary.h)).toBeLessThan(20);
   });
 
   it('still clears AA for body text', () => {
-    const dark = deriveDarkPalette(defaultTheme().light);
+    const dark: ThemePalette = deriveDarkPalette(defaultTheme().light);
 
     expect(contrastRatio(dark.background, dark.foreground)).toBeGreaterThanOrEqual(4.5);
   });
@@ -397,7 +397,7 @@ describe('editing rules', () => {
 
 describe('buildPalette', () => {
   it('chooses a readable foreground for a light background', () => {
-    const palette = buildPalette(
+    const palette: ThemePalette = buildPalette(
       { background: { h: 0, s: 0, l: 98 }, primary: { h: 200, s: 60, l: 45 }, primaryAccent: { h: 200, s: 60, l: 40 } },
       'light',
     );
@@ -406,11 +406,11 @@ describe('buildPalette', () => {
   });
 
   it('elevates cards away from the background in both modes', () => {
-    const light = buildPalette(
+    const light: ThemePalette = buildPalette(
       { background: { h: 0, s: 0, l: 98 }, primary: { h: 200, s: 60, l: 45 }, primaryAccent: { h: 200, s: 60, l: 40 } },
       'light',
     );
-    const dark = buildPalette(
+    const dark: ThemePalette = buildPalette(
       { background: { h: 0, s: 0, l: 13 }, primary: { h: 200, s: 60, l: 55 }, primaryAccent: { h: 200, s: 60, l: 70 } },
       'dark',
     );

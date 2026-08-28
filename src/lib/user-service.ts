@@ -128,7 +128,7 @@ export class UserService {
     this.userChangeHandlers.push(handler);
 
     // If there's already a user loaded, notify the handler immediately
-    const currentUser = await this.getCurrentUser();
+    const currentUser: UserRegistrationInfo | null = await this.getCurrentUser();
     if (currentUser) {
       handler(currentUser);
     }
@@ -138,7 +138,7 @@ export class UserService {
    * Notify all registered handlers of user changes
    */
   private async notifyUserChange(): Promise<void> {
-    const currentUser = await this.getCurrentUser();
+    const currentUser: UserRegistrationInfo | null = await this.getCurrentUser();
     this.userChangeHandlers.forEach(handler => {
       try {
         handler(currentUser);

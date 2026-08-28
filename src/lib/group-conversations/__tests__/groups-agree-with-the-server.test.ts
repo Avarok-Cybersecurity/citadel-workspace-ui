@@ -42,21 +42,21 @@ const key = (mgid: string) => ({ cid: BigInt(1), mgid: BigInt(mgid) });
 
 describe('reconcileGroups', () => {
   it('drops a group the server no longer lists', () => {
-    const held = [group('1:7'), group('1:9')];
-    const next = reconcileGroups(held, ['1:7'], new Set(['1:7', '1:9']));
+    const held: GroupConversation[] = [group('1:7'), group('1:9')];
+    const next: GroupConversation[] = reconcileGroups(held, ['1:7'], new Set(['1:7', '1:9']));
     expect(next.map((g) => g.id)).toEqual(['1:7']);
   });
 
   it('keeps a group created after the request went out', () => {
     // The server's snapshot predates it, so its absence proves nothing. Judging
     // it by that answer deletes a group the user just made.
-    const held = [group('1:7'), group('1:99')];
-    const next = reconcileGroups(held, ['1:7'], new Set(['1:7']));
+    const held: GroupConversation[] = [group('1:7'), group('1:99')];
+    const next: GroupConversation[] = reconcileGroups(held, ['1:7'], new Set(['1:7']));
     expect(next.map((g) => g.id)).toEqual(['1:7', '1:99']);
   });
 
   it('returns the same array when nothing changed, so no listener re-renders', () => {
-    const held = [group('1:7')];
+    const held: GroupConversation[] = [group('1:7')];
     expect(reconcileGroups(held, ['1:7'], new Set(['1:7']))).toBe(held);
   });
 });

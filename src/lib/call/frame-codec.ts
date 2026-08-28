@@ -39,7 +39,7 @@ export interface WireFrame {
  * nobody reproduces.
  */
 export function wrapTimestamp(microseconds: number): number {
-  const wrapped = Math.floor(microseconds) % 0x1_0000_0000;
+  const wrapped: number = Math.floor(microseconds) % 0x1_0000_0000;
   return wrapped < 0 ? wrapped + 0x1_0000_0000 : wrapped;
 }
 
@@ -58,7 +58,7 @@ export function videoChunkToFrame(
   chunk: { type: 'key' | 'delta'; timestamp: number; byteLength: number; copyTo: (dst: Uint8Array) => void },
   thumbnail: boolean,
 ): WireFrame {
-  const payload = new Uint8Array(chunk.byteLength);
+  const payload: Uint8Array<ArrayBuffer> = new Uint8Array(chunk.byteLength);
   chunk.copyTo(payload);
 
   const isKey = chunk.type === 'key';
@@ -84,7 +84,7 @@ export function audioChunkToFrame(chunk: {
   byteLength: number;
   copyTo: (dst: Uint8Array) => void;
 }): WireFrame {
-  const payload = new Uint8Array(chunk.byteLength);
+  const payload: Uint8Array<ArrayBuffer> = new Uint8Array(chunk.byteLength);
   chunk.copyTo(payload);
 
   return {

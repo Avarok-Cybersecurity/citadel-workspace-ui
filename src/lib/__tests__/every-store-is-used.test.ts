@@ -18,12 +18,12 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { STORE_NAMES } from '../storage-migrations';
 
-const SRC = resolve(__dirname, '../..');
+const SRC: string = resolve(__dirname, '../..');
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) {
       if (entry === '__tests__') continue;
       out.push(...sourceFiles(path));
@@ -35,10 +35,10 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('every declared IndexedDB store', () => {
-  const files = sourceFiles(SRC).filter(
+  const files: string[] = sourceFiles(SRC).filter(
     (f) => !f.endsWith('storage-migrations.ts') && !f.endsWith('storage-utils.ts'),
   );
-  const corpus = files.map((f) => readFileSync(f, 'utf8')).join('\n');
+  const corpus: string = files.map((f) => readFileSync(f, 'utf8')).join('\n');
 
   it('reads a corpus, so the rule is not passing over nothing', () => {
     expect(files.length).toBeGreaterThan(100);
@@ -49,8 +49,8 @@ describe('every declared IndexedDB store', () => {
     const unused = STORE_NAMES.filter((name) => {
       // Either a direct call — dbPut('tabContext', …) — or a named constant
       // holding the store, which is how group-persistence refers to keyValue.
-      const direct = new RegExp(`db(Put|Get|Delete)\\(\\s*['"\`]${name}['"\`]`);
-      const viaConst = new RegExp(`=\\s*['"\`]${name}['"\`]`);
+      const direct: RegExp = new RegExp(`db(Put|Get|Delete)\\(\\s*['"\`]${name}['"\`]`);
+      const viaConst: RegExp = new RegExp(`=\\s*['"\`]${name}['"\`]`);
       return !direct.test(corpus) && !viaConst.test(corpus);
     });
 

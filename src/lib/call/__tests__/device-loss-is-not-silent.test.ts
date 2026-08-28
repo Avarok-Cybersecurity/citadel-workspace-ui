@@ -52,7 +52,7 @@ function callbacks() {
   };
 }
 
-async function startedSession(cbs: ReturnType<typeof callbacks>) {
+async function startedSession(cbs: ReturnType<typeof callbacks>): Promise<CallSession> {
   tracks = [makeTrack('audio')];
   Object.defineProperty(navigator, 'mediaDevices', {
     value: {
@@ -64,7 +64,7 @@ async function startedSession(cbs: ReturnType<typeof callbacks>) {
     },
     configurable: true,
   });
-  const session = new CallSession(cbs);
+  const session: CallSession = new CallSession(cbs);
   await session.start({ audio: true, video: false, screen: false });
   return session;
 }
@@ -85,7 +85,7 @@ describe('a capture device stopping mid-call', () => {
     // Without the closed-guard this fires on every hangup, and the user is told
     // their microphone was disconnected every time they end a call.
     const cbs = callbacks();
-    const session = await startedSession(cbs);
+    const session: CallSession = await startedSession(cbs);
 
     session.close();
     tracks[0].fireEnded();
@@ -106,7 +106,7 @@ describe('a capture device stopping mid-call', () => {
       },
       configurable: true,
     });
-    const session = new CallSession(cbs);
+    const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
 
     tracks[0].fireEnded();

@@ -137,7 +137,7 @@ export class WebSocketCallTransport implements CallTransport {
     // them: the caller logs both sends, one peer never rings. Serialising the
     // wire I/O here keeps every caller's concurrent shape while the messages
     // actually leave one at a time — they are a few hundred bytes each.
-    const send = this.signalChain.then(() =>
+    const send: Promise<void> = this.signalChain.then(() =>
       sendP2PCommand(
         // The cast is the narrowing above meeting a wider published signature.
         // sendP2PCommand takes the full config but reads only getCurrentCid, and

@@ -76,15 +76,15 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   const step = ELEVATION[mode];
   const status = DEFAULT_STATUS[mode];
 
-  const rawCard = lighten(background, step.card);
-  const rawSurface = lighten(background, step.surface);
-  const rawAccent = lighten(background, step.accent);
-  const border = lighten(background, step.border);
-  const input = lighten(background, step.input);
+  const rawCard: HslColor = lighten(background, step.card);
+  const rawSurface: HslColor = lighten(background, step.surface);
+  const rawAccent: HslColor = lighten(background, step.accent);
+  const border: HslColor = lighten(background, step.border);
+  const input: HslColor = lighten(background, step.input);
 
   // Chosen for contrast rather than asked for, which is the commonest way a
   // hand-made theme becomes unreadable.
-  const foreground = seed.foreground ?? readableForeground(background);
+  const foreground: HslColor = seed.foreground ?? readableForeground(background);
 
   // The neutral fills carry body text at full `foreground`, so they need the
   // same AA guarantee the coloured fills below already get. They did not have
@@ -95,38 +95,38 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   //
   // The elevation steps stay the intent; this only pulls a fill back when that
   // intent would cost legibility.
-  const card = ensureFillContrast(rawCard, foreground);
-  const surface = ensureFillContrast(rawSurface, foreground);
-  const accent = ensureFillContrast(rawAccent, foreground);
+  const card: HslColor = ensureFillContrast(rawCard, foreground);
+  const surface: HslColor = ensureFillContrast(rawSurface, foreground);
+  const accent: HslColor = ensureFillContrast(rawAccent, foreground);
 
-  const mutedForeground = mutedAgainst(card, foreground);
+  const mutedForeground: HslColor = mutedAgainst(card, foreground);
 
   // primaryAccent is read as text and icons on both the page and its cards, so
   // it is held to AA against both rather than trusted from the seed.
-  const accentText = ensureTextContrast(primaryAccent, [background, card, surface]);
+  const accentText: HslColor = ensureTextContrast(primaryAccent, [background, card, surface]);
 
   // Every fill that carries a label is held to AA here, so a preset cannot ship
   // with unreadable button text.
-  const primaryFg = readableForeground(primary);
-  const primaryFill = ensureFillContrast(primary, primaryFg);
+  const primaryFg: HslColor = readableForeground(primary);
+  const primaryFill: HslColor = ensureFillContrast(primary, primaryFg);
 
-  const destructiveSeed = seed.destructive ?? status.destructive;
-  const destructiveFg = readableForeground(destructiveSeed);
-  const destructiveFill = ensureFillContrast(destructiveSeed, destructiveFg);
+  const destructiveSeed: HslColor = seed.destructive ?? status.destructive;
+  const destructiveFg: HslColor = readableForeground(destructiveSeed);
+  const destructiveFill: HslColor = ensureFillContrast(destructiveSeed, destructiveFg);
   // The fill guarantee above only proves the LABEL is readable on this colour.
   // Destructive is also the colour of every inline error, where the requirement
   // is the reverse — readable ON the background — and the same value fails it:
   // the shipped dark fill measures 3.72:1 as text. This is the primaryAccent
   // gap on the next token along, so it gets the same treatment.
-  const destructiveText = ensureTextContrast(destructiveFill, [background, card, surface]);
+  const destructiveText: HslColor = ensureTextContrast(destructiveFill, [background, card, surface]);
 
-  const successSeed = seed.success ?? status.success;
-  const successFg = readableForeground(successSeed);
-  const successFill = ensureFillContrast(successSeed, successFg);
+  const successSeed: HslColor = seed.success ?? status.success;
+  const successFg: HslColor = readableForeground(successSeed);
+  const successFill: HslColor = ensureFillContrast(successSeed, successFg);
 
-  const warningSeed = seed.warning ?? status.warning;
-  const warningFg = readableForeground(warningSeed);
-  const warningFill = ensureFillContrast(warningSeed, warningFg);
+  const warningSeed: HslColor = seed.warning ?? status.warning;
+  const warningFg: HslColor = readableForeground(warningSeed);
+  const warningFill: HslColor = ensureFillContrast(warningSeed, warningFg);
 
   return {
     background,
@@ -177,7 +177,7 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
 function mutedAgainst(surface: HslColor, foreground: HslColor): HslColor {
   const towardSurface = foreground.l > surface.l ? -1 : 1;
 
-  for (let offset = 30; offset >= 0; offset -= 2) {
+  for (let offset: number = 30; offset >= 0; offset -= 2) {
     const candidate = { ...foreground, l: foreground.l + towardSurface * offset };
     if (contrastRatio(surface, candidate) >= 4.5) return candidate;
   }
@@ -200,7 +200,7 @@ function mutedAgainst(surface: HslColor, foreground: HslColor): HslColor {
 export function deriveDarkPalette(light: ThemePalette): ThemePalette {
   const reflect = (c: HslColor): HslColor => ({ ...c, l: 100 - c.l });
 
-  const background = reflect(light.background);
+  const background: HslColor = reflect(light.background);
 
   return buildPalette(
     {

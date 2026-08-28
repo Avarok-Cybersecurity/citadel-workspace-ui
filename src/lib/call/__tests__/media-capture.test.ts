@@ -79,7 +79,7 @@ describe('captureLocalMedia', () => {
   });
 
   it('returns the stream when capture succeeds', async () => {
-    const stream = { getTracks: () => [] } as unknown as MediaStream;
+    const stream: MediaStream = { getTracks: () => [] } as unknown as MediaStream;
     stubMediaDevices(vi.fn().mockResolvedValue(stream));
 
     const result = await captureLocalMedia({ audio: true, video: true });
@@ -90,7 +90,7 @@ describe('captureLocalMedia', () => {
 
   it('falls back to audio when only the camera is blocked', async () => {
     // The important behaviour: a blocked camera must not cost the user the call.
-    const audioStream = { getTracks: () => [] } as unknown as MediaStream;
+    const audioStream: MediaStream = { getTracks: () => [] } as unknown as MediaStream;
     const getUserMedia = vi
       .fn()
       .mockRejectedValueOnce(domError('NotAllowedError'))
@@ -164,7 +164,7 @@ describe('canStartCall', () => {
 describe('stopStream', () => {
   it('stops every track, which is what turns the camera light off', () => {
     const stop = vi.fn();
-    const stream = {
+    const stream: MediaStream = {
       getTracks: () => [{ stop }, { stop }],
     } as unknown as MediaStream;
 

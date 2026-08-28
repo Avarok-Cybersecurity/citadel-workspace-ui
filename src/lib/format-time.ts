@@ -21,9 +21,9 @@ export function formatClock(timestamp: number | bigint): string {
 
 /** A day, with Today/Yesterday for the two a reader recognises instantly. */
 export function formatDay(timestamp: number | bigint): string {
-  const date = new Date(Number(timestamp));
-  const today = new Date();
-  const yesterday = new Date(today);
+  const date: Date = new Date(Number(timestamp));
+  const today: Date = new Date();
+  const yesterday: Date = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
   if (date.toDateString() === today.toDateString()) return 'Today';

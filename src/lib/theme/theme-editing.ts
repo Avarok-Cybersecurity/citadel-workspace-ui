@@ -32,8 +32,8 @@ export function beginEdit(theme: WorkspaceTheme, existingNames: string[] = []): 
 export function uniqueName(base: string, existing: string[]): string {
   if (!existing.includes(base)) return base;
 
-  for (let n = 2; n < 1000; n += 1) {
-    const candidate = `${base} ${n}`;
+  for (let n: number = 2; n < 1000; n += 1) {
+    const candidate: string = `${base} ${n}`;
     if (!existing.includes(candidate)) return candidate;
   }
   return `${base} ${crypto.randomUUID().slice(0, 8)}`;
@@ -77,10 +77,10 @@ export function canRename(theme: WorkspaceTheme): boolean {
 export function renameTheme(theme: WorkspaceTheme, name: string, existingNames: string[] = []): WorkspaceTheme {
   if (!canRename(theme)) return theme;
 
-  const trimmed = name.trim();
+  const trimmed: string = name.trim();
   if (!trimmed) return theme;
 
-  const others = existingNames.filter((n) => n !== theme.name);
+  const others: string[] = existingNames.filter((n) => n !== theme.name);
   return { ...theme, name: uniqueName(trimmed, others) };
 }
 
@@ -101,7 +101,7 @@ export function resetDarkToDerived(theme: WorkspaceTheme): WorkspaceTheme {
  * caller can offer the action only where it means something.
  */
 export function resetToPreset(theme: WorkspaceTheme): WorkspaceTheme | null {
-  const base = theme.name.replace(/ Copy( \d+)?$/, '');
+  const base: string = theme.name.replace(/ Copy( \d+)?$/, '');
   const preset = findPreset(base.toLowerCase().replace(/\s+/g, '-'));
   if (!preset) return null;
 

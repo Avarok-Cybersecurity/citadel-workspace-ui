@@ -59,7 +59,7 @@ describe('createDefaultTree', () => {
     const tree = createDefaultTree();
     expect(tree.path).toBe('/');
     expect(tree.children).toHaveLength(2);
-    const paths = tree.children!.map(c => c.path);
+    const paths: string[] = tree.children!.map(c => c.path);
     expect(paths).toContain(RECEIVED_FILES_DIR);
     expect(paths).toContain(SENT_FILES_DIR);
   });

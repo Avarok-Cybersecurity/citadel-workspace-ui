@@ -46,7 +46,7 @@ const UUID = '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8';
 const OBJECT_ID = '90210';
 
 /** Reach the accept path exactly as the lifecycle does. */
-async function accept(io: FileTransferIO, transferId: string) {
+async function accept(io: FileTransferIO, transferId: string): Promise<void> {
   await io.executeIntent({
     type: 'send-response',
     transferId,

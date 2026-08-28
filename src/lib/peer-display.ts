@@ -39,14 +39,14 @@ export interface PeerIdentity {
  * no valid identifier at all.
  */
 export function shortPeerHandle(cid: CidLike): string | null {
-  const key = toCidKey(cid);
+  const key: string = toCidKey(cid);
   if (!key) return null;
 
   // Low 32 bits keep the handle short while still varying between peers; the
   // full CID in base36 would be up to 13 characters.
-  const low = BigInt(key) & 0xffffffffn;
-  const base36 = low.toString(36).toUpperCase().padStart(HANDLE_LENGTH, '0');
-  const tail = base36.slice(-HANDLE_LENGTH);
+  const low: bigint = BigInt(key) & 0xffffffffn;
+  const base36: string = low.toString(36).toUpperCase().padStart(HANDLE_LENGTH, '0');
+  const tail: string = base36.slice(-HANDLE_LENGTH);
 
   return tail
     .split('')

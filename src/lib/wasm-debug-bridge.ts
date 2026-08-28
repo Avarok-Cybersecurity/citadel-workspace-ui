@@ -34,18 +34,18 @@ export function parseAndFormatMixedContent(input: unknown): string {
   
   // More robust regex to match JSON objects and arrays
   // This handles nested structures better
-  const jsonRegex = /(\{(?:[^{}]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\})|(\[(?:[^\[\]]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\])/g;
+  const jsonRegex: RegExp = /(\{(?:[^{}]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\})|(\[(?:[^\[\]]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\])/g;
   
   // Track the parts of the string and their positions
   const parts: Array<{type: 'text' | 'json', content: string, start: number, end: number}> = [];
-  let lastIndex = 0;
+  let lastIndex: number = 0;
   
   // Find all JSON matches
   const matches = Array.from(input.matchAll(jsonRegex));
   
   for (const match of matches) {
-    const jsonStr = match[0];
-    const startIndex = match.index!;
+    const jsonStr: string = match[0];
+    const startIndex: number = match.index!;
     
     // Add any text before this JSON object
     if (startIndex > lastIndex) {
@@ -118,7 +118,7 @@ export function setupWasmDebugBridge() {
   // Make the debug log function available globally for WASM to call
   window.wasmDebugLog = (logStr: string) => {
     try {
-      const mappedLog = parseAndFormatMixedContent(logStr);
+      const mappedLog: string = parseAndFormatMixedContent(logStr);
       debugLog('WasmDebugBridge', "sanitized log: " + mappedLog);
     } catch (_error) {
       // If any error occurs, just log the original string

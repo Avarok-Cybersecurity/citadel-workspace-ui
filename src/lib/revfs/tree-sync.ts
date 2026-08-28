@@ -29,12 +29,12 @@ export function applyRemoteOp(
   op: RevfsOperation,
   _viewerCid: bigint,
 ): RevfsNode {
-  const newTree = cloneTree(tree);
+  const newTree: RevfsNode = cloneTree(tree);
 
   switch (op.op_type) {
     case RevfsOpType.Mkdir: {
-      const parent = parentPath(op.path);
-      const name = baseName(op.path);
+      const parent: string = parentPath(op.path);
+      const name: string = baseName(op.path);
       const parentNode = findNode(newTree, parent);
       if (!parentNode || parentNode.type !== 'directory') return newTree;
       if (findNode(newTree, op.path)) return newTree; // idempotent
@@ -53,10 +53,10 @@ export function applyRemoteOp(
 
     case RevfsOpType.Rmdir: {
       if (PROTECTED_DIRS.has(op.path)) return newTree;
-      const parent = parentPath(op.path);
+      const parent: string = parentPath(op.path);
       const parentNode = findNode(newTree, parent);
       if (!parentNode?.children) return newTree;
-      const idx = parentNode.children.findIndex(c => c.path === op.path);
+      const idx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (idx >= 0) {
         parentNode.children.splice(idx, 1);
         parentNode.updatedAt = op.timestamp;
@@ -66,8 +66,8 @@ export function applyRemoteOp(
 
     case RevfsOpType.PlaceFile: {
       if (!op.metadata) return newTree;
-      const parent = parentPath(op.path);
-      const name = baseName(op.path);
+      const parent: string = parentPath(op.path);
+      const name: string = baseName(op.path);
       const parentNode = findNode(newTree, parent);
       if (!parentNode || parentNode.type !== 'directory') return newTree;
       if (!parentNode.children) parentNode.children = [];
@@ -89,7 +89,7 @@ export function applyRemoteOp(
         updatedAt: op.timestamp,
       };
 
-      const existingIdx = parentNode.children.findIndex(c => c.path === op.path);
+      const existingIdx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (existingIdx >= 0) {
         parentNode.children[existingIdx] = fileNode;
       } else {
@@ -100,10 +100,10 @@ export function applyRemoteOp(
     }
 
     case RevfsOpType.RemoveFile: {
-      const parent = parentPath(op.path);
+      const parent: string = parentPath(op.path);
       const parentNode = findNode(newTree, parent);
       if (!parentNode?.children) return newTree;
-      const idx = parentNode.children.findIndex(c => c.path === op.path);
+      const idx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (idx >= 0) {
         parentNode.children.splice(idx, 1);
         parentNode.updatedAt = op.timestamp;
@@ -122,15 +122,15 @@ export function applyRemoteOp(
       if (!op.newName) return newTree;
       if (PROTECTED_DIRS.has(op.path)) return newTree;
 
-      const parent = parentPath(op.path);
+      const parent: string = parentPath(op.path);
       const parentNode = findNode(newTree, parent);
       if (!parentNode?.children) return newTree;
 
-      const idx = parentNode.children.findIndex(c => c.path === op.path);
+      const idx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (idx < 0) return newTree;
 
-      const node = parentNode.children[idx];
-      const newPath = parent === '/' ? `/${op.newName}` : `${parent}/${op.newName}`;
+      const node: RevfsNode = parentNode.children[idx];
+      const newPath: string = parent === '/' ? `/${op.newName}` : `${parent}/${op.newName}`;
 
       if (parentNode.children.some(c => c.path === newPath)) return newTree;
 
@@ -154,20 +154,20 @@ export function applyRemoteOp(
       if (!op.destPath) return newTree;
       if (PROTECTED_DIRS.has(op.path)) return newTree;
 
-      const sourceParent = parentPath(op.path);
+      const sourceParent: string = parentPath(op.path);
       const sourceParentNode = findNode(newTree, sourceParent);
       if (!sourceParentNode?.children) return newTree;
 
-      const sourceIdx = sourceParentNode.children.findIndex(c => c.path === op.path);
+      const sourceIdx: number = sourceParentNode.children.findIndex(c => c.path === op.path);
       if (sourceIdx < 0) return newTree;
 
-      const destParentPathVal = parentPath(op.destPath);
+      const destParentPathVal: string = parentPath(op.destPath);
       const destParentNode = findNode(newTree, destParentPathVal);
       if (!destParentNode || destParentNode.type !== 'directory') return newTree;
 
       if (!destParentNode.children) destParentNode.children = [];
 
-      const destName = baseName(op.destPath);
+      const destName: string = baseName(op.destPath);
       if (destParentNode.children.some(c => c.name === destName)) return newTree;
 
       const [movedNode] = sourceParentNode.children.splice(sourceIdx, 1);
@@ -197,13 +197,13 @@ export function applyRemoteOp(
       const sourceNode = findNode(newTree, op.path);
       if (!sourceNode) return newTree;
 
-      const destParentPathVal = parentPath(op.destPath);
+      const destParentPathVal: string = parentPath(op.destPath);
       const destParentNode = findNode(newTree, destParentPathVal);
       if (!destParentNode || destParentNode.type !== 'directory') return newTree;
 
       if (!destParentNode.children) destParentNode.children = [];
 
-      const destName = baseName(op.destPath);
+      const destName: string = baseName(op.destPath);
       if (destParentNode.children.some(c => c.name === destName)) return newTree;
 
       const copyWithNewPaths = (node: RevfsNode, oldBasePath: string, newBasePath: string): RevfsNode => {
@@ -228,7 +228,7 @@ export function applyRemoteOp(
         return copy;
       };
 
-      const copiedNode = copyWithNewPaths(sourceNode, op.path, op.destPath);
+      const copiedNode: RevfsNode = copyWithNewPaths(sourceNode, op.path, op.destPath);
       destParentNode.children.push(copiedNode);
       destParentNode.updatedAt = op.timestamp;
       break;

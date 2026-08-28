@@ -58,7 +58,7 @@ describe('peerDisplayName', () => {
   });
 
   it('never renders a raw or truncated CID as the name', () => {
-    const name = peerDisplayName({ cid: ALICE });
+    const name: string = peerDisplayName({ cid: ALICE });
     expect(name).not.toContain(ALICE.toString());
     expect(name).not.toContain(ALICE.toString().slice(0, 8));
     expect(name).toMatch(/^Peer [0-9A-Z]{6}$/);
@@ -81,7 +81,7 @@ describe('peerInitials', () => {
   });
 
   it('uses handle characters, not CID digits, when unnamed', () => {
-    const initials = peerInitials({ cid: ALICE });
+    const initials: string = peerInitials({ cid: ALICE });
     expect(initials).toHaveLength(2);
     expect(initials).toBe(shortPeerHandle(ALICE)!.slice(0, 2));
   });

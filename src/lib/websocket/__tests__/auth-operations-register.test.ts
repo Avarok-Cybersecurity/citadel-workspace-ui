@@ -42,7 +42,7 @@ import { AuthOperations } from '../auth-operations';
 
 beforeEach(() => sendSpy.mockClear());
 
-function makeAuth() {
+function makeAuth(): AuthOperations {
   return new AuthOperations({
     init: async () => undefined,
     sendRequest: sendSpy,

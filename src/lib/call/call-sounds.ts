@@ -71,7 +71,7 @@ export function createCallSoundPlayer(deps: CallSoundDeps): CallSoundPlayer {
   let active: ActiveRing | null = null;
   // Bumped on every start/stop so a lock acquired for a ring that was since
   // stopped is released instead of ringing a call that no longer exists.
-  let generation = 0;
+  let generation: number = 0;
 
   const stopRing = (): void => {
     generation += 1;
@@ -85,7 +85,7 @@ export function createCallSoundPlayer(deps: CallSoundDeps): CallSoundPlayer {
     if (!deps.isEnabled()) return;
     if (active && active.callId === callId && active.kind === kind) return;
     stopRing();
-    const gen = ++generation;
+    const gen: number = ++generation;
     const release = await deps.acquireRingLock(callId);
     if (gen !== generation) {
       release?.();
@@ -93,7 +93,7 @@ export function createCallSoundPlayer(deps: CallSoundDeps): CallSoundPlayer {
     }
     if (!release) return; // Another tab is already ringing this call.
 
-    const spec = RING_SPECS[kind];
+    const spec: RingSpec = RING_SPECS[kind];
     const ring: ActiveRing = { callId, kind, timer: null, release };
     active = ring;
     const tick = (): void => {

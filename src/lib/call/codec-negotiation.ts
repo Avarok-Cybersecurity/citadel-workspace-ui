@@ -16,7 +16,7 @@ export function negotiateVideoCodec(
   ourEncoders: Array<{ codec: VideoCodec; hardware: boolean }>,
   peerDecoders: Array<{ codec: string; hardware: boolean; maxHeight: number }>,
 ): VideoCodec | null {
-  const peerCodecs = new Set(peerDecoders.map((d) => d.codec));
+  const peerCodecs: Set<string> = new Set(peerDecoders.map((d) => d.codec));
   for (const { codec } of ourEncoders) {
     if (peerCodecs.has(codec)) return codec;
   }

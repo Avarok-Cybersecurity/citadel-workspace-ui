@@ -83,7 +83,7 @@ export type CidLike = bigint | string | number | null | undefined;
 export function toCidKey(value: CidLike): string {
   if (value === null || value === undefined) return '';
   try {
-    const cid = typeof value === 'bigint' ? value : BigInt(value);
+    const cid: bigint = typeof value === 'bigint' ? value : BigInt(value);
     return cid > 0n ? cidToString(cid) : '';
   } catch {
     return '';
@@ -126,7 +126,7 @@ export function isCidLike(value: unknown): value is string | number | bigint {
  * for the parsing contract.
  */
 /** Maximum valid CID: CIDs are u64-shaped, so reject anything above 2^64-1. */
-const MAX_CID = (1n << 64n) - 1n; // 18446744073709551615
+const MAX_CID: bigint = (1n << 64n) - 1n; // 18446744073709551615
 
 export function tryParseCid(value: string | undefined | null): bigint | undefined {
   // `BigInt()` is too lenient for CID parsing: `BigInt(' ')` is `0n` and
@@ -147,6 +147,6 @@ export function tryParseCid(value: string | undefined | null): bigint | undefine
   if (trimmed.length > 20) {
     return undefined;
   }
-  const cid = BigInt(trimmed);
+  const cid: bigint = BigInt(trimmed);
   return cid > 0n && cid <= MAX_CID ? cid : undefined;
 }

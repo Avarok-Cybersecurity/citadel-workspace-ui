@@ -36,7 +36,7 @@ describe('bigints survive being persisted', () => {
   it('rescues bare strings written by the old safeJSONStringify path', () => {
     // Data already on disk carries no tag, so the field name is the only
     // signal available. This argument goes away once no such data can remain.
-    const legacy = safeJSONStringify({ toCid: 9n, note: '9' });
+    const legacy: string = safeJSONStringify({ toCid: 9n, note: '9' });
     const round = parsePersistedJSON<{ toCid: bigint; note: string }>(legacy, ['toCid']);
     expect(round.toCid).toBe(9n);
     expect(round.note).toBe('9');

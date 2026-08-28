@@ -47,13 +47,13 @@ export class RevfsState {
   }
 
   addPendingOp(key: TreeKey, op: RevfsPendingOp): void {
-    const ops = this.getPendingOps(key);
+    const ops: RevfsPendingOp[] = this.getPendingOps(key);
     ops.push(op);
     this.pendingOps.set(key, ops);
   }
 
   removePendingOp(key: TreeKey, opId: string): void {
-    const ops = this.getPendingOps(key).filter(o => o.operation.op_id !== opId);
+    const ops: RevfsPendingOp[] = this.getPendingOps(key).filter(o => o.operation.op_id !== opId);
     this.pendingOps.set(key, ops);
   }
 

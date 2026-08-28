@@ -24,7 +24,7 @@ import type { P2PMessage } from '../p2p-types';
 const ME = 1n;
 const PEER = 2n;
 
-function manager() {
+function manager(): ConversationManager {
   return new ConversationManager({
     getCurrentCid: async () => ME,
     maxMessagesPerConversation: 100,

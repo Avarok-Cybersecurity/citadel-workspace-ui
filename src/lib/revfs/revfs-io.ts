@@ -113,7 +113,7 @@ export class RevfsIO {
   }
 
   private async loadPendingOps(key: string): Promise<RevfsIntentResult> {
-    const ops = await this.storage.loadPendingOps(key);
+    const ops: RevfsPendingOp[] = await this.storage.loadPendingOps(key);
     return { type: 'load-pending-ops', ops };
   }
 }

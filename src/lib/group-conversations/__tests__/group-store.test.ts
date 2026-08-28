@@ -15,7 +15,7 @@ import {
 } from '../group-store';
 
 // Unique ids per test because the store is module-global by design.
-let seq = 0;
+let seq: number = 0;
 function freshId(): string {
   seq += 1;
   return `7:${Date.now()}${seq}`;
@@ -33,8 +33,8 @@ function emitCreated(groupId: string): void {
 describe('group store', () => {
   it('applies a created event once and shares it with every reader', () => {
     startGroupEventBindings();
-    const id = freshId();
-    let notified = 0;
+    const id: string = freshId();
+    let notified: number = 0;
     const unsubscribe = subscribeToGroups(() => { notified += 1; });
 
     emitCreated(id);
@@ -49,7 +49,7 @@ describe('group store', () => {
 
   it('dedups a repeated create for the same id', () => {
     startGroupEventBindings();
-    const id = freshId();
+    const id: string = freshId();
 
     emitCreated(id);
     emitCreated(id);
@@ -63,7 +63,7 @@ describe('group store', () => {
     // mounted components per message.
     startGroupEventBindings();
     startGroupEventBindings();
-    const id = freshId();
+    const id: string = freshId();
     emitCreated(id);
 
     eventEmitter.emit('group:message-received', {
@@ -77,7 +77,7 @@ describe('group store', () => {
 
   it('adds a joined member once, keyed by cid', () => {
     startGroupEventBindings();
-    const id = freshId();
+    const id: string = freshId();
     emitCreated(id);
 
     const joined = { groupId: id, memberCid: '9', memberUsername: 'bob' };
@@ -91,7 +91,7 @@ describe('group store', () => {
 
   it('removes a member on member-left', () => {
     startGroupEventBindings();
-    const id = freshId();
+    const id: string = freshId();
     emitCreated(id);
     eventEmitter.emit('group:member-joined', { groupId: id, memberCid: '9', memberUsername: 'bob' });
 

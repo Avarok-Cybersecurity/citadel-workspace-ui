@@ -34,7 +34,7 @@ const META: RevfsFileMetadata = {
   virtualDirectory: '',
   uploadedByCid: ALICE,
 };
-const BYTES = new Uint8Array([1, 2, 3]);
+const BYTES: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3]);
 
 /** The virtualDir of every backend-delete-file intent issued so far. */
 function deletesIssued(service: ReturnType<typeof createTestService>): string[] {

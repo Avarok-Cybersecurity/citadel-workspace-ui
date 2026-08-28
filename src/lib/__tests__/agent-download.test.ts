@@ -8,7 +8,7 @@ import {
   type AgentPlatform,
 } from '../agent-download';
 
-const WORKFLOW = join(process.cwd(), '..', '.github', 'workflows', 'release-agent.yml');
+const WORKFLOW: string = join(process.cwd(), '..', '.github', 'workflows', 'release-agent.yml');
 
 const nav = (platform: string, userAgent: string, maxTouchPoints = 0) =>
   ({ platform, userAgent, maxTouchPoints }) as unknown as Navigator;
@@ -21,8 +21,8 @@ describe('agent asset names match the release workflow', () => {
   });
 
   it('every asset the UI links to is built and published by the workflow', () => {
-    const yaml = readFileSync(WORKFLOW, 'utf8');
-    const published = new Set(
+    const yaml: string = readFileSync(WORKFLOW, 'utf8');
+    const published: Set<string> = new Set(
       [...yaml.matchAll(/asset:\s*(citadel-agent-[\w.-]+)/g)].map((m) => m[1]),
     );
     // Guard against the regex silently matching nothing.
@@ -38,9 +38,9 @@ describe('agent asset names match the release workflow', () => {
   });
 
   it('the workflow publishes nothing the UI cannot offer', () => {
-    const yaml = readFileSync(WORKFLOW, 'utf8');
-    const published = [...yaml.matchAll(/asset:\s*(citadel-agent-[\w.-]+)/g)].map((m) => m[1]);
-    const offered = new Set(Object.values(AGENT_ASSETS));
+    const yaml: string = readFileSync(WORKFLOW, 'utf8');
+    const published: string[] = [...yaml.matchAll(/asset:\s*(citadel-agent-[\w.-]+)/g)].map((m) => m[1]);
+    const offered: Set<string> = new Set(Object.values(AGENT_ASSETS));
     for (const asset of published) {
       expect(
         offered.has(asset),
@@ -60,7 +60,7 @@ describe('platform candidates', () => {
   it('offers BOTH mac builds rather than guessing the architecture', () => {
     // Apple Silicon reports MacIntel, so a single answer here would be wrong
     // half the time — and wrong only after the download finishes.
-    const macs = agentPlatformCandidates(nav('MacIntel', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'));
+    const macs: AgentPlatform[] = agentPlatformCandidates(nav('MacIntel', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'));
     expect(macs).toEqual(['macos-arm64', 'macos-x64']);
   });
 
@@ -79,7 +79,7 @@ describe('platform candidates', () => {
 describe('download URLs', () => {
   it('point at /releases/latest/download so no API call or token is needed', () => {
     for (const platform of Object.keys(AGENT_ASSETS) as AgentPlatform[]) {
-      const url = agentDownloadUrl(platform);
+      const url: string = agentDownloadUrl(platform);
       expect(url).toContain('/releases/latest/download/');
       expect(url.endsWith(AGENT_ASSETS[platform])).toBe(true);
       expect(url.startsWith('https://')).toBe(true);

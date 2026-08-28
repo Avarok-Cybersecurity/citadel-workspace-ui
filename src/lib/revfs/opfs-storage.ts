@@ -57,7 +57,7 @@ export class RevfsOpfsStorage {
   private async readFile(dir: FileSystemDirectoryHandle, name: string): Promise<string | null> {
     try {
       const fileHandle = await dir.getFileHandle(name);
-      const file = await fileHandle.getFile();
+      const file: File = await fileHandle.getFile();
       return await file.text();
     } catch {
       return null;

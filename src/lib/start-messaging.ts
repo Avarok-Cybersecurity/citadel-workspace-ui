@@ -33,7 +33,7 @@ export interface MessagingStartDeps {
 export const MESSAGING_UNAVAILABLE_TITLE = 'Messaging unavailable';
 
 function describe(error: unknown): string {
-  const reason = error instanceof Error ? error.message : String(error);
+  const reason: string = error instanceof Error ? error.message : String(error);
   return `Messages cannot be sent or received for this session: ${reason}. Reload the page to try again.`;
 }
 

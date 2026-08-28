@@ -22,10 +22,10 @@ export class BinaryChunkingStrategy implements ChunkingStrategy<Uint8Array> {
   }
 
   chunk(data: Uint8Array, chunkSize?: number): Uint8Array[] {
-    const size = chunkSize ?? this.defaultChunkSize;
+    const size: number = chunkSize ?? this.defaultChunkSize;
     const chunks: Uint8Array[] = [];
 
-    for (let i = 0; i < data.length; i += size) {
+    for (let i: number = 0; i < data.length; i += size) {
       chunks.push(data.slice(i, Math.min(i + size, data.length)));
     }
 
@@ -38,9 +38,9 @@ export class BinaryChunkingStrategy implements ChunkingStrategy<Uint8Array> {
   }
 
   reconstruct(chunks: Uint8Array[]): Uint8Array {
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const result = new Uint8Array(totalLength);
-    let offset = 0;
+    const totalLength: number = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const result: Uint8Array<ArrayBuffer> = new Uint8Array(totalLength);
+    let offset: number = 0;
 
     for (const chunk of chunks) {
       result.set(chunk, offset);
@@ -75,16 +75,16 @@ export class JsonChunkingStrategy<T> implements ChunkingStrategy<T, Uint8Array> 
   }
 
   chunk(data: T, chunkSize?: number): Uint8Array[] {
-    const json = JSON.stringify(data);
-    const bytes = new TextEncoder().encode(json);
-    const binaryStrategy = new BinaryChunkingStrategy(chunkSize ?? this.defaultChunkSize);
+    const json: string = JSON.stringify(data);
+    const bytes: Uint8Array<ArrayBuffer> = new TextEncoder().encode(json);
+    const binaryStrategy: BinaryChunkingStrategy = new BinaryChunkingStrategy(chunkSize ?? this.defaultChunkSize);
     return binaryStrategy.chunk(bytes, chunkSize);
   }
 
   reconstruct(chunks: Uint8Array[]): T {
-    const binaryStrategy = new BinaryChunkingStrategy();
+    const binaryStrategy: BinaryChunkingStrategy = new BinaryChunkingStrategy();
     const bytes = binaryStrategy.reconstruct(chunks);
-    const json = new TextDecoder().decode(bytes);
+    const json: string = new TextDecoder().decode(bytes);
     return JSON.parse(json) as T;
   }
 

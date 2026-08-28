@@ -62,7 +62,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
       rejectBlocked = reject;
     });
 
-    const opening = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
+    const opening: Promise<IDBPDatabase<CitadelDBSchema>> = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion, newVersion, tx) {
         runMigrations(db, oldVersion, newVersion, tx);
 
@@ -84,7 +84,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
        * it is the normal case during an update, not an edge case.
        */
       blocked(currentVersion, blockedVersion) {
-        const detail =
+        const detail: string =
           `Database upgrade to v${blockedVersion} is blocked by another tab still on v${currentVersion}. ` +
           'Close other Citadel tabs to finish updating.';
         warnLog('Storage', detail);
@@ -162,7 +162,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
  * BigInt values are preserved via Structured Clone.
  */
 export async function dbPut<S extends StoreName>(store: S, key: string, value: unknown): Promise<void> {
-  const db = await getDB();
+  const db: IDBPDatabase<CitadelDBSchema> = await getDB();
   await db.put(store, value, key);
 }
 
@@ -171,7 +171,7 @@ export async function dbPut<S extends StoreName>(store: S, key: string, value: u
  * BigInt values are automatically restored.
  */
 export async function dbGet<T>(store: StoreName, key: string): Promise<T | undefined> {
-  const db = await getDB();
+  const db: IDBPDatabase<CitadelDBSchema> = await getDB();
   const result = await db.get(store, key);
   return result as T | undefined;
 }
@@ -180,7 +180,7 @@ export async function dbGet<T>(store: StoreName, key: string): Promise<T | undef
  * Delete a value from an IndexedDB store.
  */
 export async function dbDelete(store: StoreName, key: string): Promise<void> {
-  const db = await getDB();
+  const db: IDBPDatabase<CitadelDBSchema> = await getDB();
   await db.delete(store, key);
 }
 
@@ -228,7 +228,7 @@ export function persistJSON(data: unknown): string {
  * as bare strings: that data has no tag, so the field name is the only signal.
  */
 export function parsePersistedJSON<T>(text: string, legacyBigIntFields: readonly string[] = []): T {
-  const legacy = new Set(legacyBigIntFields);
+  const legacy: Set<string> = new Set(legacyBigIntFields);
   return JSON.parse(text, (key, value) => {
     if (value && typeof value === 'object' && '__bigint__' in value) {
       return BigInt((value as { __bigint__: string }).__bigint__);

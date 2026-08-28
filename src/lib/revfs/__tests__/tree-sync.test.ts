@@ -54,8 +54,8 @@ const paths = (tree: RevfsNode): string[] => [
 
 describe('applyRemoteOp', () => {
   it('does not mutate the tree it is given', () => {
-    const tree = dir('/', [dir('/docs')]);
-    const before = JSON.stringify(tree);
+    const tree: RevfsNode = dir('/', [dir('/docs')]);
+    const before: string = JSON.stringify(tree);
 
     applyRemoteOp(tree, op({ op_type: RevfsOpType.Mkdir, path: '/notes' }), viewer);
 
@@ -66,27 +66,27 @@ describe('applyRemoteOp', () => {
 
   describe('Rmdir', () => {
     it('removes the directory and everything under it', () => {
-      const tree = dir('/', [dir('/docs', [file('/docs/a.txt'), dir('/docs/sub')])]);
+      const tree: RevfsNode = dir('/', [dir('/docs', [file('/docs/a.txt'), dir('/docs/sub')])]);
 
-      const out = applyRemoteOp(tree, op({ op_type: RevfsOpType.Rmdir, path: '/docs' }), viewer);
+      const out: RevfsNode = applyRemoteOp(tree, op({ op_type: RevfsOpType.Rmdir, path: '/docs' }), viewer);
 
       expect(paths(out)).toEqual(['/']);
     });
 
     it('refuses to remove a protected directory', () => {
-      const protectedPath = [...PROTECTED_DIRS][0];
-      const tree = dir('/', [dir(protectedPath)]);
+      const protectedPath: string = [...PROTECTED_DIRS][0];
+      const tree: RevfsNode = dir('/', [dir(protectedPath)]);
 
-      const out = applyRemoteOp(tree, op({ op_type: RevfsOpType.Rmdir, path: protectedPath }), viewer);
+      const out: RevfsNode = applyRemoteOp(tree, op({ op_type: RevfsOpType.Rmdir, path: protectedPath }), viewer);
 
       // A peer must not be able to delete the directories the app relies on.
       expect(paths(out)).toContain(protectedPath);
     });
 
     it('is a no-op for a path that is not there', () => {
-      const tree = dir('/', [dir('/docs')]);
+      const tree: RevfsNode = dir('/', [dir('/docs')]);
 
-      const out = applyRemoteOp(tree, op({ op_type: RevfsOpType.Rmdir, path: '/nope' }), viewer);
+      const out: RevfsNode = applyRemoteOp(tree, op({ op_type: RevfsOpType.Rmdir, path: '/nope' }), viewer);
 
       expect(paths(out)).toEqual(['/', '/docs']);
     });
@@ -94,17 +94,17 @@ describe('applyRemoteOp', () => {
 
   describe('Mkdir', () => {
     it('creates the directory under its parent', () => {
-      const tree = dir('/', [dir('/docs')]);
+      const tree: RevfsNode = dir('/', [dir('/docs')]);
 
-      const out = applyRemoteOp(tree, op({ op_type: RevfsOpType.Mkdir, path: '/docs/sub' }), viewer);
+      const out: RevfsNode = applyRemoteOp(tree, op({ op_type: RevfsOpType.Mkdir, path: '/docs/sub' }), viewer);
 
       expect(paths(out)).toContain('/docs/sub');
     });
 
     it('does not duplicate a directory that already exists', () => {
-      const tree = dir('/', [dir('/docs')]);
+      const tree: RevfsNode = dir('/', [dir('/docs')]);
 
-      const out = applyRemoteOp(tree, op({ op_type: RevfsOpType.Mkdir, path: '/docs' }), viewer);
+      const out: RevfsNode = applyRemoteOp(tree, op({ op_type: RevfsOpType.Mkdir, path: '/docs' }), viewer);
 
       // Ops can arrive more than once; applying one twice must not fork the tree.
       expect(paths(out).filter((p) => p === '/docs')).toHaveLength(1);
@@ -113,9 +113,9 @@ describe('applyRemoteOp', () => {
 
   describe('RemoveFile', () => {
     it('removes the file', () => {
-      const tree = dir('/', [dir('/docs', [file('/docs/a.txt')])]);
+      const tree: RevfsNode = dir('/', [dir('/docs', [file('/docs/a.txt')])]);
 
-      const out = applyRemoteOp(tree, op({ op_type: RevfsOpType.RemoveFile, path: '/docs/a.txt' }), viewer);
+      const out: RevfsNode = applyRemoteOp(tree, op({ op_type: RevfsOpType.RemoveFile, path: '/docs/a.txt' }), viewer);
 
       expect(paths(out)).toEqual(['/', '/docs']);
     });
@@ -123,9 +123,9 @@ describe('applyRemoteOp', () => {
 
   describe('Rename', () => {
     it('renames a directory and re-paths its descendants', () => {
-      const tree = dir('/', [dir('/docs', [file('/docs/a.txt')])]);
+      const tree: RevfsNode = dir('/', [dir('/docs', [file('/docs/a.txt')])]);
 
-      const out = applyRemoteOp(
+      const out: RevfsNode = applyRemoteOp(
         tree,
         op({ op_type: RevfsOpType.Rename, path: '/docs', newName: 'papers' }),
         viewer
@@ -141,9 +141,9 @@ describe('applyRemoteOp', () => {
 
   describe('Move', () => {
     it('moves a subtree and re-paths its descendants', () => {
-      const tree = dir('/', [dir('/docs', [file('/docs/a.txt')]), dir('/archive')]);
+      const tree: RevfsNode = dir('/', [dir('/docs', [file('/docs/a.txt')]), dir('/archive')]);
 
-      const out = applyRemoteOp(
+      const out: RevfsNode = applyRemoteOp(
         tree,
         // destPath is the full destination path; the implementation takes its
         // parent to find where to attach.
@@ -158,9 +158,9 @@ describe('applyRemoteOp', () => {
   });
 
   it('leaves the tree alone for an operation it does not handle', () => {
-    const tree = dir('/', [dir('/docs')]);
+    const tree: RevfsNode = dir('/', [dir('/docs')]);
 
-    const out = applyRemoteOp(tree, op({ op_type: RevfsOpType.Ack }), viewer);
+    const out: RevfsNode = applyRemoteOp(tree, op({ op_type: RevfsOpType.Ack }), viewer);
 
     expect(paths(out)).toEqual(['/', '/docs']);
   });

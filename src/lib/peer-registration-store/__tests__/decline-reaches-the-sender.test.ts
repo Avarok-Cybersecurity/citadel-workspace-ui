@@ -81,13 +81,13 @@ describe('declineRequest calls it', () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const { stripComments } = await import('@/test-utils/strip-comments');
-    const source = stripComments(
+    const source: string = stripComments(
       readFileSync(join(process.cwd(), 'src/lib/peer-registration-store/service.ts'), 'utf8'),
     );
 
-    const decline = source.slice(source.indexOf('public async declineRequest'));
-    const sendAt = decline.indexOf('executeDeclineRequest(request)');
-    const removeAt = decline.indexOf('this.removeRequest(requestId)');
+    const decline: string = source.slice(source.indexOf('public async declineRequest'));
+    const sendAt: number = decline.indexOf('executeDeclineRequest(request)');
+    const removeAt: number = decline.indexOf('this.removeRequest(requestId)');
     expect(sendAt).toBeGreaterThan(-1);
     // Order matters: the entry carries the peer_cid the refusal is addressed to.
     expect(sendAt).toBeLessThan(removeAt);

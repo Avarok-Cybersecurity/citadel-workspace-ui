@@ -50,7 +50,7 @@ describe('verifyDocument', () => {
   });
 
   it('reports a mismatch when the content was altered', async () => {
-    const stored = await hashDocument('# Hello');
+    const stored: string = await hashDocument('# Hello');
     const verdict = await verifyDocument('# Hello<script>', stored);
 
     expect(verdict.status).toBe('mismatch');

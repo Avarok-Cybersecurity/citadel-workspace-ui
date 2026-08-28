@@ -73,7 +73,7 @@ export class CallManager {
 
   /** The face the extracted signal/session modules operate on. */
   private internals(): CallManagerInternals {
-    const o = this.options;
+    const o: CallManagerOptions = this.options;
     return {
       transport: o.transport, selfCid: o.selfCid, capabilities: o.capabilities,
       codecs: this.codecs, openSessions: this.openSessions,
@@ -175,7 +175,7 @@ export class CallManager {
     const state = this.state;
     if (!state) return;
 
-    const peers = [...state.participants.keys()];
+    const peers: bigint[] = [...state.participants.keys()];
     this.apply({ type: 'declined-locally', reason }); // before the send: see end()
     const decline: CallSignalPayload = { kind: 'CallDecline', call_id: state.callId, reason };
     await Promise.all(
@@ -188,7 +188,7 @@ export class CallManager {
     const state = this.state;
     if (!state) return;
 
-    const peers = [...state.participants.keys()];
+    const peers: bigint[] = [...state.participants.keys()];
     const bye: CallSignalPayload = { kind: 'CallEnd', call_id: state.callId, reason };
     // Settle local state FIRST, as decline() does: sendSignal is unbounded, so
     // awaiting it left the camera lit while Leave did nothing, and the ring

@@ -11,9 +11,9 @@ import { handleNodeVariants } from '../node-handlers';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from '../workspace-handlers';
 
-const connection = { request_id: 'req-1', cid: 1n } as unknown as ConnectionInfo;
+const connection: ConnectionInfo = { request_id: 'req-1', cid: 1n } as unknown as ConnectionInfo;
 
-function contentUpdated(overrides: Record<string, unknown> = {}) {
+function contentUpdated(overrides: Record<string, unknown> = {}): WorkspaceProtocolResponse {
   return {
     NodeContentUpdated: {
       node_id: 'node-7',
@@ -56,7 +56,7 @@ describe('NodeContentUpdated', () => {
   });
 
   it('leaves unrelated variants alone', () => {
-    const other = { SomethingElse: {} } as unknown as WorkspaceProtocolResponse;
+    const other: WorkspaceProtocolResponse = { SomethingElse: {} } as unknown as WorkspaceProtocolResponse;
     expect(handleNodeVariants(other, connection)).toBe(false);
   });
 });

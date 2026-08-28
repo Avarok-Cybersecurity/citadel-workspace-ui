@@ -9,7 +9,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 // Tailwind CSS class merging utility (shadcn/ui)
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs))
 }
 
@@ -18,15 +18,15 @@ export { formatBytes as formatFileSize } from './format-bytes';
 
 // Date formatting with relative time
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const d: Date = typeof date === 'string' ? new Date(date) : date;
+  const now: Date = new Date();
+  const diffMs: number = now.getTime() - d.getTime();
+  const diffDays: number = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) {
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffHours: number = Math.floor(diffMs / (1000 * 60 * 60));
     if (diffHours === 0) {
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffMinutes: number = Math.floor(diffMs / (1000 * 60));
       if (diffMinutes === 0) {
         return 'Just now';
       }

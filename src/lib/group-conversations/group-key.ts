@@ -39,7 +39,7 @@ export function groupKeyToId(key: MessageGroupKey): string {
  * kick or delete with it.
  */
 export function groupIdToKey(groupId: string): MessageGroupKey {
-  const parts = groupId.split(SEPARATOR);
+  const parts: string[] = groupId.split(SEPARATOR);
   if (parts.length !== 2) {
     throw new Error(`Malformed group id "${groupId}" — expected "<cid>:<mgid>"`);
   }

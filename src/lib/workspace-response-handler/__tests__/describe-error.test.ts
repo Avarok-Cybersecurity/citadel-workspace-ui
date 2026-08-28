@@ -14,7 +14,7 @@ import { describeWorkspaceError } from '../describe-error';
 
 describe('a workspace error', () => {
   it('turns a permission denial into a sentence with a next step', () => {
-    const message = describeWorkspaceError({
+    const message: string = describeWorkspaceError({
       PermissionDenied: 'EditTreeStructure required',
     });
 
@@ -32,7 +32,7 @@ describe('a workspace error', () => {
       'SendMessages',
       'ManageWorkspace',
     ]) {
-      const message = describeWorkspaceError({
+      const message: string = describeWorkspaceError({
         PermissionDenied: `${permission} required`,
       });
       expect(message, permission).not.toMatch(new RegExp(permission));
@@ -41,7 +41,7 @@ describe('a workspace error', () => {
 
   it('still says something useful for a permission it does not know', () => {
     // A new permission must not fall through to the raw variant name.
-    const message = describeWorkspaceError({ PermissionDenied: 'SomeFuturePermission' });
+    const message: string = describeWorkspaceError({ PermissionDenied: 'SomeFuturePermission' });
 
     expect(message).not.toMatch(/SomeFuturePermission/);
     expect(message).toMatch(/permission/i);

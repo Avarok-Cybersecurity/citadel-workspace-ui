@@ -28,7 +28,7 @@ function meta(name: string, dir: string): RevfsFileMetadata {
 
 /** A server tree with /docs/a.txt, /docs/deep/b.txt and /keep/c.txt. */
 function buildTree(): RevfsNode {
-  let tree = createDefaultTree();
+  let tree: RevfsNode = createDefaultTree();
   [tree] = mkdir(tree, '/docs');
   [tree] = mkdir(tree, '/docs/deep');
   [tree] = mkdir(tree, '/keep');
@@ -51,7 +51,7 @@ function setup(tree: RevfsNode) {
       return Promise.resolve({ type: intent.type, success: true });
     }),
   };
-  const ctx = {
+  const ctx: DirOpsContext = {
     state: { setTree: vi.fn(), getTree: vi.fn() },
     ensureIO: () => io,
     getTree: vi.fn(() => Promise.resolve(tree)),
@@ -68,7 +68,7 @@ describe('collectFiles', () => {
   });
 
   it('returns nothing for an empty directory', () => {
-    let tree = createDefaultTree();
+    let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/empty');
     const empty = tree.children?.find((c) => c.name === 'empty');
     expect(collectFiles(empty!)).toEqual([]);
@@ -99,15 +99,15 @@ describe('serverRmdir', () => {
 
     await serverRmdir(ctx, MY_CID, '/docs');
 
-    const persistAt = executed.findIndex((i) => i.type === 'persist-tree');
-    const firstDeleteAt = executed.findIndex((i) => i.type === 'backend-delete-file');
+    const persistAt: number = executed.findIndex((i) => i.type === 'persist-tree');
+    const firstDeleteAt: number = executed.findIndex((i) => i.type === 'backend-delete-file');
     expect(persistAt).toBeGreaterThanOrEqual(0);
     expect(persistAt).toBeLessThan(firstDeleteAt);
     expect(executed[persistAt].treeKey).toBe(serverTreeKey(MY_CID));
   });
 
   it('issues no deletes for an empty directory', async () => {
-    let tree = createDefaultTree();
+    let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/empty');
     const { ctx, executed } = setup(tree);
 
@@ -122,7 +122,7 @@ describe('serverRmdir', () => {
 
     await serverRmdir(ctx, MY_CID, '/docs');
 
-    const persisted = executed.find((i) => i.type === 'persist-tree')?.tree as RevfsNode;
+    const persisted: RevfsNode = executed.find((i) => i.type === 'persist-tree')?.tree as RevfsNode;
     expect(persisted.children?.some((c) => c.name === 'docs')).toBe(false);
     expect(persisted.children?.some((c) => c.name === 'keep')).toBe(true);
   });

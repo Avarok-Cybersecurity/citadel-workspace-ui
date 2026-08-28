@@ -11,13 +11,13 @@ const SAMPLE_ENDS_COUNT = 5;
 // Named for what it does. It shared a name with the byte-SIZE formatter while
 // formatting byte ARRAYS for debug output -- two unrelated jobs, one grep.
 function formatByteArray(bytes: number[] | Uint8Array): string {
-  const len = bytes.length;
+  const len: number = bytes.length;
   if (len <= SAMPLE_ENDS_COUNT * 2) {
     return `{BytesLike(len: ${len}, values: [${Array.from(bytes).join(', ')}])}`;
   }
   
-  const first = Array.from(bytes).slice(0, SAMPLE_ENDS_COUNT);
-  const last = Array.from(bytes).slice(-SAMPLE_ENDS_COUNT);
+  const first: number[] = Array.from(bytes).slice(0, SAMPLE_ENDS_COUNT);
+  const last: number[] = Array.from(bytes).slice(-SAMPLE_ENDS_COUNT);
   
   return `{BytesLike(len: ${len}, First ${SAMPLE_ENDS_COUNT} bytes: [${first.join(', ')}], Last ${SAMPLE_ENDS_COUNT} bytes: [${last.join(', ')}])}`;
 }
@@ -26,7 +26,7 @@ function formatByteArray(bytes: number[] | Uint8Array): string {
  * Format maps with byte array values for debug output
  */
 function formatBytesMap(map: Record<string, number[] | Uint8Array>): string {
-  const entries = Object.entries(map).map(([key, value]) => {
+  const entries: string[] = Object.entries(map).map(([key, value]) => {
     return `(K: ${key}, V: ${formatByteArray(value)})`;
   });
   
@@ -114,7 +114,7 @@ export function formatForDebug(obj: unknown): unknown {
  * credential field should be redacted by default rather than by remembering to
  * add it here.
  */
-const SECRET_FIELD_PATTERN = /^(pass(word|phrase)|secret|token|psk|credential)$|pass(word|phrase)$|^.*_?secret$/i;
+const SECRET_FIELD_PATTERN: RegExp = /^(pass(word|phrase)|secret|token|psk|credential)$|pass(word|phrase)$|^.*_?secret$/i;
 
 export function isSecretField(fieldName: string): boolean {
   return SECRET_FIELD_PATTERN.test(fieldName);
@@ -130,7 +130,7 @@ function shouldFormatAsBytes(fieldName: string, value: unknown): boolean {
   }
 
   // Known byte fields from Rust structs
-  const byteFields = [
+  const byteFields: string[] = [
     'value',      // LocalDBGetKVSuccess, LocalDBSetKV
     'message',    // GroupMessageNotification, Message, GroupMessage
     'password',   // Connect

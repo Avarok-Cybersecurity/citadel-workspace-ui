@@ -37,11 +37,11 @@ export function calculateBackoffDelay(attempt: number, options: RetryOptions = {
   const { baseDelayMs, maxDelayMs, jitter } = { ...DEFAULT_OPTIONS, ...options };
 
   // Exponential backoff: base * 2^attempt
-  let delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
+  let delay: number = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
 
   // Apply jitter if configured
   if (jitter > 0) {
-    const jitterRange = delay * jitter;
+    const jitterRange: number = delay * jitter;
     delay = delay + (Math.random() * jitterRange * 2) - jitterRange;
     delay = Math.max(0, delay);
   }
@@ -63,7 +63,7 @@ export async function retryWithBackoff<T>(
   const opts = { ...DEFAULT_OPTIONS, ...options };
   let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt < opts.maxAttempts; attempt++) {
+  for (let attempt: number = 0; attempt < opts.maxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
@@ -73,7 +73,7 @@ export async function retryWithBackoff<T>(
         break;
       }
 
-      const delay = calculateBackoffDelay(attempt, opts);
+      const delay: number = calculateBackoffDelay(attempt, opts);
       opts.onRetry(attempt + 1, delay, lastError);
       await sleep(delay);
     }
@@ -110,7 +110,7 @@ export class RetryScheduler {
       return null;
     }
 
-    const delay = calculateBackoffDelay(this.currentAttempt, this.options);
+    const delay: number = calculateBackoffDelay(this.currentAttempt, this.options);
     this.currentAttempt++;
 
     this.options.onRetry(this.currentAttempt, delay);

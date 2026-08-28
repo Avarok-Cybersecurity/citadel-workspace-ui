@@ -26,7 +26,7 @@ import { CID_A, CID_B, makeMeta } from './tree-test-helpers';
 
 function buildPathAtDepth(depth: number): string {
   if (depth === 0) return '/';
-  const segments = Array.from({ length: depth }, (_, i) => `level-${i}`);
+  const segments: string[] = Array.from({ length: depth }, (_, i) => `level-${i}`);
   return '/' + segments.join('/');
 }
 
@@ -37,20 +37,20 @@ function createDeepTree(depth: number, filesPerLevel: number): {
   totalDirs: number;
   totalFiles: number;
 } {
-  let tree = createDefaultTree();
+  let tree: RevfsNode = createDefaultTree();
   const allDirPaths: string[] = [];
   const allFilePaths: string[] = [];
 
-  for (let d = 1; d <= depth; d++) {
-    const parentPath = buildPathAtDepth(d - 1);
-    const dirName = `level-${d - 1}`;
-    const dirPath = parentPath === '/' ? `/${dirName}` : `${parentPath}/${dirName}`;
+  for (let d: number = 1; d <= depth; d++) {
+    const parentPath: string = buildPathAtDepth(d - 1);
+    const dirName: string = `level-${d - 1}`;
+    const dirPath: string = parentPath === '/' ? `/${dirName}` : `${parentPath}/${dirName}`;
     [tree] = mkdir(tree, dirPath);
     allDirPaths.push(dirPath);
 
-    for (let f = 0; f < filesPerLevel; f++) {
-      const fileName = `file-${d}-${f}.dat`;
-      const filePath = `${dirPath}/${fileName}`;
+    for (let f: number = 0; f < filesPerLevel; f++) {
+      const fileName: string = `file-${d}-${f}.dat`;
+      const filePath: string = `${dirPath}/${fileName}`;
       const meta = makeMeta({
         fileId: `file-${d}-${f}`,
         fileName,
@@ -66,8 +66,8 @@ function createDeepTree(depth: number, filesPerLevel: number): {
 }
 
 function countNodes(node: RevfsNode): { dirs: number; files: number } {
-  let dirs = node.type === 'directory' ? 1 : 0;
-  let files = node.type === 'file' ? 1 : 0;
+  let dirs: number = node.type === 'directory' ? 1 : 0;
+  let files: number = node.type === 'file' ? 1 : 0;
   for (const child of node.children ?? []) {
     const childCounts = countNodes(child);
     dirs += childCounts.dirs;
@@ -87,7 +87,7 @@ describe('deep nested tree stress tests (extra)', () => {
       op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/',
       tree: remoteTree, timestamp: Date.now(),
     };
-    const result = applyRemoteOp(createDefaultTree(), op, CID_B);
+    const result: RevfsNode = applyRemoteOp(createDefaultTree(), op, CID_B);
 
     expect(findNode(result, '/level-0')).not.toBeNull();
     expect(findNode(result, '/level-0/level-1/level-2/level-3/level-4')).not.toBeNull();
@@ -99,14 +99,14 @@ describe('deep nested tree stress tests (extra)', () => {
   });
 
   it('handles wide tree at each level (many siblings)', () => {
-    let tree = createDefaultTree();
+    let tree: RevfsNode = createDefaultTree();
     const SIBLINGS_PER_LEVEL = 20;
     const LEVELS = 5;
 
-    for (let level = 0; level < LEVELS; level++) {
-      const parentPath = level === 0 ? '/' : `/wide-${level - 1}`;
-      for (let sibling = 0; sibling < SIBLINGS_PER_LEVEL; sibling++) {
-        const dirPath = level === 0
+    for (let level: number = 0; level < LEVELS; level++) {
+      const parentPath: string = level === 0 ? '/' : `/wide-${level - 1}`;
+      for (let sibling: number = 0; sibling < SIBLINGS_PER_LEVEL; sibling++) {
+        const dirPath: string = level === 0
           ? `/wide-${level}-sibling-${sibling}`
           : `${parentPath}/wide-${level}-sibling-${sibling}`;
 
@@ -122,7 +122,7 @@ describe('deep nested tree stress tests (extra)', () => {
       }
     }
 
-    for (let s = 0; s < SIBLINGS_PER_LEVEL; s++) {
+    for (let s: number = 0; s < SIBLINGS_PER_LEVEL; s++) {
       const node = findNode(tree, `/wide-0-sibling-${s}`);
       expect(node).not.toBeNull();
       expect(findNode(tree, `/wide-0-sibling-${s}/data-${s}.bin`)).not.toBeNull();
@@ -133,7 +133,7 @@ describe('deep nested tree stress tests (extra)', () => {
     const { tree: originalTree, allDirPaths } = createDeepTree(10, 2);
     const originalNodeCount = countNodes(originalTree);
 
-    const deepPath = allDirPaths[allDirPaths.length - 1];
+    const deepPath: string = allDirPaths[allDirPaths.length - 1];
     mkdir(originalTree, `${deepPath}/new-dir`);
     const meta = makeMeta({ fileId: 'new' });
     placeFile(originalTree, `${deepPath}/new.txt`, meta, CID_A);
@@ -148,7 +148,7 @@ describe('deep nested tree stress tests (extra)', () => {
 
     for (const dirPath of allDirPaths.slice(0, 10)) {
       expect(findNode(tree, `${dirPath}/`)).not.toBeNull();
-      const doubleSlashPath = dirPath.replace(/\//g, '//');
+      const doubleSlashPath: string = dirPath.replace(/\//g, '//');
       expect(findNode(tree, doubleSlashPath)).not.toBeNull();
     }
   });

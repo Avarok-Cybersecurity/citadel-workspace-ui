@@ -13,9 +13,9 @@ export function ensureFillContrast(fill: HslColor, label: HslColor, min = 4.5): 
   if (contrastRatio(fill, label) >= min) return fill;
 
   const away = label.l > fill.l ? -1 : 1;
-  let candidate = fill;
+  let candidate: HslColor = fill;
 
-  for (let step = 1; step <= 60; step += 1) {
+  for (let step: number = 1; step <= 60; step += 1) {
     candidate = clamp({ ...fill, l: fill.l + away * step });
     if (contrastRatio(candidate, label) >= min) return candidate;
     if (candidate.l <= 0 || candidate.l >= 100) break;
@@ -41,11 +41,11 @@ export function ensureTextContrast(text: HslColor, surfaces: readonly HslColor[]
 
   // Move away from the surfaces' average lightness, so the accent darkens on a
   // light theme and lightens on a dark one without needing to know which it is.
-  const meanL = surfaces.reduce((acc, s) => acc + s.l, 0) / surfaces.length;
+  const meanL: number = surfaces.reduce((acc, s) => acc + s.l, 0) / surfaces.length;
   const away = meanL > text.l ? -1 : 1;
-  let candidate = text;
+  let candidate: HslColor = text;
 
-  for (let step = 1; step <= 100; step += 1) {
+  for (let step: number = 1; step <= 100; step += 1) {
     candidate = clamp({ ...text, l: text.l + away * step });
     if (clears(candidate)) return candidate;
     if (candidate.l <= 0 || candidate.l >= 100) break;

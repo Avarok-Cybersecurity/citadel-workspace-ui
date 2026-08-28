@@ -17,7 +17,7 @@ export async function openSessionFor(m: CallManagerInternals, cid: bigint): Prom
     // moves the call to 'active' and starts the duration clock.
     m.apply({ type: 'peer-connected', cid });
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'could not open the media session';
+    const reason: string = error instanceof Error ? error.message : 'could not open the media session';
 
     // Order matters. Marking the only participant as left first makes the
     // reducer end the call as an ordinary hangup, and 'failed' is then
@@ -42,7 +42,7 @@ export async function closeSessionFor(m: CallManagerInternals, cid: bigint): Pro
 }
 
 export async function closeAllSessions(m: CallManagerInternals): Promise<void> {
-  const peers = [...m.openSessions];
+  const peers: bigint[] = [...m.openSessions];
   m.openSessions.clear();
   await Promise.all(peers.map((cid) => m.transport.closeSession(cid).catch(() => undefined)));
 }

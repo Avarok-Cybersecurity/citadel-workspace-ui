@@ -42,7 +42,7 @@ describe('copyNode', () => {
     [tree] = mkdir(tree, '/archive');
     const meta = makeMeta();
     [tree] = placeFile(tree, '/docs/report.pdf', meta, CID_A);
-    let fileIdCounter = 0;
+    let fileIdCounter: number = 0;
     const [newTree] = copyNode(tree, '/docs/report.pdf', '/archive', () => `new-id-${++fileIdCounter}`);
     expect(findNode(newTree, '/docs/report.pdf')).not.toBeNull();
     expect(findNode(newTree, '/archive/report.pdf')).not.toBeNull();
@@ -103,7 +103,7 @@ describe('copyNode', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
     [tree] = mkdir(tree, '/archive');
-    const childCount = findNode(tree, '/archive')?.children?.length ?? 0;
+    const childCount: number = findNode(tree, '/archive')?.children?.length ?? 0;
     copyNode(tree, '/docs', '/archive');
     expect(findNode(tree, '/archive')?.children?.length ?? 0).toBe(childCount);
   });

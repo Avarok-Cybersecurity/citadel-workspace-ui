@@ -40,7 +40,7 @@ export const CREDENTIAL_LIMITS = {
 /** Returns a human-readable error, or null when the value is acceptable. */
 export function validateUsername(username: string): string | null {
   const { min, max } = CREDENTIAL_LIMITS.username;
-  const len = byteLength(username);
+  const len: number = byteLength(username);
   if (len < min) return `Username must be at least ${min} characters`;
   if (len > max) return `Username must be ${max} characters or fewer`;
   if (username.includes(' ')) return 'Username cannot contain spaces';
@@ -49,7 +49,7 @@ export function validateUsername(username: string): string | null {
 
 export function validatePassword(password: string): string | null {
   const { min, max } = CREDENTIAL_LIMITS.password;
-  const len = byteLength(password);
+  const len: number = byteLength(password);
   if (len < min) return `Password must be at least ${min} characters`;
   if (len > max) return `Password must be ${max} characters or fewer`;
   if (password.includes(' ')) return 'Password cannot contain spaces';
@@ -58,7 +58,7 @@ export function validatePassword(password: string): string | null {
 
 export function validateFullName(fullName: string): string | null {
   const { min, max } = CREDENTIAL_LIMITS.fullName;
-  const len = byteLength(fullName);
+  const len: number = byteLength(fullName);
   if (len < min) return `Full name must be at least ${min} characters`;
   if (len > max) return `Full name must be ${max} characters or fewer`;
   return null;

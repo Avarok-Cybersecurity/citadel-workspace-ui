@@ -65,7 +65,7 @@ export class ReceiverPool {
 
   /** Route one received frame to the peer it came from. */
   accept(peerCid: bigint, frame: WireFrame): void {
-    const receiver = this.receiverFor(peerCid);
+    const receiver: PeerReceiver = this.receiverFor(peerCid);
     const hadVideo = receiver.getVideoStream() !== null;
     const hadAudio = receiver.getAudioStream() !== null;
     receiver.accept(frame);
@@ -124,7 +124,7 @@ export class ReceiverPool {
     const existing = this.receivers.get(peerCid);
     if (existing) return existing;
 
-    const receiver = new PeerReceiver({
+    const receiver: PeerReceiver = new PeerReceiver({
       // What the PEER sends, not what we send: the two only coincide when both
       // machines happen to share a best encoder — true on one dev box, false
       // across real hardware.

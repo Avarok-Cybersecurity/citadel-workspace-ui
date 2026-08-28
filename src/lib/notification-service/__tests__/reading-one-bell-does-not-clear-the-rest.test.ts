@@ -18,7 +18,7 @@ import { NotificationService } from '../service';
 const ALICE = '111';
 const BOB = '222';
 
-function service() {
+function service(): NotificationService {
   const instance: NotificationService = NotificationService.getInstance();
   // A singleton shared across the suite, and there is no clear-all on the
   // public API, so each test removes what it added rather than assuming a

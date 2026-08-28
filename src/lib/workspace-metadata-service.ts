@@ -43,7 +43,7 @@ export function getWorkspaceInitials(workspaceName: string): string {
   if (!workspaceName) return '?';
   
   // Split by spaces, remove empty parts, and get initials
-  const parts = workspaceName.trim().split(/\s+/).filter(Boolean);
+  const parts: string[] = workspaceName.trim().split(/\s+/).filter(Boolean);
   
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
@@ -61,7 +61,7 @@ export function getUserInitials(fullName: string): string {
   if (!fullName) return '?';
   
   // Split by spaces, remove empty parts, and get initials
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  const parts: string[] = fullName.trim().split(/\s+/).filter(Boolean);
   
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();

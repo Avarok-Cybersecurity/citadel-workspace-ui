@@ -59,8 +59,8 @@ function extractFromNotification(
 
   // P2P guard: peer_cid !== 0 && peer_cid !== cid => let p2p-messenger-manager handle it
   if (notification.peer_cid && notification.cid) {
-    const peerCidStr = String(notification.peer_cid);
-    const cidStr = String(notification.cid);
+    const peerCidStr: string = String(notification.peer_cid);
+    const cidStr: string = String(notification.cid);
 
     if (peerCidStr !== '0' && peerCidStr !== cidStr) {
       debugLog('WorkspaceResponseHandler', 'P2P message from peer, skipping workspace parsing', {
@@ -100,8 +100,8 @@ function decodeByteArrayPayload(
   }
 
   try {
-    const contentBytes = new Uint8Array(field as number[]);
-    const contentStr = bytesToString(contentBytes);
+    const contentBytes: Uint8Array<ArrayBuffer> = new Uint8Array(field as number[]);
+    const contentStr: string = bytesToString(contentBytes);
     const workspacePayload = JSON.parse(contentStr);
 
     if (workspacePayload.Response) {

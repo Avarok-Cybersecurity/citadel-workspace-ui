@@ -62,12 +62,12 @@ describe('PeerReceiver', () => {
   });
 
   it('has no video stream before any video arrives', () => {
-    const receiver = new PeerReceiver(options);
+    const receiver: PeerReceiver = new PeerReceiver(options);
     expect(receiver.getVideoStream()).toBeNull();
   });
 
   it('builds the video decoder once, not per frame', () => {
-    const receiver = new PeerReceiver(options);
+    const receiver: PeerReceiver = new PeerReceiver(options);
     receiver.accept(frame(CALL_KIND_VIDEO));
     receiver.accept(frame(CALL_KIND_VIDEO));
     receiver.accept(frame(CALL_KIND_VIDEO));
@@ -77,7 +77,7 @@ describe('PeerReceiver', () => {
   });
 
   it('keeps audio and video on separate decoders', () => {
-    const receiver = new PeerReceiver(options);
+    const receiver: PeerReceiver = new PeerReceiver(options);
     receiver.accept(frame(CALL_KIND_VIDEO));
     receiver.accept(frame(CALL_KIND_AUDIO));
 
@@ -85,7 +85,7 @@ describe('PeerReceiver', () => {
   });
 
   it('closes every codec it opened', () => {
-    const receiver = new PeerReceiver(options);
+    const receiver: PeerReceiver = new PeerReceiver(options);
     receiver.accept(frame(CALL_KIND_VIDEO));
     receiver.accept(frame(CALL_KIND_AUDIO));
 
@@ -97,7 +97,7 @@ describe('PeerReceiver', () => {
   it('is safe to close twice', () => {
     // Both a peer leaving and the call ending can close a receiver, and they
     // race in a group call.
-    const receiver = new PeerReceiver(options);
+    const receiver: PeerReceiver = new PeerReceiver(options);
     receiver.accept(frame(CALL_KIND_VIDEO));
 
     receiver.close();
@@ -109,7 +109,7 @@ describe('PeerReceiver', () => {
   it('ignores frames arriving after close', () => {
     // Frames in flight when a peer leaves would otherwise resurrect a decoder
     // that nothing will ever close.
-    const receiver = new PeerReceiver(options);
+    const receiver: PeerReceiver = new PeerReceiver(options);
     receiver.close();
     receiver.accept(frame(CALL_KIND_VIDEO));
 
@@ -118,7 +118,7 @@ describe('PeerReceiver', () => {
 
   it('asks for a keyframe after a video gap', () => {
     const onNeedKeyframe = vi.fn();
-    const receiver = new PeerReceiver({ ...options, onNeedKeyframe });
+    const receiver: PeerReceiver = new PeerReceiver({ ...options, onNeedKeyframe });
 
     receiver.handleGap(1, true);
 
@@ -129,7 +129,7 @@ describe('PeerReceiver', () => {
     // Opus frames decode independently; the missing ones are simply gone, and
     // requesting a keyframe would be asking for something meaningless.
     const onNeedKeyframe = vi.fn();
-    const receiver = new PeerReceiver({ ...options, onNeedKeyframe });
+    const receiver: PeerReceiver = new PeerReceiver({ ...options, onNeedKeyframe });
 
     receiver.handleGap(0, false);
 

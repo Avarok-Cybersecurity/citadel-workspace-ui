@@ -68,7 +68,7 @@ export function deserializeTheme(
   // fails the instanceof check while being a perfectly good byte array, and the
   // miss is silent, landing the bytes in the object branch below.
   if (ArrayBuffer.isView(metadata) || Array.isArray(metadata)) {
-    const array = new Uint8Array(metadata as ArrayLike<number>);
+    const array: Uint8Array<ArrayBuffer> = new Uint8Array(metadata as ArrayLike<number>);
     if (array.length === 0) return null;
     try {
       document = JSON.parse(new TextDecoder().decode(array));
@@ -121,7 +121,7 @@ const TOKEN_KEYS = Object.keys(defaultTheme().light) as (keyof ThemePalette)[];
 function validatePalette(value: unknown): ThemePalette | null {
   if (!isRecord(value)) return null;
 
-  const palette = {} as ThemePalette;
+  const palette: ThemePalette = {} as ThemePalette;
   for (const key of TOKEN_KEYS) {
     const color = validateColor(value[key]);
     if (!color) return null;

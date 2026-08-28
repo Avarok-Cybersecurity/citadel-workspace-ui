@@ -74,10 +74,10 @@ export class EventEmitter {
       this.listeners.set(event, new Set());
     }
 
-    const handlers = this.listeners.get(event)!;
+    const handlers: Set<StoredHandler> = this.listeners.get(event)!;
     // The one cast, at the boundary: `on<T>` knows the payload type and the map
     // cannot. Everything below this line treats it as erased.
-    const stored = handler as StoredHandler;
+    const stored: StoredHandler = handler as StoredHandler;
     handlers.add(stored);
 
     // Return unsubscribe function
@@ -124,4 +124,4 @@ export class EventEmitter {
 }
 
 // Global event emitter singleton
-export const eventEmitter = new EventEmitter();
+export const eventEmitter: EventEmitter = new EventEmitter();

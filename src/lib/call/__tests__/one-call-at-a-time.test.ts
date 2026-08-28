@@ -53,7 +53,7 @@ describe('whether a new call can start', () => {
     for (const status of [
       'ringing-in', 'ringing-out', 'connecting', 'active', 'ended', 'failed',
     ] as const) {
-      const call = state(status, 'other-room');
+      const call: CallState = state(status, 'other-room');
       const mode = groupCallEntryMode(call, 'this-room', 3);
       const busy = callBusyReason(call);
 

@@ -34,7 +34,7 @@ export function groupCallEntryMode(
       if (call.status === 'ringing-in') {
         // Someone already started this room's call. Joining is the only sane
         // offer — a "start" here puts two people in two calls in one room.
-        const participantCount = [...call.participants.values()].filter(
+        const participantCount: number = [...call.participants.values()].filter(
           (p) => p.status !== 'left' && p.status !== 'declined',
         ).length;
         return {

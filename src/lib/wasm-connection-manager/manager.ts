@@ -69,9 +69,9 @@ export class WasmConnectionManager {
 
     if (!this.isRunning || this.sessions.size === 0) return;
 
-    const interval = this.getPollingInterval();
+    const interval: number = this.getPollingInterval();
     const hidden = typeof document !== 'undefined' ? document.hidden : false;
-    const cids = Array.from(this.sessions.keys());
+    const cids: string[] = Array.from(this.sessions.keys());
     debugLog('WasmConnectionManager', 'Starting polling for all sessions', { interval, hidden, cids });
 
     this.pollIntervalId = setInterval(async () => {
@@ -222,4 +222,4 @@ export class WasmConnectionManager {
   }
 }
 
-export const wasmConnectionManager = WasmConnectionManager.getInstance();
+export const wasmConnectionManager: WasmConnectionManager = WasmConnectionManager.getInstance();

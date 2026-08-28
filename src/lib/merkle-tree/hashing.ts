@@ -14,10 +14,10 @@
  */
 export async function sha256Async(data: Uint8Array): Promise<string> {
   // Create a new ArrayBuffer from the Uint8Array to ensure proper type for crypto.subtle
-  const buffer = new ArrayBuffer(data.byteLength);
+  const buffer: ArrayBuffer = new ArrayBuffer(data.byteLength);
   new Uint8Array(buffer).set(data);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashBuffer: ArrayBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray: number[] = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -28,11 +28,11 @@ export async function sha256Async(data: Uint8Array): Promise<string> {
  */
 export function sha256Sync(data: Uint8Array): string {
   // Use a combination of two hash algorithms for better distribution
-  let h1 = 5381; // djb2
-  let h2 = 2166136261; // fnv1a
+  let h1: number = 5381; // djb2
+  let h2: number = 2166136261; // fnv1a
 
-  for (let i = 0; i < data.length; i++) {
-    const byte = data[i];
+  for (let i: number = 0; i < data.length; i++) {
+    const byte: number = data[i];
     // djb2
     h1 = ((h1 << 5) + h1) ^ byte;
     // fnv1a
@@ -41,7 +41,7 @@ export function sha256Sync(data: Uint8Array): string {
   }
 
   // Combine both hashes and add length for extra entropy
-  const combined = [
+  const combined: string = [
     (h1 >>> 0).toString(16).padStart(8, '0'),
     (h2 >>> 0).toString(16).padStart(8, '0'),
     data.length.toString(16).padStart(8, '0'),
@@ -55,6 +55,6 @@ export function sha256Sync(data: Uint8Array): string {
  * Hash two strings together (for internal node hashing)
  */
 export function hashPair(left: string, right: string): string {
-  const combined = new TextEncoder().encode(left + right);
+  const combined: Uint8Array<ArrayBuffer> = new TextEncoder().encode(left + right);
   return sha256Sync(combined);
 }

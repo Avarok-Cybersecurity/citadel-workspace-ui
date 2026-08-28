@@ -18,8 +18,8 @@ import {
 // ============================================================================
 
 export function peerPairKey(cidA: bigint, cidB: bigint): PeerPairKey {
-  const a = cidA < cidB ? cidA : cidB;
-  const b = cidA < cidB ? cidB : cidA;
+  const a: bigint = cidA < cidB ? cidA : cidB;
+  const b: bigint = cidA < cidB ? cidB : cidA;
   return `${a}_${b}`;
 }
 
@@ -63,25 +63,25 @@ export function cloneTree(node: RevfsNode): RevfsNode {
 
 /** Normalize path: ensure leading slash, no trailing slash, no double slashes */
 export function normalizePath(path: string): string {
-  let p = path.replace(/\/+/g, '/');
+  let p: string = path.replace(/\/+/g, '/');
   if (!p.startsWith('/')) p = '/' + p;
   if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
   return p;
 }
 
 export function parentPath(path: string): string {
-  const idx = path.lastIndexOf('/');
+  const idx: number = path.lastIndexOf('/');
   return idx <= 0 ? '/' : path.slice(0, idx);
 }
 
 export function baseName(path: string): string {
-  const idx = path.lastIndexOf('/');
+  const idx: number = path.lastIndexOf('/');
   return idx < 0 ? path : path.slice(idx + 1);
 }
 
 /** Get file extension (without dot) */
 export function getExtension(filename: string): string {
-  const idx = filename.lastIndexOf('.');
+  const idx: number = filename.lastIndexOf('.');
   return idx > 0 ? filename.slice(idx + 1) : '';
 }
 
@@ -104,7 +104,7 @@ export function rebasePath(path: string, oldBase: string, newBase: string): stri
   return newBase + path.slice(oldBase.length);
 }
 export function createDefaultTree(): RevfsNode {
-  const t = now();
+  const t: number = now();
   return {
     name: '/',
     type: 'directory',
@@ -123,7 +123,7 @@ export function createDefaultTree(): RevfsNode {
 // ============================================================================
 
 export function findNode(tree: RevfsNode, path: string): RevfsNode | null {
-  const target = normalizePath(path);
+  const target: string = normalizePath(path);
   if (tree.path === target) return tree;
   if (tree.children) {
     for (const child of tree.children) {
@@ -186,7 +186,7 @@ export function collectFiles(node: RevfsNode): RevfsNode[] {
 }
 
 export function calculateStorageUsage(tree: RevfsNode, scope: TreeScope): number {
-  let total = 0;
+  let total: number = 0;
 
   const traverse = (node: RevfsNode): void => {
     if (node.type === 'file' && node.fileMetadata) {

@@ -63,7 +63,7 @@ describe('RevfsService', () => {
       const sendCalls = intents.filter(i => i.type === 'send-revfs-op');
 
       expect(sendCalls).toHaveLength(1);
-      const sentOp = (sendCalls[0] as { type: 'send-revfs-op'; operation: RevfsOperation }).operation;
+      const sentOp: RevfsOperation = (sendCalls[0] as { type: 'send-revfs-op'; operation: RevfsOperation }).operation;
       expect(sentOp.op_type).toBe(RevfsOpType.Mkdir);
       expect(sentOp.path).toBe('/docs');
     });

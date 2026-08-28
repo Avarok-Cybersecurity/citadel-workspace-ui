@@ -57,7 +57,7 @@ export class CallQualityTracker {
 
   /** The transport reported lost frames from this peer. */
   recordGap(cid: bigint, now: number): void {
-    const state = this.peers.get(cid) ?? { gaps: [], lastFrameAt: now };
+    const state: PeerQualityState = this.peers.get(cid) ?? { gaps: [], lastFrameAt: now };
     state.gaps.push(now);
     this.peers.set(cid, state);
   }
@@ -78,7 +78,7 @@ export class CallQualityTracker {
    * connection it has no evidence for.
    */
   snapshot(now: number): Map<bigint, ConnectionQuality> {
-    const result = new Map<bigint, ConnectionQuality>();
+    const result: Map<bigint, ConnectionQuality> = new Map<bigint, ConnectionQuality>();
 
     for (const [cid, state] of this.peers) {
       // Pruned on read rather than on a timer: the window only matters when

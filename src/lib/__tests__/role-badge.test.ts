@@ -7,7 +7,7 @@ import { roleBadgeClass } from '../role-badge';
  * existed and only one was fixed, so these pin the rule rather than the strings.
  */
 describe('roleBadgeClass', () => {
-  const ROLES = ['owner', 'admin', 'member', 'guest'];
+  const ROLES: string[] = ['owner', 'admin', 'member', 'guest'];
 
   it.each(ROLES)('%s always carries an explicit text colour', (role) => {
     expect(roleBadgeClass(role)).toMatch(/\btext-[a-z-]+\b/);

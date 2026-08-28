@@ -28,8 +28,8 @@ export function determineSyncAction(
   remoteProof: YjsMerkleProof,
   myCid: string
 ): SyncDecision {
-  const localHash = localTree.getRootHash();
-  const remoteHash = remoteProof.rootHash;
+  const localHash: string = localTree.getRootHash();
+  const remoteHash: string = remoteProof.rootHash;
 
   // In sync - nothing to do
   if (localHash === remoteHash) {
@@ -42,7 +42,7 @@ export function determineSyncAction(
   }
 
   // Find diverged chunks
-  const diverged = localTree.findDivergedChunks(remoteProof);
+  const diverged: number[] = localTree.findDivergedChunks(remoteProof);
   const isCreator = localTree.isCreator(myCid);
 
   // Few chunks diverged - targeted sync

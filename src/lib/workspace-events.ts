@@ -154,8 +154,8 @@ export class WorkspaceEvents {
     this.listeners.get(event)?.push(unlistenFn);
     return () => {
       unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
+      const listeners: UnlistenFn[] = this.listeners.get(event) || [];
+      const index: number = listeners.indexOf(unlistenFn);
       if (index !== -1) {
         listeners.splice(index, 1);
       }
@@ -217,4 +217,4 @@ export class WorkspaceEvents {
 }
 
 // Export a singleton instance
-export const workspaceEvents = new WorkspaceEvents();
+export const workspaceEvents: WorkspaceEvents = new WorkspaceEvents();

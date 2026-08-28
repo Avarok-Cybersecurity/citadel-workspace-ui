@@ -30,13 +30,13 @@ function metadataBytes(theme: WorkspaceTheme): Uint8Array {
 
 describe('round trip', () => {
   it('survives serialization unchanged', () => {
-    const theme = defaultTheme();
+    const theme: WorkspaceTheme = defaultTheme();
 
     expect(deserializeTheme(metadataCarrying(theme))).toEqual(theme);
   });
 
   it('preserves a user theme, including its edits and derived flag', () => {
-    const edited = setToken(beginEdit(findPreset('nord')!), 'light', 'primary', { h: 12, s: 34, l: 56 });
+    const edited: WorkspaceTheme = setToken(beginEdit(findPreset('nord')!), 'light', 'primary', { h: 12, s: 34, l: 56 });
 
     const restored = deserializeTheme(metadataCarrying(edited));
 
@@ -96,7 +96,7 @@ describe('rejecting unusable metadata', () => {
   });
 
   it('refuses a version it does not understand rather than guessing', () => {
-    const future = new TextEncoder().encode(
+    const future: Uint8Array<ArrayBuffer> = new TextEncoder().encode(
       JSON.stringify({ initialized: true, theme: { v: 99, theme: defaultTheme() } }),
     );
 

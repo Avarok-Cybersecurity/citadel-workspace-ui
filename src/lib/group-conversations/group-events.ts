@@ -137,7 +137,7 @@ export function toGroupEvents(
 
   const invited = variant(message, 'GroupInviteNotification');
   if (invited) {
-    const inviterCid = BigInt((invited.peer_cid ?? 0) as string | number | bigint);
+    const inviterCid: bigint = BigInt((invited.peer_cid ?? 0) as string | number | bigint);
     return [{
       name: 'group:invite-received',
       payload: {
@@ -151,7 +151,7 @@ export function toGroupEvents(
 
   const memberChange = variant(message, 'GroupMemberStateChangeNotification');
   if (memberChange) {
-    const groupId = groupKeyToId(parseGroupKey(memberChange.group_key));
+    const groupId: string = groupKeyToId(parseGroupKey(memberChange.group_key));
     const state = (memberChange.state ?? {}) as Record<string, unknown>;
     return [
       ...memberCids(state, 'EnteredGroup').map((cid) => ({

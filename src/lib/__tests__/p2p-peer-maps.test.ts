@@ -15,8 +15,8 @@ function peer(cid: bigint, username: string): Peer {
 
 describe('updatePeerMaps', () => {
   it('marks peers present in the registered list, and only those', () => {
-    const all = new Map<bigint, Peer>();
-    const registered = new Map<bigint, Peer>();
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>();
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
     const allResponse: PeerInfoResponse[] = [
       { cid: 1n, username: 'alice' },
       { cid: 2n, username: 'bob' },
@@ -32,8 +32,8 @@ describe('updatePeerMaps', () => {
   it('preserves a real username when the backend sends a placeholder', () => {
     // The peer registry resolves usernames asynchronously, so a later poll can
     // come back with 'Unknown' for a peer whose name we already learned.
-    const all = new Map<bigint, Peer>([[1n, peer(1n, 'alice')]]);
-    const registered = new Map<bigint, Peer>();
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>([[1n, peer(1n, 'alice')]]);
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
 
     updatePeerMaps(all, registered, [{ cid: 1n, username: 'Unknown' }], []);
 
@@ -41,8 +41,8 @@ describe('updatePeerMaps', () => {
   });
 
   it('does not preserve a synthesized "User 1234" handle over a real name', () => {
-    const all = new Map<bigint, Peer>([[1n, peer(1n, 'User 12345678')]]);
-    const registered = new Map<bigint, Peer>();
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>([[1n, peer(1n, 'User 12345678')]]);
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
 
     updatePeerMaps(all, registered, [{ cid: 1n, username: 'alice' }], []);
 
@@ -50,8 +50,8 @@ describe('updatePeerMaps', () => {
   });
 
   it('drops peers that are gone from the backend response', () => {
-    const all = new Map<bigint, Peer>([[1n, peer(1n, 'alice')], [2n, peer(2n, 'bob')]]);
-    const registered = new Map<bigint, Peer>([[1n, peer(1n, 'alice')]]);
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>([[1n, peer(1n, 'alice')], [2n, peer(2n, 'bob')]]);
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>([[1n, peer(1n, 'alice')]]);
 
     updatePeerMaps(all, registered, [{ cid: 2n, username: 'bob' }], []);
 
@@ -60,8 +60,8 @@ describe('updatePeerMaps', () => {
   });
 
   it('ignores entries with no cid rather than keying them as undefined', () => {
-    const all = new Map<bigint, Peer>();
-    const registered = new Map<bigint, Peer>();
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>();
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
 
     updatePeerMaps(all, registered, [{ username: 'nameless' }, { cid: 1n, username: 'alice' }], []);
 
@@ -69,8 +69,8 @@ describe('updatePeerMaps', () => {
   });
 
   it('registers a peer that appears only in the registered list', () => {
-    const all = new Map<bigint, Peer>();
-    const registered = new Map<bigint, Peer>();
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>();
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
 
     updatePeerMaps(all, registered, [], [{ cid: 7n, username: 'carol', online_status: false }]);
 
@@ -78,8 +78,8 @@ describe('updatePeerMaps', () => {
   });
 
   it('defaults online_status to true when the backend omits it', () => {
-    const all = new Map<bigint, Peer>();
-    const registered = new Map<bigint, Peer>();
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>();
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
 
     updatePeerMaps(all, registered, [{ cid: 1n, username: 'alice' }], []);
 

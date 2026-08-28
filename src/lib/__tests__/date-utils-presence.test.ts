@@ -28,7 +28,7 @@ describe('formatPresence', () => {
   });
 
   it('reports a real timestamp as a relative time', () => {
-    const result = formatPresence(false, Date.now() - 60_000);
+    const result: string = formatPresence(false, Date.now() - 60_000);
     expect(result).toMatch(/^Last active /);
     expect(result).not.toBe('Last seen unknown');
   });

@@ -38,25 +38,25 @@ export function fromCssValue(value: string): HslColor | null {
 
 /** Parse `#rgb` / `#rrggbb`, which is what a colour input emits. */
 export function fromHex(hex: string): HslColor | null {
-  const cleaned = hex.trim().replace(/^#/, '');
-  const full =
+  const cleaned: string = hex.trim().replace(/^#/, '');
+  const full: string =
     cleaned.length === 3
       ? cleaned.split('').map((c) => c + c).join('')
       : cleaned;
   if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
 
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
+  const r: number = parseInt(full.slice(0, 2), 16) / 255;
+  const g: number = parseInt(full.slice(2, 4), 16) / 255;
+  const b: number = parseInt(full.slice(4, 6), 16) / 255;
 
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const d = max - min;
+  const max: number = Math.max(r, g, b);
+  const min: number = Math.min(r, g, b);
+  const l: number = (max + min) / 2;
+  const d: number = max - min;
 
   if (d === 0) return { h: 0, s: 0, l: l * 100 };
 
-  const s = d / (1 - Math.abs(2 * l - 1));
+  const s: number = d / (1 - Math.abs(2 * l - 1));
   let h: number;
   if (max === r) h = ((g - b) / d) % 6;
   else if (max === g) h = (b - r) / d + 2;
@@ -68,12 +68,12 @@ export function fromHex(hex: string): HslColor | null {
 /** `#rrggbb`, which is the only form `<input type="color">` accepts. */
 export function toHex(color: HslColor): string {
   const { h, s, l } = clampHsl(color);
-  const sN = s / 100;
-  const lN = l / 100;
+  const sN: number = s / 100;
+  const lN: number = l / 100;
 
-  const c = (1 - Math.abs(2 * lN - 1)) * sN;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = lN - c / 2;
+  const c: number = (1 - Math.abs(2 * lN - 1)) * sN;
+  const x: number = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m: number = lN - c / 2;
 
   const [r, g, b] =
     h < 60 ? [c, x, 0] :
@@ -95,9 +95,9 @@ export function toHex(color: HslColor): string {
  * unreadable.
  */
 export function relativeLuminance(color: HslColor): number {
-  const hex = toHex(color).slice(1);
+  const hex: string = toHex(color).slice(1);
   const channel = (i: number) => {
-    const v = parseInt(hex.slice(i * 2, i * 2 + 2), 16) / 255;
+    const v: number = parseInt(hex.slice(i * 2, i * 2 + 2), 16) / 255;
     return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   };
   return 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2);
@@ -105,10 +105,10 @@ export function relativeLuminance(color: HslColor): number {
 
 /** WCAG contrast ratio between two colours, 1..21. */
 export function contrastRatio(a: HslColor, b: HslColor): number {
-  const la = relativeLuminance(a);
-  const lb = relativeLuminance(b);
-  const lighter = Math.max(la, lb);
-  const darker = Math.min(la, lb);
+  const la: number = relativeLuminance(a);
+  const lb: number = relativeLuminance(b);
+  const lighter: number = Math.max(la, lb);
+  const darker: number = Math.min(la, lb);
   return (lighter + 0.05) / (darker + 0.05);
 }
 

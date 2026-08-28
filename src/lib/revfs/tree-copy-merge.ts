@@ -34,8 +34,8 @@ export function copyNode(
   destParentPath: string,
   newFileIdGenerator?: () => string,
 ): [RevfsNode, RevfsOperation] {
-  const normalizedSource = normalizePath(sourcePath);
-  const normalizedDest = normalizePath(destParentPath);
+  const normalizedSource: string = normalizePath(sourcePath);
+  const normalizedDest: string = normalizePath(destParentPath);
 
   if (normalizedSource === '/') {
     throw new Error('Cannot copy root directory');
@@ -44,7 +44,7 @@ export function copyNode(
     throw new Error(`Cannot copy protected directory: ${normalizedSource}`);
   }
 
-  const newTree = cloneTree(tree);
+  const newTree: RevfsNode = cloneTree(tree);
 
   const sourceNode = findNode(newTree, normalizedSource);
   if (!sourceNode) {
@@ -58,15 +58,15 @@ export function copyNode(
 
   if (!destParentNode.children) destParentNode.children = [];
 
-  const t = now();
-  let finalName = sourceNode.name;
+  const t: number = now();
+  let finalName: string = sourceNode.name;
 
-  const existingNames = new Set(destParentNode.children.map(c => c.name));
+  const existingNames: Set<string> = new Set(destParentNode.children.map(c => c.name));
   if (existingNames.has(finalName)) {
-    const ext = sourceNode.type === 'file' ? getExtension(finalName) : '';
-    const basePart = ext ? finalName.slice(0, -ext.length - 1) : finalName;
+    const ext: string = sourceNode.type === 'file' ? getExtension(finalName) : '';
+    const basePart: string = ext ? finalName.slice(0, -ext.length - 1) : finalName;
 
-    let suffix = 1;
+    let suffix: number = 1;
     do {
       finalName = suffix === 1
         ? (ext ? `${basePart} (copy).${ext}` : `${basePart} (copy)`)
@@ -75,7 +75,7 @@ export function copyNode(
     } while (existingNames.has(finalName) && suffix < 100);
   }
 
-  const newPath = normalizedDest === '/' ? `/${finalName}` : `${normalizedDest}/${finalName}`;
+  const newPath: string = normalizedDest === '/' ? `/${finalName}` : `${normalizedDest}/${finalName}`;
 
   const copyWithNewPaths = (node: RevfsNode, oldBasePath: string, newBasePath: string): RevfsNode => {
     const copy: RevfsNode = {
@@ -108,7 +108,7 @@ export function copyNode(
     return copy;
   };
 
-  const copiedNode = copyWithNewPaths(sourceNode, normalizedSource, newPath);
+  const copiedNode: RevfsNode = copyWithNewPaths(sourceNode, normalizedSource, newPath);
   destParentNode.children.push(copiedNode);
   destParentNode.updatedAt = t;
 
@@ -142,12 +142,12 @@ export function mergeTrees(local: RevfsNode, remote: RevfsNode): RevfsNode {
     return local.updatedAt >= remote.updatedAt ? cloneTree(local) : cloneTree(remote);
   }
 
-  const merged = cloneTree(local);
-  const remoteChildren = remote.children ?? [];
-  const localChildren = merged.children ?? [];
+  const merged: RevfsNode = cloneTree(local);
+  const remoteChildren: RevfsNode[] = remote.children ?? [];
+  const localChildren: RevfsNode[] = merged.children ?? [];
 
   for (const remoteChild of remoteChildren) {
-    const localIdx = localChildren.findIndex(c => c.path === remoteChild.path);
+    const localIdx: number = localChildren.findIndex(c => c.path === remoteChild.path);
     if (localIdx >= 0) {
       localChildren[localIdx] = mergeTrees(localChildren[localIdx], remoteChild);
     } else {

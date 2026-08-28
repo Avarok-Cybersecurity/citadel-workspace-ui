@@ -53,7 +53,7 @@ export async function sendGroupCreate(
   initialMembers: Array<{ cid: string; username: string; roleId?: string }>
 ): Promise<string> {
   const requestId = crypto.randomUUID();
-  const cid = await requireCid();
+  const cid: bigint = await requireCid();
   const request = {
     GroupCreate: {
       cid,
@@ -72,7 +72,7 @@ export async function sendGroupCreate(
 }
 
 export async function sendGroupInvite(groupId: string, peerCid: string): Promise<void> {
-  const cid = await requireCid();
+  const cid: bigint = await requireCid();
   const request = {
     GroupInvite: {
       cid,
@@ -99,7 +99,7 @@ export async function sendGroupRespond(
   inviterCid: string,
   accept: boolean
 ): Promise<void> {
-  const cid = await requireCid();
+  const cid: bigint = await requireCid();
   const request = {
     GroupRespondRequest: {
       cid,
@@ -114,7 +114,7 @@ export async function sendGroupRespond(
 }
 
 export async function sendGroupLeave(groupId: string): Promise<void> {
-  const cid = await requireCid();
+  const cid: bigint = await requireCid();
   const request = {
     GroupLeave: {
       cid,
@@ -126,7 +126,7 @@ export async function sendGroupLeave(groupId: string): Promise<void> {
 }
 
 export async function sendGroupKick(groupId: string, memberCid: string): Promise<void> {
-  const cid = await requireCid();
+  const cid: bigint = await requireCid();
   const request = {
     GroupKick: {
       cid,
@@ -139,7 +139,7 @@ export async function sendGroupKick(groupId: string, memberCid: string): Promise
 }
 
 export async function sendGroupListRequest(): Promise<void> {
-  const cid = await requireCid();
+  const cid: bigint = await requireCid();
   const request = {
     GroupListGroupsFor: {
       cid,
@@ -156,7 +156,7 @@ export async function sendGroupListRequest(): Promise<void> {
  * eventually did — it is here now, beside its five siblings.
  */
 export async function sendGroupEnd(groupId: string): Promise<void> {
-  const cid = await requireCid();
+  const cid: bigint = await requireCid();
   const request = {
     GroupEnd: {
       cid,

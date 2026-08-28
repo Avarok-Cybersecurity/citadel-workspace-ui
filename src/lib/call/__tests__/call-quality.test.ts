@@ -16,9 +16,9 @@ const BOB = 2n;
 const CAROL = 3n;
 
 function trackerWithGaps(count: number, at = 0): CallQualityTracker {
-  const tracker = new CallQualityTracker();
+  const tracker: CallQualityTracker = new CallQualityTracker();
   tracker.recordFrame(BOB, at);
-  for (let i = 0; i < count; i += 1) tracker.recordGap(BOB, at + i);
+  for (let i: number = 0; i < count; i += 1) tracker.recordGap(BOB, at + i);
   return tracker;
 }
 
@@ -26,13 +26,13 @@ describe('CallQualityTracker', () => {
   it('says nothing about a peer it has never heard from', () => {
     // Absent, not "good" — claiming a healthy connection with no evidence is
     // exactly the lie the old always-good default told.
-    const tracker = new CallQualityTracker();
+    const tracker: CallQualityTracker = new CallQualityTracker();
 
     expect(tracker.snapshot(0).has(BOB)).toBe(false);
   });
 
   it('reports a peer delivering frames as good', () => {
-    const tracker = new CallQualityTracker();
+    const tracker: CallQualityTracker = new CallQualityTracker();
     tracker.recordFrame(BOB, 0);
 
     expect(tracker.snapshot(100).get(BOB)).toBe('good');
@@ -53,20 +53,20 @@ describe('CallQualityTracker', () => {
   });
 
   it('recovers as gaps age out of the window', () => {
-    const tracker = trackerWithGaps(POOR_THRESHOLD);
+    const tracker: CallQualityTracker = trackerWithGaps(POOR_THRESHOLD);
 
     // The gaps were recorded across POOR_THRESHOLD successive ticks, so they do
     // not all age out at the same instant — the clock has to pass the window
     // measured from the LAST of them. Getting this wrong is how a recovery test
     // silently asserts a half-recovered state.
-    const afterAllGapsExpired = QUALITY_WINDOW_MS + POOR_THRESHOLD + 1;
+    const afterAllGapsExpired: number = QUALITY_WINDOW_MS + POOR_THRESHOLD + 1;
     tracker.recordFrame(BOB, afterAllGapsExpired);
 
     expect(tracker.snapshot(afterAllGapsExpired).get(BOB)).toBe('good');
   });
 
   it('reports silence as lost', () => {
-    const tracker = new CallQualityTracker();
+    const tracker: CallQualityTracker = new CallQualityTracker();
     tracker.recordFrame(BOB, 0);
 
     expect(tracker.snapshot(LOST_SILENCE_MS).get(BOB)).toBe('lost');
@@ -75,7 +75,7 @@ describe('CallQualityTracker', () => {
   it('does not call a muted, camera-off peer lost too quickly', () => {
     // Someone who turned everything off sends nothing and is still present, so
     // the silence threshold has to sit well beyond an ordinary gap.
-    const tracker = new CallQualityTracker();
+    const tracker: CallQualityTracker = new CallQualityTracker();
     tracker.recordFrame(BOB, 0);
 
     expect(tracker.snapshot(LOST_SILENCE_MS - 1).get(BOB)).not.toBe('lost');
@@ -84,10 +84,10 @@ describe('CallQualityTracker', () => {
 
   it('tracks each participant separately', () => {
     // One bad link in a group call must not paint everyone else as degraded.
-    const tracker = new CallQualityTracker();
+    const tracker: CallQualityTracker = new CallQualityTracker();
     tracker.recordFrame(BOB, 0);
     tracker.recordFrame(CAROL, 0);
-    for (let i = 0; i < POOR_THRESHOLD; i += 1) tracker.recordGap(CAROL, i);
+    for (let i: number = 0; i < POOR_THRESHOLD; i += 1) tracker.recordGap(CAROL, i);
 
     const snapshot = tracker.snapshot(500);
     expect(snapshot.get(BOB)).toBe('good');
@@ -95,7 +95,7 @@ describe('CallQualityTracker', () => {
   });
 
   it('forgets a participant who left', () => {
-    const tracker = trackerWithGaps(POOR_THRESHOLD);
+    const tracker: CallQualityTracker = trackerWithGaps(POOR_THRESHOLD);
     tracker.forget(BOB);
 
     expect(tracker.snapshot(500).has(BOB)).toBe(false);
@@ -103,8 +103,8 @@ describe('CallQualityTracker', () => {
 
   it('counts a gap from a peer never seen before', () => {
     // Gaps can arrive before the first decodable frame does.
-    const tracker = new CallQualityTracker();
-    for (let i = 0; i < POOR_THRESHOLD; i += 1) tracker.recordGap(BOB, i);
+    const tracker: CallQualityTracker = new CallQualityTracker();
+    for (let i: number = 0; i < POOR_THRESHOLD; i += 1) tracker.recordGap(BOB, i);
 
     expect(tracker.snapshot(500).get(BOB)).toBe('poor');
   });

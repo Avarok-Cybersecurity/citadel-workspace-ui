@@ -26,7 +26,7 @@ const names = (tree: RevfsNode | null | undefined) =>
 
 describe('getTree racing an applied op', () => {
   it('keeps a folder applied during the load instead of writing the default over it', async () => {
-    const key = peerPairKey(ALICE, BOB);
+    const key: string = peerPairKey(ALICE, BOB);
     // The handler needs the service's state, but runs only once getTree is
     // called — well after construction — so a ref filled in afterwards is
     // enough and avoids a forward reference.
@@ -43,14 +43,14 @@ describe('getTree racing an applied op', () => {
     );
     ref.state = getState(service);
 
-    const tree = await service.getTree(ALICE, BOB);
+    const tree: RevfsNode = await service.getTree(ALICE, BOB);
 
     expect(names(tree)).toContain('test-folder');
     expect(names(getState(service).getTree(key))).toContain('test-folder');
   });
 
   it('applies the same protection to server-scoped trees', async () => {
-    const key = serverTreeKey(ALICE);
+    const key: string = serverTreeKey(ALICE);
     const ref: { state?: RevfsState } = {};
     const service = createTestService(
       defaultIntentHandler({
@@ -62,7 +62,7 @@ describe('getTree racing an applied op', () => {
     );
     ref.state = getState(service);
 
-    const tree = await service.getServerTree(ALICE);
+    const tree: RevfsNode = await service.getServerTree(ALICE);
 
     expect(names(tree)).toContain('test-folder');
   });
@@ -77,7 +77,7 @@ describe('getTree racing an applied op', () => {
       }),
     );
 
-    const tree = await service.getTree(ALICE, BOB);
+    const tree: RevfsNode = await service.getTree(ALICE, BOB);
 
     expect(names(tree)).toContain('test-folder');
   });

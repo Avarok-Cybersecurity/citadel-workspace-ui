@@ -71,7 +71,7 @@ describe('clearing it', () => {
   it('removes every peer key, not just the first', () => {
     // Iterating localStorage while deleting from it shifts the indices, which
     // is the classic way half a list survives a clear.
-    for (let i = 0; i < 20; i += 1) localStorage.setItem(`peer-first-seen:${i}`, '1');
+    for (let i: number = 0; i < 20; i += 1) localStorage.setItem(`peer-first-seen:${i}`, '1');
     clearSignOutResidue();
     expect(localStorage.length).toBe(0);
   });

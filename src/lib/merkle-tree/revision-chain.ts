@@ -65,10 +65,10 @@ export class RevisionChain {
    * Find common ancestor revision with remote chain
    */
   findCommonAncestor(remoteEntries: RevisionEntry[]): RevisionEntry | undefined {
-    const remoteHashes = new Set(remoteEntries.map(e => e.rootHash));
+    const remoteHashes: Set<string> = new Set(remoteEntries.map(e => e.rootHash));
 
     // Search from most recent
-    for (let i = this.entries.length - 1; i >= 0; i--) {
+    for (let i: number = this.entries.length - 1; i >= 0; i--) {
       if (remoteHashes.has(this.entries[i].rootHash)) {
         return this.entries[i];
       }
@@ -102,7 +102,7 @@ export class RevisionChain {
    * Verify chain integrity
    */
   verifyIntegrity(): boolean {
-    for (let i = 1; i < this.entries.length; i++) {
+    for (let i: number = 1; i < this.entries.length; i++) {
       if (this.entries[i].prevHash !== this.entries[i - 1].rootHash) {
         return false;
       }

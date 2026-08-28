@@ -64,7 +64,7 @@ export function residueKeys(existing: readonly string[]): string[] {
 export function clearSignOutResidue(): void {
   try {
     const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i += 1) {
+    for (let i: number = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
       if (key !== null) keys.push(key);
     }

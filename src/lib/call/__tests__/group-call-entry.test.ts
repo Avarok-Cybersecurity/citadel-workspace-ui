@@ -98,7 +98,7 @@ describe('groupCallEntryMode — join in progress', () => {
   });
 
   it('counts only participants still in the call', () => {
-    const participants = new Map<bigint, CallParticipant>([
+    const participants: Map<bigint, CallParticipant> = new Map<bigint, CallParticipant>([
       [2n, participant(2n)],
       [3n, participant(3n, { status: 'left' })],
       [4n, participant(4n, { status: 'declined' })],
@@ -111,9 +111,9 @@ describe('groupCallEntryMode — join in progress', () => {
   });
 
   it('closes video join once the call reaches the video cap', () => {
-    const participants = new Map<bigint, CallParticipant>();
-    for (let i = 0; i < MAX_VIDEO_PARTICIPANTS; i++) {
-      const cid = BigInt(i + 2);
+    const participants: Map<bigint, CallParticipant> = new Map<bigint, CallParticipant>();
+    for (let i: number = 0; i < MAX_VIDEO_PARTICIPANTS; i++) {
+      const cid: bigint = BigInt(i + 2);
       participants.set(cid, participant(cid));
     }
     const mode = groupCallEntryMode(call({ status: 'ringing-in', participants }), ROOM, 4);

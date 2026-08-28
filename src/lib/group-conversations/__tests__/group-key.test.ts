@@ -12,7 +12,7 @@ describe('group key encoding', () => {
     // mgid is u128 on the backend; going through a JS number would silently
     // corrupt it, which is why both halves stay bigint.
     const mgid = 340282366920938463463374607431768211455n;
-    const id = groupKeyToId({ cid: 1n, mgid });
+    const id: string = groupKeyToId({ cid: 1n, mgid });
 
     expect(groupIdToKey(id).mgid).toBe(mgid);
   });

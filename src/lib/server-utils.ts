@@ -65,7 +65,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
                   const value = kvMap[key];
                   if (Array.isArray(value)) {
                     // If it's a byte array, convert to string
-                    const jsonStr = bytesToString(value);
+                    const jsonStr: string = bytesToString(value);
                     const parsed = JSON.parse(jsonStr);
                     if (Array.isArray(parsed)) {
                       servers.push(...parsed);
@@ -136,7 +136,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
     const { servers } = await listKnownServers({ cid });
     
     // Add or update the server
-    const existingIndex = servers.findIndex(s => s.serverAddress === server.serverAddress);
+    const existingIndex: number = servers.findIndex(s => s.serverAddress === server.serverAddress);
     if (existingIndex >= 0) {
       servers[existingIndex] = { ...servers[existingIndex], ...server };
     } else {
@@ -173,8 +173,8 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       eventEmitter.on('websocket-message', handler);
 
       // Convert servers array to JSON bytes
-      const jsonStr = JSON.stringify({ servers });
-      const bytes = stringToBytes(jsonStr);
+      const jsonStr: string = JSON.stringify({ servers });
+      const bytes: number[] = stringToBytes(jsonStr);
 
       // Send the request
       const request = {

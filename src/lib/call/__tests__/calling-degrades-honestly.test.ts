@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const g = globalThis as unknown as Record<string, unknown>;
 const saved: Record<string, unknown> = {};
-const KEYS = [
+const KEYS: string[] = [
   'AudioEncoder', 'AudioDecoder', 'VideoEncoder', 'VideoDecoder',
   'MediaStreamTrackProcessor', 'MediaStreamTrackGenerator',
 ];

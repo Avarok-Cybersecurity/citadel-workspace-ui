@@ -11,7 +11,7 @@ import type { RevfsOperation, RevfsFileMetadata } from '@/types/revfs-types';
 import { peerPairKey } from '../tree-operations';
 import { ALICE, BOB, createTestService, defaultIntentHandler, getExecuteCalls } from './revfs-service-test-helpers';
 
-const KEY = peerPairKey(ALICE, BOB);
+const KEY: string = peerPairKey(ALICE, BOB);
 
 // ── Tests ───────────────────────────────────────────────────────────────
 
@@ -31,27 +31,27 @@ describe('RevfsService (events & sync)', () => {
 
       const sendCalls = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
       const ackCall = sendCalls.find(i => {
-        const sentOp = (i as { operation: RevfsOperation }).operation;
+        const sentOp: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return sentOp.op_type === RevfsOpType.Ack;
       });
       expect(ackCall).toBeDefined();
-      const ackOp = (ackCall as { operation: RevfsOperation }).operation;
+      const ackOp: RevfsOperation = (ackCall as { operation: RevfsOperation }).operation;
       expect(ackOp.ack_op_id).toBe('test-op-1');
       expect(ackOp.success).toBe(true);
     });
 
     it('resolves pending ACK when ACK received', async () => {
       const service = createTestService(defaultIntentHandler(), { autoAck: false });
-      const mkdirPromise = service.mkdir(ALICE, BOB, '/docs');
+      const mkdirPromise: Promise<void> = service.mkdir(ALICE, BOB, '/docs');
 
       await new Promise(r => setTimeout(r, 10));
       const sendCalls = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
       const mkdirSend = sendCalls.find(i => {
-        const op = (i as { operation: RevfsOperation }).operation;
+        const op: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return op.op_type === RevfsOpType.Mkdir;
       });
       expect(mkdirSend).toBeDefined();
-      const sentOpId = (mkdirSend as { operation: RevfsOperation }).operation.op_id;
+      const sentOpId: string = (mkdirSend as { operation: RevfsOperation }).operation.op_id;
 
       const ackOp: RevfsOperation = {
         op_id: 'ack-1', op_type: RevfsOpType.Ack, path: '/docs',
@@ -73,11 +73,11 @@ describe('RevfsService (events & sync)', () => {
 
       const sendCalls = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
       const syncResp = sendCalls.find(i => {
-        const op = (i as { operation: RevfsOperation }).operation;
+        const op: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return op.op_type === RevfsOpType.SyncResponse;
       });
       expect(syncResp).toBeDefined();
-      const respOp = (syncResp as { operation: RevfsOperation }).operation;
+      const respOp: RevfsOperation = (syncResp as { operation: RevfsOperation }).operation;
       expect(respOp.tree).toBeDefined();
       expect(respOp.tree!.children!.length).toBeGreaterThanOrEqual(2);
     });
@@ -180,7 +180,7 @@ describe('RevfsService (events & sync)', () => {
       const intents = getExecuteCalls(service);
       const syncCalls = intents.filter(i => {
         if (i.type !== 'send-revfs-op') return false;
-        const op = (i as { operation: RevfsOperation }).operation;
+        const op: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return op.op_type === RevfsOpType.SyncRequest;
       });
       expect(syncCalls).toHaveLength(1);
@@ -201,7 +201,7 @@ describe('RevfsService (events & sync)', () => {
       const changes: string[] = [];
       const unsub = service.onTreeChanged((key) => { changes.push(key); });
       await service.getTree(ALICE, BOB);
-      const countBefore = changes.length;
+      const countBefore: number = changes.length;
       unsub();
       await service.mkdir(ALICE, BOB, '/docs');
       expect(changes.length).toBe(countBefore);

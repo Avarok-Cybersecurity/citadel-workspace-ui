@@ -121,7 +121,7 @@ export function applyReport(state: CongestionState, verdict: LinkVerdict): Conge
     return { ...state, cleanStreak: 0 };
   }
 
-  const cleanStreak = state.cleanStreak + 1;
+  const cleanStreak: number = state.cleanStreak + 1;
   if (cleanStreak >= RECOVERY_STREAK && state.rung > 0) {
     return { rung: state.rung - 1, cleanStreak: 0 };
   }

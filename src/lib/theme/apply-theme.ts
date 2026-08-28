@@ -39,7 +39,7 @@ export function applyTheme(
 ): void {
   if (!target) return;
 
-  const palette = mode === 'dark' ? theme.dark : theme.light;
+  const palette: ThemePalette = mode === 'dark' ? theme.dark : theme.light;
   for (const [name, value] of Object.entries(paletteToCssVars(palette))) {
     target.style.setProperty(name, value);
   }

@@ -36,7 +36,7 @@ export function broadcastWorkspaceResponse(
     return;
   }
 
-  const responseType = Object.keys(response)[0];
+  const responseType: string = Object.keys(response)[0];
   debugLog('BroadcastChannelService', `Broadcasting ${responseType} as workspace-response`);
 
   const responseRecord = response as Record<string, Record<string, unknown>>;
@@ -132,8 +132,8 @@ export function broadcastP2PNotification(
     return;
   }
 
-  const notificationCid = data.notification?.cid?.toString();
-  const peerCid = data.notification?.peer_cid?.toString();
+  const notificationCid: string = data.notification?.cid?.toString();
+  const peerCid: string = data.notification?.peer_cid?.toString();
 
   debugLog('BroadcastChannelService', '[BroadcastChannel] Broadcasting P2P notification to followers:', {
     notificationCid: notificationCid?.slice(0, 12),

@@ -44,7 +44,7 @@ function incoming(others: Array<{ cid: bigint; username: string }> = [], roomId:
 
 describe('placing a call', () => {
   it('starts ringing out with every invitee pending', () => {
-    const state = outgoing([BOB, CAROL]);
+    const state: CallState = outgoing([BOB, CAROL]);
 
     expect(state.status).toBe('ringing-out');
     expect(state.outgoing).toBe(true);
@@ -52,7 +52,7 @@ describe('placing a call', () => {
   });
 
   it('goes active once a peer connects', () => {
-    let state = outgoing();
+    let state: CallState = outgoing();
     state = reduce(state, { type: 'peer-accepted', cid: BOB.cid, media: VIDEO })!;
     expect(state.status).toBe('connecting');
 
@@ -61,7 +61,7 @@ describe('placing a call', () => {
   });
 
   it('ends when the only invitee declines', () => {
-    let state = outgoing();
+    let state: CallState = outgoing();
     state = reduce(state, { type: 'peer-declined', cid: BOB.cid, reason: 'busy' })!;
 
     expect(state.status).toBe('ended');
@@ -71,7 +71,7 @@ describe('placing a call', () => {
 
 describe('receiving a call', () => {
   it('rings in, and accepting moves to connecting', () => {
-    let state = incoming();
+    let state: CallState = incoming();
     expect(state.status).toBe('ringing-in');
     expect(state.outgoing).toBe(false);
 
@@ -83,11 +83,11 @@ describe('receiving a call', () => {
 
   it('ignores a duplicate invite for a call already in progress', () => {
     // Retransmits happen. Adopting one would reset a live call to ringing.
-    let state = incoming();
+    let state: CallState = incoming();
     state = reduce(state, { type: 'accepted-locally', media: VIDEO })!;
     state = reduce(state, { type: 'peer-connected', cid: ALICE.cid })!;
 
-    const after = reduce(state, {
+    const after: CallState = reduce(state, {
       type: 'invite-received',
       callId: 'call-2',
       roomId: null,
@@ -100,7 +100,7 @@ describe('receiving a call', () => {
   });
 
   it('cannot be accepted once it has ended', () => {
-    let state = incoming();
+    let state: CallState = incoming();
     state = reduce(state, { type: 'ended', reason: 'timeout' })!;
     state = reduce(state, { type: 'accepted-locally', media: VIDEO })!;
 
@@ -114,7 +114,7 @@ describe('receiving a group call', () => {
   it('seeds the caller first and every co-invitee, so all invitees hold the same roster', () => {
     // Without the co-invitees, two invitees in one group call would never
     // exchange a signal or a frame — each would know only the caller.
-    const state = incoming([CAROL], 'room-1');
+    const state: CallState = incoming([CAROL], 'room-1');
 
     expect([...state.participants.keys()]).toEqual([ALICE.cid, CAROL.cid]);
     // The caller is already in the call they dialled; the co-invitee has not
@@ -124,7 +124,7 @@ describe('receiving a group call', () => {
   });
 
   it('records a co-invitee accepting while we are still ringing', () => {
-    let state = incoming([CAROL], 'room-1');
+    let state: CallState = incoming([CAROL], 'room-1');
     state = reduce(state, { type: 'peer-accepted', cid: CAROL.cid, media: VIDEO })!;
 
     expect(state.participants.get(CAROL.cid)?.status).toBe('connecting');
@@ -133,7 +133,7 @@ describe('receiving a group call', () => {
   });
 
   it('does not duplicate the caller when the roster names them too', () => {
-    const state = incoming([ALICE, CAROL], 'room-1');
+    const state: CallState = incoming([ALICE, CAROL], 'room-1');
 
     expect(state.participants.size).toBe(2);
     expect(state.participants.get(ALICE.cid)?.status).toBe('connecting');
@@ -143,14 +143,14 @@ describe('receiving a group call', () => {
     // Without this, "everyone gone" can never come true for a ringing invitee
     // — the seeded co-invitees never answered — and the phone rings forever
     // for a call that no longer exists.
-    let state = incoming([CAROL], 'room-1');
+    let state: CallState = incoming([CAROL], 'room-1');
     state = reduce(state, { type: 'peer-left', cid: ALICE.cid })!;
 
     expect(state.status).toBe('ended');
   });
 
   it('keeps ringing when a co-invitee bows out before we answer', () => {
-    let state = incoming([CAROL], 'room-1');
+    let state: CallState = incoming([CAROL], 'room-1');
     state = reduce(state, { type: 'peer-left', cid: CAROL.cid })!;
 
     expect(state.status).toBe('ringing-in');
@@ -161,7 +161,7 @@ describe('group calls', () => {
   it('carries on when one participant declines', () => {
     // The bug worth guarding: treating any decline as "the call is over" hangs
     // up on everyone else in the room.
-    let state = outgoing([BOB, CAROL], 'room-1');
+    let state: CallState = outgoing([BOB, CAROL], 'room-1');
     state = reduce(state, { type: 'peer-accepted', cid: BOB.cid, media: VIDEO })!;
     state = reduce(state, { type: 'peer-connected', cid: BOB.cid })!;
     state = reduce(state, { type: 'peer-declined', cid: CAROL.cid, reason: 'busy' })!;
@@ -171,7 +171,7 @@ describe('group calls', () => {
   });
 
   it('stays active while at least one participant remains', () => {
-    let state = outgoing([BOB, CAROL], 'room-1');
+    let state: CallState = outgoing([BOB, CAROL], 'room-1');
     state = reduce(state, { type: 'peer-connected', cid: BOB.cid })!;
     state = reduce(state, { type: 'peer-connected', cid: CAROL.cid })!;
     state = reduce(state, { type: 'peer-left', cid: CAROL.cid })!;
@@ -180,7 +180,7 @@ describe('group calls', () => {
   });
 
   it('ends once the last participant leaves', () => {
-    let state = outgoing([BOB, CAROL], 'room-1');
+    let state: CallState = outgoing([BOB, CAROL], 'room-1');
     state = reduce(state, { type: 'peer-connected', cid: BOB.cid })!;
     state = reduce(state, { type: 'peer-connected', cid: CAROL.cid })!;
     state = reduce(state, { type: 'peer-left', cid: BOB.cid })!;
@@ -190,7 +190,7 @@ describe('group calls', () => {
   });
 
   it('ends when everyone declines', () => {
-    let state = outgoing([BOB, CAROL], 'room-1');
+    let state: CallState = outgoing([BOB, CAROL], 'room-1');
     state = reduce(state, { type: 'peer-declined', cid: BOB.cid, reason: 'busy' })!;
     expect(state.status).toBe('ringing-out');
 
@@ -203,7 +203,7 @@ describe('group calls', () => {
       cid: BigInt(i + 10),
       username: `user${i}`,
     }));
-    const state = outgoing(many, 'room-1');
+    const state: CallState = outgoing(many, 'room-1');
 
     expect(canAddParticipant(state, true)).toBe(false);
     // Audio-only is far cheaper, so the same room still has headroom.
@@ -215,7 +215,7 @@ describe('group calls', () => {
       cid: BigInt(i + 10),
       username: `user${i}`,
     }));
-    let state = outgoing(many, 'room-1');
+    let state: CallState = outgoing(many, 'room-1');
     state = reduce(state, { type: 'peer-left', cid: 10n })!;
 
     expect(canAddParticipant(state, true)).toBe(true);
@@ -224,7 +224,7 @@ describe('group calls', () => {
 
 describe('in-call state', () => {
   it('tracks a peer muting without dropping them', () => {
-    let state = outgoing();
+    let state: CallState = outgoing();
     state = reduce(state, { type: 'peer-connected', cid: BOB.cid })!;
     state = reduce(state, {
       type: 'peer-media-changed',
@@ -240,8 +240,8 @@ describe('in-call state', () => {
   });
 
   it('ignores events for a participant who is not in the call', () => {
-    const state = outgoing();
-    const after = reduce(state, { type: 'peer-connected', cid: 999n })!;
+    const state: CallState = outgoing();
+    const after: CallState = reduce(state, { type: 'peer-connected', cid: 999n })!;
 
     expect(after.participants.has(999n)).toBe(false);
   });
@@ -251,7 +251,7 @@ describe('terminal states', () => {
   it('does not let a late end overwrite a failure', () => {
     // Both arrive when a call dies badly. The failure is what the user needs to
     // see; "hung up" would hide it.
-    let state = outgoing();
+    let state: CallState = outgoing();
     state = reduce(state, { type: 'failed', reason: 'no UDP channel' })!;
     state = reduce(state, { type: 'ended', reason: 'hangup' })!;
 
@@ -260,7 +260,7 @@ describe('terminal states', () => {
   });
 
   it('does not let a late failure overwrite a clean end', () => {
-    let state = outgoing();
+    let state: CallState = outgoing();
     state = reduce(state, { type: 'ended', reason: 'hangup' })!;
     state = reduce(state, { type: 'failed', reason: 'transport closed' })!;
 

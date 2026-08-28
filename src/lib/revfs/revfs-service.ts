@@ -78,11 +78,11 @@ export class RevfsService {
   // ── Tree Access ───────────────────────────────────────────────────────
 
   async getTree(myCid: bigint, peerCid: bigint): Promise<RevfsNode> {
-    const key = peerPairKey(myCid, peerCid);
+    const key: string = peerPairKey(myCid, peerCid);
     const cached = this.state.getTree(key);
     if (cached) return cached;
 
-    const io = this.ensureIO();
+    const io: RevfsIO = this.ensureIO();
     const result = await io.execute({ type: 'load-tree', treeKey: key });
     // Re-checked AFTER the await, before either branch below.
     //
@@ -106,18 +106,18 @@ export class RevfsService {
       return result.tree;
     }
 
-    const defaultTree = createDefaultTree();
+    const defaultTree: RevfsNode = createDefaultTree();
     this.state.setTree(key, defaultTree);
     await persistTree(io, key, defaultTree);
     return defaultTree;
   }
 
   async getServerTree(myCid: bigint): Promise<RevfsNode> {
-    const key = serverTreeKey(myCid);
+    const key: string = serverTreeKey(myCid);
     const cached = this.state.getTree(key);
     if (cached) return cached;
 
-    const io = this.ensureIO();
+    const io: RevfsIO = this.ensureIO();
     const result = await io.execute({ type: 'load-tree', treeKey: key });
     // Same race as getTree above; server-scoped ops write through setTree too.
     const appliedDuringLoad = this.state.getTree(key);
@@ -128,7 +128,7 @@ export class RevfsService {
       return result.tree;
     }
 
-    const defaultTree = createDefaultTree();
+    const defaultTree: RevfsNode = createDefaultTree();
     this.state.setTree(key, defaultTree);
     await persistTree(io, key, defaultTree);
     return defaultTree;
@@ -165,7 +165,7 @@ export class RevfsService {
 
   async handleRevfsOperation(senderCid: bigint, myCid: bigint, op: RevfsOperation): Promise<void> {
     debugLog('RevfsService', `[revfs] handleRevfsOperation: sender=${senderCid} myCid=${myCid} op=${op.op_type} path=${op.path}`);
-    const key = peerPairKey(myCid, senderCid);
+    const key: string = peerPairKey(myCid, senderCid);
 
     if (op.op_type === RevfsOpType.Ack && op.ack_op_id) {
       this.state.resolveAck(op.ack_op_id, op.success ?? true);
@@ -173,26 +173,26 @@ export class RevfsService {
     }
 
     if (op.op_type === RevfsOpType.SyncRequest) {
-      const tree = await this.getTree(myCid, senderCid);
+      const tree: RevfsNode = await this.getTree(myCid, senderCid);
       const syncResponse: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.SyncResponse, path: '/', tree, timestamp: Date.now() };
       await this.sendOp(senderCid, syncResponse);
       return;
     }
 
     if (op.op_type === RevfsOpType.SyncResponse && op.tree) {
-      const currentTree = await this.getTree(myCid, senderCid);
-      const merged = mergeTrees(currentTree, applyRemoteOp(currentTree, op, myCid));
+      const currentTree: RevfsNode = await this.getTree(myCid, senderCid);
+      const merged: RevfsNode = mergeTrees(currentTree, applyRemoteOp(currentTree, op, myCid));
       this.state.setTree(key, merged);
-      const io = this.ensureIO();
+      const io: RevfsIO = this.ensureIO();
       await persistTree(io, key, merged);
       return;
     }
 
-    const tree = await this.getTree(myCid, senderCid);
-    const newTree = applyRemoteOp(tree, op, myCid);
+    const tree: RevfsNode = await this.getTree(myCid, senderCid);
+    const newTree: RevfsNode = applyRemoteOp(tree, op, myCid);
     debugLog('RevfsService', `[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
     this.state.setTree(key, newTree);
-    const io = this.ensureIO();
+    const io: RevfsIO = this.ensureIO();
     await persistTree(io, key, newTree);
 
     const ackOp: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack, path: op.path, ack_op_id: op.op_id, success: true, timestamp: Date.now() };
@@ -225,7 +225,7 @@ export class RevfsService {
   }
 
   private async sendOp(peerCid: bigint, operation: RevfsOperation): Promise<boolean> {
-    const io = this.ensureIO();
+    const io: RevfsIO = this.ensureIO();
     const result = await io.execute({ type: 'send-revfs-op', peerCid, operation });
     return result.type === 'send-revfs-op' && result.success;
   }
@@ -241,4 +241,4 @@ export class RevfsService {
 }
 
 // Singleton
-export const revfsService = new RevfsService();
+export const revfsService: RevfsService = new RevfsService();

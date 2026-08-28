@@ -12,7 +12,7 @@ async function loadWithProdEnv() {
 }
 
 describe('isDiagnosticsUiEnabled', () => {
-  const originalSearch = window.location.search;
+  const originalSearch: string = window.location.search;
 
   beforeEach(() => {
     window.localStorage.clear();

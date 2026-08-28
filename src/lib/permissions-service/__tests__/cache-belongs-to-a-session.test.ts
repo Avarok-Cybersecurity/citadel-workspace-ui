@@ -17,13 +17,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const source = stripComments(
+const source: string = stripComments(
   readFileSync(join(process.cwd(), 'src/lib/permissions-service/service.ts'), 'utf-8'),
 );
 
 // The wait moved to its own module when service.ts crossed the line cap; the
 // lifetime is its whole substance, so that is where these two assertions look.
-const awaited = stripComments(
+const awaited: string = stripComments(
   readFileSync(
     join(process.cwd(), 'src/lib/permissions-service/await-permissions-loaded.ts'),
     'utf-8',
@@ -34,8 +34,8 @@ describe('the permissions cache', () => {
   it('is dropped when the session changes', () => {
     // Structural, because the alternative is standing up a singleton, a
     // workspace service and two sessions to observe one Map being emptied.
-    const listener = source.slice(source.indexOf("'instance:cid-changed'"));
-    const body = listener.slice(0, listener.indexOf('});'));
+    const listener: string = source.slice(source.indexOf("'instance:cid-changed'"));
+    const body: string = listener.slice(0, listener.indexOf('});'));
 
     expect(
       source,
@@ -46,8 +46,8 @@ describe('the permissions cache', () => {
   });
 
   it('removes its listener when a fetch times out, not only when it succeeds', () => {
-    const timeout = awaited.slice(awaited.indexOf('const timeout = setTimeout'));
-    const body = timeout.slice(0, timeout.indexOf('}, TIMEOUT.PERMISSION_FETCH_MS)'));
+    const timeout: string = awaited.slice(awaited.indexOf('const timeout = setTimeout'));
+    const body: string = timeout.slice(0, timeout.indexOf('}, TIMEOUT.PERMISSION_FETCH_MS)'));
 
     expect(
       body,

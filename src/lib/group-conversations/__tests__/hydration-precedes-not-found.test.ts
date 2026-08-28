@@ -36,7 +36,7 @@ describe('areGroupsHydrated', () => {
   it('is false before the restore resolves, even with an empty store', async () => {
     const store = await freshStore();
 
-    const restoring = store.restorePersistedGroups();
+    const restoring: Promise<void> = store.restorePersistedGroups();
 
     expect(store.getGroups()).toEqual([]);
     // The whole point: an empty list here means "not answered yet", and a
@@ -51,7 +51,7 @@ describe('areGroupsHydrated', () => {
     const store = await freshStore();
     h.stored = [];
 
-    const restoring = store.restorePersistedGroups();
+    const restoring: Promise<void> = store.restorePersistedGroups();
     h.resolveLoad();
     await restoring;
 
@@ -65,7 +65,7 @@ describe('areGroupsHydrated', () => {
     const store = await freshStore();
     h.stored = [{ id: 'g1', name: 'Engineering', members: [], unreadCount: 0 }];
 
-    const restoring = store.restorePersistedGroups();
+    const restoring: Promise<void> = store.restorePersistedGroups();
     h.resolveLoad();
     await restoring;
 
@@ -78,7 +78,7 @@ describe('areGroupsHydrated', () => {
     const seen: boolean[] = [];
     store.subscribeToGroups(() => seen.push(store.areGroupsHydrated()));
 
-    const restoring = store.restorePersistedGroups();
+    const restoring: Promise<void> = store.restorePersistedGroups();
     h.resolveLoad();
     await restoring;
 

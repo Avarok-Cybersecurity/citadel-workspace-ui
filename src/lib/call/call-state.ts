@@ -107,7 +107,7 @@ export function glareWinner(ourCallId: string, theirCallId: string): 'ours' | 't
 
 /** Whether another participant can join without overloading the mesh. */
 export function canAddParticipant(state: CallState, withVideo: boolean): boolean {
-  const active = [...state.participants.values()].filter(
+  const active: number = [...state.participants.values()].filter(
     (p) => p.status !== 'left' && p.status !== 'declined',
   ).length;
   return active < (withVideo ? MAX_VIDEO_PARTICIPANTS : MAX_AUDIO_PARTICIPANTS);

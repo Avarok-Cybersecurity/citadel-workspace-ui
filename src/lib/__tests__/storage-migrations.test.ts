@@ -15,7 +15,7 @@ import {
  */
 
 function fakeDb(existingStores: string[] = []) {
-  const stores = new Set(existingStores);
+  const stores: Set<string> = new Set(existingStores);
   return {
     objectStoreNames: {
       contains: (n: string) => stores.has(n),
@@ -32,15 +32,15 @@ describe('migration list integrity', () => {
     // The failure this catches: bumping DB_VERSION without adding a step, which
     // opens the database at a new version, runs nothing, and leaves new code
     // reading old-shaped data.
-    const versions = MIGRATIONS.map(m => m.version);
+    const versions: number[] = MIGRATIONS.map(m => m.version);
     expect(Math.max(...versions)).toBe(DB_VERSION);
-    for (let v = 1; v <= DB_VERSION; v++) {
+    for (let v: number = 1; v <= DB_VERSION; v++) {
       expect(versions).toContain(v);
     }
   });
 
   it('numbers migrations uniquely and consecutively from 1', () => {
-    const versions = MIGRATIONS.map(m => m.version).sort((a, b) => a - b);
+    const versions: number[] = MIGRATIONS.map(m => m.version).sort((a, b) => a - b);
     expect(new Set(versions).size).toBe(versions.length);
     expect(versions).toEqual(versions.map((_, i) => i + 1));
   });

@@ -160,7 +160,7 @@ class SessionStartupService {
 
     // Check grace period after reconnection
     if (this.lastReconnectionCompletedAt > 0) {
-      const elapsed = Date.now() - this.lastReconnectionCompletedAt;
+      const elapsed: number = Date.now() - this.lastReconnectionCompletedAt;
       if (elapsed < SessionStartupService.RECONNECTION_GRACE_PERIOD_MS) {
         debugLog('SessionStartupService', `[SessionStartup] Within reconnection grace period (${elapsed}ms of ${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
         return true;
@@ -172,4 +172,4 @@ class SessionStartupService {
 }
 
 // Export singleton instance - instantiation sets up event listeners
-export const sessionStartupService = SessionStartupService.getInstance();
+export const sessionStartupService: SessionStartupService = SessionStartupService.getInstance();

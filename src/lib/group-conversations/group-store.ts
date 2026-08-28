@@ -50,7 +50,7 @@ export function subscribeToGroups(listener: () => void): () => void {
 export function updateGroups(
   updater: (prev: GroupConversation[]) => GroupConversation[],
 ): void {
-  const next = updater(groups);
+  const next: GroupConversation[] = updater(groups);
   if (next === groups) return;
   groups = next;
   for (const listener of listeners) listener();
@@ -72,11 +72,11 @@ export function updateGroups(
  */
 export async function restorePersistedGroups(): Promise<void> {
   try {
-    const stored = await loadPersistedGroups();
+    const stored: GroupConversation[] = await loadPersistedGroups();
     if (stored.length > 0) {
       updateGroups((prev) => {
-        const known = new Set(prev.map((g) => g.id));
-        const missing = stored.filter((g) => !known.has(g.id));
+        const known: Set<string> = new Set(prev.map((g) => g.id));
+        const missing: GroupConversation[] = stored.filter((g) => !known.has(g.id));
         return missing.length === 0 ? prev : [...prev, ...missing];
       });
     }
@@ -198,7 +198,7 @@ export function startGroupEventBindings(): void {
     roleId?: string;
   }) => {
     debugLog('GroupStore', 'Member joined:', data);
-    const memberCid = BigInt(data.memberCid);
+    const memberCid: bigint = BigInt(data.memberCid);
     updateGroups(prev =>
       prev.map(group => {
         if (group.id !== data.groupId) return group;
@@ -217,7 +217,7 @@ export function startGroupEventBindings(): void {
 
   const handleMemberLeft = (data: { groupId: string; memberCid: string }) => {
     debugLog('GroupStore', 'Member left:', data);
-    const memberCid = BigInt(data.memberCid);
+    const memberCid: bigint = BigInt(data.memberCid);
     updateGroups(prev =>
       prev.map(group =>
         group.id === data.groupId

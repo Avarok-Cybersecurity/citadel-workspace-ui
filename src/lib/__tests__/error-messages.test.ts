@@ -3,7 +3,7 @@ import { getUserFriendlyErrorMessage, getErrorTitle } from '../error-messages';
 
 describe('getUserFriendlyErrorMessage', () => {
   it('handles WebSocket connection failures', () => {
-    const msg = getUserFriendlyErrorMessage('WebSocket connection failed');
+    const msg: string = getUserFriendlyErrorMessage('WebSocket connection failed');
     expect(msg).toContain('Citadel agent');
     // Not "check your internet connection". This socket is same-origin /ws to
     // the local agent, so that advice sends the user somewhere that cannot
@@ -12,65 +12,65 @@ describe('getUserFriendlyErrorMessage', () => {
   });
 
   it('handles WASM client init failure', () => {
-    const msg = getUserFriendlyErrorMessage('Failed to initialize WASM client');
+    const msg: string = getUserFriendlyErrorMessage('Failed to initialize WASM client');
     expect(msg).toContain('Citadel agent');
     expect(msg.toLowerCase()).not.toContain('internet');
   });
 
   it('handles handshake closed', () => {
-    const msg = getUserFriendlyErrorMessage('Connection closed before receiving a handshake');
+    const msg: string = getUserFriendlyErrorMessage('Connection closed before receiving a handshake');
     expect(msg).toContain('not responding');
   });
 
   it('handles session already connected', () => {
-    const msg = getUserFriendlyErrorMessage('Session Already Connected');
+    const msg: string = getUserFriendlyErrorMessage('Session Already Connected');
     expect(msg).toContain('already connected');
   });
 
   it('handles timeout', () => {
-    const msg = getUserFriendlyErrorMessage('Request timed out');
+    const msg: string = getUserFriendlyErrorMessage('Request timed out');
     expect(msg).toContain('timed out');
   });
 
   it('handles invalid credentials', () => {
-    const msg = getUserFriendlyErrorMessage('Invalid credentials');
+    const msg: string = getUserFriendlyErrorMessage('Invalid credentials');
     expect(msg).toContain('Invalid username or password');
   });
 
   it('handles user not found', () => {
-    const msg = getUserFriendlyErrorMessage('User not found');
+    const msg: string = getUserFriendlyErrorMessage('User not found');
     expect(msg).toContain('No account found');
   });
 
   it('handles user already exists', () => {
-    const msg = getUserFriendlyErrorMessage('User already exists');
+    const msg: string = getUserFriendlyErrorMessage('User already exists');
     expect(msg).toContain('already exists');
   });
 
   it('handles workspace not found', () => {
-    const msg = getUserFriendlyErrorMessage('Workspace not found');
+    const msg: string = getUserFriendlyErrorMessage('Workspace not found');
     expect(msg).toContain('could not be found');
   });
 
   it('handles connection refused', () => {
-    const msg = getUserFriendlyErrorMessage('Connection refused (ECONNREFUSED)');
+    const msg: string = getUserFriendlyErrorMessage('Connection refused (ECONNREFUSED)');
     expect(msg).toContain('Could not reach');
   });
 
   it('handles Error objects', () => {
-    const msg = getUserFriendlyErrorMessage(new Error('WebSocket connection failed'));
+    const msg: string = getUserFriendlyErrorMessage(new Error('WebSocket connection failed'));
     expect(msg).toContain('Citadel agent');
   });
 
   it('returns cleaned message for unknown short errors', () => {
-    const msg = getUserFriendlyErrorMessage('Something weird happened');
+    const msg: string = getUserFriendlyErrorMessage('Something weird happened');
     expect(msg).toContain('Something went wrong');
     expect(msg).toContain('Something weird happened');
   });
 
   it('returns generic message for very long unknown errors', () => {
-    const longMsg = 'x'.repeat(300);
-    const msg = getUserFriendlyErrorMessage(longMsg);
+    const longMsg: string = 'x'.repeat(300);
+    const msg: string = getUserFriendlyErrorMessage(longMsg);
     expect(msg).toContain('unexpected error');
   });
 

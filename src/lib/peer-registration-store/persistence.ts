@@ -39,7 +39,7 @@ async function localDBSet(
 ): Promise<void> {
   const requestId = crypto.randomUUID();
   const { persistJSON } = await import('../storage-utils');
-  const valueStr = persistJSON(data);
+  const valueStr: string = persistJSON(data);
 
   const request = {
     LocalDBSetKV: {
@@ -148,7 +148,7 @@ export function loadPendingFromLocalDB(
     return localDBGet<PendingPeerRequest>(
       STORAGE_KEY, kv,
       async (data) => {
-        const mine = ownPending(data);
+        const mine: PendingPeerRequest[] = ownPending(data);
         if (mine.length > 0) await onLoaded(mine);
       },
       'pending (legacy)',
@@ -168,8 +168,8 @@ export function loadOutgoingFromLocalDB(
   onLoaded: (requests: OutgoingPeerRequest[]) => Promise<void>
 ): Promise<void> {
   const accept = async (data: OutgoingPeerRequest[]) => {
-    const valid = data.filter(r => r.toCid && r.fromCid);
-    const invalidCount = data.length - valid.length;
+    const valid: OutgoingPeerRequest[] = data.filter(r => r.toCid && r.fromCid);
+    const invalidCount: number = data.length - valid.length;
     if (invalidCount > 0) {
       debugLog('PeerRegistrationStore', `Filtered out ${invalidCount} invalid outgoing requests`);
     }
@@ -181,7 +181,7 @@ export function loadOutgoingFromLocalDB(
     return localDBGet<OutgoingPeerRequest>(
       OUTGOING_STORAGE_KEY, kv,
       async (data) => {
-        const mine = ownOutgoing(data.filter(r => r.toCid && r.fromCid));
+        const mine: OutgoingPeerRequest[] = ownOutgoing(data.filter(r => r.toCid && r.fromCid));
         if (mine.length > 0) await onLoaded(mine);
       },
       'outgoing (legacy)',

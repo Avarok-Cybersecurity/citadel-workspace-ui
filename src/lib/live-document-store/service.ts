@@ -38,7 +38,7 @@ export class LiveDocumentStore {
     if (this.initialized) return;
 
     try {
-      const index = await loadIndexFromDB();
+      const index: string[] = await loadIndexFromDB();
       for (const docId of index) {
         const doc = await loadDocumentFromDB(docId);
         if (doc) {
@@ -60,11 +60,11 @@ export class LiveDocumentStore {
     initialDoc?: Y.Doc,
   ): Promise<DocumentMetadata> {
     const id = crypto.randomUUID();
-    const now = Date.now();
+    const now: number = Date.now();
 
     const doc = initialDoc || new Y.Doc();
     const state = Y.encodeStateAsUpdate(doc);
-    const rootHash = sha256Sync(state);
+    const rootHash: string = sha256Sync(state);
 
     const metadata: DocumentMetadata = {
       id,
@@ -116,10 +116,10 @@ export class LiveDocumentStore {
     if (this.documentsCache.has(docId)) return;
     if (await this.loadDocument(docId)) return;
 
-    const now = Date.now();
+    const now: number = Date.now();
     const doc = new Y.Doc();
     const state = Y.encodeStateAsUpdate(doc);
-    const rootHash = sha256Sync(state);
+    const rootHash: string = sha256Sync(state);
 
     const storedDoc: StoredDocument = {
       metadata: { id: docId, title, peerCid, creatorCid, createdAt: now, updatedAt: now, rootHash, revision: 0 },
@@ -147,9 +147,9 @@ export class LiveDocumentStore {
     }
 
     const state = Y.encodeStateAsUpdate(ydoc);
-    const rootHash = sha256Sync(state);
-    const now = Date.now();
-    const newRevision = (existing.metadata.revision ?? 0) + 1;
+    const rootHash: string = sha256Sync(state);
+    const now: number = Date.now();
+    const newRevision: number = (existing.metadata.revision ?? 0) + 1;
 
     const revisionEntry: RevisionEntry = {
       revision: newRevision,
@@ -159,7 +159,7 @@ export class LiveDocumentStore {
     };
 
     // Keep last 100 revisions
-    const revisionChain = [...(existing.revisionChain || []), revisionEntry].slice(-100);
+    const revisionChain: RevisionEntry[] = [...(existing.revisionChain || []), revisionEntry].slice(-100);
 
     const updatedDoc: StoredDocument = {
       metadata: {
@@ -193,7 +193,7 @@ export class LiveDocumentStore {
     if (!stored) return null;
 
     const doc = targetDoc || new Y.Doc();
-    const state = new Uint8Array(stored.state);
+    const state: Uint8Array<ArrayBuffer> = new Uint8Array(stored.state);
     Y.applyUpdate(doc, state);
 
     return doc;
@@ -242,7 +242,7 @@ export class LiveDocumentStore {
 
   /** Update the document index in LocalDB */
   private async updateIndex(): Promise<void> {
-    const docIds = Array.from(this.documentsCache.keys());
+    const docIds: string[] = Array.from(this.documentsCache.keys());
     await saveIndexToDB(docIds);
   }
 }

@@ -31,7 +31,7 @@ export function startKeyboardInsetTracking(): () => void {
   const root = document.documentElement;
 
   const publish = () => {
-    const hidden = window.innerHeight - viewport.height;
+    const hidden: number = window.innerHeight - viewport.height;
     if (hidden > KEYBOARD_THRESHOLD_PX) {
       // `visualViewport.height` excludes the keyboard, which is the number the
       // shell needs. Chromium already resizes the layout viewport, so there the

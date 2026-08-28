@@ -48,7 +48,7 @@ describe('callOutcomePeerName', () => {
   });
 
   it('never falls back to a raw CID', () => {
-    const name = callOutcomePeerName(state([participant({ cid: 123456789n, username: '' })]));
+    const name: string = callOutcomePeerName(state([participant({ cid: 123456789n, username: '' })]));
     expect(name).not.toMatch(/\d/);
   });
 });

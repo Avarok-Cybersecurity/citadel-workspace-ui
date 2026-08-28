@@ -24,15 +24,15 @@ export function formatBytes(bytes: number): string {
   // bug upstream, and Math.log of it is NaN, which rendered as "NaN undefined".
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
 
-  const exponent = Math.min(
+  const exponent: number = Math.min(
     Math.floor(Math.log(bytes) / Math.log(1024)),
     UNITS.length - 1,
   );
-  const value = bytes / 1024 ** exponent;
+  const value: number = bytes / 1024 ** exponent;
 
   // Whole numbers read better without a trailing .0, and bytes have no
   // fractional part to show at all.
-  const rounded = exponent === 0 ? Math.round(value) : parseFloat(value.toFixed(1));
+  const rounded: number = exponent === 0 ? Math.round(value) : parseFloat(value.toFixed(1));
 
   return `${rounded} ${UNITS[exponent]}`;
 }

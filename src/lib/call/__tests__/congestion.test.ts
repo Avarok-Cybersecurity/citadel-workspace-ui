@@ -23,9 +23,9 @@ const LOSSY = verdictFromMetrics({ lossRate: 0.12, playoutDelayMs: 60 });
 const DELAYED = verdictFromMetrics({ lossRate: 0, playoutDelayMs: 400 });
 const MIDDLING = verdictFromMetrics({ lossRate: 0.03, playoutDelayMs: 180 });
 
-function afterReports(state: CongestionState, report: typeof CLEAN, times: number) {
-  let next = state;
-  for (let i = 0; i < times; i += 1) next = applyReport(next, report);
+function afterReports(state: CongestionState, report: typeof CLEAN, times: number): CongestionState {
+  let next: CongestionState = state;
+  for (let i: number = 0; i < times; i += 1) next = applyReport(next, report);
   return next;
 }
 
@@ -41,14 +41,14 @@ describe('degrading', () => {
   });
 
   it('keeps dropping while conditions stay bad', () => {
-    let state = INITIAL_CONGESTION;
-    for (let i = 0; i < 3; i += 1) state = applyReport(state, LOSSY);
+    let state: CongestionState = INITIAL_CONGESTION;
+    for (let i: number = 0; i < 3; i += 1) state = applyReport(state, LOSSY);
     expect(state.rung).toBe(3);
   });
 
   it('never falls off the bottom of the ladder', () => {
-    let state = INITIAL_CONGESTION;
-    for (let i = 0; i < 50; i += 1) state = applyReport(state, LOSSY);
+    let state: CongestionState = INITIAL_CONGESTION;
+    for (let i: number = 0; i < 50; i += 1) state = applyReport(state, LOSSY);
 
     expect(state.rung).toBe(QUALITY_LADDER.length - 1);
     expect(levelFor(state)).toBeDefined();
@@ -59,20 +59,20 @@ describe('recovering', () => {
   it('does not climb back on the first clean report', () => {
     // A link that just failed usually fails again; climbing immediately is how
     // a controller ends up oscillating.
-    const degraded = applyReport(INITIAL_CONGESTION, LOSSY);
+    const degraded: CongestionState = applyReport(INITIAL_CONGESTION, LOSSY);
     expect(applyReport(degraded, CLEAN).rung).toBe(1);
   });
 
   it('climbs one rung after a sustained clean streak', () => {
-    const degraded = applyReport(INITIAL_CONGESTION, LOSSY);
-    const recovered = afterReports(degraded, CLEAN, RECOVERY_STREAK);
+    const degraded: CongestionState = applyReport(INITIAL_CONGESTION, LOSSY);
+    const recovered: CongestionState = afterReports(degraded, CLEAN, RECOVERY_STREAK);
 
     expect(recovered.rung).toBe(0);
   });
 
   it('recovers one rung at a time, not all at once', () => {
-    let state = INITIAL_CONGESTION;
-    for (let i = 0; i < 3; i += 1) state = applyReport(state, LOSSY);
+    let state: CongestionState = INITIAL_CONGESTION;
+    for (let i: number = 0; i < 3; i += 1) state = applyReport(state, LOSSY);
     expect(state.rung).toBe(3);
 
     state = afterReports(state, CLEAN, RECOVERY_STREAK);
@@ -80,8 +80,8 @@ describe('recovering', () => {
   });
 
   it('resets the streak when conditions wobble', () => {
-    const degraded = applyReport(INITIAL_CONGESTION, LOSSY);
-    let state = afterReports(degraded, CLEAN, RECOVERY_STREAK - 1);
+    const degraded: CongestionState = applyReport(INITIAL_CONGESTION, LOSSY);
+    let state: CongestionState = afterReports(degraded, CLEAN, RECOVERY_STREAK - 1);
     state = applyReport(state, MIDDLING);
     state = applyReport(state, CLEAN);
 
@@ -91,14 +91,14 @@ describe('recovering', () => {
   });
 
   it('holds at good without climbing past the top', () => {
-    const state = afterReports(INITIAL_CONGESTION, CLEAN, RECOVERY_STREAK * 3);
+    const state: CongestionState = afterReports(INITIAL_CONGESTION, CLEAN, RECOVERY_STREAK * 3);
     expect(state.rung).toBe(0);
   });
 });
 
 describe('the ladder itself', () => {
   it('gets monotonically cheaper on every axis', () => {
-    for (let i = 1; i < QUALITY_LADDER.length; i += 1) {
+    for (let i: number = 1; i < QUALITY_LADDER.length; i += 1) {
       expect(QUALITY_LADDER[i].bitrateScale).toBeLessThan(QUALITY_LADDER[i - 1].bitrateScale);
       expect(QUALITY_LADDER[i].framerate).toBeLessThanOrEqual(QUALITY_LADDER[i - 1].framerate);
       expect(QUALITY_LADDER[i].height).toBeLessThanOrEqual(QUALITY_LADDER[i - 1].height);
@@ -154,7 +154,7 @@ describe('the verdict the live path actually uses', () => {
 
   it('holds on a fair link rather than reacting to the middle', () => {
     expect(verdictFromLink('fair')).toBe('holding');
-    const degraded = applyReport(INITIAL_CONGESTION, verdictFromLink('poor'));
+    const degraded: CongestionState = applyReport(INITIAL_CONGESTION, verdictFromLink('poor'));
     expect(applyReport(degraded, verdictFromLink('fair')).rung).toBe(1);
   });
 

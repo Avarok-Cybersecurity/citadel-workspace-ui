@@ -32,8 +32,8 @@ function ensureContext(): AudioContext | null {
 }
 
 function scheduleTone(c: AudioContext, tone: ToneSpec): void {
-  const start = c.currentTime + tone.atMs / 1000;
-  const end = start + tone.durationMs / 1000;
+  const start: number = c.currentTime + tone.atMs / 1000;
+  const end: number = start + tone.durationMs / 1000;
   const envelope = c.createGain();
   envelope.gain.setValueAtTime(0, start);
   envelope.gain.linearRampToValueAtTime(tone.gain, start + RAMP_S);
@@ -67,7 +67,7 @@ export function playTones(tones: ToneSpec[]): void {
     // tones are only valid within their own window: if resume() resolves later
     // than that (or never), playing a stale burst would ring after the call
     // stopped ringing, so it is dropped instead.
-    const staleAfter = Date.now() + Math.max(...tones.map((t) => t.atMs + t.durationMs));
+    const staleAfter: number = Date.now() + Math.max(...tones.map((t) => t.atMs + t.durationMs));
     const go = () => {
       if (Date.now() > staleAfter) return;
       try {

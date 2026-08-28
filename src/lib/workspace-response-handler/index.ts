@@ -10,4 +10,4 @@ export { WorkspaceResponseHandler } from './service';
 
 // Singleton instance
 import { WorkspaceResponseHandler } from './service';
-export const workspaceResponseHandler = WorkspaceResponseHandler.getInstance();
+export const workspaceResponseHandler: WorkspaceResponseHandler = WorkspaceResponseHandler.getInstance();

@@ -77,7 +77,7 @@ describe('a live document received from a peer', () => {
 
     await store.adoptDocument(DOC_ID, 'Design notes', '42', '7');
     await store.updateDocumentState(DOC_ID, editedDoc('first'));
-    const afterEdit = (saved.get(DOC_ID) as { state: number[] }).state.length;
+    const afterEdit: number = (saved.get(DOC_ID) as { state: number[] }).state.length;
 
     await store.adoptDocument(DOC_ID, 'Design notes', '42', '7');
 
@@ -99,11 +99,11 @@ describe('a live document received from a peer', () => {
     // creator's path ever called createDocument, and removing the adoption
     // from the open path failed none of the tests above — they assert on the
     // store, one layer below where the decision is made.
-    const openPath = readFileSync(
+    const openPath: string = readFileSync(
       join(process.cwd(), 'src/components/p2p/hooks/useP2PTabs.ts'),
       'utf8'
     );
-    const handler = openPath.slice(
+    const handler: string = openPath.slice(
       openPath.indexOf('const handleOpenDocument'),
       openPath.indexOf('const handleCreateDocument')
     );

@@ -40,7 +40,7 @@ export class CallLiveness {
 
   /** Begin tracking, treating every participant as just-seen. */
   start(peers: readonly bigint[]): void {
-    const now = this.options.now();
+    const now: number = this.options.now();
     for (const cid of peers) this.lastSeen.set(cid, now);
     this.tick();
   }
@@ -68,7 +68,7 @@ export class CallLiveness {
     this.cancelTick = this.options.schedule(() => {
       this.options.sendHeartbeat();
 
-      const now = this.options.now();
+      const now: number = this.options.now();
       this.options.onTick?.(now);
       for (const [cid, seen] of [...this.lastSeen]) {
         if (now - seen >= CALL_HEARTBEAT_TIMEOUT_MS) {

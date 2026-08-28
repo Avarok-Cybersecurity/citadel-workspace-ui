@@ -64,7 +64,7 @@ export async function retryPendingOps(
 
   debugLog('RevfsService', `Retrying ${pending.length} queued operation(s) for ${peerCid}`);
 
-  let discarded = 0;
+  let discarded: number = 0;
 
   for (const entry of [...pending]) {
     if (entry.retryCount >= MAX_OP_RETRIES) {
@@ -81,7 +81,7 @@ export async function retryPendingOps(
       continue;
     }
 
-    const ackPromise = deps.state.registerAck(entry.operation.op_id, ACK_TIMEOUT_MS);
+    const ackPromise: Promise<boolean> = deps.state.registerAck(entry.operation.op_id, ACK_TIMEOUT_MS);
     const sent = await deps.sendOp(peerCid, entry.operation);
     if (!sent) {
       entry.retryCount += 1;
@@ -105,7 +105,7 @@ export async function sendAndAwaitAck(
   op: RevfsOperation,
   key: TreeKey,
 ): Promise<void> {
-  const ackPromise = deps.state.registerAck(op.op_id, ACK_TIMEOUT_MS);
+  const ackPromise: Promise<boolean> = deps.state.registerAck(op.op_id, ACK_TIMEOUT_MS);
   const sendResult = await deps.sendOp(peerCid, op);
   if (!sendResult) {
     deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });

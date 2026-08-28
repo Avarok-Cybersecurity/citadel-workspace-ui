@@ -45,11 +45,11 @@ export async function reconnectToDisconnectedSessions(
     debugLog('ServerAutoConnectService', 'Failed to get active sessions:', error);
   }
 
-  const activeKeys = new Set<string>();
+  const activeKeys: Set<string> = new Set<string>();
   debugLog('ServerAutoConnectService', `Active sessions count: ${activeSessions.length}`);
   for (const session of activeSessions) {
     if (session.username) {
-      const key = `${session.username}@${session.server_address}`;
+      const key: string = `${session.username}@${session.server_address}`;
       activeKeys.add(key);
       debugLog('ServerAutoConnectService', `Active session key: ${key}`);
     }
@@ -57,7 +57,7 @@ export async function reconnectToDisconnectedSessions(
 
   debugLog('ServerAutoConnectService', `Stored sessions count: ${storedSessions.sessions.length}`);
   for (const session of storedSessions.sessions) {
-    const sessionKey = getSessionKey(session);
+    const sessionKey: string = getSessionKey(session);
     debugLog('ServerAutoConnectService', `Checking stored session: ${sessionKey}, active: ${activeKeys.has(sessionKey)}`);
 
     if (activeKeys.has(sessionKey)) {
@@ -125,7 +125,7 @@ export async function attemptReconnect(
     );
     // Success handled by event listener
   } catch (error) {
-    const delay = Math.min(BASE_DELAY * Math.pow(2, attempt.attempts), MAX_DELAY);
+    const delay: number = Math.min(BASE_DELAY * Math.pow(2, attempt.attempts), MAX_DELAY);
     attempt.attempts++;
     attempt.lastError = error instanceof Error ? error.message : String(error);
 

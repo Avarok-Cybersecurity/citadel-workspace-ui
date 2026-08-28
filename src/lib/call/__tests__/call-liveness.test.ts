@@ -18,13 +18,13 @@ const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
 const BOB = 2n;
 const CAROL = 3n;
 /** Comfortably past CALL_HEARTBEAT_TIMEOUT_MS (20s). */
-const SILENT = CALL_HEARTBEAT_TIMEOUT_MS + 1_000;
+const SILENT: number = CALL_HEARTBEAT_TIMEOUT_MS + 1_000;
 
 /** Lets already-resolved sends inside fire-and-forget handlers settle. */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function harness() {
-  let now = 0;
+  let now: number = 0;
   const timers: Array<{ fn: () => void; cancelled: boolean; fired: boolean }> = [];
   const transport = {
     openSession: vi.fn().mockResolvedValue(undefined),
@@ -32,7 +32,7 @@ function harness() {
     sendFrame: vi.fn(),
     sendSignal: vi.fn().mockResolvedValue(undefined),
   };
-  const manager = new CallManager({
+  const manager: CallManager = new CallManager({
     transport: transport as unknown as CallTransport,
     selfCid: 1n,
     capabilities: CAPS,
@@ -83,7 +83,7 @@ function harness() {
 type Harness = ReturnType<typeof harness>;
 
 /** 1:1 call from our side, answered, active — liveness armed at t=0. */
-async function activeCall(h: Harness) {
+async function activeCall(h: Harness): Promise<void> {
   await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, null, null);
   await h.accept(BOB);
   expect(h.manager.getState()?.status).toBe('active');
@@ -105,7 +105,7 @@ describe('call liveness', () => {
     await activeCall(h);
     // 5s cadence out to 25s: total elapsed exceeds the 20s timeout, so only
     // the refreshed last-seen keeps Bob in.
-    for (let t = 5_000; t <= 25_000; t += 5_000) {
+    for (let t: number = 5_000; t <= 25_000; t += 5_000) {
       h.setNow(t);
       await h.beat(BOB);
       h.tick();
@@ -147,7 +147,7 @@ describe('call liveness', () => {
     expect(h.manager.getState()?.status).toBe('ended');
   });
 
-  async function activeGroupCall() {
+  async function activeGroupCall(): Promise<void> {
     await h.manager.start(
       'c1',
       [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }],

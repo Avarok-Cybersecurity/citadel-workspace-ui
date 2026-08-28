@@ -52,7 +52,7 @@ export class YjsMerkleTree {
     creatorCid: string | null,
     chunkSize: number = 1024
   ): YjsMerkleTree {
-    const strategy = new YjsChunkingStrategy(chunkSize);
+    const strategy: YjsChunkingStrategy = new YjsChunkingStrategy(chunkSize);
     const tree = MerkleTree.fromData(doc, strategy, chunkSize);
     return new YjsMerkleTree(tree, strategy, documentId, creatorCid);
   }
@@ -75,7 +75,7 @@ export class YjsMerkleTree {
   }
 
   getProof(includeChunks: boolean = false): YjsMerkleProof {
-    const baseProof = this.tree.getProof(includeChunks);
+    const baseProof: MerkleProof = this.tree.getProof(includeChunks);
     return {
       ...baseProof,
       documentId: this.documentId,
@@ -85,7 +85,7 @@ export class YjsMerkleTree {
   }
 
   getProofForDivergedChunks(indices: number[]): YjsMerkleProof {
-    const baseProof = this.tree.getProofForChunks(indices);
+    const baseProof: MerkleProof = this.tree.getProofForChunks(indices);
     return {
       ...baseProof,
       documentId: this.documentId,

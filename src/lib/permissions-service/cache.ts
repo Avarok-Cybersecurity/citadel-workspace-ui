@@ -14,7 +14,7 @@ import type { UserRole, DomainPermissions } from './types';
  * Parse raw permission strings into a Permission Set, filtering unknown values.
  */
 export function parsePermissionSet(permissions: string[]): Set<Permission> {
-  const permSet = new Set<Permission>();
+  const permSet: Set<Permission> = new Set<Permission>();
   for (const perm of permissions) {
     if (Object.values(Permission).includes(perm as Permission)) {
       permSet.add(perm as Permission);
@@ -32,7 +32,7 @@ export function updateCacheEntry(
   role: UserRole,
   permissions: string[],
 ): void {
-  const permSet = parsePermissionSet(permissions);
+  const permSet: Set<Permission> = parsePermissionSet(permissions);
 
   cache.set(domainId, {
     domainId,
@@ -110,7 +110,7 @@ export function getDeniedReason(
     return 'Permissions have not been loaded for this domain';
   }
 
-  const label = PERMISSION_LABELS[permission] || permission;
+  const label: string = PERMISSION_LABELS[permission] || permission;
   const roleLabel = typeof cached.role === 'string' ? cached.role : 'Custom';
   return `You don't have the "${label}" permission. Your role: ${roleLabel}`;
 }

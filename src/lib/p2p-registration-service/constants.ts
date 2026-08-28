@@ -40,7 +40,7 @@ export const PEER_REGISTER_TIMEOUT_MS = 10000;
 export const CID_RESOLUTION_TIMEOUT_MS = 500;
 
 /** Default session security settings for P2P (from shared utils) */
-export const DEFAULT_SESSION_SECURITY = getDefaultSecuritySettings();
+export const DEFAULT_SESSION_SECURITY: SessionSecuritySettings = getDefaultSecuritySettings();
 
 /**
  * Adapts a locally-defined SessionSecuritySettings to the WASM-generated type.

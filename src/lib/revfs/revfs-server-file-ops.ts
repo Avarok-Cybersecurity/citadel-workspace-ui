@@ -39,10 +39,10 @@ export async function uploadFileToServer(
   metadata: RevfsFileMetadata,
   content: Uint8Array,
 ): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
-  const filePath = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
-  const io = ctx.ensureIO();
+  const key: string = serverTreeKey(myCid);
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
+  const filePath: string = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
+  const io: RevfsIO = ctx.ensureIO();
 
   // Bytes FIRST, tree second.
   //
@@ -100,9 +100,9 @@ export async function removeFileFromServer(
   myCid: bigint,
   filePath: string,
 ): Promise<void> {
-  const key = serverTreeKey(myCid);
-  const tree = await ctx.getServerTree(myCid);
-  const io = ctx.ensureIO();
+  const key: string = serverTreeKey(myCid);
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
+  const io: RevfsIO = ctx.ensureIO();
 
   // Delete the bytes BEFORE dropping the node, and stop if that fails.
   //
@@ -149,8 +149,8 @@ export async function downloadFileFromServer(
   myCid: bigint,
   filePath: string,
 ): Promise<string | undefined> {
-  const tree = await ctx.getServerTree(myCid);
-  const io = ctx.ensureIO();
+  const tree: RevfsNode = await ctx.getServerTree(myCid);
+  const io: RevfsIO = ctx.ensureIO();
 
   const fileNode = ctx.findFileInTree(tree, filePath);
   if (!fileNode?.fileMetadata) {

@@ -56,6 +56,33 @@ for (const source of program.getSourceFiles()) {
   const edits = [];
 
   const visit = (node) => {
+    // Return types, where the signature does not state one.
+    //
+    // Safer than a variable annotation and worth more: a return type is the
+    // contract every caller reads, and it is the one place inference reaches
+    // furthest -- change a function's body and its type changes three modules
+    // away with nothing to say so. None of the narrowing hazards apply, because
+    // a return type does not alias a condition.
+    if (
+      (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) &&
+      !node.type &&
+      node.body &&
+      node.name
+    ) {
+      const signature = checker.getSignatureFromDeclaration(node);
+      if (signature) {
+        const printed = checker.typeToString(
+          checker.getReturnTypeOfSignature(signature),
+          node,
+          ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
+        );
+        if (isSafe(printed, source) && printed !== 'void') {
+          // After the parameter list, before the body.
+          edits.push({ position: node.body.getFullStart(), text: `: ${printed}` });
+        }
+      }
+    }
+
     if (
       ts.isVariableDeclaration(node) &&
       !node.type &&

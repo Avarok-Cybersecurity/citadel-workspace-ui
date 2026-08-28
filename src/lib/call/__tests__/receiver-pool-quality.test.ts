@@ -29,27 +29,27 @@ describe('ReceiverPool connection quality', () => {
   });
 
   it('reports a gap-free link as good', () => {
-    const p = pool();
+    const p: ReceiverPool = pool();
     p.gap(PEER, 0, true);
     // One gap is a hiccup, not a failing link.
     expect(p.connectionQuality(Date.now()).get(PEER)).toBe('good');
   });
 
   it('degrades a link that keeps losing frames', () => {
-    const p = pool();
-    for (let i = 0; i < POOR_THRESHOLD; i += 1) p.gap(PEER, 0, true);
+    const p: ReceiverPool = pool();
+    for (let i: number = 0; i < POOR_THRESHOLD; i += 1) p.gap(PEER, 0, true);
     expect(p.connectionQuality(Date.now()).get(PEER)).toBe('poor');
   });
 
   it('forgets a peer that leaves, so a rejoin starts clean', () => {
-    const p = pool();
-    for (let i = 0; i < POOR_THRESHOLD; i += 1) p.gap(PEER, 0, true);
+    const p: ReceiverPool = pool();
+    for (let i: number = 0; i < POOR_THRESHOLD; i += 1) p.gap(PEER, 0, true);
     p.remove(PEER);
     expect(p.connectionQuality(Date.now()).has(PEER)).toBe(false);
   });
 
   it('drops every peer when the call closes', () => {
-    const p = pool();
+    const p: ReceiverPool = pool();
     p.gap(PEER, 0, true);
     p.closeAll();
     expect(p.connectionQuality(Date.now()).size).toBe(0);
