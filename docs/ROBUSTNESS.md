@@ -11135,3 +11135,34 @@ system from an absent one will eventually report on the wrong one, and it will
 look like a pass.
 
 42 gates, 15 workflow npm steps, preflight 37.
+
+## Round 205 — reaching the form is not the same as being told why it will not work
+
+Round 204's gate asserted the sign-in form is still *reachable* with the agent
+down. It did not ask what happens when you use it, which is the part the user
+actually experiences.
+
+Measured:
+
+```
++3s   alerts = "Unable to reach the Citadel agent on this machine. It may not
+                be running yet, or may be restarting — try again in a moment."
+      submit = {"t":"Sign In","disabled":false}
+```
+
+Three seconds, a `role="alert"`, the agent named, and the button released rather
+than left spinning. That is the right behaviour, so this round adds no fix — it
+locks what is already true.
+
+Two assertions, and the second is the one worth having. *"Signing in says the
+agent is the problem"* catches a message that goes vague; *"the submit button is
+not left spinning"* catches the other failure mode entirely, where the copy is
+perfect and the form never comes back. A check on the message alone would pass
+against a permanently disabled button.
+
+The control replaces the agent sentence in `error-messages.ts` with "Something
+went wrong." and the first assertion fails by name. That mapping is now load
+bearing in a way it was not before: it is the difference between a user
+restarting their agent and a user filing a bug.
+
+Nine assertions on the agent-down path now, all passing, all discriminating.

@@ -129,6 +129,28 @@ async function main() {
       await page.waitForTimeout(1_500);
       const form = await page.locator('#username').count();
       record('the app is still usable — sign-in is reachable', form > 0);
+
+      if (form > 0) {
+        // Reaching the form is not the same as being told why it cannot work.
+        // A submit that hangs on a spinner, or fails with a protocol string,
+        // is the state this whole path exists to avoid.
+        await page.locator('#username').fill('someone');
+        await page.locator('#password').fill('password123');
+        await page.locator('button[type="submit"]').first().click({ force: true });
+        const told = await page
+          .locator('[role="alert"]')
+          .filter({ hasText: /agent/i })
+          .first()
+          .waitFor({ state: 'visible', timeout: 15_000 })
+          .then(() => true)
+          .catch(() => false);
+        record('signing in says the agent is the problem', told);
+
+        const stuck = await page.evaluate(
+          () => [...document.querySelectorAll('button[type="submit"]')].some((b) => b.disabled),
+        );
+        record('the submit button is not left spinning', !stuck);
+      }
     }
 
     await context.close();
