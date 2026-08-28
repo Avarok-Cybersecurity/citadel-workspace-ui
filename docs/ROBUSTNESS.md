@@ -12156,3 +12156,60 @@ Two rules, and both had to be fixed before they could fail:
 This is the eleventh never-propagated fix this campaign has recorded, and the
 second where the uncorrected copies sat in the same directory as the corrected
 one.
+
+## Round 230 — the button under the toast
+
+At 375px, on the last step of first-run registration:
+
+| element | top | bottom |
+|---|---|---|
+| "Ready to work offline" toast | 559 | 651 |
+| the **Join** button | 572 | 607 |
+
+`document.elementFromPoint` at the centre of Join returns the toast. The final
+button of registration could not be pressed while an ambient notice was on
+screen.
+
+Nothing failed, and nothing could have. The button was present, visible,
+enabled, correctly named, above the tap-size floor, inside the viewport and in
+the tab order. Every check this repository has — axe, the mobile layout gate, the
+keyboard walk — says yes to all of that. Only a hit test sees it.
+
+It was found by accident, and the accident is worth recording. A probe reported
+"focus does not move to the invalid field" after a refused submit, three times,
+across three different fixes. Each explanation was plausible: a toast stealing
+focus, React replacing the input mid-commit, a race with the announcement. All
+three were wrong. The probe clicked with `{ force: true }`, which bypasses the
+check that the element is the one that will receive the click — so the click
+landed on the toast, the form was never submitted, and the "focus bug" was the
+toast's `<li>` holding focus from its own click. **A forced click hides the
+defect that the click cannot land.** The moment the same probe clicked normally,
+focus went to `confirmPassword` on the first try.
+
+Three changes:
+
+- Toasts come from the top on small viewports. Bottom-right is right on a
+  desktop, where a toast lands in empty margin; on a phone there is no margin and
+  the primary action sits at the bottom of the form.
+- `check-mobile-layout.mjs` hit-tests every control on every surface at every
+  width: centre point, `elementFromPoint`, and a failure if what answers is not
+  the control or a descendant of it. Scoped to the topmost dialog and skipping
+  `aria-hidden`/`inert` subtrees, because a modal covering the page behind it is
+  the point of a modal — the first run reported all three landing buttons as
+  covered on every screen that opens one.
+- A refused submit moves focus to the first field to fix, and no longer raises a
+  toast repeating what the inline error already says. The message was being
+  announced twice and the toast was the third copy of it.
+
+And a rule that could not fail, again: the hit test's first negative control —
+putting toasts back at the bottom — passed, because the mobile gate's screen list
+stopped at the first step of the wizard and never reached the screen the rule was
+written for. The wizard's later steps are now in that list. That is the same
+never-propagated-list defect recorded in this file at round 210, in the same
+file, about the same two gates.
+
+`toasts-clear-the-primary-action.test.tsx` asserts the arrangement directly,
+because the hit test only has something to find while a toast happens to be up
+and the ambient ones fire on a schedule no gate can force. Its own first version
+asserted `null` three times — Sonner renders the positioned list only once it
+holds a toast — so each case raises one first.

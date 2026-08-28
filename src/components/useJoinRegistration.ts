@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { firstInvalidField } from './join-first-error';
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +44,32 @@ export function useJoinRegistration(
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  /**
+   * Take the user to the field to fix.
+   *
+   * A refused submit used to leave focus on the Join button: the error was
+   * announced and the field was marked `aria-invalid`, and neither of those
+   * moves anyone. A screen-reader user hears the message with their cursor on a
+   * button; a keyboard user shift-tabs back through the form guessing which
+   * field it meant.
+   *
+   * Which field is a pure decision (`firstInvalidField`); this is the one line
+   * that touches the DOM.
+   */
+  const focusFirstProblem = () => {
+    const field = firstInvalidField(
+      {
+        fullName: formData.fullName,
+        username: formData.username,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      },
+      rawErrors,
+    );
+    if (!field) return;
+    document.getElementById(field)?.focus();
+  };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
@@ -117,18 +144,25 @@ export function useJoinRegistration(
 
     setSubmitAttempted(true);
 
-    if (!formData.fullName || !formData.username || !formData.password || !formData.confirmPassword) {
-      toast({ title: "Missing Fields", description: "Please fill out all fields to continue", variant: "destructive" });
-      return;
-    }
-
-    // Report the first rule the form breaks rather than letting the server
-    // reject it. The inline errors are already rendered by this point; the
-    // toast exists for the case where the offending field is scrolled away.
+    // Refused submits are reported by the FIELD, not by a toast.
+    //
+    // Both used to fire: the inline error rendered and was announced, and a
+    // destructive toast repeated the same sentence. A screen-reader user heard
+    // it twice, and the toast then took focus -- Sonner focuses the toast it
+    // mounts -- so the attempt to put the cursor on the offending field lost a
+    // race with the thing announcing the problem. Measured: after a mismatched
+    // password the active element was the toast's `<li>`.
+    //
+    // The inline error is already in a live region, already associated with the
+    // field through `aria-describedby`, and now the field takes focus. The toast
+    // was the third copy of a message that two better channels were carrying.
+    const missingField =
+      !formData.fullName || !formData.username || !formData.password || !formData.confirmPassword;
     const firstError =
       rawErrors.fullName ?? rawErrors.username ?? rawErrors.password ?? rawErrors.confirmPassword;
-    if (firstError) {
-      toast({ title: "Check your details", description: firstError, variant: "destructive" });
+    if (missingField || firstError) {
+      setSubmitAttempted(true);
+      focusFirstProblem();
       return;
     }
 

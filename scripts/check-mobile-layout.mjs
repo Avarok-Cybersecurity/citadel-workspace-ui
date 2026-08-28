@@ -124,6 +124,33 @@ async function main() {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('manage-accounts-button').click({ force: true });
       }],
+      // The join wizard's later steps, which is where the toast collision was.
+      //
+      // The check-nothing-covers-a-control assertion was written for a defect on
+      // the PROFILE step -- an ambient toast sitting on the Join button -- and
+      // its first negative control passed, because this list stopped at the
+      // first step of the wizard. A rule that cannot reach the screen it was
+      // written for is a rule about nothing.
+      ['join/security', async () => {
+        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.getByTestId('create-account-button').click({ force: true });
+        await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
+        await page.locator('#serverAddress').fill('127.0.0.1:12349');
+        await page.locator('#password').fill('password123');
+        await page.locator('button[type="submit"]').first().click({ force: true });
+        await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
+      }],
+      ['join/profile', async () => {
+        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.getByTestId('create-account-button').click({ force: true });
+        await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
+        await page.locator('#serverAddress').fill('127.0.0.1:12349');
+        await page.locator('#password').fill('password123');
+        await page.locator('button[type="submit"]').first().click({ force: true });
+        await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
+        await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true });
+        await page.locator('#fullName').waitFor({ state: 'visible', timeout: 30_000 });
+      }],
       // Settings, and every tab in it.
       //
       // Round 210 added these to the ACCESSIBILITY gate and not to this one,
@@ -168,6 +195,54 @@ async function main() {
       const { overflow, small } = await page.evaluate(measurePage, MIN_TARGET);
       record(`${width}px ${name}: fits the viewport`, overflow <= 0, overflow > 0 ? `${overflow}px of sideways scroll` : '');
       record(`${width}px ${name}: tap targets are at least ${MIN_TARGET}px`, small.length === 0, small.join('; '));
+
+      // Nothing floating may sit on the control you were about to press.
+      //
+      // At 375px the "Ready to work offline" toast occupied 559-651px and the
+      // join form's submit button 572-607px, so `elementFromPoint` at the centre
+      // of "Join" returned the toast: the last button of first-run registration
+      // was not clickable while an ambient notice was up. Nothing failed --
+      // the button was present, visible, enabled, named and the right size. Only
+      // a hit test can see this, which is why neither the overflow check above
+      // nor any accessibility scan reported it.
+      const blocked = await page.evaluate(() => {
+        const isFixed = (el) => {
+          for (let node = el; node; node = node.parentElement) {
+            const position = getComputedStyle(node).position;
+            if (position === 'fixed' || position === 'sticky') return true;
+          }
+          return false;
+        };
+        // Only the surface the user is actually on.
+        //
+        // A modal covering the page behind it is the point of a modal; the first
+        // run of this check reported the landing page's three buttons as
+        // "covered" on every screen that opens a dialog. Radix marks the rest of
+        // the page `aria-hidden`, which is the same fact stated by the app
+        // itself, so both are honoured: the topmost dialog wins, and anything
+        // hidden from the accessibility tree is not a control anyone can press.
+        const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+        const scope = dialogs[dialogs.length - 1] ?? document.body;
+        const out = [];
+        for (const control of scope.querySelectorAll('button, a[href], input, select, textarea')) {
+          if (control.closest('[aria-hidden="true"], [inert]')) continue;
+          const rect = control.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue;
+          if (rect.bottom < 0 || rect.top > innerHeight || rect.right < 0 || rect.left > innerWidth) continue;
+          if (control.disabled) continue;
+          // The control's OWN overlay does not count against it.
+          if (isFixed(control)) continue;
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          const hit = document.elementFromPoint(x, y);
+          if (!hit || hit === control || control.contains(hit) || hit.contains(control)) continue;
+          const label = (control.getAttribute('aria-label') || control.textContent || control.id || '').trim();
+          const by = (hit.closest('[data-sonner-toast]') ? 'a toast' : hit.tagName.toLowerCase());
+          out.push(`"${label.slice(0, 24)}" is covered by ${by}`);
+        }
+        return out;
+      });
+      record(`${width}px ${name}: nothing covers a control`, blocked.length === 0, blocked.slice(0, 3).join('; '));
     }
 
     await context.close();
