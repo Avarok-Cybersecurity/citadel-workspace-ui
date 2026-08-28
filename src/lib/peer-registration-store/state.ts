@@ -27,9 +27,25 @@ export async function getCurrentSessionCid(): Promise<bigint | null> {
     return connectionInfo.cid;
   }
 
-  const tabSelection = await getSelectedUser();
-  const tabSession = await connectionManager.getTabSelectedSession();
-  return tabSelection?.selectedCid || tabSession?.cid || null;
+  // The storage fallback cannot be allowed to THROW.
+  //
+  // Everything above this line is in memory and is what answers in a normal
+  // session; these two read IndexedDB, which is unavailable under strict
+  // privacy settings and in some embedded contexts. A rejection here used to
+  // propagate through `emitUpdate` and take the whole announcement with it, so
+  // an incoming contact request was recorded and never mentioned -- the app
+  // knew somebody had asked to connect and nothing on screen said so.
+  //
+  // Unknown is a legitimate answer: the caller already treats a null CID as
+  // "cannot scope by account" and shows what it has.
+  try {
+    const tabSelection = await getSelectedUser();
+    const tabSession = await connectionManager.getTabSelectedSession();
+    return tabSelection?.selectedCid || tabSession?.cid || null;
+  } catch (error) {
+    debugLog('PeerRegistrationStore', 'Could not read the selected session; treating it as unknown:', error);
+    return null;
+  }
 }
 
 /**

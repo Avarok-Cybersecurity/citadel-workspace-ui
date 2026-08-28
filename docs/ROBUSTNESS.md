@@ -13278,3 +13278,49 @@ spent a great deal of effort on checks that cannot fail — this is the neighbou
 of that: a check that cannot see.
 
 Nothing changed in the product this round. That is the result.
+
+## Round 253 — somebody asked to connect, and nothing said so
+
+`test:offline` fails with the far side polling for a badge that never comes:
+
+```
+Waiting for pending request badge... (20/20)
+✗ No pending P2P request badge found after 20 attempts
+Error: P2P accept failed — cannot proceed with messaging tests
+```
+
+The path to that badge is app-wide and correct — the registration *service*
+records an incoming request whether or not any panel is open, and
+`getAutoAcceptSetting` already answers "no" rather than throwing when its key is
+missing. What is not correct is what happens next:
+
+```ts
+this.pendingRequests.push(request);          // the app now knows
+await persistPendingToLocalDB(…);            // ← may reject
+const currentCid = await getCurrentSessionCid();  // ← may reject
+await this.emitUpdate();                     // ← never runs if either does
+```
+
+Both awaits sit in front of the announcement, and the caller above logs and
+swallows. **The request is already in memory at that point.** Somebody had asked
+to connect, the app knew, and nothing on screen said so.
+
+That is not a theoretical rejection. LocalDB writes are refused when the
+ownership gate cannot place the session — round 250 was one such refusal on a
+key that could never be written at all — and `getCurrentSessionCid` falls back to
+IndexedDB, which throws outright under strict privacy settings, the hazard round
+222 found in its sibling.
+
+The badge is how a person learns a request exists. Persistence is for surviving
+a reload, and failing at that must not also mean failing to mention it. Both
+awaits are now guarded, and the storage fallback inside `getCurrentSessionCid`
+answers "unknown" instead of rejecting — which the caller already handles, since
+a null CID means "cannot scope by account" and it shows what it has.
+
+Two controls: removing either guard fails the announcement tests, the second one
+all three.
+
+This does not explain the CI failure on its own — the request may never have
+reached that browser at all, which is the peer-registry lead still open from the
+last round. It removes one of the two ways the badge can be missing, and the
+next run distinguishes them.
