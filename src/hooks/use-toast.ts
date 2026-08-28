@@ -13,6 +13,7 @@
  */
 
 import type React from 'react';
+import { createElement } from 'react';
 import { toast as sonnerToast } from 'sonner';
 
 /**
@@ -57,9 +58,38 @@ function body(options: ToastOptions): React.ReactNode | undefined {
   return options.title ? options.description : undefined;
 }
 
+/**
+ * An error toast announces itself, and can be found by the selector everyone
+ * reaches for.
+ *
+ * The DESCRIPTION carries the alert, not the headline. Wrapping the headline
+ * was the first attempt and it cost the description entirely -- Sonner renders
+ * no description when its message is a ReactNode, so the toast shrank to
+ * "Connection Error" and dropped the sentence telling the user what to do. The
+ * agent-down gate caught it on the next run.
+ *
+ * Sonner renders its toasts inside a single `aria-live="polite"` region, so an
+ * error waited for the user to pause before being read -- and an error that
+ * blocks the action they just took is the case for `assertive`. The app already
+ * uses `role="alert"` for the equivalent inline errors.
+ *
+ * It also closes a trap this repository has fallen into twice, and had already
+ * written down: a Sonner toast carries no `role="alert"`, so an assertion
+ * looking for one reports "the app said nothing" about an app that said exactly
+ * the right thing. Documenting that did not stop it happening again. Making the
+ * selector true does.
+ *
+ * Only for errors. Success and neutral toasts are ambient and interrupting a
+ * screen-reader user with them is the opposite of helpful.
+ */
+function announce(description: React.ReactNode, variant: ToastVariant): React.ReactNode {
+  if (variant !== 'destructive' || description === undefined) return description;
+  return createElement('span', { role: 'alert' }, description);
+}
+
 export function toast(options: ToastOptions): ToastHandle {
   const payload = {
-    description: body(options),
+    description: announce(body(options), options.variant ?? 'default'),
     duration: options.duration,
     action: options.action,
     id: options.id,

@@ -11202,3 +11202,59 @@ which is what proves they are two independent assertions rather than one written
 twice.
 
 Eleven assertions on the agent-down path. Preflight 37.
+
+## Round 207 — making the trap untrue instead of documenting it again
+
+Round 206 ended on the observation that a recorded trap protects nobody unless
+something checks. The trap in question: a Sonner toast carries no
+`role="alert"`, so an assertion looking for one reports *"the app said nothing"*
+about an app that said exactly the right thing. It cost this campaign two false
+alarms in a single round, with the note already written down.
+
+Measuring what a screen reader gets turned it into a defect rather than a
+footnote:
+
+```
+toast: { "data-type": "error" }
+live ancestors: [ { tag: SECTION, role: null, live: "polite" } ]
+```
+
+Every toast — including *"Connection Error: unable to reach the Citadel
+agent"* — is announced **politely**, meaning the reader waits for the user to
+pause. An error that blocks the action the user just took is the case for
+`assertive`, and the app already uses `role="alert"` for the equivalent inline
+errors. So the error toast was both unannounced-in-practice and unfindable, for
+the same missing attribute.
+
+Error toasts now wrap their headline in `role="alert"`. Errors only: success and
+neutral toasts are ambient, and interrupting a screen-reader user with every
+confirmation is the opposite of helpful. Verified in the browser:
+
+```
+error toast:  { type: "error",   hasAlert: true, alertText: "Connection Error" }
+all toasts:   [ { error, alert: true }, { success, alert: false } ]
+```
+
+Both controls fire, and they fail *different* tests: announcing nothing fails
+the two error assertions, announcing everything fails the two ambient ones. A
+rule with only the first control would have been satisfied by wrapping every
+toast in an alert.
+
+The selector everyone reaches for is now true, which is a better outcome than a
+third note saying it is not.
+
+### The first attempt broke the toast, and the gate caught it
+
+Wrapping the HEADLINE in `role="alert"` passed its unit tests and shrank the
+toast to just **"Connection Error"** — Sonner renders no description when its
+message is a ReactNode, so the sentence telling the user what to do disappeared.
+
+`check-agent-down` failed on the next run, on *"registering says the agent is
+the problem"*, twice in a row rather than flakily. The alert wraps the
+description now, the headline stays a plain string, and a test pins that
+specifically.
+
+This is the whole argument for the round-204/205/206 gates in one exchange: a
+change made for accessibility silently deleted the actionable half of an error
+message, and the check written three rounds earlier for an unrelated reason is
+what said so.
