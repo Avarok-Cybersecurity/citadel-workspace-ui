@@ -41,11 +41,24 @@ import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store
 import { showStorageVersionRecovery } from './storage-version-recovery';
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
 import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
+import { initPrivacySettingsSync } from './lib/privacy-settings';
 
 // Before render, so the user's font size, sidebar width, avatar and motion
 // choices are in place for the first paint rather than snapping into effect
 // later -- or, as was the case, only while the Settings tab happened to be open.
 applyAppearanceSettings(loadAppearanceSettings());
+
+// Arm the cross-tab invalidation the privacy cache's own comment promises.
+//
+// `getPrivacySettings` memoises, and the comment above the cache says it is
+// "Invalidated by every write, including writes from another tab". Only half of
+// that was true: the writing tab clears its own cache, and the `storage`
+// listener that clears everyone else's was never installed, because
+// initPrivacySettingsSync had no caller. In an explicitly multi-tab app that
+// means turning off "Send read receipts" in one tab left every other tab
+// sending them until it was reloaded -- the switch reads off, and the promise
+// it makes is broken in the tab the user is not looking at.
+initPrivacySettingsSync();
 void instanceInboundRouter.isRouterActive();
 
 // Construct the P2P messenger during boot so its 'websocket-message'

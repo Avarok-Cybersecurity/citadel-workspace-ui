@@ -10100,3 +10100,49 @@ is already on operators' disks.
 
 Controls: removing a field from a stored record fails the matching test by name,
 and a missing fixture file fails rather than silently passing over nothing.
+
+## Round 179 — a privacy switch that only worked in the tab you were looking at
+
+Eight rounds in a row have turned up the same shape: a declaration with nothing
+behind it. So this round went looking for the class rather than the instance.
+
+An exported function that no file anywhere mentions by name is a cheap proxy for
+it, and it finds 37 in `src/`. The first one opened was a real defect.
+
+`getPrivacySettings` memoises — the send paths consult it per keystroke for
+typing indicators and per message for read receipts. Its cache comment says it
+is "invalidated by every write, **including writes from another tab**". Half of
+that was true. The writing tab clears its own cache; the `storage` listener that
+clears everyone else's lives in `initPrivacySettingsSync`, which had no caller.
+
+In an explicitly multi-tab application, that means turning off *"Send read
+receipts"* in one tab left every other tab sending them until it was reloaded.
+The switch reads off. The promise is broken in the tab the user is not looking
+at. On a product whose pitch is that the user controls their own data, this is
+the third privacy setting found not to do what it says — the file's own header
+records the first two.
+
+The listener is armed at boot now, and the tests cover all three directions: a
+change from another tab is picked up, a write to an unrelated key is not (or the
+cache is just a slower no-cache), and teardown stops it.
+
+### The ratchet
+
+`no-new-unreferenced-exports.test.ts` records the 37 in a baseline and fails on
+a **38th**. Not a style rule — every instance this campaign has found was a
+feature wired from one end:
+
+| what was written | what was missing |
+|---|---|
+| `refresh()` for the group list | any component calling it |
+| `initPrivacySettingsSync` | any caller at all |
+| `check-submodule-pointers-pushed.mjs` | anything invoking it |
+| a second leader election | a reason to exist |
+
+In each case the code was written, reviewed and merged, and the only thing
+absent was a caller.
+
+The baseline must also shrink honestly: a name that has since gained a caller
+fails the test too, because a stale baseline is how a ratchet quietly stops
+ratcheting. Both directions have a control — adding an unreferenced export fails
+by name and file, and marking a live function as baselined fails as stale.
