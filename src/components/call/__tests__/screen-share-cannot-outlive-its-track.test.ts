@@ -25,6 +25,9 @@ import { useCallMediaToggles } from '../use-call-media-toggles';
 
 const captureScreen: ReturnType<typeof vi.fn> = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/call/screen-capture', () => ({ captureScreen }));
+// Screen capture is fetched after first paint rather than bundled, so the
+// browser has to say it is possible before the fetch happens at all.
+vi.mock('@/lib/call/screen-capability', () => ({ canShareScreen: (): boolean => true }));
 
 type Manager = Parameters<typeof useCallMediaToggles>[0] extends MutableRefObject<infer M>
   ? M
@@ -35,11 +38,13 @@ interface Harness {
   media: () => CallMediaKinds;
   endTheShare: () => void;
   releaseAnnouncement: () => void;
+  /** Resolves once the start has been announced but not yet acknowledged. */
+  announcementInFlight: () => Promise<void>;
   stopScreen: ReturnType<typeof vi.fn>;
   onScreenEnded: ReturnType<typeof vi.fn>;
 }
 
-function setup(): Harness {
+async function setup(): Promise<Harness> {
   let selfMedia: CallMediaKinds = { audio: true, video: false, screen: false };
   // The announcement is held open so the test can act during it -- which is
   // exactly the window the defect lived in.
@@ -77,11 +82,22 @@ function setup(): Harness {
   const hook: Harness['hook'] = renderHook(() =>
     useCallMediaToggles(managerRef, sessionRef, undefined, undefined, undefined, onScreenEnded),
   );
+  // Let the mount-time fetch of the screen-capture module land before pressing
+  // anything. That is the production shape: the module is fetched when the
+  // provider mounts, and a press minutes later reads it synchronously so the
+  // user gesture survives. Pressing while the fetch is still in flight is the
+  // cold path, and not what these tests are about.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
   return {
     hook,
     media: () => selfMedia,
     endTheShare: () => onEnded(),
     releaseAnnouncement: () => release(),
+    announcementInFlight: async (): Promise<void> => {
+      for (let tick: number = 0; tick < 50 && setSelfMedia.mock.calls.length === 0; tick += 1) {
+        await Promise.resolve();
+      }
+    },
     stopScreen,
     onScreenEnded,
   };
@@ -89,13 +105,16 @@ function setup(): Harness {
 
 describe('a screen share that ends while it is being announced', () => {
   it('does not leave the call claiming to share a stopped screen', async () => {
-    const h: Harness = setup();
+    const h: Harness = await setup();
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current.toggleScreenShare();
-      // Reach the point where the start is announced but not yet acknowledged.
-      await Promise.resolve();
-      await Promise.resolve();
+      // Wait for the announcement to actually be IN FLIGHT rather than counting
+      // microtasks. The first version ticked the queue a fixed number of times,
+      // which broke the moment a dynamic import added one -- a test that
+      // depends on how many awaits happen to be upstream of it is measuring the
+      // wrong thing.
+      await h.announcementInFlight();
       // The user presses the browser's own "Stop sharing" here.
       h.endTheShare();
       h.releaseAnnouncement();
@@ -108,11 +127,11 @@ describe('a screen share that ends while it is being announced', () => {
   });
 
   it('still announces a share that is still running when the announcement lands', async () => {
-    const h: Harness = setup();
+    const h: Harness = await setup();
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current.toggleScreenShare();
-      await Promise.resolve();
+      await h.announcementInFlight();
       h.releaseAnnouncement();
       await toggling;
     });
@@ -134,6 +153,7 @@ function deviceSetup(kind: 'audio' | 'video'): {
   media: () => CallMediaKinds;
   unplug: () => void;
   releaseAnnouncement: () => void;
+  announcementInFlight: () => Promise<void>;
 } {
   let selfMedia: CallMediaKinds = { audio: false, video: false, screen: false };
   let release: () => void = (): void => {};
@@ -163,6 +183,11 @@ function deviceSetup(kind: 'audio' | 'video'): {
     media: (): CallMediaKinds => selfMedia,
     unplug: (): void => { track.readyState = 'ended'; },
     releaseAnnouncement: (): void => release(),
+    announcementInFlight: async (): Promise<void> => {
+      for (let tick: number = 0; tick < 50 && setSelfMedia.mock.calls.length === 0; tick += 1) {
+        await Promise.resolve();
+      }
+    },
   };
 }
 
@@ -175,7 +200,7 @@ describe('a device that dies while it is being announced', () => {
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current[press]();
-      await Promise.resolve();
+      await h.announcementInFlight();
       h.unplug();
       h.releaseAnnouncement();
       await toggling;
@@ -192,7 +217,7 @@ describe('a device that dies while it is being announced', () => {
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current[press]();
-      await Promise.resolve();
+      await h.announcementInFlight();
       h.releaseAnnouncement();
       await toggling;
     });

@@ -6,11 +6,15 @@
  * 250-line budget.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { CallMediaKinds } from '@/types/p2p-commands';
-import { captureScreen } from '@/lib/call/screen-capture';
+import { canShareScreen } from '@/lib/call/screen-capability';
+import type { captureScreen as CaptureScreen } from '@/lib/call/screen-capture';
 import type { CaptureFailure } from '@/lib/call/media-capture';
+
+/** The screen-capture module, once it has been fetched. */
+type ScreenCaptureModule = { captureScreen: typeof CaptureScreen };
 
 interface ManagerLike {
   getState: () => { selfMedia?: CallMediaKinds } | null | undefined;
@@ -43,6 +47,31 @@ export function useCallMediaToggles(
   /** Called when the browser's own "Stop sharing" ended the share. */
   onScreenEnded?: () => void,
 ): CallMediaToggles {
+  /**
+   * `captureScreen` is fetched after first paint, not bundled with the app.
+   *
+   * CallProvider is mounted app-wide, so a plain import put screen capture --
+   * and, through it, `media-capture` and the codec tables -- on the landing
+   * page's critical path. Measured at 1.6 KB downloaded before anybody can see
+   * the sign-in button, for a feature that only exists inside a call.
+   *
+   * Held in a ref and read SYNCHRONOUSLY at press time, because
+   * `getDisplayMedia` must be called from a user gesture and an await before it
+   * spends the gesture. The `await import` below it is the cold path only: a
+   * press within the first moments of the page, where losing the gesture costs
+   * a second press and not a broken feature.
+   */
+  const screenCapture: MutableRefObject<ScreenCaptureModule | null> =
+    useRef<ScreenCaptureModule | null>(null);
+  useEffect(() => {
+    if (!canShareScreen()) return;
+    let abandoned: boolean = false;
+    void import('@/lib/call/screen-capture').then((module: ScreenCaptureModule): void => {
+      if (!abandoned) screenCapture.current = module;
+    });
+    return (): void => { abandoned = true; };
+  }, []);
+
   const setMedia: (next: CallMediaKinds) => Promise<void> = useCallback(
     async (next: CallMediaKinds): Promise<void> => {
       await managerRef.current?.setSelfMedia(next);
@@ -161,7 +190,9 @@ export function useCallMediaToggles(
       return;
     }
 
-    const result: Awaited<ReturnType<typeof captureScreen>> = await captureScreen();
+    const capture: ScreenCaptureModule =
+      screenCapture.current ?? (await import('@/lib/call/screen-capture'));
+    const result: Awaited<ReturnType<typeof CaptureScreen>> = await capture.captureScreen();
     if (!result.ok) {
       // A dismissed picker says nothing. Anything else is worth explaining.
       if (!result.cancelled) onScreenUnavailable?.(result.failure);

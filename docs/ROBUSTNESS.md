@@ -13662,3 +13662,48 @@ the new thing.
 what is open — the once-only auto-expand, the reveal, the derived search
 expansion and the toggle — moved into `use-tree-expansion`. 360 → **298** lines,
 and the types ratchet fell 5,578 → 5,575 in passing.
+
+## Round 264 — 0.1 KB over, and the honest way back under
+
+The new run went red on a job that had been green: **Production Docker Build**,
+failing `check:bundle`.
+
+```
+310.1 KB  landing critical path (budget 310 KB)
+Over budget by 0.1 KB.
+```
+
+A hundred bytes. The tempting fix is to raise `BUDGET_KB` by one and move on,
+and that is how a budget stops meaning anything: every round is only a little
+over, and the line moves every time.
+
+So: what is on the critical path that should not be? Grepping the built bundles
+for a distinctive string answered it in one command —
+
+```
+"cannot share a screen"  ->  index-*.js
+```
+
+`screen-capture` was in the landing chunk. `CallProvider` is mounted app-wide,
+`use-call-media-toggles` imported `captureScreen` at module scope, and that
+pulls `media-capture` and the codec tables along with it. Stubbing the module
+and rebuilding measured the cost: **1.6 KB**, downloaded before anybody can see
+the sign-in button, for a feature that exists only inside a call.
+
+It is now fetched after first paint and held in a ref, and the ref is read
+**synchronously** at press time — because `getDisplayMedia` must be called from
+a user gesture and an `await` before it spends the gesture. The `await import`
+underneath is the cold path only: a press in the first moments of the page,
+where losing the gesture costs a second press rather than a broken feature.
+
+310.1 → **308.7 KB**, under budget with room, and `screen-capture-*.js` is now
+its own chunk.
+
+### The test that was counting ticks
+
+Round 255's test reached its window with two `await Promise.resolve()` — and
+broke the moment a dynamic import added an await upstream of it. *A test that
+depends on how many awaits happen to be above it is measuring the wrong thing.*
+It now waits for the announcement to actually be in flight, and primes the
+module first, which is the production shape: fetched on mount, read minutes
+later by a press. Gutting the reconciler still fails three of six.
