@@ -1,8 +1,21 @@
 /**
- * usePermission Hook
+ * Checking one permission for one domain, with a loading state and a reason.
  *
- * Simplified hook for checking a single permission.
- * Handles loading state and provides a reason for denied access.
+ * There were three of these — `usePermission`, `useAnyPermission`,
+ * `useAllPermissions` — with byte-identical bodies apart from the predicate and
+ * the sentence in `reason`. Neither of the plural two had a single caller.
+ *
+ * The duplication was already load-bearing before anyone used it.
+ * `useResetOnRoleChange` below fixes a real defect: `clearCache()` on a
+ * promotion left every hook with an empty cache AND a guard saying it had
+ * already asked, so every gated control stayed denied until a reload. That fix
+ * had to be written into all three, and the next fix in this file would have
+ * had to be as well — with two of the three copies never exercised, so a
+ * mistake in them could not be noticed.
+ *
+ * Deleted rather than deduplicated behind a predicate argument. Any/all are a
+ * parameter away if something ever needs them, and speculative generality is
+ * how three copies came to exist.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -106,136 +119,6 @@ export function usePermission(
   const allowed = hasPermission(domainId, permission);
   const loading = contextLoading || localLoading;
   const reason = allowed ? null : getDeniedReason(domainId, permission);
-
-  return {
-    allowed,
-    loading,
-    reason,
-    refresh,
-  };
-}
-
-/**
- * Check if user has any of the specified permissions
- */
-export function useAnyPermission(
-  domainId: string | undefined | null,
-  permissions: Permission[]
-): UsePermissionResult {
-  const {
-    hasAnyPermission,
-    loading: contextLoading,
-    fetchPermissionsForDomain,
-    getPermissionLabel,
-    permissions: permissionMap,
-  } = usePermissions();
-
-  const [localLoading, setLocalLoading] = useState(false);
-  // Track domains we've attempted to fetch to avoid infinite retry loops
-  const attemptedFetchRef = useRef<Set<string>>(new Set());
-  useResetOnRoleChange(attemptedFetchRef);
-
-  useEffect(() => {
-    if (!domainId) return;
-    if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
-      attemptedFetchRef.current.add(domainId);
-      setLocalLoading(true);
-      runAsyncSetup(async () => {
-        try {
-          await fetchPermissionsForDomain(domainId);
-        } finally {
-          setLocalLoading(false);
-        }
-      });
-    }
-  }, [domainId, permissionMap, fetchPermissionsForDomain]);
-
-  const refresh = useCallback(async () => {
-    if (!domainId) return;
-    setLocalLoading(true);
-    await fetchPermissionsForDomain(domainId);
-    setLocalLoading(false);
-  }, [domainId, fetchPermissionsForDomain]);
-
-  if (!domainId) {
-    return {
-      allowed: false,
-      loading: false,
-      reason: 'No domain context available',
-      refresh,
-    };
-  }
-
-  const allowed = hasAnyPermission(domainId, permissions);
-  const loading = contextLoading || localLoading;
-  const reason = allowed
-    ? null
-    : `You need one of these permissions: ${permissions.map(p => getPermissionLabel(p)).join(', ')}`;
-
-  return {
-    allowed,
-    loading,
-    reason,
-    refresh,
-  };
-}
-
-/**
- * Check if user has all of the specified permissions
- */
-export function useAllPermissions(
-  domainId: string | undefined | null,
-  permissions: Permission[]
-): UsePermissionResult {
-  const {
-    hasAllPermissions,
-    loading: contextLoading,
-    fetchPermissionsForDomain,
-    getPermissionLabel,
-    permissions: permissionMap,
-  } = usePermissions();
-
-  const [localLoading, setLocalLoading] = useState(false);
-  // Track domains we've attempted to fetch to avoid infinite retry loops
-  const attemptedFetchRef = useRef<Set<string>>(new Set());
-  useResetOnRoleChange(attemptedFetchRef);
-
-  useEffect(() => {
-    if (!domainId) return;
-    if (!permissionMap.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
-      attemptedFetchRef.current.add(domainId);
-      setLocalLoading(true);
-      runAsyncSetup(async () => {
-        try {
-          await fetchPermissionsForDomain(domainId);
-        } finally {
-          setLocalLoading(false);
-        }
-      });
-    }
-  }, [domainId, permissionMap, fetchPermissionsForDomain]);
-
-  const refresh = useCallback(async () => {
-    if (!domainId) return;
-    setLocalLoading(true);
-    await fetchPermissionsForDomain(domainId);
-    setLocalLoading(false);
-  }, [domainId, fetchPermissionsForDomain]);
-
-  if (!domainId) {
-    return {
-      allowed: false,
-      loading: false,
-      reason: 'No domain context available',
-      refresh,
-    };
-  }
-
-  const allowed = hasAllPermissions(domainId, permissions);
-  const loading = contextLoading || localLoading;
-  const reason = allowed
-    ? null
-    : `You need all of these permissions: ${permissions.map(p => getPermissionLabel(p)).join(', ')}`;
 
   return {
     allowed,

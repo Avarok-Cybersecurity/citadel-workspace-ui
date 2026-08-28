@@ -3,7 +3,7 @@ import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import type { DomainNode, TreeNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
-import { runAsyncSetup } from './event-setup-utils';
+import { runAsyncSetup, upsertNode, removeNode } from './event-setup-utils';
 import { setTreeSchema } from '@/lib/entity-type-registry';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 
@@ -61,25 +61,17 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
 
       // Single node loaded (create/get/update)
       await workspaceEvents.onNodeEvent('node:loaded', (payload: { node: DomainNode; connection: ConnectionInfo }) => {
-        setState(prev => ({
-          ...prev,
-          nodes: { ...prev.nodes, [payload.node.id]: payload.node },
-        }));
+        // Through the helper rather than inline. `upsertNode` and `removeNode`
+        // existed in event-setup-utils with no callers, while this file spelled
+        // both bodies out again -- so the shared helpers and the code that
+        // actually runs were separate implementations of the same rule, and a
+        // fix to either would have reached one of them.
+        upsertNode(setState, payload.node);
       });
 
       // Node deleted (with cascaded children)
       await workspaceEvents.onNodeEvent('node:deleted', (payload: { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo }) => {
-        setState(prev => {
-          const updatedNodes = { ...prev.nodes };
-          delete updatedNodes[payload.nodeId];
-          for (const childId of payload.childrenDeleted) {
-            delete updatedNodes[childId];
-          }
-          return {
-            ...prev,
-            nodes: updatedNodes,
-          };
-        });
+        removeNode(setState, payload.nodeId, payload.childrenDeleted);
       });
 
       // Someone ELSE saved this node's content. The server broadcasts to every

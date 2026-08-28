@@ -10226,3 +10226,38 @@ Deleted: `chat-messaging-adapter.ts`, `chat-messaging-types.ts`,
 `group-messaging-adapter/`, `p2p-messaging-adapter/`, and 17 unused protocol
 constructors and type guards from `types/messaging-layer.ts` whose enum,
 constants and types remain in use.
+
+## Round 182 — duplication that was load-bearing before anyone used it
+
+17 → 12. Two findings, both about copies rather than dead weight.
+
+**Three permission hooks, one body.** `usePermission`, `useAnyPermission` and
+`useAllPermissions` were byte-identical apart from the predicate and the
+sentence in `reason`. Neither plural one had a caller.
+
+The duplication was already load-bearing before it was used. `useResetOnRoleChange`
+in that file fixes a real defect — `clearCache()` on a promotion left every hook
+with an empty cache **and** a guard saying it had already asked, so every gated
+control stayed denied until a reload. That fix had to be written into all three
+copies, and so would the next one, with two of the three never exercised: a
+mistake in them could not have been noticed by anything.
+
+Deleted rather than deduplicated behind a predicate argument. Any/all are a
+parameter away if something needs them, and speculative generality is how three
+copies came to exist.
+
+**Helpers with no callers, beside a caller with no helpers.**
+`event-setup-utils.ts` exports `upsertNode` and `removeNode`. `useNodeEventSetup.ts`
+spells both bodies out inline. Two implementations of one rule, in adjacent
+files — the shared one unexercised, the inline one live, and a fix to either
+reaching one of them.
+
+Fixed by calling the helpers, not by deleting them: deleting would have left the
+inline copies as the only implementation, which is the same state minus the
+evidence. The file's own `one-implementation-per-helper` guard did not catch this
+because it matches by helper name and by known shapes, and "spread the map, then
+delete a key" is neither.
+
+That is worth recording as a limit of that guard rather than a gap to paper
+over. A rule that finds duplication by name finds the duplication somebody
+already named.

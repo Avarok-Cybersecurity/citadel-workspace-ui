@@ -7,13 +7,8 @@
   "formatClock",
   "formatDay",
   "getSharedData",
-  "removeNode",
   "removeSharedData",
   "resetToPreset",
   "setSharedData",
-  "stringToUint8Array",
-  "upsertNode",
-  "useAllPermissions",
-  "useAnyPermission",
-  "useGroupPermission"
+  "stringToUint8Array"
 ]

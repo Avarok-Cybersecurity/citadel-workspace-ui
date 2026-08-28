@@ -178,14 +178,3 @@ export function useGroupPermissions(
     permissions,
   };
 }
-
-/**
- * Hook for checking a single permission quickly
- */
-export function useGroupPermission(
-  group: GroupConversation,
-  action: keyof GroupPermissions
-): boolean {
-  const { can } = useGroupPermissions(group);
-  return can(action);
-}
