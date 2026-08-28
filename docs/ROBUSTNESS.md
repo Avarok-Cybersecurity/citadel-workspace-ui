@@ -13059,3 +13059,46 @@ five moved rather than vanished, so it caught none of them. The structural
 answer is testids, and the honest position is that 294 locator sites still
 address controls by their words. Each one is a spec that will fail the next time
 somebody improves that wording — which is a tax on improving anything.
+
+## Round 248 — a control you press must not be found by its words
+
+Five failures in one session came from the same place, so this round measures the
+class rather than fixing another instance of it.
+
+**110 sites** in the spec suite find a control by the words on it and then press
+it. Ten do it in one expression; **a hundred assign the locator and press it
+later**, which is why a line-by-line search finds almost none of them.
+
+Asserting on copy is the point of a text assertion. *Addressing* a control by
+copy in order to press it is a lookup keyed on prose, and it breaks the moment
+the prose improves — which puts a tax on improving anything.
+
+The shared helpers went first, because every spec runs through them:
+
+| helper | was | now |
+|---|---|---|
+| `account.ts` | `getByRole('button', { name: 'NEXT' })` ×2 | `wizard-next` |
+| `account.ts` | `getByRole('button', { name: 'Join' })` | `join-submit` |
+| `account.ts` | `has-text("Initialize & Become Admin")` | `init-modal-submit` |
+| `p2p/session.ts` | `has-text("Login")` ×2 | `sign-in-button` |
+| `p2p/session.ts` | four spellings of the submit | `login-submit` |
+
+The `NEXT` one is worth a note: the button reads "Next", and the check asked for
+"NEXT". It matched only because the CSS uppercases the label — so the test
+depended on a `text-transform`, and a styling change would have broken a
+registration helper that every spec in the suite calls.
+
+Driving the whole wizard by testid was verified against the built bundle, step
+by step, rather than by reading the diff.
+
+`check-controls-are-addressed-by-testid.mjs` holds the remaining 106 as a
+baseline that can only shrink, on the same terms as the types ratchet: a file
+may not gain sites, a file with none must stay at none, an improvement is banked
+immediately. Control: turning one testid back into `has-text("Next")` names the
+file.
+
+Dynamic identity — a peer's username, a document's title — is a legitimate
+exception and is counted anyway. The hybrid worth moving those to is
+`[data-testid="peer-row"]:has-text(name)`: structure by testid, identity by
+content. It still counts here, because it still contains the words, and the
+baseline is where that judgement is recorded rather than hidden in a regex.

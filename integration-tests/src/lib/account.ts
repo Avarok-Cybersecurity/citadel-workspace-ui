@@ -53,16 +53,16 @@ export async function createAccount(page: Page, username: string, options: Creat
   if (await isVisibleWithin(serverInput, 5000)) {
     await serverInput.fill(config.WORKSPACE_SERVER);
 
-    // Click NEXT to go to Security Settings
-    const nextBtn = page.getByRole('button', { name: 'NEXT' });
-    await nextBtn.click();
+    // By testid. The button reads "Next"; this asked for "NEXT" and matched
+    // only because the CSS uppercases it, which means the check depended on a
+    // text-transform. See round 247 for what that costs when the copy moves.
+    await page.getByTestId('wizard-next').click();
   }
 
   // Step 2: Security Settings - just click NEXT
   const securityTitle = page.locator('text="Security Settings"');
   if (await isVisibleWithin(securityTitle, 3000)) {
-    const nextBtn = page.getByRole('button', { name: 'NEXT' });
-    await nextBtn.click();
+    await page.getByTestId('wizard-next').click();
   }
 
   // Sonner renders a rejection as `<li data-sonner-toast data-type="error">` and
@@ -98,8 +98,8 @@ export async function createAccount(page: Page, username: string, options: Creat
       await confirmPasswordInput.fill(password);
     }
 
-    // Click Join button (not Register/Create Account)
-    const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
+    // The profile step's submit, by testid rather than by the word on it.
+    const submitBtn = page.getByTestId('join-submit');
     if (await submitBtn.isVisible()) {
       // Armed BEFORE the click. The toast lands ~2.5s after submit and Sonner
       // auto-dismisses it ~4s later, so any watcher started after the race
@@ -150,7 +150,7 @@ export async function createAccount(page: Page, username: string, options: Creat
     if (modalAppeared) {
       await passwordField.fill(config.WORKSPACE_PASSWORD);
 
-      const initBtn = page.locator('button:has-text("Initialize & Become Admin")');
+      const initBtn = page.getByTestId('init-modal-submit');
       if (await initBtn.isVisible()) {
         await initBtn.click();
         // Wait for the modal to actually close rather than a flat 5s — that is

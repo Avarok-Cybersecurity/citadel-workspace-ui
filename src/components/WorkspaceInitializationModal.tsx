@@ -223,6 +223,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                         </Button>
                         <Button
                             type="submit"
+                            data-testid="init-modal-submit"
                             className="bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
                             disabled={isSubmitting}
                         >

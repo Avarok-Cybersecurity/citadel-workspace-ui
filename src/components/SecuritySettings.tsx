@@ -157,6 +157,7 @@ export const SecuritySettings = ({
             <Button
               type="button"
               onClick={handleNext}
+              data-testid="wizard-next"
               className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
             >
               {isFromLogin ? "Save" : "Next"}
