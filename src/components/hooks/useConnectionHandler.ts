@@ -9,8 +9,6 @@
  */
 
 import { useEffect, useState } from 'react';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
-import { describeFailure } from '@/lib/failure-message';
 import NotificationService, { NotificationPriority } from '@/lib/notification-service';
 import { MessagingService } from '@/lib/messaging-service';
 import { ConnectionService } from '@/lib/connection-service';
@@ -28,16 +26,22 @@ import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { debugLog } from '@/lib/debug-config';
+import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
+import {
+  NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
+  type RetryVisibility,
+} from './connection-retry-visibility';
 
 interface ConnectionHandlerState {
-  showConnectionRetry: boolean;
+  /** See connection-retry-visibility: a dismissal survives repeated failures. */
+  retry: RetryVisibility;
   connectionError: string | null;
   orphanSessionCid: string | null;
 }
 
 export function useConnectionHandler() {
   const [state, setState] = useState<ConnectionHandlerState>({
-    showConnectionRetry: false,
+    retry: NOT_FAILING,
     connectionError: null,
     orphanSessionCid: null,
   });
@@ -166,60 +170,23 @@ export function useConnectionHandler() {
     });
 
     const handleConnectionFailure = (event: { error: string }) => {
-      setState(prev => ({ ...prev, connectionError: event.error, showConnectionRetry: true }));
+      // Through the rule, not a bare `true`. The client retries while the agent
+      // is down, so this fires every couple of seconds -- and setting `true`
+      // here reopened the dialog within a second or two of every dismissal,
+      // indefinitely. The user could not put it away.
+      setState(prev => ({ ...prev, connectionError: event.error, retry: onFailure(prev.retry) }));
     };
 
-    const handleSessionAlreadyConnected = async (event: { cid: string; message: string }) => {
-      debugLog('WorkspaceApp', 'Session already connected event:', event);
-      toast({
-        title: "Session Already Connected",
-        description: "You are already connected in another window or tab.",
-        variant: "destructive",
-        action: {
-          // "Use that session", not "Clear Sessions".
-          //
-          // The action here called disconnectOrphan(null), whose bulk branch
-          // removes EVERY session on the agent whose socket is not currently
-          // live — which is precisely the set the architecture describes as
-          // intact and reclaimable, and which the orphan-sessions navbar exists
-          // to restore. One click destroyed other workspaces' sessions
-          // agent-wide, with no confirmation, no enumeration, and a success
-          // toast that said only "Please try logging in again".
-          //
-          // The state the message describes has a correct remedy, and it is
-          // claiming: this session is already live, so take it.
-          label: "Use That Session",
-          onClick: () => {
-            void (async () => {
-              try {
-                const outcome = await claimSessionForThisTab(BigInt(event.cid));
-                if (outcome.status === 'owned-by-another-tab') {
-                  toast(SESSION_OWNED_ELSEWHERE);
-                  return;
-                }
-                toast({
-                  title: "Session restored",
-                  description: "You are now using the session that was already open.",
-                  variant: "success",
-                });
-              } catch (error) {
-                toast({
-                  title: "Could not use that session",
-                  description: describeFailure(
-                    error,
-                    "The session could not be taken over. Close the other tab and try again.",
-                  ),
-                  variant: "destructive",
-                });
-              }
-            })();
-          },
-        },
-      });
-      setState(prev => ({ ...prev, showConnectionRetry: false }));
+    // A connection that succeeds ends the outage the dismissal was about, so
+    // the NEXT failure interrupts again.
+    const handleConnectionSuccess = () => {
+      setState(prev => (prev.retry === NOT_FAILING ? prev : { ...prev, retry: onSuccess() }));
     };
+
+    const handleSessionAlreadyConnected = makeSessionAlreadyConnectedHandler({ toast, setState });
 
     eventEmitter.on('connection-failure', handleConnectionFailure);
+    eventEmitter.on('on-ws-connection-success', handleConnectionSuccess);
     eventEmitter.on('session-already-connected', handleSessionAlreadyConnected);
 
     return () => {
@@ -235,14 +202,16 @@ export function useConnectionHandler() {
       runAsyncSetup(() => userService.cleanup());
       healthCheckService.stopHealthChecks();
       eventEmitter.off('connection-failure', handleConnectionFailure);
+      eventEmitter.off('on-ws-connection-success', handleConnectionSuccess);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
     };
   }, [toast]);
 
   return {
-    showConnectionRetry: state.showConnectionRetry,
+    showConnectionRetry: isRetryDialogOpen(state.retry),
     connectionError: state.connectionError,
     orphanSessionCid: state.orphanSessionCid,
-    setShowConnectionRetry: (v: boolean) => setState(prev => ({ ...prev, showConnectionRetry: v })),
+    setShowConnectionRetry: (v: boolean) =>
+      setState(prev => ({ ...prev, retry: v ? onFailure(prev.retry) : onDismiss(prev.retry) })),
   };
 }

@@ -11042,3 +11042,54 @@ once you know what should have been there.
 The CI `LocalDBSetKV` timeouts remain unexplained. What rounds 189-192 fixed —
 a slow local write discarding an authentication, suppressing a sign-out, gating
 a disconnect — stands on its own regardless of why the agent is slow in CI.
+
+## Round 203 — a dialog you could not put away
+
+Round 202's correction bought a real capability: `AGENT_PORT=12399` points the
+preview proxy at a dead port, so the agent-down state can be reproduced locally
+without touching anyone's stack. Used properly this time, it found something.
+
+With the agent down, the app shows **two** notices: the offline banner's
+agent-down state across the top, and a blocking "Connection Failed" dialog. The
+dialog is the more useful of the two — it carries `AgentDownloadHint` and a
+Retry, which the banner does not — so the duplication alone is not the defect.
+
+This is:
+
+```
+dialog appeared with the agent down: yes
+  dialogs after ~2000ms: 1
+  dialogs after ~5000ms: 1
+```
+
+Escape closes it and it comes straight back. `connection-failure` is emitted
+every time the WASM client fails to open its socket, and it retries while the
+agent is down, so every dismissal was undone within a second or two —
+indefinitely. There was no way to put it away and read the rest of the app.
+
+`WorkspaceApp` had already reached the right conclusion for the other half of
+this condition. Its comment on suppressing the dialog while the browser reports
+no network reads: *"two notices for one condition, and the blocking one adds
+nothing… counting down retries that cannot succeed."* The agent being down is
+that situation with a different cause. Tenth never-propagated fix.
+
+A dismissal now survives the failures that follow it, and is cleared by a
+**connection succeeding** — so the next failure interrupts again. That second
+half matters as much as the first: a dismissal that outlived a recovery would
+silence the dialog for the rest of the session, which is the opposite bug and
+just as bad.
+
+The rule is a pure module, so it is testable without a socket, a timer or a
+dialog. Both controls fire: making a failure clear the dismissal fails the
+survives-repeated-failures test, and making a dismissal survive recovery fails
+the interrupts-again test.
+
+Verified in the browser against the dead port:
+
+```
+  dialogs after ~2000ms: 0
+  dialogs after ~5000ms: 0
+  dialogs after ~10000ms: 0
+banner still explains it: true
+app usable — Sign In reaches the form: true
+```
