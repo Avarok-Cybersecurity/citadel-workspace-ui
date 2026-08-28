@@ -44,6 +44,30 @@ export function useCallMediaToggles(
   );
 
   /**
+   * Take back an announcement whose subject stopped existing while it was in
+   * flight.
+   *
+   * Every toggle checks that the thing it is about to announce actually works,
+   * and then announces it -- which is a round trip to every peer over the same
+   * link that carries the call. A check made before that round trip cannot see
+   * a webcam unplugged, a microphone pulled, or a screen share stopped from the
+   * browser's own bar, DURING it. What was left behind was a button reading
+   * "on" over a device that was gone, and peers holding a tile for a stream
+   * that would never arrive.
+   *
+   * The state is re-read rather than carried in, because the manager is the
+   * authority and the announcement that just landed is what it now holds.
+   */
+  const reconcile = useCallback(
+    async (kind: keyof CallMediaKinds, survived: () => boolean): Promise<void> => {
+      if (survived()) return;
+      const now: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
+      if (now?.[kind]) await setMedia({ ...now, [kind]: false });
+    },
+    [managerRef, setMedia],
+  );
+
+  /**
    * `track.enabled = false` blanks the frames but keeps the device open, which
    * is the standard idiom for a mute toggle and is what peers expect from a
    * mid-call mute. Note for the camera: it means the indicator light stays on
@@ -69,9 +93,13 @@ export function useCallMediaToggles(
       return;
     }
 
-    for (const track of audioTracks) track.enabled = !current.audio;
-    await setMedia({ ...current, audio: !current.audio });
-  }, [setMedia, managerRef, sessionRef, onMicUnavailable]);
+    const turningOn: boolean = !current.audio;
+    for (const track of audioTracks) track.enabled = turningOn;
+    await setMedia({ ...current, audio: turningOn });
+    if (turningOn) {
+      await reconcile('audio', () => audioTracks.some((t) => t.readyState === 'live'));
+    }
+  }, [setMedia, reconcile, managerRef, sessionRef, onMicUnavailable]);
 
   const toggleCamera = useCallback(async () => {
     const current = managerRef.current?.getState()?.selfMedia;
@@ -93,9 +121,13 @@ export function useCallMediaToggles(
       return;
     }
 
-    for (const track of videoTracks) track.enabled = !current.video;
-    await setMedia({ ...current, video: !current.video });
-  }, [setMedia, managerRef, sessionRef, onCameraUnavailable]);
+    const turningOn: boolean = !current.video;
+    for (const track of videoTracks) track.enabled = turningOn;
+    await setMedia({ ...current, video: turningOn });
+    if (turningOn) {
+      await reconcile('video', () => videoTracks.some((t) => t.readyState === 'live'));
+    }
+  }, [setMedia, reconcile, managerRef, sessionRef, onCameraUnavailable]);
 
   /**
    * Start or stop sharing this screen.
@@ -129,7 +161,9 @@ export function useCallMediaToggles(
       return;
     }
 
+    let ended: boolean = false;
     const started: boolean = session.startScreen(result.stream, (): void => {
+      ended = true;
       // Ended from the browser's bar. The manager is the authority on media
       // state, so re-read it rather than closing over the value from before.
       const now: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
@@ -143,7 +177,12 @@ export function useCallMediaToggles(
       return;
     }
     await setMedia({ ...current, screen: true });
-  }, [setMedia, managerRef, sessionRef, onScreenUnavailable, onScreenEnded]);
+
+    // The end handler above ran while the state still said `screen: false`,
+    // found nothing to turn off, and was then overwritten by the announcement
+    // it was racing.
+    await reconcile('screen', () => !ended);
+  }, [setMedia, reconcile, managerRef, sessionRef, onScreenUnavailable, onScreenEnded]);
 
   return { setMedia, toggleMic, toggleCamera, toggleScreenShare };
 }

@@ -13341,3 +13341,32 @@ with no way to tell that it has.
 102 → **100**, and the baseline banked it. That is 10 of the original 110 gone,
 all of them in the libraries every spec runs through, which is where the leverage
 was.
+
+## Round 255 — an announcement that outlived its subject
+
+Every media toggle checks that the thing it is about to announce actually
+works, and then announces it. That announcement is a round trip to every peer,
+over the same P2P link that is carrying the call.
+
+A check made *before* that round trip cannot see the device die *during* it.
+
+The screen share made it visible because the failure has a name people will
+recognise: pick the wrong window, hit the browser's own "Stop sharing" bar
+straight away. The end handler did the right thing — re-read the media state,
+which is the authority — and found `screen: false`, because the announcement of
+the *start* had not landed yet. So it concluded there was nothing to turn off.
+Then the start announcement landed on top of it.
+
+Result: the button read "Sharing", peers opened a stage, and no frame ever
+arrived. No way back except stop and start again.
+
+Same shape one device over, and this is where grepping the mechanism paid: a
+webcam unplugged or a microphone pulled while `video: true` was in flight left
+exactly the same lie, and the existing `readyState === 'live'` filter cannot
+catch it — that filter runs before the await, and the whole point is what
+happens after.
+
+One `reconcile(kind, survived)` now covers all three: re-read the state the
+announcement just wrote, and if the subject is gone, take it back. Six tests,
+three of them positive controls that stay green so the harness cannot pass by
+refusing everything. Gutting the reconciler fails three and leaves three.
