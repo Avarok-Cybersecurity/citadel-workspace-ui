@@ -10063,3 +10063,40 @@ forever. That has its own test.
 The guard is `every-store-is-used.test.ts`: a declared store must have a reader
 or a writer somewhere in `src/`. Adding `peers` back to the list fails it by
 name.
+
+## Round 177 — an added field would have stopped the server
+
+Everything the workspace owns — the tree, the workspace record, its users, the
+schema — is persisted as JSON under a backend key and read back with
+`serde_json::from_slice`. `backend_get` propagates a deserialize failure rather
+than swallowing it, which is the right call: swallowing means an upgrade that
+quietly reports an empty workspace.
+
+But propagating means a field added without `#[serde(default)]` does not degrade
+the server, it **stops** it. Every stored `DomainNode` fails to parse,
+`get_all_nodes` errors, and every operation that touches the tree — which is all
+of them — fails against data still perfectly intact on disk. The workspace is
+unreachable until someone ships a fix.
+
+Three of twelve persisted structs carry `#[serde(default)]` on anything. The
+`DomainPermissions` block nested inside every node has **26 boolean fields** and
+not one default: it is exactly where a new flag lands without anyone thinking
+about storage, because adding a permission feels like a feature, not a
+migration.
+
+Nothing tested this, and no test built the way the others are built could. They
+construct a value in Rust from the current struct and round-trip it — so the
+shape on both sides is the shape being changed, and the change is invisible.
+That is the same blind spot as the schema that described stores nothing used
+(round 176) and the checks that measured a crashed app as mounted (172): the
+test and the thing under test were derived from the same source, so agreement
+was guaranteed and meaningless.
+
+`tests/fixtures/*.json` are the shape as it stands, frozen on disk, deliberately
+not generated at test time. Adding a field with a default keeps them loading;
+adding one without breaks them in the commit that does it, with a message that
+says what to do — and says not to edit the fixture, because the fixture is what
+is already on operators' disks.
+
+Controls: removing a field from a stored record fails the matching test by name,
+and a missing fixture file fails rather than silently passing over nothing.
